@@ -235,12 +235,6 @@ internal fun drawPlayerSlot(
     }
 }
 
-internal fun drawCarriedItem(context: GuiGraphicsExtractor, screen: ContainerScreen, mouseX: Int, mouseY: Int) {
-    val carried = screen.menu.carried
-    if (carried.isEmpty) return
-    context.itemWithDecorations(carried, mouseX - StorageSlots.SIZE / 2, mouseY - StorageSlots.SIZE / 2)
-}
-
 internal fun drawStorageSelectorPanel(
     context: GuiGraphicsExtractor,
     measurements: Measurements,

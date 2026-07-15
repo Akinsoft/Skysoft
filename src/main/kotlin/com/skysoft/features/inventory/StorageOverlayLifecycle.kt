@@ -121,7 +121,6 @@ internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtracto
     drawSearchBox(context, measurements)
     drawPlayerInventoryPanel(context, screen, measurements, mouseX, mouseY)
     if (config.settings.miniMenu) drawStorageSelectorPanel(context, measurements, activePage, mouseX, mouseY)
-    drawCarriedItem(context, screen, mouseX, mouseY)
     coerceScroll(measurements, pageLayoutResult.contentHeight)
 }
 
