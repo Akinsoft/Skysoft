@@ -105,8 +105,10 @@ internal object DianaLobbyCompromisedWatcher {
 
     private fun handlePartyMessage(message: ChatMessage): ChatMessageVisibility {
         if (!message.body.equals(MESSAGE, ignoreCase = true)) return ChatMessageVisibility.SHOW
+        val sender = DianaRareMobRuntime.senderFor(message, MESSAGE) ?: return ChatMessageVisibility.SHOW
         return if (DianaRareMobPartyEcho.shouldHideRecentlySent(
                 message,
+                sender,
                 DianaRareMobRuntime.localPlayerName(),
                 System.currentTimeMillis(),
             )

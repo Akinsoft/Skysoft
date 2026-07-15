@@ -13,6 +13,9 @@ internal data class MythologicalRitualTrackerData(
         val player = players.getOrPut(playerKey) { MythologicalRitualPlayerData() }
         return player.profiles.getOrPut(profileKey) { MythologicalRitualProfileData(profileName = profileKey) }
     }
+
+    fun profileOrNull(playerKey: String, profileKey: String): MythologicalRitualProfileData? =
+        players[playerKey]?.profiles?.get(profileKey)
 }
 
 internal data class MythologicalRitualPlayerData(
@@ -39,6 +42,16 @@ internal data class MythologicalRitualProfileData(
 
     fun event(eventKey: String): MythologicalRitualStats =
         events.getOrPut(eventKey) { MythologicalRitualStats() }
+
+    fun eventForDisplay(eventKey: String, unresolvedEventKey: String): MythologicalRitualStats {
+        val event = events[eventKey]
+        val unresolved = events[unresolvedEventKey]
+        if (eventKey == unresolvedEventKey || unresolved == null) return event ?: MythologicalRitualStats()
+        return MythologicalRitualStats().also { display ->
+            event?.let(display::mergeFrom)
+            display.mergeFrom(unresolved)
+        }
+    }
 
     fun mergeEvent(sourceKey: String, targetKey: String) {
         if (sourceKey == targetKey) return

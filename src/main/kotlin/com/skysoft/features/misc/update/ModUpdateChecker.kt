@@ -107,11 +107,22 @@ object ModUpdateChecker {
             UpdateState.FAILED -> "Check failed"
         }
 
-    private fun latestUpdate(response: String, project: String): SkysoftUpdate? {
-        val versions = gson.fromJson<List<ModrinthVersionInfo>>(response, versionListType).orEmpty()
+    internal fun latestUpdate(
+        response: String,
+        project: String,
+        currentVersion: String = SkysoftMod.VERSION,
+    ): SkysoftUpdate? {
+        val versions = requireNotNull(gson.fromJson<List<ModrinthVersionInfo>>(response, versionListType)) {
+            "Modrinth returned an empty version response"
+        }
+        versions.forEach { version ->
+            require(version.id.isNotBlank()) { "Modrinth returned a version without an id" }
+            require(version.versionNumber.isNotBlank()) { "Modrinth returned a version without a number" }
+            require(version.versionType.isNotBlank()) { "Modrinth returned a version without a type" }
+        }
         return versions.asSequence()
             .filter { it.versionType == RELEASE }
-            .filter { compareVersions(SkysoftMod.VERSION, it.versionNumber) < 0 }
+            .filter { compareVersions(currentVersion, it.versionNumber) < 0 }
             .maxWithOrNull { a, b -> compareVersions(a.versionNumber, b.versionNumber) }
             ?.let { SkysoftUpdate(it.versionNumber, "https://modrinth.com/mod/$project/version/${it.id}") }
     }
@@ -151,9 +162,8 @@ object ModUpdateChecker {
         return "$API/$project/version?loaders=$loader&game_versions=$gameVersion"
     }
 
-    private fun compareVersions(first: String, second: String): Int =
-        runCatching { Version.parse(first).compareTo(Version.parse(second)) }
-            .getOrElse { first.compareTo(second, ignoreCase = true) }
+    internal fun compareVersions(first: String, second: String): Int =
+        Version.parse(first).compareTo(Version.parse(second))
 
     private fun encode(value: String): String =
         URLEncoder.encode(value, StandardCharsets.UTF_8)

@@ -22,6 +22,11 @@ data class ChatMessageSender(
 }
 
 object ChatSenderParser {
+    fun senderBefore(message: ChatMessage, marker: String): ChatMessageSender? =
+        senderBefore(message.component, marker)
+            ?: senderBefore(message.cleanText, marker)
+            ?: message.sender
+
     fun senderBefore(component: Component, marker: String): ChatMessageSender? {
         val sender = senderBeforeMarker(component.string, marker) ?: return null
         return ChatMessageSender(sender.name, colorAtText(component, sender.name, marker) ?: sender.color)

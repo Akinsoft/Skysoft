@@ -18,10 +18,11 @@ internal object DianaLootshareReadyMessage {
         now: Long,
         showMarker: Boolean,
     ): ChatMessageVisibility {
-        if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, localPlayerName, now)) {
+        val sender = DianaRareMobRuntime.senderFor(message, MESSAGE)
+            ?: return ChatMessageVisibility.SHOW
+        if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, localPlayerName, now)) {
             return ChatMessageVisibility.HIDE
         }
-        val sender = message.sender ?: DianaRareMobRuntime.senderFor(message, MESSAGE)
         if (showMarker && !sender.isLocalPlayer(localPlayerName)) {
             DianaLootshareReadyMarkers.mark(sender.name, now)
         }

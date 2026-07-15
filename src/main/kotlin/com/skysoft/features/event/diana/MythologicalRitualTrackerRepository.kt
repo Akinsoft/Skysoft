@@ -10,35 +10,33 @@ internal object MythologicalRitualTrackerRepository {
     private val sessionStats = mutableMapOf<SkyBlockProfileId, MythologicalRitualStats>()
     private var data = MythologicalRitualTrackerData()
     private var loaded = false
-    private var lastKnownProfileKey: String? = null
+    private var lastKnownProfileId: SkyBlockProfileId? = null
     private var lastSaveAtMillis = 0L
 
-    fun state(): MythologicalRitualTrackerState {
+    fun displayStateOrNull(): MythologicalRitualTrackerState? {
         ensureLoaded()
-        val playerKey = SkyBlockProfileApi.currentPlayerKey()
-        val profileKey = currentProfileKey()
-        val eventKey = currentEventKey()
-        val profile = data.profile(playerKey, profileKey)
-        if (eventKey != UNRESOLVED_EVENT_KEY) {
-            profile.mergeEvent(UNRESOLVED_EVENT_KEY, eventKey)
-        }
+        val currentProfileId = SkyBlockProfileApi.currentProfileId
+        if (currentProfileId != null) return writableState(currentProfileId)
+        val profileId = lastKnownProfileId ?: return null
+        val profile = data.profileOrNull(profileId.playerKey, profileId.profileKey) ?: return null
+        val event = profile.eventForDisplay(currentEventKey(), UNRESOLVED_EVENT_KEY)
         return MythologicalRitualTrackerState(
-            event = profile.event(eventKey),
+            event = event,
             total = profile.total,
-            session = sessionStats.getOrPut(SkyBlockProfileId(playerKey, profileKey)) { MythologicalRitualStats() },
+            session = sessionStats[profileId] ?: MythologicalRitualStats(),
             since = profile.since,
             magicFind = profile.magicFind,
         )
     }
 
     fun update(now: Long = System.currentTimeMillis(), action: (MythologicalRitualTrackerState) -> Unit) {
-        val trackerState = state()
+        val trackerState = writableStateOrNull() ?: return
         action(trackerState)
         saveNow(now)
     }
 
     fun recordActiveAt(now: Long) {
-        val trackerState = state()
+        val trackerState = writableStateOrNull() ?: return
         trackerState.event.recordActiveAt(now)
         trackerState.total.recordActiveAt(now)
         trackerState.session.recordActiveAt(now)
@@ -57,18 +55,31 @@ internal object MythologicalRitualTrackerRepository {
         loaded = true
     }
 
-    private fun currentProfileKey(): String {
-        SkyBlockProfileApi.currentProfileKey?.let { profile ->
-            lastKnownProfileKey = profile
-            return profile
+    private fun writableStateOrNull(): MythologicalRitualTrackerState? {
+        ensureLoaded()
+        val profileId = SkyBlockProfileApi.currentProfileId ?: return null
+        return writableState(profileId)
+    }
+
+    private fun writableState(profileId: SkyBlockProfileId): MythologicalRitualTrackerState {
+        lastKnownProfileId = profileId
+        val eventKey = currentEventKey()
+        val profile = data.profile(profileId.playerKey, profileId.profileKey)
+        if (eventKey != UNRESOLVED_EVENT_KEY) {
+            profile.mergeEvent(UNRESOLVED_EVENT_KEY, eventKey)
         }
-        return lastKnownProfileKey ?: UNKNOWN_PROFILE_KEY
+        return MythologicalRitualTrackerState(
+            event = profile.event(eventKey),
+            total = profile.total,
+            session = sessionStats.getOrPut(profileId) { MythologicalRitualStats() },
+            since = profile.since,
+            magicFind = profile.magicFind,
+        )
     }
 
     private fun currentEventKey(): String =
         MayorPerkApi.mythologicalRitualEventKey ?: UNRESOLVED_EVENT_KEY
 
-    private const val UNKNOWN_PROFILE_KEY = "unknown-profile"
     private const val UNRESOLVED_EVENT_KEY = "unresolved-current-event"
     private const val ACTIVE_SAVE_INTERVAL_MILLIS = 30_000L
 }

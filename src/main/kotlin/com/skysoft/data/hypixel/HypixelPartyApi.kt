@@ -1,5 +1,6 @@
 package com.skysoft.data.hypixel
 
+import com.skysoft.SkysoftMod
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.hypixel.modapi.HypixelModAPI
@@ -64,18 +65,31 @@ object HypixelPartyApi {
         if (!HypixelLocationState.inSkyBlock) return
         val now = System.currentTimeMillis()
         if (now < nextRefreshAtMillis) return
-        requestPartyInfo(now = now)
-        nextRefreshAtMillis = now + REFRESH_INTERVAL_MILLIS
+        nextRefreshAtMillis = now + when (requestPartyInfo(now = now)) {
+            PartyInfoRequestResult.FAILED -> REQUEST_RETRY_INTERVAL_MILLIS
+            PartyInfoRequestResult.SENT,
+            PartyInfoRequestResult.COOLDOWN,
+            -> REFRESH_INTERVAL_MILLIS
+        }
     }
 
-    private fun requestPartyInfo(
+    internal fun requestPartyInfo(
         force: Boolean = false,
         now: Long = System.currentTimeMillis(),
-    ) {
-        if (!force && now - lastRequestAtMillis < REQUEST_COOLDOWN_MILLIS) return
-        lastRequestAtMillis = now
-        runCatching {
+        sendPacket: () -> Unit = {
             HypixelModAPI.getInstance().sendPacket(ServerboundPartyInfoPacket())
+        },
+    ): PartyInfoRequestResult {
+        if (!force && now - lastRequestAtMillis < REQUEST_COOLDOWN_MILLIS) {
+            return PartyInfoRequestResult.COOLDOWN
+        }
+        return try {
+            sendPacket()
+            lastRequestAtMillis = now
+            PartyInfoRequestResult.SENT
+        } catch (e: Exception) {
+            SkysoftMod.LOGGER.warn("Failed to request Hypixel party information", e)
+            PartyInfoRequestResult.FAILED
         }
     }
 
@@ -102,6 +116,7 @@ object HypixelPartyApi {
 
     private fun reset() {
         updateState(HypixelPartyState.EMPTY)
+        lastRequestAtMillis = 0L
         nextRefreshAtMillis = 0L
     }
 
@@ -121,7 +136,14 @@ object HypixelPartyApi {
         }
 
     private const val REQUEST_COOLDOWN_MILLIS = 5_000L
+    private const val REQUEST_RETRY_INTERVAL_MILLIS = 5_000L
     private const val REFRESH_INTERVAL_MILLIS = 30_000L
+}
+
+internal enum class PartyInfoRequestResult {
+    SENT,
+    COOLDOWN,
+    FAILED,
 }
 
 data class HypixelPartyState(

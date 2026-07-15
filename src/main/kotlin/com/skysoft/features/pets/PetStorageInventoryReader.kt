@@ -11,7 +11,6 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
 import com.skysoft.features.pets.PetItemUtilities.toExactPetDataOrNull
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.NumberUtilities.formatDouble
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
@@ -125,7 +124,7 @@ internal object PetStorageInventoryReader {
                 val petExp = currentPetItemLore.firstNotNullOfOrNull { xpLine ->
                     petMenuSelectedPetXpPattern.find(xpLine)?.let { xpMatch ->
                         val current = xpMatch.group("current")
-                        val currentValue = current.formatDouble()
+                        val currentValue = current.formatDoubleOrNull() ?: return@let null
                         val exact = PetStoragePetItems.isExactPetExpText(current)
                         when (xpMatch.groupOrNull("next")) {
                             null -> PetExpRead(currentValue, exact)
@@ -200,8 +199,8 @@ internal object PetStorageInventoryReader {
                         return@let null
                     }
                     val currentLevelXp = PetRepository.levelToXp(level, petInternalName) ?: return@let null
-                    val current = xpMatch.groupOrNull("current") ?: "0"
-                    val readXpGroup = current.formatDoubleOrNull() ?: 0.0
+                    val current = xpMatch.groupOrNull("current") ?: return@let null
+                    val readXpGroup = current.formatDoubleOrNull() ?: return@let null
                     PetExpRead(currentLevelXp + readXpGroup, PetStoragePetItems.isExactPetExpText(current))
                 }
             }

@@ -6,7 +6,6 @@ import com.skysoft.features.combat.DamageSplashAttribution
 import com.skysoft.features.combat.DamageSplashTargetView
 import com.skysoft.features.combat.DamageSplashText
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.ChatMessage
@@ -27,27 +26,14 @@ internal object DianaRareMobRuntime {
     fun shareKey(sender: String, share: DianaRareMobShare): String =
         "${sender.lowercase()}:${share.mob.name}:${share.location.blockKey()}"
 
-    fun senderFor(message: SkysoftMessage, share: DianaRareMobShare): ChatMessageSender =
+    fun senderFor(message: ChatMessage, share: DianaRareMobShare): ChatMessageSender? =
         senderFor(message, share.marker)
 
-    fun senderFor(message: SkysoftMessage, marker: String): ChatMessageSender =
-        ChatSenderParser.senderBefore(message.component, marker)
-            ?: ChatSenderParser.senderBefore(message.cleanText, marker)
-            ?: ChatMessageSender(UNKNOWN_PLAYER, null)
-
-    fun senderFor(message: ChatMessage, share: DianaRareMobShare): ChatMessageSender =
-        senderFor(message, share.marker)
-
-    fun senderFor(message: ChatMessage, marker: String): ChatMessageSender =
-        ChatSenderParser.senderBefore(message.component, marker)
-            ?: ChatSenderParser.senderBefore(message.cleanText, marker)
-            ?: message.sender
-            ?: ChatMessageSender(UNKNOWN_PLAYER, null)
+    fun senderFor(message: ChatMessage, marker: String): ChatMessageSender? =
+        ChatSenderParser.senderBefore(message, marker)
 
     private fun minecraftOrNull(): Minecraft? =
-        runCatching { Minecraft.getInstance() }.getOrNull()
-
-    private const val UNKNOWN_PLAYER = "Unknown"
+        Minecraft.getInstance()
 }
 
 internal object DianaRareMobLootshare {
@@ -130,8 +116,13 @@ internal object DianaRareMobGlow {
 }
 
 internal object DianaRareMobPartyEcho {
-    fun shouldHideRecentlySent(message: ChatMessage, localPlayerName: String?, now: Long): Boolean {
-        if (localPlayerName != null && message.sender?.isLocalPlayer(localPlayerName) == false) return false
+    fun shouldHideRecentlySent(
+        message: ChatMessage,
+        sender: ChatMessageSender,
+        localPlayerName: String?,
+        now: Long,
+    ): Boolean {
+        if (!sender.isLocalPlayer(localPlayerName)) return false
         return SkysoftPartyShare.consumeRecentSentMessage(message.body, now)
     }
 }

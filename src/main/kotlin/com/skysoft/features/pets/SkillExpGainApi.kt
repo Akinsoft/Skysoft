@@ -10,7 +10,7 @@ import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.utils.ChangeResult
-import com.skysoft.utils.NumberUtilities.formatDouble
+import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.ElapsedTimeMark
@@ -73,6 +73,7 @@ object SkillExpGainApi {
                 .firstNotNullOfOrNull { pattern -> pattern.matchEntire(part)?.toMatcher(pattern) }
                 ?: continue
             val skillType = SkyBlockSkill.getByNameOrNull(matcher.group("skillName")) ?: continue
+            val gained = matcher.group("gained").formatDoubleOrNull() ?: continue
             val skillInfo = storage.getOrPut(skillType, ::SkillInfo)
             val previousTotalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble()
             activeSkill = skillType
@@ -84,7 +85,7 @@ object SkillExpGainApi {
             post(
                 SkillExpGain(
                     skill = skillType,
-                    gained = matcher.group("gained").formatDouble(),
+                    gained = gained,
                     totalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble(),
                     previousTotalXp = previousTotalXp,
                     source = ACTIONBAR_SOURCE,
@@ -100,17 +101,20 @@ object SkillExpGainApi {
                 lastLilySplosion = ElapsedTimeMark.now()
                 continue
             }
-            jerryBoxSkillXpPattern.matchEntire(line)?.let {
-                postChatSkillXp(it.group("skillName"), it.group("gained").formatDouble(), JERRY_BOX_SOURCE)
+            jerryBoxSkillXpPattern.matchEntire(line)?.let { match ->
+                val gained = match.group("gained").formatDoubleOrNull() ?: return
+                postChatSkillXp(match.group("skillName"), gained, JERRY_BOX_SOURCE)
                 return
             }
-            giftSkillXpPattern.matchEntire(line)?.let {
-                postChatSkillXp(it.group("skillName"), it.group("gained").formatDouble(), GIFT_SOURCE)
+            giftSkillXpPattern.matchEntire(line)?.let { match ->
+                val gained = match.group("gained").formatDoubleOrNull() ?: return
+                postChatSkillXp(match.group("skillName"), gained, GIFT_SOURCE)
                 return
             }
-            lilySplosionSkillXpPattern.matchEntire(line)?.let {
+            lilySplosionSkillXpPattern.matchEntire(line)?.let { match ->
                 if (lastLilySplosion.passedSince() <= 5.seconds) {
-                    postChatSkillXp(it.group("skillName"), it.group("gained").formatDouble(), LILY_SPLOSION_SOURCE)
+                    val gained = match.group("gained").formatDoubleOrNull() ?: return
+                    postChatSkillXp(match.group("skillName"), gained, LILY_SPLOSION_SOURCE)
                 }
                 return
             }
@@ -179,7 +183,7 @@ object SkillExpGainApi {
 
     private fun handlePercentActionBar(matcher: SkillMatcher, skillType: SkyBlockSkill, skillInfo: SkillInfo) {
         val tabInfo = readTabSkillInfo(skillType) ?: return
-        val progress = matcher.group("progress").formatDouble()
+        val progress = matcher.group("progress").formatDoubleOrNull() ?: return
         val level = tabInfo.level
         if (tabInfo.currentXp != null && tabInfo.neededXp != null) {
             val totalXp = calculateLevelXp(level - 1).toLong() + tabInfo.currentXp
@@ -194,8 +198,8 @@ object SkillExpGainApi {
     }
 
     private fun handleMultiplierActionBar(matcher: SkillMatcher, skillType: SkyBlockSkill, skillInfo: SkillInfo) {
-        val currentXp = matcher.group("current").formatDouble().roundToLong()
-        val maxXp = matcher.group("needed").formatDouble().roundToLong()
+        val currentXp = matcher.group("current").formatDoubleOrNull()?.roundToLong() ?: return
+        val maxXp = matcher.group("needed").formatDoubleOrNull()?.roundToLong() ?: return
         val minus = if (maxXp == 0L) 0 else 1
         val level = getLevelExact(maxXp, skillType) - minus
         val totalXp = if (maxXp == 0L) currentXp else calculateLevelXp(level - 1).roundToLong() + currentXp
@@ -217,7 +221,7 @@ object SkillExpGainApi {
     }
 
     private fun onUpdateMax(progress: String, skill: SkyBlockSkill, skillInfo: SkillInfo, skillLevel: Int) {
-        val totalXp = progress.formatDouble().roundToLong()
+        val totalXp = progress.formatDoubleOrNull()?.roundToLong() ?: return
         val cap = skill.maxLevel
         val maxXp = xpRequiredForLevel(cap)
         val currentXp = totalXp - maxXp
@@ -227,8 +231,8 @@ object SkillExpGainApi {
 
     private fun onUpdateNotMax(progress: String, skillLevel: Int, skillInfo: SkillInfo) {
         val splitProgress = progress.split("/")
-        val currentXp = splitProgress.firstOrNull()?.formatDouble()?.roundToLong() ?: return
-        val neededXp = splitProgress.getOrNull(1)?.formatDouble()?.roundToLong() ?: return
+        val currentXp = splitProgress.firstOrNull()?.formatDoubleOrNull()?.roundToLong() ?: return
+        val neededXp = splitProgress.getOrNull(1)?.formatDoubleOrNull()?.roundToLong() ?: return
         val levelXp = calculateLevelXp(skillLevel - 1).toLong()
         val totalXp = levelXp + currentXp
         skillInfo.update(
@@ -242,10 +246,12 @@ object SkillExpGainApi {
         for (line in lines) {
             skillTabNoPercentPattern.matchEntire(line)?.takeIf { it.group("type") == skillType.displayName }?.let {
                 val level = it.group("level").toIntOrNull() ?: return@let null
+                val currentXp = it.group("current").formatDoubleOrNull()?.roundToLong() ?: return@let null
+                val neededXp = it.group("needed").formatDoubleOrNull()?.roundToLong() ?: return@let null
                 return TabSkillInfo(
                     level = level,
-                    currentXp = it.group("current").formatDouble().roundToLong(),
-                    neededXp = it.group("needed").formatDouble().roundToLong(),
+                    currentXp = currentXp,
+                    neededXp = neededXp,
                 )
             }
             skillTabPattern.matchEntire(line)?.takeIf { it.group("type") == skillType.displayName }?.let {

@@ -3,8 +3,8 @@ package com.skysoft.features.fishing
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.FishingHotspotType
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatSenderParser
+import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -82,10 +82,8 @@ object FishingHotspotSharing {
         if (!isAllowedIsland()) return null
         val share = FishingHotspotShareParser.parse(message.body) ?: return null
         val now = System.currentTimeMillis()
-        val sharedBy = ChatSenderParser.senderBefore(message.component, FishingHotspotShareParser.SHARE_MARKER)
-            ?: ChatSenderParser.senderBefore(message.cleanText, FishingHotspotShareParser.SHARE_MARKER)
-            ?: message.sender
-            ?: ChatMessageSender(UNKNOWN_SHARED_BY, null)
+        val sharedBy = ChatSenderParser.senderBefore(message, FishingHotspotShareParser.SHARE_MARKER)
+            ?: return null
         rememberRecentSharedHotspot(share, now)
         if (config.shareHotspots) {
             val result = hotspotTracker.recordPartyShare(
@@ -164,22 +162,22 @@ object FishingHotspotSharing {
                 hotspotTracker.markAnnounced(hotspot.id)
                 return@forEach
             }
-            pendingShares.remove(pending.hotspotId)
-            shareHotspot(hotspot)
+            if (shareHotspot(hotspot) == HotspotShareResult.SHARED) pendingShares.remove(pending.hotspotId)
         }
     }
 
-    private fun shareHotspot(hotspot: TrackedFishingHotspot) {
+    private fun shareHotspot(hotspot: TrackedFishingHotspot): HotspotShareResult {
+        val minecraft: Minecraft? = Minecraft.getInstance()
+        val playerName = minecraft?.player?.gameProfile?.name
+            ?: return HotspotShareResult.PLAYER_UNAVAILABLE
         hotspotTracker.markAnnounced(hotspot.id)
         val now = System.currentTimeMillis()
-        val sharedBy = ChatMessageSender(
-            Minecraft.getInstance().player?.gameProfile?.name ?: UNKNOWN_SHARED_BY,
-            null,
-        )
+        val sharedBy = ChatMessageSender(playerName, null)
         rememberRecentSharedHotspot(hotspot.share, now)
         rememberSharedHotspotWaypoint(hotspot.share, sharedBy, now)
         val message = FishingHotspotShareParser.format(hotspot.share)
         SkysoftPartyShare.sendParty(message)
+        return HotspotShareResult.SHARED
     }
 
     private fun rememberRecentSharedHotspot(share: FishingHotspotShare, now: Long) {
@@ -188,13 +186,13 @@ object FishingHotspotSharing {
 
     private fun rememberSharedHotspotWaypoint(
         share: FishingHotspotShare,
-        sharedBy: ChatMessageSender?,
+        sharedBy: ChatMessageSender,
         now: Long,
     ) {
         waypointHotspots.entries.removeIf { it.value.share.matches(share) }
         waypointHotspots[share.key] = FishingHotspotWaypoint(
             share = share,
-            sharedBy = sharedBy ?: ChatMessageSender(UNKNOWN_SHARED_BY, null),
+            sharedBy = sharedBy,
             expiresAtMillis = now + FISHING_HOTSPOT_WAYPOINT_LIFETIME_MILLIS,
         )
     }
@@ -254,7 +252,11 @@ object FishingHotspotSharing {
         val expiresAtMillis: Long,
     )
 
-    private const val UNKNOWN_SHARED_BY = "Unknown"
+    private enum class HotspotShareResult {
+        SHARED,
+        PLAYER_UNAVAILABLE,
+    }
+
     private const val SCAN_INTERVAL_TICKS = 20
     private const val SHARE_SUPPRESS_MILLIS = 10 * 60 * 1000L
     private const val PENDING_SHARE_DELAY_MILLIS = 2_000L

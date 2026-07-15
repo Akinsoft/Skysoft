@@ -176,6 +176,7 @@ internal object DianaRareMobSharing {
 
     private fun handleLocalCocoon(cocoon: DianaRareMobCocoon, now: Long) {
         if (!settings.rareMobSharing || cocoon.mob !in settings.sharedRareMobs.get()) return
+        val localPlayerName = DianaRareMobRuntime.localPlayerName() ?: return
         val location = localCocoonLocation(cocoon.mob, targets.values, pendingLocalClears)
             ?: DianaRareMobRuntime.playerLocation()?.down()?.roundToBlock()
         pendingLocalSpawns.removeIf { pending -> pending.mob == cocoon.mob }
@@ -187,7 +188,7 @@ internal object DianaRareMobSharing {
 
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatCocoon(cocoon.mob))
         if (location == null) return
-        val sender = ChatMessageSender(DianaRareMobRuntime.localPlayerName() ?: UNKNOWN_PLAYER, null)
+        val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(cocoon.mob, location)
         val target = rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, null, now)
         target.markPendingCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
@@ -252,28 +253,30 @@ internal object DianaRareMobSharing {
     }
 
     private fun trySharePending(signals: List<DianaRareMobSignal>, now: Long) {
-        val playerLocation = DianaRareMobRuntime.playerLocation()
+        val playerLocation = DianaRareMobRuntime.playerLocation() ?: return
         val iterator = pendingLocalSpawns.iterator()
         while (iterator.hasNext()) {
             val pending = iterator.next()
-            val signal = signals
-                .filter { it.mob == pending.mob }
-                .filter { playerLocation == null || it.location.distance(playerLocation) <= LOCAL_SPAWN_LINK_DISTANCE }
-                .minByOrNull { playerLocation?.let(it.location::distanceSq) ?: 0.0 }
+            val signal = closestPendingRareMobSignal(signals, pending.mob, playerLocation)
             if (signal != null) {
-                sharePending(pending, signal, now)
-                iterator.remove()
+                if (sharePending(pending, signal, now) == LocalRareMobShareResult.SHARED) iterator.remove()
             } else if (now >= pending.expiresAtMillis) {
                 iterator.remove()
             }
         }
     }
 
-    private fun sharePending(pending: PendingRareMobSpawn, signal: DianaRareMobSignal, now: Long) {
-        val sender = ChatMessageSender(DianaRareMobRuntime.localPlayerName() ?: UNKNOWN_PLAYER, null)
+    private fun sharePending(
+        pending: PendingRareMobSpawn,
+        signal: DianaRareMobSignal,
+        now: Long,
+    ): LocalRareMobShareResult {
+        val localPlayerName = DianaRareMobRuntime.localPlayerName() ?: return LocalRareMobShareResult.PLAYER_UNAVAILABLE
+        val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(pending.mob, signal.location.roundToBlock())
         rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, signal, now)
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.format(share))
+        return LocalRareMobShareResult.SHARED
     }
 
     private fun rememberShare(
@@ -417,12 +420,10 @@ internal object DianaRareMobSharing {
     }
 
     private fun currentTarget(): DianaRareMobTarget? {
-        val playerLocation = DianaRareMobRuntime.playerLocation() ?: return targets.values.firstOrNull()
+        val playerLocation = DianaRareMobRuntime.playerLocation() ?: return null
         return targets.values.minByOrNull { target -> target.lineLocation().distanceSq(playerLocation) }
     }
 
-    private const val UNKNOWN_PLAYER = "Unknown"
-    private const val LOCAL_SPAWN_LINK_DISTANCE = 35.0
     private const val REMOTE_LINK_DISTANCE = 40.0
     private const val LINK_INTERVAL_TICKS = 2
     private const val SHARED_PLAYER_DIED_REASON = "shared player died"
@@ -628,6 +629,11 @@ private data class PendingRareMobSpawn(
     val mob: DianaRareMobOption,
     val expiresAtMillis: Long,
 )
+
+private enum class LocalRareMobShareResult {
+    SHARED,
+    PLAYER_UNAVAILABLE,
+}
 
 private data class PendingLocalRareMobClear(
     val mob: DianaRareMobOption,

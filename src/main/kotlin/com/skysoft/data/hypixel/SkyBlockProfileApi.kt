@@ -19,12 +19,12 @@ object SkyBlockProfileApi {
         get() = currentProfileName?.normalizeProfileName()
 
     val currentProfileId: SkyBlockProfileId?
-        get() = currentProfileKey?.let { profileKey -> SkyBlockProfileId(currentPlayerKey(), profileKey) }
+        get() = SkyBlockProfileId.fromExactKeys(currentPlayerKeyOrNull(), currentProfileKey)
 
-    fun currentPlayerKey(): String = currentPlayerKeyOrNull() ?: "unknown-player"
-
-    fun currentPlayerKeyOrNull(): String? =
-        runCatching { Minecraft.getInstance().player?.uuid?.toString() }.getOrNull()
+    fun currentPlayerKeyOrNull(): String? {
+        val minecraft: Minecraft? = Minecraft.getInstance()
+        return minecraft?.player?.uuid?.toString()
+    }
 
     fun register() {
         ChatEvents.onVisibleMessage { message ->
@@ -89,4 +89,11 @@ object SkyBlockProfileApi {
 data class SkyBlockProfileId(
     val playerKey: String,
     val profileKey: String,
-)
+) {
+    companion object {
+        internal fun fromExactKeys(playerKey: String?, profileKey: String?): SkyBlockProfileId? {
+            if (playerKey == null || profileKey == null) return null
+            return SkyBlockProfileId(playerKey, profileKey)
+        }
+    }
+}

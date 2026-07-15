@@ -8,7 +8,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.features.pets.PetItemUtilities.getPetInfo
 import com.skysoft.features.pets.PetItemUtilities.playerHeadTextureOrNull
 import com.skysoft.features.pets.PetItemUtilities.toExactPetDataOrNull
-import com.skysoft.utils.NumberUtilities.formatDouble
+import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
@@ -30,7 +30,7 @@ internal object PetStoragePetItems {
         val lore = item.loreLines()
         val petExp = lore.firstNotNullOfOrNull { line ->
             petMenuSelectedPetXpPattern.find(line)?.let { xpMatch ->
-                val currentValue = xpMatch.group("current").formatDouble()
+                val currentValue = xpMatch.group("current").formatDoubleOrNull() ?: return@let null
                 when (xpMatch.groupOrNull("next")) {
                     null -> currentValue
                     else -> {

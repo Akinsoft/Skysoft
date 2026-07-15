@@ -13,9 +13,6 @@ import kotlin.time.Duration.Companion.seconds
 
 object ProfileStorageApi {
     private val storagePath: Path = SkysoftConfigFiles.profileStorage
-    private val gson = GsonBuilder()
-        .excludeFieldsWithoutExposeAnnotation()
-        .create()
     private var saveDisabledReason: String? = if (SkysoftConfigFiles.migrateProfileStorage() == MigrationResult.READY) {
         null
     } else {
@@ -66,7 +63,7 @@ object ProfileStorageApi {
 
         try {
             storageData.repairLoadedValues()
-            val json = gson.toJson(storageData)
+            val json = profileStorageGson.toJson(storageData)
             SkysoftConfigFiles.writeStringSafely(storagePath, json)
             loadedFromDisk = true
             jsonNeedsSave = false
@@ -114,9 +111,17 @@ object ProfileStorageApi {
         "$storagePath failed to load. Fix or delete the file to save changes."
 
     private fun readStorage(path: Path): ProfileStorage =
-        Files.newBufferedReader(path).use { reader ->
-            (gson.fromJson(reader, ProfileStorage::class.java) ?: ProfileStorage()).also {
-                it.repairLoadedValues()
-            }
-        }
+        readProfileStorage(path)
 }
+
+private val profileStorageGson = GsonBuilder()
+    .excludeFieldsWithoutExposeAnnotation()
+    .create()
+
+internal fun readProfileStorage(path: Path): ProfileStorage =
+    Files.newBufferedReader(path).use { reader ->
+        val storage = profileStorageGson.fromJson(reader, ProfileStorage::class.java)
+            ?: error("Skysoft profile storage is empty: $path")
+        storage.repairLoadedValues()
+        storage
+    }

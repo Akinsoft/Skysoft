@@ -9,6 +9,7 @@ import com.skysoft.utils.WorldVec
 internal object DianaBurrowStorage {
     private val sessionTargets = mutableMapOf<SkyBlockProfileId, CachedDianaTargets>()
     private var loadedStorageKey: SkyBlockProfileId? = null
+    private var storageKeyProvider: () -> SkyBlockProfileId? = { SkyBlockProfileApi.currentProfileId }
     private var persistentStorageProvider: () -> ProfileStorage.ProfileSpecific? = { ProfileStorageApi.storage }
     private var persistentDirtyMarker: () -> Unit = { ProfileStorageApi.markDirty() }
     private var persistentSaver: () -> Unit = { ProfileStorageApi.saveNow() }
@@ -118,7 +119,7 @@ internal object DianaBurrowStorage {
     }
 
     private fun currentStorageKey(): SkyBlockProfileId? =
-        SkyBlockProfileApi.currentProfileId
+        storageKeyProvider()
 
     private fun prune(now: Long) {
         sessionTargets.entries.removeIf { (_, cachedTargets) -> now - cachedTargets.savedAtMillis > RESTORE_WINDOW_MILLIS }

@@ -19,8 +19,6 @@ object NumberUtilities {
 
     fun String.formatInt(): Int = replace(",", "").toInt()
 
-    fun String.formatDouble(): Double = formatDoubleOrNull() ?: 0.0
-
     fun String.formatDoubleOrNull(): Double? = parseCompactNumberOrNull()?.value
 
     fun String.parseCompactNumberOrNull(): CompactNumber? {

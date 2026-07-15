@@ -7,7 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
-import com.skysoft.utils.NumberUtilities.formatDouble
+import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ElapsedTimeMark
@@ -143,7 +143,7 @@ object AccessoryBagData {
         val amount = item.loreLines().firstNotNullOfOrNull { line ->
             beastmasterPetXpPattern.matchEntire(line.cleanSkyBlockText())
                 ?.group("amount")
-                ?.formatDouble()
+                ?.formatDoubleOrNull()
         } ?: return null
         return 1.0 + amount / BEASTMASTER_PERCENT_DENOMINATOR
     }
