@@ -60,10 +60,24 @@ class HudPosition @JvmOverloads constructor(
     } ?: true
 
     fun moveToAbsoluteAllowingOverflow(absX: Int, absY: Int, objWidth: Int, objHeight: Int): HudPosition {
+        return moveToAbsolute(absX, absY, objWidth, objHeight, clampEnd = false)
+    }
+
+    fun moveToAbsolute(absX: Int, absY: Int, objWidth: Int, objHeight: Int): HudPosition {
+        return moveToAbsolute(absX, absY, objWidth, objHeight, clampEnd = true)
+    }
+
+    private fun moveToAbsolute(
+        absX: Int,
+        absY: Int,
+        objWidth: Int,
+        objHeight: Int,
+        clampEnd: Boolean,
+    ): HudPosition {
         val screenWidth = screenWidth()
         val screenHeight = screenHeight()
-        val clampedX = absX.coerceAtLeast(0)
-        val clampedY = absY.coerceAtLeast(0)
+        val clampedX = if (clampEnd) absX.coerceIn(0, (screenWidth - objWidth).coerceAtLeast(0)) else absX.coerceAtLeast(0)
+        val clampedY = if (clampEnd) absY.coerceIn(0, (screenHeight - objHeight).coerceAtLeast(0)) else absY.coerceAtLeast(0)
         x = if (centerX) clampedX - (screenWidth - objWidth) / 2 else clampedX
         y = if (centerY) clampedY - (screenHeight - objHeight) / 2 else clampedY
         return this

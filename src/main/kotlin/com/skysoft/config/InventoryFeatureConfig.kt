@@ -150,13 +150,19 @@ class ItemListConfig {
 class ItemListSettingsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Items Per Row", desc = "Maximum items shown horizontally.")
+    @field:ConfigOption(name = "Item Scale", desc = "Size of items inside the Item List.")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 3f, minStep = ITEM_SCALE_STEP)
+    var itemScale = DEFAULT_ITEM_SCALE
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "List Width", desc = "Width in standard item slots.")
     @field:ConfigEditorSlider(minValue = 2f, maxValue = 32f, minStep = 1f)
     var columns = DEFAULT_COLUMNS
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Rows", desc = "Maximum item rows shown vertically. 0 fills the available height.")
+    @field:ConfigOption(name = "List Height", desc = "Height in standard item rows. 0 fills the available height.")
     @field:ConfigEditorSlider(minValue = 0f, maxValue = 32f, minStep = 1f)
     var rows = DEFAULT_ROWS
 
@@ -188,11 +194,16 @@ class ItemListSettingsConfig {
     }
 
     fun repairLoadedValues() {
+        itemScale = itemScale.takeIf { it.isFinite() }?.coerceIn(MIN_ITEM_SCALE, MAX_ITEM_SCALE) ?: DEFAULT_ITEM_SCALE
         columns = columns.coerceIn(MIN_COLUMNS, MAX_COLUMNS)
         rows = rows.coerceIn(MIN_ROWS, MAX_ROWS)
     }
 
     companion object {
+        const val DEFAULT_ITEM_SCALE = 1f
+        const val MIN_ITEM_SCALE = 1f
+        const val MAX_ITEM_SCALE = 3f
+        const val ITEM_SCALE_STEP = 0.1f
         const val DEFAULT_COLUMNS = 9
         const val DEFAULT_ROWS = 0
         const val MIN_COLUMNS = 2
@@ -206,6 +217,10 @@ class ItemListSourcesConfig {
     @JvmField
     @field:Expose
     val searchPosition = defaultSearchPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
+    var searchWidth = DEFAULT_SEARCH_WIDTH
 
     @JvmField
     @field:Expose
@@ -253,6 +268,8 @@ class ItemListSourcesConfig {
     var showBazaarPlayerData = true
 
     fun repairLoadedValues() {
+        searchPosition.scale = HudPosition.DEFAULT_SCALE
+        searchWidth = searchWidth.coerceIn(MIN_SEARCH_WIDTH, MAX_SEARCH_WIDTH)
         bazaarGraphMode = when (bazaarGraphMode) {
             "PRICE" -> "ORDER_BOOK"
             "ACTIVITY" -> "TRADE_VOLUME"
@@ -263,7 +280,16 @@ class ItemListSourcesConfig {
     }
 
     companion object {
-        fun defaultSearchPosition() = HudPosition(DEFAULT_SEARCH_OFFSET, DEFAULT_SEARCH_OFFSET, centerY = false)
+        const val DEFAULT_SEARCH_WIDTH = 162
+        const val MIN_SEARCH_WIDTH = 72
+        const val SEARCH_WIDTH_STEP = 18
+        const val MAX_SEARCH_WIDTH = ItemListSettingsConfig.MAX_COLUMNS * SEARCH_WIDTH_STEP * 3
+
+        fun defaultSearchPosition() = HudPosition(
+            DEFAULT_SEARCH_OFFSET,
+            DEFAULT_SEARCH_OFFSET,
+            centerY = false,
+        )
 
         private const val DEFAULT_SEARCH_OFFSET = -4
         private val BAZAAR_GRAPH_MODES = setOf("PRICE_HISTORY", "ORDER_BOOK", "TRADE_VOLUME")

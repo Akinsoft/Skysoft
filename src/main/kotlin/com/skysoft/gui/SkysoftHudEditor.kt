@@ -5,6 +5,7 @@ import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.ScreenTitleRenderer
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -103,14 +104,24 @@ object SkysoftHudEditor {
                         else -> buildList {
                             add("§cSkysoft Position Editor")
                             add("§b${active.label}")
-                            add(
-                                "§7x: §e${active.position.x}§7, y: §e${active.position.y}§7, scale: §e${
-                                    "%.2f".format(Locale.US, active.position.scale)
-                                }",
-                            )
-                            add("§eRight-click §7to open settings")
-                            if (active.canScale) add("§eScroll-Wheel §7to resize")
-                            add("§eR §7to reset")
+                            val customLines = active.editorTooltipLines()
+                            if (customLines != null) {
+                                addAll(customLines)
+                            } else {
+                                add(
+                                    if (active.canScale) {
+                                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}§7, scale: §e${
+                                            "%.2f".format(Locale.US, active.position.scale)
+                                        }"
+                                    } else {
+                                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}"
+                                    },
+                                )
+                                if (active.canMove) add("§eLeft-click drag §7to move")
+                                add("§eRight-click §7to open settings")
+                                if (active.canScale) add("§eScroll-Wheel §7to resize")
+                                add("§eR §7to reset")
+                            }
                         }
                     }
                 }
@@ -190,20 +201,33 @@ object SkysoftHudEditor {
             val position = element.position
             val scaledWidth = (element.width() * position.scale).roundToInt()
             val scaledHeight = (element.height() * position.scale).roundToInt()
-            val x = position.getAbsX0AllowingOverflow(scaledWidth)
-            val y = position.getAbsY0AllowingOverflow(scaledHeight)
-            context.fill(
-                x - BORDER,
-                y - BORDER,
-                x + scaledWidth + BORDER,
-                y + scaledHeight + BORDER,
-                if (selected) PANEL_HOVER else PANEL_BACKGROUND,
-            )
+            val x = element.absoluteX(scaledWidth)
+            val y = element.absoluteY(scaledHeight)
+            val color = if (selected) PANEL_HOVER else PANEL_BACKGROUND
+            if (element.hasEditorBackground) {
+                context.fill(x - BORDER, y - BORDER, x + scaledWidth + BORDER, y + scaledHeight + BORDER, color)
+            } else {
+                drawEditorOutline(context, x, y, scaledWidth, scaledHeight, color)
+            }
             context.pose().pushMatrix()
             context.pose().translate(x.toFloat(), y.toFloat())
             context.pose().scale(position.scale, position.scale)
             element.renderEditorDummy(context)
             context.pose().popMatrix()
+        }
+
+        private fun drawEditorOutline(
+            context: GuiGraphicsExtractor,
+            x: Int,
+            y: Int,
+            width: Int,
+            height: Int,
+            color: Int,
+        ) {
+            context.fill(x - BORDER, y - BORDER, x + width + BORDER, y, color)
+            context.fill(x - BORDER, y + height, x + width + BORDER, y + height + BORDER, color)
+            context.fill(x - BORDER, y, x, y + height, color)
+            context.fill(x + width, y, x + width + BORDER, y + height, color)
         }
 
         override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
@@ -231,9 +255,15 @@ object SkysoftHudEditor {
                                 grabbedWidth = (element.width() * element.position.scale).roundToInt()
                                 grabbedHeight = (element.height() * element.position.scale).roundToInt()
                                 grabbedOffsetX = editorScale.elementMouseX(element, mouseX) -
-                                    element.position.getAbsX0AllowingOverflow(grabbedWidth)
+                                    element.absoluteX(grabbedWidth)
                                 grabbedOffsetY = editorScale.elementMouseY(element, mouseY) -
-                                    element.position.getAbsY0AllowingOverflow(grabbedHeight)
+                                    element.absoluteY(grabbedHeight)
+                                element.beginEditorDrag(
+                                    grabbedOffsetX,
+                                    grabbedOffsetY,
+                                    grabbedWidth,
+                                    grabbedHeight,
+                                )
                             }
                             true
                         } else {
@@ -275,12 +305,17 @@ object SkysoftHudEditor {
             editorScale.withElementGuiScale(element) {
                 val width = grabbedWidth.takeIf { it > 0 } ?: (element.width() * element.position.scale).roundToInt()
                 val height = grabbedHeight.takeIf { it > 0 } ?: (element.height() * element.position.scale).roundToInt()
-                element.position.moveToAbsoluteAllowingOverflow(
-                    elementMouseX - grabbedOffsetX,
-                    elementMouseY - grabbedOffsetY,
-                    width,
-                    height,
-                )
+                val targetX = elementMouseX - grabbedOffsetX
+                val targetY = elementMouseY - grabbedOffsetY
+                val deltaX = targetX - element.absoluteX(width)
+                val deltaY = targetY - element.absoluteY(height)
+                if (element.applyEditorDrag(deltaX, deltaY) == InputHandlingResult.IGNORED && element.canMove) {
+                    if (element.keepsInsideScreen) {
+                        element.position.moveToAbsolute(targetX, targetY, width, height)
+                    } else {
+                        element.position.moveToAbsoluteAllowingOverflow(targetX, targetY, width, height)
+                    }
+                }
             }
             return true
         }
@@ -298,6 +333,7 @@ object SkysoftHudEditor {
         override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
             val element = grabbedElement ?: elementAt(mouseX.toInt(), mouseY.toInt())
                 ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+            if (element.applyEditorScroll(scrollY) == InputHandlingResult.CONSUMED) return true
             if (!element.canScale) return true
             editorScale.withElementGuiScale(element) {
                 val oldScale = element.position.scale
@@ -321,7 +357,7 @@ object SkysoftHudEditor {
                     return true
                 }
                 val element = grabbedElement ?: hoveredElement ?: return true
-                element.position.resetToDefault()
+                element.resetEditorState()
                 return true
             }
             return super.keyPressed(event)
@@ -399,10 +435,22 @@ private class EditorGuiScale(private val hasInventoryScreen: Boolean) {
 private fun HudEditorElement.isHovered(mouseX: Int, mouseY: Int): Boolean {
     val scaledWidth = (width() * position.scale).roundToInt()
     val scaledHeight = (height() * position.scale).roundToInt()
-    val x = position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = position.getAbsY0AllowingOverflow(scaledHeight)
-    return mouseX in (x - HUD_EDITOR_BORDER)..(x + scaledWidth + HUD_EDITOR_BORDER) &&
+    val x = absoluteX(scaledWidth)
+    val y = absoluteY(scaledHeight)
+    return mouseX in (x - editorLeftPadding - HUD_EDITOR_BORDER)..(x + scaledWidth + HUD_EDITOR_BORDER) &&
         mouseY in (y - HUD_EDITOR_BORDER)..(y + scaledHeight + HUD_EDITOR_BORDER)
+}
+
+private fun HudEditorElement.absoluteX(width: Int): Int = if (keepsInsideScreen) {
+    position.getAbsX0(width)
+} else {
+    position.getAbsX0AllowingOverflow(width)
+}
+
+private fun HudEditorElement.absoluteY(height: Int): Int = if (keepsInsideScreen) {
+    position.getAbsY0(height)
+} else {
+    position.getAbsY0AllowingOverflow(height)
 }
 
 private const val HUD_EDITOR_BORDER = 2
