@@ -106,7 +106,8 @@ internal fun hasBazaarObtainSource(key: ItemListEntryKey): Boolean {
 
 private fun otherObtainSources(key: ItemListEntryKey): List<SkyBlockInfoSource> {
     val info = SkyBlockDataRepository.info(key) ?: return emptyList()
-    val representedEntities = representedObtainEntityIds(key)
+    val recipes = SkyBlockDataRepository.recipesFor(key)
+    val representedEntities = representedObtainEntityIds(recipes)
     val structured = buildList {
         addAll(info.enchantment?.sources.orEmpty().filterNot { it.kind == SkyBlockInfoSourceKind.BAZAAR })
         info.dropSources.forEach { source -> add(entitySource(source.entityId)) }
@@ -114,7 +115,10 @@ private fun otherObtainSources(key: ItemListEntryKey): List<SkyBlockInfoSource> 
         info.soldBy.forEach { entityId -> add(entitySource(entityId)) }
     }.filterNot { it.entityId in representedEntities }
         .distinctBy { Triple(it.kind, it.displayName, it.entityId) }
-    val catalogSource = info.obtain?.takeUnless { it.source == SkyBlockObtainSource.STRUCTURED_CATALOG }
+    val catalogSource = info.obtain?.takeUnless {
+        it.source == SkyBlockObtainSource.STRUCTURED_CATALOG ||
+            isCraftingSourceRepresentedByRecipes(it.summary, recipes)
+    }
     if (key.id.startsWith("ENCHANTMENT_")) {
         return structured + listOfNotNull(catalogSource?.toInfoSource())
     }
@@ -124,6 +128,11 @@ private fun otherObtainSources(key: ItemListEntryKey): List<SkyBlockInfoSource> 
 
 internal fun representedObtainEntityIds(key: ItemListEntryKey): Set<String> =
     representedObtainEntityIds(SkyBlockDataRepository.recipesFor(key))
+
+internal fun isCraftingSourceRepresentedByRecipes(summary: String, recipes: List<SkyBlockRecipe>): Boolean =
+    recipes.any { it.type == SkyBlockRecipeType.CRAFTING } &&
+        (summary == "Crafting" || summary.startsWith("Crafting:")) &&
+        !OTHER_OBTAIN_METHOD.containsMatchIn(summary)
 
 internal fun representedObtainEntityIds(recipes: List<SkyBlockRecipe>): Set<String> =
     recipes.asSequence()
@@ -191,3 +200,11 @@ private fun wrapTooltipLine(font: Font, text: String, maximumWidth: Int): List<S
 }
 
 private const val TOOLTIP_WIDTH = 220
+private val OTHER_OBTAIN_METHOD = Regex(
+    """\b(?:obtained\s+(?:as|from|through|via)|purchased\s+(?:at|for|from|through|via)|""" +
+        """bought\s+(?:at|for|from)|sold\s+(?:at|by|for|from)|given\s+(?:after|by|for|from|when)|""" +
+        """rewarded\s+(?:after|by|for|from|when|with)|dropped\s+(?:by|from)|""" +
+        """found\s+(?:at|by|from|in|on)|traded\s+(?:by|for|from|through|via|with)|""" +
+        """chance\s+to\s+drop|trading\s+with)\b""",
+    RegexOption.IGNORE_CASE,
+)
