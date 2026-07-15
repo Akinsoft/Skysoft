@@ -99,17 +99,14 @@ object ModUpdateChecker {
             UpdateState.FAILED -> "Retry"
         }
 
-    fun statusText(): String {
-        val current = SkysoftMod.VERSION
-        val currentStatus = status
-        return when (currentStatus.state) {
-            UpdateState.NOT_CHECKED -> "Skysoft $current"
-            UpdateState.CHECKING -> "Checking for updates..."
-            UpdateState.CURRENT -> "Skysoft $current is up to date"
-            UpdateState.AVAILABLE -> "Skysoft $current -> ${currentStatus.update?.version.orEmpty()}"
-            UpdateState.FAILED -> "Update check failed"
+    fun statusText(currentStatus: UpdateStatus = status): String =
+        when (currentStatus.state) {
+            UpdateState.NOT_CHECKED -> "Not checked"
+            UpdateState.CHECKING -> "Checking..."
+            UpdateState.CURRENT -> "Up to date"
+            UpdateState.AVAILABLE -> currentStatus.update?.let { "${it.version} available" } ?: "Update available"
+            UpdateState.FAILED -> "Check failed"
         }
-    }
 
     private fun latestUpdate(response: String, project: String): SkysoftUpdate? {
         val versions = gson.fromJson<List<ModrinthVersionInfo>>(response, versionListType).orEmpty()

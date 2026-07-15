@@ -21,7 +21,7 @@ class SkysoftUpdateEditor(option: ProcessedOption) : ComponentEditor(option) {
 }
 
 private class UpdateComponent : GuiComponent() {
-    override fun getWidth(): Int = WIDTH
+    override fun getWidth(): Int = BUTTON_WIDTH
 
     override fun getHeight(): Int = HEIGHT
 
@@ -31,15 +31,15 @@ private class UpdateComponent : GuiComponent() {
         render.drawStringCenteredScaledMaxWidth(
             StructuredText.of(ModUpdateChecker.statusText()),
             font,
-            WIDTH.toFloat() / 2,
+            BUTTON_WIDTH.toFloat() / 2,
             STATUS_TEXT_Y,
             false,
-            WIDTH,
+            BUTTON_WIDTH,
             statusColor(),
         )
         render.drawTexturedRect(
             GuiTextures.BUTTON,
-            BUTTON_X.toFloat(),
+            0f,
             BUTTON_Y.toFloat(),
             BUTTON_WIDTH.toFloat(),
             BUTTON_HEIGHT.toFloat(),
@@ -47,7 +47,7 @@ private class UpdateComponent : GuiComponent() {
         render.drawStringCenteredScaledMaxWidth(
             StructuredText.of(ModUpdateChecker.buttonText()),
             font,
-            BUTTON_X + BUTTON_WIDTH.toFloat() / 2,
+            BUTTON_WIDTH.toFloat() / 2,
             BUTTON_Y + BUTTON_TEXT_Y_OFFSET,
             false,
             BUTTON_WIDTH - BUTTON_TEXT_MAX_WIDTH_INSET,
@@ -57,7 +57,7 @@ private class UpdateComponent : GuiComponent() {
 
     override fun mouseEvent(mouseEvent: MouseEvent, context: GuiImmediateContext): Boolean {
         if (mouseEvent !is MouseEvent.Click || !mouseEvent.mouseState || mouseEvent.mouseButton != 0) return false
-        if (context.mouseX !in BUTTON_X..(BUTTON_X + BUTTON_WIDTH)) return false
+        if (context.mouseX !in 0..BUTTON_WIDTH) return false
         if (context.mouseY !in BUTTON_Y..(BUTTON_Y + BUTTON_HEIGHT)) return false
         if (
             ModUpdateChecker.status.state == UpdateState.AVAILABLE &&
@@ -77,10 +77,8 @@ private class UpdateComponent : GuiComponent() {
         }
 
     private companion object {
-        private const val WIDTH = 150
         private const val HEIGHT = 34
         private const val BUTTON_WIDTH = 70
-        private const val BUTTON_X = (WIDTH - BUTTON_WIDTH) / 2
         private const val BUTTON_Y = 18
         private const val BUTTON_HEIGHT = 16
         private const val STATUS_TEXT_Y = 7f
