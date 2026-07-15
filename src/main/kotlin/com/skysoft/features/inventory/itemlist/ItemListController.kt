@@ -66,17 +66,25 @@ object ItemListController {
             override fun height(): Int = FooterPresentation.HEIGHT
             override fun isVisible(): Boolean = SkysoftConfigGui.config().inventory.itemList.enabled
             override fun renderDummy(context: GuiGraphicsExtractor) {
-                searchField.render(context, 0, 0, FooterPresentation.SEARCH_WIDTH, FooterPresentation.HEIGHT, "Search items...")
-                drawSettingsButton(
-                    context,
-                    Rect(
-                        FooterPresentation.SEARCH_WIDTH + FooterPresentation.GAP,
-                        0,
-                        FooterPresentation.BUTTON_WIDTH,
-                        FooterPresentation.HEIGHT,
-                    ),
-                    hovered = false,
-                )
+                val isSettingsButtonHidden = SkysoftConfigGui.config().inventory.itemList.sources.isSettingsButtonHidden
+                val searchWidth = if (isSettingsButtonHidden) {
+                    FooterPresentation.EDITOR_WIDTH
+                } else {
+                    FooterPresentation.SEARCH_WIDTH
+                }
+                searchField.render(context, 0, 0, searchWidth, FooterPresentation.HEIGHT, "Search items...")
+                if (!isSettingsButtonHidden) {
+                    drawSettingsButton(
+                        context,
+                        Rect(
+                            FooterPresentation.SEARCH_WIDTH + FooterPresentation.GAP,
+                            0,
+                            FooterPresentation.BUTTON_WIDTH,
+                            FooterPresentation.HEIGHT,
+                        ),
+                        hovered = false,
+                    )
+                }
             }
             override fun openConfig() = SkysoftConfigGui.open("Item List")
         })
@@ -159,7 +167,7 @@ object ItemListController {
                 )
             }
         }
-        drawSettingsButton(context, layout.config, layout.config.contains(mouseX, mouseY), footerOpacity)
+        layout.config?.let { drawSettingsButton(context, it, it.contains(mouseX, mouseY), footerOpacity) }
         searchField.text = ItemListState.search
         searchField.render(
             context,
@@ -170,7 +178,7 @@ object ItemListController {
             "Search items...",
             alpha = footerOpacity,
         )
-        if (layout.config.contains(mouseX, mouseY)) {
+        if (layout.config?.contains(mouseX, mouseY) == true) {
             context.setTooltipForNextFrame(
                 Minecraft.getInstance().font,
                 net.minecraft.network.chat.Component.literal("Item List settings"),
@@ -211,7 +219,7 @@ object ItemListController {
             layout.search.contains(mouseX, mouseY) -> {
                 searchField.focused = true
             }
-            layout.config.contains(mouseX, mouseY) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+            layout.config?.contains(mouseX, mouseY) == true && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
                 SoundUtilities.playClickSound()
                 SkysoftConfigGui.open("Item List")
             }

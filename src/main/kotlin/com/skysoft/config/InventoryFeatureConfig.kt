@@ -200,6 +200,12 @@ class ItemListSourcesConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Hide Settings Button", desc = "Expand the search bar across the settings button space.")
+    @field:ConfigEditorBoolean
+    var isSettingsButtonHidden = false
+
+    @JvmField
+    @field:Expose
     var bazaarGraphMode = "PRICE_HISTORY"
 
     @JvmField

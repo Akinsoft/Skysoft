@@ -14,7 +14,7 @@ internal data class ItemListLayout(
     val previous: Rect,
     val next: Rect,
     val pageLabel: Rect,
-    val config: Rect,
+    val config: Rect?,
     val search: Rect,
     val footer: Rect,
     val columns: Int,
@@ -39,12 +39,14 @@ internal data class ItemListLayout(
         fun create(screen: AbstractContainerScreen<*>, hasFavorites: Boolean): ItemListLayout? {
             val accessor = screen as AbstractContainerScreenAccessor
             val containerRight = accessor.`skysoft$getLeftPos`() + accessor.`skysoft$getImageWidth`()
+            val details = SkysoftConfigGui.config().inventory.itemList.sources
             return create(
                 screen.width,
                 screen.height,
                 containerRight,
                 hasFavorites,
-                SkysoftConfigGui.config().inventory.itemList.sources.searchPosition,
+                details.searchPosition,
+                details.isSettingsButtonHidden,
             )
         }
 
@@ -54,6 +56,7 @@ internal data class ItemListLayout(
             containerRight: Int,
             hasFavorites: Boolean,
             searchPosition: HudPosition = HudPosition(-OUTER_MARGIN, -OUTER_MARGIN, centerY = false).rememberDefault(),
+            isSettingsButtonHidden: Boolean = false,
         ): ItemListLayout? {
             val right = screenWidth - OUTER_MARGIN
             val availableWidth = right - containerRight - CONTAINER_GAP
@@ -87,13 +90,18 @@ internal data class ItemListLayout(
             )
             val footerX = if (isFooterMoved) searchPosition.getAbsX0(screenWidth, panelWidth) else panelX
             val footerY = if (isFooterMoved) searchPosition.getAbsY0(screenHeight, FIELD_HEIGHT) else defaultFooterY
+            val searchWidth = if (isSettingsButtonHidden) panelWidth else panelWidth - CONFIG_BUTTON_WIDTH - BUTTON_GAP
             val search = Rect(
                 footerX,
                 footerY,
-                panelWidth - CONFIG_BUTTON_WIDTH - BUTTON_GAP,
+                searchWidth,
                 FIELD_HEIGHT,
             )
-            val config = Rect(search.x + search.width + BUTTON_GAP, footerY, CONFIG_BUTTON_WIDTH, FIELD_HEIGHT)
+            val config = if (isSettingsButtonHidden) {
+                null
+            } else {
+                Rect(search.x + search.width + BUTTON_GAP, footerY, CONFIG_BUTTON_WIDTH, FIELD_HEIGHT)
+            }
             return ItemListLayout(
                 panel = Rect(panelX, panelY, panelWidth, navigationY + BUTTON_HEIGHT - panelY),
                 favorites = favoriteBounds,
