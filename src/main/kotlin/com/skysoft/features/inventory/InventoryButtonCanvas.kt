@@ -17,17 +17,24 @@ internal data class InventoryButtonCanvas(
     }
 
     fun position(button: InventoryButtonConfig): Point {
-        val originX = if (button.anchorRight) container.x + container.width else container.x
-        val originY = if (button.anchorBottom) verticalAnchor.y + verticalAnchor.height else verticalAnchor.y
-        return Point(originX + button.x, originY + button.y)
+        val origin = origin(button)
+        return Point(origin.x + button.x, origin.y + button.y)
     }
 
     fun move(button: InventoryButtonConfig, screenX: Int, screenY: Int) {
-        val originX = if (button.anchorRight) container.x + container.width else container.x
-        val originY = if (button.anchorBottom) verticalAnchor.y + verticalAnchor.height else verticalAnchor.y
-        button.x = screenX - originX
-        button.y = screenY - originY
+        val origin = origin(button)
+        button.x = screenX - origin.x
+        button.y = screenY - origin.y
     }
 
     fun overlapsContainer(buttonBounds: Rect): Boolean = !playerInventory && buttonBounds.intersects(container)
+
+    private fun origin(button: InventoryButtonConfig): Point = Point(
+        if (button.anchorRight) container.x + container.width else container.x,
+        when {
+            !button.anchorBottom -> verticalAnchor.y
+            button.y >= 0 -> container.y + container.height
+            else -> verticalAnchor.y + verticalAnchor.height
+        },
+    )
 }
