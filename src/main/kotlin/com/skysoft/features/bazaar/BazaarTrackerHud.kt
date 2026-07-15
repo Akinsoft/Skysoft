@@ -12,7 +12,15 @@ import kotlin.math.roundToInt
 
 internal fun renderHud(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
-    if (!config.enabled || MinecraftClient.isGuiHidden(minecraft) || !HypixelLocationState.inSkyBlock) return
+    if (
+        !config.enabled ||
+        !shouldShowBazaarTrackerContent(config.details.hideWhenEmpty, storage.activeOrders.isNotEmpty()) ||
+        MinecraftClient.isGuiHidden(minecraft) ||
+        !HypixelLocationState.inSkyBlock
+    ) {
+        hoveredControlArea = null
+        return
+    }
     val inventoryOpen = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
     val renderable = buildRenderable(inventoryOpen)
     if (renderable.width <= 0 || renderable.height <= 0) {
@@ -34,10 +42,14 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
 internal fun shouldRenderBazaarTrackerInventoryOverlay(): Boolean {
     val minecraft = Minecraft.getInstance()
     return config.enabled &&
+        shouldShowBazaarTrackerContent(config.details.hideWhenEmpty, storage.activeOrders.isNotEmpty()) &&
         !MinecraftClient.isGuiHidden(minecraft) &&
         HypixelLocationState.inSkyBlock &&
         MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
 }
+
+internal fun shouldShowBazaarTrackerContent(hideWhenEmpty: Boolean, hasOrders: Boolean): Boolean =
+    !hideWhenEmpty || hasOrders
 
 internal fun renderPositioned(
     context: GuiGraphicsExtractor,
@@ -137,9 +149,6 @@ internal fun fillProgressStyle(order: ProfileStorage.BazaarOrderData): String {
 
 internal fun isPartialFill(order: ProfileStorage.BazaarOrderData, filled: Long): Boolean =
     order.amountOrdered > 0 && filled > order.claimedAmount && filled < order.maximumAmount()
-
-internal fun formatOrderAmount(order: ProfileStorage.BazaarOrderData): String =
-    formatAmount(order.amountOrdered) + if (order.amountResolution > 0.0) "+" else ""
 
 internal fun requireMarketProof(order: ProfileStorage.BazaarOrderData) {
     val market = BazaarOrderBookApi.get(order.productId)

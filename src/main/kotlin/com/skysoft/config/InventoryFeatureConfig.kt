@@ -818,6 +818,12 @@ class BazaarTrackerSettingsConfig {
 class BazaarTrackerDetailsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Hide When Empty", desc = "Hide the Bazaar tracker when no orders are being tracked.")
+    @field:ConfigEditorBoolean
+    var hideWhenEmpty = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Show Background", desc = "Draw a dark background behind the Bazaar tracker.")
     @field:ConfigEditorBoolean
     var showBackground = true
