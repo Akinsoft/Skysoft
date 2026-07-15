@@ -15,9 +15,10 @@ import kotlin.math.min
 
 object ActionBarBackground {
     private const val BACKGROUND_RGB = 0x101010
-    private const val MAX_ALPHA = 160
     private const val X_PADDING = 4
     private const val Y_PADDING = 3
+    private const val CORNER_RADIUS = 2
+    private const val PERCENT_MAX = 100
     private const val FADE_TICKS = 20.0f
     private const val TEXT_Y_FROM_BOTTOM = 72
     private const val FONT_HEIGHT = 9
@@ -32,7 +33,8 @@ object ActionBarBackground {
 
     private fun render(context: GuiGraphicsExtractor, tick: DeltaTracker) {
         val minecraft = Minecraft.getInstance()
-        if (!SkysoftConfigGui.config().gui.actionBar.background || MinecraftClient.isGuiHidden(minecraft)) {
+        val config = SkysoftConfigGui.config().gui.actionBar
+        if (!config.background || MinecraftClient.isGuiHidden(minecraft)) {
             return
         }
 
@@ -54,8 +56,21 @@ object ActionBarBackground {
 
         val x = (context.guiWidth() - textWidth) / 2
         val textY = context.guiHeight() - TEXT_Y_FROM_BOTTOM
-        val color = (min(MAX_ALPHA, alpha) shl ARGB_ALPHA_SHIFT) or BACKGROUND_RGB
+        val maxAlpha = config.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX
+        val color = (min(maxAlpha, alpha) shl ARGB_ALPHA_SHIFT) or BACKGROUND_RGB
+        val left = x - X_PADDING
+        val top = textY - Y_PADDING
+        val right = x + textWidth + X_PADDING
+        val bottom = textY + FONT_HEIGHT + Y_PADDING
         context.nextStratum()
-        context.fill(x - X_PADDING, textY - Y_PADDING, x + textWidth + X_PADDING, textY + FONT_HEIGHT + Y_PADDING, color)
+        if (config.roundedCorners) {
+            context.fill(left + CORNER_RADIUS, top, right - CORNER_RADIUS, top + 1, color)
+            context.fill(left + 1, top + 1, right - 1, top + CORNER_RADIUS, color)
+            context.fill(left, top + CORNER_RADIUS, right, bottom - CORNER_RADIUS, color)
+            context.fill(left + 1, bottom - CORNER_RADIUS, right - 1, bottom - 1, color)
+            context.fill(left + CORNER_RADIUS, bottom - 1, right - CORNER_RADIUS, bottom, color)
+        } else {
+            context.fill(left, top, right, bottom, color)
+        }
     }
 }

@@ -35,6 +35,7 @@ class GuiFeatureConfig {
 
     fun repairLoadedValues() {
         heldItem.repairLoadedValues()
+        actionBar.repairLoadedValues()
     }
 }
 
@@ -61,6 +62,28 @@ class SkysoftActionBarConfig {
     @field:ConfigOption(name = "Enabled", desc = "Draw a box behind the action bar.")
     @field:ConfigEditorBoolean
     var background = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Rounded Corners", desc = "Round the background corners.")
+    @field:ConfigEditorBoolean
+    var roundedCorners = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Background Opacity", desc = "Opacity of the action bar background.")
+    @field:ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 1f)
+    var backgroundOpacity = DEFAULT_BACKGROUND_OPACITY
+
+    fun repairLoadedValues() {
+        backgroundOpacity = backgroundOpacity.coerceIn(MIN_BACKGROUND_OPACITY, MAX_BACKGROUND_OPACITY)
+    }
+
+    private companion object {
+        const val DEFAULT_BACKGROUND_OPACITY = 63
+        const val MIN_BACKGROUND_OPACITY = 0
+        const val MAX_BACKGROUND_OPACITY = 100
+    }
 }
 
 class InventoryScreenConfig {
