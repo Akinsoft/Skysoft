@@ -137,6 +137,7 @@ class ItemListConfig {
         favorites = favorites.filter(String::isNotBlank).distinct().take(MAX_FAVORITES).toMutableList()
         recentItems = recentItems.filter(String::isNotBlank).distinct().take(MAX_RECENT_ITEMS).toMutableList()
         sources.searchPosition.rememberDefault(ItemListSourcesConfig.defaultSearchPosition())
+        settings.repairLoadedValues()
         sources.repairLoadedValues()
     }
 
@@ -147,6 +148,18 @@ class ItemListConfig {
 }
 
 class ItemListSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Items Per Row", desc = "Maximum items shown horizontally.")
+    @field:ConfigEditorSlider(minValue = 2f, maxValue = 32f, minStep = 1f)
+    var columns = DEFAULT_COLUMNS
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Rows", desc = "Maximum item rows shown vertically. 0 fills the available height.")
+    @field:ConfigEditorSlider(minValue = 0f, maxValue = 32f, minStep = 1f)
+    var rows = DEFAULT_ROWS
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Visibility Key", desc = "Temporarily show or hide Item List.")
@@ -172,6 +185,20 @@ class ItemListSettingsConfig {
     val clearFavorites = Runnable {
         SkysoftConfigGui.config().inventory.itemList.favorites.clear()
         SkysoftConfigGui.config().saveNow()
+    }
+
+    fun repairLoadedValues() {
+        columns = columns.coerceIn(MIN_COLUMNS, MAX_COLUMNS)
+        rows = rows.coerceIn(MIN_ROWS, MAX_ROWS)
+    }
+
+    companion object {
+        const val DEFAULT_COLUMNS = 9
+        const val DEFAULT_ROWS = 0
+        const val MIN_COLUMNS = 2
+        const val MAX_COLUMNS = 32
+        const val MIN_ROWS = 0
+        const val MAX_ROWS = 32
     }
 }
 

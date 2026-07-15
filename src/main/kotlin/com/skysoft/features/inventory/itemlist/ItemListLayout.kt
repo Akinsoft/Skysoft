@@ -1,8 +1,9 @@
 package com.skysoft.features.inventory.itemlist
 
-import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.config.ItemListSettingsConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.core.HudPosition
+import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.gui.Rect
 import kotlin.math.min
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -39,14 +40,16 @@ internal data class ItemListLayout(
         fun create(screen: AbstractContainerScreen<*>, hasFavorites: Boolean): ItemListLayout? {
             val accessor = screen as AbstractContainerScreenAccessor
             val containerRight = accessor.`skysoft$getLeftPos`() + accessor.`skysoft$getImageWidth`()
-            val details = SkysoftConfigGui.config().inventory.itemList.sources
+            val itemList = SkysoftConfigGui.config().inventory.itemList
             return create(
                 screen.width,
                 screen.height,
                 containerRight,
                 hasFavorites,
-                details.searchPosition,
-                details.isSettingsButtonHidden,
+                itemList.sources.searchPosition,
+                itemList.sources.isSettingsButtonHidden,
+                itemList.settings.columns,
+                itemList.settings.rows,
             )
         }
 
@@ -57,10 +60,12 @@ internal data class ItemListLayout(
             hasFavorites: Boolean,
             searchPosition: HudPosition = HudPosition(-OUTER_MARGIN, -OUTER_MARGIN, centerY = false).rememberDefault(),
             isSettingsButtonHidden: Boolean = false,
+            maximumColumns: Int = ItemListSettingsConfig.DEFAULT_COLUMNS,
+            maximumRows: Int = ItemListSettingsConfig.DEFAULT_ROWS,
         ): ItemListLayout? {
             val right = screenWidth - OUTER_MARGIN
             val availableWidth = right - containerRight - CONTAINER_GAP
-            val columns = min(MAX_COLUMNS, availableWidth / SLOT_SIZE)
+            val columns = min(maximumColumns, availableWidth / SLOT_SIZE)
             if (columns < MIN_COLUMNS) return null
             val panelWidth = columns * SLOT_SIZE
             val panelX = right - panelWidth
@@ -68,15 +73,24 @@ internal data class ItemListLayout(
             val isFooterMoved = !searchPosition.isAtDefault()
             val favoritesHeight = if (hasFavorites) SLOT_SIZE + SECTION_GAP else 0
             val defaultFooterY = screenHeight - OUTER_MARGIN - FIELD_HEIGHT
-            val navigationY = if (isFooterMoved) {
+            val maximumNavigationY = if (isFooterMoved) {
                 screenHeight - OUTER_MARGIN - BUTTON_HEIGHT
             } else {
                 defaultFooterY - SECTION_GAP - BUTTON_HEIGHT
             }
             val gridY = panelY + favoritesHeight
-            val gridHeight = navigationY - SECTION_GAP - gridY
-            val rows = gridHeight / SLOT_SIZE
-            if (rows < MIN_ROWS) return null
+            val availableRows = (maximumNavigationY - SECTION_GAP - gridY) / SLOT_SIZE
+            if (availableRows < MIN_ROWS) return null
+            val rows = if (maximumRows == ItemListSettingsConfig.DEFAULT_ROWS) {
+                availableRows
+            } else {
+                min(maximumRows, availableRows)
+            }
+            val navigationY = if (maximumRows == ItemListSettingsConfig.DEFAULT_ROWS) {
+                maximumNavigationY
+            } else {
+                gridY + rows * SLOT_SIZE + SECTION_GAP
+            }
             val favoriteBounds = if (hasFavorites) Rect(panelX, panelY, panelWidth, SLOT_SIZE) else null
             val grid = Rect(panelX, gridY, panelWidth, rows * SLOT_SIZE)
             val navigationWidth = panelWidth
@@ -118,7 +132,6 @@ internal data class ItemListLayout(
         }
 
         const val SLOT_SIZE = 18
-        private const val MAX_COLUMNS = 9
         private const val MIN_COLUMNS = 2
         private const val MIN_ROWS = 2
         private const val OUTER_MARGIN = 4
