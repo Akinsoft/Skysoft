@@ -34,6 +34,7 @@ object SlotLockManager {
     private val config get() = SkysoftConfigGui.config().inventory.slotLocking
     private val lockedSlots get() = ProfileStorageApi.storage.slotLocks
     private var activeLockKey: Int? = null
+    private var pendingLockSlot: Int? = null
     private var blockedSlot: Int? = null
     private var blockedUntilMillis = 0L
 
@@ -41,6 +42,8 @@ object SlotLockManager {
     fun beginFrame() {
         activeLockKey?.takeUnless(InputUtilities::isKeyDown)?.let {
             activeLockKey = null
+            pendingLockSlot?.takeIf { isFeatureAvailable() }?.let(::toggleLock)
+            pendingLockSlot = null
         }
         if (System.currentTimeMillis() >= blockedUntilMillis) blockedSlot = null
     }
@@ -53,14 +56,26 @@ object SlotLockManager {
 
         val slot = (screen as AbstractContainerScreenAccessor).`skysoft$getHoveredSlot`()
         if (!isLockablePlayerSlot(slot)) return InputHandlingResult.CONSUMED
-        toggleLock(slot.containerSlot)
+        if (SlotBindingManager.canHandleBindingKey(event.key())) {
+            pendingLockSlot = slot.containerSlot
+        } else {
+            toggleLock(slot.containerSlot)
+        }
         return InputHandlingResult.CONSUMED
     }
 
     @JvmStatic
     fun clearInputState() {
         activeLockKey = null
+        pendingLockSlot = null
     }
+
+    @JvmStatic
+    fun cancelPendingLock() {
+        pendingLockSlot = null
+    }
+
+    fun isSlotLockPending(slotIndex: Int): Boolean = pendingLockSlot == slotIndex
 
     @JvmStatic
     fun renderSlotOverlay(context: GuiGraphicsExtractor, slot: Slot) {

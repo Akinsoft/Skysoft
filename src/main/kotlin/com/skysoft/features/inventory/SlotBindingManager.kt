@@ -136,6 +136,9 @@ object SlotBindingManager {
         isAvailable() && (isBindingKeyDown() || dragState?.containerId == screen.menu.containerId)
 
     @JvmStatic
+    fun canHandleBindingKey(key: Int): Boolean = isAvailable() && key == config.settings.bindingKey
+
+    @JvmStatic
     fun resetAllBindings() {
         val removed = bindings.isNotEmpty()
         bindings.clear()
@@ -172,6 +175,7 @@ object SlotBindingManager {
 
         val hoveredSlotIndex = hoveredSlot.containerSlot
         if (bindingFor(hoveredSlotIndex) != null) {
+            SlotLockManager.cancelPendingLock()
             removeBindingsInvolving(hoveredSlotIndex)
             dragState = null
             return
@@ -187,6 +191,9 @@ object SlotBindingManager {
     private fun finishDrag(screen: AbstractContainerScreen<*>, targetSlot: Slot?) {
         val drag = dragState ?: return
         dragState = null
+        if (!shouldKeepPendingSlotLock(drag.containerId, screen.menu.containerId, drag.sourceSlot, targetSlot?.containerSlot)) {
+            SlotLockManager.cancelPendingLock()
+        }
         if (drag.containerId != screen.menu.containerId || !isAvailable()) return
         val sourceSlot = Geometry.findPlayerSlot(screen, drag.sourceSlot) ?: return
         if (targetSlot != null && targetSlot.containerSlot != sourceSlot.containerSlot) {
@@ -287,6 +294,7 @@ object SlotBindingManager {
     ) {
         val drag = dragState ?: return
         if (drag.containerId != screen.menu.containerId || !isBindingKeyDown()) return
+        if (SlotLockManager.isSlotLockPending(drag.sourceSlot) && hoveredSlot?.containerSlot == drag.sourceSlot) return
         val source = Geometry.findPlayerSlot(screen, drag.sourceSlot) ?: return
         val target = hoveredSlot?.takeIf { it.containerSlot != drag.sourceSlot }
         val invalidReason = target?.let { Tooltips.invalidBindingReason(source, it) }
@@ -557,3 +565,10 @@ object SlotBindingManager {
     private data class PendingTooltip(val lines: List<String>, val mouseX: Int, val mouseY: Int)
     private data class LineValues(val x0: Double, val y0: Double, val x1: Double, val y1: Double, val gradient: Double)
 }
+
+internal fun shouldKeepPendingSlotLock(
+    sourceContainerId: Int,
+    currentContainerId: Int,
+    sourceSlot: Int,
+    targetSlot: Int?,
+): Boolean = sourceContainerId == currentContainerId && sourceSlot == targetSlot

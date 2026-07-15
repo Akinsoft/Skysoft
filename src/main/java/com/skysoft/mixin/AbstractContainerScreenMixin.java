@@ -54,7 +54,6 @@ public class AbstractContainerScreenMixin {
         float delta,
         CallbackInfo ci
     ) {
-        SlotLockManager.beginFrame();
         SmoothSwapping.beginFrame((AbstractContainerScreen<?>) (Object) this);
         InventoryEquipment.renderBackground((AbstractContainerScreen<?>) (Object) this, context);
     }
@@ -69,6 +68,7 @@ public class AbstractContainerScreenMixin {
     ) {
         SmoothSwapping.render((AbstractContainerScreen<?>) (Object) this, context);
         SlotBindingManager.render((AbstractContainerScreen<?>) (Object) this, context, mouseX, mouseY);
+        SlotLockManager.beginFrame();
         InventoryButtonManager.render((AbstractContainerScreen<?>) (Object) this, context, mouseX, mouseY);
         ItemListController.render((AbstractContainerScreen<?>) (Object) this, context, mouseX, mouseY);
     }
