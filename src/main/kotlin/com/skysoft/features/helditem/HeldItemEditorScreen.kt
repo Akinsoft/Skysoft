@@ -56,6 +56,7 @@ object HeldItemEditorScreen {
         }
         private val layout = HeldItemEditorLayout()
         private val openingAnimation = HeldItemEditorOpeningAnimation()
+        private val disabledOverlay = HeldItemDisabledOverlay()
         private val historyController by lazy {
             HeldItemHistoryController(
                 config = config,
@@ -75,6 +76,7 @@ object HeldItemEditorScreen {
         override fun init() {
             layout.initialize(width, height, config.editorX, config.editorY)
             openingAnimation.start()
+            disabledOverlay.initialize(config.enabled)
         }
 
         internal fun previewTransform(itemStack: ItemStack): HeldItemTransformConfig? =
@@ -85,9 +87,11 @@ object HeldItemEditorScreen {
 
         override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
             editorState.ensureTargetAvailable()
+            val isEditingBlocked = disabledOverlay.isEditingBlocked(config.enabled)
             openingAnimation.render(context, layout.panelBounds()) { isComplete ->
-                val renderMouseX = if (isComplete) mouseX else EditorAnimation.HIDDEN_MOUSE_COORDINATE
-                val renderMouseY = if (isComplete) mouseY else EditorAnimation.HIDDEN_MOUSE_COORDINATE
+                val isInteractive = isComplete && !isEditingBlocked
+                val renderMouseX = if (isInteractive) mouseX else EditorAnimation.HIDDEN_MOUSE_COORDINATE
+                val renderMouseY = if (isInteractive) mouseY else EditorAnimation.HIDDEN_MOUSE_COORDINATE
                 HeldItemEditorRenderer.render(
                     context,
                     font,
@@ -99,6 +103,13 @@ object HeldItemEditorScreen {
                     renderMouseY,
                 )
             }
+            HeldItemDisabledOverlayRenderer.render(
+                context,
+                font,
+                width,
+                height,
+                disabledOverlay.visuals(config.enabled),
+            )
         }
 
         override fun extractBackground(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) = Unit
@@ -108,11 +119,29 @@ object HeldItemEditorScreen {
             if (!openingAnimation.isComplete()) return true
             val mouseX = click.x().toInt()
             val mouseY = click.y().toInt()
+            if (disabledOverlay.isEditingBlocked(config.enabled)) {
+                if (
+                    !config.enabled &&
+                    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+                    HeldItemDisabledOverlayRenderer.toggleBounds(width, height).contains(mouseX, mouseY)
+                ) {
+                    activateEditorButton {
+                        config.enabled = true
+                        disabledOverlay.beginEnableTransition()
+                        SkysoftConfigGui.config().saveNow()
+                    }
+                }
+                return true
+            }
             processClick(mouseX, mouseY, click.button())
             return true
         }
 
         override fun mouseDragged(click: MouseButtonEvent, deltaX: Double, deltaY: Double): Boolean {
+            if (disabledOverlay.isEditingBlocked(config.enabled)) {
+                cancelDrag()
+                return true
+            }
             val activeDrag = dragKind ?: return super.mouseDragged(click, deltaX, deltaY)
             val expectedButton = when (activeDrag) {
                 DragKind.PANEL, DragKind.MOVE_ITEM, DragKind.SLIDER -> GLFW.GLFW_MOUSE_BUTTON_LEFT
@@ -151,6 +180,10 @@ object HeldItemEditorScreen {
         }
 
         override fun mouseReleased(click: MouseButtonEvent): Boolean {
+            if (disabledOverlay.isEditingBlocked(config.enabled)) {
+                cancelDrag()
+                return true
+            }
             if (click.button() in EDITOR_MOUSE_BUTTONS && dragKind != null) {
                 historyController.commitGesture()
                 dragKind = null
@@ -168,6 +201,7 @@ object HeldItemEditorScreen {
             scrollY: Double,
         ): Boolean {
             if (!openingAnimation.isComplete()) return true
+            if (disabledOverlay.isEditingBlocked(config.enabled)) return true
             if (scrollY == 0.0) return false
             val hoveredField = layout.sliderFieldAt(mouseX.toInt(), mouseY.toInt())
             if (hoveredField != null) {
@@ -188,6 +222,7 @@ object HeldItemEditorScreen {
         }
 
         override fun keyPressed(event: KeyEvent): Boolean {
+            if (disabledOverlay.isEditingBlocked(config.enabled)) return super.keyPressed(event)
             if (event.key() in GLFW.GLFW_KEY_1..GLFW.GLFW_KEY_9) {
                 historyController.flushPending()
                 dragKind = null
@@ -217,15 +252,15 @@ object HeldItemEditorScreen {
             val isLeftClick = button == GLFW.GLFW_MOUSE_BUTTON_LEFT
             val historyAction = if (isLeftClick) historyActionAt(layout, historyController, mouseX, mouseY) else null
             when {
-                isLeftClick && layout.closeBounds().contains(mouseX, mouseY) -> activateButton(::onClose)
-                historyAction != null -> activateButton { markChanged(historyAction()) }
+                isLeftClick && layout.closeBounds().contains(mouseX, mouseY) -> activateEditorButton(::onClose)
+                historyAction != null -> activateEditorButton { markChanged(historyAction()) }
                 isLeftClick && layout.textureToggleBounds().contains(mouseX, mouseY) && editorState.canToggleTexture() -> {
-                    activateButton {
+                    activateEditorButton {
                         markChanged(historyController.mutate { editorState.toggleTexture() })
                     }
                 }
                 isLeftClick && layout.targetBounds(EditTarget.GLOBAL).contains(mouseX, mouseY) -> {
-                    activateButton {
+                    activateEditorButton {
                         historyController.flushPending()
                         editorState.selectTarget(EditTarget.GLOBAL)
                     }
@@ -233,18 +268,18 @@ object HeldItemEditorScreen {
                 isLeftClick &&
                     layout.targetBounds(EditTarget.ITEM).contains(mouseX, mouseY) &&
                     editorState.currentItemId() != null -> {
-                    activateButton {
+                    activateEditorButton {
                         historyController.flushPending()
                         editorState.selectTarget(EditTarget.ITEM)
                     }
                 }
                 isLeftClick && layout.sliderFieldAt(mouseX, mouseY) != null -> startSliderDrag(mouseX, mouseY)
                 isLeftClick && layout.resetBounds().contains(mouseX, mouseY) && editorState.canResetCurrentTarget() -> {
-                    activateButton {
+                    activateEditorButton {
                         markChanged(historyController.mutate { editorState.resetCurrentTarget() })
                     }
                 }
-                isLeftClick && layout.doneBounds().contains(mouseX, mouseY) -> activateButton(::onClose)
+                isLeftClick && layout.doneBounds().contains(mouseX, mouseY) -> activateEditorButton(::onClose)
                 isLeftClick && layout.titleDragBounds().contains(mouseX, mouseY) -> startPanelDrag(mouseX, mouseY)
                 layout.panelBounds().contains(mouseX, mouseY) -> Unit
                 isLeftClick -> startItemDrag(DragKind.MOVE_ITEM, mouseX, mouseY)
@@ -274,9 +309,9 @@ object HeldItemEditorScreen {
             lastDragY = mouseY
         }
 
-        private fun activateButton(action: () -> Unit) {
-            SoundUtilities.playClickSound()
-            action()
+        private fun cancelDrag() {
+            dragKind = null
+            draggedField = null
         }
 
         private fun markChanged(changeResult: ChangeResult = ChangeResult.CHANGED) {
@@ -291,6 +326,11 @@ object HeldItemEditorScreen {
             hasUnsavedChanges = false
         }
     }
+}
+
+private fun activateEditorButton(action: () -> Unit) {
+    SoundUtilities.playClickSound()
+    action()
 }
 
 private fun historyActionAt(
