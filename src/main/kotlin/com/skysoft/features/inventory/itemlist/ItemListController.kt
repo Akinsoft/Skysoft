@@ -31,6 +31,11 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.lwjgl.glfw.GLFW
+import java.math.BigDecimal
+import java.math.MathContext
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 
 object ItemListController {
     private val searchField = TextFieldState(maxLength = 128)
@@ -45,6 +50,7 @@ object ItemListController {
         FooterPresentation.FADE_DURATION_NANOS,
     )
     private val navigationAlpha = SmoothFloatTransition(0f, FooterPresentation.FADE_DURATION_NANOS)
+    private val calculationBlend = SmoothFloatTransition(0f, FooterPresentation.LABEL_SWAP_DURATION_NANOS)
 
     @JvmStatic
     fun register() {
@@ -100,13 +106,15 @@ object ItemListController {
         val pageCount = pageCount(entries.size, layout.pageSize)
         ItemListState.page = ItemListState.page.coerceIn(0, pageCount - 1)
         hoveredKey = null
+        val calculation = itemListCalculation(ItemListState.search)
         val isSearchActive = searchField.focused || ItemListState.search.isNotBlank()
         val footerOpacity = footerAlpha.value(
             if (isSearchActive) 1f else FooterPresentation.IDLE_ALPHA.toFloat(),
         ).toDouble()
         val navigationOpacity = navigationAlpha.value(if (isSearchActive) 1f else 0f).toDouble()
+        val labelAlphas = calculationLabelAlphas(calculationBlend.value(if (calculation == null) 0f else 1f))
 
-        drawSlots(context, layout, entries, favorites, mouseX, mouseY)
+        drawSlots(context, layout, entries, favorites, calculation != null, mouseX, mouseY)
         tierDropdown.render(context, layout, entries) { bounds, entry ->
             drawEntry(context, bounds, entry, null, mouseX, mouseY)
         }
@@ -131,12 +139,25 @@ object ItemListController {
                 enabled = ItemListState.page + 1 < pageCount,
                 alpha = navigationOpacity,
             )
-            drawCenteredText(
-                context,
-                layout.pageLabel,
-                "${ItemListState.page + 1} / $pageCount",
-                navigationOpacity,
-            )
+            val paginationOpacity = navigationOpacity * labelAlphas.first
+            if (paginationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
+                drawCenteredText(
+                    context,
+                    layout.pageLabel,
+                    "${ItemListState.page + 1} / $pageCount",
+                    paginationOpacity,
+                )
+            }
+            val calculationOpacity = navigationOpacity * labelAlphas.second
+            if (calculation != null && calculationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
+                drawCenteredText(
+                    context,
+                    layout.pageLabel,
+                    "= $calculation",
+                    calculationOpacity,
+                    CALCULATION_TEXT_COLOR,
+                )
+            }
         }
         drawSettingsButton(context, layout.config, layout.config.contains(mouseX, mouseY), footerOpacity)
         searchField.text = ItemListState.search
@@ -325,6 +346,7 @@ object ItemListController {
         layout: ItemListLayout,
         entries: List<ItemListEntry>,
         favorites: List<ItemListEntry>,
+        hasCalculation: Boolean,
         mouseX: Int,
         mouseY: Int,
     ) {
@@ -332,6 +354,7 @@ object ItemListController {
             val bounds = requireNotNull(layout.favoriteBounds(index))
             drawEntry(context, bounds, entry, null, mouseX, mouseY)
         }
+        if (hasCalculation) return
         val start = ItemListState.page * layout.pageSize
         entries.drop(start).take(layout.pageSize).forEachIndexed { index, entry ->
             drawEntry(
@@ -465,6 +488,7 @@ private object FooterPresentation {
     const val IDLE_ALPHA = 0.5
     const val MINIMUM_VISIBLE_ALPHA = 0.01
     const val FADE_DURATION_NANOS = 180_000_000L
+    const val LABEL_SWAP_DURATION_NANOS = 600_000_000L
 }
 
 private data class EntryHit(
@@ -474,14 +498,104 @@ private data class EntryHit(
 
 internal fun hasItemListQuery(query: String): Boolean = query.isNotBlank()
 
-private fun drawCenteredText(context: GuiGraphicsExtractor, bounds: Rect, text: String, alpha: Double = 1.0) {
+internal fun calculationLabelAlphas(calculationBlend: Float): Pair<Float, Float> =
+    (1f - calculationBlend * 2f).coerceIn(0f, 1f) to (calculationBlend * 2f - 1f).coerceIn(0f, 1f)
+
+internal fun itemListCalculation(query: String): String? {
+    val expression = query.replace(",", "")
+    if (expression.none { it in "+-*/xX" }) return null
+    val result = runCatching { ItemListMathParser(expression).parse() }.getOrNull() ?: return null
+    return DecimalFormat("#,##0.##########", DecimalFormatSymbols(Locale.US)).format(result)
+}
+
+private class ItemListMathParser(private val expression: String) {
+    private var index = 0
+
+    fun parse(): BigDecimal {
+        val result = parseExpression()
+        skipSpaces()
+        require(index == expression.length)
+        return result
+    }
+
+    private fun parseExpression(): BigDecimal {
+        var result = parseTerm()
+        while (true) {
+            result = when (nextOperator('+', '-')) {
+                '+' -> result + parseTerm()
+                '-' -> result - parseTerm()
+                else -> return result
+            }
+        }
+    }
+
+    private fun parseTerm(): BigDecimal {
+        var result = parseFactor()
+        while (true) {
+            result = when (nextOperator('*', 'x', 'X', '/')) {
+                '*', 'x', 'X' -> result * parseFactor()
+                '/' -> result.divide(parseFactor(), MathContext.DECIMAL64)
+                else -> return result
+            }
+        }
+    }
+
+    private fun parseFactor(): BigDecimal {
+        skipSpaces()
+        return when (expression.getOrNull(index)) {
+            '+' -> {
+                index++
+                parseFactor()
+            }
+            '-' -> {
+                index++
+                -parseFactor()
+            }
+            '(' -> {
+                index++
+                val result = parseExpression()
+                skipSpaces()
+                require(expression.getOrNull(index++) == ')')
+                result
+            }
+            else -> parseNumber()
+        }
+    }
+
+    private fun parseNumber(): BigDecimal {
+        skipSpaces()
+        val start = index
+        while (expression.getOrNull(index)?.let { it.isDigit() || it == '.' } == true) index++
+        require(index > start)
+        return expression.substring(start, index).toBigDecimal()
+    }
+
+    private fun nextOperator(vararg operators: Char): Char? {
+        skipSpaces()
+        val operator = expression.getOrNull(index)?.takeIf { it in operators } ?: return null
+        index++
+        return operator
+    }
+
+    private fun skipSpaces() {
+        while (expression.getOrNull(index)?.isWhitespace() == true) index++
+    }
+}
+
+private fun drawCenteredText(
+    context: GuiGraphicsExtractor,
+    bounds: Rect,
+    text: String,
+    alpha: Double = 1.0,
+    color: Int = CENTERED_TEXT_COLOR,
+) {
     val font = Minecraft.getInstance().font
     context.text(
         font,
         text,
         bounds.x + (bounds.width - font.width(text)) / 2,
         bounds.y + CENTERED_TEXT_Y_OFFSET,
-        CENTERED_TEXT_COLOR.withScaledAlpha(alpha),
+        color.withScaledAlpha(alpha),
         false,
     )
 }
@@ -532,6 +646,7 @@ private const val CENTERED_TEXT_Y_OFFSET = 4
 private const val SETTINGS_ICON_SIZE = 16
 private val SETTINGS_ICON_DIM = 0xB0000000.toInt()
 private val CENTERED_TEXT_COLOR = 0xFFE0E4E8.toInt()
+private val CALCULATION_TEXT_COLOR = 0xFF55FF55.toInt()
 
 enum class ItemListViewMode {
     RECIPES,
