@@ -1,9 +1,5 @@
 package com.skysoft.utils.render
 
-import com.skysoft.gui.GuiOverlay
-import com.skysoft.gui.GuiOverlayContextType
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.MinecraftClient
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
@@ -22,14 +18,10 @@ object ScreenAlertRenderer {
         ScreenTitleRenderer.registerPositionEditor()
         ClientTickEvents.END_CLIENT_TICK.register { tick() }
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearAll() }
-        GuiOverlayRegistry.register(
-            GuiOverlay(
-                id = "screen_alerts",
-                layer = GuiOverlayLayer.ABOVE_SCREEN,
-                contexts = GuiOverlayContextType.entries.toSet(),
-                visible = { isVisible() },
-                render = { context, _ -> render(context) },
-            ),
+        ScreenTitleRenderer.registerTitleOverlay(
+            id = "screen_alerts",
+            visible = ::isVisible,
+            render = ::render,
         )
     }
 

@@ -1,9 +1,5 @@
 package com.skysoft.features.event.diana
 
-import com.skysoft.gui.GuiOverlay
-import com.skysoft.gui.GuiOverlayContextType
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.render.ScreenAlertRenderer
 import com.skysoft.utils.render.ScreenTitleRenderer
@@ -14,14 +10,10 @@ import net.minecraft.network.chat.Component
 
 internal object DianaWarpTitleRenderer {
     fun register(suggestionProvider: () -> DianaWarpSuggestion?) {
-        GuiOverlayRegistry.register(
-            GuiOverlay(
-                id = "diana_warp_hint",
-                layer = GuiOverlayLayer.ABOVE_SCREEN,
-                contexts = setOf(GuiOverlayContextType.WORLD),
-                visible = { isVisible(suggestionProvider) },
-                render = { context, _ -> render(context, suggestionProvider) },
-            ),
+        ScreenTitleRenderer.registerTitleOverlay(
+            id = "diana_warp_hint",
+            visible = { isVisible(suggestionProvider) },
+            render = { context -> render(context, suggestionProvider) },
         )
     }
 

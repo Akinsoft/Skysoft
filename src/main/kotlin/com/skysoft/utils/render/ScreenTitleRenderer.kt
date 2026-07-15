@@ -1,8 +1,15 @@
 package com.skysoft.utils.render
 
+import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.gui.GuiOverlay
+import com.skysoft.gui.GuiOverlayContextType
+import com.skysoft.gui.GuiOverlayLayer
+import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
@@ -14,8 +21,32 @@ object ScreenTitleRenderer {
         ScreenTitleLine(Component.literal("Title details"), 1.2f),
     )
     private val position get() = SkysoftConfigGui.config().gui.positionEditor.titlePosition
+    private val renderTitlesInFront get() = SkysoftConfigGui.config().gui.positionEditor.renderTitlesInFront
     private var lastRenderedTitle: RenderedTitle? = null
     private var editorTitle: List<ScreenTitleLine>? = null
+
+    internal fun registerTitleOverlay(
+        id: String,
+        visible: () -> Boolean,
+        render: (GuiGraphicsExtractor) -> Unit,
+    ) {
+        HudElementRegistry.attachElementAfter(
+            VanillaHudElements.TITLE_AND_SUBTITLE,
+            SkysoftMod.id(id),
+            { context, _ ->
+                if (!renderTitlesInFront && visible()) render(context)
+            },
+        )
+        GuiOverlayRegistry.register(
+            GuiOverlay(
+                id = id,
+                layer = GuiOverlayLayer.ABOVE_SCREEN,
+                contexts = GuiOverlayContextType.entries.toSet(),
+                visible = { renderTitlesInFront && visible() },
+                render = { context, _ -> render(context) },
+            ),
+        )
+    }
 
     fun beginPositionEditing(nowNanos: Long = System.nanoTime()) {
         editorTitle = lastRenderedTitle
