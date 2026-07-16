@@ -50,18 +50,20 @@ object AutoSprint {
 
     fun isActive(player: LocalPlayer): Boolean {
         if (!config.enabled) return false
-        val combinations = config.settings.combinations
+        val settings = config.settings
+        val combinations = settings.combinations
         if (combinations.isEmpty()) return true
         val heldItemId = player.mainHandItem.skyBlockId()
-        return activationCache.conditionsMatch(
+        return activationCache.isActivationAllowed(
             FeatureConditionActivationKey(
                 locationVersion = HypixelLocationState.locationVersion,
                 eventVersion = SkyBlockEventState.version,
                 rulesVersion = conditionVersion.version,
                 heldItemId = heldItemId,
+                isConditionActivationReversed = settings.isConditionActivationReversed,
             ),
         ) {
-            FeatureConditions.matches(
+            FeatureConditions.isActivationAllowed(
                 combinations,
                 FeatureConditionContext(
                     isInSkyBlock = HypixelLocationState.inSkyBlock,
@@ -69,6 +71,7 @@ object AutoSprint {
                     activeEvents = SkyBlockEventState.activeEvents(),
                     heldItemId = heldItemId,
                 ),
+                isConditionActivationReversed = settings.isConditionActivationReversed,
             )
         }
     }

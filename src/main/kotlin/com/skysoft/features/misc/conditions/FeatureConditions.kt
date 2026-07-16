@@ -23,10 +23,18 @@ data class FeatureConditionContext(
 )
 
 object FeatureConditions {
-    fun matches(combinations: List<FeatureConditionCombination>, context: FeatureConditionContext): Boolean =
-        combinations.isEmpty() || combinations.any { combination ->
-            combination.conditions.isNotEmpty() && combination.conditions.all { it.matches(context) }
-        }
+    fun isActivationAllowed(
+        combinations: List<FeatureConditionCombination>,
+        context: FeatureConditionContext,
+        isConditionActivationReversed: Boolean,
+    ): Boolean = combinations.isEmpty() || matches(combinations, context) != isConditionActivationReversed
+
+    fun matches(
+        combinations: List<FeatureConditionCombination>,
+        context: FeatureConditionContext,
+    ): Boolean = combinations.isEmpty() || combinations.any { combination ->
+        combination.conditions.isNotEmpty() && combination.conditions.all { it.matches(context) }
+    }
 
     fun builtInConditions(): List<FeatureCondition> = buildList {
         SkyBlockEvent.entries.forEach { event ->
@@ -183,16 +191,17 @@ internal data class FeatureConditionActivationKey(
     val eventVersion: Long,
     val rulesVersion: Long,
     val heldItemId: String?,
+    val isConditionActivationReversed: Boolean = false,
 )
 
 internal class FeatureConditionActivationCache {
     private var cachedKey: FeatureConditionActivationKey? = null
     private var cachedValue = false
 
-    fun conditionsMatch(key: FeatureConditionActivationKey, calculateConditionsMatch: () -> Boolean): Boolean {
+    fun isActivationAllowed(key: FeatureConditionActivationKey, calculateIsActivationAllowed: () -> Boolean): Boolean {
         if (key == cachedKey) return cachedValue
         cachedKey = key
-        cachedValue = calculateConditionsMatch()
+        cachedValue = calculateIsActivationAllowed()
         return cachedValue
     }
 }

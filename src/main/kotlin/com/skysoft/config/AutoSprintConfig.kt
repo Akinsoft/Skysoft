@@ -32,6 +32,12 @@ class AutoSprintSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Reverse Conditions", desc = "Matching combinations disable Auto Sprint instead.")
+    @field:ConfigEditorBoolean
+    var isConditionActivationReversed = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Combinations", desc = "Any matching combination enables Auto Sprint.")
     @field:ConfigEditorCombinations(provider = AutoSprintCombinationsProvider::class)
     val combinations: MutableList<FeatureConditionCombination> = mutableListOf()
