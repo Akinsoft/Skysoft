@@ -17,6 +17,14 @@ Thanks to Swift for giving Skysoft permission to follow SBO's Diana party-comman
 
 - Project: https://github.com/SkyblockOverhaul/SBO
 
+## Held Item Update Fix
+
+Skysoft's original held-item update fix is inspired by the behavior of Hot Shirtless Men.
+
+- Project: https://github.com/Rekteiru/Hot-Shirtless-Men
+- Reference commit: `9162e02bf6f13477954e995e0c65b1737612ba30`
+- License: MIT
+
 ## Diana Burrow Pitch Projection
 
 Skysoft's Diana burrow path projection uses a pitch-weighting formula adapted from SkyHanni's `LocationUtils.computePitchWeight`.
