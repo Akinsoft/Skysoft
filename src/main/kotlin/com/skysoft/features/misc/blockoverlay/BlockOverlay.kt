@@ -47,8 +47,8 @@ object BlockOverlay {
             isRenderableBlockTarget(it.type == HitResult.Type.BLOCK, blockState == null || blockState.isAir)
         }
         val heldItemId = if (config.enabled && target != null) minecraft.player?.mainHandItem?.skyBlockId() else null
-        val conditionsMatch = config.enabled && target != null && conditionsMatch(heldItemId)
-        if (!vanillaEligible || !config.enabled || target == null || !conditionsMatch) {
+        val isActivationAllowed = config.enabled && target != null && isFeatureActivationAllowed(heldItemId)
+        if (!vanillaEligible || !config.enabled || target == null || !isActivationAllowed) {
             return if (vanillaEligible) BlockOutlineSelection.VANILLA else BlockOutlineSelection.NONE
         }
 
@@ -66,7 +66,7 @@ object BlockOverlay {
                 isVanillaEligible = vanillaEligible,
                 isEnabled = config.enabled,
                 hasBlockTarget = true,
-                doConditionsMatch = conditionsMatch,
+                isActivationAllowed = isActivationAllowed,
                 hasRenderableShape = shape != null && !shape.isEmpty,
             )
         ) {
@@ -87,22 +87,25 @@ object BlockOverlay {
         )
     }
 
-    private fun conditionsMatch(heldItemId: String?): Boolean {
+    private fun isFeatureActivationAllowed(heldItemId: String?): Boolean {
+        val settings = config.settings
         val key = FeatureConditionActivationKey(
             locationVersion = HypixelLocationState.locationVersion,
             eventVersion = SkyBlockEventState.version,
             rulesVersion = conditionVersion.version,
             heldItemId = heldItemId,
+            isConditionActivationReversed = settings.isConditionActivationReversed,
         )
-        return activationCache.conditionsMatch(key) {
-            FeatureConditions.matches(
-                config.settings.combinations,
+        return activationCache.isActivationAllowed(key) {
+            FeatureConditions.isActivationAllowed(
+                settings.combinations,
                 FeatureConditionContext(
                     isInSkyBlock = HypixelLocationState.inSkyBlock,
                     island = HypixelLocationState.currentIsland,
                     activeEvents = SkyBlockEventState.activeEvents(),
                     heldItemId = heldItemId,
                 ),
+                isConditionActivationReversed = settings.isConditionActivationReversed,
             )
         }
     }
@@ -149,9 +152,9 @@ internal fun shouldReplaceVanillaBlockOutline(
     isVanillaEligible: Boolean,
     isEnabled: Boolean,
     hasBlockTarget: Boolean,
-    doConditionsMatch: Boolean,
+    isActivationAllowed: Boolean,
     hasRenderableShape: Boolean,
-): Boolean = isVanillaEligible && isEnabled && hasBlockTarget && doConditionsMatch && hasRenderableShape
+): Boolean = isVanillaEligible && isEnabled && hasBlockTarget && isActivationAllowed && hasRenderableShape
 
 internal fun isRenderableBlockTarget(isBlockHit: Boolean, isAir: Boolean): Boolean = isBlockHit && !isAir
 
