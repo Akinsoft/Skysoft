@@ -92,6 +92,7 @@ public class AbstractContainerScreenMixin {
 
     @Inject(method = "removed", at = @At("TAIL"))
     private void skysoft$restoreInventoryEquipmentLayout(CallbackInfo ci) {
+        BazaarTracker.restoreOrderMenu((AbstractContainerScreen<?>) (Object) this);
         InventoryEquipment.restoreScreen((AbstractContainerScreen<?>) (Object) this);
         SlotLockManager.clearInputState();
     }
@@ -295,6 +296,9 @@ public class AbstractContainerScreenMixin {
         Player player,
         Operation<Void> original
     ) {
+        if (BazaarTracker.shouldBlockOrderInteraction((AbstractContainerScreen<?>) (Object) this, slotId)) {
+            return;
+        }
         InventoryDropSelectionGuard guard = SkyBlockMenuInventoryDropFix.beginContainerThrow(player, slotId, action);
         try {
             original.call(gameMode, containerId, slotId, button, action, player);

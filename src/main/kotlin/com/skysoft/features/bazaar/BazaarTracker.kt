@@ -12,6 +12,7 @@ import com.skysoft.utils.renderables.GuiRenderable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.Slot
 import java.util.ArrayDeque
@@ -41,6 +42,16 @@ object BazaarTracker {
     @JvmStatic
     fun renderSlotIndicatorOverlay(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) =
         renderBazaarTrackerSlotIndicatorOverlay(screen, context, slot)
+
+    @JvmStatic
+    fun layoutOrderMenu(screen: ContainerScreen): Int = layoutBazaarOrderMenu(screen)
+
+    @JvmStatic
+    fun restoreOrderMenu(screen: AbstractContainerScreen<*>) = restoreBazaarOrderMenu(screen)
+
+    @JvmStatic
+    fun shouldBlockOrderInteraction(screen: AbstractContainerScreen<*>, slotId: Int): Boolean =
+        shouldBlockBazaarOrderInteraction(screen, slotId)
 
 }
 

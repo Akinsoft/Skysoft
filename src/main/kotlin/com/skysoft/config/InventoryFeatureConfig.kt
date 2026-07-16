@@ -919,6 +919,12 @@ class BazaarTrackerDetailsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Only My Orders", desc = "Hide co-op members' orders and compact the Bazaar Orders menu.")
+    @field:ConfigEditorBoolean
+    var onlyMyOrders = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Visual Indicators", desc = "Highlight Bazaar Orders slots by tracker status.")
     @field:ConfigEditorBoolean
     var visualIndicators = true

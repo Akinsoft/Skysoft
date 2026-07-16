@@ -6,6 +6,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
@@ -17,11 +18,21 @@ public interface AbstractContainerScreenAccessor {
     @Accessor("topPos")
     int skysoft$getTopPos();
 
+    @Accessor("topPos")
+    void skysoft$setTopPos(int topPos);
+
     @Accessor("imageWidth")
     int skysoft$getImageWidth();
 
     @Accessor("imageHeight")
     int skysoft$getImageHeight();
+
+    @Mutable
+    @Accessor("imageHeight")
+    void skysoft$setImageHeight(int imageHeight);
+
+    @Accessor("inventoryLabelY")
+    void skysoft$setInventoryLabelY(int inventoryLabelY);
 
     @Accessor("skipNextRelease")
     void skysoft$setSkipNextRelease(boolean skipNextRelease);
