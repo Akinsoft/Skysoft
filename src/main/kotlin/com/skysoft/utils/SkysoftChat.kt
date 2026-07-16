@@ -2,6 +2,7 @@ package com.skysoft.utils
 
 import com.skysoft.SkysoftMod
 import java.net.URI
+import java.util.Optional
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -9,27 +10,28 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.MutableComponent
+import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 
 object SkysoftChat {
-    private const val PREFIX_LEFT = 0x2BB1FB
-    private const val PREFIX_RIGHT = 0x1A87C4
-    private const val MESSAGE_BLUE = 0x2BB1FB
+    private const val PREFIX_LEFT = 0x1A87C4
+    private const val PREFIX_RIGHT = 0x2BB1FB
+    private const val MESSAGE_LEFT = 0xE8E8E8
+    private const val MESSAGE_RIGHT = 0xFFFFFF
 
     fun chat(message: String): ChatDeliveryResult =
-        chat(defaultText(message))
+        chat(Component.literal(message))
 
     fun success(message: String): ChatDeliveryResult =
-        chat(Component.literal(message).withStyle(ChatFormatting.GREEN))
+        chat(message)
 
     fun error(message: String): ChatDeliveryResult =
-        chat(Component.literal(message).withStyle(ChatFormatting.RED))
+        chat(message)
 
     fun link(message: String, url: String, hover: String = "Open $url"): ChatDeliveryResult =
         chat(
             Component.literal(message).withStyle {
-                it.withColor(TextColor.fromRgb(MESSAGE_BLUE))
-                    .withUnderlined(true)
+                it.withUnderlined(true)
                     .withClickEvent(ClickEvent.OpenUrl(URI.create(url)))
                     .withHoverEvent(HoverEvent.ShowText(Component.literal(hover).withStyle(ChatFormatting.GRAY)))
             },
@@ -47,36 +49,36 @@ object SkysoftChat {
     }
 
     fun feedback(source: FabricClientCommandSource, message: String) {
-        source.sendFeedback(prefixed(defaultText(message)))
+        source.sendFeedback(prefixed(Component.literal(message)))
     }
 
     fun error(source: FabricClientCommandSource, message: String) {
-        source.sendError(prefixed(Component.literal(message).withStyle(ChatFormatting.RED)))
+        source.sendError(prefixed(Component.literal(message)))
     }
 
     fun prefixed(message: Component): MutableComponent =
-        Component.empty().append(prefix()).append(message)
+        Component.empty().append(prefix()).append(gradient(message, MESSAGE_LEFT, MESSAGE_RIGHT))
 
     private fun prefix(): MutableComponent =
-        gradient("[Skysoft] ").withStyle(ChatFormatting.BOLD)
+        gradient(Component.literal("[Skysoft] "), PREFIX_LEFT, PREFIX_RIGHT).withStyle(ChatFormatting.BOLD)
 
-    private fun gradient(text: String): MutableComponent {
+    private fun gradient(component: Component, start: Int, end: Int): MutableComponent {
         val result = Component.empty()
-        text.forEachIndexed { index, char ->
-            val progress = index.toFloat() / (text.length - 1).coerceAtLeast(1)
-            result.append(
-                Component.literal(char.toString()).withStyle {
-                    it.withColor(TextColor.fromRgb(mix(PREFIX_LEFT, PREFIX_RIGHT, progress)))
-                },
-            )
-        }
+        val lastIndex = (component.string.length - 1).coerceAtLeast(1)
+        var index = 0
+        component.visit({ style: Style, text: String ->
+            text.forEach { char ->
+                val progress = index++.toFloat() / lastIndex
+                result.append(
+                    Component.literal(char.toString()).withStyle(
+                        style.withColor(TextColor.fromRgb(mix(start, end, progress))),
+                    ),
+                )
+            }
+            Optional.empty<Unit>()
+        }, Style.EMPTY)
         return result
     }
-
-    private fun defaultText(message: String): MutableComponent =
-        Component.literal(message).withStyle {
-            it.withColor(TextColor.fromRgb(MESSAGE_BLUE))
-        }
 
     private fun mix(start: Int, end: Int, progress: Float): Int {
         val r = channel(start, end, RED_SHIFT, progress)
