@@ -191,9 +191,9 @@ internal class ItemListViewerScreen(
         layout.previous.contains(mouseX, mouseY) -> selection.changePage(-1, layout.recipeGrid.pageSize, auctionHousePanel)
         layout.next.contains(mouseX, mouseY) -> selection.changePage(1, layout.recipeGrid.pageSize, auctionHousePanel)
         layout.wikiLinks(minionFamily(currentKey) != null).first.contains(mouseX, mouseY) ->
-            openWiki(currentKey, official = true)
+            openWiki(currentKey, official = true, isVisible = mode == ItemListViewMode.INFO)
         layout.wikiLinks(minionFamily(currentKey) != null).second.contains(mouseX, mouseY) ->
-            openWiki(currentKey, official = false)
+            openWiki(currentKey, official = false, isVisible = mode == ItemListViewMode.INFO)
         else -> run {
             val categories = selection.currentCategories().take(MAX_CATEGORY_BUTTONS)
             categories.withIndex().firstOrNull { (index, _) -> layout.category(index).contains(mouseX, mouseY) }
@@ -980,7 +980,8 @@ private data class PetIngredientBounds(
     val levelKey: RecipePetLevelKey,
 )
 
-private fun openWiki(key: ItemListEntryKey, official: Boolean): ViewerInputResult {
+private fun openWiki(key: ItemListEntryKey, official: Boolean, isVisible: Boolean): ViewerInputResult {
+    if (!isVisible) return ViewerInputResult.IGNORED
     val links = SkyBlockDataRepository.wikiLinks(key) ?: return ViewerInputResult.IGNORED
     val url = if (official) links.official else links.independent
     url ?: return ViewerInputResult.IGNORED
