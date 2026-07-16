@@ -4,9 +4,14 @@ import com.google.gson.annotations.Expose
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
+import io.github.notenoughupdates.moulconfig.observer.Property
+import org.lwjgl.glfw.GLFW
 
 class ChatFeatureConfig {
     @JvmField
@@ -29,6 +34,21 @@ class ChatFeatureConfig {
     @field:Expose
     @field:Category(name = "Chat Compacting", desc = "Combine repeated chat messages.")
     val compacting = ChatCompactingConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Chat Tabs", desc = "Separate chat messages into channels.")
+    val tabs = ChatTabsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Timestamps", desc = "Show the time beside chat messages.")
+    val timestamps = ChatTimestampsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Copy Chat", desc = "Copy complete chat messages from the chat screen.")
+    val copyChat = CopyChatConfig()
 
     fun repairLoadedValues() {
         smoothChat.repairLoadedValues()
@@ -157,6 +177,88 @@ class ChatFeatureConfig {
             )
         }
     }
+
+    class ChatTabsConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Enabled", desc = "Show channel tabs when chat is open.")
+        @field:ConfigEditorBoolean
+        var enabled = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Position", desc = "Where channel tabs appear around chat.")
+        @field:ConfigEditorDropdown
+        @field:ConfigVisibleIf("enabled")
+        var position = ChatTabPosition.ABOVE
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Channels", desc = "Channels available as chat tabs.")
+        @field:ConfigEditorDraggableList
+        @field:ConfigVisibleIf("enabled")
+        val channels: Property<MutableList<ChatTabChannel>> = Property.of(
+            mutableListOf(ChatTabChannel.ALL, ChatTabChannel.GUILD, ChatTabChannel.DM, ChatTabChannel.PARTY),
+        )
+    }
+
+    class ChatTimestampsConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Enabled", desc = "Show the time beside each chat message.")
+        @field:ConfigEditorBoolean
+        var enabled = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Format", desc = "How chat timestamps are displayed.")
+        @field:ConfigEditorDropdown
+        @field:ConfigVisibleIf("enabled")
+        var format = ChatTimestampFormat.TWENTY_FOUR_HOUR
+    }
+
+    class CopyChatConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Enabled", desc = "Copy a complete chat message while hovering it.")
+        @field:ConfigEditorBoolean
+        var enabled = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Copy Key", desc = "Key used to copy the hovered chat message.")
+        @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
+        @field:ConfigVisibleIf("enabled")
+        var key = GLFW.GLFW_KEY_LEFT_SHIFT
+    }
+}
+
+enum class ChatTabPosition(private val displayName: String) {
+    ABOVE("Above Chat"),
+    RIGHT("Right of Chat"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class ChatTabChannel(private val displayName: String) {
+    ALL("All"),
+    GUILD("Guild"),
+    DM("DM"),
+    PARTY("Party"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class ChatTimestampFormat(private val displayName: String, val pattern: String) {
+    TWENTY_FOUR_HOUR("24-hour (HH:mm)", "HH:mm"),
+    TWENTY_FOUR_HOUR_SECONDS("24-hour with seconds", "HH:mm:ss"),
+    TWELVE_HOUR("12-hour (h:mm a)", "h:mm a"),
+    TWELVE_HOUR_SECONDS("12-hour with seconds", "h:mm:ss a"),
+    ;
+
+    override fun toString(): String = displayName
 }
 
 const val MIN_MESSAGE_ANIMATION_DURATION = 10

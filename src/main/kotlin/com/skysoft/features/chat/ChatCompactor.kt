@@ -140,4 +140,7 @@ class PreparedChatMessage internal constructor(
     val content: Component,
     internal val entry: ChatCompactor.Entry? = null,
     val removedPrevious: Boolean = false,
-)
+) {
+    internal fun withContent(content: Component): PreparedChatMessage =
+        PreparedChatMessage(content, entry, removedPrevious)
+}

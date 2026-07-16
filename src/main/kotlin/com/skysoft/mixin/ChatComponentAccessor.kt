@@ -14,6 +14,12 @@ interface ChatComponentAccessor {
     @Accessor("trimmedMessages")
     fun skysoftTrimmedMessages(): MutableList<GuiMessage.Line>
 
+    @Accessor("chatScrollbarPos")
+    fun skysoftChatScrollbarPos(): Int
+
     @Invoker("refreshTrimmedMessages")
     fun skysoftRefreshTrimmedMessages()
+
+    @Invoker("getLineHeight")
+    fun skysoftLineHeight(): Int
 }
