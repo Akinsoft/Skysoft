@@ -264,14 +264,14 @@ abstract class AbstractContainerScreenMixin {
         cir: CallbackInfoReturnable<Boolean>,
     ) {
         if (
-            ItemListController.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
+            StorageOverlayController.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
             InputHandlingResult.CONSUMED
         ) {
             cir.returnValue = true
             return
         }
         if (
-            StorageOverlayController.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
+            ItemListController.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
             InputHandlingResult.CONSUMED
         ) {
             cir.returnValue = true

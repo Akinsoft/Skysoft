@@ -13,6 +13,9 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
+internal var hoveredStorageItem: ItemStack = ItemStack.EMPTY
+    private set
+
 internal fun drawStoragePanel(context: GuiGraphicsExtractor, measurements: Measurements) {
     context.fill(
         measurements.storageX,
@@ -39,6 +42,7 @@ internal fun drawPages(
     mouseX: Int,
     mouseY: Int,
 ) {
+    hoveredStorageItem = ItemStack.EMPTY
     val activePage = activeHandle?.entryIndex()
     val activeStacks = activeHandle?.let { activePageStacks(screen, it) }.orEmpty()
     context.enableScissor(
@@ -160,7 +164,10 @@ internal fun drawPage(
         }
         if (hovered) {
             drawSlotHover(context, slotX, slotY)
-            if (!stack.isEmpty) context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
+            if (!stack.isEmpty) {
+                hoveredStorageItem = stack
+                context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
+            }
         }
     }
 }
@@ -231,7 +238,10 @@ internal fun drawPlayerSlot(
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
         drawSlotHover(context, pos.x, pos.y)
-        if (!stack.isEmpty) context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
+        if (!stack.isEmpty) {
+            hoveredStorageItem = stack
+            context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
+        }
     }
 }
 

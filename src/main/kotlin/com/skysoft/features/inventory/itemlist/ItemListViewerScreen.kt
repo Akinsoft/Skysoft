@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListTierFamily
 import com.skysoft.data.skyblock.ItemListTierFamilyKind
@@ -38,8 +39,9 @@ import org.lwjgl.glfw.GLFW
 internal class ItemListViewerScreen(
     private val parent: Screen?,
     initialKey: ItemListEntryKey,
+    initialMode: ItemListViewMode = ItemListViewMode.INFO,
 ) : Screen(Component.literal("Skysoft Item List")) {
-    private val selection = ViewerSelection(initialKey)
+    private val selection = ViewerSelection(initialKey, initialMode)
     private var currentKey by selection::currentKey
     private var mode by selection::mode
     private var selectedType by selection::selectedType
@@ -140,12 +142,15 @@ internal class ItemListViewerScreen(
         ) {
             return true
         }
+        itemListShortcutMode(event.key(), SkysoftConfigGui.config().inventory.itemList.settings)?.let {
+            selection.changeMode(it)
+            lastItemListShortcutOutcome = "$it selected:viewer"
+            return true
+        }
         return when (event.key()) {
             GLFW.GLFW_KEY_BACKSPACE -> navigateBack().isHandled
             GLFW.GLFW_KEY_LEFT -> selection.changePage(-1, layout?.recipeGrid?.pageSize ?: 1, auctionHousePanel).isHandled
             GLFW.GLFW_KEY_RIGHT -> selection.changePage(1, layout?.recipeGrid?.pageSize ?: 1, auctionHousePanel).isHandled
-            GLFW.GLFW_KEY_R -> selection.changeMode(ItemListViewMode.RECIPES).isHandled
-            GLFW.GLFW_KEY_U -> selection.changeMode(ItemListViewMode.USAGES).isHandled
             GLFW.GLFW_KEY_A -> {
                 ItemListState.toggleFavorite(currentKey)
                 true
@@ -838,8 +843,8 @@ private val VIEWER_TEXT_COLOR = 0xFFE0E4E8.toInt()
 
 private class ViewerSelection(
     var currentKey: ItemListEntryKey,
+    var mode: ItemListViewMode,
 ) {
-    var mode = ItemListViewMode.INFO
     var selectedType: SkyBlockRecipeType? = null
     var selectedSupplemental: ViewerSupplementalCategory? = null
     var recipePage = 0

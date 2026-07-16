@@ -180,6 +180,24 @@ class ItemListSettingsConfig {
     var visibilityKey = GLFW.GLFW_KEY_KP_SUBTRACT
 
     @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Info Key", desc = "Open the hovered item's Item List Info tab.")
+    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_I)
+    var infoKey = GLFW.GLFW_KEY_I
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Recipes Key", desc = "Open the hovered item's Item List Obtain tab.")
+    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_R)
+    var recipesKey = GLFW.GLFW_KEY_R
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Uses Key", desc = "Open the hovered item's Item List Uses tab.")
+    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_U)
+    var usesKey = GLFW.GLFW_KEY_U
+
+    @JvmField
     @field:ConfigOption(name = "Refresh Data", desc = "Check for updated Item List data.")
     @field:ConfigEditorButton(buttonText = "Refresh")
     val refreshData = Runnable { com.skysoft.data.skyblock.SkyBlockDataRepository.reload() }

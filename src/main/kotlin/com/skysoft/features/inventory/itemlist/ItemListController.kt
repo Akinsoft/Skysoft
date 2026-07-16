@@ -460,18 +460,18 @@ object ItemListController {
             searchField.focused = false
             return InputHandlingResult.CONSUMED
         }
-        if (!isItemListVisible) return InputHandlingResult.IGNORED
+        val shortcut = resolveItemListShortcut(event.key(), config, screen, hoveredKey.takeIf { isItemListVisible })
         val layout = lastLayout
-        return if (layout == null) InputHandlingResult.IGNORED else when (event.key()) {
-            GLFW.GLFW_KEY_LEFT -> consume { changePage(-1, layout) }
-            GLFW.GLFW_KEY_RIGHT -> consume { changePage(1, layout) }
-            GLFW.GLFW_KEY_R -> hoveredKey?.let { consume { openViewer(it, screen) } }
-                ?: InputHandlingResult.IGNORED
-            GLFW.GLFW_KEY_U -> hoveredKey?.let { consume { openViewer(it, screen) } }
-                ?: InputHandlingResult.IGNORED
-            GLFW.GLFW_KEY_A -> hoveredKey?.let { consume { ItemListState.toggleFavorite(it) } }
-                ?: InputHandlingResult.IGNORED
-            else -> InputHandlingResult.IGNORED
+        return when {
+            shortcut != null -> consume { openViewer(shortcut.key, screen, shortcut.mode) }
+            !isItemListVisible || layout == null -> InputHandlingResult.IGNORED
+            else -> when (event.key()) {
+                GLFW.GLFW_KEY_LEFT -> consume { changePage(-1, layout) }
+                GLFW.GLFW_KEY_RIGHT -> consume { changePage(1, layout) }
+                GLFW.GLFW_KEY_A -> hoveredKey?.let { consume { ItemListState.toggleFavorite(it) } }
+                    ?: InputHandlingResult.IGNORED
+                else -> InputHandlingResult.IGNORED
+            }
         }
     }
 
@@ -637,10 +637,14 @@ object ItemListController {
         SoundUtilities.playClickSound()
     }
 
-    private fun openViewer(key: ItemListEntryKey, parent: AbstractContainerScreen<*>) {
+    private fun openViewer(
+        key: ItemListEntryKey,
+        parent: AbstractContainerScreen<*>,
+        mode: ItemListViewMode = ItemListViewMode.INFO,
+    ) {
         ItemListState.recordRecent(key)
         SoundUtilities.playClickSound()
-        MinecraftClient.setScreen(ItemListViewerScreen(parent, key))
+        MinecraftClient.setScreen(ItemListViewerScreen(parent, key, mode))
     }
 
     private fun updateSearch(screen: AbstractContainerScreen<*>, value: String) {
