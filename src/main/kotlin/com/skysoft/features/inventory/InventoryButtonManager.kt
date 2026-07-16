@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.mojang.authlib.GameProfile
+import com.mojang.authlib.properties.Property
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.skysoft.SkysoftMod
 import com.skysoft.config.InventoryButtonClickType
@@ -14,7 +15,10 @@ import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 import java.util.Locale
+import java.util.UUID
 import kotlin.math.max
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -431,6 +435,11 @@ private object InventoryButtonIcons {
     fun iconStack(icon: String): ItemStack? {
         val trimmed = icon.trim()
         if (trimmed.isEmpty() || trimmed.startsWith("text:", ignoreCase = true)) return null
+        inventoryButtonTextureHash(trimmed)?.let { textureHash ->
+            return iconStackCache.getOrPut("skull:$textureHash") {
+                texturedHeadStack(textureHash)
+            }.copy()
+        }
         playerNameFromIcon(trimmed)?.let { playerName ->
             return iconStackCache.getOrPut("player:${playerName.lowercase(Locale.ROOT)}") {
                 playerHeadStack(playerName)
@@ -531,6 +540,19 @@ private object InventoryButtonIcons {
         )
         stack.set(DataComponents.CUSTOM_NAME, Component.literal("$playerName's Head"))
         return stack
+    }
+
+    private fun texturedHeadStack(textureHash: String): ItemStack {
+        val textureJson = """{"textures":{"SKIN":{"url":"https://textures.minecraft.net/texture/$textureHash"}}}"""
+        val textureValue = Base64.getEncoder().encodeToString(textureJson.toByteArray(StandardCharsets.UTF_8))
+        val profile = GameProfile(
+            UUID.nameUUIDFromBytes(textureHash.toByteArray(StandardCharsets.UTF_8)),
+            "Skysoft",
+        )
+        profile.properties.put("textures", Property("textures", textureValue))
+        return ItemStack(Items.PLAYER_HEAD).apply {
+            set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile))
+        }
     }
 
     private fun playerNameFromIcon(icon: String): String? = explicitPlayerNameQuery(icon)

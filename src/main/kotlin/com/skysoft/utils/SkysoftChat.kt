@@ -52,6 +52,10 @@ object SkysoftChat {
         source.sendFeedback(prefixed(Component.literal(message)))
     }
 
+    fun feedback(source: FabricClientCommandSource, message: Component) {
+        source.sendFeedback(prefixed(message))
+    }
+
     fun error(source: FabricClientCommandSource, message: String) {
         source.sendError(prefixed(Component.literal(message)))
     }

@@ -27,6 +27,7 @@ import com.skysoft.features.helditem.HeldItemEditorScreen
 import com.skysoft.features.hunting.LotumHelper
 import com.skysoft.features.inventory.FullInventoryWarning
 import com.skysoft.features.inventory.InventoryButtonEditorScreen
+import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
 import com.skysoft.features.inventory.ItemProtectionManager
@@ -170,7 +171,7 @@ class SkysoftMod : ClientModInitializer {
             SkysoftCommandRegistry(dispatcher).apply {
                 root { openMenu() }
                 child("edit") { name -> literal(name).executes { openEditor() } }
-                child("buttons") { name -> literal(name).executes { openButtonEditor() } }
+                child { InventoryButtonImportCommand.command(::openButtonEditor) }
                 child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
                 child("protect") { name -> literal(name).executes { ItemProtectionManager.toggleHeldItem(it.source) } }
