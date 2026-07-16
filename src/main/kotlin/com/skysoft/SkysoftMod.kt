@@ -29,6 +29,7 @@ import com.skysoft.features.inventory.FullInventoryWarning
 import com.skysoft.features.inventory.InventoryButtonEditorScreen
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.itemlist.ItemListNpcWaypoint
 import com.skysoft.features.inventory.itemlist.ItemListSearchCommand
@@ -172,6 +173,7 @@ class SkysoftMod : ClientModInitializer {
                 child("buttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
+                child("protect") { name -> literal(name).executes { ItemProtectionManager.toggleHeldItem(it.source) } }
                 child("update", "ssupdate") { name -> literal(name).executes { checkUpdate() } }
                 child("download") { name -> literal(name).executes { downloadUpdate(it.source) } }
                 child {

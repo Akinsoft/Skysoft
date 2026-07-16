@@ -4,6 +4,7 @@ import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.inventory.ContainerSearchHighlighter
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.SmoothSwapping
@@ -50,6 +51,7 @@ abstract class AbstractContainerScreenRenderingMixin {
         SmoothSwapping.render(this as AbstractContainerScreen<*>, context)
         SlotBindingManager.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
         SlotLockManager.beginFrame()
+        ItemProtectionManager.beginFrame()
         InventoryButtonManager.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
         ItemListController.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
     }
@@ -98,6 +100,7 @@ abstract class AbstractContainerScreenRenderingMixin {
         ActivePetHighlighter.renderOutline(this as AbstractContainerScreen<*>, context, slot)
         BazaarTracker.renderSlotIndicatorOverlay(this as AbstractContainerScreen<*>, context, slot)
         SlotLockManager.renderSlotOverlay(context, slot)
+        ItemProtectionManager.renderProtectedMarker(context, slot)
     }
 
     @Inject(method = ["extractSlot"], at = [At("HEAD")])

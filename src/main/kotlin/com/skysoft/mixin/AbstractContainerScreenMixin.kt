@@ -6,6 +6,7 @@ import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryDropSelectionGuard
 import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.SkyBlockMenuInventoryDropFix
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.SlotLockManager
@@ -41,6 +42,7 @@ abstract class AbstractContainerScreenMixin {
         BazaarTracker.restoreOrderMenu(this as AbstractContainerScreen<*>)
         InventoryEquipment.restoreScreen(this as AbstractContainerScreen<*>)
         SlotLockManager.clearInputState()
+        ItemProtectionManager.clearInputState()
     }
 
     @Inject(method = ["extractTooltip"], at = [At("HEAD")], cancellable = true)
@@ -275,10 +277,10 @@ abstract class AbstractContainerScreenMixin {
             cir.returnValue = true
             return
         }
-        if (
-            SlotLockManager.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val screen = this as AbstractContainerScreen<*>
+        val slotLockResult = SlotLockManager.handleKeyPress(screen, event)
+        val itemProtectionResult = ItemProtectionManager.handleKeyPress(screen, event)
+        if (slotLockResult == InputHandlingResult.CONSUMED || itemProtectionResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
         }
     }
@@ -339,10 +341,10 @@ abstract class AbstractContainerScreenMixin {
         action: ContainerInput,
         ci: CallbackInfo,
     ) {
-        if (
-            SlotLockManager.handleSlotClick(this as AbstractContainerScreen<*>, slot, button, action) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val screen = this as AbstractContainerScreen<*>
+        val slotLockResult = SlotLockManager.handleSlotClick(screen, slot, button, action)
+        val itemProtectionResult = ItemProtectionManager.handleContainerDrop(screen, slot, slotId, action)
+        if (slotLockResult == InputHandlingResult.CONSUMED || itemProtectionResult == InputHandlingResult.CONSUMED) {
             ci.cancel()
             return
         }

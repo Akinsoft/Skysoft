@@ -138,6 +138,7 @@ data class ProfileStorage(
         @Expose val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf(),
         @Expose val slotBindings: MutableList<SlotBindingData> = mutableListOf(),
         @Expose val slotLocks: MutableList<Int> = mutableListOf(),
+        @Expose val protectedItemUuids: MutableList<UUID> = mutableListOf(),
         @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
         @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
         @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
@@ -156,6 +157,9 @@ data class ProfileStorage(
             repairInventoryEquipment()
             repairSlotBindings()
             repairSlotLocks()
+            val repairedProtectedItemUuids = protectedItemUuids.distinct()
+            protectedItemUuids.clear()
+            protectedItemUuids.addAll(repairedProtectedItemUuids)
             bazaarTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
