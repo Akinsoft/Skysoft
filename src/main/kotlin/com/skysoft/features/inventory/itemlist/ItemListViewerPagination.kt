@@ -54,28 +54,18 @@ internal data class ViewerCraftingLayout(
 ) {
     companion object {
         fun create(tile: Rect, hasProgressionRequirement: Boolean = false): ViewerCraftingLayout {
-            val baseContentHeight = GRID_SIZE + if (hasProgressionRequirement) {
-                PROGRESSION_GAP + PROGRESSION_HEIGHT
-            } else {
-                0
-            }
-            val baseContentWidth = maxOf(
-                GRID_SIZE + ITEM_GAP + ARROW_WIDTH + ITEM_GAP + SLOT_SIZE,
-                if (hasProgressionRequirement) PROGRESSION_WIDTH else 0,
-            )
-            val scale = viewerContentScale(tile, baseContentWidth, baseContentHeight)
+            val baseContentWidth = GRID_SIZE + ITEM_GAP + ARROW_WIDTH + ITEM_GAP + SLOT_SIZE
+            val scale = viewerContentScale(tile, baseContentWidth, GRID_SIZE)
             val slotSize = scaled(SLOT_SIZE, scale)
             val gridSize = CRAFTING_GRID_WIDTH * slotSize
             val itemGap = scaled(ITEM_GAP, scale)
             val arrowWidth = scaled(ARROW_WIDTH, scale)
             val arrowHeight = scaled(ARROW_HEIGHT, scale)
-            val progressionGap = scaled(PROGRESSION_GAP, scale)
-            val progressionHeight = scaled(PROGRESSION_HEIGHT, scale)
-            val progressionWidth = scaled(PROGRESSION_WIDTH, scale)
+            val progressionWidth = minOf(tile.width, scaled(PROGRESSION_WIDTH, scale))
             val contentWidth = gridSize + itemGap + arrowWidth + itemGap + slotSize
             val gridX = tile.x + (tile.width - contentWidth) / 2
             val contentHeight = gridSize + if (hasProgressionRequirement) {
-                progressionGap + progressionHeight
+                PROGRESSION_GAP + PROGRESSION_HEIGHT
             } else {
                 0
             }
@@ -102,10 +92,10 @@ internal data class ViewerCraftingLayout(
             )
             val progressionRequirement = if (hasProgressionRequirement) {
                 Rect(
-                    gridX - (progressionWidth - gridSize) / 2,
-                    gridY + gridSize + progressionGap,
+                    gridX + gridSize / 2 - progressionWidth / 2,
+                    gridY + gridSize + PROGRESSION_GAP,
                     progressionWidth,
-                    progressionHeight,
+                    PROGRESSION_HEIGHT,
                 )
             } else {
                 null
@@ -120,7 +110,7 @@ internal data class ViewerCraftingLayout(
         private const val ITEM_GAP = 5
         private const val ARROW_WIDTH = 12
         private const val ARROW_HEIGHT = 9
-        private const val PROGRESSION_GAP = 3
+        private const val PROGRESSION_GAP = 1
         private const val PROGRESSION_HEIGHT = 18
         private const val PROGRESSION_WIDTH = 128
     }
