@@ -289,7 +289,7 @@ object ItemListController {
                 enabled = ItemListState.page + 1 < pageCount,
                 alpha = navigationOpacity,
             )
-            val paginationOpacity = navigationOpacity * labelAlphas.first
+            val paginationOpacity = navigationOpacity * if (layout.isSearchDetached) 1f else labelAlphas.first
             if (paginationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
                 drawCenteredText(
                     context,
@@ -302,7 +302,7 @@ object ItemListController {
             if (calculation != null && calculationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
                 drawCenteredText(
                     context,
-                    layout.pageLabel,
+                    layout.calculationLabel,
                     "= $calculation",
                     calculationOpacity,
                     CALCULATION_TEXT_COLOR,

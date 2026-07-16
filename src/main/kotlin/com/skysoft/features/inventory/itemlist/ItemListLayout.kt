@@ -30,8 +30,20 @@ internal data class ItemListLayout(
     val rows: Int,
     val slotSize: Int,
     val itemScale: Float,
+    val isSearchDetached: Boolean,
 ) {
     val pageSize: Int get() = columns * rows
+    val calculationLabel: Rect
+        get() = if (isSearchDetached) {
+            Rect(
+                search.x,
+                (search.y - BUTTON_HEIGHT - SECTION_GAP).coerceAtLeast(0),
+                search.width,
+                BUTTON_HEIGHT,
+            )
+        } else {
+            pageLabel
+        }
     fun containsInteractive(mouseX: Int, mouseY: Int): Boolean =
         panel.contains(mouseX, mouseY) || footer.contains(mouseX, mouseY)
 
@@ -163,6 +175,7 @@ internal data class ItemListLayout(
                 rows = rows,
                 slotSize = slotSize,
                 itemScale = slotSize.toFloat() / DEFAULT_SLOT_SIZE,
+                isSearchDetached = isFooterMoved,
             )
         }
 
