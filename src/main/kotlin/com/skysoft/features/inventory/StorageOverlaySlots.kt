@@ -1,30 +1,15 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.gui.ScreenSlotLayout
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
-import java.util.IdentityHashMap
 
-private val originalSlotPositions = IdentityHashMap<AbstractContainerScreen<*>, MutableMap<Slot, SlotPosition>>()
+private val storageSlotLayout = ScreenSlotLayout()
 
 internal fun moveStorageOverlaySlot(screen: AbstractContainerScreen<*>, slot: Slot, x: Int, y: Int) {
-    originalSlotPositions.getOrPut(screen) { IdentityHashMap() }
-        .putIfAbsent(slot, SlotPosition(slot.x, slot.y))
-    setSlotPosition(slot, x, y)
+    storageSlotLayout.move(screen, slot, x, y)
 }
 
 internal fun restoreStorageOverlaySlots(screen: AbstractContainerScreen<*>? = null) {
-    if (screen != null) {
-        originalSlotPositions.remove(screen)?.let(::restoreSlots)
-        return
-    }
-
-    val slotsByScreen = originalSlotPositions.values.toList()
-    originalSlotPositions.clear()
-    slotsByScreen.forEach(::restoreSlots)
+    storageSlotLayout.restore(screen)
 }
-
-private fun restoreSlots(slots: Map<Slot, SlotPosition>) {
-    slots.forEach { (slot, position) -> setSlotPosition(slot, position.x, position.y) }
-}
-
-private data class SlotPosition(val x: Int, val y: Int)
