@@ -70,8 +70,10 @@ internal fun handleInventoryEquipmentMouseClick(
     if (inventoryEquipmentSlotGeometry(screen).none { it.screenBounds.contains(mouseX, mouseY) }) {
         return InputHandlingResult.IGNORED
     }
-    if (isStatsOpenClick(click) && screen.menu.carried.isEmpty) {
-        Minecraft.getInstance().connection?.sendCommand("stats")
+    if (isEquipmentCommandClick(click) && screen.menu.carried.isEmpty) {
+        inventoryEquipmentConfig.clickAction.command?.let { command ->
+            Minecraft.getInstance().connection?.sendCommand(command)
+        }
     }
     return InputHandlingResult.CONSUMED
 }
@@ -164,7 +166,7 @@ private fun drawInventoryEquipmentSlotRightEdgeColumn(
     )
 }
 
-private fun isStatsOpenClick(click: MouseButtonEvent): Boolean =
+private fun isEquipmentCommandClick(click: MouseButtonEvent): Boolean =
     click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT ||
         click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT
 

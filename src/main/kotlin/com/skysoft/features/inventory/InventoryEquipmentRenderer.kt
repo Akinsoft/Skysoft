@@ -16,7 +16,6 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
-private val openStatsTooltip = Component.literal("Open /stats").withStyle(ChatFormatting.GRAY)
 private val equipmentSlotLayouts = IdentityHashMap<AbstractContainerScreen<*>, InventoryEquipmentSlotLayout>()
 private val slotHighlightBackSprite = Identifier.withDefaultNamespace("container/slot_highlight_back")
 private val slotHighlightFrontSprite = Identifier.withDefaultNamespace("container/slot_highlight_front")
@@ -45,11 +44,17 @@ internal fun renderInventoryEquipment(
             if (!stack.isEmpty) {
                 context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
             } else {
-                context.setTooltipForNextFrame(Minecraft.getInstance().font, openStatsTooltip, mouseX, mouseY)
+                inventoryEquipmentClickTooltip()?.let { tooltip ->
+                    context.setTooltipForNextFrame(Minecraft.getInstance().font, tooltip, mouseX, mouseY)
+                }
             }
         }
     }
 }
+
+private fun inventoryEquipmentClickTooltip(): Component? =
+    inventoryEquipmentConfig.clickAction.command
+        ?.let { command -> Component.literal("Open /$command").withStyle(ChatFormatting.GRAY) }
 
 internal fun restoreInventoryEquipmentSlots(screen: AbstractContainerScreen<*>) {
     equipmentSlotLayouts.remove(screen)
