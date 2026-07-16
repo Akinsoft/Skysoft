@@ -9,6 +9,7 @@
     "AbstractRecipeBookScreenMixin",
     "BufferBuilderMixin",
     "ChatComponentMixin",
+    "ChatComponentAccessor",
     "ChatScreenMixin",
     "ClientTextTooltipAccessor",
     "ParticlePacketMixin",

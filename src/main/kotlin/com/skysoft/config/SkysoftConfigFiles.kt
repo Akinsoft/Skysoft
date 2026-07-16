@@ -17,6 +17,7 @@ object SkysoftConfigFiles {
     private val rootDirectory: Path = FabricLoader.getInstance().configDir
     val directory: Path = rootDirectory.resolve(configDirectoryName())
     val config: Path = directory.resolve("skysoft.json")
+    val chatHistory: Path = directory.resolve("chat-history.json")
     val profileStorage: Path = directory.resolve("skysoft-storage.json")
     val dianaHubSurfaceCache: Path = directory.resolve("diana-hub-surface-cache.json")
     val mythologicalRitualTracker: Path = directory

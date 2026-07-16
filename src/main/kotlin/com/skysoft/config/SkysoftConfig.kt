@@ -44,7 +44,7 @@ class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Chat", desc = "Chat visual settings.")
+    @field:Category(name = "Chat", desc = "Chat history, compacting, and visual settings.")
     val chat = ChatFeatureConfig()
 
     @JvmField
