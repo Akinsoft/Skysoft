@@ -62,6 +62,12 @@ class MiscFeatureConfig {
     )
     @field:ConfigEditorBoolean
     var hideVanillaRecipeBook = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "No Hurt Cam", desc = "Stops the camera from shaking when taking damage.")
+    @field:ConfigEditorBoolean
+    var noHurtCam = false
 }
 
 class RareLootSharingConfig {
