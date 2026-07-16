@@ -2,25 +2,46 @@ package com.skysoft.mixin
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
+import com.skysoft.config.ChatTabChannel
+import com.skysoft.features.chat.ChatCopy
 import com.skysoft.features.chat.ChatMotionProfile
 import com.skysoft.features.chat.ChatMotionSettings
+import com.skysoft.features.chat.ChatTabs
+import com.skysoft.features.chat.CopyChatResult
 import com.skysoft.utils.animation.AnimationClock
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.network.chat.Component
 import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.Unique
 import org.spongepowered.asm.mixin.injection.At
 import org.spongepowered.asm.mixin.injection.Inject
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable
+
+private const val TAB_HORIZONTAL_PADDING = 12
+private const val MIN_TAB_WIDTH = 36
 
 @Mixin(ChatScreen::class)
-abstract class ChatScreenMixin {
+abstract class ChatScreenMixin(title: Component) : Screen(title) {
     @field:Unique
     private val skysoftOpeningMotion = AnimationClock()
 
     @field:Unique
     private var skysoftOpenDisplacement = 0.0f
+
+    @field:Unique
+    private var skysoftMouseX = 0
+
+    @field:Unique
+    private var skysoftMouseY = 0
+
+    @field:Unique
+    private val skysoftTabButtons = mutableMapOf<ChatTabChannel, Button>()
 
     @Inject(method = ["init()V"], at = [At("TAIL")])
     protected fun skysoftBeginOpenAnimation(ci: CallbackInfo) {
@@ -29,6 +50,26 @@ abstract class ChatScreenMixin {
             skysoftOpeningMotion.restart()
         } else {
             skysoftOpeningMotion.stop()
+        }
+        skysoftAddTabButtons()
+    }
+
+    @Inject(method = ["extractRenderState"], at = [At("HEAD")])
+    protected fun skysoftTrackMouse(
+        graphics: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        delta: Float,
+        ci: CallbackInfo,
+    ) {
+        skysoftMouseX = mouseX
+        skysoftMouseY = mouseY
+    }
+
+    @Inject(method = ["keyPressed"], at = [At("HEAD")], cancellable = true)
+    protected fun skysoftCopyHoveredMessage(event: KeyEvent, cir: CallbackInfoReturnable<Boolean>) {
+        if (ChatCopy.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED) {
+            cir.returnValue = true
         }
     }
 
@@ -111,5 +152,37 @@ abstract class ChatScreenMixin {
         val minecraft = Minecraft.getInstance()
         val progress = skysoftOpeningMotion.progress(ChatMotionSettings.chatInputDurationMillis())
         return ChatMotionProfile.inputDisplacement(minecraft.window.guiScaledHeight, progress)
+    }
+
+    @Unique
+    private fun skysoftAddTabButtons() {
+        skysoftTabButtons.clear()
+        if (!ChatTabs.isEnabled()) return
+        val minecraft = Minecraft.getInstance()
+        val channels = ChatTabs.channels()
+        val widths = channels.map { channel ->
+            (minecraft.font.width(channel.toString()) + TAB_HORIZONTAL_PADDING).coerceAtLeast(MIN_TAB_WIDTH)
+        }
+        val bounds = ChatTabs.layout(
+            ChatTabs.position(),
+            widths,
+            minecraft.window.guiScaledHeight,
+            net.minecraft.client.gui.components.ChatComponent.getWidth(minecraft.options.chatWidth().get()),
+            net.minecraft.client.gui.components.ChatComponent.getHeight(minecraft.options.chatHeightFocused().get()),
+        )
+        channels.zip(bounds).forEach { (channel, bound) ->
+            val button = Button.builder(Component.literal(channel.toString())) {
+                ChatTabs.select(channel)
+                skysoftUpdateTabButtons()
+            }.bounds(bound.x, bound.y, bound.width, bound.height).build()
+            skysoftTabButtons[channel] = addRenderableWidget(button)
+        }
+        skysoftUpdateTabButtons()
+    }
+
+    @Unique
+    private fun skysoftUpdateTabButtons() {
+        val activeChannel = ChatTabs.activeChannel()
+        skysoftTabButtons.forEach { (channel, button) -> button.active = channel != activeChannel }
     }
 }

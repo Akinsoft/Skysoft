@@ -21,6 +21,7 @@ import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.combat.BetterShurikens
 import com.skysoft.features.chat.ChatHistoryPersistence
+import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.fishing.FishingHotspotRadar
 import com.skysoft.features.fishing.FishingHotspotSharing
@@ -107,6 +108,7 @@ class SkysoftMod : ClientModInitializer {
         StorageOverlayController.register()
         SmoothSwapping.register()
         ChatHistoryPersistence.register()
+        ChatTabs.register()
         ActionBarBackground.register()
         PlayerHeadSkinFix.register()
         AutoSprint.register()

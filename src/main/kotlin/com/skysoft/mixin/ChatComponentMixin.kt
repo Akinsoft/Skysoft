@@ -8,6 +8,7 @@ import com.skysoft.features.chat.ChatFeatureSettings
 import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatMotionProfile
 import com.skysoft.features.chat.ChatMotionSettings
+import com.skysoft.features.chat.ChatTimestamps
 import com.skysoft.features.chat.PreparedChatMessage
 import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.utils.animation.AnimationClock
@@ -141,7 +142,7 @@ abstract class ChatComponentMixin {
         val prepared = ChatCompactor.prepare(
             DianaSphinxAnswerHighlighter.highlight(contents),
             accessor.skysoftAllMessages(),
-        )
+        ).let { compacted -> compacted.withContent(ChatTimestamps.decorate(compacted.content)) }
         skysoftPendingCompaction = prepared
         if (prepared.removedPrevious) accessor.skysoftRefreshTrimmedMessages()
         return prepared.content
