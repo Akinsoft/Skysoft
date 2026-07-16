@@ -17,6 +17,15 @@ class FixesConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Held Item Update Fix",
+        desc = "Prevent same-item SkyBlock data updates from replaying the hand-swap animation or resetting block breaking.",
+    )
+    @field:ConfigEditorBoolean
+    var isHeldItemUpdateFixEnabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Hide Glitch Mobs",
         desc = "Hide nametagless rare mob player models left behind by Hypixel.",
     )

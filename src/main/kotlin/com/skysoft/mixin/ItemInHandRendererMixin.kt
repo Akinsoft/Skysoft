@@ -3,6 +3,7 @@ package com.skysoft.mixin
 import com.mojang.blaze3d.vertex.PoseStack
 import com.skysoft.features.helditem.HeldItemSwingVisuals
 import com.skysoft.features.helditem.HeldItemTransforms
+import com.skysoft.features.helditem.HeldItemUpdateFix
 import com.skysoft.features.helditem.SwingReplacementResult
 import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.renderer.ItemInHandRenderer
@@ -16,9 +17,21 @@ import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.injection.At
 import org.spongepowered.asm.mixin.injection.Inject
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable
 
 @Mixin(ItemInHandRenderer::class)
 open class ItemInHandRendererMixin {
+    @Inject(method = ["shouldInstantlyReplaceVisibleItem"], at = [At("RETURN")], cancellable = true)
+    protected fun skysoftKeepSameUpdatedItemVisible(
+        currentlyVisibleItem: ItemStack,
+        expectedItem: ItemStack,
+        cir: CallbackInfoReturnable<Boolean>,
+    ) {
+        if (!cir.returnValue && HeldItemUpdateFix.shouldPreserveUpdate(currentlyVisibleItem, expectedItem)) {
+            cir.returnValue = true
+        }
+    }
+
     @Inject(method = ["renderItem"], at = [At("HEAD")])
     protected fun skysoftTransformHeldItem(
         entity: LivingEntity,

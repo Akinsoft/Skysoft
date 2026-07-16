@@ -39,6 +39,7 @@
     "MinecraftInputMixin",
     "MinecraftSlotLockMixin",
     "MouseHandlerMixin",
+    "MultiPlayerGameModeMixin",
     "ParticleEngineMixin",
     "PlayerTabOverlayAccessor",
     "PictureInPictureRendererAccessor",
