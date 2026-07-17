@@ -608,13 +608,18 @@ private object InventoryButtonIcons {
     }
 
     private fun resolveItem(icon: String): Item? {
-        val alias = InventoryButtonManager.iconAliases[icon.uppercase(Locale.ROOT)] ?: icon
-        val id = when {
-            ':' in alias -> Identifier.tryParse(alias.lowercase(Locale.ROOT))
-            alias.startsWith("minecraft/", ignoreCase = true) ->
-                Identifier.withDefaultNamespace(alias.substringAfter('/').lowercase(Locale.ROOT))
-            else -> Identifier.withDefaultNamespace(alias.lowercase(Locale.ROOT).replace(' ', '_'))
-        } ?: return null
+        val id = inventoryButtonVanillaIconIdentifier(icon) ?: return null
         return BuiltInRegistries.ITEM.getOptional(id).orElse(null)
     }
+}
+
+internal fun inventoryButtonVanillaIconIdentifier(icon: String): Identifier? {
+    val alias = InventoryButtonManager.iconAliases[icon.uppercase(Locale.ROOT)] ?: icon
+    val normalized = when {
+        ':' in alias -> alias.lowercase(Locale.ROOT)
+        alias.startsWith("minecraft/", ignoreCase = true) ->
+            "minecraft:${alias.substringAfter('/').lowercase(Locale.ROOT)}"
+        else -> alias.lowercase(Locale.ROOT).replace(' ', '_')
+    }
+    return Identifier.tryParse(normalized)
 }
