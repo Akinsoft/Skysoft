@@ -717,6 +717,12 @@ class TooltipScrollSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Enable in Chat", desc = "Allow tooltip movement while chat is open.")
+    @field:ConfigEditorBoolean
+    var isEnabledInChat = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(
         name = "Storage Overlay Tooltip Key",
         desc = "Hold this key to scroll a tooltip instead of the Storage Overlay.",

@@ -7,6 +7,7 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner
@@ -31,7 +32,8 @@ object TooltipViewport {
         anchorY: Int,
         original: ClientTooltipPositioner,
     ): ClientTooltipPositioner {
-        if (!config().enabled || components.isEmpty()) return original
+        val settings = config()
+        if (!settings.enabled || !isEnabledForCurrentScreen(settings) || components.isEmpty()) return original
         return OffsetPositioner(original, tooltipIdentity(font, components), anchorX, anchorY)
     }
 
@@ -50,7 +52,7 @@ object TooltipViewport {
     @JvmStatic
     fun updateKeyboardPan() {
         val settings = config()
-        if (!settings.enabled) {
+        if (!settings.enabled || !isEnabledForCurrentScreen(settings)) {
             clear()
             return
         }
@@ -93,7 +95,12 @@ object TooltipViewport {
 
     private fun didHandleMouseScroll(horizontal: Double, vertical: Double, ignoredHorizontalKey: Int): Boolean {
         val settings = config()
-        if (!settings.enabled || !settings.settings.enableScrollWheel || !hasVisibleSession()) return false
+        if (
+            !settings.enabled ||
+            !settings.settings.enableScrollWheel ||
+            !isEnabledForCurrentScreen(settings) ||
+            !hasVisibleSession()
+        ) return false
 
         val pansHorizontally = horizontal != 0.0 || isHorizontalModifierDown(settings, ignoredHorizontalKey)
         var x = horizontal * settings.settings.mouseScrollingSpeed
@@ -153,6 +160,9 @@ object TooltipViewport {
         return activeSession.screen === MinecraftClient.screen(minecraft) &&
             now - activeSession.lastObservedNanos <= VISIBILITY_GRACE_NANOS
     }
+
+    private fun isEnabledForCurrentScreen(settings: TooltipScrollConfig): Boolean =
+        MinecraftClient.screen(minecraft) !is ChatScreen || settings.settings.isEnabledInChat
 
     private fun isHorizontalModifierDown(
         settings: TooltipScrollConfig,
