@@ -30,6 +30,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Day Display", desc = "Show the current Minecraft day.")
+    val dayDisplay = DayDisplayConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Inventory & Tooltip Scale", desc = "GUI scaling for inventory screens and tooltips.")
     val inventoryScreen = InventoryScreenConfig()
 

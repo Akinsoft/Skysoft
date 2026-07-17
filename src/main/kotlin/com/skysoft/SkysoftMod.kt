@@ -40,6 +40,7 @@ import com.skysoft.features.inventory.PriceTooltips
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.loot.RareLootSharing
+import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
@@ -112,6 +113,7 @@ class SkysoftMod : ClientModInitializer {
         ChatHistoryPersistence.register()
         ChatTabs.register()
         ActionBarBackground.register()
+        DayDisplay.register()
         PlayerHeadSkinFix.register()
         AutoSprint.register()
         BlockOverlay.register()
