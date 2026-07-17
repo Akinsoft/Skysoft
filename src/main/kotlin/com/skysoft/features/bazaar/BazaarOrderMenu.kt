@@ -56,6 +56,22 @@ internal fun bazaarOrderMenuSlotPosition(row: Int, column: Int): Pair<Int, Int> 
 internal fun bazaarOrderSlotRange(containerRows: Int): IntRange =
     BazaarOrderMenuLayout.MENU_COLUMNS until (containerRows - 1) * BazaarOrderMenuLayout.MENU_COLUMNS
 
+internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Set<Int>): Boolean {
+    val containerRows = containerSlots.size / BazaarOrderMenuLayout.MENU_COLUMNS
+    if (
+        containerRows !in BazaarOrderMenuLayout.MIN_ROWS..BazaarOrderMenuLayout.MAX_ROWS ||
+        containerSlots.sorted() != (0 until containerRows * BazaarOrderMenuLayout.MENU_COLUMNS).toList()
+    ) {
+        return false
+    }
+    return occupiedSlots.none { slot ->
+        val column = slot % BazaarOrderMenuLayout.MENU_COLUMNS
+        slot in bazaarOrderSlotRange(containerRows) &&
+            column in BazaarOrderMenuLayout.FIRST_ORDER_COLUMN until
+            BazaarOrderMenuLayout.MENU_COLUMNS - BazaarOrderMenuLayout.FIRST_ORDER_COLUMN
+    }
+}
+
 internal fun shouldBlockBazaarOrderOwner(owner: String, playerName: String): Boolean =
     !owner.equals(playerName, ignoreCase = true)
 
