@@ -63,7 +63,6 @@ import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.commands.SkysoftCommandRegistry
 import com.skysoft.utils.commands.SkysoftCommandRegistry.Companion.literal
-import com.skysoft.utils.commands.SkysoftCommandRegistry.Companion.stringArgument
 import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.ScreenAlertRenderer
@@ -197,10 +196,8 @@ class SkysoftMod : ClientModInitializer {
                     literal("blockoverlay")
                         .then(literal("additem").executes { BlockOverlay.addHeldItem(it.source) })
                 }
-                child {
-                    stringArgument("search").executes {
-                        openMenu(StringArgumentType.getString(it, "search"))
-                    }
+                fallback("search") {
+                    openMenu(StringArgumentType.getString(it, "search"))
                 }
                 register()
             }
