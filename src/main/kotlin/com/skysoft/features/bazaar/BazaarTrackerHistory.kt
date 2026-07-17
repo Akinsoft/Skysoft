@@ -34,10 +34,7 @@ internal fun resetTransientState(resetSessionStats: Boolean) {
 }
 
 internal fun rememberResolvedOrder(order: ProfileStorage.BazaarOrderData) {
-    forgetOrderAlertState(order.id)
-    fillHighlightExpiresAt.remove(order.id)
-    marketProofMillis.remove(order.id)
-    fillEstimateStates.remove(order.id)
+    clearTrackedOrderRuntimeState(order.id)
     pruneRecentResolvedOrders()
     recentResolvedOrders.addLast(
         RecentResolvedOrder(
@@ -50,6 +47,19 @@ internal fun rememberResolvedOrder(order: ProfileStorage.BazaarOrderData) {
         ),
     )
     while (recentResolvedOrders.size > MAX_RECENT_RESOLVED_ORDERS) recentResolvedOrders.removeFirst()
+}
+
+internal fun discardTrackedOrder(order: ProfileStorage.BazaarOrderData) {
+    clearTrackedOrderRuntimeState(order.id)
+    storage.activeOrders.remove(order)
+}
+
+private fun clearTrackedOrderRuntimeState(orderId: String) {
+    forgetOrderAlertState(orderId)
+    missingFromOrdersGuiScans.remove(orderId)
+    fillHighlightExpiresAt.remove(orderId)
+    marketProofMillis.remove(orderId)
+    fillEstimateStates.remove(orderId)
 }
 
 internal fun pruneRecentResolvedOrders() {

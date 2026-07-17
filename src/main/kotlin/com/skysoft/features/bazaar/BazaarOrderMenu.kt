@@ -10,7 +10,6 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.world.inventory.Slot
 
 private val bazaarOrderMenuSlots = ScreenSlotLayout()
-private val bazaarOrderOwnerPattern = Regex("""^By: (?:\[[^]]+] )*([A-Za-z0-9_]{1,16})$""")
 
 internal data class BazaarOrderMenuCell(val row: Int, val column: Int)
 
@@ -35,14 +34,14 @@ private data class BazaarOrderMenuReadResult(
     val rejectionReason: String?,
 )
 
-internal fun parseBazaarOrderOwner(lines: List<String>): String? =
-    lines.firstNotNullOfOrNull { line -> bazaarOrderOwnerPattern.matchEntire(line)?.groupValues?.get(1) }
-
 internal fun compactBazaarOrderMenuRows(
     containerRows: Int,
     occupiedOrderRows: Set<Int>,
     ownedOrderRows: Set<Int>,
-): Int = containerRows - (occupiedOrderRows - ownedOrderRows).size
+): Int = maxOf(
+    containerRows.coerceAtMost(BazaarOrderMenuLayout.MIN_VISIBLE_ROWS),
+    containerRows - (occupiedOrderRows - ownedOrderRows).size,
+)
 
 internal fun compactBazaarOrderMenuCell(visibleIndex: Int): BazaarOrderMenuCell = BazaarOrderMenuCell(
     row = BazaarOrderMenuLayout.FIRST_ORDER_ROW + visibleIndex / BazaarOrderMenuLayout.ORDER_COLUMNS,
@@ -72,9 +71,6 @@ internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Se
     }
 }
 
-internal fun shouldBlockBazaarOrderOwner(owner: String, playerName: String): Boolean =
-    !owner.equals(playerName, ignoreCase = true)
-
 internal fun shouldCompactBazaarOrderMenu(totalOrders: Int, ownedOrders: Int): Boolean = totalOrders > ownedOrders
 
 internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSnapshot {
@@ -91,7 +87,7 @@ internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSn
     val orderSlotRange = bazaarOrderSlotRange(containerRows)
     val rejectionReason = when {
         !config.settings.onlyMyOrders -> "setting disabled"
-        screen.title.cleanSkyBlockText() != BazaarOrderMenuLayout.TITLE -> "not the co-op orders menu"
+        screen.title.cleanSkyBlockText() != COOP_BAZAAR_ORDERS_TITLE -> "not the co-op orders menu"
         containerRows !in BazaarOrderMenuLayout.MIN_ROWS..BazaarOrderMenuLayout.MAX_ROWS ->
             "unsupported container row count"
         slots.map { slot -> slot.containerSlot } != (0 until containerRows * BazaarOrderMenuLayout.MENU_COLUMNS).toList() ->
@@ -142,7 +138,7 @@ private fun readBazaarOrderMenuOrders(
             continue
         }
         if (parsed == null) continue
-        val owner = parseBazaarOrderOwner(slot.item.textLines().map(String::clean))
+        val owner = parseBazaarOrderOwner(slot.item)
             ?: return BazaarOrderMenuReadResult(orders, "order slot ${slot.containerSlot} has no valid By line")
         val isLocal = !shouldBlockBazaarOrderOwner(owner, playerName)
         orders += BazaarOrderMenuOrder(
@@ -243,11 +239,11 @@ private fun applyBazaarOrderMenuRows(screen: ContainerScreen, rows: Int) {
 }
 
 private object BazaarOrderMenuLayout {
-    const val TITLE = "Co-op Bazaar Orders"
     const val MENU_COLUMNS = 9
     const val ORDER_COLUMNS = 7
     const val MIN_ROWS = 2
     const val MAX_ROWS = 6
+    const val MIN_VISIBLE_ROWS = 4
     const val FIRST_ORDER_ROW = 1
     const val FIRST_ORDER_COLUMN = 1
     const val FIXED_ROWS = 2

@@ -40,11 +40,11 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
     pendingOrdersInventoryStableTicks = 0
 
     val slots = nonPlayerSlots(screen)
-    if (!ordersMenuLoaded(slots)) return
-
-    val parsedOrders = slots.mapNotNull { slot -> parseOrdersStack(slot.item)?.copy(guiSlot = slot.containerSlot) }
+    val scan = parseBazaarOrderScan(screen.title.cleanSkyBlockText(), slots) ?: return
+    val allParsedOrders = scan.orders
+    val localOrderSlots = scan.localOrderSlots
     if (
-        parsedOrders.isEmpty() &&
+        allParsedOrders.isEmpty() &&
         !isBazaarOrderAreaEmpty(
             slots.map { it.containerSlot },
             slots.filterNot { it.item.isEmpty }.mapTo(mutableSetOf()) { it.containerSlot },
@@ -53,17 +53,24 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
         return
     }
 
-    val reconciliation = reconcileBazaarSnapshot(storage.activeOrders.toList(), parsedOrders)
-    val matchedOrderIds = reconciliation.matches.mapTo(mutableSetOf()) { it.order.id }
+    val reconciliation = reconcileBazaarSnapshot(storage.activeOrders.toList(), allParsedOrders)
+    val matchedOrderIds = mutableSetOf<String>()
     var changed = false
     for (match in reconciliation.matches) {
         val parsed = match.parsed
+        if (parsed.guiSlot !in localOrderSlots) {
+            discardTrackedOrder(match.order)
+            changed = true
+            continue
+        }
+        matchedOrderIds += match.order.id
         parsed.taxPercent?.let { updateTax(it) }
         val updateResult = updateOrderFromGui(match.order, parsed)
         missingFromOrdersGuiScans.remove(match.order.id)
         changed = updateResult == ChangeResult.CHANGED || changed
     }
     for (parsed in reconciliation.unmatchedRows) {
+        if (parsed.guiSlot !in localOrderSlots) continue
         parsed.taxPercent?.let { updateTax(it) }
         if (!parsed.canCreateOrderFromGui()) continue
         val added = parsed.toOrderData()
@@ -71,7 +78,12 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
         matchedOrderIds += added.id
         changed = true
     }
-    changed = pruneOrdersMissingFromGui(matchedOrderIds, parsedOrders) == ChangeResult.CHANGED || changed
+    val parsedOrders = allParsedOrders.filter { order -> order.guiSlot in localOrderSlots }
+    changed = pruneOrdersMissingFromGui(
+        matchedOrderIds,
+        parsedOrders,
+        visibleOrderCount = allParsedOrders.size,
+    ) == ChangeResult.CHANGED || changed
     if (changed) {
         markBazaarTrackerChanged(refreshFillEstimates = true)
     }
@@ -164,6 +176,7 @@ internal fun slotIndicator(screen: AbstractContainerScreen<*>, slot: Slot): Slot
     val title = screen.title.cleanSkyBlockText()
     if (!title.contains("Bazaar Orders")) return null
     val parsed = parseOrdersStack(slot.item)?.copy(guiSlot = slot.containerSlot) ?: return null
+    if (title == COOP_BAZAAR_ORDERS_TITLE && !isLocalCoopBazaarOrder(slot.item)) return null
     val order = findMatchingOrder(parsed, emptySet()) ?: return null
     val parsedFilled = parsed.filledAmount ?: 0L
     val parsedMaximumAmount = if (parsed.amountResolution > 0.0) {
@@ -230,6 +243,7 @@ internal fun recordClickedOrder(screen: AbstractContainerScreen<*>, click: Mouse
     if (!title.contains("Bazaar Orders")) return
     val slot = slotAt(screen, click.x().toInt(), click.y().toInt()) ?: return
     val parsed = parseOrdersStack(slot.item)?.copy(guiSlot = slot.containerSlot) ?: return
+    if (title == COOP_BAZAAR_ORDERS_TITLE && !isLocalCoopBazaarOrder(slot.item)) return
     val now = System.currentTimeMillis()
     val signature = "${screen.menu.containerId}|${slot.containerSlot}|${ItemStack.hashItemAndComponents(slot.item)}"
     if (
