@@ -30,6 +30,7 @@ object SkysoftPipelineBuilder {
         .buildSnippet()
 
     fun guiSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_SNIPPET
+    fun guiTexturedSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_TEXTURED_SNIPPET
     fun itemSnippet(): RenderPipeline.Snippet = itemPipelineSnippet
 
     fun build(

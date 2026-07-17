@@ -1,0 +1,252 @@
+package com.skysoft.features.inventory
+
+import com.mojang.blaze3d.pipeline.BlendFunction
+import com.mojang.blaze3d.pipeline.RenderPipeline
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.textures.FilterMode
+import com.mojang.blaze3d.vertex.BufferBuilder
+import com.mojang.blaze3d.vertex.VertexConsumer
+import com.skysoft.SkysoftMod
+import com.skysoft.config.RarityHighlightDetailsConfig
+import com.skysoft.config.RarityHighlightType
+import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.render.SkysoftDrawMode
+import com.skysoft.utils.render.SkysoftPipelineBuilder
+import com.skysoft.utils.render.shader.SkysoftCircleShaderRenderer
+import com.skysoft.utils.render.shader.SkysoftVertexFormats
+import com.skysoft.utils.render.shader.SkysoftVertexFormats.writeParams
+import java.awt.Color
+import java.util.IdentityHashMap
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.navigation.ScreenRectangle
+import net.minecraft.client.gui.render.GuiItemAtlas
+import net.minecraft.client.gui.render.TextureSetup
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.client.renderer.state.gui.GuiElementRenderState
+import net.minecraft.client.renderer.state.gui.GuiItemRenderState
+import net.minecraft.client.renderer.state.gui.GuiRenderState
+import net.minecraft.world.inventory.Slot
+import net.minecraft.world.item.ItemStack
+
+object RarityHighlightRenderer {
+    private val config get() = SkysoftConfigGui.config().inventory.rarityHighlight
+    private val contourColors = IdentityHashMap<GuiItemRenderState, Int>()
+    private val rarityByHash = mutableMapOf<Int, MutableList<CachedRarity>>()
+    private var pendingContourColor: Int? = null
+
+    @JvmStatic
+    fun beginFrame() {
+        contourColors.clear()
+        pendingContourColor = null
+    }
+
+    @JvmStatic
+    fun renderBackground(context: GuiGraphicsExtractor, slot: Slot) {
+        renderBackground(context, slot.item, slot.x, slot.y)
+    }
+
+    @JvmStatic
+    fun renderBackground(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
+        val highlight = config
+        if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
+        val color = rarityColor(rarity(stack) ?: return, highlight.details.opacity)
+        when (highlight.settings.type) {
+            RarityHighlightType.ROUND -> SkysoftCircleShaderRenderer.drawFilledCircle(
+                context,
+                x + 1,
+                y + 1,
+                Color(color, true),
+                ROUND_RADIUS,
+            )
+
+            RarityHighlightType.SQUARE -> context.fill(
+                x,
+                y,
+                x + SLOT_SIZE,
+                y + SLOT_SIZE,
+                color,
+            )
+
+            RarityHighlightType.CONTOUR -> Unit
+        }
+    }
+
+    @JvmStatic
+    fun renderItem(stack: ItemStack, render: () -> Unit) {
+        val highlight = config
+        if (!highlight.isEnabled || highlight.settings.type != RarityHighlightType.CONTOUR) {
+            render()
+            return
+        }
+        val rarity = rarity(stack)
+        if (rarity == null) {
+            render()
+            return
+        }
+        val color = rarityColor(rarity, highlight.details.opacity)
+        val previousColor = pendingContourColor
+        pendingContourColor = color
+        try {
+            render()
+        } finally {
+            pendingContourColor = previousColor
+        }
+    }
+
+    @JvmStatic
+    fun attachContour(itemState: GuiItemRenderState) {
+        pendingContourColor?.let { contourColors[itemState] = it }
+    }
+
+    @JvmStatic
+    fun renderContour(
+        renderState: GuiRenderState,
+        itemState: GuiItemRenderState,
+        slotView: GuiItemAtlas.SlotView,
+    ) {
+        val color = contourColors.remove(itemState) ?: return
+        renderState.addGlyphToCurrentLayer(RarityContourRenderState(itemState, slotView, color))
+    }
+
+    internal fun rarity(stack: ItemStack): SkyBlockRarity? {
+        if (stack.isEmpty) return null
+        val hash = ItemStack.hashItemAndComponents(stack)
+        rarityByHash[hash]?.firstOrNull { ItemStack.isSameItemSameComponents(it.stack, stack) }?.let {
+            return it.rarity
+        }
+        if (rarityByHash.size >= MAX_CACHED_ITEM_HASHES) rarityByHash.clear()
+        return rarityFromLoreLines(stack.loreLines()).also { rarity ->
+            rarityByHash.getOrPut(hash) { mutableListOf() } += CachedRarity(stack.copyWithCount(1), rarity)
+        }
+    }
+
+    private fun rarityColor(rarity: SkyBlockRarity, opacity: Int): Int {
+        val clampedOpacity = opacity.coerceIn(
+            RarityHighlightDetailsConfig.MIN_OPACITY,
+            RarityHighlightDetailsConfig.MAX_OPACITY,
+        )
+        val alpha = (clampedOpacity * MAX_ALPHA + HALF_PERCENT) / RarityHighlightDetailsConfig.MAX_OPACITY
+        return alpha shl ALPHA_SHIFT or (rarity.color.rgb and RGB_MASK)
+    }
+
+    private data class CachedRarity(val stack: ItemStack, val rarity: SkyBlockRarity?)
+
+    private const val SLOT_SIZE = 16
+    private const val ROUND_RADIUS = 7
+    private const val MAX_CACHED_ITEM_HASHES = 512
+    private const val MAX_ALPHA = 255
+    private const val HALF_PERCENT = 50
+    private const val ALPHA_SHIFT = 24
+    private const val RGB_MASK = 0xFFFFFF
+}
+
+internal fun rarityFromLoreLines(lines: List<String>): SkyBlockRarity? {
+    val footer = lines.asReversed()
+        .asSequence()
+        .map { it.cleanSkyBlockText() }
+        .firstOrNull(String::isNotBlank)
+        ?: return null
+    val rarityName = RARITY_FOOTER_PATTERN.find(footer)?.value?.replace(' ', '_') ?: return null
+    return SkyBlockRarity.getByName(rarityName)
+}
+
+private val RARITY_FOOTER_PATTERN = Regex(
+    SkyBlockRarity.entries
+        .sortedByDescending { it.name.length }
+        .joinToString(prefix = "\\b(?:", postfix = ")\\b", separator = "|") {
+            Regex.escape(it.name.replace('_', ' '))
+        },
+    RegexOption.IGNORE_CASE,
+)
+
+private class RarityContourRenderState(
+    private val itemState: GuiItemRenderState,
+    private val slotView: GuiItemAtlas.SlotView,
+    private val color: Int,
+) : GuiElementRenderState {
+    override fun pipeline(): RenderPipeline = RARITY_CONTOUR_PIPELINE
+
+    override fun textureSetup(): TextureSetup = TextureSetup.singleTexture(
+        slotView.textureView(),
+        RenderSystem.getSamplerCache().getRepeat(FilterMode.NEAREST),
+    )
+
+    override fun scissorArea(): ScreenRectangle? = itemState.scissorArea()
+
+    override fun bounds(): ScreenRectangle? {
+        val bounds = ScreenRectangle(
+            itemState.x() - CONTOUR_WIDTH,
+            itemState.y() - CONTOUR_WIDTH,
+            CONTOUR_SIZE,
+            CONTOUR_SIZE,
+        ).transformMaxBounds(itemState.pose())
+        return itemState.scissorArea()?.intersection(bounds) ?: bounds
+    }
+
+    override fun buildVertices(consumer: VertexConsumer) {
+        val uStep = (slotView.u1() - slotView.u0()) / ITEM_SIZE
+        val vStep = (slotView.v1() - slotView.v0()) / ITEM_SIZE
+        writeVertex(
+            consumer,
+            itemState.x() - CONTOUR_WIDTH.toFloat(),
+            itemState.y() - CONTOUR_WIDTH.toFloat(),
+            slotView.u0() - uStep,
+            slotView.v0() - vStep,
+        )
+        writeVertex(
+            consumer,
+            itemState.x() - CONTOUR_WIDTH.toFloat(),
+            itemState.y() + ITEM_SIZE + CONTOUR_WIDTH,
+            slotView.u0() - uStep,
+            slotView.v1() + vStep,
+        )
+        writeVertex(
+            consumer,
+            itemState.x() + ITEM_SIZE + CONTOUR_WIDTH,
+            itemState.y() + ITEM_SIZE + CONTOUR_WIDTH,
+            slotView.u1() + uStep,
+            slotView.v1() + vStep,
+        )
+        writeVertex(
+            consumer,
+            itemState.x() + ITEM_SIZE + CONTOUR_WIDTH,
+            itemState.y() - CONTOUR_WIDTH.toFloat(),
+            slotView.u1() + uStep,
+            slotView.v0() - vStep,
+        )
+    }
+
+    private fun writeVertex(consumer: VertexConsumer, x: Float, y: Float, u: Float, v: Float) {
+        val buffer = consumer as BufferBuilder
+        buffer.addVertexWith2DPose(itemState.pose(), x, y).setUv(u, v).setColor(color)
+        buffer.writeParams(
+            slotView.u0(),
+            slotView.v0(),
+            slotView.u1(),
+            slotView.v1(),
+            SkysoftVertexFormats.VertexElement.CONTOUR_UV_BOUNDS,
+        )
+    }
+
+    companion object {
+        private const val ITEM_SIZE = 16f
+        private const val CONTOUR_WIDTH = 1
+        private const val CONTOUR_SIZE = 18
+    }
+}
+
+private val RARITY_CONTOUR_PIPELINE = RenderPipelines.register(
+    SkysoftPipelineBuilder.build(
+        location = SkysoftMod.id("rarity_contour"),
+        snippet = SkysoftPipelineBuilder.guiTexturedSnippet(),
+        vertexFormat = SkysoftVertexFormats.POSITION_TEX_COLOR_CONTOUR,
+        drawMode = SkysoftDrawMode.QUADS,
+        blend = BlendFunction.TRANSLUCENT,
+        vertexShader = SkysoftMod.id("rarity_contour"),
+        fragmentShader = SkysoftMod.id("rarity_contour"),
+        depthWrite = false,
+    ),
+)

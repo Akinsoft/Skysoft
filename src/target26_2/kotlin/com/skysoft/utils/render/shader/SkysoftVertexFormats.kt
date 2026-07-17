@@ -12,15 +12,22 @@ object SkysoftVertexFormats {
     enum class VertexElement(private val attributeName: String) {
         ROUNDED_PARAMS_0("RoundedParams0"),
         ROUNDED_PARAMS_1("RoundedParams1"),
+        CONTOUR_UV_BOUNDS("ContourUvBounds"),
         ;
 
         val element
-            get() = checkNotNull(POSITION_COLOR_ROUNDED.getElement(attributeName)) {
+            get() = checkNotNull(vertexFormat.getElement(attributeName)) {
                 "Vertex format is missing $attributeName"
             }
 
         val offset: Int
             get() = element.offset()
+
+        private val vertexFormat: VertexFormat
+            get() = when (this) {
+                ROUNDED_PARAMS_0, ROUNDED_PARAMS_1 -> POSITION_COLOR_ROUNDED
+                CONTOUR_UV_BOUNDS -> POSITION_TEX_COLOR_CONTOUR
+            }
     }
 
     val POSITION_COLOR_ROUNDED: VertexFormat by lazy {
@@ -29,6 +36,15 @@ object SkysoftVertexFormats {
             .addAttribute("Color", GpuFormat.RGBA8_UNORM)
             .addAttribute("RoundedParams0", GpuFormat.RGBA32_FLOAT)
             .addAttribute("RoundedParams1", GpuFormat.RGBA32_FLOAT)
+            .build()
+    }
+
+    val POSITION_TEX_COLOR_CONTOUR: VertexFormat by lazy {
+        VertexFormat.builder(0)
+            .addAttribute("Position", GpuFormat.RGB32_FLOAT)
+            .addAttribute("UV0", GpuFormat.RG32_FLOAT)
+            .addAttribute("Color", GpuFormat.RGBA8_UNORM)
+            .addAttribute("ContourUvBounds", GpuFormat.RGBA32_FLOAT)
             .build()
     }
 

@@ -5,6 +5,7 @@ import com.skysoft.features.inventory.ContainerSearchHighlighter
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
 import com.skysoft.features.inventory.ItemProtectionManager
+import com.skysoft.features.inventory.RarityHighlightRenderer
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.SmoothSwapping
@@ -36,6 +37,7 @@ abstract class AbstractContainerScreenRenderingMixin {
         delta: Float,
         ci: CallbackInfo,
     ) {
+        RarityHighlightRenderer.beginFrame()
         SmoothSwapping.beginFrame(this as AbstractContainerScreen<*>)
         InventoryEquipment.renderBackground(this as AbstractContainerScreen<*>, context)
     }
@@ -84,6 +86,7 @@ abstract class AbstractContainerScreenRenderingMixin {
         mouseY: Int,
         ci: CallbackInfo,
     ) {
+        RarityHighlightRenderer.renderBackground(context, slot)
         ContainerSearchHighlighter.renderBackground(this as AbstractContainerScreen<*>, context, slot)
         ActivePetHighlighter.renderBackground(this as AbstractContainerScreen<*>, context, slot)
         BazaarTracker.renderSlotIndicatorBackground(this as AbstractContainerScreen<*>, context, slot)
@@ -149,7 +152,9 @@ abstract class AbstractContainerScreenRenderingMixin {
         ) {
             val renderStack = PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack)
             if (renderStack != null) {
-                context.item(renderStack, x, y, seed)
+                RarityHighlightRenderer.renderItem(stack) {
+                    context.item(renderStack, x, y, seed)
+                }
             }
         }
     }
@@ -178,7 +183,9 @@ abstract class AbstractContainerScreenRenderingMixin {
         ) {
             val renderStack = PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack)
             if (renderStack != null) {
-                context.fakeItem(renderStack, x, y, seed)
+                RarityHighlightRenderer.renderItem(stack) {
+                    context.fakeItem(renderStack, x, y, seed)
+                }
             }
         }
     }

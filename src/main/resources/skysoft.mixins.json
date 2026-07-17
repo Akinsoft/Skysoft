@@ -22,6 +22,8 @@
     "GameRendererMixin",
     "GuiMixin",
     "GuiMessageLineMixin",
+    "GuiRendererMixin",
+    "HotbarRarityHighlightMixin",
     "TooltipGuiScaleMixin",
     "TooltipRenderUtilMixin",
     "ToggleKeyMappingAccessor",

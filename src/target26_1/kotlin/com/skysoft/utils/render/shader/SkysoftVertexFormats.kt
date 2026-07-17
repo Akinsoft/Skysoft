@@ -16,6 +16,7 @@ object SkysoftVertexFormats {
     enum class VertexElement {
         ROUNDED_PARAMS_0,
         ROUNDED_PARAMS_1,
+        CONTOUR_UV_BOUNDS,
         ;
 
         private val registrationId: Int by lazy { lastRegisteredId + ordinal + 1 }
@@ -30,6 +31,15 @@ object SkysoftVertexFormats {
             .add("Color", VertexFormatElement.COLOR)
             .add("RoundedParams0", VertexElement.ROUNDED_PARAMS_0.element)
             .add("RoundedParams1", VertexElement.ROUNDED_PARAMS_1.element)
+            .build()
+    }
+
+    val POSITION_TEX_COLOR_CONTOUR: VertexFormat by lazy {
+        VertexFormat.builder()
+            .add("Position", VertexFormatElement.POSITION)
+            .add("UV0", VertexFormatElement.UV0)
+            .add("Color", VertexFormatElement.COLOR)
+            .add("ContourUvBounds", VertexElement.CONTOUR_UV_BOUNDS.element)
             .build()
     }
 
