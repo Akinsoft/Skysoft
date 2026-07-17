@@ -32,6 +32,8 @@ enum class SkyBlockIsland(
 
     fun isInIsland(): Boolean = HypixelLocationState.inSkyBlock && HypixelLocationState.currentIsland == this
 
+    override fun toString(): String = displayName
+
     companion object {
         fun getByLocation(mode: String?, map: String?): SkyBlockIsland? {
             entries.firstOrNull { map.equals(it.displayName, ignoreCase = true) }?.let { return it }
