@@ -8,11 +8,11 @@ internal val petMenuPetStackNamePattern =
             """(?:§.)*§(?<rarity>.)(?<pet>[^§]+?)(?<skin>§. ✦)?""",
     )
 internal val petTabWidgetNamePattern =
-    Regex(""" \[Lvl (?<level>[\d,]+)] (?:\[\d+(?<altskin>✦)] )?(?<pet>[\w ]+?)(?:(?<skin> ✦))?$""")
+    Regex(""" \[Lvl (?<level>[\d,]+)] (?:\[\d+(?<altskin>✦)] )?(?<pet>[\w -]+?)(?:(?<skin> ✦))?$""")
 internal val petTabWidgetXpPattern =
     Regex(""" (?:(?<max>MAX LEVEL)|(?:\+)?(?<current>[\d,.kM]+)(?:(?:|/)*(?<next>[\d,.kM]+))? XP(?: \((?<percentage>[\d.]+)%\))?)""")
 internal val petMenuSelectedPetNamePattern =
-    Regex("""(?:§.)+Selected pet: §(?<rarity>[^c])(?<pet>[\w ]+)(?<skin>§. ✦)?""")
+    Regex("""(?:§.)+Selected pet: §(?<rarity>[^c])(?<pet>[\w -]+)(?<skin>§. ✦)?""")
 internal val petMenuSelectedPetProgressPattern =
     Regex("""(?:§.)+(?:MAX LEVEL|Progress to Level (?<next>\d+): (?:§.)+(?<percentage>[\d.]+)%)""")
 internal val petMenuSelectedPetXpPattern =

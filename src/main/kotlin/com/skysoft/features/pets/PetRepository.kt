@@ -224,7 +224,7 @@ private fun normalizePetDisplayName(petName: String, rarity: SkyBlockRarity): St
 }
 
 private fun rawPetWithRarityToInternalName(petName: String, rarity: SkyBlockRarity): String =
-    "${petName.uppercase().replace(" ", "_")};${rarity.id}"
+    "${PetInternalNames.canonicalName(petName.uppercase().replace(" ", "_"))};${rarity.id}"
 
 private fun isDragonPetWithEggStage(petInternalName: String): Boolean {
     val properPetName = PetInternalNames.properName(petInternalName) ?: return false
