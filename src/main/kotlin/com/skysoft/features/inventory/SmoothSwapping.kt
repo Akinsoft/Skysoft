@@ -8,11 +8,10 @@ import com.skysoft.config.SmoothSwappingCurve
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.gui.itemWithDecorations
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
@@ -30,8 +29,8 @@ object SmoothSwapping {
     private val suppressedSlots = mutableSetOf<Int>()
 
     fun register() {
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearTransientState() }
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onDisconnect("Smooth Swapping disconnect reset", ::clearTransientState)
+        SkysoftClientEvents.onEndTick("Smooth Swapping tick") {
             if (MinecraftClient.screen() !is AbstractContainerScreen<*>) {
                 clearTransientState()
             }

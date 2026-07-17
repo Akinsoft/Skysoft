@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.skysoft.utils.render.WorldItemBadgeRenderer
 import com.skysoft.utils.render.WorldItemRenderLayers
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.renderer.feature.ItemFeatureRenderer
 import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.client.resources.model.geometry.BakedQuad
@@ -16,14 +17,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
 abstract class ItemFeatureRendererMixin {
     @Inject(method = ["prepareMainSubmit"], at = [At("HEAD")])
     protected fun skysoftBeginItemRender(submit: ItemFeatureRenderer.Submit, callbackInfo: CallbackInfo) {
-        WorldItemRenderLayers.beginItemRender(
-            submit.outlineColor() == WorldItemBadgeRenderer.THROUGH_WALLS_MARKER,
-        )
+        SkysoftErrorBoundary.run("World Item render layer") {
+            WorldItemRenderLayers.beginItemRender(
+                submit.outlineColor() == WorldItemBadgeRenderer.THROUGH_WALLS_MARKER,
+            )
+        }
     }
 
     @Inject(method = ["prepareMainSubmit"], at = [At("RETURN")])
     protected fun skysoftEndItemRender(submit: ItemFeatureRenderer.Submit, callbackInfo: CallbackInfo) {
-        WorldItemRenderLayers.endItemRender()
+        SkysoftErrorBoundary.run("World Item render layer", WorldItemRenderLayers::endItemRender)
     }
 
     @WrapOperation(
@@ -41,10 +44,12 @@ abstract class ItemFeatureRendererMixin {
         original: Operation<RenderType>,
     ): RenderType {
         val renderType = original.call(materialInfo)
-        return if (WorldItemRenderLayers.isRenderingThroughWalls()) {
-            WorldItemRenderLayers.throughWalls(materialInfo.sprite().atlasLocation(), renderType.hasBlending())
-        } else {
-            renderType
+        return SkysoftErrorBoundary.value("World Item render type", renderType) {
+            if (WorldItemRenderLayers.isRenderingThroughWalls()) {
+                WorldItemRenderLayers.throughWalls(materialInfo.sprite().atlasLocation(), renderType.hasBlending())
+            } else {
+                renderType
+            }
         }
     }
 
@@ -62,6 +67,8 @@ abstract class ItemFeatureRendererMixin {
         original: Operation<Int>,
     ): Int {
         val outlineColor = original.call(submit)
-        return if (outlineColor == WorldItemBadgeRenderer.THROUGH_WALLS_MARKER) 0 else outlineColor
+        return SkysoftErrorBoundary.value("World Item render marker", outlineColor) {
+            if (outlineColor == WorldItemBadgeRenderer.THROUGH_WALLS_MARKER) 0 else outlineColor
+        }
     }
 }

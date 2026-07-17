@@ -20,7 +20,7 @@ internal object BetterShurikenSoundCorrelation {
 
     fun register(consumer: (SoundTargetResolution) -> Unit) {
         targetConsumer = consumer
-        ClientSoundEvents.EVENT.register(::onSound)
+        ClientSoundEvents.register("Better Shuriken sound correlation", ::onSound)
     }
 
     fun noteThrow() {

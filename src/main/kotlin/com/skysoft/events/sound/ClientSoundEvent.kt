@@ -1,6 +1,7 @@
 package com.skysoft.events.sound
 
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.event.Event
 import net.fabricmc.fabric.api.event.EventFactory
 import net.minecraft.sounds.SoundEvent
@@ -21,8 +22,18 @@ fun interface ReceiveSoundCallback {
 }
 
 object ClientSoundEvents {
-    val EVENT: Event<ReceiveSoundCallback> =
+    private val event: Event<ReceiveSoundCallback> =
         EventFactory.createArrayBacked(ReceiveSoundCallback::class.java) { listeners ->
             ReceiveSoundCallback { event -> listeners.forEach { it.onReceiveSound(event) } }
         }
+
+    fun register(boundary: String, listener: ReceiveSoundCallback) {
+        event.register { event ->
+            SkysoftErrorBoundary.run(boundary) { listener.onReceiveSound(event) }
+        }
+    }
+
+    fun dispatch(sound: ClientSoundEvent) {
+        event.invoker().onReceiveSound(sound)
+    }
 }

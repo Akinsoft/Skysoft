@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.llamalad7.mixinextras.sugar.Local
 import com.mojang.blaze3d.vertex.PoseStack
 import com.skysoft.features.misc.PlayerHeadSkinFix
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.model.`object`.skull.SkullModelBase
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.entity.layers.CustomHeadLayer
@@ -42,7 +43,9 @@ abstract class CustomHeadLayerMixin {
         original: Operation<Void>,
         @Local(argsOnly = true) state: LivingEntityRenderState,
     ) {
-        val fixedRenderType = PlayerHeadSkinFix.wornHeadRenderType(state, renderType)
+        val fixedRenderType = SkysoftErrorBoundary.value("Player Head Skin render type", renderType) {
+            PlayerHeadSkinFix.wornHeadRenderType(state, renderType)
+        }
         if (fixedRenderType != null) {
             original.call(
                 animationValue,

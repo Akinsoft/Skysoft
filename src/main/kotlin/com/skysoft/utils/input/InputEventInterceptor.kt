@@ -39,16 +39,16 @@ object InputEventInterceptor {
         entityAction: EntityInteractionEvent.ActionType,
     ): InputHandlingResult {
         val player = Minecraft.getInstance().player
-        val itemConsumed = ItemUseEvents.EVENT.invoker().shouldCancelItemUse(ItemUseEvent(clickType, player?.mainHandItem))
+        val itemConsumed = ItemUseEvents.shouldCancelItemUse(ItemUseEvent(clickType, player?.mainHandItem))
         val targetConsumed = when (interactionTarget(hitResult?.type)) {
-            InteractionTarget.BLOCK -> BlockInteractionEvents.EVENT.invoker().shouldCancelBlockClick(
+            InteractionTarget.BLOCK -> BlockInteractionEvents.shouldCancelBlockClick(
                 BlockInteractionEvent(
                     clickType,
                     player?.mainHandItem,
                     (hitResult as BlockHitResult).blockPos.toWorldVec(),
                 ),
             )
-            InteractionTarget.ENTITY -> EntityInteractionEvents.EVENT.invoker().shouldCancelEntityClick(
+            InteractionTarget.ENTITY -> EntityInteractionEvents.shouldCancelEntityClick(
                 EntityInteractionEvent(clickType, entityAction, (hitResult as EntityHitResult).entity),
             )
             InteractionTarget.NONE -> false

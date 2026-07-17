@@ -14,8 +14,7 @@ import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.toWorldVec
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
@@ -30,9 +29,9 @@ object DianaBurrowHelper {
 
     fun register() {
         DianaBurrowStorage.register()
-        ClientTickEvents.END_CLIENT_TICK.register { onTick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearSession() }
-        SkyBlockProfileApi.onProfileChange { profile ->
+        SkysoftClientEvents.onEndTick("Diana Burrow Helper tick") { onTick() }
+        SkysoftClientEvents.onDisconnect("Diana Burrow Helper disconnect reset", ::clearSession)
+        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change") { profile ->
             DianaBurrowStorage.saveCurrentTargets()
             clearTargets(persistTargets = false)
             DianaBurrowStorage.resetLoadedProfile()
@@ -43,22 +42,22 @@ object DianaBurrowHelper {
             }
             wasOnHub = false
         }
-        ClientParticleEvents.EVENT.register { event ->
+        ClientParticleEvents.register("Diana Burrow particles") { event ->
             handleParticle(event)
             shouldHideArrowParticle(event)
         }
-        ItemUseEvents.EVENT.register { event ->
+        ItemUseEvents.register("Diana Burrow item use") { event ->
             onItemUse(event)
             false
         }
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("Diana Burrow chat") { message ->
             if (message.isSystemLike) {
                 handleWarpFailure(message.cleanText)
                 DianaBurrowInteractions.onMessage(message)
             }
             ChatMessageVisibility.SHOW
         }
-        WorldRenderDispatcher.registerHandler(::onRenderWorld)
+        WorldRenderDispatcher.registerHandler("Diana Burrow world rendering", ::onRenderWorld)
         DianaWarpTitleRenderer.register(::activeWarpSuggestion)
         DianaBurrowInteractions.register()
         DianaLobbyCompromisedWatcher.register()

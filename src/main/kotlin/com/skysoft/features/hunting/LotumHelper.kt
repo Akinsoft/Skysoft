@@ -9,7 +9,7 @@ import com.skysoft.utils.getWorldVec
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.animal.frog.Frog
@@ -32,9 +32,9 @@ object LotumHelper {
     private var ticks = 0
 
     fun register() {
-        WorldRenderDispatcher.registerHandler(::onRenderWorld)
+        WorldRenderDispatcher.registerHandler("Lotum Helper world rendering", ::onRenderWorld)
 
-        EntityInteractionEvents.EVENT.register { event ->
+        EntityInteractionEvents.register("Lotum Helper entity interaction") { event ->
             if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
                 return@register false
             }
@@ -43,16 +43,16 @@ object LotumHelper {
             false
         }
 
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Lotum Helper tick") tick@{
             if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
                 clear()
-                return@register
+                return@tick
             }
             if (!config.settings.highlightLotums) {
                 highlightedLotums.clear()
-                return@register
+                return@tick
             }
-            if (++ticks % LOTUM_SCAN_INTERVAL_TICKS != 0) return@register
+            if (++ticks % LOTUM_SCAN_INTERVAL_TICKS != 0) return@tick
 
             removeInvalidLotums()
             val entities = allEntities()

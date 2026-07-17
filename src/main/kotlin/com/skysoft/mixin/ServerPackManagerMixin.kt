@@ -4,6 +4,7 @@ import com.google.common.hash.HashCode
 import com.skysoft.SkysoftMod
 import com.skysoft.features.misc.SkyBlockResourcePackManagerBridge
 import com.skysoft.features.misc.SkyBlockResourcePackRetention
+import com.skysoft.utils.SkysoftErrorBoundary
 import java.net.URL
 import java.util.UUID
 import net.minecraft.client.resources.server.PackLoadFeedback
@@ -40,72 +41,80 @@ abstract class ServerPackManagerMixin : SkyBlockResourcePackManagerBridge {
 
     @Inject(method = ["pushPack"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftReuseRetainedPack(id: UUID, url: URL, hash: HashCode?, ci: CallbackInfo) {
-        if (!SkyBlockResourcePackRetention.isEnabled()) {
-            skysoftClearRetainedPack()
-            return
-        }
-        if (!SkyBlockResourcePackRetention.isOfficialPackUrl(url)) return
-        if (!SkyBlockResourcePackRetention.canRetain(url, hash)) {
-            SkysoftMod.LOGGER.warn(
-                "Cannot retain the official SkyBlock resource pack because it has no valid SHA-1 hash",
-            )
-            return
-        }
+        SkysoftErrorBoundary.run("SkyBlock resource pack retention push") {
+            if (!SkyBlockResourcePackRetention.isEnabled()) {
+                skysoftClearRetainedPack()
+                return@run
+            }
+            if (!SkyBlockResourcePackRetention.isOfficialPackUrl(url)) return@run
+            if (!SkyBlockResourcePackRetention.canRetain(url, hash)) {
+                SkysoftMod.LOGGER.warn(
+                    "Cannot retain the official SkyBlock resource pack because it has no valid SHA-1 hash",
+                )
+                return@run
+            }
 
-        val retainedHash = hash!!
-        if (
-            skysoftRetainedPackApplied &&
-            id == skysoftRetainedPackId &&
-            retainedHash == skysoftRetainedPackHash
-        ) {
-            packLoadFeedback.reportUpdate(id, PackLoadFeedback.Update.ACCEPTED)
-            packLoadFeedback.reportUpdate(id, PackLoadFeedback.Update.DOWNLOADED)
-            packLoadFeedback.reportFinalResult(id, PackLoadFeedback.FinalResult.APPLIED)
-            ci.cancel()
-            return
-        }
+            val retainedHash = hash!!
+            if (
+                skysoftRetainedPackApplied &&
+                id == skysoftRetainedPackId &&
+                retainedHash == skysoftRetainedPackHash
+            ) {
+                packLoadFeedback.reportUpdate(id, PackLoadFeedback.Update.ACCEPTED)
+                packLoadFeedback.reportUpdate(id, PackLoadFeedback.Update.DOWNLOADED)
+                packLoadFeedback.reportFinalResult(id, PackLoadFeedback.FinalResult.APPLIED)
+                ci.cancel()
+                return@run
+            }
 
-        val previousPackId = skysoftRetainedPackId.takeIf { skysoftRetainedPackApplied }
-        skysoftRetainedPackId = id
-        skysoftRetainedPackHash = retainedHash
-        skysoftRetainedPackApplied = false
-        if (previousPackId != null && previousPackId != id) popPack(previousPackId)
+            val previousPackId = skysoftRetainedPackId.takeIf { skysoftRetainedPackApplied }
+            skysoftRetainedPackId = id
+            skysoftRetainedPackHash = retainedHash
+            skysoftRetainedPackApplied = false
+            if (previousPackId != null && previousPackId != id) popPack(previousPackId)
+        }
     }
 
     @Inject(method = ["popPack"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftKeepPackLoaded(id: UUID, ci: CallbackInfo) {
-        val retentionEnabled = SkyBlockResourcePackRetention.isEnabled()
-        if (skysoftRetainedPackApplied && retentionEnabled && id == skysoftRetainedPackId) {
-            ci.cancel()
-        } else if (!retentionEnabled) {
-            skysoftClearRetainedPack()
+        SkysoftErrorBoundary.run("SkyBlock resource pack retention pop") {
+            val retentionEnabled = SkyBlockResourcePackRetention.isEnabled()
+            if (skysoftRetainedPackApplied && retentionEnabled && id == skysoftRetainedPackId) {
+                ci.cancel()
+            } else if (!retentionEnabled) {
+                skysoftClearRetainedPack()
+            }
         }
     }
 
     @Inject(method = ["popAll"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftKeepPackLoaded(ci: CallbackInfo) {
-        val retentionEnabled = SkyBlockResourcePackRetention.isEnabled()
-        if (!skysoftRetainedPackApplied || !retentionEnabled) {
-            if (!retentionEnabled) skysoftClearRetainedPack()
-            return
-        }
+        SkysoftErrorBoundary.run("SkyBlock resource pack retention pop all") {
+            val retentionEnabled = SkyBlockResourcePackRetention.isEnabled()
+            if (!skysoftRetainedPackApplied || !retentionEnabled) {
+                if (!retentionEnabled) skysoftClearRetainedPack()
+                return@run
+            }
 
-        val retainedPackId = skysoftRetainedPackId!!
-        packs.asSequence()
-            .map { (it as ServerPackDataAccessor).skysoftGetId() }
-            .filter { it != retainedPackId }
-            .distinct()
-            .forEach(::popPack)
-        ci.cancel()
+            val retainedPackId = skysoftRetainedPackId!!
+            packs.asSequence()
+                .map { (it as ServerPackDataAccessor).skysoftGetId() }
+                .filter { it != retainedPackId }
+                .distinct()
+                .forEach(::popPack)
+            ci.cancel()
+        }
     }
 
     override fun skysoftMarkResourcePacksApplied(packs: Collection<*>) {
-        val retainedPackId = skysoftRetainedPackId
-        if (!SkyBlockResourcePackRetention.isEnabled() || retainedPackId == null) return
-        val retainedPackHash = skysoftRetainedPackHash!!
-        skysoftRetainedPackApplied = packs.any { pack ->
-            val data = pack as ServerPackDataAccessor
-            retainedPackId == data.skysoftGetId() && retainedPackHash == data.skysoftGetHash()
+        SkysoftErrorBoundary.run("SkyBlock resource pack applied state") {
+            val retainedPackId = skysoftRetainedPackId
+            if (!SkyBlockResourcePackRetention.isEnabled() || retainedPackId == null) return@run
+            val retainedPackHash = skysoftRetainedPackHash!!
+            skysoftRetainedPackApplied = packs.any { pack ->
+                val data = pack as ServerPackDataAccessor
+                retainedPackId == data.skysoftGetId() && retainedPackHash == data.skysoftGetHash()
+            }
         }
     }
 

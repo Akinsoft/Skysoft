@@ -3,6 +3,7 @@ package com.skysoft.mixin
 import com.skysoft.events.sound.ClientSoundEvent
 import com.skysoft.events.sound.ClientSoundEvents
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket
@@ -28,17 +29,19 @@ open class SoundPacketMixin {
         ],
     )
     protected fun skysoftPostReceiveSoundEvent(packet: ClientboundSoundPacket, ci: CallbackInfo) {
-        ClientSoundEvents.EVENT.invoker().onReceiveSound(
-            ClientSoundEvent(
-                packet.sound.value(),
-                packet.source,
-                WorldVec(packet.x, packet.y, packet.z),
-                null,
-                packet.volume,
-                packet.pitch,
-                packet.seed,
-            ),
-        )
+        SkysoftErrorBoundary.run("Sound packet dispatch") {
+            ClientSoundEvents.dispatch(
+                ClientSoundEvent(
+                    packet.sound.value(),
+                    packet.source,
+                    WorldVec(packet.x, packet.y, packet.z),
+                    null,
+                    packet.volume,
+                    packet.pitch,
+                    packet.seed,
+                ),
+            )
+        }
     }
 
     @Inject(
@@ -55,17 +58,19 @@ open class SoundPacketMixin {
         ],
     )
     protected fun skysoftPostReceiveEntitySoundEvent(packet: ClientboundSoundEntityPacket, ci: CallbackInfo) {
-        val entity = Minecraft.getInstance().level?.getEntity(packet.id)
-        ClientSoundEvents.EVENT.invoker().onReceiveSound(
-            ClientSoundEvent(
-                packet.sound.value(),
-                packet.source,
-                entity?.let { WorldVec(it.x, it.y, it.z) },
-                packet.id,
-                packet.volume,
-                packet.pitch,
-                packet.seed,
-            ),
-        )
+        SkysoftErrorBoundary.run("Entity sound packet dispatch") {
+            val entity = Minecraft.getInstance().level?.getEntity(packet.id)
+            ClientSoundEvents.dispatch(
+                ClientSoundEvent(
+                    packet.sound.value(),
+                    packet.source,
+                    entity?.let { WorldVec(it.x, it.y, it.z) },
+                    packet.id,
+                    packet.volume,
+                    packet.pitch,
+                    packet.seed,
+                ),
+            )
+        }
     }
 }

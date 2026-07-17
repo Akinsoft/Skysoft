@@ -5,10 +5,9 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.MigrationResult
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.SkysoftClientEvents
 import java.nio.file.Files
 import java.nio.file.Path
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import kotlin.time.Duration.Companion.seconds
 
 object ProfileStorageApi {
@@ -34,12 +33,12 @@ object ProfileStorageApi {
         get() = storageData
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Profile Storage autosave") {
             if (jsonNeedsSave && lastSaved.passedSince() >= 30.seconds) {
                 saveNow()
             }
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> saveNow() }
+        SkysoftClientEvents.onDisconnect("Profile Storage disconnect save", ::saveNow)
     }
 
     fun importLegacyStorage(legacy: ProfileStorage) {

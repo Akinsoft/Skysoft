@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.misc.SkyBlockResourcePackManagerBridge
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.resources.server.ServerPackManager
 import org.spongepowered.asm.mixin.Final
 import org.spongepowered.asm.mixin.Mixin
@@ -21,6 +22,8 @@ open class ServerPackReloadCallbacksMixin {
 
     @Inject(method = ["onSuccess"], at = [At("TAIL")])
     protected fun skysoftMarkResourcePacksApplied(ci: CallbackInfo) {
-        (serverPackManager as SkyBlockResourcePackManagerBridge).skysoftMarkResourcePacksApplied(packsToLoad)
+        SkysoftErrorBoundary.run("SkyBlock resource pack reload completion") {
+            (serverPackManager as SkyBlockResourcePackManagerBridge).skysoftMarkResourcePacksApplied(packsToLoad)
+        }
     }
 }

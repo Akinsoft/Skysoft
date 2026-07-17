@@ -16,8 +16,7 @@ import com.skysoft.utils.render.WorldLabelStyle
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -28,13 +27,13 @@ internal object ItemListNpcWaypoint {
     private val warpFailures = mutableMapOf<String, Long>()
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { tick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
-        ChatEvents.onVisibleMessage { message ->
+        SkysoftClientEvents.onEndTick("Item List NPC Waypoint tick") { tick() }
+        SkysoftClientEvents.onDisconnect("Item List NPC Waypoint disconnect reset", ::clear)
+        ChatEvents.onVisibleMessage("Item List waypoint chat") { message ->
             recordWarpFailure(message.body)
             ChatMessageVisibility.SHOW
         }
-        WorldRenderDispatcher.registerHandler(::renderWorld)
+        WorldRenderDispatcher.registerHandler("Item List waypoint rendering", ::renderWorld)
     }
 
     fun requestWarp(entityId: String): NpcWarpRequestResult {

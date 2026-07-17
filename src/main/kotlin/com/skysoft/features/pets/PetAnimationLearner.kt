@@ -1,16 +1,15 @@
 package com.skysoft.features.pets
 
 import com.skysoft.SkysoftMod
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 
 internal object PetAnimationLearner {
     private var captureKey: String? = null
     private var recorder: PetAnimationLoopRecorder? = null
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { tick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> discardCapture() }
+        SkysoftClientEvents.onEndTick("Pet Animation Learner tick") { tick() }
+        SkysoftClientEvents.onDisconnect("Pet Animation Learner disconnect reset", ::discardCapture)
     }
 
     private fun tick() {

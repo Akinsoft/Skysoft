@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.tooltip.TooltipRenderUtil
 import net.minecraft.client.renderer.RenderPipelines
@@ -36,10 +37,12 @@ abstract class TooltipRenderUtilMixin private constructor() {
             height: Int,
             original: Operation<Void>,
         ) {
-            val backgroundPipeline = if (SkysoftConfigGui.config().inventory.isTooltipBackgroundSolid) {
-                RenderPipelines.GUI_OPAQUE_TEXTURED_BACKGROUND
-            } else {
-                pipeline
+            val backgroundPipeline = SkysoftErrorBoundary.value("Solid tooltip background", pipeline) {
+                if (SkysoftConfigGui.config().inventory.isTooltipBackgroundSolid) {
+                    RenderPipelines.GUI_OPAQUE_TEXTURED_BACKGROUND
+                } else {
+                    pipeline
+                }
             }
             original.call(graphics, backgroundPipeline, sprite, x, y, width, height)
         }

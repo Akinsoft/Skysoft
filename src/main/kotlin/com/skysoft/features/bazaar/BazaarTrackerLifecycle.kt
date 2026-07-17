@@ -13,11 +13,11 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
@@ -29,9 +29,9 @@ import net.minecraft.sounds.SoundEvents
 internal fun registerBazaarTracker() {
     registerChatListeners()
     registerMouseClickCapture()
-    ClientTickEvents.END_CLIENT_TICK.register { onClientTick() }
-    ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> resetTransientState(true) }
-    SkyBlockProfileApi.onProfileChange { resetTransientState(true) }
+    SkysoftClientEvents.onEndTick("Bazaar Tracker tick") { onClientTick() }
+    SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset") { resetTransientState(true) }
+    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset") { resetTransientState(true) }
     GuiOverlayRegistry.register(
         GuiOverlay(
             id = "bazaar_tracker",
@@ -78,7 +78,7 @@ internal fun resetBazaarTrackerDisplayedProfit() {
 }
 
 internal fun registerChatListeners() {
-    ChatEvents.onVisibleMessage { message ->
+    ChatEvents.onVisibleMessage("Bazaar Tracker chat") { message ->
         handleChat(message.plainText)
         ChatMessageVisibility.SHOW
     }
@@ -86,10 +86,14 @@ internal fun registerChatListeners() {
 
 internal fun registerMouseClickCapture() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (screen is AbstractContainerScreen<*>) {
-            ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-                recordClickedOrder(screen, click)
-                true
+        SkysoftErrorBoundary.run("Bazaar Tracker screen initialization") {
+            if (screen is AbstractContainerScreen<*>) {
+                ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
+                    SkysoftErrorBoundary.value("Bazaar Tracker mouse click", true) {
+                        recordClickedOrder(screen, click)
+                        true
+                    }
+                }
             }
         }
     }

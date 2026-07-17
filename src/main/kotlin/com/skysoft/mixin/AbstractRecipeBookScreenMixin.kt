@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.misc.VanillaRecipeBookHider
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
@@ -30,14 +31,14 @@ abstract class AbstractRecipeBookScreenMixin {
         ],
     )
     protected fun skysoftHideRecipeBookBeforePositioning(ci: CallbackInfo) {
-        if (shouldSkysoftHideInventoryRecipeBook()) {
+        if (SkysoftErrorBoundary.value("Vanilla Recipe Book positioning", false, ::shouldSkysoftHideInventoryRecipeBook)) {
             (recipeBookComponent as RecipeBookComponentAccessor).skysoftSetVisible(false)
         }
     }
 
     @Inject(method = ["initButton"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftSkipRecipeBookButton(ci: CallbackInfo) {
-        if (shouldSkysoftHideInventoryRecipeBook()) {
+        if (SkysoftErrorBoundary.value("Vanilla Recipe Book button", false, ::shouldSkysoftHideInventoryRecipeBook)) {
             ci.cancel()
         }
     }
@@ -55,9 +56,10 @@ abstract class AbstractRecipeBookScreenMixin {
         context: GuiGraphicsExtractor,
         biggerResultSlot: Boolean,
     ) {
-        if (!shouldSkysoftHideInventoryRecipeBook()) {
-            component.extractGhostRecipe(context, biggerResultSlot)
+        val shouldHide = SkysoftErrorBoundary.value("Vanilla Recipe Book ghost recipe", false) {
+            shouldSkysoftHideInventoryRecipeBook()
         }
+        if (!shouldHide) component.extractGhostRecipe(context, biggerResultSlot)
     }
 
     @Unique

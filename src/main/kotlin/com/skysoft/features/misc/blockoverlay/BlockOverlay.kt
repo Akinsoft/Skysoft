@@ -34,7 +34,7 @@ object BlockOverlay {
 
     fun register() {
         itemCatalogue.startSession(config.settings.combinations)
-        WorldRenderDispatcher.registerHandler(::renderWorld)
+        WorldRenderDispatcher.registerHandler("Block Overlay world rendering", ::renderWorld)
     }
 
     @JvmStatic

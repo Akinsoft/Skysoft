@@ -14,11 +14,12 @@ import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import kotlin.math.roundToLong
@@ -26,26 +27,26 @@ import kotlin.time.Duration.Companion.seconds
 
 object SkillExpGainApi {
     private val storage get() = ProfileStorageApi.storage.skillData
-    private val listeners = mutableListOf<(SkillExpGain) -> Unit>()
+    private val listeners = mutableListOf<Listener>()
     private var lastLilySplosion = ElapsedTimeMark.farPast()
     private var activeSkill: SkyBlockSkill? = null
 
     fun register() {
-        ChatEvents.onActionBar { message ->
+        ChatEvents.onActionBar("Skill Experience action bar") { message ->
             if (HypixelLocationState.inSkyBlock) handleActionBar(message.component)
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("Skill Experience chat") { message ->
             if (HypixelLocationState.inSkyBlock) handleChat(message.formattedText)
             ChatMessageVisibility.SHOW
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("Skill Experience disconnect reset") {
             lastLilySplosion = ElapsedTimeMark.farPast()
         }
     }
 
-    fun onSkillExpGain(listener: (SkillExpGain) -> Unit) {
-        listeners += listener
+    fun onSkillExpGain(boundary: String, listener: (SkillExpGain) -> Unit) {
+        listeners += Listener(boundary, listener)
     }
 
     fun getSkillInfo(skill: SkyBlockSkill): SkillInfo? = storage[skill]
@@ -267,7 +268,9 @@ object SkillExpGainApi {
     }
 
     private fun post(event: SkillExpGain) {
-        listeners.forEach { it(event) }
+        listeners.forEach { listener ->
+            SkysoftErrorBoundary.run(listener.boundary) { listener.callback(event) }
+        }
     }
 
     private fun MatchResult.toMatcher(pattern: Regex): SkillMatcher =
@@ -280,6 +283,8 @@ object SkillExpGainApi {
         val previousTotalXp: Double? = null,
         val source: String = ACTIONBAR_SOURCE,
     )
+
+    private data class Listener(val boundary: String, val callback: (SkillExpGain) -> Unit)
 
     data class SkillInfo(
         @Expose var level: Int = 0,

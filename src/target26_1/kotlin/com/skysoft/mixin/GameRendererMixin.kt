@@ -9,6 +9,7 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -47,7 +48,9 @@ abstract class GameRendererMixin {
 
     @Inject(method = ["shouldRenderBlockOutline"], at = [At("RETURN")], cancellable = true)
     protected fun skysoftReplaceBlockOutline(callback: CallbackInfoReturnable<Boolean>) {
-        callback.returnValue = BlockOverlay.selectBlockOutline(callback.returnValue).rendersVanilla
+        callback.returnValue = SkysoftErrorBoundary.value("Block Overlay outline selection", callback.returnValue) {
+            BlockOverlay.selectBlockOutline(callback.returnValue).rendersVanilla
+        }
     }
 
     @WrapOperation(
@@ -68,10 +71,34 @@ abstract class GameRendererMixin {
         delta: Float,
         original: Operation<Void>,
     ) {
+        var operationCalled = false
+        var operationFailure: Throwable? = null
+        SkysoftErrorBoundary.run("Inventory GUI scale extraction") {
+            extractInventoryAtSeparateScale(screen, graphics, mouseX, mouseY) { renderGraphics, x, y ->
+                operationCalled = true
+                try {
+                    original.call(screen, renderGraphics, x, y, delta)
+                } catch (failure: Throwable) {
+                    operationFailure = failure
+                }
+            }
+        }
+        if (!operationCalled) original.call(screen, graphics, mouseX, mouseY, delta)
+        operationFailure?.let { throw it }
+    }
+
+    @Unique
+    private fun extractInventoryAtSeparateScale(
+        screen: Screen,
+        graphics: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        render: (GuiGraphicsExtractor, Int, Int) -> Unit,
+    ) {
         val window = minecraft.window
         if (!GuiScaleController.usesSeparateInventoryScale(screen)) {
             GuiScaleController.restoreScreenDimensions(screen, window)
-            original.call(screen, graphics, mouseX, mouseY, delta)
+            render(graphics, mouseX, mouseY)
             return
         }
 
@@ -89,7 +116,7 @@ abstract class GameRendererMixin {
                     scaledMouseX,
                     scaledMouseY,
                 )
-                original.call(screen, scaledGraphics, scaledMouseX, scaledMouseY, delta)
+                render(scaledGraphics, scaledMouseX, scaledMouseY)
                 (graphics as GuiGraphicsExtractorAccessor).skysoftSetGuiRenderState(aboveScreenRenderState)
                 GuiScaleController.submitRenderBatch(screenRenderState, aboveScreenRenderState)
             }
@@ -113,26 +140,28 @@ abstract class GameRendererMixin {
         renderLevel: Boolean,
         callbackInfo: CallbackInfo,
     ) {
-        val defaultRenderState = skysoftGetDefaultRenderState()
-        val window = minecraft.window
-        val renderStates = GuiScaleController.takeRenderBatch()
-        if (renderStates != null) {
-            val screen = MinecraftClient.screen(minecraft)
-            try {
-                GuiScaleController.useInventoryScale(screen, window).use {
+        SkysoftErrorBoundary.run("Inventory GUI scale rendering") {
+            val defaultRenderState = skysoftGetDefaultRenderState()
+            val window = minecraft.window
+            val renderStates = GuiScaleController.takeRenderBatch()
+            if (renderStates != null) {
+                val screen = MinecraftClient.screen(minecraft)
+                try {
+                    GuiScaleController.useInventoryScale(screen, window).use {
+                        skysoftSyncWindowScale(window)
+                        (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(renderStates.inventory())
+                        val fogBuffer = fogRenderer.getBuffer(FogRenderer.FogMode.NONE)
+                        guiRenderer.render(fogBuffer)
+                    }
+                } finally {
+                    (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(defaultRenderState)
                     skysoftSyncWindowScale(window)
-                    (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(renderStates.inventory())
-                    val fogBuffer = fogRenderer.getBuffer(FogRenderer.FogMode.NONE)
-                    guiRenderer.render(fogBuffer)
                 }
-            } finally {
-                (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(defaultRenderState)
-                skysoftSyncWindowScale(window)
             }
-        }
 
-        val aboveScreenRenderState = renderStates?.overlays() ?: GuiRenderState()
-        skysoftRenderAboveScreenState(defaultRenderState, aboveScreenRenderState, window, renderStates != null)
+            val aboveScreenRenderState = renderStates?.overlays() ?: GuiRenderState()
+            skysoftRenderAboveScreenState(defaultRenderState, aboveScreenRenderState, window, renderStates != null)
+        }
     }
 
     @Unique

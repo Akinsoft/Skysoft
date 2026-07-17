@@ -2,6 +2,7 @@ package com.skysoft.mixin
 
 import com.skysoft.features.event.diana.DianaRareMobEntityMatcher
 import com.skysoft.features.misc.DeadEntityHider
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher
 import net.minecraft.world.entity.Entity
@@ -21,7 +22,13 @@ abstract class EntityRenderDispatcherMixin {
         cameraZ: Double,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (DeadEntityHider.shouldHide(entity) || DianaRareMobEntityMatcher.shouldHideBuggedEntity(entity)) {
+        val shouldHideDead = SkysoftErrorBoundary.value("Dead Entity hiding", false) {
+            DeadEntityHider.shouldHide(entity)
+        }
+        val shouldHideDiana = SkysoftErrorBoundary.value("Diana bugged entity hiding", false) {
+            DianaRareMobEntityMatcher.shouldHideBuggedEntity(entity)
+        }
+        if (shouldHideDead || shouldHideDiana) {
             cir.returnValue = false
         }
     }

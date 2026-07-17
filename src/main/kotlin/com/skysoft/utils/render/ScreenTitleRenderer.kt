@@ -8,6 +8,7 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.minecraft.client.Minecraft
@@ -34,7 +35,9 @@ object ScreenTitleRenderer {
             VanillaHudElements.TITLE_AND_SUBTITLE,
             SkysoftMod.id(id),
             { context, _ ->
-                if (!renderTitlesInFront && visible()) render(context)
+                SkysoftErrorBoundary.run("Screen Title $id HUD render") {
+                    if (!renderTitlesInFront && visible()) render(context)
+                }
             },
         )
         GuiOverlayRegistry.register(

@@ -6,6 +6,7 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -38,7 +39,9 @@ abstract class GameRendererMixin {
 
     @Inject(method = ["shouldRenderBlockOutline"], at = [At("RETURN")], cancellable = true)
     protected fun skysoftReplaceBlockOutline(callback: CallbackInfoReturnable<Boolean>) {
-        callback.returnValue = BlockOverlay.selectBlockOutline(callback.returnValue).rendersVanilla
+        callback.returnValue = SkysoftErrorBoundary.value("Block Overlay outline selection", callback.returnValue) {
+            BlockOverlay.selectBlockOutline(callback.returnValue).rendersVanilla
+        }
     }
 
     @Inject(
@@ -56,24 +59,26 @@ abstract class GameRendererMixin {
         renderLevel: Boolean,
         callbackInfo: CallbackInfo,
     ) {
-        val defaultRenderState = skysoftGetDefaultRenderState()
-        val window = minecraft.window
-        val renderStates = GuiScaleController.takeRenderBatch()
-        if (renderStates != null) {
-            try {
-                GuiScaleController.useInventoryScale(MinecraftClient.screen(minecraft), window).use {
+        SkysoftErrorBoundary.run("Inventory GUI scale rendering") {
+            val defaultRenderState = skysoftGetDefaultRenderState()
+            val window = minecraft.window
+            val renderStates = GuiScaleController.takeRenderBatch()
+            if (renderStates != null) {
+                try {
+                    GuiScaleController.useInventoryScale(MinecraftClient.screen(minecraft), window).use {
+                        skysoftSyncWindowScale(window)
+                        (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(renderStates.inventory())
+                        guiRenderer.render()
+                    }
+                } finally {
+                    (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(defaultRenderState)
                     skysoftSyncWindowScale(window)
-                    (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(renderStates.inventory())
-                    guiRenderer.render()
                 }
-            } finally {
-                (guiRenderer as GuiRendererAccessor).skysoftSetRenderState(defaultRenderState)
-                skysoftSyncWindowScale(window)
             }
-        }
 
-        val aboveScreenRenderState = renderStates?.overlays() ?: GuiRenderState()
-        skysoftRenderAboveScreenState(defaultRenderState, aboveScreenRenderState, window, renderStates != null)
+            val aboveScreenRenderState = renderStates?.overlays() ?: GuiRenderState()
+            skysoftRenderAboveScreenState(defaultRenderState, aboveScreenRenderState, window, renderStates != null)
+        }
     }
 
     @Unique

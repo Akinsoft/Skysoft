@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.inventory.RarityHighlightRenderer
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.render.GuiItemAtlas
 import net.minecraft.client.gui.render.GuiRenderer
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
@@ -24,6 +25,8 @@ abstract class GuiRendererMixin {
         slotView: GuiItemAtlas.SlotView,
         ci: CallbackInfo,
     ) {
-        RarityHighlightRenderer.renderContour(renderState, itemState, slotView)
+        SkysoftErrorBoundary.run("Rarity Highlight contour rendering") {
+            RarityHighlightRenderer.renderContour(renderState, itemState, slotView)
+        }
     }
 }

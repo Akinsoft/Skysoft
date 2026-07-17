@@ -9,6 +9,7 @@ import com.skysoft.features.chat.ChatMotionSettings
 import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.CopyChatResult
 import com.skysoft.utils.animation.AnimationClock
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.Button
@@ -46,13 +47,15 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
 
     @Inject(method = ["init()V"], at = [At("TAIL")])
     protected fun skysoftBeginOpenAnimation(ci: CallbackInfo) {
-        val player = Minecraft.getInstance().player
-        if (ChatMotionSettings.isInputMotionEnabled() && player != null && !player.isSleeping) {
-            skysoftOpeningMotion.restart()
-        } else {
-            skysoftOpeningMotion.stop()
+        SkysoftErrorBoundary.run("Chat Screen initialization") {
+            val player = Minecraft.getInstance().player
+            if (ChatMotionSettings.isInputMotionEnabled() && player != null && !player.isSleeping) {
+                skysoftOpeningMotion.restart()
+            } else {
+                skysoftOpeningMotion.stop()
+            }
+            skysoftAddTabButtons()
         }
-        skysoftAddTabButtons()
     }
 
     @Inject(method = ["extractRenderState"], at = [At("HEAD")])
@@ -69,7 +72,10 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
 
     @Inject(method = ["keyPressed"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftCopyHoveredMessage(event: KeyEvent, cir: CallbackInfoReturnable<Boolean>) {
-        if (ChatCopy.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED) {
+        val copied = SkysoftErrorBoundary.value("Chat Copy key input", false) {
+            ChatCopy.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED
+        }
+        if (copied) {
             cir.returnValue = true
         }
     }
@@ -80,9 +86,10 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
         doubled: Boolean,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (
+        val copied = SkysoftErrorBoundary.value("Chat Copy mouse input", false) {
             ChatCopy.copyHoveredMessage(click.button(), click.x().toInt(), click.y().toInt()) == CopyChatResult.COPIED
-        ) {
+        }
+        if (copied) {
             cir.returnValue = true
         }
     }
@@ -105,7 +112,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
         color: Int,
         original: Operation<Void>,
     ) {
-        skysoftOpenDisplacement = skysoftChatOpenDisplacement()
+        skysoftOpenDisplacement = SkysoftErrorBoundary.value("Chat input motion", 0.0f, ::skysoftChatOpenDisplacement)
         if (skysoftOpenDisplacement == 0.0f) {
             original.call(graphics, minX, minY, maxX, maxY, color)
             return
@@ -154,7 +161,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
 
     @Inject(method = ["removed"], at = [At("HEAD")])
     protected fun skysoftResetOpenAnimation(ci: CallbackInfo) {
-        skysoftOpeningMotion.stop()
+        SkysoftErrorBoundary.run("Chat input motion", skysoftOpeningMotion::stop)
     }
 
     @Unique

@@ -12,7 +12,7 @@ import com.skysoft.features.misc.conditions.FeatureConditions
 import com.skysoft.features.misc.conditions.FeatureItemConditionCatalogue
 import com.skysoft.features.misc.conditions.FeatureItemConditionCommand
 import com.skysoft.mixin.ToggleKeyMappingAccessor
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.client.ToggleKeyMapping
 import net.minecraft.client.player.LocalPlayer
@@ -29,8 +29,8 @@ object AutoSprint {
 
     fun register() {
         itemCatalogue.startSession(config.settings.combinations)
-        ClientTickEvents.END_CLIENT_TICK.register { minecraft ->
-            val player = minecraft.player ?: return@register
+        SkysoftClientEvents.onEndTick("Auto Sprint tick") { minecraft ->
+            val player = minecraft.player ?: return@onEndTick
             val isCurrentlyActive = isActive(player)
             if (wasActive && !isCurrentlyActive) {
                 val sprintKey = minecraft.options.keySprint as ToggleKeyMapping

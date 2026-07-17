@@ -11,6 +11,7 @@ import com.skysoft.data.skyblock.price.SkysoftAuctionListing
 import com.skysoft.features.inventory.registryOps
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import java.util.UUID
@@ -110,8 +111,8 @@ internal class ItemListAuctionHousePanel {
         SkyBlockPriceData.refreshAuctionHouse(key.id, requestedPage)
             .thenApplyAsync { response -> decodedResponse(response, key, ops) }
             .whenComplete { response, error ->
-                Minecraft.getInstance().execute {
-                    if (currentKey != key || token != requestToken) return@execute
+                SkysoftErrorBoundary.onClientThread("Item List Auction House async completion") {
+                    if (currentKey != key || token != requestToken) return@onClientThread
                     requestInFlight = false
                     if (error == null && response != null) {
                         applyResponse(response)
@@ -351,8 +352,8 @@ private class AuctionSellerNames {
             val name = runCatching {
                 Minecraft.getInstance().services().profileResolver().fetchById(uuid).orElse(null)?.name
             }.getOrNull()
-            Minecraft.getInstance().execute {
-                if (requestedGeneration != generation) return@execute
+            SkysoftErrorBoundary.onClientThread("Auction seller name async completion") {
+                if (requestedGeneration != generation) return@onClientThread
                 names[value] = if (name.isNullOrBlank()) {
                     AuctionSellerName("Unavailable", AuctionSellerState.FAILED)
                 } else {

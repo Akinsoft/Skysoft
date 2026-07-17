@@ -1,14 +1,13 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.network.chat.Component
 
 object SkyBlockCookieBuffApi {
@@ -20,16 +19,16 @@ object SkyBlockCookieBuffApi {
         private set
 
     fun register() {
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("Cookie Buff chat") { message ->
             if (message.isSystemLike && isBoosterCookieConsumedMessage(message.cleanText.trim())) {
                 recordConsumedCookie()
             }
             ChatMessageVisibility.SHOW
         }
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Cookie Buff update") {
             if (++ticks % STATUS_INTERVAL_TICKS == 0) updateStatus()
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("Cookie Buff reset") {
             ticks = 0
             lastTabContentVersion = Long.MIN_VALUE
             status = rememberedStatus(System.currentTimeMillis())

@@ -7,8 +7,8 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.net.PendingHttpRequests
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
@@ -48,7 +48,7 @@ object SkyBlockPriceData {
     private var ticksUntilLowestBinsRefresh = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("SkyBlock Price refresh") {
             if (shouldRefreshBazaar()) {
                 if (ticksUntilBazaarRefresh-- <= 0) {
                     ticksUntilBazaarRefresh = BAZAAR_REFRESH_INTERVAL_TICKS
@@ -66,7 +66,7 @@ object SkyBlockPriceData {
                 ticksUntilLowestBinsRefresh = 0
             }
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register {
+        SkysoftClientEvents.onClientStopping("SkyBlock Price request cancellation") {
             requests.cancelAll()
         }
     }
@@ -147,8 +147,13 @@ object SkyBlockPriceData {
                 response.products
             }
             .whenComplete { _, error ->
-                if (error != null) SkysoftMod.LOGGER.warn("Failed to refresh bazaar depth", error)
-                fetchingBazaarDepth.set(false)
+                SkysoftErrorBoundary.run("Bazaar depth async completion") {
+                    try {
+                        if (error != null) SkysoftMod.LOGGER.warn("Failed to refresh bazaar depth", error)
+                    } finally {
+                        fetchingBazaarDepth.set(false)
+                    }
+                }
             }
     }
 
@@ -165,22 +170,30 @@ object SkyBlockPriceData {
                 response
             }
             .whenComplete { response, error ->
-                if (error == null && response != null) {
-                    bazaar = BazaarProducts(response.products, response.updatedAtMillis())
-                    bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis())
-                } else {
-                    SkysoftMod.LOGGER.warn("Failed to refresh bazaar prices", error)
-                    bazaarStatus = if (bazaar.products.isEmpty()) {
-                        BazaarDataStatus(BazaarDataLoadState.FAILED, message = error?.message ?: "Bazaar request failed")
-                    } else {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.READY,
-                            bazaar.updatedAtMillis,
-                            error?.message ?: "Bazaar refresh failed",
-                        )
+                SkysoftErrorBoundary.run("Bazaar price async completion") {
+                    try {
+                        if (error == null && response != null) {
+                            bazaar = BazaarProducts(response.products, response.updatedAtMillis())
+                            bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis())
+                        } else {
+                            SkysoftMod.LOGGER.warn("Failed to refresh bazaar prices", error)
+                            bazaarStatus = if (bazaar.products.isEmpty()) {
+                                BazaarDataStatus(
+                                    BazaarDataLoadState.FAILED,
+                                    message = error?.message ?: "Bazaar request failed",
+                                )
+                            } else {
+                                BazaarDataStatus(
+                                    BazaarDataLoadState.READY,
+                                    bazaar.updatedAtMillis,
+                                    error?.message ?: "Bazaar refresh failed",
+                                )
+                            }
+                        }
+                    } finally {
+                        fetchingBazaar.set(false)
                     }
                 }
-                fetchingBazaar.set(false)
             }
     }
 
@@ -197,25 +210,30 @@ object SkyBlockPriceData {
                 response
             }
             .whenComplete { response, error ->
-                if (error == null && response != null) {
-                    lowestBins = response.prices
-                    lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt)
-                } else {
-                    SkysoftMod.LOGGER.warn("Failed to refresh lowest BIN prices", error)
-                    lowestBinsStatus = if (lowestBins.isEmpty()) {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.FAILED,
-                            message = error?.message ?: "Lowest BIN request failed",
-                        )
-                    } else {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.READY,
-                            lowestBinsStatus.updatedAtMillis,
-                            error?.message ?: "Lowest BIN refresh failed",
-                        )
+                SkysoftErrorBoundary.run("Lowest BIN async completion") {
+                    try {
+                        if (error == null && response != null) {
+                            lowestBins = response.prices
+                            lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt)
+                        } else {
+                            SkysoftMod.LOGGER.warn("Failed to refresh lowest BIN prices", error)
+                            lowestBinsStatus = if (lowestBins.isEmpty()) {
+                                BazaarDataStatus(
+                                    BazaarDataLoadState.FAILED,
+                                    message = error?.message ?: "Lowest BIN request failed",
+                                )
+                            } else {
+                                BazaarDataStatus(
+                                    BazaarDataLoadState.READY,
+                                    lowestBinsStatus.updatedAtMillis,
+                                    error?.message ?: "Lowest BIN refresh failed",
+                                )
+                            }
+                        }
+                    } finally {
+                        fetchingLowestBins.set(false)
                     }
                 }
-                fetchingLowestBins.set(false)
             }
     }
 

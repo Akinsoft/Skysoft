@@ -1,8 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.SkysoftMod
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.hypixel.modapi.HypixelModAPI
 import net.hypixel.modapi.packet.impl.clientbound.ClientboundHelloPacket
 import net.hypixel.modapi.packet.impl.clientbound.ClientboundPartyInfoPacket
@@ -40,10 +39,10 @@ object HypixelPartyApi {
         }
         modApi.createHandler(ClientboundPartyInfoPacket::class.java, ::onPartyInfoPacket)
 
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Hypixel Party refresh") {
             onTick()
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> reset() }
+        SkysoftClientEvents.onDisconnect("Hypixel Party reset", ::reset)
     }
 
     fun member(uuid: UUID): HypixelPartyMember? =

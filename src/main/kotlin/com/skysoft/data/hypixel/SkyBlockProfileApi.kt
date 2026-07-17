@@ -1,15 +1,15 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.Minecraft
 import java.util.Locale
 
 object SkyBlockProfileApi {
-    private val profileChangeListeners = mutableListOf<(String?) -> Unit>()
+    private val profileChangeListeners = mutableListOf<ProfileChangeListener>()
     private var ticks = 0
 
     var currentProfileName: String? = null
@@ -27,26 +27,26 @@ object SkyBlockProfileApi {
     }
 
     fun register() {
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("SkyBlock Profile chat") { message ->
             handleChat(message.plainText)
             ChatMessageVisibility.SHOW
         }
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("SkyBlock Profile update") {
             if (!HypixelLocationState.inSkyBlock) {
                 setProfile(null)
                 ticks = 0
-                return@register
+                return@onEndTick
             }
             if (++ticks % TAB_PROFILE_READ_INTERVAL_TICKS == 0) readTabProfile()
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("SkyBlock Profile reset") {
             setProfile(null)
             ticks = 0
         }
     }
 
-    fun onProfileChange(listener: (String?) -> Unit) {
-        profileChangeListeners += listener
+    fun onProfileChange(boundary: String, listener: (String?) -> Unit) {
+        profileChangeListeners += ProfileChangeListener(boundary, listener)
     }
 
     private fun handleChat(message: String) {
@@ -76,7 +76,9 @@ object SkyBlockProfileApi {
         val normalized = profileName?.normalizeProfileName()?.takeIf { it.isNotBlank() }
         if (currentProfileName == normalized) return
         currentProfileName = normalized
-        profileChangeListeners.forEach { it(normalized) }
+        profileChangeListeners.forEach { listener ->
+            SkysoftErrorBoundary.run(listener.boundary) { listener.callback(normalized) }
+        }
     }
 
     private fun String.normalizeProfileName(): String =
@@ -85,6 +87,11 @@ object SkyBlockProfileApi {
     private val profileTabPattern = Regex("""Profile: ([\w\s]+)(?:[ ♲Ⓑ☀]+)?""")
     private const val TAB_PROFILE_READ_INTERVAL_TICKS = 20
 }
+
+private data class ProfileChangeListener(
+    val boundary: String,
+    val callback: (String?) -> Unit,
+)
 
 data class SkyBlockProfileId(
     val playerKey: String,

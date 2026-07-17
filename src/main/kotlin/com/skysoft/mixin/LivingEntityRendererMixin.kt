@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.misc.PlayerHeadSkinFix
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
 import net.minecraft.world.entity.LivingEntity
@@ -24,6 +25,6 @@ open class LivingEntityRendererMixin {
         partialTicks: Float,
         ci: CallbackInfo,
     ) {
-        PlayerHeadSkinFix.setOwner(state, entity)
+        SkysoftErrorBoundary.run("Player Head Skin owner tracking") { PlayerHeadSkinFix.setOwner(state, entity) }
     }
 }

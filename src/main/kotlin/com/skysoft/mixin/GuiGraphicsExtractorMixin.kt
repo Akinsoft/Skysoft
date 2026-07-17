@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.skysoft.features.inventory.RarityHighlightRenderer
 import com.skysoft.features.inventory.SlotBindingManager
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
 import net.minecraft.client.renderer.state.gui.GuiRenderState
@@ -32,7 +33,9 @@ abstract class GuiGraphicsExtractorMixin {
         itemState: GuiItemRenderState,
         original: Operation<Void>,
     ) {
-        RarityHighlightRenderer.attachContour(itemState)
+        SkysoftErrorBoundary.run("Rarity Highlight contour attachment") {
+            RarityHighlightRenderer.attachContour(itemState)
+        }
         original.call(renderState, itemState)
     }
 
@@ -43,6 +46,8 @@ abstract class GuiGraphicsExtractorMixin {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        SlotBindingManager.renderTopLayer(this as GuiGraphicsExtractor)
+        SkysoftErrorBoundary.run("Slot Binding tooltip rendering") {
+            SlotBindingManager.renderTopLayer(this as GuiGraphicsExtractor)
+        }
     }
 }

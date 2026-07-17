@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.mojang.blaze3d.platform.Window
 import com.skysoft.gui.scale.GuiScaleController
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -39,10 +40,34 @@ abstract class GuiMixin {
         delta: Float,
         original: Operation<Void>,
     ) {
+        var operationCalled = false
+        var operationFailure: Throwable? = null
+        SkysoftErrorBoundary.run("Inventory GUI scale extraction") {
+            extractInventoryAtSeparateScale(screen, graphics, mouseX, mouseY) { renderGraphics, x, y ->
+                operationCalled = true
+                try {
+                    original.call(screen, renderGraphics, x, y, delta)
+                } catch (failure: Throwable) {
+                    operationFailure = failure
+                }
+            }
+        }
+        if (!operationCalled) original.call(screen, graphics, mouseX, mouseY, delta)
+        operationFailure?.let { throw it }
+    }
+
+    @Unique
+    private fun extractInventoryAtSeparateScale(
+        screen: Screen,
+        graphics: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        render: (GuiGraphicsExtractor, Int, Int) -> Unit,
+    ) {
         val window = minecraft.window
         if (!GuiScaleController.usesSeparateInventoryScale(screen)) {
             GuiScaleController.restoreScreenDimensions(screen, window)
-            original.call(screen, graphics, mouseX, mouseY, delta)
+            render(graphics, mouseX, mouseY)
             return
         }
 
@@ -60,7 +85,7 @@ abstract class GuiMixin {
                     scaledMouseX,
                     scaledMouseY,
                 )
-                original.call(screen, scaledGraphics, scaledMouseX, scaledMouseY, delta)
+                render(scaledGraphics, scaledMouseX, scaledMouseY)
                 (graphics as GuiGraphicsExtractorAccessor).skysoftSetGuiRenderState(aboveScreenRenderState)
                 GuiScaleController.submitRenderBatch(screenRenderState, aboveScreenRenderState)
             }

@@ -2,8 +2,7 @@ package com.skysoft.features.pets
 
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.hypixel.HypixelLocationState
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.Display
@@ -23,8 +22,8 @@ internal object ActivePetEntityTracker {
     private var ticks = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { tick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
+        SkysoftClientEvents.onEndTick("Active Pet entity tracking") { tick() }
+        SkysoftClientEvents.onDisconnect("Active Pet entity disconnect reset", ::clear)
     }
 
     fun current(): ActivePetEntityObservation? = observation

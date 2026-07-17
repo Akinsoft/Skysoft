@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.skysoft.features.helditem.HeldItemUpdateFix
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.multiplayer.MultiPlayerGameMode
 import net.minecraft.world.entity.player.Player
@@ -31,7 +32,12 @@ open class MultiPlayerGameModeMixin {
         current: ItemStack,
         previous: ItemStack,
         original: Operation<Boolean>,
-    ): Boolean = original.call(current, previous) || HeldItemUpdateFix.shouldPreserveUpdate(previous, current)
+    ): Boolean {
+        if (original.call(current, previous)) return true
+        return SkysoftErrorBoundary.value("Held Item destroy target update", false) {
+            HeldItemUpdateFix.shouldPreserveUpdate(previous, current)
+        }
+    }
 
     @WrapOperation(
         method = ["handleContainerInput"],
@@ -57,8 +63,11 @@ open class MultiPlayerGameModeMixin {
             original.call(menu, slotNum, buttonNum, input, player)
             return
         }
-        SmoothSwapping.animateLocalContainerMutation(screen) {
-            original.call(menu, slotNum, buttonNum, input, player)
+        SkysoftErrorBoundary.aroundUnit(
+            "Smooth Swapping local mutation",
+            { original.call(menu, slotNum, buttonNum, input, player) },
+        ) { mutate ->
+            SmoothSwapping.animateLocalContainerMutation(screen, mutate)
         }
     }
 }

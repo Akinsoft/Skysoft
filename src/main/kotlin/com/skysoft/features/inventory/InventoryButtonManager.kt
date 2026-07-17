@@ -22,7 +22,7 @@ import java.util.UUID
 import kotlin.math.max
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -413,7 +413,7 @@ private object InventoryButtonIcons {
     private const val FALLBACK_ICON_TEXT_Y_OFFSET = 5
 
     fun registerPlayerHeadCacheRefresh(activeIcons: () -> Sequence<String>) {
-        ClientTickEvents.END_CLIENT_TICK.register tick@{ minecraft ->
+        SkysoftClientEvents.onEndTick("Inventory Button player head cache") tick@{ minecraft ->
             if (minecraft.connection == null) {
                 nextPlayerHeadCacheRefreshMillis = 0L
                 return@tick

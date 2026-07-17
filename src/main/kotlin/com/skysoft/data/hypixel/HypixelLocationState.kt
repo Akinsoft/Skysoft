@@ -1,7 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.data.SkyBlockIsland
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.hypixel.data.type.GameType
 import net.hypixel.modapi.HypixelModAPI
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket
@@ -36,7 +36,7 @@ object HypixelLocationState {
         modApi.subscribeToEventPacket(ClientboundLocationPacket::class.java)
         modApi.createHandler(ClientboundLocationPacket::class.java, ::onLocationPacket)
 
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> reset() }
+        SkysoftClientEvents.onDisconnect("Hypixel Location reset", ::reset)
     }
 
     private fun onLocationPacket(packet: ClientboundLocationPacket) {

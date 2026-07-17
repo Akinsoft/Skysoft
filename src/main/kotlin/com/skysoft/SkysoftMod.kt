@@ -60,6 +60,7 @@ import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.commands.SkysoftCommandRegistry
 import com.skysoft.utils.commands.SkysoftCommandRegistry.Companion.literal
@@ -81,82 +82,71 @@ import org.lwjgl.glfw.GLFW
 
 class SkysoftMod : ClientModInitializer {
     override fun onInitializeClient() {
-        HypixelLocationState.register()
-        HypixelPartyApi.register()
-        SkysoftPartyShare.register()
-        TabListApi.register()
-        SkyBlockCookieBuffApi.register()
-        SkyBlockProfileApi.register()
-        EntityLifecycleEvents.register()
-        ProfileStorageApi.register()
-        AttributeShardCatalog.register()
-        MayorPerkApi.register()
-        SkyBlockEventScheduleApi.register()
-        SkyBlockEventState.register()
-        SkyBlockPriceData.register()
-        SkyBlockDataRepository.register()
-        EntityHighlightRenderer.register()
-        WorldRenderDispatcher.register()
-        SkysoftItemRenderSupport.register()
-        GuiOverlayRegistry.register()
-        ScreenAlertRenderer.register()
-        LotumHelper.register()
-        PriceTooltips.register()
-        FullInventoryWarning.register()
-        InventoryButtonManager.register()
-        InventoryEquipment.register()
-        ItemListController.register()
-        ItemListNpcWaypoint.register()
-        StorageOverlayController.register()
-        SmoothSwapping.register()
-        ChatHistoryPersistence.register()
-        ChatTabs.register()
-        ActionBarBackground.register()
-        DayDisplay.register()
-        PlayerHeadSkinFix.register()
-        AutoSprint.register()
-        BlockOverlay.register()
-        ActivePetTracker.register()
-        SkillExpGainApi.register()
-        PetXpEstimator.register()
-        PetStorageService.register()
-        ActivePetOverlay.register()
-        ActivePetEntityTracker.register()
-        PetAnimationLearner.register()
-        VisiblePetPosition.register()
-        BazaarTracker.register()
-        BetterShurikens.register()
-        FishingHotspotSharing.register()
-        FishingHotspotRadar.register()
-        RareLootSharing.register()
-        DianaBurrowHelper.register()
-        ModUpdateChecker.register()
+        SkysoftErrorBoundary.register()
+        registerFeature("Hypixel Location State", HypixelLocationState::register)
+        registerFeature("Hypixel Party API", HypixelPartyApi::register)
+        registerFeature("Party Sharing", SkysoftPartyShare::register)
+        registerFeature("Tab List API", TabListApi::register)
+        registerFeature("Cookie Buff API", SkyBlockCookieBuffApi::register)
+        registerFeature("SkyBlock Profile API", SkyBlockProfileApi::register)
+        registerFeature("Entity Lifecycle Events", EntityLifecycleEvents::register)
+        registerFeature("Profile Storage", ProfileStorageApi::register)
+        registerFeature("Attribute Shard Catalog", AttributeShardCatalog::register)
+        registerFeature("Mayor Perk API", MayorPerkApi::register)
+        registerFeature("SkyBlock Event Schedule", SkyBlockEventScheduleApi::register)
+        registerFeature("SkyBlock Event State", SkyBlockEventState::register)
+        registerFeature("SkyBlock Price Data", SkyBlockPriceData::register)
+        registerFeature("SkyBlock Data Repository", SkyBlockDataRepository::register)
+        registerFeature("Entity Highlight Renderer", EntityHighlightRenderer::register)
+        registerFeature("World Render Dispatcher", WorldRenderDispatcher::register)
+        registerFeature("Item Render Support", SkysoftItemRenderSupport::register)
+        registerFeature("GUI Overlay Registry", GuiOverlayRegistry::register)
+        registerFeature("Screen Alert Renderer", ScreenAlertRenderer::register)
+        registerFeature("Lotum Helper", LotumHelper::register)
+        registerFeature("Price Tooltips", PriceTooltips::register)
+        registerFeature("Full Inventory Warning", FullInventoryWarning::register)
+        registerFeature("Inventory Buttons", InventoryButtonManager::register)
+        registerFeature("Inventory Equipment", InventoryEquipment::register)
+        registerFeature("Item List", ItemListController::register)
+        registerFeature("Item List Waypoints", ItemListNpcWaypoint::register)
+        registerFeature("Storage Overlay", StorageOverlayController::register)
+        registerFeature("Smooth Swapping", SmoothSwapping::register)
+        registerFeature("Chat History", ChatHistoryPersistence::register)
+        registerFeature("Chat Tabs", ChatTabs::register)
+        registerFeature("Action Bar Background", ActionBarBackground::register)
+        registerFeature("Day Display", DayDisplay::register)
+        registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)
+        registerFeature("Auto Sprint", AutoSprint::register)
+        registerFeature("Block Overlay", BlockOverlay::register)
+        registerFeature("Active Pet Tracker", ActivePetTracker::register)
+        registerFeature("Skill Experience API", SkillExpGainApi::register)
+        registerFeature("Pet Experience Estimator", PetXpEstimator::register)
+        registerFeature("Pet Storage", PetStorageService::register)
+        registerFeature("Active Pet Overlay", ActivePetOverlay::register)
+        registerFeature("Active Pet Entity Tracker", ActivePetEntityTracker::register)
+        registerFeature("Pet Animation Learner", PetAnimationLearner::register)
+        registerFeature("Visible Pet Position", VisiblePetPosition::register)
+        registerFeature("Bazaar Tracker", BazaarTracker::register)
+        registerFeature("Better Shurikens", BetterShurikens::register)
+        registerFeature("Fishing Hotspot Sharing", FishingHotspotSharing::register)
+        registerFeature("Fishing Hotspot Radar", FishingHotspotRadar::register)
+        registerFeature("Rare Loot Sharing", RareLootSharing::register)
+        registerFeature("Diana Burrow Helper", DianaBurrowHelper::register)
+        registerFeature("Update Checker", ModUpdateChecker::register)
         ClientLifecycleEvents.CLIENT_STOPPING.register {
-            SkysoftConfigGui.config().saveNow()
-            ProfileStorageApi.saveNow()
+            SkysoftErrorBoundary.run("Config save") { SkysoftConfigGui.config().saveNow() }
+            SkysoftErrorBoundary.run("Profile storage save") { ProfileStorageApi.saveNow() }
         }
-        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> registerCommands(dispatcher) }
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
+            SkysoftErrorBoundary.run("Command registration") { registerCommands(dispatcher) }
+        }
         ClientTickEvents.END_CLIENT_TICK.register {
-            handlePositionEditorKeybind()
-            TooltipViewport.updateKeyboardPan()
-            if (shouldOpenMenu) {
-                shouldOpenMenu = false
-                SkysoftConfigGui.open(pendingMenuSearch)
-                pendingMenuSearch = null
+            SkysoftErrorBoundary.run("Position Editor keybind") { handlePositionEditorKeybind() }
+            SkysoftErrorBoundary.run("Tooltip keyboard navigation") { TooltipViewport.updateKeyboardPan() }
+            SkysoftErrorBoundary.run("Pending Skysoft screens") {
+                openPendingScreens()
             }
-            if (shouldOpenEditor) {
-                shouldOpenEditor = false
-                SkysoftHudEditor.open()
-            }
-            if (shouldOpenButtonEditor) {
-                shouldOpenButtonEditor = false
-                InventoryButtonEditorScreen.open()
-            }
-            if (shouldOpenHeldItemEditor) {
-                shouldOpenHeldItemEditor = false
-                HeldItemEditorScreen.open()
-            }
-            ItemListSearchCommand.openPending()
+            SkysoftErrorBoundary.run("Item List search opening") { ItemListSearchCommand.openPending() }
         }
     }
 
@@ -177,6 +167,30 @@ class SkysoftMod : ClientModInitializer {
         private var shouldOpenButtonEditor = false
         private var shouldOpenHeldItemEditor = false
         private var positionEditorKeyWasDown = false
+
+        private fun registerFeature(name: String, registration: () -> Unit) {
+            SkysoftErrorBoundary.run("$name initialization", registration)
+        }
+
+        private fun openPendingScreens() {
+            if (shouldOpenMenu) {
+                shouldOpenMenu = false
+                SkysoftConfigGui.open(pendingMenuSearch)
+                pendingMenuSearch = null
+            }
+            if (shouldOpenEditor) {
+                shouldOpenEditor = false
+                SkysoftHudEditor.open()
+            }
+            if (shouldOpenButtonEditor) {
+                shouldOpenButtonEditor = false
+                InventoryButtonEditorScreen.open()
+            }
+            if (shouldOpenHeldItemEditor) {
+                shouldOpenHeldItemEditor = false
+                HeldItemEditorScreen.open()
+            }
+        }
 
         private fun registerCommands(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
             SkysoftCommandRegistry(dispatcher).apply {

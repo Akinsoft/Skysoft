@@ -7,8 +7,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputHandlingResult
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
@@ -18,9 +17,14 @@ import net.minecraft.world.item.ItemStack
 object InventoryEquipment {
     @JvmStatic
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { tickInventoryEquipment() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> resetInventoryEquipmentRuntimeState() }
-        SkyBlockProfileApi.onProfileChange { resetInventoryEquipmentRuntimeState() }
+        SkysoftClientEvents.onEndTick("Inventory Equipment tick") { tickInventoryEquipment() }
+        SkysoftClientEvents.onDisconnect(
+            "Inventory Equipment disconnect reset",
+            ::resetInventoryEquipmentRuntimeState,
+        )
+        SkyBlockProfileApi.onProfileChange("Inventory Equipment profile reset") {
+            resetInventoryEquipmentRuntimeState()
+        }
     }
 
     @JvmStatic

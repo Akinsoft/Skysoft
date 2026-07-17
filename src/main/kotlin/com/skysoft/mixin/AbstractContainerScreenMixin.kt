@@ -13,6 +13,7 @@ import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.pets.PetStorageService
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -33,16 +34,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable
 abstract class AbstractContainerScreenMixin {
     @Inject(method = ["init()V"], at = [At("TAIL")])
     protected fun skysoftLayoutStorageOverlay(ci: CallbackInfo) {
-        StorageOverlayController.layoutScreen(this as AbstractContainerScreen<*>)
-        InventoryEquipment.layoutScreen(this as AbstractContainerScreen<*>)
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Storage Overlay screen layout") { StorageOverlayController.layoutScreen(screen) }
+        SkysoftErrorBoundary.run("Inventory Equipment screen layout") { InventoryEquipment.layoutScreen(screen) }
     }
 
     @Inject(method = ["removed"], at = [At("TAIL")])
     protected fun skysoftRestoreInventoryEquipmentLayout(ci: CallbackInfo) {
-        BazaarTracker.restoreOrderMenu(this as AbstractContainerScreen<*>)
-        InventoryEquipment.restoreScreen(this as AbstractContainerScreen<*>)
-        SlotLockManager.clearInputState()
-        ItemProtectionManager.clearInputState()
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Bazaar Tracker screen cleanup") { BazaarTracker.restoreOrderMenu(screen) }
+        SkysoftErrorBoundary.run("Inventory Equipment screen cleanup") { InventoryEquipment.restoreScreen(screen) }
+        SkysoftErrorBoundary.run("Slot Lock screen cleanup", SlotLockManager::clearInputState)
+        SkysoftErrorBoundary.run("Item Protection screen cleanup", ItemProtectionManager::clearInputState)
     }
 
     @Inject(method = ["extractTooltip"], at = [At("HEAD")], cancellable = true)
@@ -52,7 +55,10 @@ abstract class AbstractContainerScreenMixin {
         mouseY: Int,
         ci: CallbackInfo,
     ) {
-        if (SlotBindingManager.shouldSuppressRegularTooltips(this as AbstractContainerScreen<*>)) {
+        val shouldSuppress = SkysoftErrorBoundary.value("Slot Binding tooltip suppression", false) {
+            SlotBindingManager.shouldSuppressRegularTooltips(this as AbstractContainerScreen<*>)
+        }
+        if (shouldSuppress) {
             ci.cancel()
         }
     }
@@ -64,7 +70,10 @@ abstract class AbstractContainerScreenMixin {
         mouseY: Int,
         ci: CallbackInfo,
     ) {
-        if (StorageOverlayController.shouldSuppressContainerLabels(this as AbstractContainerScreen<*>)) {
+        val shouldSuppress = SkysoftErrorBoundary.value("Storage Overlay label suppression", false) {
+            StorageOverlayController.shouldSuppressContainerLabels(this as AbstractContainerScreen<*>)
+        }
+        if (shouldSuppress) {
             ci.cancel()
         }
     }
@@ -75,38 +84,39 @@ abstract class AbstractContainerScreenMixin {
         doubled: Boolean,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (
-            ItemListController.handleMouseClick(this as AbstractContainerScreen<*>, click, doubled) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val screen = this as AbstractContainerScreen<*>
+        val itemListResult = SkysoftErrorBoundary.value("Item List mouse click", InputHandlingResult.IGNORED) {
+            ItemListController.handleMouseClick(screen, click, doubled)
+        }
+        if (itemListResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
             return
         }
-        if (
-            StorageOverlayController.handleMouseClick(this as AbstractContainerScreen<*>, click) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val storageResult = SkysoftErrorBoundary.value("Storage Overlay mouse click", InputHandlingResult.IGNORED) {
+            StorageOverlayController.handleMouseClick(screen, click)
+        }
+        if (storageResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
             return
         }
-        if (
-            BazaarTracker.handleMouseClick(this as AbstractContainerScreen<*>, click) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val bazaarResult = SkysoftErrorBoundary.value("Bazaar Tracker screen click", InputHandlingResult.IGNORED) {
+            BazaarTracker.handleMouseClick(screen, click)
+        }
+        if (bazaarResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
             return
         }
-        if (
-            InventoryEquipment.handleMouseClick(this as AbstractContainerScreen<*>, click) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val equipmentResult = SkysoftErrorBoundary.value("Inventory Equipment mouse click", InputHandlingResult.IGNORED) {
+            InventoryEquipment.handleMouseClick(screen, click)
+        }
+        if (equipmentResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
             return
         }
-        if (
-            InventoryButtonManager.handleMouseClick(this as AbstractContainerScreen<*>, click) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val buttonResult = SkysoftErrorBoundary.value("Inventory Button mouse click", InputHandlingResult.IGNORED) {
+            InventoryButtonManager.handleMouseClick(screen, click)
+        }
+        if (buttonResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
         }
     }
@@ -116,14 +126,17 @@ abstract class AbstractContainerScreenMixin {
         click: MouseButtonEvent,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (StorageOverlayController.handleMouseRelease(click) == InputHandlingResult.CONSUMED) {
+        val storageResult = SkysoftErrorBoundary.value("Storage Overlay mouse release", InputHandlingResult.IGNORED) {
+            StorageOverlayController.handleMouseRelease(click)
+        }
+        if (storageResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
             return
         }
-        if (
-            InventoryButtonManager.handleMouseRelease(this as AbstractContainerScreen<*>, click) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val buttonResult = SkysoftErrorBoundary.value("Inventory Button mouse release", InputHandlingResult.IGNORED) {
+            InventoryButtonManager.handleMouseRelease(this as AbstractContainerScreen<*>, click)
+        }
+        if (buttonResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
         }
     }
@@ -135,10 +148,10 @@ abstract class AbstractContainerScreenMixin {
         deltaY: Double,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (
-            StorageOverlayController.handleMouseDrag(this as AbstractContainerScreen<*>, click) ==
-            InputHandlingResult.CONSUMED
-        ) {
+        val result = SkysoftErrorBoundary.value("Storage Overlay mouse drag", InputHandlingResult.IGNORED) {
+            StorageOverlayController.handleMouseDrag(this as AbstractContainerScreen<*>, click)
+        }
+        if (result == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
         }
     }
@@ -159,9 +172,10 @@ abstract class AbstractContainerScreenMixin {
         doubled: Boolean,
         original: Operation<Boolean>,
     ): Boolean {
-        if (StorageOverlayController.isActive(screen)) {
-            return false
+        val isActive = SkysoftErrorBoundary.value("Storage Overlay widget click", false) {
+            StorageOverlayController.isActive(screen)
         }
+        if (isActive) return false
         return original.call(screen, click, doubled)
     }
 
@@ -182,9 +196,10 @@ abstract class AbstractContainerScreenMixin {
         deltaY: Double,
         original: Operation<Boolean>,
     ): Boolean {
-        if (StorageOverlayController.isActive(screen)) {
-            return false
+        val isActive = SkysoftErrorBoundary.value("Storage Overlay widget drag", false) {
+            StorageOverlayController.isActive(screen)
         }
+        if (isActive) return false
         return original.call(screen, click, deltaX, deltaY)
     }
 
@@ -204,7 +219,12 @@ abstract class AbstractContainerScreenMixin {
         slot: Slot,
         stack: ItemStack,
         original: Operation<Boolean>,
-    ): Boolean = SlotLockManager.canQuickCraftInto(slot) && original.call(screen, slot, stack)
+    ): Boolean {
+        val isAllowed = SkysoftErrorBoundary.value("Slot Lock quick craft", true) {
+            SlotLockManager.canQuickCraftInto(slot)
+        }
+        return isAllowed && original.call(screen, slot, stack)
+    }
 
     @WrapOperation(
         method = ["mouseReleased"],
@@ -221,9 +241,10 @@ abstract class AbstractContainerScreenMixin {
         click: MouseButtonEvent,
         original: Operation<Boolean>,
     ): Boolean {
-        if (StorageOverlayController.isActive(screen)) {
-            return false
+        val isActive = SkysoftErrorBoundary.value("Storage Overlay widget release", false) {
+            StorageOverlayController.isActive(screen)
         }
+        if (isActive) return false
         return original.call(screen, click)
     }
 
@@ -235,25 +256,28 @@ abstract class AbstractContainerScreenMixin {
         verticalAmount: Double,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (
+        val screen = this as AbstractContainerScreen<*>
+        val itemListResult = SkysoftErrorBoundary.value("Item List mouse scroll", InputHandlingResult.IGNORED) {
             ItemListController.handleMouseScroll(
-                this as AbstractContainerScreen<*>,
+                screen,
                 mouseX,
                 mouseY,
                 verticalAmount,
-            ) == InputHandlingResult.CONSUMED
-        ) {
+            )
+        }
+        if (itemListResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
             return
         }
-        if (
+        val storageResult = SkysoftErrorBoundary.value("Storage Overlay mouse scroll", InputHandlingResult.IGNORED) {
             StorageOverlayController.handleMouseScroll(
-                this as AbstractContainerScreen<*>,
+                screen,
                 mouseX,
                 mouseY,
                 verticalAmount,
-            ) == InputHandlingResult.CONSUMED
-        ) {
+            )
+        }
+        if (storageResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
         }
     }
@@ -263,23 +287,27 @@ abstract class AbstractContainerScreenMixin {
         event: KeyEvent,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (
-            StorageOverlayController.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
-            InputHandlingResult.CONSUMED
-        ) {
-            cir.returnValue = true
-            return
-        }
-        if (
-            ItemListController.handleKeyPress(this as AbstractContainerScreen<*>, event) ==
-            InputHandlingResult.CONSUMED
-        ) {
-            cir.returnValue = true
-            return
-        }
         val screen = this as AbstractContainerScreen<*>
-        val slotLockResult = SlotLockManager.handleKeyPress(screen, event)
-        val itemProtectionResult = ItemProtectionManager.handleKeyPress(screen, event)
+        val storageResult = SkysoftErrorBoundary.value("Storage Overlay key input", InputHandlingResult.IGNORED) {
+            StorageOverlayController.handleKeyPress(screen, event)
+        }
+        if (storageResult == InputHandlingResult.CONSUMED) {
+            cir.returnValue = true
+            return
+        }
+        val itemListResult = SkysoftErrorBoundary.value("Item List key input", InputHandlingResult.IGNORED) {
+            ItemListController.handleKeyPress(screen, event)
+        }
+        if (itemListResult == InputHandlingResult.CONSUMED) {
+            cir.returnValue = true
+            return
+        }
+        val slotLockResult = SkysoftErrorBoundary.value("Slot Lock key input", InputHandlingResult.IGNORED) {
+            SlotLockManager.handleKeyPress(screen, event)
+        }
+        val itemProtectionResult = SkysoftErrorBoundary.value("Item Protection key input", InputHandlingResult.IGNORED) {
+            ItemProtectionManager.handleKeyPress(screen, event)
+        }
         if (slotLockResult == InputHandlingResult.CONSUMED || itemProtectionResult == InputHandlingResult.CONSUMED) {
             cir.returnValue = true
         }
@@ -305,14 +333,19 @@ abstract class AbstractContainerScreenMixin {
         player: Player,
         original: Operation<Void>,
     ) {
-        if (BazaarTracker.shouldBlockOrderInteraction(this as AbstractContainerScreen<*>, slotId)) {
-            return
+        val shouldBlock = SkysoftErrorBoundary.value("Bazaar Tracker order interaction", false) {
+            BazaarTracker.shouldBlockOrderInteraction(this as AbstractContainerScreen<*>, slotId)
         }
-        val guard: InventoryDropSelectionGuard? = SkyBlockMenuInventoryDropFix.beginContainerThrow(player, slotId, action)
+        if (shouldBlock) return
+        val guard = SkysoftErrorBoundary.value<InventoryDropSelectionGuard?>("Inventory drop selection guard", null) {
+            SkyBlockMenuInventoryDropFix.beginContainerThrow(player, slotId, action)
+        }
         try {
             original.call(gameMode, containerId, slotId, button, action, player)
         } finally {
-            SkyBlockMenuInventoryDropFix.finishContainerThrow(guard)
+            SkysoftErrorBoundary.run("Inventory drop selection guard") {
+                SkyBlockMenuInventoryDropFix.finishContainerThrow(guard)
+            }
         }
     }
 
@@ -324,13 +357,18 @@ abstract class AbstractContainerScreenMixin {
         top: Int,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (ItemListController.isClickInside(this as AbstractContainerScreen<*>, mouseX, mouseY)) {
+        val screen = this as AbstractContainerScreen<*>
+        val isInsideItemList = SkysoftErrorBoundary.value("Item List outside click", false) {
+            ItemListController.isClickInside(screen, mouseX, mouseY)
+        }
+        if (isInsideItemList) {
             cir.returnValue = false
             return
         }
-        if (StorageOverlayController.isClickInsideOverlay(this as AbstractContainerScreen<*>, mouseX, mouseY)) {
-            cir.returnValue = false
+        val isInsideStorage = SkysoftErrorBoundary.value("Storage Overlay outside click", false) {
+            StorageOverlayController.isClickInsideOverlay(screen, mouseX, mouseY)
         }
+        if (isInsideStorage) cir.returnValue = false
     }
 
     @Inject(method = ["slotClicked"], at = [At("HEAD")], cancellable = true)
@@ -342,18 +380,20 @@ abstract class AbstractContainerScreenMixin {
         ci: CallbackInfo,
     ) {
         val screen = this as AbstractContainerScreen<*>
-        val slotLockResult = SlotLockManager.handleSlotClick(screen, slot, button, action)
-        val itemProtectionResult = ItemProtectionManager.handleContainerDrop(screen, slot, slotId, action)
+        val slotLockResult = SkysoftErrorBoundary.value("Slot Lock slot click", InputHandlingResult.IGNORED) {
+            SlotLockManager.handleSlotClick(screen, slot, button, action)
+        }
+        val itemProtectionResult = SkysoftErrorBoundary.value("Item Protection slot click", InputHandlingResult.IGNORED) {
+            ItemProtectionManager.handleContainerDrop(screen, slot, slotId, action)
+        }
         if (slotLockResult == InputHandlingResult.CONSUMED || itemProtectionResult == InputHandlingResult.CONSUMED) {
             ci.cancel()
             return
         }
-        PetStorageService.onSlotClick(slot, slotId, button)
-        if (
-            SlotBindingManager.handleSlotClick(this as AbstractContainerScreen<*>, slot, action) ==
-            InputHandlingResult.CONSUMED
-        ) {
-            ci.cancel()
+        SkysoftErrorBoundary.run("Pet Storage slot click") { PetStorageService.onSlotClick(slot, slotId, button) }
+        val slotBindingResult = SkysoftErrorBoundary.value("Slot Binding slot click", InputHandlingResult.IGNORED) {
+            SlotBindingManager.handleSlotClick(screen, slot, action)
         }
+        if (slotBindingResult == InputHandlingResult.CONSUMED) ci.cancel()
     }
 }

@@ -8,8 +8,7 @@ import com.skysoft.utils.render.ScreenAlert
 import com.skysoft.utils.render.ScreenAlertRenderer
 import com.skysoft.utils.render.ScreenAlertSound
 import com.skysoft.utils.render.ScreenTitleLine
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
@@ -29,8 +28,8 @@ object FullInventoryWarning {
     private var wasWarning = false
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { tick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> reset() }
+        SkysoftClientEvents.onEndTick("Full Inventory Warning tick") { tick() }
+        SkysoftClientEvents.onDisconnect("Full Inventory Warning disconnect reset", ::reset)
     }
 
     private fun tick() {

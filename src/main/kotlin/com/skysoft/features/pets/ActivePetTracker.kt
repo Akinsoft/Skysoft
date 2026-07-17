@@ -5,12 +5,13 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.ElapsedTimeMark
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import kotlin.time.Duration.Companion.seconds
 
 object ActivePetTracker {
     private val storage get() = ProfileStorageApi.storage
-    private val changeListeners = mutableListOf<(StoredPetData?) -> Unit>()
+    private val changeListeners = mutableListOf<PetChangeListener>()
     private val lastAssertion = mutableMapOf<PetDataAssertionSource, ElapsedTimeMark>()
     private var currentPetSnapshot: StoredPetData? = null
     private var pendingTabPetData: StoredPetData? = null
@@ -31,20 +32,20 @@ object ActivePetTracker {
         }
 
     fun register() {
-        SkyBlockProfileApi.onProfileChange {
+        SkyBlockProfileApi.onProfileChange("Active Pet profile reset") {
             resetProfileState()
         }
-        ClientTickEvents.END_CLIENT_TICK.register {
-            if (++ticks % TAB_ASSERTION_INTERVAL_TICKS != 0) return@register
-            val petData = pendingTabPetData ?: return@register
-            if (shouldDelayTabAssertion()) return@register
+        SkysoftClientEvents.onEndTick("Active Pet tab assertion") {
+            if (++ticks % TAB_ASSERTION_INTERVAL_TICKS != 0) return@onEndTick
+            val petData = pendingTabPetData ?: return@onEndTick
+            if (shouldDelayTabAssertion()) return@onEndTick
             pendingTabPetData = null
             assertFoundCurrentData(petData, PetDataAssertionSource.TAB)
         }
     }
 
-    fun onChange(listener: (StoredPetData?) -> Unit) {
-        changeListeners += listener
+    fun onChange(boundary: String, listener: (StoredPetData?) -> Unit) {
+        changeListeners += PetChangeListener(boundary, listener)
     }
 
     fun assertFoundCurrentData(petData: StoredPetData, source: PetDataAssertionSource) {
@@ -62,7 +63,7 @@ object ActivePetTracker {
             storage.pets.addOrReplace(mergedPetData) { it.uuid == uuid }
         }
         ProfileStorageApi.markDirty()
-        changeListeners.forEach { it(mergedPetData) }
+        notifyChange(mergedPetData)
     }
 
     fun updateCurrentPetExp(exp: Double): StoredPetData? {
@@ -76,7 +77,7 @@ object ActivePetTracker {
             storage.pets.addOrReplace(currentPet) { it.uuid == uuid }
         }
         ProfileStorageApi.markDirty()
-        changeListeners.forEach { it(currentPet) }
+        notifyChange(currentPet)
         return currentPet
     }
 
@@ -90,7 +91,13 @@ object ActivePetTracker {
     private fun resetProfileState() {
         currentPetSnapshot = null
         pendingTabPetData = null
-        changeListeners.forEach { it(null) }
+        notifyChange(null)
+    }
+
+    private fun notifyChange(petData: StoredPetData?) {
+        changeListeners.forEach { listener ->
+            SkysoftErrorBoundary.run(listener.boundary) { listener.callback(petData) }
+        }
     }
 
     fun handleChat(message: String) {
@@ -140,6 +147,11 @@ object ActivePetTracker {
 
     private const val TAB_ASSERTION_INTERVAL_TICKS = 20
 }
+
+private data class PetChangeListener(
+    val boundary: String,
+    val callback: (StoredPetData?) -> Unit,
+)
 
 private val TAB_DELAY_SOURCES = setOf(
     ActivePetTracker.PetDataAssertionSource.AUTOPET,
