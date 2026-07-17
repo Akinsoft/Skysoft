@@ -40,6 +40,15 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Hide Vanilla Status Effects",
+        desc = "Hide Minecraft's status effects beside inventories and in the top-right HUD.",
+    )
+    @field:ConfigEditorBoolean
+    var areVanillaStatusEffectsHidden = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Render Titles In Front", desc = "Render Skysoft titles in front of open screens.")
     @field:ConfigEditorBoolean
     var areTitlesRenderedInFront = false
