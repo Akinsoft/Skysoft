@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 3
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 4
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -23,6 +23,9 @@ internal object SkysoftConfigMigrations {
         migrateOrganizedConfigLayout(json)
         if (migrationVersion < CONFIG_MENU_ORGANIZATION_VERSION) {
             ConfigMenuOrganizationMigration.apply(json)
+        }
+        if (migrationVersion < INVENTORY_EQUIPMENT_CATEGORY_VERSION) {
+            migrateInventoryEquipmentIntoCategory(json)
         }
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
@@ -169,6 +172,13 @@ internal object SkysoftConfigMigrations {
             smoothSwappingJson.moveFieldsInto("settings", SMOOTH_SWAPPING_SETTINGS_FIELDS)
             smoothSwappingJson.moveFieldsInto("details", SMOOTH_SWAPPING_DETAILS_FIELDS)
         }
+    }
+
+    private fun migrateInventoryEquipmentIntoCategory(json: JsonObject) {
+        val inventoryJson = json.getObjectOrNull("inventory") ?: return
+        val legacyEnabled = inventoryJson.get("isInventoryEquipmentEnabled") ?: return
+        inventoryJson.getOrCreateObject("inventoryEquipment").add("enabled", legacyEnabled.deepCopy())
+        inventoryJson.remove("isInventoryEquipmentEnabled")
     }
 
     private fun migrateChatLayout(json: JsonObject) {
@@ -323,6 +333,7 @@ internal object SkysoftConfigMigrations {
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
     private const val CONFIG_MENU_ORGANIZATION_VERSION = 3
+    private const val INVENTORY_EQUIPMENT_CATEGORY_VERSION = 4
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 

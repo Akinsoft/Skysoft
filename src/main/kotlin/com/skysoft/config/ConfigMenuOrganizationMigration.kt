@@ -47,10 +47,6 @@ internal object ConfigMenuOrganizationMigration {
         val miscJson = json.getObjectOrNull("misc")
         miscJson?.moveFieldInto(inventoryJson, "solidTooltipBackground", "isTooltipBackgroundSolid")
         miscJson?.moveFieldInto(inventoryJson, "hideVanillaRecipeBook", "isVanillaRecipeBookHidden")
-        inventoryJson.getObjectOrNull("inventoryEquipment")?.let { inventoryEquipmentJson ->
-            inventoryEquipmentJson.moveFieldInto(inventoryJson, "enabled", "isInventoryEquipmentEnabled")
-            inventoryJson.remove("inventoryEquipment")
-        }
         inventoryJson.getObjectOrNull("storageOverlay")
             ?.moveFieldInto(inventoryJson, "enabled", "isStorageOverlayEnabled")
         inventoryJson.getObjectOrNull("itemList")?.let { itemListJson ->

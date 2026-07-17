@@ -55,8 +55,11 @@ internal val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStora
 internal fun cachedInventoryEquipmentStacks(): List<ItemStack> =
     inventoryEquipmentStorage.map { stackFor(it) }
 
+internal val inventoryEquipmentConfig
+    get() = SkysoftConfigGui.config().inventory.inventoryEquipment
+
 internal fun isInventoryEquipmentAvailable(): Boolean =
-    SkysoftConfigGui.config().inventory.isInventoryEquipmentEnabled && HypixelLocationState.inSkyBlock
+    inventoryEquipmentConfig.enabled && HypixelLocationState.inSkyBlock
 
 internal fun resetInventoryEquipmentRuntimeState() {
     lastEquipmentInventoryKey = null

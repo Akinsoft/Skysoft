@@ -75,9 +75,8 @@ class InventoryFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Inventory Equipment", desc = "Show cached equipment beside your inventory.")
-    @field:ConfigEditorBoolean
-    var isInventoryEquipmentEnabled = false
+    @field:Category(name = "Inventory Equipment", desc = "Show cached equipment beside your inventory.")
+    val inventoryEquipment = InventoryEquipmentConfig()
 
     @JvmField
     @field:Expose
@@ -138,6 +137,30 @@ class InventoryFeatureConfig {
         storageOverlay.repairLoadedValues()
         rarityHighlight.repairLoadedValues()
     }
+}
+
+class InventoryEquipmentConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Show cached equipment beside your inventory.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Click Action", desc = "Choose what happens when clicking an inventory equipment slot.")
+    @field:ConfigEditorDropdown
+    var clickAction = InventoryEquipmentClickAction.STATS
+}
+
+enum class InventoryEquipmentClickAction(private val displayName: String, val command: String?) {
+    NOTHING("Nothing", null),
+    STATS("/stats", "stats"),
+    EQUIPMENT("/equipment", "equipment"),
+    LOADOUT("/loadout", "loadout"),
+    ;
+
+    override fun toString(): String = displayName
 }
 
 class ItemListConfig {
