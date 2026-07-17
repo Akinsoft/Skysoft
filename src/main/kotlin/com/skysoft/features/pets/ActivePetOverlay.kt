@@ -88,7 +88,7 @@ object ActivePetOverlay {
             override val id: String = "pet_display"
             override val label: String = "Pet Display"
             override val position get() = config.general.position
-            override val hasEditorBackground: Boolean = false
+            override val hasEditorBackground: Boolean get() = !config.general.settings.background.get()
             override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
             override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
             override fun isVisible(): Boolean = SkysoftConfigGui.config().pets.petDisplay.enabled.get()
@@ -125,7 +125,8 @@ object ActivePetOverlay {
 
     fun previewRenderable(): GuiRenderable? =
         buildDisplayRenderable(displayState)
-            ?: xpAnimations.withAnimatedEquipped(previewPet).buildRenderable(emptyList())?.withOverlayPanel()
+            ?: xpAnimations.withAnimatedEquipped(previewPet).buildRenderable(emptyList())
+                ?.withOverlayPanel(config.general.settings.background.get())
 
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
@@ -146,7 +147,7 @@ object ActivePetOverlay {
             ?: state?.currentPet?.let { currentPet ->
                 xpAnimations.withAnimatedEquipped(currentPet).buildRenderable(state.expSharePets.withAnimatedExpShare())
             }
-        return renderable?.withOverlayPanel()
+        return renderable?.withOverlayPanel(config.general.settings.background.get())
     }
 
     private val displayState: PetDisplayState?

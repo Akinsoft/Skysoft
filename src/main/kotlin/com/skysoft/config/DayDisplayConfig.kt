@@ -48,7 +48,7 @@ class DayDisplayDetailsConfig {
     @field:Expose
     @field:ConfigOption(name = "Background", desc = "Draw a background behind the day.")
     @field:ConfigEditorBoolean
-    var background = true
+    var background = false
 
     @JvmField
     @field:Expose
