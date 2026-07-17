@@ -6,6 +6,7 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import kotlin.math.ceil
 import kotlin.math.floor
+import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.multiplayer.chat.GuiMessage
@@ -14,9 +15,9 @@ object ChatCopy {
     private var copiedCount = 0
     private var lastOutcome = CopyChatResult.IGNORED
 
-    fun copyHoveredMessage(key: Int, mouseX: Int, mouseY: Int): CopyChatResult {
+    fun copyHoveredMessage(inputCode: Int, mouseX: Int, mouseY: Int): CopyChatResult {
         val config = SkysoftConfigGui.config().chat.copyChat
-        if (!config.enabled || key != config.settings.key) return record(CopyChatResult.IGNORED)
+        if (!config.enabled || inputCode != config.settings.key) return record(CopyChatResult.IGNORED)
 
         val minecraft = Minecraft.getInstance()
         val chat = MinecraftClient.chat(minecraft)
@@ -33,7 +34,8 @@ object ChatCopy {
             scrollPosition = accessor.skysoftChatScrollbarPos(),
         ) ?: return record(CopyChatResult.NO_MESSAGE)
 
-        minecraft.keyboardHandler.setClipboard(ChatTimestamps.originalContent(message.content()).string)
+        val text = ChatFormatting.stripFormatting(ChatTimestamps.originalContent(message.content()).string).orEmpty()
+        minecraft.keyboardHandler.setClipboard(text)
         copiedCount++
         SkysoftChat.chat("Copied chat message to clipboard.")
         return record(CopyChatResult.COPIED)
