@@ -26,8 +26,16 @@ class HotspotRadarConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show guesses from the Hotspot Radar.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Hotspot Radar visual details.")
+    @field:Accordion
+    val details = HotspotRadarDetailsConfig()
+}
+
+class HotspotRadarDetailsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Crosshair Line", desc = "Draw a line to the radar guess.")
@@ -40,7 +48,7 @@ class HotspotSharingConfig {
     @field:Expose
     @field:ConfigOption(name = "Share Hotspots", desc = "Automatically share fishing hotspots in chat.")
     @field:ConfigEditorBoolean
-    var shareHotspots = true
+    var shareHotspots = false
 
     @JvmField
     @field:Expose

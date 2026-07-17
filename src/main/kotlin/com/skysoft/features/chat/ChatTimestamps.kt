@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component
 object ChatTimestamps {
     fun decorate(content: Component): Component {
         val config = SkysoftConfigGui.config().chat.timestamps
-        return decorate(content, LocalTime.now(), config.enabled, config.format)
+        return decorate(content, LocalTime.now(), config.enabled, config.settings.format)
     }
 
     internal fun decorate(

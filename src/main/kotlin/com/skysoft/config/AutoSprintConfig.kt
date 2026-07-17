@@ -12,11 +12,11 @@ class AutoSprintConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Automatically sprint while moving.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Auto Sprint Settings", desc = "Auto Sprint settings.")
+    @field:ConfigOption(name = "Settings", desc = "Auto Sprint settings.")
     @field:Accordion
     val settings = AutoSprintSettingsConfig()
 }

@@ -21,7 +21,7 @@ object ScreenTitleRenderer {
         ScreenTitleLine(Component.literal("Title details"), 1.2f),
     )
     private val position get() = SkysoftConfigGui.config().gui.positionEditor.titlePosition
-    private val renderTitlesInFront get() = SkysoftConfigGui.config().gui.positionEditor.renderTitlesInFront
+    private val renderTitlesInFront get() = SkysoftConfigGui.config().gui.areTitlesRenderedInFront
     private var lastRenderedTitle: RenderedTitle? = null
     private var editorTitle: List<ScreenTitleLine>? = null
 

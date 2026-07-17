@@ -56,14 +56,14 @@ object ActionBarBackground {
 
         val x = (context.guiWidth() - textWidth) / 2
         val textY = context.guiHeight() - TEXT_Y_FROM_BOTTOM
-        val maxAlpha = config.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX
+        val maxAlpha = config.details.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX
         val color = (min(maxAlpha, alpha) shl ARGB_ALPHA_SHIFT) or BACKGROUND_RGB
         val left = x - X_PADDING
         val top = textY - Y_PADDING
         val right = x + textWidth + X_PADDING
         val bottom = textY + FONT_HEIGHT + Y_PADDING
         context.nextStratum()
-        if (config.roundedCorners) {
+        if (config.details.roundedCorners) {
             context.fill(left + CORNER_RADIUS, top, right - CORNER_RADIUS, top + 1, color)
             context.fill(left + 1, top + 1, right - 1, top + CORNER_RADIUS, color)
             context.fill(left, top + CORNER_RADIUS, right, bottom - CORNER_RADIUS, color)

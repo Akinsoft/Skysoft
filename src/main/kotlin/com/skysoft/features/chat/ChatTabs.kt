@@ -23,9 +23,9 @@ object ChatTabs {
 
     fun isEnabled(): Boolean = SkysoftConfigGui.config().chat.tabs.enabled
 
-    fun position(): ChatTabPosition = SkysoftConfigGui.config().chat.tabs.position
+    fun position(): ChatTabPosition = SkysoftConfigGui.config().chat.tabs.settings.position
 
-    fun channels(): List<ChatTabChannel> = SkysoftConfigGui.config().chat.tabs.channels.get().distinct()
+    fun channels(): List<ChatTabChannel> = SkysoftConfigGui.config().chat.tabs.settings.channels.get().distinct()
 
     fun activeChannel(): ChatTabChannel {
         val channels = channels()

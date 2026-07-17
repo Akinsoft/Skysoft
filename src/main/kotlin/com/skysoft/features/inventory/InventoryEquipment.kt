@@ -45,8 +45,6 @@ object InventoryEquipment {
     fun isEquipmentSlot(slot: Slot?): Boolean = isInventoryEquipmentSlot(slot)
 }
 
-internal val inventoryEquipmentConfig get() = SkysoftConfigGui.config().inventory.inventoryEquipment
-
 internal val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStorageItemData>
     get() = ProfileStorageApi.storage.inventoryEquipment.also(::repairInventoryEquipmentItems)
 
@@ -54,7 +52,7 @@ internal fun cachedInventoryEquipmentStacks(): List<ItemStack> =
     inventoryEquipmentStorage.map { stackFor(it) }
 
 internal fun isInventoryEquipmentAvailable(): Boolean =
-    inventoryEquipmentConfig.enabled && HypixelLocationState.inSkyBlock
+    SkysoftConfigGui.config().inventory.isInventoryEquipmentEnabled && HypixelLocationState.inSkyBlock
 
 internal fun resetInventoryEquipmentRuntimeState() {
     lastEquipmentInventoryKey = null

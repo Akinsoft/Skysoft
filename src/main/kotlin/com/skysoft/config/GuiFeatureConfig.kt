@@ -30,8 +30,14 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Inventory Screens", desc = "GUI scaling for inventory screens and tooltips.")
+    @field:Category(name = "Inventory & Tooltip Scale", desc = "GUI scaling for inventory screens and tooltips.")
     val inventoryScreen = InventoryScreenConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Render Titles In Front", desc = "Render Skysoft titles in front of open screens.")
+    @field:ConfigEditorBoolean
+    var areTitlesRenderedInFront = false
 
     fun repairLoadedValues() {
         heldItem.repairLoadedValues()
@@ -43,12 +49,6 @@ class PositionEditorConfig {
     @JvmField
     @field:Expose
     val titlePosition = HudPosition(0, -82, centerX = true, centerY = true).rememberDefault()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Render Titles In Front", desc = "Render Skysoft titles in front of open screens.")
-    @field:ConfigEditorBoolean
-    var renderTitlesInFront = false
 
     @JvmField
     @field:ConfigOption(name = "Editor", desc = "Open the Position Editor.")
@@ -69,6 +69,18 @@ class SkysoftActionBarConfig {
     @field:ConfigEditorBoolean
     var background = false
 
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Action bar visual details.")
+    @field:Accordion
+    val details = SkysoftActionBarDetailsConfig()
+
+    fun repairLoadedValues() {
+        details.repairLoadedValues()
+    }
+}
+
+class SkysoftActionBarDetailsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Rounded Corners", desc = "Round the background corners.")

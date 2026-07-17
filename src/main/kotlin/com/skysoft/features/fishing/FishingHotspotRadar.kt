@@ -69,7 +69,7 @@ object FishingHotspotRadar {
     private fun onRenderWorld(context: SkysoftRenderContext) {
         if (!isEnabled()) return
         val guess = solver.guess ?: return
-        FishingHotspotRadarRenderer.renderWorld(context, guess, config.crosshairLine)
+        FishingHotspotRadarRenderer.renderWorld(context, guess, config.details.crosshairLine)
     }
 
     private fun isEnabled(): Boolean =

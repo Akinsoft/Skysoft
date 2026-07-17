@@ -7,6 +7,7 @@ import com.skysoft.config.features.pets.display.PetOverlayConfig
 import com.skysoft.data.ProfileStorage
 import com.skysoft.features.pets.PetOverlayConfigScreen
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
+import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
@@ -17,15 +18,13 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 class PetFeatureConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Pet Display", desc = "Pet display settings.")
-    @field:Accordion
+    @field:Category(name = "Pet Display", desc = "Pet display settings.")
     @field:ConfigOrder(10)
     val petDisplay: PetDisplay = PetDisplay()
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Visible Pet Position", desc = "")
-    @field:Accordion
+    @field:Category(name = "Visible Pet Position", desc = "Adjust the floating in-world pet head near you.")
     @field:ConfigOrder(15)
     val visiblePetPosition: VisiblePetPosition = VisiblePetPosition()
 
@@ -37,7 +36,7 @@ class PetFeatureConfig {
     )
     @field:ConfigEditorBoolean
     @field:ConfigOrder(20)
-    var highlightActivePet: Boolean = true
+    var highlightActivePet: Boolean = false
 
     @JvmField
     @field:Expose
@@ -67,16 +66,36 @@ class PetFeatureConfig {
 
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Visible pet behavior settings.")
+        @field:Accordion
+        @field:ConfigOrder(20)
+        val settings = VisiblePetPositionSettings()
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Details", desc = "Visible pet position details.")
+        @field:Accordion
+        @field:ConfigOrder(30)
+        val details = VisiblePetPositionDetails()
+
+        fun repairLoadedValues() {
+            details.repairLoadedValues()
+        }
+    }
+
+    class VisiblePetPositionSettings {
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Stop Bouncing", desc = "Keep the visible pet at a steady height.")
         @field:ConfigEditorBoolean
-        @field:ConfigOrder(20)
         var stopBouncing: Boolean = true
+    }
 
+    class VisiblePetPositionDetails {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Height Offset", desc = "Move the visible pet up or down from its normal height.")
         @field:ConfigEditorSlider(minValue = -2.0f, maxValue = 2.0f, minStep = 0.05f)
-        @field:ConfigOrder(30)
         val heightOffset: Property<Float> = Property.of(0.0f)
 
         fun repairLoadedValues() {
@@ -90,7 +109,6 @@ class PetFeatureConfig {
         }
     }
 
-
     class PetDisplay {
         @JvmField
         @field:Expose
@@ -103,14 +121,22 @@ class PetFeatureConfig {
         var enabled: Property<Boolean> = display.general.enabled
 
         @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Pet Display settings.")
+        @field:Accordion
+        @field:ConfigOrder(20)
+        val settings = PetDisplaySettings()
+
+        @JvmField
         @field:Expose(deserialize = true, serialize = false)
         @field:SerializedName("storage")
         val legacyStorage: ProfileStorage = ProfileStorage()
+    }
 
+    class PetDisplaySettings {
         @JvmField
-        @field:ConfigOption(name = "Open", desc = "Configure the advanced pet display HUD.")
+        @field:ConfigOption(name = "Open Editor", desc = "Configure the advanced pet display HUD.")
         @field:ConfigEditorButton(buttonText = "Open")
-        @field:ConfigOrder(20)
         val openPetDisplay: Runnable = Runnable { PetOverlayConfigScreen.open() }
     }
 }

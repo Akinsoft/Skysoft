@@ -24,14 +24,8 @@ class ChatFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Longer History", desc = "Keep more messages available when scrolling through chat.")
-    val longerHistory = LongerHistoryConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Retain History", desc = "Keep recent chat after disconnecting or restarting Minecraft.")
-    @field:ConfigEditorBoolean
-    var retainHistory = false
+    @field:Category(name = "Chat History", desc = "Configure chat history size and persistence.")
+    val history = ChatHistoryConfig()
 
     @JvmField
     @field:Expose
@@ -60,7 +54,7 @@ class ChatFeatureConfig {
 
     fun repairLoadedValues() {
         smoothChat.repairLoadedValues()
-        longerHistory.repairLoadedValues()
+        history.repairLoadedValues()
         compacting.repairLoadedValues()
     }
 
@@ -69,13 +63,13 @@ class ChatFeatureConfig {
         @field:Expose
         @field:ConfigOption(name = "Animate Messages", desc = "Slide new chat messages into place.")
         @field:ConfigEditorBoolean
-        var animateMessages = true
+        var animateMessages = false
 
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Animate Chat Open", desc = "Slide the chat input bar into place when chat opens.")
         @field:ConfigEditorBoolean
-        var animateChatOpen = true
+        var animateChatOpen = false
 
         @JvmField
         @field:Expose
@@ -127,13 +121,32 @@ class ChatFeatureConfig {
         var hideMessageIndicator = true
     }
 
-    class LongerHistoryConfig {
+    class ChatHistoryConfig {
         @JvmField
         @field:Expose
-        @field:ConfigOption(name = "Enabled", desc = "Keep more messages available in chat.")
+        @field:ConfigOption(name = "Longer History", desc = "Keep more messages available in chat.")
         @field:ConfigEditorBoolean
-        var enabled = false
+        var isLongerHistoryEnabled = false
 
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Retain History", desc = "Keep recent chat after disconnecting or restarting Minecraft.")
+        @field:ConfigEditorBoolean
+        var isHistoryRetained = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Chat history settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("isLongerHistoryEnabled")
+        val settings = ChatHistorySettingsConfig()
+
+        fun repairLoadedValues() {
+            settings.repairLoadedValues()
+        }
+    }
+
+    class ChatHistorySettingsConfig {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Message Limit", desc = "Maximum number of chat messages to keep.")
@@ -142,7 +155,6 @@ class ChatFeatureConfig {
             maxValue = MAX_CHAT_HISTORY_LIMIT.toFloat(),
             minStep = 100f,
         )
-        @field:ConfigVisibleIf("enabled")
         var messageLimit = VANILLA_CHAT_HISTORY_LIMIT
 
         fun repairLoadedValues() {
@@ -159,6 +171,19 @@ class ChatFeatureConfig {
 
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Chat compacting settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = ChatCompactingSettingsConfig()
+
+        fun repairLoadedValues() {
+            settings.repairLoadedValues()
+        }
+    }
+
+    class ChatCompactingSettingsConfig {
+        @JvmField
+        @field:Expose
         @field:ConfigOption(
             name = "Compact Duration",
             desc = "How long repeated messages can be combined.\n§cMay increase memory usage",
@@ -168,14 +193,12 @@ class ChatFeatureConfig {
             maxValue = MAX_CHAT_COMPACT_DURATION_SECONDS.toFloat(),
             minStep = 1f,
         )
-        @field:ConfigVisibleIf("enabled")
         var durationSeconds = DEFAULT_CHAT_COMPACT_DURATION_SECONDS
 
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "No Blank Lines", desc = "Remove empty or whitespace-only chat messages.")
         @field:ConfigEditorBoolean
-        @field:ConfigVisibleIf("enabled")
         var noBlankLines = false
 
         fun repairLoadedValues() {
@@ -195,16 +218,23 @@ class ChatFeatureConfig {
 
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Chat tab settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = ChatTabsSettingsConfig()
+    }
+
+    class ChatTabsSettingsConfig {
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Position", desc = "Where channel tabs appear around chat.")
         @field:ConfigEditorDropdown
-        @field:ConfigVisibleIf("enabled")
         var position = ChatTabPosition.ABOVE
 
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Channels", desc = "Channels available as chat tabs.")
         @field:ConfigEditorDraggableList
-        @field:ConfigVisibleIf("enabled")
         val channels: Property<MutableList<ChatTabChannel>> = Property.of(
             mutableListOf(ChatTabChannel.ALL, ChatTabChannel.GUILD, ChatTabChannel.DM, ChatTabChannel.PARTY),
         )
@@ -219,6 +249,15 @@ class ChatFeatureConfig {
 
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Chat notification settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = ChatNotifySettingsConfig()
+    }
+
+    class ChatNotifySettingsConfig {
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Words", desc = "Words or phrases to highlight and optionally notify you about.")
         @field:ConfigEditorTextList(
             disabledSound = SoundUtilities.PREVIOUS_PAGE_SOUND_ID,
@@ -228,7 +267,6 @@ class ChatFeatureConfig {
             showNotification = true,
             showVolume = true,
         )
-        @field:ConfigVisibleIf("enabled")
         val words: Property<MutableList<TextListEntry>> = Property.of(mutableListOf())
     }
 
@@ -241,9 +279,17 @@ class ChatFeatureConfig {
 
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Chat timestamp settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = ChatTimestampsSettingsConfig()
+    }
+
+    class ChatTimestampsSettingsConfig {
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Format", desc = "How chat timestamps are displayed.")
         @field:ConfigEditorDropdown
-        @field:ConfigVisibleIf("enabled")
         var format = ChatTimestampFormat.TWENTY_FOUR_HOUR
     }
 
@@ -256,9 +302,17 @@ class ChatFeatureConfig {
 
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Copy Chat settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = CopyChatSettingsConfig()
+    }
+
+    class CopyChatSettingsConfig {
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Copy Key", desc = "Key used to copy the hovered chat message.")
         @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
-        @field:ConfigVisibleIf("enabled")
         var key = GLFW.GLFW_KEY_LEFT_SHIFT
     }
 }

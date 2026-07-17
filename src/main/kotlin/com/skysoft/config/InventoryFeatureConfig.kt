@@ -54,13 +54,25 @@ class InventoryFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Storage Overlay", desc = "Searchable SkyBlock storage screens.")
     val storageOverlay = StorageOverlayConfig()
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Inventory Equipment", desc = "Show cached equipment beside the player inventory.")
-    val inventoryEquipment = InventoryEquipmentConfig()
+    @field:ConfigOption(name = "Solid Tooltip Background", desc = "Make tooltip backgrounds fully opaque.")
+    @field:ConfigEditorBoolean
+    var isTooltipBackgroundSolid = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Storage Overlay", desc = "Replace SkyBlock storage screens with a searchable overlay.")
+    @field:ConfigEditorBoolean
+    var isStorageOverlayEnabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Inventory Equipment", desc = "Show cached equipment beside your inventory.")
+    @field:ConfigEditorBoolean
+    var isInventoryEquipmentEnabled = false
 
     @JvmField
     @field:Expose
@@ -95,12 +107,21 @@ class InventoryFeatureConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Hide Vanilla Recipe Book",
+        desc = "Hide the vanilla recipe book in your inventory on SkyBlock.",
+    )
+    @field:ConfigEditorBoolean
+    var isVanillaRecipeBookHidden = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Preserve Cursor Position",
         desc = "Keep the mouse at the same position when Minecraft briefly closes and reopens an inventory, " +
             "such as SkyBlock storage page swaps.",
     )
     @field:ConfigEditorBoolean
-    var preserveCursorPosition = true
+    var preserveCursorPosition = false
 
     fun repairLoadedValues() {
         itemList.repairLoadedValues()
@@ -118,7 +139,7 @@ class ItemListConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show Skysoft's Item List on Hypixel inventory screens.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -169,6 +190,12 @@ class ItemListSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Vanilla Items", desc = "Include Minecraft items.")
+    @field:ConfigEditorBoolean
+    var showVanilla = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Visibility Key", desc = "Temporarily show or hide Item List.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_KP_SUBTRACT)
     var visibilityKey = GLFW.GLFW_KEY_KP_SUBTRACT
@@ -178,6 +205,12 @@ class ItemListSettingsConfig {
     @field:ConfigOption(name = "Tab Search", desc = "Focus the Item List search bar by pressing Tab.")
     @field:ConfigEditorBoolean
     var isTabSearchEnabled = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Right-Click Clear", desc = "Clear Item List search by right-clicking the search bar.")
+    @field:ConfigEditorBoolean
+    var isRightClickClearEnabled = true
 
     @JvmField
     @field:Expose
@@ -241,12 +274,6 @@ class ItemListSourcesConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Vanilla Items", desc = "Include Minecraft items.")
-    @field:ConfigEditorBoolean
-    var showVanilla = false
-
-    @JvmField
-    @field:Expose
     @field:ConfigOption(name = "Roman Numerals", desc = "Show enchantment tiers with Roman numerals.")
     @field:ConfigEditorBoolean
     var useRomanNumerals = false
@@ -262,12 +289,6 @@ class ItemListSourcesConfig {
     @field:ConfigOption(name = "Hide Settings Button", desc = "Expand the search bar across the settings button space.")
     @field:ConfigEditorBoolean
     var isSettingsButtonHidden = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Right-Click Clear", desc = "Clear Item List search by right-clicking the search bar.")
-    @field:ConfigEditorBoolean
-    var isRightClickClearEnabled = true
 
     @JvmField
     @field:Expose
@@ -326,36 +347,12 @@ class ItemListSourcesConfig {
     }
 }
 
-class InventoryEquipmentConfig {
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Show cached equipment beside your inventory.")
-    @field:ConfigEditorBoolean
-    var enabled = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Click Action", desc = "Choose what happens when clicking an inventory equipment slot.")
-    @field:ConfigEditorDropdown
-    var clickAction = InventoryEquipmentClickAction.STATS
-}
-
-enum class InventoryEquipmentClickAction(private val displayName: String, val command: String?) {
-    NOTHING("Nothing", null),
-    STATS("/stats", "stats"),
-    EQUIPMENT("/equipment", "equipment"),
-    LOADOUT("/loadout", "loadout"),
-    ;
-
-    override fun toString(): String = displayName
-}
-
 class InventoryButtonsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show custom command buttons on inventory screens.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -413,7 +410,7 @@ class SlotBindingsConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Enable slot bindings.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -478,7 +475,7 @@ class SlotLockingConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Protect locked inventory slots.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -515,6 +512,12 @@ class ProtectItemConfig {
     @field:ConfigOption(name = "Settings", desc = "Item protection controls.")
     @field:Accordion
     val settings = ProtectItemSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Protected item visual details.")
+    @field:Accordion
+    val details = ProtectItemDetailsConfig()
 }
 
 class ProtectItemSettingsConfig {
@@ -533,6 +536,13 @@ class ProtectItemSettingsConfig {
     @field:ConfigEditorBoolean
     var allowDungeonUltimates = true
 
+    @JvmField
+    @field:ConfigOption(name = "Reset Protected Items", desc = "Unprotect every item on the current SkyBlock profile.")
+    @field:ConfigEditorButton(buttonText = "Reset")
+    val resetProtectedItems = Runnable { ItemProtectionManager.resetProtectedItems() }
+}
+
+class ProtectItemDetailsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Protected Item Star", desc = "Show a small star on protected items.")
@@ -560,11 +570,6 @@ class ProtectItemSettingsConfig {
     @field:ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 5f)
     @field:ConfigVisibleIf("showProtectedItemStar")
     var protectedItemStarOpacity = 100
-
-    @JvmField
-    @field:ConfigOption(name = "Reset Protected Items", desc = "Unprotect every item on the current SkyBlock profile.")
-    @field:ConfigEditorButton(buttonText = "Reset")
-    val resetProtectedItems = Runnable { ItemProtectionManager.resetProtectedItems() }
 }
 
 enum class SlotBindingHighlightStyle(private val displayName: String) {
@@ -580,7 +585,7 @@ class FullInventoryConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show a warning when your inventory reaches the configured empty slot limit.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -678,7 +683,7 @@ class TooltipScrollConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Allow tooltips to be moved with the mouse wheel and movement keys.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -833,12 +838,6 @@ class InventoryButtonConfig(
 class StorageOverlayConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Replace Hypixel SkyBlock storage screens with a searchable overlay.")
-    @field:ConfigEditorBoolean
-    var enabled = true
-
-    @JvmField
-    @field:Expose
     val settings = StorageOverlaySettingsConfig()
 
     @JvmField
@@ -900,7 +899,7 @@ class PriceTooltipsConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show bazaar and lowest BIN prices on item tooltips.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -942,7 +941,7 @@ class SkysoftBazaarConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show the Bazaar order tracker overlay.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
@@ -998,6 +997,12 @@ class BazaarTrackerSettingsConfig {
             BazaarTrackerSound.OUTBID_UNDERCUT,
         ),
     )
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Only My Orders", desc = "Hide co-op members' orders and compact the Bazaar Orders menu.")
+    @field:ConfigEditorBoolean
+    var onlyMyOrders = false
 }
 
 class BazaarTrackerDetailsConfig {
@@ -1021,12 +1026,6 @@ class BazaarTrackerDetailsConfig {
     )
     @field:ConfigEditorBoolean
     var flippingInfo = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Only My Orders", desc = "Hide co-op members' orders and compact the Bazaar Orders menu.")
-    @field:ConfigEditorBoolean
-    var onlyMyOrders = false
 
     @JvmField
     @field:Expose

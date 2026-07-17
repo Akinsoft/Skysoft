@@ -55,7 +55,7 @@ private typealias ExpSharePlacement = SharedPetLayoutConfig.ExpShareLocationOpti
 private typealias ExpShareOrientation = SharedPetLayoutConfig.GroupOrientation
 
 object ActivePetOverlay {
-    private val config get() = SkysoftConfigGui.config().misc.pets.display
+    private val config get() = SkysoftConfigGui.config().pets.display
     private val equippedVisualConfig get() = config.visual.equippedPet
     private val expShareConfig get() = config.visual.expSharePets
     private val xpAnimations = PetXpAnimationState()
@@ -89,7 +89,7 @@ object ActivePetOverlay {
             override val position get() = config.general.position
             override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
             override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
-            override fun isVisible(): Boolean = SkysoftConfigGui.config().misc.pets.petDisplay.enabled.get()
+            override fun isVisible(): Boolean = SkysoftConfigGui.config().pets.petDisplay.enabled.get()
             override fun renderDummy(context: GuiGraphicsExtractor) {
                 previewRenderable()?.render(context)
             }
@@ -129,8 +129,8 @@ object ActivePetOverlay {
         val minecraft = Minecraft.getInstance()
         if (
             MinecraftClient.isGuiHidden(minecraft) ||
-            !SkysoftConfigGui.config().misc.pets.petDisplay.enabled.get() ||
-            config.general.hideInMenus.get() && MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
+            !SkysoftConfigGui.config().pets.petDisplay.enabled.get() ||
+            config.general.settings.hideInMenus.get() && MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
         ) return
         context.nextStratum()
         val renderable = buildDisplayRenderable(displayState)

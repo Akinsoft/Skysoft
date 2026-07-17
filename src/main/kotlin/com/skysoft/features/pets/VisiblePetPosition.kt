@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
 
 @Suppress("TooManyFunctions")
 object VisiblePetPosition {
-    private val config get() = SkysoftConfigGui.config().misc.pets.visiblePetPosition
+    private val config get() = SkysoftConfigGui.config().pets.visiblePetPosition
 
     private var activePetEntityId: Int? = null
     private var activePetNameEntityId: Int? = null
@@ -48,7 +48,7 @@ object VisiblePetPosition {
     fun adjustRenderState(entity: Entity, state: EntityRenderState) {
         if (!enabled) return
 
-        val offset = config.heightOffset.get().toDouble()
+        val offset = config.details.heightOffset.get().toDouble()
         when (entity.id) {
             activePetEntityId -> {
                 val player = Minecraft.getInstance().player ?: return
@@ -60,7 +60,7 @@ object VisiblePetPosition {
 
     private fun adjustHeadRenderState(state: EntityRenderState, offset: Double, player: Player) {
         val rawY = state.y
-        if (!config.stopBouncing) {
+        if (!config.settings.stopBouncing) {
             visualHeadY = rawY
             lastVisualMode = "raw"
             lastVisualTargetRelativeY = rawY - player.y
@@ -74,7 +74,7 @@ object VisiblePetPosition {
     }
 
     private fun adjustNameRenderState(state: EntityRenderState, offset: Double) {
-        if (!config.stopBouncing) {
+        if (!config.settings.stopBouncing) {
             state.y += offset
             return
         }
@@ -338,7 +338,7 @@ object VisiblePetPosition {
         partialProfile().properties().get("textures").firstOrNull()?.value
 
     private fun updateNameRelativeY(relativeY: Double, targetChanged: Boolean) {
-        if (config.stopBouncing) {
+        if (config.settings.stopBouncing) {
             nameRelativeY = PetNameBounds.DEFAULT_OFFSET_Y
             return
         }
