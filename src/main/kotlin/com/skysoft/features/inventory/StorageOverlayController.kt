@@ -2,9 +2,11 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
@@ -26,6 +28,13 @@ object StorageOverlayController {
 
     @JvmStatic
     fun layoutScreen(screen: AbstractContainerScreen<*>) {
+        val window = Minecraft.getInstance().window
+        if (
+            GuiScaleController.usesSeparateInventoryScale(screen) &&
+            window.guiScale != GuiScaleController.resolve(screen, window).inventory()
+        ) {
+            return
+        }
         storageOverlayLayoutScreen(screen)
     }
 
@@ -98,17 +107,13 @@ internal var searchFocused = false
 internal var editingTitlePage: Int? = null
 internal var editingTitleText = ""
 internal var editingTitleSelected = false
-internal var scroll = 0
-internal var scrollPosition = 0.0
-internal var scrollTarget = 0.0
-internal var scrollbarDragOffset: Int? = null
-internal var lastScrollUpdateNanos = 0L
 internal var lastCommandMillis = 0L
 internal var rememberedPageIndex: Int? = null
 internal var redirectedOverviewScreenId: Int? = null
-internal var centeredPageKey: String? = null
-internal var requestedCenterPageIndex: Int? = null
-internal var requestedCenterKey: String? = null
+internal var focusedPageKey: String? = null
+internal var requestedFocusPageIndex: Int? = null
+internal var requestedFocusKey: String? = null
+internal var preservedScrollPageIndex: Int? = null
 internal var pendingOverviewShortcutClick: PendingOverviewShortcutClick? = null
 internal val decodedStacks = linkedMapOf<String, ItemStack>()
 internal val emptyOverviewStacks = mutableMapOf<Int, ItemStack>()
@@ -191,6 +196,9 @@ internal data class PageLayout(
     val height: Int,
 ) {
     fun contains(mouseX: Int, mouseY: Int): Boolean = Rect(x, y, width, height).contains(mouseX, mouseY)
+    fun isVerticallyVisibleWithin(rect: Rect): Boolean =
+        y >= rect.y && y + height <= rect.y + rect.height
+
     fun intersects(rect: Rect): Boolean =
         x < rect.x + rect.width &&
             x + width > rect.x &&

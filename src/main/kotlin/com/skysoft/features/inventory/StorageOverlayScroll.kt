@@ -9,7 +9,18 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import org.lwjgl.glfw.GLFW
 
-internal fun centerPage(measurements: Measurements, layoutResult: PageLayoutResult, pageIndex: Int) {
+internal var scroll = 0
+internal var scrollPosition = 0.0
+internal var scrollTarget = 0.0
+internal var scrollbarDragOffset: Int? = null
+internal var lastScrollUpdateNanos = 0L
+
+internal fun focusPage(measurements: Measurements, layoutResult: PageLayoutResult, pageIndex: Int) {
+    val layout = layoutResult.pages[pageIndex] ?: return
+    if (layout.isVerticallyVisibleWithin(measurements.scrollPanel)) {
+        freezeStorageScroll()
+        return
+    }
     scrollTarget = centeredScrollForPage(scroll, measurements, layoutResult, pageIndex).toDouble()
         .coerceIn(0.0, maxScroll(measurements, layoutResult.contentHeight).toDouble())
 }
@@ -38,7 +49,10 @@ internal fun setStorageScrollFromScrollbar(
     knobHeight: Int,
     maximum: Int,
 ) {
-    val position = scrollbarScrollPosition(pointerY, dragOffset, bar, knobHeight, maximum)
+    snapStorageScroll(scrollbarScrollPosition(pointerY, dragOffset, bar, knobHeight, maximum))
+}
+
+internal fun snapStorageScroll(position: Double) {
     scrollPosition = position
     scrollTarget = position
     scroll = position.roundToInt()
@@ -142,7 +156,8 @@ internal fun resetStorageScroll() {
     lastScrollUpdateNanos = 0L
 }
 
-internal fun pauseStorageScrollAnimation() {
+internal fun freezeStorageScroll() {
+    snapStorageScroll(scrollPosition)
     lastScrollUpdateNanos = 0L
 }
 

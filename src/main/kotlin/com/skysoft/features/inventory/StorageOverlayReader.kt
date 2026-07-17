@@ -36,17 +36,18 @@ internal fun onClientTick() {
 
 internal fun resetScreenState() {
     restoreStorageOverlaySlots()
-    pauseStorageScrollAnimation()
+    freezeStorageScroll()
     scrollbarDragOffset = null
     lastInventoryKey = null
     redirectedOverviewScreenId = null
-    centeredPageKey = null
+    focusedPageKey = null
     resetStorageSettingsPanel()
 }
 
 internal fun resetTransientState() {
     resetScreenState()
-    clearCenterRequest()
+    clearPageFocusRequest()
+    preservedScrollPageIndex = null
     rememberedPageIndex = null
     searchFocused = false
     searchText = ""
