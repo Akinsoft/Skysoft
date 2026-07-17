@@ -33,6 +33,7 @@ import com.skysoft.utils.renderables.animated.OrbitLayoutRenderable
 import com.skysoft.utils.renderables.container.horizontalLayout
 import com.skysoft.utils.renderables.container.verticalLayout
 import com.skysoft.utils.renderables.decorators.CircularLayoutRenderable
+import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderAt
@@ -87,6 +88,7 @@ object ActivePetOverlay {
             override val id: String = "pet_display"
             override val label: String = "Pet Display"
             override val position get() = config.general.position
+            override val hasEditorBackground: Boolean = false
             override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
             override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
             override fun isVisible(): Boolean = SkysoftConfigGui.config().pets.petDisplay.enabled.get()
@@ -123,7 +125,7 @@ object ActivePetOverlay {
 
     fun previewRenderable(): GuiRenderable? =
         buildDisplayRenderable(displayState)
-            ?: xpAnimations.withAnimatedEquipped(previewPet).buildRenderable(emptyList())
+            ?: xpAnimations.withAnimatedEquipped(previewPet).buildRenderable(emptyList())?.withOverlayPanel()
 
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
@@ -139,11 +141,13 @@ object ActivePetOverlay {
         }
     }
 
-    private fun buildDisplayRenderable(state: PetDisplayState?): GuiRenderable? =
-        state?.messageLines?.let(::buildWidgetMessageRenderable)
+    private fun buildDisplayRenderable(state: PetDisplayState?): GuiRenderable? {
+        val renderable = state?.messageLines?.let(::buildWidgetMessageRenderable)
             ?: state?.currentPet?.let { currentPet ->
                 xpAnimations.withAnimatedEquipped(currentPet).buildRenderable(state.expSharePets.withAnimatedExpShare())
             }
+        return renderable?.withOverlayPanel()
+    }
 
     private val displayState: PetDisplayState?
         get() {

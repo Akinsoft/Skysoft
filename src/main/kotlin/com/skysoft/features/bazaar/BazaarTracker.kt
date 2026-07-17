@@ -218,7 +218,7 @@ internal class BazaarTrackerRenderable(
 ) : GuiRenderable {
     private val font = Minecraft.getInstance().font
     private val lineHeight = font.lineHeight + 3
-    private val padding = if (background) 5 else 0
+    private val padding = if (background) OverlayPanelStyle.PADDING else 0
 
     override val width: Int = (lines.maxOfOrNull { lineWidth(it) } ?: 0) + padding * 2
     override val height: Int = lines.size * lineHeight + padding * 2
