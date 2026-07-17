@@ -50,20 +50,19 @@ object SkysoftCircleShaderRenderer {
         val scaleFactor = windowState.guiScale.toFloat()
         val halfSizeX = width * scaleFactor / 2
         val halfSizeY = height * scaleFactor / 2
-        val centerPosX = x * scaleFactor + halfSizeX
-        val centerPosY = windowState.height - (y * scaleFactor + halfSizeY)
         val matrix = Matrix3x2f(context.pose())
         val xScale = matrix.m00()
         val yScale = matrix.m11()
         val xTranslation = matrix.m20()
         val yTranslation = matrix.m21()
+        val centerX = x + width / 2f
+        val centerY = y + height / 2f
         return RoundedRectShaderParams(
             cornerRadius = radius.toFloat(),
             shaderHalfWidth = halfSizeX * xScale,
             shaderHalfHeight = halfSizeY * yScale,
-            shaderCenterX = centerPosX * xScale + xTranslation * scaleFactor,
-            shaderCenterY = (if (yScale != 1f) centerPosY - halfSizeY * (yScale - 1) else centerPosY) -
-                yTranslation * scaleFactor,
+            shaderCenterX = (centerX * xScale + xTranslation) * scaleFactor,
+            shaderCenterY = windowState.height - (centerY * yScale + yTranslation) * scaleFactor,
             poseScaleX = xScale,
             poseScaleY = yScale,
             poseOffsetX = xTranslation,
