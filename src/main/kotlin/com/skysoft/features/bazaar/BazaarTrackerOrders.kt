@@ -160,10 +160,14 @@ internal fun isPlausibleClaimOrder(
     return true
 }
 
-internal fun pruneOrdersMissingFromGui(matchedOrderIds: Set<String>, parsedOrders: List<PendingOrder>): ChangeResult {
+internal fun pruneOrdersMissingFromGui(
+    matchedOrderIds: Set<String>,
+    parsedOrders: List<PendingOrder>,
+    visibleOrderCount: Int,
+): ChangeResult {
     val now = System.currentTimeMillis()
     val recentlyClickedOrder = now - lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
-    val visibleScanMayBeWindowed = parsedOrders.size >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
+    val visibleScanMayBeWindowed = visibleOrderCount >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
         storage.activeOrders.any { it.id !in matchedOrderIds }
     var changed = false
     val iterator = storage.activeOrders.iterator()
