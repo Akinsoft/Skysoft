@@ -15,6 +15,7 @@ import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
+import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.Unique
@@ -69,6 +70,19 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     @Inject(method = ["keyPressed"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftCopyHoveredMessage(event: KeyEvent, cir: CallbackInfoReturnable<Boolean>) {
         if (ChatCopy.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED) {
+            cir.returnValue = true
+        }
+    }
+
+    @Inject(method = ["mouseClicked"], at = [At("HEAD")], cancellable = true)
+    protected fun skysoftCopyHoveredMessageOnClick(
+        click: MouseButtonEvent,
+        doubled: Boolean,
+        cir: CallbackInfoReturnable<Boolean>,
+    ) {
+        if (
+            ChatCopy.copyHoveredMessage(click.button(), click.x().toInt(), click.y().toInt()) == CopyChatResult.COPIED
+        ) {
             cir.returnValue = true
         }
     }
