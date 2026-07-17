@@ -10,11 +10,14 @@ internal object PetInternalNames {
     fun split(internalName: String): Pair<String, SkyBlockRarity>? {
         val parts = internalName.split(";")
         if (parts.size < PET_INTERNAL_NAME_PART_COUNT) return null
-        val name = parts[0].takeIf { it.isNotBlank() } ?: return null
+        val name = parts[0].takeIf { it.isNotBlank() }?.let(::canonicalName) ?: return null
         val rarityId = parts[1].toIntOrNull() ?: return null
         val rarity = SkyBlockRarity.getById(rarityId) ?: return null
         return name to rarity
     }
+
+    fun canonicalName(name: String): String =
+        if (name == "T-REX") "TYRANNOSAURUS" else name
 }
 
 private const val PET_INTERNAL_NAME_PART_COUNT = 2
