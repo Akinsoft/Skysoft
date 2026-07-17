@@ -44,6 +44,7 @@ internal fun registerBazaarTracker() {
         override val id: String = "bazaar_tracker"
         override val label: String = "Bazaar Tracker"
         override val position get() = config.position
+        override val hasEditorBackground: Boolean = false
         override fun width(): Int = buildRenderable(false).width
         override fun height(): Int = buildRenderable(false).height
         override fun isVisible(): Boolean = config.enabled
