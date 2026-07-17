@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
@@ -45,7 +46,7 @@ internal fun drawPages(
 ) {
     hoveredStorageItem = ItemStack.EMPTY
     val activePage = activeHandle?.entryIndex()
-    val activeStacks = activeHandle?.let { activePageStacks(screen, it) }.orEmpty()
+    val activeSlots = activeHandle?.let { activePageSlots(screen, it) }.orEmpty()
     context.enableScissor(
         measurements.scrollPanel.x,
         measurements.scrollPanel.y,
@@ -58,11 +59,12 @@ internal fun drawPages(
             val page = storageEntry(layout.pageIndex) ?: continue
             drawPage(
                 context,
+                screen,
                 page,
                 layout,
                 measurements.scrollPanel,
                 layout.pageIndex == activePage,
-                activeStacks,
+                activeSlots,
                 mouseX,
                 mouseY,
             )
@@ -74,11 +76,12 @@ internal fun drawPages(
 
 internal fun drawPage(
     context: GuiGraphicsExtractor,
+    screen: ContainerScreen,
     page: ProfileStorage.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,
-    activeStacks: Map<Int, ItemStack>,
+    activeSlots: Map<Int, Slot>,
     mouseX: Int,
     mouseY: Int,
 ) {
@@ -153,7 +156,8 @@ internal fun drawPage(
         drawSlotBackground(context, slotX, slotY)
         val hovered = isSlotHovered(mouseX, mouseY, slotX, slotY) && context.containsPointInScissor(mouseX, mouseY)
         val storedItem = page.items.getOrNull(index)
-        val stack = if (active) activeStacks[index] ?: ItemStack.EMPTY else stackFor(storedItem)
+        val activeSlot = if (active) activeSlots[index] else null
+        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else stackFor(storedItem)
         if (!stack.isEmpty) {
             if (
                 StorageSearchIndex.hasQuery &&
@@ -161,7 +165,9 @@ internal fun drawPage(
             ) {
                 InventoryItemSearchHighlight.render(context, slotX, slotY)
             }
-            context.itemWithDecorations(stack, slotX, slotY)
+            if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
+                context.itemWithDecorations(stack, slotX, slotY)
+            }
         }
         if (hovered) {
             drawSlotHover(context, slotX, slotY)
@@ -231,10 +237,11 @@ internal fun drawPlayerSlot(
 ) {
     val pos = playerSlotPosition(measurements, containerSlot)
     drawSlotBackground(context, pos.x, pos.y)
-    val stack = screen.menu.slots.firstOrNull {
+    val slot = screen.menu.slots.firstOrNull {
         playerInventory != null && it.container === playerInventory && it.containerSlot == containerSlot
-    }?.item ?: ItemStack.EMPTY
-    if (!stack.isEmpty) {
+    }
+    val stack = slot?.item ?: ItemStack.EMPTY
+    if (!stack.isEmpty && !SmoothSwapping.shouldSuppressSlot(screen, slot)) {
         context.itemWithDecorations(stack, pos.x, pos.y)
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
