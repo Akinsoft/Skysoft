@@ -38,9 +38,11 @@ private data class BazaarOrderMenuReadResult(
 internal fun parseBazaarOrderOwner(lines: List<String>): String? =
     lines.firstNotNullOfOrNull { line -> bazaarOrderOwnerPattern.matchEntire(line)?.groupValues?.get(1) }
 
-internal fun compactBazaarOrderMenuRows(ownedOrders: Int): Int =
-    BazaarOrderMenuLayout.FIXED_ROWS + (ownedOrders + BazaarOrderMenuLayout.ORDER_COLUMNS - 1) /
-        BazaarOrderMenuLayout.ORDER_COLUMNS
+internal fun compactBazaarOrderMenuRows(
+    containerRows: Int,
+    occupiedOrderRows: Set<Int>,
+    ownedOrderRows: Set<Int>,
+): Int = containerRows - (occupiedOrderRows - ownedOrderRows).size
 
 internal fun compactBazaarOrderMenuCell(visibleIndex: Int): BazaarOrderMenuCell = BazaarOrderMenuCell(
     row = BazaarOrderMenuLayout.FIRST_ORDER_ROW + visibleIndex / BazaarOrderMenuLayout.ORDER_COLUMNS,
@@ -56,6 +58,8 @@ internal fun bazaarOrderSlotRange(containerRows: Int): IntRange =
 
 internal fun shouldBlockBazaarOrderOwner(owner: String, playerName: String): Boolean =
     !owner.equals(playerName, ignoreCase = true)
+
+internal fun shouldCompactBazaarOrderMenu(totalOrders: Int, ownedOrders: Int): Boolean = totalOrders > ownedOrders
 
 internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSnapshot {
     val playerName = Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank)
@@ -89,11 +93,19 @@ internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSn
     if (readResult.rejectionReason != null) {
         return rejected(readResult.rejectionReason, readResult.orders)
     }
-
     val visibleOrders = readResult.orders.count(BazaarOrderMenuOrder::isLocal)
+    if (!shouldCompactBazaarOrderMenu(readResult.orders.size, visibleOrders)) {
+        return rejected("menu has no co-op orders")
+    }
+    val occupiedOrderRows = readResult.orders.mapTo(mutableSetOf()) { order ->
+        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
+    }
+    val ownedOrderRows = readResult.orders.filter(BazaarOrderMenuOrder::isLocal).mapTo(mutableSetOf()) { order ->
+        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
+    }
     return BazaarOrderMenuSnapshot(
         playerName = playerName,
-        visibleRows = compactBazaarOrderMenuRows(visibleOrders),
+        visibleRows = compactBazaarOrderMenuRows(containerRows, occupiedOrderRows, ownedOrderRows),
         rejectionReason = null,
         orders = readResult.orders,
     )
