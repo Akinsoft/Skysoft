@@ -3,6 +3,7 @@ package com.skysoft.mixin
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.skysoft.features.inventory.RarityHighlightRenderer
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.DeltaTracker
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.Hud
@@ -22,7 +23,7 @@ abstract class HotbarRarityHighlightMixin {
         deltaTracker: DeltaTracker,
         ci: CallbackInfo,
     ) {
-        RarityHighlightRenderer.beginFrame()
+        SkysoftErrorBoundary.run("Hotbar Rarity Highlight frame", RarityHighlightRenderer::beginFrame)
     }
 
     @Inject(method = ["extractSlot"], at = [At("HEAD")])
@@ -36,7 +37,9 @@ abstract class HotbarRarityHighlightMixin {
         seed: Int,
         ci: CallbackInfo,
     ) {
-        RarityHighlightRenderer.renderBackground(context, stack, x, y)
+        SkysoftErrorBoundary.run("Hotbar Rarity Highlight background") {
+            RarityHighlightRenderer.renderBackground(context, stack, x, y)
+        }
     }
 
     @WrapOperation(
@@ -58,8 +61,11 @@ abstract class HotbarRarityHighlightMixin {
         seed: Int,
         original: Operation<Void>,
     ) {
-        RarityHighlightRenderer.renderItem(stack) {
-            original.call(context, owner, stack, x, y, seed)
+        SkysoftErrorBoundary.aroundUnit(
+            "Hotbar Rarity Highlight item",
+            { original.call(context, owner, stack, x, y, seed) },
+        ) { renderItem ->
+            RarityHighlightRenderer.renderItem(stack, renderItem)
         }
     }
 }

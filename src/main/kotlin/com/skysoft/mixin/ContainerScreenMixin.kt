@@ -2,6 +2,7 @@ package com.skysoft.mixin
 
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import org.spongepowered.asm.mixin.Final
@@ -28,8 +29,13 @@ abstract class ContainerScreenMixin {
         ci: CallbackInfo,
     ) {
         val screen = this as ContainerScreen
-        containerRows = BazaarTracker.layoutOrderMenu(screen)
-        if (StorageOverlayController.isActive(screen) && !StorageOverlayController.shouldDimBackground()) {
+        containerRows = SkysoftErrorBoundary.value("Bazaar Tracker order menu layout", containerRows) {
+            BazaarTracker.layoutOrderMenu(screen)
+        }
+        val shouldSuppress = SkysoftErrorBoundary.value("Storage Overlay background", false) {
+            StorageOverlayController.isActive(screen) && !StorageOverlayController.shouldDimBackground()
+        }
+        if (shouldSuppress) {
             ci.cancel()
         }
     }
@@ -53,10 +59,11 @@ abstract class ContainerScreenMixin {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        if (
+        val shouldSuppress = SkysoftErrorBoundary.value("Storage Overlay container background", false) {
             StorageOverlayController.isActive(this as ContainerScreen) &&
-            StorageOverlayController.shouldDimBackground()
-        ) {
+                StorageOverlayController.shouldDimBackground()
+        }
+        if (shouldSuppress) {
             ci.cancel()
         }
     }

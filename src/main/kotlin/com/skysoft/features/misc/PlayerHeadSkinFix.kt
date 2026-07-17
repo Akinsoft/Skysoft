@@ -1,7 +1,7 @@
 package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.fabricmc.fabric.api.client.rendering.v1.FabricRenderState
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.Minecraft
@@ -23,7 +23,7 @@ object PlayerHeadSkinFix {
     private val headRenderTypes = HashMap<UUID, RenderType>()
 
     fun register() {
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
+        SkysoftClientEvents.onDisconnect("Player Head Skin Fix disconnect reset", ::clear)
     }
 
     @JvmStatic

@@ -5,12 +5,12 @@ import com.google.gson.reflect.TypeToken
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.BrowserUtilities
 import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.net.SkysoftHttp
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.Version
 import net.fabricmc.loader.api.metadata.CustomValue
-import net.minecraft.client.Minecraft
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.Duration
@@ -36,10 +36,10 @@ object ModUpdateChecker {
         if (registered) return
         registered = true
 
-        ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
+        SkysoftClientEvents.onJoin("Mod Update check") {
             check(announce = true)
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("Mod Update disconnect reset") {
             announcedVersion = null
         }
     }
@@ -62,15 +62,15 @@ object ModUpdateChecker {
         activeRequest = SkysoftHttp.getString(metadata.url(), Duration.ofSeconds(UPDATE_REQUEST_TIMEOUT_SECONDS))
             .thenApply { response -> latestUpdate(response, metadata.project) }
             .whenComplete { update, error ->
-                Minecraft.getInstance().execute {
+                SkysoftErrorBoundary.onClientThread("Mod Update async completion") {
                     if (error != null) {
                         fail(error, chat = force)
-                        return@execute
+                        return@onClientThread
                     }
                     if (update == null) {
                         status = UpdateStatus(UpdateState.CURRENT)
                         if (force) SkysoftChat.success("Skysoft is up to date.")
-                        return@execute
+                        return@onClientThread
                     }
                     status = UpdateStatus(UpdateState.AVAILABLE, update)
                     if (force || announce) announceUpdate()

@@ -3,13 +3,13 @@ package com.skysoft.data.skyblock
 import com.google.gson.JsonParser
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.net.SkysoftHttp
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
-import net.minecraft.client.Minecraft
 
 internal object SkyBlockDataUpdater {
     private val cacheDirectory by lazy { SkysoftConfigFiles.directory.resolve("item-list-data") }
@@ -73,7 +73,7 @@ internal object SkyBlockDataUpdater {
         }.thenApply { downloaded ->
             downloaded?.let(::validateAndStore)
         }.whenComplete { cached, error ->
-            Minecraft.getInstance().execute {
+            SkysoftErrorBoundary.onClientThread("Item List update async completion") {
                 when {
                     error != null -> {
                         SkyBlockDataRepository.markUpdateFailed(error.cause?.message ?: error.message ?: "Update failed")

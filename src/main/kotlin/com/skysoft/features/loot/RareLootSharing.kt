@@ -8,7 +8,7 @@ import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.chat.SkysoftPartyShare
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 
 internal object RareLootSharing {
     private val config get() = SkysoftConfigGui.config().misc.rareLootSharing
@@ -16,9 +16,9 @@ internal object RareLootSharing {
     private var lastInvalidThreshold: String? = null
 
     fun register() {
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
-        ChatEvents.onVisibleGameMessageModify(RareLootPartyGlyphRenderer::render)
-        ChatEvents.onVisibleMessage { message ->
+        SkysoftClientEvents.onDisconnect("Rare Loot Sharing disconnect reset", ::clear)
+        ChatEvents.onVisibleGameMessageModify("Rare Loot party glyph rendering", RareLootPartyGlyphRenderer::render)
+        ChatEvents.onVisibleMessage("Rare Loot chat") { message ->
             onMessage(message)
             ChatMessageVisibility.SHOW
         }

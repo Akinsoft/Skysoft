@@ -1,5 +1,7 @@
 package com.skysoft.mixin
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
@@ -7,6 +9,8 @@ import com.skysoft.gui.scale.CursorController
 import com.skysoft.gui.scale.InventoryCursorMemory
 import com.skysoft.gui.scale.ScaledScreenState
 import com.skysoft.gui.tooltip.TooltipViewport
+import com.skysoft.utils.SkysoftErrorBoundary
+import net.minecraft.client.KeyboardHandler
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -20,6 +24,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
 
 @Mixin(Screen::class)
 open class ScreenOverlayCursorMixin : ScaledScreenState {
+    private companion object {
+        @JvmStatic
+        @WrapOperation(
+            method = ["defaultHandleClickEvent"],
+            at = [
+                At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/KeyboardHandler;setClipboard(Ljava/lang/String;)V",
+                ),
+            ],
+        )
+        private fun skysoftAcknowledgeErrorReportCopy(
+            keyboardHandler: KeyboardHandler,
+            value: String,
+            original: Operation<Void>,
+        ) {
+            original.call(keyboardHandler, value)
+            SkysoftErrorBoundary.acknowledgeClipboardCopy(value)
+        }
+    }
+
     @field:Unique
     private var skysoftInventoryGuiWidth = -1
 
@@ -50,18 +75,23 @@ open class ScreenOverlayCursorMixin : ScaledScreenState {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        if (isSkysoftStorageOverlayActive()) ci.cancel()
+        val isActive = SkysoftErrorBoundary.value("Storage Overlay widget suppression", false) {
+            isSkysoftStorageOverlayActive()
+        }
+        if (isActive) ci.cancel()
     }
 
     @Inject(method = ["removed"], at = [At("HEAD")])
     protected fun skysoftSaveCursorBeforeRemove(ci: CallbackInfo) {
-        val minecraft = Minecraft.getInstance()
-        TooltipViewport.clear()
-        InventoryCursorMemory.rememberScreenCursor(
-            this as Screen,
-            minecraft.mouseHandler.xpos(),
-            minecraft.mouseHandler.ypos(),
-        )
+        SkysoftErrorBoundary.run("Inventory cursor screen removal") {
+            val minecraft = Minecraft.getInstance()
+            TooltipViewport.clear()
+            InventoryCursorMemory.rememberScreenCursor(
+                this as Screen,
+                minecraft.mouseHandler.xpos(),
+                minecraft.mouseHandler.ypos(),
+            )
+        }
     }
 
     @Inject(
@@ -82,8 +112,12 @@ open class ScreenOverlayCursorMixin : ScaledScreenState {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        GuiOverlayRegistry.renderLayer(GuiOverlayLayer.BELOW_SCREEN, context)
-        skysoftRenderStorageOverlay(context, mouseX, mouseY)
+        SkysoftErrorBoundary.run("Below-screen overlay rendering") {
+            GuiOverlayRegistry.renderLayer(GuiOverlayLayer.BELOW_SCREEN, context)
+        }
+        SkysoftErrorBoundary.run("Storage Overlay background rendering") {
+            skysoftRenderStorageOverlay(context, mouseX, mouseY)
+        }
     }
 
     @Inject(method = ["init(II)V"], at = [At("HEAD")])
@@ -93,22 +127,26 @@ open class ScreenOverlayCursorMixin : ScaledScreenState {
 
     @Inject(method = ["init(II)V"], at = [At("TAIL")])
     protected fun skysoftRestoreCursorAfterInit(width: Int, height: Int, ci: CallbackInfo) {
-        val minecraft = Minecraft.getInstance()
-        InventoryCursorMemory.restoreWhenScreenInitializes(
-            this as Screen,
-            minecraft.window,
-            minecraft.mouseHandler as CursorController,
-        )
+        SkysoftErrorBoundary.run("Inventory cursor screen initialization") {
+            val minecraft = Minecraft.getInstance()
+            InventoryCursorMemory.restoreWhenScreenInitializes(
+                this as Screen,
+                minecraft.window,
+                minecraft.mouseHandler as CursorController,
+            )
+        }
     }
 
     @Inject(method = ["tick"], at = [At("HEAD")])
     protected fun skysoftRestoreCursorAfterDelayedRecenter(ci: CallbackInfo) {
-        val minecraft = Minecraft.getInstance()
-        InventoryCursorMemory.continueRestore(
-            this as Screen,
-            minecraft.window,
-            minecraft.mouseHandler as CursorController,
-        )
+        SkysoftErrorBoundary.run("Inventory cursor delayed restore") {
+            val minecraft = Minecraft.getInstance()
+            InventoryCursorMemory.continueRestore(
+                this as Screen,
+                minecraft.window,
+                minecraft.mouseHandler as CursorController,
+            )
+        }
     }
 
     @Inject(method = ["resize"], at = [At("HEAD")])

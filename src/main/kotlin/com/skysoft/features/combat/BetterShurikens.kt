@@ -9,7 +9,7 @@ import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldItemBadgeRenderer
 import com.skysoft.utils.render.WorldRenderDispatcher
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.entity.state.EntityRenderState
@@ -29,14 +29,14 @@ import kotlin.math.sqrt
 
 object BetterShurikens {
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register(::onTick)
-        EntityLifecycleEvents.LOAD.register(::onEntityLoad)
-        EntityLifecycleEvents.UNLOAD.register(::onEntityUnload)
+        SkysoftClientEvents.onEndTick("Better Shurikens tick", ::onTick)
+        EntityLifecycleEvents.onLoad("Better Shurikens entity loading", ::onEntityLoad)
+        EntityLifecycleEvents.onUnload("Better Shurikens entity unloading", ::onEntityUnload)
         BetterShurikenSoundCorrelation.register { resolution ->
             resolution.replacedMobUuid?.let(taggedMobs::remove)
             taggedMobs[resolution.target.uuid] = resolution.target
         }
-        WorldRenderDispatcher.registerHandler(::renderWorld)
+        WorldRenderDispatcher.registerHandler("Better Shurikens world rendering", ::renderWorld)
     }
 
     @JvmStatic

@@ -1,9 +1,9 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.LinkedHashMap
 import java.util.concurrent.CompletableFuture
-import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
 
 object SkyBlockDataRepository {
@@ -43,7 +43,7 @@ object SkyBlockDataRepository {
         CompletableFuture.supplyAsync {
             SkyBlockDataUpdater.loadCached() ?: SkyBlockDataUpdater.CachedCatalog("bundled", SkyBlockDataLoader.loadBundled())
         }.whenComplete { loaded, error ->
-            Minecraft.getInstance().execute {
+            SkysoftErrorBoundary.onClientThread("Item List data load async completion") {
                 if (error != null || loaded == null) {
                     status = SkyBlockDataStatus(
                         SkyBlockDataLoadState.FAILED,

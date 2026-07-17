@@ -6,8 +6,7 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.utils.TextUtilities.removeColor
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import kotlin.math.roundToInt
@@ -16,7 +15,7 @@ object PetRepository {
     fun register() {
         PetSkins.load()
         LocalSkyBlockRepo.load()
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Pet Repository loading") {
             if (!PetRepoCache.localRepoCacheLoaded) {
                 LocalSkyBlockRepo.load()
             }
@@ -24,7 +23,7 @@ object PetRepository {
                 PetRepoConstants.load()
             }
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register {
+        SkysoftClientEvents.onClientStopping("Pet Repository request cancellation") {
             PetRepoCache.requests.cancelAll()
         }
     }

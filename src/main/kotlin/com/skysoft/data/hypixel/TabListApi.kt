@@ -2,9 +2,8 @@ package com.skysoft.data.hypixel
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TabListFooter
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -56,10 +55,10 @@ object TabListApi {
         get() = if (isSkyBlockDataLoaded) cachedFooter else null
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Tab List update") {
             onClientTick()
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("Tab List reset") {
             resetSession()
         }
     }

@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import org.spongepowered.asm.mixin.Mixin
@@ -22,7 +23,10 @@ abstract class ReiCoreClientMixin private constructor() {
         )
         private fun skysoftShouldReturnForStorage(screen: Screen, cir: CallbackInfoReturnable<Boolean>) {
             val containerScreen = screen as? AbstractContainerScreen<*> ?: return
-            if (StorageOverlayController.isActive(containerScreen)) cir.setReturnValue(true)
+            val isActive = SkysoftErrorBoundary.value("Storage Overlay REI integration", false) {
+                StorageOverlayController.isActive(containerScreen)
+            }
+            if (isActive) cir.setReturnValue(true)
         }
     }
 }

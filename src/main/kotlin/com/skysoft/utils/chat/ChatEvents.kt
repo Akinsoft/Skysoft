@@ -1,40 +1,44 @@
 package com.skysoft.utils.chat
 
-import com.skysoft.SkysoftMod
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.network.chat.Component
 
 object ChatEvents {
-    private var visibleListeners: List<(ChatMessage) -> ChatMessageVisibility> = emptyList()
-    private var actionBarListeners: List<(SkysoftMessage) -> ChatMessageVisibility> = emptyList()
-    private var visibleGameModifiers: List<(ChatMessage) -> Component> = emptyList()
+    private var visibleListeners: List<Listener<ChatMessage, ChatMessageVisibility>> = emptyList()
+    private var actionBarListeners: List<Listener<SkysoftMessage, ChatMessageVisibility>> = emptyList()
+    private var visibleGameModifiers: List<Listener<ChatMessage, Component>> = emptyList()
     private var registered = false
 
-    fun onVisibleMessage(listener: (ChatMessage) -> ChatMessageVisibility) {
+    fun onVisibleMessage(boundary: String, listener: (ChatMessage) -> ChatMessageVisibility) {
         register()
-        visibleListeners += listener
+        visibleListeners += Listener(boundary, listener)
     }
 
-    fun onMessageType(messageType: ChatMessageType, listener: (ChatMessage) -> ChatMessageVisibility) {
-        onVisibleMessage { message ->
+    fun onMessageType(
+        boundary: String,
+        messageType: ChatMessageType,
+        listener: (ChatMessage) -> ChatMessageVisibility,
+    ) {
+        onVisibleMessage(boundary) { message ->
             if (message.type == messageType) listener(message) else ChatMessageVisibility.SHOW
         }
     }
 
-    fun onPartyMessage(listener: (ChatMessage) -> ChatMessageVisibility) {
-        onMessageType(ChatMessageType.PARTY, listener)
+    fun onPartyMessage(boundary: String, listener: (ChatMessage) -> ChatMessageVisibility) {
+        onMessageType(boundary, ChatMessageType.PARTY, listener)
     }
 
-    fun onActionBar(listener: (SkysoftMessage) -> ChatMessageVisibility) {
+    fun onActionBar(boundary: String, listener: (SkysoftMessage) -> ChatMessageVisibility) {
         register()
-        actionBarListeners += listener
+        actionBarListeners += Listener(boundary, listener)
     }
 
-    fun onVisibleGameMessageModify(modifier: (ChatMessage) -> Component) {
+    fun onVisibleGameMessageModify(boundary: String, modifier: (ChatMessage) -> Component) {
         register()
-        visibleGameModifiers += modifier
+        visibleGameModifiers += Listener(boundary, modifier)
     }
 
     private fun register() {
@@ -42,64 +46,59 @@ object ChatEvents {
         registered = true
 
         ClientReceiveMessageEvents.ALLOW_CHAT.register { message, _, _, _, _ ->
-            dispatchIncoming(SkysoftMessage(message, SkysoftMessageSource.CHAT)).allowsMessage
+            SkysoftErrorBoundary.value("Chat message classification", true) {
+                dispatchIncoming(SkysoftMessage(message, SkysoftMessageSource.CHAT)).allowsMessage
+            }
         }
         ClientReceiveMessageEvents.ALLOW_GAME.register { message, overlay ->
-            dispatchIncoming(SkysoftMessage(message, SkysoftMessageSource.GAME, overlay)).allowsMessage
+            SkysoftErrorBoundary.value("Game message classification", true) {
+                dispatchIncoming(SkysoftMessage(message, SkysoftMessageSource.GAME, overlay)).allowsMessage
+            }
         }
         ClientReceiveMessageEvents.MODIFY_GAME.register { message, overlay ->
-            if (overlay) message else modifyVisibleGameMessage(SkysoftMessage(message, SkysoftMessageSource.GAME))
+            SkysoftErrorBoundary.value("Game message modification", message) {
+                if (overlay) message else modifyVisibleGameMessage(SkysoftMessage(message, SkysoftMessageSource.GAME))
+            }
         }
     }
 
-    private fun dispatchIncoming(message: SkysoftMessage): ChatMessageVisibility =
-        try {
-            when {
-                message.source == SkysoftMessageSource.GAME && message.overlay -> dispatchActionBar(message)
-                !message.overlay -> dispatchVisible(ChatMessageClassifier.classify(message))
-                else -> ChatMessageVisibility.SHOW
-            }
-        } catch (exception: Exception) {
-            SkysoftMod.LOGGER.error("Skysoft message listener failed", exception)
-            ChatMessageVisibility.SHOW
-        }
+    private fun dispatchIncoming(message: SkysoftMessage): ChatMessageVisibility = when {
+        message.source == SkysoftMessageSource.GAME && message.overlay -> dispatchActionBar(message)
+        !message.overlay -> dispatchVisible(ChatMessageClassifier.classify(message))
+        else -> ChatMessageVisibility.SHOW
+    }
 
     private fun modifyVisibleGameMessage(message: SkysoftMessage): Component =
         visibleGameModifiers.fold(message.component) { component, modifier ->
-            try {
-                modifier(
+            SkysoftErrorBoundary.value(modifier.boundary, component) {
+                modifier.callback(
                     ChatMessageClassifier.classify(
                         SkysoftMessage(component, message.source, message.overlay),
                     ),
                 )
-            } catch (exception: Exception) {
-                SkysoftMod.LOGGER.error("Skysoft game message modifier failed", exception)
-                component
             }
         }
 
     private fun dispatchVisible(message: ChatMessage): ChatMessageVisibility =
-        dispatch(message, visibleListeners, "Skysoft visible chat listener failed")
+        dispatch(message, visibleListeners)
 
     private fun dispatchActionBar(message: SkysoftMessage): ChatMessageVisibility =
-        dispatch(message, actionBarListeners, "Skysoft action bar listener failed")
+        dispatch(message, actionBarListeners)
 
     private fun <T> dispatch(
         message: T,
-        listeners: List<(T) -> ChatMessageVisibility>,
-        failureMessage: String,
+        listeners: List<Listener<T, ChatMessageVisibility>>,
     ): ChatMessageVisibility =
         listeners.fold(ChatMessageVisibility.SHOW) { result, listener ->
-            try {
-                listener(message).combine(result)
-            } catch (exception: Exception) {
-                SkysoftMod.LOGGER.error(failureMessage, exception)
-                result
+            SkysoftErrorBoundary.value(listener.boundary, result) {
+                listener.callback(message).combine(result)
             }
         }
 
     private fun ChatMessageVisibility.combine(previous: ChatMessageVisibility): ChatMessageVisibility =
         if (this == ChatMessageVisibility.HIDE) this else previous
+
+    private data class Listener<T, R>(val boundary: String, val callback: (T) -> R)
 }
 
 enum class ChatMessageVisibility {

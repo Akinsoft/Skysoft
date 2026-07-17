@@ -2,8 +2,8 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 
 enum class SkyBlockEvent(val displayName: String) {
     MYTHOLOGICAL_RITUAL("Mythological Ritual"),
@@ -33,8 +33,8 @@ object SkyBlockEventState {
         private set
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register {
-            if (++ticks % REFRESH_INTERVAL_TICKS != 0) return@register
+        SkysoftClientEvents.onEndTick("SkyBlock Event state refresh") {
+            if (++ticks % REFRESH_INTERVAL_TICKS != 0) return@onEndTick
             refresh()
         }
     }

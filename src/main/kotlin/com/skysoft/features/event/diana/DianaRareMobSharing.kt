@@ -17,8 +17,7 @@ import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.decoration.ArmorStand
 
@@ -33,10 +32,10 @@ internal object DianaRareMobSharing {
     private var ticks = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { onTick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
-        ChatEvents.onVisibleMessage { message -> onMessage(message) }
-        ClientEntityMetadataEvents.EVENT.register { event ->
+        SkysoftClientEvents.onEndTick("Diana Rare Mob Sharing tick") { onTick() }
+        SkysoftClientEvents.onDisconnect("Diana Rare Mob Sharing disconnect reset", ::clear)
+        ChatEvents.onVisibleMessage("Diana Rare Mob chat") { message -> onMessage(message) }
+        ClientEntityMetadataEvents.register("Diana Rare Mob entity metadata") { event ->
             if (config.enabled && DianaEventState.isOnHub()) {
                 DianaRareMobLootshare.handleMetadata(
                     event,
@@ -46,13 +45,13 @@ internal object DianaRareMobSharing {
                 )
             }
         }
-        EntityLifecycleEvents.LOAD.register { entity -> onEntityLoad(entity) }
-        EntityLifecycleEvents.UNLOAD.register { entity -> onEntityUnload(entity) }
-        EntityInteractionEvents.EVENT.register { event ->
+        EntityLifecycleEvents.onLoad("Diana Rare Mob entity loading") { entity -> onEntityLoad(entity) }
+        EntityLifecycleEvents.onUnload("Diana Rare Mob entity unloading") { entity -> onEntityUnload(entity) }
+        EntityInteractionEvents.register("Diana Rare Mob entity interaction") { event ->
             onEntityClick(event)
             false
         }
-        WorldRenderDispatcher.registerHandler(::onRenderWorld)
+        WorldRenderDispatcher.registerHandler("Diana Rare Mob world rendering", ::onRenderWorld)
     }
 
     fun hasActiveTarget(): Boolean =

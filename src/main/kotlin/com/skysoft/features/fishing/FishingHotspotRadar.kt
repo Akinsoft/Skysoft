@@ -11,8 +11,7 @@ import com.skysoft.events.particle.ClientParticleEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 
@@ -23,14 +22,14 @@ object FishingHotspotRadar {
     private var activeLevel: ClientLevel? = null
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { onTick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearSession() }
-        ClientParticleEvents.EVENT.register { event ->
+        SkysoftClientEvents.onEndTick("Fishing Hotspot Radar tick") { onTick() }
+        SkysoftClientEvents.onDisconnect("Fishing Hotspot Radar disconnect reset", ::clearSession)
+        ClientParticleEvents.register("Fishing Hotspot particles") { event ->
             handleParticle(event)
             false
         }
-        ItemUseEvents.EVENT.register { event -> processItemUse(event).shouldCancel }
-        WorldRenderDispatcher.registerHandler(::onRenderWorld)
+        ItemUseEvents.register("Fishing Hotspot item use") { event -> processItemUse(event).shouldCancel }
+        WorldRenderDispatcher.registerHandler("Fishing Hotspot radar rendering", ::onRenderWorld)
     }
 
     private fun onTick() {

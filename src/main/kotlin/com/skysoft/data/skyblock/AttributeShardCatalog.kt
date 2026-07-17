@@ -15,14 +15,14 @@ import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.net.PendingHttpRequests
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
@@ -35,14 +35,14 @@ object AttributeShardCatalog {
     private val storage get() = ProfileStorageApi.storage.attributeShards
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Attribute Shard loading") {
             AttributeShardConstants.ensureLoaded()
         }
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("Attribute Shard chat") { message ->
             handleIncomingMessage(message.component)
             ChatMessageVisibility.SHOW
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register {
+        SkysoftClientEvents.onClientStopping("Attribute Shard request cancellation") {
             AttributeShardConstants.cancelAll()
         }
     }
@@ -398,12 +398,17 @@ private object AttributeShardConstants {
         request(ATTRIBUTE_SHARDS_URL)
             .thenApply { gson.fromJson(it, SkysoftAttributeShardRepoJson::class.java) }
             .whenComplete { data, error ->
-                if (error == null && data != null) {
-                    applyConstants(data)
-                } else {
-                    SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
+                SkysoftErrorBoundary.run("Attribute Shard constants async completion") {
+                    try {
+                        if (error == null && data != null) {
+                            applyConstants(data)
+                        } else {
+                            SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
+                        }
+                    } finally {
+                        loadingConstants.set(false)
+                    }
                 }
-                loadingConstants.set(false)
             }
     }
 

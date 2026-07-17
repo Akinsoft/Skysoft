@@ -2,6 +2,7 @@ package com.skysoft.mixin
 
 import com.skysoft.events.entity.ClientEntityMetadataEvent
 import com.skysoft.events.entity.ClientEntityMetadataEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket
 import org.spongepowered.asm.mixin.Mixin
@@ -28,8 +29,10 @@ abstract class EntityMetadataPacketMixin {
         packet: ClientboundSetEntityDataPacket,
         ci: CallbackInfo,
     ) {
-        ClientEntityMetadataEvents.EVENT.invoker().onReceiveEntityMetadata(
-            ClientEntityMetadataEvent(packet.id(), packet.packedItems()),
-        )
+        SkysoftErrorBoundary.run("Entity metadata packet dispatch") {
+            ClientEntityMetadataEvents.dispatch(
+                ClientEntityMetadataEvent(packet.id(), packet.packedItems()),
+            )
+        }
     }
 }

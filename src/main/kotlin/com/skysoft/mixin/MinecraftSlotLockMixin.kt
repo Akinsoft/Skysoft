@@ -3,6 +3,7 @@ package com.skysoft.mixin
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.skysoft.features.inventory.SlotLockManager
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientPacketListener
@@ -28,13 +29,12 @@ open class MinecraftSlotLockMixin {
         original: Operation<Void>,
     ) {
         val minecraft = this as Minecraft
-        if (
+        val isBlocked = SkysoftErrorBoundary.value("Offhand swap protection", false) {
             packet is ServerboundPlayerActionPacket &&
-            packet.action == ServerboundPlayerActionPacket.Action.SWAP_ITEM_WITH_OFFHAND &&
-            SlotLockManager.handleOffhandSwap(minecraft.player) == InputHandlingResult.CONSUMED
-        ) {
-            return
+                packet.action == ServerboundPlayerActionPacket.Action.SWAP_ITEM_WITH_OFFHAND &&
+                SlotLockManager.handleOffhandSwap(minecraft.player) == InputHandlingResult.CONSUMED
         }
+        if (isBlocked) return
         original.call(connection, packet)
     }
 }

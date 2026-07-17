@@ -2,6 +2,7 @@ package com.skysoft.events.input
 
 import com.skysoft.data.InteractionClick
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.event.Event
 import net.fabricmc.fabric.api.event.EventFactory
 import net.minecraft.world.item.ItemStack
@@ -17,9 +18,17 @@ fun interface BlockClickCallback {
 }
 
 object BlockInteractionEvents {
-    val EVENT: Event<BlockClickCallback> = EventFactory.createArrayBacked(BlockClickCallback::class.java) { listeners ->
+    private val event: Event<BlockClickCallback> = EventFactory.createArrayBacked(BlockClickCallback::class.java) { listeners ->
         BlockClickCallback { event ->
             listeners.any { it.shouldCancelBlockClick(event) }
         }
     }
+
+    fun register(boundary: String, listener: BlockClickCallback) {
+        event.register { event ->
+            SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelBlockClick(event) }
+        }
+    }
+
+    fun shouldCancelBlockClick(blockClick: BlockInteractionEvent): Boolean = event.invoker().shouldCancelBlockClick(blockClick)
 }

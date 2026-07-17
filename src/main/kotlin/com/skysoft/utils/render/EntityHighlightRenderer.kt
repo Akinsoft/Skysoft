@@ -1,7 +1,6 @@
 package com.skysoft.utils.render
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.world.entity.LivingEntity
 import java.awt.Color
 import java.util.concurrent.ConcurrentHashMap
@@ -10,10 +9,10 @@ object EntityHighlightRenderer {
     private val highlights = ConcurrentHashMap<LivingEntity, EntityHighlight>()
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Entity Highlight cleanup") {
             highlights.keys.removeIf { entity -> !entity.isAlive }
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> highlights.clear() }
+        SkysoftClientEvents.onDisconnect("Entity Highlight disconnect reset", highlights::clear)
     }
 
     @JvmStatic

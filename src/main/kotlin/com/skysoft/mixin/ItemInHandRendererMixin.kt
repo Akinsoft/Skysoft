@@ -5,6 +5,7 @@ import com.skysoft.features.helditem.HeldItemSwingVisuals
 import com.skysoft.features.helditem.HeldItemTransforms
 import com.skysoft.features.helditem.HeldItemUpdateFix
 import com.skysoft.features.helditem.SwingReplacementResult
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.renderer.ItemInHandRenderer
 import net.minecraft.client.renderer.SubmitNodeCollector
@@ -27,7 +28,10 @@ open class ItemInHandRendererMixin {
         expectedItem: ItemStack,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        if (!cir.returnValue && HeldItemUpdateFix.shouldPreserveUpdate(currentlyVisibleItem, expectedItem)) {
+        val shouldPreserve = SkysoftErrorBoundary.value("Held Item visible item update", false) {
+            HeldItemUpdateFix.shouldPreserveUpdate(currentlyVisibleItem, expectedItem)
+        }
+        if (!cir.returnValue && shouldPreserve) {
             cir.returnValue = true
         }
     }
@@ -46,8 +50,8 @@ open class ItemInHandRendererMixin {
             displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND ||
             displayContext == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
         ) {
-            HeldItemTransforms.apply(itemStack, poseStack)
-            HeldItemSwingVisuals.apply(itemStack, poseStack)
+            SkysoftErrorBoundary.run("Held Item transforms") { HeldItemTransforms.apply(itemStack, poseStack) }
+            SkysoftErrorBoundary.run("Held Item swing visuals") { HeldItemSwingVisuals.apply(itemStack, poseStack) }
         }
     }
 
@@ -66,7 +70,7 @@ open class ItemInHandRendererMixin {
         ci: CallbackInfo,
     ) {
         val arm = if (hand == InteractionHand.MAIN_HAND) player.mainArm else player.mainArm.opposite
-        HeldItemSwingVisuals.begin(itemStack, attack, arm)
+        SkysoftErrorBoundary.run("Held Item swing state") { HeldItemSwingVisuals.begin(itemStack, attack, arm) }
     }
 
     @Inject(method = [ITEM_IN_HAND_ARM_METHOD], at = [At("TAIL")])
@@ -83,7 +87,7 @@ open class ItemInHandRendererMixin {
         light: Int,
         ci: CallbackInfo,
     ) {
-        HeldItemSwingVisuals.end()
+        SkysoftErrorBoundary.run("Held Item swing state", HeldItemSwingVisuals::end)
     }
 
     @Inject(method = ["swingArm"], at = [At("HEAD")], cancellable = true)
@@ -94,7 +98,10 @@ open class ItemInHandRendererMixin {
         arm: HumanoidArm,
         ci: CallbackInfo,
     ) {
-        if (HeldItemSwingVisuals.replaceVanillaSwing() == SwingReplacementResult.REPLACED) {
+        val isReplaced = SkysoftErrorBoundary.value("Held Item swing replacement", false) {
+            HeldItemSwingVisuals.replaceVanillaSwing() == SwingReplacementResult.REPLACED
+        }
+        if (isReplaced) {
             ci.cancel()
         }
     }

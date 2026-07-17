@@ -24,6 +24,7 @@ import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withOpacity
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.GuiAlignment
 import com.skysoft.utils.renderables.AnchoredRenderable
@@ -97,7 +98,7 @@ object ActivePetOverlay {
             }
             override fun openConfig() = PetOverlayConfigScreen.open()
         })
-        ActivePetTracker.onChange { petData ->
+        ActivePetTracker.onChange("Active Pet Overlay state change") { petData ->
             if (petData == null) lastDisplayState = null
             val petKey = petData?.uuid ?: petData?.fauxInternalName
             if (petKey != animatedPetKey) {
@@ -106,20 +107,24 @@ object ActivePetOverlay {
             }
         }
         ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: return@register
-            if (!PetStorageService.isExpSharingInventory(screen.title.cleanSkyBlockText())) return@register
-            val slot = screen.menu.slots.firstOrNull { it.item === stack }
-                ?: screen.menu.slots.firstOrNull { it.item == stack && PetStorageService.isExpShareSlotDisabled(it.containerSlot) }
-                ?: return@register
-            if (!PetStorageService.isExpShareSlotDisabled(slot.containerSlot)) return@register
+            SkysoftErrorBoundary.run("Active Pet Tooltip rendering") tooltip@{
+                val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: return@tooltip
+                if (!PetStorageService.isExpSharingInventory(screen.title.cleanSkyBlockText())) return@tooltip
+                val slot = screen.menu.slots.firstOrNull { it.item === stack }
+                    ?: screen.menu.slots.firstOrNull {
+                        it.item == stack && PetStorageService.isExpShareSlotDisabled(it.containerSlot)
+                    }
+                    ?: return@tooltip
+                if (!PetStorageService.isExpShareSlotDisabled(slot.containerSlot)) return@tooltip
 
-            tooltip.add(Component.literal(""))
-            tooltip.add(Component.literal("This Exp Share slot is disabled.").withStyle(ChatFormatting.RED))
-            tooltip.add(
-                Component.literal("Diana's ").withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal("Sharing is Caring").withStyle(ChatFormatting.LIGHT_PURPLE))
-                    .append(Component.literal(" perk is not active.").withStyle(ChatFormatting.GRAY)),
-            )
+                tooltip.add(Component.literal(""))
+                tooltip.add(Component.literal("This Exp Share slot is disabled.").withStyle(ChatFormatting.RED))
+                tooltip.add(
+                    Component.literal("Diana's ").withStyle(ChatFormatting.GRAY)
+                        .append(Component.literal("Sharing is Caring").withStyle(ChatFormatting.LIGHT_PURPLE))
+                        .append(Component.literal(" perk is not active.").withStyle(ChatFormatting.GRAY)),
+                )
+            }
         }
     }
 

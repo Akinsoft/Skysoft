@@ -12,6 +12,7 @@ import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.pets.ActivePetHighlighter
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -37,9 +38,12 @@ abstract class AbstractContainerScreenRenderingMixin {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        RarityHighlightRenderer.beginFrame()
-        SmoothSwapping.beginFrame(this as AbstractContainerScreen<*>)
-        InventoryEquipment.renderBackground(this as AbstractContainerScreen<*>, context)
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Rarity Highlight frame", RarityHighlightRenderer::beginFrame)
+        SkysoftErrorBoundary.run("Smooth Swapping render frame") { SmoothSwapping.beginFrame(screen) }
+        SkysoftErrorBoundary.run("Inventory Equipment background rendering") {
+            InventoryEquipment.renderBackground(screen, context)
+        }
     }
 
     @Inject(method = ["extractContents"], at = [At("TAIL")])
@@ -50,12 +54,15 @@ abstract class AbstractContainerScreenRenderingMixin {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        SmoothSwapping.render(this as AbstractContainerScreen<*>, context)
-        SlotBindingManager.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
-        SlotLockManager.beginFrame()
-        ItemProtectionManager.beginFrame()
-        InventoryButtonManager.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
-        ItemListController.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Smooth Swapping rendering") { SmoothSwapping.render(screen, context) }
+        SkysoftErrorBoundary.run("Slot Binding rendering") { SlotBindingManager.render(screen, context, mouseX, mouseY) }
+        SkysoftErrorBoundary.run("Slot Lock render frame", SlotLockManager::beginFrame)
+        SkysoftErrorBoundary.run("Item Protection render frame", ItemProtectionManager::beginFrame)
+        SkysoftErrorBoundary.run("Inventory Button rendering") {
+            InventoryButtonManager.render(screen, context, mouseX, mouseY)
+        }
+        SkysoftErrorBoundary.run("Item List rendering") { ItemListController.render(screen, context, mouseX, mouseY) }
     }
 
     @Inject(
@@ -75,7 +82,9 @@ abstract class AbstractContainerScreenRenderingMixin {
         delta: Float,
         ci: CallbackInfo,
     ) {
-        InventoryEquipment.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
+        SkysoftErrorBoundary.run("Inventory Equipment rendering") {
+            InventoryEquipment.render(this as AbstractContainerScreen<*>, context, mouseX, mouseY)
+        }
     }
 
     @Inject(method = ["extractSlot"], at = [At("HEAD")])
@@ -86,10 +95,15 @@ abstract class AbstractContainerScreenRenderingMixin {
         mouseY: Int,
         ci: CallbackInfo,
     ) {
-        RarityHighlightRenderer.renderBackground(context, slot)
-        ContainerSearchHighlighter.renderBackground(this as AbstractContainerScreen<*>, context, slot)
-        ActivePetHighlighter.renderBackground(this as AbstractContainerScreen<*>, context, slot)
-        BazaarTracker.renderSlotIndicatorBackground(this as AbstractContainerScreen<*>, context, slot)
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Rarity Highlight background") { RarityHighlightRenderer.renderBackground(context, slot) }
+        SkysoftErrorBoundary.run("Container Search highlighting") {
+            ContainerSearchHighlighter.renderBackground(screen, context, slot)
+        }
+        SkysoftErrorBoundary.run("Active Pet highlighting") { ActivePetHighlighter.renderBackground(screen, context, slot) }
+        SkysoftErrorBoundary.run("Bazaar Tracker slot background") {
+            BazaarTracker.renderSlotIndicatorBackground(screen, context, slot)
+        }
     }
 
     @Inject(method = ["extractSlot"], at = [At("TAIL")])
@@ -100,10 +114,13 @@ abstract class AbstractContainerScreenRenderingMixin {
         mouseY: Int,
         ci: CallbackInfo,
     ) {
-        ActivePetHighlighter.renderOutline(this as AbstractContainerScreen<*>, context, slot)
-        BazaarTracker.renderSlotIndicatorOverlay(this as AbstractContainerScreen<*>, context, slot)
-        SlotLockManager.renderSlotOverlay(context, slot)
-        ItemProtectionManager.renderProtectedMarker(context, slot)
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Active Pet highlight outline") { ActivePetHighlighter.renderOutline(screen, context, slot) }
+        SkysoftErrorBoundary.run("Bazaar Tracker slot overlay") {
+            BazaarTracker.renderSlotIndicatorOverlay(screen, context, slot)
+        }
+        SkysoftErrorBoundary.run("Slot Lock overlay") { SlotLockManager.renderSlotOverlay(context, slot) }
+        SkysoftErrorBoundary.run("Item Protection marker") { ItemProtectionManager.renderProtectedMarker(context, slot) }
     }
 
     @Inject(method = ["extractSlot"], at = [At("HEAD")])
@@ -143,20 +160,15 @@ abstract class AbstractContainerScreenRenderingMixin {
         y: Int,
         seed: Int,
     ) {
-        if (
+        val shouldRender = SkysoftErrorBoundary.value("Smooth Swapping item suppression", true) {
             InventoryEquipment.isEquipmentSlot(skysoftSmoothSwappingSlot) ||
-            !SmoothSwapping.shouldSuppressSlot(
-                this as AbstractContainerScreen<*>,
-                skysoftSmoothSwappingSlot,
-            )
-        ) {
-            val renderStack = PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack)
-            if (renderStack != null) {
-                RarityHighlightRenderer.renderItem(stack) {
-                    context.item(renderStack, x, y, seed)
-                }
-            }
+                !SmoothSwapping.shouldSuppressSlot(this as AbstractContainerScreen<*>, skysoftSmoothSwappingSlot)
         }
+        if (!shouldRender) return
+        val renderStack = SkysoftErrorBoundary.value<ItemStack?>("Player Head Skin inventory item", stack) {
+            PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack)
+        } ?: return
+        renderItemWithRarity("Rarity Highlight item rendering", stack) { context.item(renderStack, x, y, seed) }
     }
 
     @Redirect(
@@ -174,19 +186,16 @@ abstract class AbstractContainerScreenRenderingMixin {
         y: Int,
         seed: Int,
     ) {
-        if (
+        val shouldRender = SkysoftErrorBoundary.value("Smooth Swapping fake item suppression", true) {
             InventoryEquipment.isEquipmentSlot(skysoftSmoothSwappingSlot) ||
-            !SmoothSwapping.shouldSuppressSlot(
-                this as AbstractContainerScreen<*>,
-                skysoftSmoothSwappingSlot,
-            )
-        ) {
-            val renderStack = PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack)
-            if (renderStack != null) {
-                RarityHighlightRenderer.renderItem(stack) {
-                    context.fakeItem(renderStack, x, y, seed)
-                }
-            }
+                !SmoothSwapping.shouldSuppressSlot(this as AbstractContainerScreen<*>, skysoftSmoothSwappingSlot)
+        }
+        if (!shouldRender) return
+        val renderStack = SkysoftErrorBoundary.value<ItemStack?>("Player Head Skin inventory item", stack) {
+            PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack)
+        } ?: return
+        renderItemWithRarity("Rarity Highlight fake item rendering", stack) {
+            context.fakeItem(renderStack, x, y, seed)
         }
     }
 
@@ -207,16 +216,22 @@ abstract class AbstractContainerScreenRenderingMixin {
         y: Int,
         text: String?,
     ) {
-        if (
-            (
+        val shouldRender = SkysoftErrorBoundary.value("Smooth Swapping item decoration suppression", true) {
+            val isVisible =
                 InventoryEquipment.isEquipmentSlot(skysoftSmoothSwappingSlot) ||
                     !SmoothSwapping.shouldSuppressSlot(
                         this as AbstractContainerScreen<*>,
                         skysoftSmoothSwappingSlot,
                     )
-                ) && PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack) != null
-        ) {
-            context.itemDecorations(font, stack, x, y, text)
+            isVisible && PlayerHeadSkinFix.inventoryStack(skysoftSmoothSwappingSlot, stack) != null
+        }
+        if (shouldRender) context.itemDecorations(font, stack, x, y, text)
+    }
+
+    @Unique
+    private fun renderItemWithRarity(boundary: String, stack: ItemStack, render: () -> Unit) {
+        SkysoftErrorBoundary.aroundUnit(boundary, render) { renderItem ->
+            RarityHighlightRenderer.renderItem(stack, renderItem)
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.pets.VisiblePetPosition
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.particle.ParticleEngine
 import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.injection.At
@@ -26,6 +27,9 @@ open class ParticleEngineMixin {
         val x = args.get(X_ARGUMENT_INDEX) as Double
         val y = args.get(Y_ARGUMENT_INDEX) as Double
         val z = args.get(Z_ARGUMENT_INDEX) as Double
-        args.set(Y_ARGUMENT_INDEX, VisiblePetPosition.adjustParticleY(x, y, z))
+        val adjustedY = SkysoftErrorBoundary.value("Visible Pet Position particle adjustment", y) {
+            VisiblePetPosition.adjustParticleY(x, y, z)
+        }
+        args.set(Y_ARGUMENT_INDEX, adjustedY)
     }
 }

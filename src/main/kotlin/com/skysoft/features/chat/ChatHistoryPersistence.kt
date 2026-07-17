@@ -9,9 +9,9 @@ import com.skysoft.config.MAX_CHAT_HISTORY_LIMIT
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.mixin.ChatComponentAccessor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftClientEvents
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.client.multiplayer.chat.GuiMessageSource
@@ -21,10 +21,10 @@ import net.minecraft.network.chat.ComponentSerialization
 
 object ChatHistoryPersistence {
     fun register() {
-        ClientLifecycleEvents.CLIENT_STARTED.register {
+        SkysoftClientEvents.onClientStarted("Chat History restore") {
             if (ChatFeatureSettings.isHistoryRetained()) restore(MinecraftClient.chat(it))
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register {
+        SkysoftClientEvents.onClientStopping("Chat History save") {
             if (ChatFeatureSettings.isHistoryRetained()) save(MinecraftClient.chat(it))
         }
     }

@@ -3,7 +3,7 @@ package com.skysoft.features.bazaar
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
-import net.minecraft.client.Minecraft
+import com.skysoft.utils.SkysoftErrorBoundary
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -58,7 +58,9 @@ internal fun refreshBazaarFillEstimates() {
 
     SkyBlockPriceData.refreshBazaarDepth(productIds, sinceMillis)?.whenComplete { products, error ->
         if (products == null || error != null) return@whenComplete
-        Minecraft.getInstance().execute { applyBazaarDepthProducts(products) }
+        SkysoftErrorBoundary.onClientThread("Bazaar Tracker fill estimate async completion") {
+            applyBazaarDepthProducts(products)
+        }
     }
 }
 

@@ -73,9 +73,10 @@ object SkysoftChat {
         component.visit({ style: Style, text: String ->
             text.forEach { char ->
                 val progress = index++.toFloat() / lastIndex
+                val color = style.color ?: TextColor.fromRgb(mix(start, end, progress))
                 result.append(
                     Component.literal(char.toString()).withStyle(
-                        style.withColor(TextColor.fromRgb(mix(start, end, progress))),
+                        style.withColor(color),
                     ),
                 )
             }

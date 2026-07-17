@@ -16,6 +16,7 @@ import com.skysoft.features.bazaar.bazaarRemoteAccess
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -206,8 +207,8 @@ internal class ItemListBazaarPanel {
             return
         }
         future.whenComplete { products, error ->
-            Minecraft.getInstance().execute {
-                if (currentKey != key) return@execute
+            SkysoftErrorBoundary.onClientThread("Item List Bazaar async completion") {
+                if (currentKey != key) return@onClientThread
                 depthRequestInFlight = false
                 if (error == null) {
                     depthProduct = products?.get(key.id)

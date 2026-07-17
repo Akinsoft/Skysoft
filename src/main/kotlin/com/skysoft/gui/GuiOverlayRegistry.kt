@@ -4,6 +4,7 @@ import com.skysoft.SkysoftMod
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.minecraft.client.Minecraft
@@ -20,7 +21,11 @@ object GuiOverlayRegistry {
         HudElementRegistry.attachElementAfter(
             VanillaHudElements.HOTBAR,
             SkysoftMod.id("gui_overlays_below_screen"),
-            { context, _ -> renderWorldLayer(GuiOverlayLayer.BELOW_SCREEN, context) },
+            { context, _ ->
+                SkysoftErrorBoundary.run("GUI overlay world layer") {
+                    renderWorldLayer(GuiOverlayLayer.BELOW_SCREEN, context)
+                }
+            },
         )
     }
 
@@ -30,7 +35,14 @@ object GuiOverlayRegistry {
     }
 
     @JvmStatic
-    fun shouldRenderLayer(layer: GuiOverlayLayer): Boolean = overlays.any { it.layer == layer && it.isVisible(context()) }
+    fun shouldRenderLayer(layer: GuiOverlayLayer): Boolean {
+        val overlayContext = context()
+        return overlays.any { overlay ->
+            overlay.layer == layer && SkysoftErrorBoundary.value(overlay.errorBoundary, false) {
+                overlay.isVisible(overlayContext)
+            }
+        }
+    }
 
     @JvmStatic
     fun renderLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor) {
@@ -74,9 +86,14 @@ object GuiOverlayRegistry {
 
     private fun renderLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
         for (overlay in overlays) {
-            if (overlay.layer != layer || !overlay.isVisible(overlayContext)) continue
+            if (overlay.layer != layer || !SkysoftErrorBoundary.value(overlay.errorBoundary, false) {
+                    overlay.isVisible(overlayContext)
+                }
+            ) {
+                continue
+            }
             context.nextStratum()
-            overlay.render(context, overlayContext)
+            SkysoftErrorBoundary.run(overlay.errorBoundary) { overlay.render(context, overlayContext) }
         }
     }
 
@@ -104,6 +121,8 @@ data class GuiOverlay(
     val visible: (GuiOverlayContext) -> Boolean = { true },
     val render: (GuiGraphicsExtractor, GuiOverlayContext) -> Unit,
 ) {
+    internal val errorBoundary = "GUI overlay $id"
+
     fun isVisible(context: GuiOverlayContext): Boolean = context.type in contexts && visible(context)
 }
 

@@ -9,9 +9,9 @@ import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.RegexUtilities.group
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.util.UUID
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.Minecraft
 import kotlin.math.abs
 import kotlin.math.roundToLong
@@ -26,11 +26,11 @@ object PetXpEstimator {
     private val recentEstimatedPetExp = mutableMapOf<UUID, ElapsedTimeMark>()
 
     fun register() {
-        SkillExpGainApi.onSkillExpGain(::onSkillExpGain)
-        SkyBlockProfileApi.onProfileChange {
+        SkillExpGainApi.onSkillExpGain("Pet Experience estimation", ::onSkillExpGain)
+        SkyBlockProfileApi.onProfileChange("Pet Experience profile reset") {
             resetProfileState()
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("Pet Experience disconnect reset") {
             resetWorldState()
         }
     }

@@ -4,8 +4,8 @@ import com.google.gson.Gson
 import com.skysoft.SkysoftMod
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.net.PendingHttpRequests
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.concurrent.atomic.AtomicBoolean
 
 object SkyBlockEventScheduleApi {
@@ -18,7 +18,7 @@ object SkyBlockEventScheduleApi {
     private var ticksUntilRefresh = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register tick@{
+        SkysoftClientEvents.onEndTick("SkyBlock Event Schedule refresh") tick@{
             if (!HypixelLocationState.inSkyBlock) {
                 ticksUntilRefresh = 0
                 return@tick
@@ -27,7 +27,7 @@ object SkyBlockEventScheduleApi {
             ticksUntilRefresh = REFRESH_INTERVAL_TICKS
             refresh()
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register {
+        SkysoftClientEvents.onClientStopping("SkyBlock Event Schedule request cancellation") {
             requests.cancelAll()
         }
     }
@@ -60,12 +60,17 @@ object SkyBlockEventScheduleApi {
             .thenApply { gson.fromJson(it, SkyBlockEventScheduleResponse::class.java) }
             .thenApply(::normalizeSchedule)
             .whenComplete { response, error ->
-                if (error == null && response != null) {
-                    schedule = response
-                } else {
-                    SkysoftMod.LOGGER.warn("Failed to refresh SkyBlock event schedule", error)
+                SkysoftErrorBoundary.run("SkyBlock Event Schedule async completion") {
+                    try {
+                        if (error == null && response != null) {
+                            schedule = response
+                        } else {
+                            SkysoftMod.LOGGER.warn("Failed to refresh SkyBlock event schedule", error)
+                        }
+                    } finally {
+                        loading.set(false)
+                    }
                 }
-                loading.set(false)
             }
     }
 

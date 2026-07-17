@@ -12,8 +12,7 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
@@ -28,9 +27,9 @@ internal object DianaLobbyCompromisedWatcher {
     private var lastTabSessionId = Long.MIN_VALUE
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { onTick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
-        ChatEvents.onPartyMessage { message -> handlePartyMessage(message) }
+        SkysoftClientEvents.onEndTick("Diana Lobby Compromised tick") { onTick() }
+        SkysoftClientEvents.onDisconnect("Diana Lobby Compromised disconnect reset", ::clear)
+        ChatEvents.onPartyMessage("Diana compromised-lobby chat") { message -> handlePartyMessage(message) }
     }
 
     private fun onTick() {

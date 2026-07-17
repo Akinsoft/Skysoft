@@ -11,8 +11,7 @@ import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -27,16 +26,16 @@ object FishingHotspotSharing {
     private var ticks = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { onTick() }
-        ChatEvents.onPartyMessage { message ->
+        SkysoftClientEvents.onEndTick("Fishing Hotspot Sharing tick") { onTick() }
+        ChatEvents.onPartyMessage("Fishing Hotspot party chat") { message ->
             if (receivePartyMessage(message) == null) {
                 ChatMessageVisibility.SHOW
             } else {
                 ChatMessageVisibility.HIDE
             }
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
-        WorldRenderDispatcher.registerHandler(::onRenderWorld)
+        SkysoftClientEvents.onDisconnect("Fishing Hotspot Sharing disconnect reset", ::clear)
+        WorldRenderDispatcher.registerHandler("Fishing Hotspot shared-waypoint rendering", ::onRenderWorld)
     }
 
     private fun onTick() {

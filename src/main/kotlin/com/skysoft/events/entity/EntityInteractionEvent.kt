@@ -1,6 +1,7 @@
 package com.skysoft.events.entity
 
 import com.skysoft.data.InteractionClick
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.event.Event
 import net.fabricmc.fabric.api.event.EventFactory
 import net.minecraft.world.entity.Entity
@@ -22,9 +23,18 @@ fun interface EntityClickCallback {
 }
 
 object EntityInteractionEvents {
-    val EVENT: Event<EntityClickCallback> = EventFactory.createArrayBacked(EntityClickCallback::class.java) { listeners ->
+    private val event: Event<EntityClickCallback> = EventFactory.createArrayBacked(EntityClickCallback::class.java) { listeners ->
         EntityClickCallback { event ->
             listeners.any { it.shouldCancelEntityClick(event) }
         }
     }
+
+    fun register(boundary: String, listener: EntityClickCallback) {
+        event.register { event ->
+            SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelEntityClick(event) }
+        }
+    }
+
+    fun shouldCancelEntityClick(entityClick: EntityInteractionEvent): Boolean =
+        event.invoker().shouldCancelEntityClick(entityClick)
 }

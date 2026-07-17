@@ -1,6 +1,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.screens.inventory.EffectsInInventory
 import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.injection.At
@@ -11,6 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
 abstract class EffectsInInventoryMixin {
     @Inject(method = ["extractRenderState"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftHideVanillaStatusEffects(ci: CallbackInfo) {
-        if (SkysoftConfigGui.config().gui.areVanillaStatusEffectsHidden) ci.cancel()
+        val shouldHide = SkysoftErrorBoundary.value("Inventory status effect visibility", false) {
+            SkysoftConfigGui.config().gui.areVanillaStatusEffectsHidden
+        }
+        if (shouldHide) ci.cancel()
     }
 }

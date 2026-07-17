@@ -13,6 +13,7 @@ import com.skysoft.features.chat.ChatTimestamps
 import com.skysoft.features.chat.PreparedChatMessage
 import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.utils.animation.AnimationClock
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.multiplayer.chat.GuiMessageSource
@@ -70,7 +71,7 @@ abstract class ChatComponentMixin {
         original: Operation<Void>,
         @Local(argsOnly = true) graphics: GuiGraphicsExtractor,
     ) {
-        val displacement = skysoftNewMessageOffset()
+        val displacement = SkysoftErrorBoundary.value("Chat message motion", 0.0f, ::skysoftNewMessageOffset)
         if (displacement == 0.0f) {
             original.call(chat, graphicsAccess, screenHeight, ticks, displayMode)
             return
@@ -101,7 +102,7 @@ abstract class ChatComponentMixin {
         tag: GuiMessageTag?,
         ci: CallbackInfo,
     ) {
-        skysoftMessageArrival.restart()
+        SkysoftErrorBoundary.run("Chat message motion", skysoftMessageArrival::restart)
     }
 
     @Inject(
@@ -121,8 +122,11 @@ abstract class ChatComponentMixin {
         tag: GuiMessageTag?,
         ci: CallbackInfo,
     ) {
-        skysoftPendingCompaction = null
-        if (ChatFeatureSettings.areBlankLinesHidden() && ChatCompactor.isBlank(contents)) {
+        val shouldHide = SkysoftErrorBoundary.value("Chat blank line hiding", false) {
+            skysoftPendingCompaction = null
+            ChatFeatureSettings.areBlankLinesHidden() && ChatCompactor.isBlank(contents)
+        }
+        if (shouldHide) {
             ci.cancel()
         }
     }
@@ -139,14 +143,16 @@ abstract class ChatComponentMixin {
         ordinal = 0,
     )
     protected fun skysoftTransformMessage(contents: Component): Component {
-        val accessor = this as ChatComponentAccessor
-        val prepared = ChatCompactor.prepare(
-            ChatNotifier.decorate(DianaSphinxAnswerHighlighter.highlight(contents)),
-            accessor.skysoftAllMessages(),
-        ).let { compacted -> compacted.withContent(ChatTimestamps.decorate(compacted.content)) }
-        skysoftPendingCompaction = prepared
-        if (prepared.removedPrevious) accessor.skysoftRefreshTrimmedMessages()
-        return prepared.content
+        return SkysoftErrorBoundary.value("Chat message transformation", contents) {
+            val accessor = this as ChatComponentAccessor
+            val prepared = ChatCompactor.prepare(
+                ChatNotifier.decorate(DianaSphinxAnswerHighlighter.highlight(contents)),
+                accessor.skysoftAllMessages(),
+            ).let { compacted -> compacted.withContent(ChatTimestamps.decorate(compacted.content)) }
+            skysoftPendingCompaction = prepared
+            if (prepared.removedPrevious) accessor.skysoftRefreshTrimmedMessages()
+            prepared.content
+        }
     }
 
     @Inject(
@@ -165,37 +171,45 @@ abstract class ChatComponentMixin {
         tag: GuiMessageTag?,
         ci: CallbackInfo,
     ) {
-        val prepared = skysoftPendingCompaction ?: return
-        skysoftPendingCompaction = null
-        val newest = (this as ChatComponentAccessor).skysoftAllMessages().firstOrNull()
-        if (newest?.content() === prepared.content) ChatCompactor.associate(prepared, newest)
+        SkysoftErrorBoundary.run("Chat message compaction association") {
+            val prepared = skysoftPendingCompaction ?: return@run
+            skysoftPendingCompaction = null
+            val newest = (this as ChatComponentAccessor).skysoftAllMessages().firstOrNull()
+            if (newest?.content() === prepared.content) ChatCompactor.associate(prepared, newest)
+        }
     }
 
     @ModifyConstant(method = ["addMessageToDisplayQueue"], constant = [Constant(intValue = 100)])
-    protected fun skysoftVisibleLineLimit(vanillaLimit: Int): Int = ChatFeatureSettings.historyLimit()
+    protected fun skysoftVisibleLineLimit(vanillaLimit: Int): Int =
+        SkysoftErrorBoundary.value("Chat visible line limit", vanillaLimit, ChatFeatureSettings::historyLimit)
 
     @ModifyConstant(method = ["addMessageToQueue"], constant = [Constant(intValue = 100)])
-    protected fun skysoftMessageLimit(vanillaLimit: Int): Int = ChatFeatureSettings.historyLimit()
+    protected fun skysoftMessageLimit(vanillaLimit: Int): Int =
+        SkysoftErrorBoundary.value("Chat message limit", vanillaLimit, ChatFeatureSettings::historyLimit)
 
     @Inject(method = ["clearMessages"], at = [At("HEAD")])
     protected fun skysoftCaptureRetainedHistory(history: Boolean, ci: CallbackInfo) {
-        ChatCompactor.clear()
-        skysoftPreservedMessages = if (history && ChatFeatureSettings.isHistoryRetained()) {
-            val messages = (this as ChatComponentAccessor).skysoftAllMessages()
-            ChatHistoryPersistence.save(messages)
-            messages.take(ChatFeatureSettings.historyLimit())
-        } else {
-            null
+        SkysoftErrorBoundary.run("Chat retained history capture") {
+            ChatCompactor.clear()
+            skysoftPreservedMessages = if (history && ChatFeatureSettings.isHistoryRetained()) {
+                val messages = (this as ChatComponentAccessor).skysoftAllMessages()
+                ChatHistoryPersistence.save(messages)
+                messages.take(ChatFeatureSettings.historyLimit())
+            } else {
+                null
+            }
         }
     }
 
     @Inject(method = ["clearMessages"], at = [At("TAIL")])
     protected fun skysoftRestoreRetainedHistory(history: Boolean, ci: CallbackInfo) {
-        val messages = skysoftPreservedMessages ?: return
-        skysoftPreservedMessages = null
-        val accessor = this as ChatComponentAccessor
-        accessor.skysoftAllMessages().addAll(messages)
-        accessor.skysoftRefreshTrimmedMessages()
+        SkysoftErrorBoundary.run("Chat retained history restore") {
+            val messages = skysoftPreservedMessages ?: return@run
+            skysoftPreservedMessages = null
+            val accessor = this as ChatComponentAccessor
+            accessor.skysoftAllMessages().addAll(messages)
+            accessor.skysoftRefreshTrimmedMessages()
+        }
     }
 
     @Unique

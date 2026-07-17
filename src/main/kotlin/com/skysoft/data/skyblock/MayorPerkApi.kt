@@ -4,8 +4,8 @@ import com.google.gson.Gson
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.minutes
 
@@ -54,12 +54,12 @@ object MayorPerkApi {
         private set
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register tick@{
+        SkysoftClientEvents.onEndTick("Mayor Perk refresh") tick@{
             if (++ticks % REFRESH_CHECK_INTERVAL_TICKS != 0) return@tick
             if (lastUpdate.passedSince() < 20.minutes) return@tick
             refresh()
         }
-        ClientLifecycleEvents.CLIENT_STOPPING.register {
+        SkysoftClientEvents.onClientStopping("Mayor Perk request cancellation") {
             requests.cancelAll()
         }
     }
@@ -70,18 +70,23 @@ object MayorPerkApi {
         requests.getString(ELECTION_URL)
             .thenApply { response -> gson.fromJson(response, ElectionResponse::class.java) }
             .whenComplete { response, error ->
-                if (error == null && response != null) {
-                    sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING)
-                    petXpBuffActive = response.hasPerk(PET_XP_BUFF)
-                    mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL)
-                    carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL)
-                    fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
-                    miningFiestaActive = response.hasPerk(MINING_FIESTA)
-                    mythologicalRitualEventKey = response.mythologicalRitualEventKey()
-                } else {
-                    SkysoftMod.LOGGER.warn("Failed to refresh mayor perks", error)
+                SkysoftErrorBoundary.run("Mayor Perk async completion") {
+                    try {
+                        if (error == null && response != null) {
+                            sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING)
+                            petXpBuffActive = response.hasPerk(PET_XP_BUFF)
+                            mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL)
+                            carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL)
+                            fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
+                            miningFiestaActive = response.hasPerk(MINING_FIESTA)
+                            mythologicalRitualEventKey = response.mythologicalRitualEventKey()
+                        } else {
+                            SkysoftMod.LOGGER.warn("Failed to refresh mayor perks", error)
+                        }
+                    } finally {
+                        loading.set(false)
+                    }
                 }
-                loading.set(false)
             }
     }
 

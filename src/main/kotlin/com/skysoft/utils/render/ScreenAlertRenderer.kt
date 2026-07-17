@@ -1,8 +1,7 @@
 package com.skysoft.utils.render
 
 import com.skysoft.utils.MinecraftClient
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
@@ -16,8 +15,8 @@ object ScreenAlertRenderer {
         if (registered) return
         registered = true
         ScreenTitleRenderer.registerPositionEditor()
-        ClientTickEvents.END_CLIENT_TICK.register { tick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearAll() }
+        SkysoftClientEvents.onEndTick("Screen Alert tick") { tick() }
+        SkysoftClientEvents.onDisconnect("Screen Alert disconnect reset", ::clearAll)
         ScreenTitleRenderer.registerTitleOverlay(
             id = "screen_alerts",
             visible = ::isVisible,

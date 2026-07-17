@@ -6,6 +6,7 @@ import com.skysoft.utils.ColorUtilities.ARGB_ALPHA_SHIFT
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.OverlayMessages
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.minecraft.client.DeltaTracker
@@ -27,7 +28,9 @@ object ActionBarBackground {
         HudElementRegistry.attachElementBefore(
             VanillaHudElements.OVERLAY_MESSAGE,
             SkysoftMod.id("action_bar_background"),
-            ActionBarBackground::render,
+            { context, tick ->
+                SkysoftErrorBoundary.run("Action Bar Background render") { render(context, tick) }
+            },
         )
     }
 

@@ -15,7 +15,7 @@ internal object DianaBurrowInteractions {
     private val activeMobBurrowIds = mutableSetOf<Long>()
 
     fun register() {
-        BlockInteractionEvents.EVENT.register { event ->
+        BlockInteractionEvents.register("Diana Burrow block interaction") { event ->
             onBlockClick(event).shouldCancel
         }
     }

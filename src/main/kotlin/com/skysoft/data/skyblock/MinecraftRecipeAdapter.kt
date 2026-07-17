@@ -1,6 +1,6 @@
 package com.skysoft.data.skyblock
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
@@ -24,8 +24,8 @@ internal object MinecraftRecipeAdapter {
     private var snapshot: ClientRecipeSnapshot? = null
 
     fun register() {
-        ClientPlayConnectionEvents.JOIN.register { _, _, _ -> snapshot = null }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> snapshot = null }
+        SkysoftClientEvents.onJoin("Minecraft recipe join reset") { snapshot = null }
+        SkysoftClientEvents.onDisconnect("Minecraft recipe disconnect reset") { snapshot = null }
     }
 
     fun recipesFor(key: ItemListEntryKey): List<SkyBlockRecipe> = current()?.byResult?.get(key).orEmpty()

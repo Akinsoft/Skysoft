@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.sugar.Local
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -40,10 +41,36 @@ open class TooltipGuiScaleMixin {
         sprite: Identifier?,
         original: Operation<Void>,
     ) {
+        var operationCalled = false
+        var operationFailure: Throwable? = null
+        SkysoftErrorBoundary.run("Tooltip GUI scale rendering") {
+            renderTooltipAtSeparateScale(
+                graphics,
+                x,
+                y,
+            ) {
+                operationCalled = true
+                try {
+                    original.call(graphics, font, tooltip, it.first, it.second, positioner, sprite)
+                } catch (failure: Throwable) {
+                    operationFailure = failure
+                }
+            }
+        }
+        if (!operationCalled) original.call(graphics, font, tooltip, x, y, positioner, sprite)
+        operationFailure?.let { throw it }
+    }
+
+    private fun renderTooltipAtSeparateScale(
+        graphics: GuiGraphicsExtractor,
+        x: Int,
+        y: Int,
+        render: (Pair<Int, Int>) -> Unit,
+    ) {
         val minecraft = Minecraft.getInstance()
         val screen = MinecraftClient.screen(minecraft)
         if (!GuiScaleController.usesSeparateTooltipScale(screen)) {
-            original.call(graphics, font, tooltip, x, y, positioner, sprite)
+            render(x to y)
             return
         }
 
@@ -51,7 +78,7 @@ open class TooltipGuiScaleMixin {
         val scales = GuiScaleController.resolve(screen, window)
         val tooltipScale = scales.tooltip()
         if (window.guiScale == tooltipScale) {
-            original.call(graphics, font, tooltip, x, y, positioner, sprite)
+            render(x to y)
             return
         }
 
@@ -63,7 +90,7 @@ open class TooltipGuiScaleMixin {
         try {
             GuiScaleController.useTooltipScale(screen, window).use {
                 graphics.pose().scale(poseScale, poseScale)
-                original.call(graphics, font, tooltip, tooltipX, tooltipY, positioner, sprite)
+                render(tooltipX to tooltipY)
             }
         } finally {
             graphics.pose().popMatrix()
@@ -96,7 +123,9 @@ open class TooltipGuiScaleMixin {
         @Local(argsOnly = true) font: Font,
         @Local(argsOnly = true) tooltip: List<ClientTooltipComponent>,
     ): Vector2ic {
-        val scrollingPositioner = TooltipViewport.decorate(font, tooltip, x, y, positioner)
+        val scrollingPositioner = SkysoftErrorBoundary.value("Scrollable tooltip positioning", positioner) {
+            TooltipViewport.decorate(font, tooltip, x, y, positioner)
+        }
         return original.call(scrollingPositioner, screenWidth, screenHeight, x, y, tooltipWidth, tooltipHeight)
     }
 }

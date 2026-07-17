@@ -8,10 +8,9 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.features.pets.PetItemUtilities.getPetInfo
 import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import java.util.UUID
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.world.inventory.Slot
 
 object PetStorageService {
@@ -29,17 +28,17 @@ object PetStorageService {
         get() = PetWidgetStateTracker.displayMessage
 
     fun register() {
-        SkyBlockProfileApi.onProfileChange {
+        SkyBlockProfileApi.onProfileChange("Pet Storage profile reset") {
             PetWidgetStateTracker.reset()
             lastInventoryKey = null
         }
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("Pet Storage chat") { message ->
             PetStorageChat.handleIncomingMessage(message.component)
         }
-        ClientTickEvents.END_CLIENT_TICK.register {
+        SkysoftClientEvents.onEndTick("Pet Storage inventory reader") {
             PetStorageInventoryReader.onClientTick()
         }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+        SkysoftClientEvents.onDisconnect("Pet Storage disconnect reset") {
             PetWidgetStateTracker.reset()
             lastInventoryKey = null
         }

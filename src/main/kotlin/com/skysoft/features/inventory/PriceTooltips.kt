@@ -10,6 +10,7 @@ import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import com.skysoft.utils.NumberUtilities.romanToDecimal
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputUtilities
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
@@ -24,14 +25,16 @@ object PriceTooltips {
 
     fun register() {
         ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            if (!shouldShow()) return@register
+            SkysoftErrorBoundary.run("Price Tooltip rendering") tooltip@{
+                if (!shouldShow()) return@tooltip
 
-            val itemId = priceItemId(stack) ?: return@register
-            val priceLines = createPriceLines(itemId)
-            if (priceLines.isEmpty()) return@register
+                val itemId = priceItemId(stack) ?: return@tooltip
+                val priceLines = createPriceLines(itemId)
+                if (priceLines.isEmpty()) return@tooltip
 
-            tooltip.add(Component.literal(""))
-            tooltip.addAll(priceLines)
+                tooltip.add(Component.literal(""))
+                tooltip.addAll(priceLines)
+            }
         }
     }
 

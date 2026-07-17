@@ -10,6 +10,7 @@ import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.gui.scale.InventoryCursorMemory
 import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.MouseHandler
 import net.minecraft.client.gui.screens.Screen
@@ -48,7 +49,7 @@ open class MouseHandlerMixin : CursorController {
         ],
     )
     protected fun skysoftSaveCursorBeforeGrab(ci: CallbackInfo) {
-        InventoryCursorMemory.beginMouseGrab(xpos, ypos)
+        SkysoftErrorBoundary.run("Inventory cursor mouse grab") { InventoryCursorMemory.beginMouseGrab(xpos, ypos) }
     }
 
     @Inject(
@@ -62,7 +63,7 @@ open class MouseHandlerMixin : CursorController {
         ],
     )
     protected fun skysoftSaveCursorAfterGrab(ci: CallbackInfo) {
-        InventoryCursorMemory.finishMouseGrab(xpos, ypos)
+        SkysoftErrorBoundary.run("Inventory cursor mouse grab") { InventoryCursorMemory.finishMouseGrab(xpos, ypos) }
     }
 
     @Inject(method = ["onButton"], at = [At("HEAD")], cancellable = true)
@@ -72,12 +73,11 @@ open class MouseHandlerMixin : CursorController {
         action: Int,
         ci: CallbackInfo,
     ) {
-        if (
+        val isConsumed = SkysoftErrorBoundary.value("Bazaar Tracker mouse control", false) {
             action == GLFW.GLFW_PRESS &&
-            BazaarTracker.handleMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED
-        ) {
-            ci.cancel()
+                BazaarTracker.handleMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED
         }
+        if (isConsumed) ci.cancel()
     }
 
     @WrapOperation(
@@ -97,19 +97,18 @@ open class MouseHandlerMixin : CursorController {
         verticalAmount: Double,
         original: Operation<Boolean>,
     ): Boolean {
-        val container = screen as? AbstractContainerScreen<*>
-        val overStorageScrollPanel = container != null &&
-            StorageOverlayController.shouldPreferMouseScroll(container, mouseX, mouseY, verticalAmount)
-        if (overStorageScrollPanel) {
-            if (
+        val isHandled = SkysoftErrorBoundary.value("Tooltip mouse scrolling", false) {
+            val container = screen as? AbstractContainerScreen<*>
+            val overStorageScrollPanel = container != null &&
+                StorageOverlayController.shouldPreferMouseScroll(container, mouseX, mouseY, verticalAmount)
+            if (overStorageScrollPanel) {
                 TooltipViewport.isStorageOverlayScrollKeyDown() &&
-                TooltipViewport.didHandleStorageMouseScroll(horizontalAmount, verticalAmount)
-            ) {
-                return true
+                    TooltipViewport.didHandleStorageMouseScroll(horizontalAmount, verticalAmount)
+            } else {
+                TooltipViewport.didHandleMouseScroll(horizontalAmount, verticalAmount)
             }
-            return original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount)
         }
-        if (TooltipViewport.didHandleMouseScroll(horizontalAmount, verticalAmount)) return true
+        if (isHandled) return true
         return original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
@@ -130,11 +129,12 @@ open class MouseHandlerMixin : CursorController {
         initialCursorY: Double,
         original: Operation<Void>,
     ) {
-        var cursorX = initialCursorX
-        var cursorY = initialCursorY
-        InventoryCursorMemory.cursorForRelease(cursorX, cursorY)?.let { restored ->
-            cursorX = restored.x
-            cursorY = restored.y
+        val restored = SkysoftErrorBoundary.value("Inventory cursor release", null) {
+            InventoryCursorMemory.cursorForRelease(initialCursorX, initialCursorY)
+        }
+        val cursorX = restored?.x ?: initialCursorX
+        val cursorY = restored?.y ?: initialCursorY
+        if (restored != null) {
             xpos = cursorX
             ypos = cursorY
         }
@@ -153,17 +153,19 @@ open class MouseHandlerMixin : CursorController {
             xPosition: Double,
             cir: CallbackInfoReturnable<Double>,
         ) {
-            val screen = MinecraftClient.screen()
-            if (
-                !GuiScaleController.usesSeparateInventoryScale(screen) ||
-                GuiScaleController.areOverlaysUsingNormalCoordinates()
-            ) {
-                return
+            val scaledX = SkysoftErrorBoundary.value<Double?>("Inventory GUI scaled mouse X", null) {
+                val screen = MinecraftClient.screen()
+                if (
+                    !GuiScaleController.usesSeparateInventoryScale(screen) ||
+                    GuiScaleController.areOverlaysUsingNormalCoordinates()
+                ) {
+                    return@value null
+                }
+                GuiScaleController.useInventoryScale(screen, window).use {
+                    xPosition * window.guiScaledWidth / window.screenWidth.toDouble()
+                }
             }
-
-            GuiScaleController.useInventoryScale(screen, window).use {
-                cir.setReturnValue(xPosition * window.guiScaledWidth / window.screenWidth.toDouble())
-            }
+            if (scaledX != null) cir.setReturnValue(scaledX)
         }
 
         @JvmStatic
@@ -177,17 +179,19 @@ open class MouseHandlerMixin : CursorController {
             yPosition: Double,
             cir: CallbackInfoReturnable<Double>,
         ) {
-            val screen = MinecraftClient.screen()
-            if (
-                !GuiScaleController.usesSeparateInventoryScale(screen) ||
-                GuiScaleController.areOverlaysUsingNormalCoordinates()
-            ) {
-                return
+            val scaledY = SkysoftErrorBoundary.value<Double?>("Inventory GUI scaled mouse Y", null) {
+                val screen = MinecraftClient.screen()
+                if (
+                    !GuiScaleController.usesSeparateInventoryScale(screen) ||
+                    GuiScaleController.areOverlaysUsingNormalCoordinates()
+                ) {
+                    return@value null
+                }
+                GuiScaleController.useInventoryScale(screen, window).use {
+                    yPosition * window.guiScaledHeight / window.screenHeight.toDouble()
+                }
             }
-
-            GuiScaleController.useInventoryScale(screen, window).use {
-                cir.setReturnValue(yPosition * window.guiScaledHeight / window.screenHeight.toDouble())
-            }
+            if (scaledY != null) cir.setReturnValue(scaledY)
         }
     }
 }

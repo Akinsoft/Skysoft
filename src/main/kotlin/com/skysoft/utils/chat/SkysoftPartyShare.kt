@@ -3,8 +3,7 @@ package com.skysoft.utils.chat
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.SkysoftChat
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -15,13 +14,13 @@ object SkysoftPartyShare {
     private var partyChatObservedUntilMillis = 0L
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { sendNextQueuedPartyMessage() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearRecentSentMessages() }
-        ChatEvents.onVisibleMessage { message ->
+        SkysoftClientEvents.onEndTick("Party Share queue") { sendNextQueuedPartyMessage() }
+        SkysoftClientEvents.onDisconnect("Party Share disconnect reset", ::clearRecentSentMessages)
+        ChatEvents.onVisibleMessage("Party Share sent-message tracking") { message ->
             recordCommandCooldownFailure(message.cleanText)
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onPartyMessage { message ->
+        ChatEvents.onPartyMessage("Party Share received-message tracking") { message ->
             message.sender?.takeIf { it.isLocalPlayerName(localPlayerName()) }?.let {
                 commandQueue.recordLocalPartyChat()
                 recordPartyEchoDelivered(message.body)

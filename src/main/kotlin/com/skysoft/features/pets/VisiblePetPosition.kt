@@ -2,8 +2,7 @@ package com.skysoft.features.pets
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.entity.state.EntityRenderState
 import net.minecraft.world.entity.Entity
@@ -30,8 +29,8 @@ object VisiblePetPosition {
     private var ticks = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { tick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
+        SkysoftClientEvents.onEndTick("Visible Pet Position tick") { tick() }
+        SkysoftClientEvents.onDisconnect("Visible Pet Position disconnect reset", ::clear)
     }
 
     @JvmStatic

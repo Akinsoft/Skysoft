@@ -4,6 +4,7 @@
 package com.skysoft.mixin
 
 import com.skysoft.features.pets.PetStorageService
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputEventInterceptor
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
@@ -33,8 +34,12 @@ open class MinecraftInputMixin {
     protected fun skysoftHandleRightClickMouse(ci: CallbackInfo) {
         if (gameMode?.isDestroying == true) return
 
-        PetStorageService.onUseItem()
-        if (InputEventInterceptor.processRightClick(hitResult) == InputHandlingResult.CONSUMED) {
+        SkysoftErrorBoundary.run("Pet Storage item use", PetStorageService::onUseItem)
+        val result = SkysoftErrorBoundary.value(
+            "Right click input",
+            InputHandlingResult.IGNORED,
+        ) { InputEventInterceptor.processRightClick(hitResult) }
+        if (result == InputHandlingResult.CONSUMED) {
             ci.cancel()
         }
     }
@@ -43,7 +48,11 @@ open class MinecraftInputMixin {
     protected fun skysoftHandleLeftClickMouse(cir: CallbackInfoReturnable<Boolean>) {
         if (missTime > 0) return
 
-        if (InputEventInterceptor.processLeftClick(hitResult) == InputHandlingResult.CONSUMED) {
+        val result = SkysoftErrorBoundary.value(
+            "Left click input",
+            InputHandlingResult.IGNORED,
+        ) { InputEventInterceptor.processLeftClick(hitResult) }
+        if (result == InputHandlingResult.CONSUMED) {
             cir.setReturnValue(false)
         }
     }

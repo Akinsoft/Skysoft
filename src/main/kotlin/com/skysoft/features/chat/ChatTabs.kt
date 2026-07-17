@@ -8,7 +8,7 @@ import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
 import com.skysoft.utils.chat.ChatMessageClassifier
 import com.skysoft.utils.chat.ChatMessageType
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.client.multiplayer.chat.GuiMessageSource
@@ -18,7 +18,7 @@ object ChatTabs {
     private var appliedState: FilterState? = null
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register(::updateFilter)
+        SkysoftClientEvents.onEndTick("Chat Tabs filter update", ::updateFilter)
     }
 
     fun isEnabled(): Boolean = SkysoftConfigGui.config().chat.tabs.enabled

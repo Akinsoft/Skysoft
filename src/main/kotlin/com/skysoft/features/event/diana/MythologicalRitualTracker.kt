@@ -10,9 +10,7 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import com.skysoft.utils.SkysoftClientEvents
 
 internal object MythologicalRitualTracker {
     private val config get() = SkysoftConfigGui.config().events.diana
@@ -21,15 +19,17 @@ internal object MythologicalRitualTracker {
     private var ticks = 0
 
     fun register() {
-        ClientTickEvents.END_CLIENT_TICK.register { onTick() }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clearSession() }
-        ClientLifecycleEvents.CLIENT_STOPPING.register { MythologicalRitualTrackerRepository.saveNow() }
+        SkysoftClientEvents.onEndTick("Mythological Ritual Tracker tick") { onTick() }
+        SkysoftClientEvents.onDisconnect("Mythological Ritual Tracker disconnect reset", ::clearSession)
+        SkysoftClientEvents.onClientStopping("Mythological Ritual Tracker save") {
+            MythologicalRitualTrackerRepository.saveNow()
+        }
         RareLootContextRegistry.register(rareLootContextContributor)
-        ChatEvents.onVisibleMessage { message ->
+        ChatEvents.onVisibleMessage("Mythological Ritual tracker chat") { message ->
             handleVisibleMessage(message)
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onPartyMessage { message ->
+        ChatEvents.onPartyMessage("Mythological Ritual party chat") { message ->
             handlePartyMessage(message)
             ChatMessageVisibility.SHOW
         }

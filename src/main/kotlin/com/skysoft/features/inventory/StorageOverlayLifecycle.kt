@@ -2,11 +2,11 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.nonPlayerSlots
 import com.skysoft.utils.gui.textAfterDeletingPreviousWord
 import com.skysoft.utils.input.InputHandlingResult
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
@@ -19,10 +19,10 @@ import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
 
 internal fun registerStorageOverlay() {
-    SkyBlockProfileApi.onProfileChange { resetTransientState() }
-    ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> resetTransientState() }
+    SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset") { resetTransientState() }
+    SkysoftClientEvents.onDisconnect("Storage Overlay disconnect reset", ::resetTransientState)
     registerStorageOverlayChat()
-    ClientTickEvents.END_CLIENT_TICK.register {
+    SkysoftClientEvents.onEndTick("Storage Overlay tick") {
         onClientTick()
     }
     registerMouseClickInterceptor()
@@ -30,9 +30,13 @@ internal fun registerStorageOverlay() {
 
 internal fun registerMouseClickInterceptor() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (screen is AbstractContainerScreen<*>) {
-            ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-                handlePreScreenMouseClick(screen, click) == InputHandlingResult.IGNORED
+        SkysoftErrorBoundary.run("Storage Overlay screen initialization") {
+            if (screen is AbstractContainerScreen<*>) {
+                ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
+                    SkysoftErrorBoundary.value("Storage Overlay mouse click", true) {
+                        handlePreScreenMouseClick(screen, click) == InputHandlingResult.IGNORED
+                    }
+                }
             }
         }
     }
