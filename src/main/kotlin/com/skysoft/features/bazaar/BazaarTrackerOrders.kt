@@ -161,7 +161,6 @@ internal fun isPlausibleClaimOrder(
 }
 
 internal fun pruneOrdersMissingFromGui(matchedOrderIds: Set<String>, parsedOrders: List<PendingOrder>): ChangeResult {
-    check(parsedOrders.isNotEmpty()) { "Missing order pruning requires parsed order rows" }
     val now = System.currentTimeMillis()
     val recentlyClickedOrder = now - lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
     val visibleScanMayBeWindowed = parsedOrders.size >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
@@ -184,8 +183,11 @@ internal fun pruneOrdersMissingFromGui(matchedOrderIds: Set<String>, parsedOrder
             )
             missingFromOrdersGuiScans[order.id] = observation
             if (
-                observation.scans >= GUI_MISSING_PRUNE_CONFIRM_SCANS &&
-                now - observation.firstObservedAtMillis >= GUI_MISSING_PRUNE_MIN_CONFIRMATION_MILLIS
+                parsedOrders.isEmpty() ||
+                (
+                    observation.scans >= GUI_MISSING_PRUNE_CONFIRM_SCANS &&
+                        now - observation.firstObservedAtMillis >= GUI_MISSING_PRUNE_MIN_CONFIRMATION_MILLIS
+                    )
             ) {
                 rememberResolvedOrder(order)
                 iterator.remove()

@@ -43,7 +43,15 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
     if (!ordersMenuLoaded(slots)) return
 
     val parsedOrders = slots.mapNotNull { slot -> parseOrdersStack(slot.item)?.copy(guiSlot = slot.containerSlot) }
-    if (parsedOrders.isEmpty()) return
+    if (
+        parsedOrders.isEmpty() &&
+        !isBazaarOrderAreaEmpty(
+            slots.map { it.containerSlot },
+            slots.filterNot { it.item.isEmpty }.mapTo(mutableSetOf()) { it.containerSlot },
+        )
+    ) {
+        return
+    }
 
     val reconciliation = reconcileBazaarSnapshot(storage.activeOrders.toList(), parsedOrders)
     val matchedOrderIds = reconciliation.matches.mapTo(mutableSetOf()) { it.order.id }
