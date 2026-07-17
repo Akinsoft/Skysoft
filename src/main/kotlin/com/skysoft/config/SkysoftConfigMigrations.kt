@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 1
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 3
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -15,13 +15,15 @@ internal object SkysoftConfigMigrations {
             ?.asInt
             ?: 0
         importLegacyStorage(json, gson)
-        migratePetsIntoMisc(json)
         migrateBazaarIntoInventory(json)
         migrateActionBarBackgroundIntoGui(json)
         migrateDianaSettings(json)
         migrateRareLootSharingIntoMisc(json)
         migrateBuggedNameplatesIntoMisc(json)
         migrateOrganizedConfigLayout(json)
+        if (migrationVersion < CONFIG_MENU_ORGANIZATION_VERSION) {
+            ConfigMenuOrganizationMigration.apply(json)
+        }
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
                 ?.takeIf { it.has(SKYBLOCK_MENU_DROP_FIX_FIELD) }
@@ -35,10 +37,6 @@ internal object SkysoftConfigMigrations {
             val legacyStorage = gson.fromJson(legacyStorageJson, ProfileStorage::class.java)
             if (legacyStorage != null) ProfileStorageApi.importLegacyStorage(legacyStorage)
         }
-    }
-
-    private fun migratePetsIntoMisc(json: JsonObject) {
-        migrateObjectIntoSection(json, legacyName = "pets", sectionName = "misc", targetName = "pets")
     }
 
     private fun migrateBazaarIntoInventory(json: JsonObject) {
@@ -324,6 +322,7 @@ internal object SkysoftConfigMigrations {
     private val MISC_FIX_FIELDS = listOf("hideGlitchMobs", "hideBuggedNameplates", "playerHeadSkinFix")
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
+    private const val CONFIG_MENU_ORGANIZATION_VERSION = 3
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 

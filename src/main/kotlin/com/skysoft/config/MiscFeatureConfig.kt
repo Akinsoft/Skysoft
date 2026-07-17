@@ -1,7 +1,6 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
-import com.skysoft.config.features.pets.PetFeatureConfig
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -21,11 +20,6 @@ class MiscFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Pets", desc = "Pet display and storage settings.")
-    val pets = PetFeatureConfig()
-
-    @JvmField
-    @field:Expose
     @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in party chat.")
     val rareLootSharing = RareLootSharingConfig()
 
@@ -36,13 +30,7 @@ class MiscFeatureConfig {
         desc = "Hide entities during their death animation.",
     )
     @field:ConfigEditorBoolean
-    var hideDeadEntities = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Solid Tooltip Background", desc = "Make tooltip backgrounds fully opaque.")
-    @field:ConfigEditorBoolean
-    var solidTooltipBackground = false
+    var hideDeadEntities = false
 
     @JvmField
     @field:Expose
@@ -51,16 +39,8 @@ class MiscFeatureConfig {
         desc = "Keep Hypixel's SkyBlock resource pack loaded between servers.",
     )
     @field:ConfigEditorBoolean
-    var keepSkyBlockResourcePack = true
+    var keepSkyBlockResourcePack = false
 
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(
-        name = "Hide Vanilla Recipe Book",
-        desc = "Hide the vanilla recipe book in your inventory on SkyBlock.",
-    )
-    @field:ConfigEditorBoolean
-    var hideVanillaRecipeBook = false
 }
 
 class RareLootSharingConfig {
@@ -68,7 +48,7 @@ class RareLootSharingConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Share valuable drops in party chat.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose

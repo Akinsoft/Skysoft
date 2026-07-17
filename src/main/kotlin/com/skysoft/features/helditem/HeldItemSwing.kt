@@ -24,7 +24,7 @@ object HeldItemSwing {
             vanillaDuration = vanillaDuration,
             baseDuration = itemStack.swingAnimation.duration(),
             speed = transform.swingSpeed,
-            ignoresMiningEffects = config.ignoresMiningEffects,
+            ignoresMiningEffects = config.settings.ignoresMiningEffects,
         )
     }
 

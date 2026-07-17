@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.annotations.Expose
 import com.skysoft.SkysoftMod
+import com.skysoft.config.features.pets.PetFeatureConfig
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
 import io.github.notenoughupdates.moulconfig.ChromaColour
@@ -61,6 +62,11 @@ class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
     @field:Expose
     @field:Category(name = "Events", desc = "Event settings.")
     val events = EventFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Pets", desc = "Pet display and storage settings.")
+    val pets = PetFeatureConfig()
 
     val storage: ProfileStorage
         get() = ProfileStorageApi.allStorage
@@ -134,12 +140,12 @@ class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
     }
 
     fun repairLoadedValues() {
-        ProfileStorageApi.importLegacyStorage(misc.pets.petDisplay.legacyStorage)
+        ProfileStorageApi.importLegacyStorage(pets.petDisplay.legacyStorage)
         gui.repairLoadedValues()
         inventory.repairLoadedValues()
         chat.repairLoadedValues()
         events.repairLoadedValues()
         ProfileStorageApi.allStorage.repairLoadedValues()
-        misc.pets.repairLoadedValues()
+        pets.repairLoadedValues()
     }
 }

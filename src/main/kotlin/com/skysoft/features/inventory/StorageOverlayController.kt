@@ -90,6 +90,7 @@ internal val emptyOverviewItems: Set<Item> = buildSet {
 
 internal val storage get() = ProfileStorageApi.storage
 internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
+internal val isStorageOverlayEnabled get() = SkysoftConfigGui.config().inventory.isStorageOverlayEnabled
 
 internal var lastInventoryKey: String? = null
 internal var searchText = ""

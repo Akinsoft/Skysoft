@@ -284,7 +284,7 @@ object BetterShurikens {
     }
 
     private fun isEnabled(): Boolean =
-        HypixelLocationState.inSkyBlock && SkysoftConfigGui.config().combat.betterShurikens.enabled
+        HypixelLocationState.inSkyBlock && SkysoftConfigGui.config().combat.isBetterShurikensEnabled
 
     private data class HeldShuriken(
         val slot: Int,

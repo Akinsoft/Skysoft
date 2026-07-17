@@ -117,7 +117,7 @@ object BlockOverlay {
     private fun renderWorld(context: SkysoftRenderContext) {
         val target = pendingTarget ?: return
         pendingTarget = null
-        val color = config.settings.color.get().toColor()
+        val color = config.details.color.get().toColor()
         val fillColor = Color(
             color.red,
             color.green,

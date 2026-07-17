@@ -96,9 +96,9 @@ object ItemProtectionManager {
 
     @JvmStatic
     fun renderProtectedMarker(context: GuiGraphicsExtractor, slot: Slot) {
-        if (!isFeatureAvailable() || !config.settings.showProtectedItemStar || !isProtected(slot.item)) return
+        if (!isFeatureAvailable() || !config.details.showProtectedItemStar || !isProtected(slot.item)) return
         val font = Minecraft.getInstance().font
-        val scale = config.settings.protectedItemStarScale
+        val scale = config.details.protectedItemStarScale
         context.withIsolatedPose {
             pose().translate((slot.x + SLOT_SIZE).toFloat(), (slot.y + SLOT_SIZE).toFloat())
             pose().scale(scale, scale)
@@ -107,8 +107,8 @@ object ItemProtectionManager {
                 PROTECTED_MARKER,
                 -font.width(PROTECTED_MARKER),
                 -font.lineHeight,
-                config.settings.protectedItemStarColor.get().toColor()
-                    .toPackedArgb(config.settings.protectedItemStarOpacity / PERCENT_MAX),
+                config.details.protectedItemStarColor.get().toColor()
+                    .toPackedArgb(config.details.protectedItemStarOpacity / PERCENT_MAX),
                 true,
             )
         }

@@ -15,7 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.world.inventory.Slot
 
 object PetStorageService {
-    internal val config get() = SkysoftConfigGui.config().misc.pets
+    internal val config get() = SkysoftConfigGui.config().pets
     internal val petStorage get() = ProfileStorageApi.storage
 
     internal var lastExactPetMenuClick = ElapsedTimeMark.farPast()

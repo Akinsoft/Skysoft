@@ -20,7 +20,7 @@ internal fun onClientTick() {
         resetScreenState()
         return
     }
-    if (!HypixelLocationState.inSkyBlock || !config.enabled) {
+    if (!HypixelLocationState.inSkyBlock || !isStorageOverlayEnabled) {
         resetScreenState()
         return
     }
@@ -61,7 +61,7 @@ internal fun resetTransientState() {
 }
 
 internal fun handleFor(screen: AbstractContainerScreen<*>?): StorageHandle? {
-    if (screen == null || !HypixelLocationState.inSkyBlock || !config.enabled) return null
+    if (screen == null || !HypixelLocationState.inSkyBlock || !isStorageOverlayEnabled) return null
     if (screen !is ContainerScreen) return null
     val menu = screen.menu
     val title = screen.title.cleanSkyBlockText()

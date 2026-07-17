@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.features.helditem.HeldItemEditorScreen
 import com.skysoft.utils.ChangeResult
+import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
@@ -14,18 +15,13 @@ class HeldItemConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Apply held item position, scale, swing, and texture settings.")
     @field:ConfigEditorBoolean
-    var enabled = true
-
-    @JvmField
-    @field:ConfigOption(name = "Editor", desc = "Open the held item editor.")
-    @field:ConfigEditorButton(buttonText = "Open")
-    val openEditor = Runnable { HeldItemEditorScreen.open() }
+    var enabled = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Ignore Mining Effects", desc = "Keep swing duration unchanged by Haste and Mining Fatigue.")
-    @field:ConfigEditorBoolean
-    var ignoresMiningEffects = false
+    @field:ConfigOption(name = "Settings", desc = "Held item settings.")
+    @field:Accordion
+    val settings = HeldItemSettingsConfig()
 
     @JvmField
     @field:Expose
@@ -159,6 +155,19 @@ class HeldItemConfig {
 
         private fun normalizedItemId(itemId: String): String = itemId.trim().uppercase(Locale.US)
     }
+}
+
+class HeldItemSettingsConfig {
+    @JvmField
+    @field:ConfigOption(name = "Editor", desc = "Open the held item editor.")
+    @field:ConfigEditorButton(buttonText = "Open")
+    val openEditor = Runnable { HeldItemEditorScreen.open() }
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Ignore Mining Effects", desc = "Keep swing duration unchanged by Haste and Mining Fatigue.")
+    @field:ConfigEditorBoolean
+    var ignoresMiningEffects = false
 }
 
 internal data class HeldItemCustomizationSnapshot(

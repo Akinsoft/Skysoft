@@ -36,8 +36,21 @@ class PetOverlayConfig : Config() {
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Show a GUI element for the currently active pet.")
         @field:ConfigEditorBoolean
-        val enabled: Property<Boolean> = Property.of(true)
+        val enabled: Property<Boolean> = Property.of(false)
 
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "General Pet Display settings.")
+        @field:Accordion
+        val settings = GeneralPetOverlaySettingsConfig()
+
+        @JvmField
+        @field:Expose
+        @field:ConfigLink(owner = GeneralPetOverlayConfig::class, field = "enabled")
+        val position: HudPosition = HudPosition(0, 19).rememberDefault()
+    }
+
+    class GeneralPetOverlaySettingsConfig {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Hide in menus", desc = "Hide Pet Display while a container menu is open.")
@@ -52,11 +65,6 @@ class PetOverlayConfig : Config() {
         )
         @field:ConfigEditorInfoText
         val xpAccuracyWarning: Unit = Unit
-
-        @JvmField
-        @field:Expose
-        @field:ConfigLink(owner = GeneralPetOverlayConfig::class, field = "enabled")
-        val position: HudPosition = HudPosition(0, 19).rememberDefault()
     }
 
     @JvmField

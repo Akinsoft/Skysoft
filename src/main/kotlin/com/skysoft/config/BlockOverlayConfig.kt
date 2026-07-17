@@ -19,18 +19,18 @@ class BlockOverlayConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Block Overlay Settings", desc = "Block overlay settings.")
+    @field:ConfigOption(name = "Settings", desc = "Block overlay settings.")
     @field:Accordion
     val settings = BlockOverlaySettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Block overlay visual details.")
+    @field:Accordion
+    val details = BlockOverlayDetailsConfig()
 }
 
 class BlockOverlaySettingsConfig {
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Color", desc = "Color used for the block tint and outline.")
-    @field:ConfigEditorColour
-    val color: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(43, 177, 251, 0, 204))
-
     @JvmField
     @field:ConfigOption(
         name = "Item Conditions",
@@ -50,4 +50,12 @@ class BlockOverlaySettingsConfig {
     @field:ConfigOption(name = "Combinations", desc = "Any matching combination enables the overlay.")
     @field:ConfigEditorCombinations(provider = BlockOverlayCombinationsProvider::class)
     val combinations: MutableList<FeatureConditionCombination> = mutableListOf()
+}
+
+class BlockOverlayDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Color", desc = "Color used for the block tint and outline.")
+    @field:ConfigEditorColour
+    val color: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(43, 177, 251, 0, 204))
 }

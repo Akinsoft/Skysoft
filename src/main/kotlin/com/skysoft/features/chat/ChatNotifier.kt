@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Style
 object ChatNotifier {
     fun decorate(content: Component): Component {
         val config = SkysoftConfigGui.config().chat.notify
-        return decorate(content, config.words.get(), config.enabled, ::playPing)
+        return decorate(content, config.settings.words.get(), config.enabled, ::playPing)
     }
 
     internal fun decorate(

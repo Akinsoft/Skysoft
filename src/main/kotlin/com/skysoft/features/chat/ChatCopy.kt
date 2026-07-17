@@ -16,7 +16,7 @@ object ChatCopy {
 
     fun copyHoveredMessage(key: Int, mouseX: Int, mouseY: Int): CopyChatResult {
         val config = SkysoftConfigGui.config().chat.copyChat
-        if (!config.enabled || key != config.key) return record(CopyChatResult.IGNORED)
+        if (!config.enabled || key != config.settings.key) return record(CopyChatResult.IGNORED)
 
         val minecraft = Minecraft.getInstance()
         val chat = MinecraftClient.chat(minecraft)

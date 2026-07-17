@@ -32,17 +32,17 @@ class SkysoftDianaConfig {
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show Diana burrow helpers.")
     @field:ConfigEditorBoolean
-    var enabled = true
+    var enabled = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Diana Settings", desc = "Burrow and warp settings.")
+    @field:ConfigOption(name = "Settings", desc = "Burrow and warp settings.")
     @field:Accordion
     val settings = DianaSettingsConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Diana Details", desc = "Detailed visual settings.")
+    @field:ConfigOption(name = "Details", desc = "Detailed visual settings.")
     @field:Accordion
     val details = DianaDetailsConfig()
 

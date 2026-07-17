@@ -70,7 +70,7 @@ internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSn
     val containerRows = screen.menu.rowCount
     val orderSlotRange = bazaarOrderSlotRange(containerRows)
     val rejectionReason = when {
-        !config.details.onlyMyOrders -> "setting disabled"
+        !config.settings.onlyMyOrders -> "setting disabled"
         screen.title.cleanSkyBlockText() != BazaarOrderMenuLayout.TITLE -> "not the co-op orders menu"
         containerRows !in BazaarOrderMenuLayout.MIN_ROWS..BazaarOrderMenuLayout.MAX_ROWS ->
             "unsupported container row count"

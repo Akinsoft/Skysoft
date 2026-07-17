@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 
 object PetOverlayConfigScreen {
     private var editor: MoulConfigEditor<PetOverlayConfig>? = null
-    private val config get() = SkysoftConfigGui.config().misc.pets.display
+    private val config get() = SkysoftConfigGui.config().pets.display
     private var previewPosition: PreviewPosition? = null
     private var draggingPreview = false
     private var dragOffsetX = 0

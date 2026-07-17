@@ -36,7 +36,7 @@ abstract class TooltipRenderUtilMixin private constructor() {
             height: Int,
             original: Operation<Void>,
         ) {
-            val backgroundPipeline = if (SkysoftConfigGui.config().misc.solidTooltipBackground) {
+            val backgroundPipeline = if (SkysoftConfigGui.config().inventory.isTooltipBackgroundSolid) {
                 RenderPipelines.GUI_OPAQUE_TEXTURED_BACKGROUND
             } else {
                 pipeline

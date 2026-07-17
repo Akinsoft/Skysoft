@@ -370,7 +370,7 @@ object ItemListController {
                 searchField.focused = true
                 when {
                     click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT &&
-                        SkysoftConfigGui.config().inventory.itemList.sources.isRightClickClearEnabled -> {
+                        SkysoftConfigGui.config().inventory.itemList.settings.isRightClickClearEnabled -> {
                         searchField.text = ""
                         updateSearch(screen, "")
                         ContainerSearchHighlighter.clear(screen)
@@ -508,16 +508,16 @@ object ItemListController {
         if (status.state != SkyBlockDataLoadState.READY) return emptyList()
         val query = ItemListState.search.trim()
         if (query.isBlank()) return emptyList()
-        val sources = SkysoftConfigGui.config().inventory.itemList.sources
+        val settings = SkysoftConfigGui.config().inventory.itemList.settings
         val currentKey = ItemFilterKey(
             query = query,
-            showVanilla = sources.showVanilla,
+            showVanilla = settings.showVanilla,
             snapshotVersion = SkyBlockDataRepository.snapshotVersion,
         )
         if (filterKey == currentKey) return filteredEntryCache
         return SkyBlockDataRepository.ItemListData.search(query).filter { entry ->
             entry.key.kind == ItemListEntryKind.SKYBLOCK ||
-                (entry.source == "minecraft" && sources.showVanilla)
+                (entry.source == "minecraft" && settings.showVanilla)
         }.also {
             filterKey = currentKey
             filteredEntryCache = it

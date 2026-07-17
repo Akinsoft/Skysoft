@@ -8,7 +8,7 @@ import com.skysoft.utils.chat.ChatMessageVisibility
 
 internal fun registerStorageOverlayChat() {
     ChatEvents.onVisibleMessage { message ->
-        if (config.enabled && message.isSystemLike) recordBackpackRemoval(message.body)
+        if (isStorageOverlayEnabled && message.isSystemLike) recordBackpackRemoval(message.body)
         ChatMessageVisibility.SHOW
     }
 }
