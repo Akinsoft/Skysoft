@@ -11,8 +11,8 @@ import net.minecraft.util.RandomSource
 
 object SoundUtilities {
     private val clickSound by lazy { createSound("ui.button.click", 1f) }
-    private val previousPageSound by lazy { createSound("skysoft:item_list.page_left", 1f, 1f) }
-    private val nextPageSound by lazy { createSound("skysoft:item_list.page_right", 1f, 1f) }
+    private val previousPageSound by lazy { createSound(PREVIOUS_PAGE_SOUND_ID, 1f, 1f) }
+    private val nextPageSound by lazy { createSound(NEXT_PAGE_SOUND_ID, 1f, 1f) }
     private val itemProtectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 4096L) }
     private val itemUnprotectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 0L) }
 
@@ -33,6 +33,10 @@ object SoundUtilities {
 
     fun playItemUnprotectedSound() {
         playSound(itemUnprotectedSound)
+    }
+
+    fun playUiSound(soundId: String, pitch: Float, volume: Float) {
+        playSound(createSound(soundId, pitch, volume))
     }
 
     private fun createSound(name: String, pitch: Float, volume: Float = 50f, seed: Long? = null): SoundInstance {
@@ -62,4 +66,8 @@ object SoundUtilities {
             SkysoftMod.LOGGER.warn("Failed to play sound {}", sound.identifier, e)
         }
     }
+
+    const val PREVIOUS_PAGE_SOUND_ID = "skysoft:item_list.page_left"
+    const val NEXT_PAGE_SOUND_ID = "skysoft:item_list.page_right"
+    const val CHAT_NOTIFY_DEFAULT_SOUND_ID = "minecraft:block.note_block.pling"
 }

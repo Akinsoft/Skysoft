@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.utils.SoundUtilities
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -8,8 +9,10 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableLi
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorTextList
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
+import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 
@@ -34,6 +37,11 @@ class ChatFeatureConfig {
     @field:Expose
     @field:Category(name = "Chat Compacting", desc = "Combine repeated chat messages.")
     val compacting = ChatCompactingConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Chat Notify", desc = "Highlight chosen words and optionally play a ping.")
+    val notify = ChatNotifyConfig()
 
     @JvmField
     @field:Expose
@@ -200,6 +208,28 @@ class ChatFeatureConfig {
         val channels: Property<MutableList<ChatTabChannel>> = Property.of(
             mutableListOf(ChatTabChannel.ALL, ChatTabChannel.GUILD, ChatTabChannel.DM, ChatTabChannel.PARTY),
         )
+    }
+
+    class ChatNotifyConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Enabled", desc = "Highlight configured words in chat.")
+        @field:ConfigEditorBoolean
+        var enabled = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Words", desc = "Words or phrases to highlight and optionally notify you about.")
+        @field:ConfigEditorTextList(
+            disabledSound = SoundUtilities.PREVIOUS_PAGE_SOUND_ID,
+            enabledSound = SoundUtilities.NEXT_PAGE_SOUND_ID,
+            defaultSound = SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID,
+            showColour = true,
+            showNotification = true,
+            showVolume = true,
+        )
+        @field:ConfigVisibleIf("enabled")
+        val words: Property<MutableList<TextListEntry>> = Property.of(mutableListOf())
     }
 
     class ChatTimestampsConfig {
