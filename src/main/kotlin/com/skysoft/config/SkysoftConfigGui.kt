@@ -1,12 +1,15 @@
 package com.skysoft.config
 
 import com.skysoft.utils.MinecraftClient
+import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.gui.GuiContext
 import io.github.notenoughupdates.moulconfig.gui.GuiElementComponent
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor
 import io.github.notenoughupdates.moulconfig.platform.MoulConfigScreenComponent
+import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
+import java.util.Locale
 
 object SkysoftConfigGui {
     private val config = SkysoftConfig.load()
@@ -22,7 +25,7 @@ object SkysoftConfigGui {
             currentEditor.setSelectedCategory(matchingCategory)
         } else {
             currentEditor.search(query)
-            selectExactOption(currentEditor, query)
+            selectSearchResult(currentEditor, query)
         }
         MinecraftClient.setScreen(createScreen(null))
     }
@@ -53,11 +56,15 @@ object SkysoftConfigGui {
 
 internal fun configSearchQuery(search: String?): String = search.orEmpty()
 
-private fun selectExactOption(editor: MoulConfigEditor<SkysoftConfig>, query: String) {
-    if (query.isBlank()) return
-    val matchingOption = editor.allOptions.firstOrNull { it.name.text.equals(query, ignoreCase = true) }
-    if (matchingOption != null) {
-        editor.goToOption(matchingOption)
-        return
+internal fun <T : Config> selectSearchResult(editor: MoulConfigEditor<T>, query: String) {
+    val matchingOption = matchingSearchOption(editor.allOptions, query) ?: return
+    editor.goToOption(matchingOption)
+}
+
+internal fun matchingSearchOption(options: Iterable<ProcessedOption>, query: String): ProcessedOption? {
+    if (query.isBlank()) return null
+    val words = query.trim().lowercase(Locale.ROOT).split(Regex(" +"))
+    return options.firstOrNull { option ->
+        words.all(option.editor::fulfillsSearch)
     }
 }
