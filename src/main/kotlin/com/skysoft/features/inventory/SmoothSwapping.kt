@@ -26,7 +26,6 @@ object SmoothSwapping {
     private val config get() = SkysoftConfigGui.config().inventory.smoothSwapping
 
     private var activeScreenKey: ScreenKey? = null
-    private var previousSlots: Map<Int, SlotSnapshot> = emptyMap()
     private val animations = mutableListOf<SlotAnimation>()
     private val suppressedSlots = mutableSetOf<Int>()
 
@@ -41,26 +40,45 @@ object SmoothSwapping {
 
     @JvmStatic
     fun beginFrame(screen: AbstractContainerScreen<*>) {
-        if (!isAvailable(screen)) {
+        if (!isAvailable()) {
             clearTransientState()
             return
         }
 
         val now = System.currentTimeMillis()
         val screenKey = screenKey(screen)
-        val currentSlots = snapshotSlots(screen)
         if (screenKey != activeScreenKey) {
             activeScreenKey = screenKey
-            previousSlots = currentSlots
             animations.clear()
             suppressedSlots.clear()
             return
         }
 
         expireAnimations(now)
+        if (animations.isEmpty()) return
+
+        updateAnimationTargets(snapshotSlots(screen))
+        refreshSuppressedSlots(now)
+    }
+
+    internal fun animateLocalContainerMutation(
+        screen: AbstractContainerScreen<*>,
+        mutation: () -> Unit,
+    ) {
+        if (!isAvailable() || activeScreenKey != screenKey(screen)) {
+            mutation()
+            return
+        }
+
+        val previousSlots = snapshotSlots(screen)
+        mutation()
+        if (activeScreenKey != screenKey(screen)) return
+
+        val now = System.currentTimeMillis()
+        val currentSlots = snapshotSlots(screen)
+        expireAnimations(now)
         updateAnimationTargets(currentSlots)
         enqueueAnimations(previousSlots, currentSlots, now)
-        previousSlots = currentSlots
         refreshSuppressedSlots(now)
     }
 
@@ -69,7 +87,7 @@ object SmoothSwapping {
         screen: AbstractContainerScreen<*>,
         context: GuiGraphicsExtractor,
     ) {
-        if (!isAvailable(screen) || animations.isEmpty()) return
+        if (!isAvailable() || activeScreenKey != screenKey(screen) || animations.isEmpty()) return
 
         val now = System.currentTimeMillis()
         expireAnimations(now)
@@ -86,16 +104,14 @@ object SmoothSwapping {
 
     @JvmStatic
     fun shouldSuppressSlot(screen: AbstractContainerScreen<*>, slot: Slot?): Boolean {
-        if (slot == null || !isAvailable(screen) || activeScreenKey != screenKey(screen)) return false
+        if (slot == null || !isAvailable() || activeScreenKey != screenKey(screen)) return false
         return slot.index in suppressedSlots
     }
 
-    private fun isAvailable(screen: AbstractContainerScreen<*>): Boolean =
-        config.enabled && !StorageOverlayController.isActive(screen)
+    private fun isAvailable(): Boolean = config.enabled
 
     private fun clearTransientState() {
         activeScreenKey = null
-        previousSlots = emptyMap()
         animations.clear()
         suppressedSlots.clear()
     }

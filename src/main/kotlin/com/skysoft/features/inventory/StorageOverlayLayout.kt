@@ -244,10 +244,10 @@ internal fun pageSlotPosition(
     return Point(x, y)
 }
 
-internal fun activePageStacks(screen: ContainerScreen, handle: StorageHandle): Map<Int, ItemStack> =
+internal fun activePageSlots(screen: ContainerScreen, handle: StorageHandle): Map<Int, Slot> =
     screen.nonPlayerSlots()
         .mapNotNull { slot ->
             val pageSlot = slot.containerSlot - handle.slotOffset()
-            if (pageSlot < 0) null else pageSlot to slot.item
+            if (pageSlot < 0) null else pageSlot to slot
         }
         .toMap()

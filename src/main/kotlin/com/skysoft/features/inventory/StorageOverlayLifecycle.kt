@@ -102,6 +102,7 @@ internal fun renderStorageOverlayBackground(
 
 internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
     val layoutState = storageOverlayLayoutScreen(screen, shouldReadScreen = false) ?: return
+    SmoothSwapping.beginFrame(screen)
     val handle = layoutState.handle
     val measurements = layoutState.measurements
     val activePage = handle.entryIndex()
@@ -134,6 +135,7 @@ internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtracto
     }
     drawStorageSettingsPanel(context, screen.width, screen.height, measurements, mouseX, mouseY)
     coerceScroll(measurements, pageLayoutResult.contentHeight)
+    SmoothSwapping.render(screen, context)
 }
 
 internal fun shouldSuppressStorageOverlayContainerLabels(screen: AbstractContainerScreen<*>): Boolean =
