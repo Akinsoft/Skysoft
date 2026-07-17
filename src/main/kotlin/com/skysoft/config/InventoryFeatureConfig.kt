@@ -1016,7 +1016,7 @@ class BazaarTrackerDetailsConfig {
     @field:Expose
     @field:ConfigOption(name = "Show Background", desc = "Draw a dark background behind the Bazaar tracker.")
     @field:ConfigEditorBoolean
-    var showBackground = true
+    var showBackground = false
 
     @JvmField
     @field:Expose

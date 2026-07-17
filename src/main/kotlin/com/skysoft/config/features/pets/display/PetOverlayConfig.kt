@@ -53,6 +53,12 @@ class PetOverlayConfig : Config() {
     class GeneralPetOverlaySettingsConfig {
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Background", desc = "Draw a background behind the Pet Display.")
+        @field:ConfigEditorBoolean
+        val background: Property<Boolean> = Property.of(false)
+
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Hide in menus", desc = "Hide Pet Display while a container menu is open.")
         @field:ConfigEditorBoolean
         val hideInMenus: Property<Boolean> = Property.of(false)
