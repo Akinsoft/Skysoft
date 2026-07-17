@@ -61,35 +61,54 @@ internal fun routePendingOverviewShortcutClick(
     return routeOverviewShortcutClick(screen, pending.button, pending.pageIndex)
 }
 
-internal fun centerActivePageIfNeeded(
+internal fun focusActivePageIfNeeded(
     activePage: Int?,
     measurements: Measurements,
     pageLayoutResult: PageLayoutResult,
 ): PageLayoutRefresh {
     val pageIndex = activePage ?: return PageLayoutRefresh.UNCHANGED
-    val requested = requestedCenterPageIndex == pageIndex
     val layoutKey = layoutPageKey(pageIndex, measurements, pageLayoutResult)
-    if (!requested && centeredPageKey == layoutKey) return PageLayoutRefresh.UNCHANGED
-    if (requested && requestedCenterKey == layoutKey && centeredPageKey == layoutKey) {
-        clearCenterRequest()
+    val preservedPageIndex = preservedScrollPageIndex
+    if (preservedPageIndex != null) {
+        preservedScrollPageIndex = null
+        if (preservedPageIndex == pageIndex) {
+            clearPageFocusRequest()
+            focusedPageKey = layoutKey
+            return PageLayoutRefresh.UNCHANGED
+        }
+    }
+    if (!config.settings.isAutofocusEnabled) {
+        clearPageFocusRequest()
+        return PageLayoutRefresh.UNCHANGED
+    }
+    val requested = requestedFocusPageIndex == pageIndex
+    if (!requested && focusedPageKey == layoutKey) return PageLayoutRefresh.UNCHANGED
+    if (requested && requestedFocusKey == layoutKey && focusedPageKey == layoutKey) {
+        clearPageFocusRequest()
         return PageLayoutRefresh.UNCHANGED
     }
     val previousScroll = scroll
-    centerPage(measurements, pageLayoutResult, pageIndex)
-    centeredPageKey = layoutKey
-    if (requested) requestedCenterKey = layoutKey
+    focusPage(measurements, pageLayoutResult, pageIndex)
+    focusedPageKey = layoutKey
+    if (requested) requestedFocusKey = layoutKey
     return if (scroll != previousScroll) PageLayoutRefresh.REQUIRED else PageLayoutRefresh.UNCHANGED
 }
 
 internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int, mouseX: Int, mouseY: Int): Boolean {
     val sent = trySendPageCommand(pageIndex) { saveCursorBeforeNavigation(screen, mouseX, mouseY) }
-    if (sent) requestCenterPage(pageIndex)
+    if (sent) {
+        preservedScrollPageIndex = null
+        requestPageFocus(pageIndex)
+    }
     return sent
 }
 
 internal fun tryNavigateToRememberedPage(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
     val sent = trySendPageCommand(pageIndex) { saveCurrentCursorBeforeNavigation(screen) }
-    if (sent) requestCenterPage(pageIndex)
+    if (sent) {
+        preservedScrollPageIndex = pageIndex
+        clearPageFocusRequest()
+    }
     return sent
 }
 
@@ -99,6 +118,7 @@ internal fun trySendPageCommand(pageIndex: Int, saveCursor: () -> Unit): Boolean
     val now = System.currentTimeMillis()
     if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return false
     lastCommandMillis = now
+    freezeStorageScroll()
     saveCursor()
     connection.sendCommand(command)
     return true
@@ -131,14 +151,14 @@ internal fun saveCurrentCursorBeforeNavigation(screen: AbstractContainerScreen<*
     InventoryCursorMemory.rememberScreenCursor(screen, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
 }
 
-internal fun requestCenterPage(pageIndex: Int) {
-    requestedCenterPageIndex = pageIndex
-    requestedCenterKey = null
+internal fun requestPageFocus(pageIndex: Int) {
+    requestedFocusPageIndex = pageIndex
+    requestedFocusKey = null
 }
 
-internal fun clearCenterRequest() {
-    requestedCenterPageIndex = null
-    requestedCenterKey = null
+internal fun clearPageFocusRequest() {
+    requestedFocusPageIndex = null
+    requestedFocusKey = null
 }
 
 internal fun layoutPageKey(

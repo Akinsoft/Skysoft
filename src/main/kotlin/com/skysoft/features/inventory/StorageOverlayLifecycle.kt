@@ -56,7 +56,7 @@ internal fun storageOverlayLayoutScreen(
     val measurements = measurements(screen.width, screen.height)
     val activePage = handle.entryIndex()
     var pageLayoutResult = pageLayouts(measurements, activePage)
-    if (centerActivePageIfNeeded(activePage, measurements, pageLayoutResult) == PageLayoutRefresh.REQUIRED) {
+    if (focusActivePageIfNeeded(activePage, measurements, pageLayoutResult) == PageLayoutRefresh.REQUIRED) {
         pageLayoutResult = pageLayouts(measurements, activePage)
     }
     val pageLayouts = pageLayoutResult.pages
@@ -252,7 +252,7 @@ internal fun handleSelectorPageClick(
         return InputHandlingResult.CONSUMED
     }
     if (pageIndex == activePage || !screen.menu.carried.isEmpty || click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-        centerPage(measurements, pageLayoutResult, pageIndex)
+        if (config.settings.isAutofocusEnabled) focusPage(measurements, pageLayoutResult, pageIndex)
     } else {
         tryNavigateTo(screen, pageIndex, mouseX, mouseY)
     }

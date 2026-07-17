@@ -8,6 +8,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     COLUMNS("Columns"),
     HEIGHT("Height"),
     SCROLL_SPEED("Scroll Speed"),
+    AUTOFOCUS("Autofocus", true),
     SHORTCUT("Shortcut", true),
     DIM_BACKGROUND("Dim Background", true),
     ;
@@ -16,6 +17,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
         COLUMNS -> config.details.columns
         HEIGHT -> config.details.height
         SCROLL_SPEED -> config.details.scrollSpeed
+        AUTOFOCUS -> if (config.settings.isAutofocusEnabled) 1 else 0
         SHORTCUT -> if (config.settings.miniMenu) 1 else 0
         DIM_BACKGROUND -> if (config.details.dimBackground) 1 else 0
     }
@@ -29,7 +31,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
             StorageOverlayConfigBounds.MIN_HEIGHT..maximumStorageHeight(screenHeight, stackedHeight)
         }
         SCROLL_SPEED -> StorageOverlayConfigBounds.MIN_SCROLL_SPEED..StorageOverlayConfigBounds.MAX_SCROLL_SPEED
-        SHORTCUT, DIM_BACKGROUND -> 0..1
+        AUTOFOCUS, SHORTCUT, DIM_BACKGROUND -> 0..1
     }
 
     fun step(): Int = if (this == HEIGHT) StorageOverlayConfigBounds.HEIGHT_STEP else 1
@@ -39,6 +41,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
             COLUMNS -> config.details.columns = value
             HEIGHT -> config.details.height = value
             SCROLL_SPEED -> config.details.scrollSpeed = value
+            AUTOFOCUS -> config.settings.isAutofocusEnabled = value != 0
             SHORTCUT -> config.settings.miniMenu = value != 0
             DIM_BACKGROUND -> config.details.dimBackground = value != 0
         }
