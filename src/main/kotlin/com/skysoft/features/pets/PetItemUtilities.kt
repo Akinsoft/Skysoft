@@ -1,7 +1,6 @@
 package com.skysoft.features.pets
 
 import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.google.gson.annotations.Expose
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockRarity
@@ -30,11 +29,9 @@ object PetItemUtilities {
         @Expose val uniqueId: String? = null,
         @Expose val hideRightClick: Boolean? = null,
         @Expose val noMove: Boolean? = null,
-        @Expose val extraData: JsonObject? = null,
     ) {
         val ownedUuid: UUID? get() = uniqueId?.parseUUIDOrNull() ?: uuid?.parseUUIDOrNull()
         val properSkinItem: String? get() = skin?.let { "PET_SKIN_$skin" }
-        val skinVariantIndex: Int? get() = PetRepository.skinVariantIndex(extraData)
     }
 
     fun ItemStack.getPetInfo(): PetInfo? {
@@ -53,7 +50,6 @@ object PetItemUtilities {
         return StoredPetData(
             petInternalName = internalName,
             skinInternalName = petInfo.properSkinItem,
-            skinVariantIndex = petInfo.skinVariantIndex,
             heldItemInternalName = petInfo.heldItem,
             exp = petInfo.exp,
             uuid = petInfo.ownedUuid,

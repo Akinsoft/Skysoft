@@ -151,8 +151,11 @@ object ActivePetOverlay {
             PetStorageService.petWidgetDisplayMessage?.let { lines -> return PetDisplayState(messageLines = lines) }
             if (!PetStorageService.isPetWidgetReadyForDisplay) return lastDisplayState
             val currentPet = ActivePetTracker.currentPet ?: return lastDisplayState
+            val observedTexture = ActivePetEntityTracker.current()
+                ?.takeIf { currentPet.skinInternalName != null && it.matches(currentPet) }
+                ?.texture
             return PetDisplayState(
-                currentPet = currentPet.copy(),
+                currentPet = currentPet.copy(displayIconTexture = observedTexture ?: currentPet.displayIconTexture),
                 expSharePets = getVisibleExpSharePetStates(currentPet.uuid).map { it.copyState() },
             ).also { lastDisplayState = it }
         }

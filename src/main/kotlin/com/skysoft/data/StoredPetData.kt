@@ -14,7 +14,6 @@ import java.util.UUID
 data class StoredPetData(
     @field:Expose val petInternalName: String,
     @field:Expose var skinInternalName: String? = null,
-    @field:Expose var skinVariantIndex: Int? = null,
     @field:Expose var heldItemInternalName: String? = null,
     @field:Expose var exp: Double? = null,
     @field:Expose val uuid: UUID? = null,
@@ -73,7 +72,7 @@ data class StoredPetData(
         }
 
     fun getItemStackOrNull(): ItemStack? =
-        PetRepository.getSkinStackOrNull(skinInternalName, skinVariantIndex)
+        PetRepository.getSkinStackOrNull(skinInternalName, displayIconTexture)
             ?: displayIconStackOrNull()
             ?: exactItemStack?.copy()
             ?: PetRepository.itemStackOrNull(requiredPetInternalName)
@@ -81,7 +80,6 @@ data class StoredPetData(
     fun getAnimatedItemStackSequence(firstFrameOnly: Boolean = false, animationSpeed: Float = 1f): List<PetItemFrame>? =
         PetRepository.getAnimatedSkinFrames(
             skinInternalName,
-            skinVariantIndex,
             firstFrameOnly,
             animationSpeed,
             displayIconTexture,

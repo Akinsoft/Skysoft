@@ -46,8 +46,10 @@ import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import com.skysoft.features.misc.actionbar.ActionBarBackground
 import com.skysoft.features.misc.update.DownloadOpenResult
 import com.skysoft.features.misc.update.ModUpdateChecker
-import com.skysoft.features.pets.ActivePetTracker
+import com.skysoft.features.pets.ActivePetEntityTracker
 import com.skysoft.features.pets.ActivePetOverlay
+import com.skysoft.features.pets.ActivePetTracker
+import com.skysoft.features.pets.PetAnimationLearner
 import com.skysoft.features.pets.PetStorageService
 import com.skysoft.features.pets.PetXpEstimator
 import com.skysoft.features.pets.SkillExpGainApi
@@ -118,6 +120,8 @@ class SkysoftMod : ClientModInitializer {
         PetXpEstimator.register()
         PetStorageService.register()
         ActivePetOverlay.register()
+        ActivePetEntityTracker.register()
+        PetAnimationLearner.register()
         VisiblePetPosition.register()
         BazaarTracker.register()
         BetterShurikens.register()

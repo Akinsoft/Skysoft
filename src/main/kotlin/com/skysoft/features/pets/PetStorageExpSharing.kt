@@ -75,7 +75,6 @@ internal object PetStorageExpSharing {
     private fun StoredPetData.hasSamePersistedDataAs(other: StoredPetData): Boolean =
         petInternalName == other.petInternalName &&
             skinInternalName == other.skinInternalName &&
-            skinVariantIndex == other.skinVariantIndex &&
             heldItemInternalName == other.heldItemInternalName &&
             exp == other.exp &&
             uuid == other.uuid &&

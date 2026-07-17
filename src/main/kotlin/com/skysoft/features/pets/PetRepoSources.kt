@@ -19,18 +19,13 @@ private val LOCAL_REPO_CACHE_RETRY_DELAY = 30.seconds
 internal object PetRepoConstants {
     fun load() {
         if (!PetRepoCache.loadingConstants.compareAndSet(false, true)) return
-        val petsFuture = RemoteSkyBlockRepo.request(PetRepoCache.PETS_URL).thenApply {
+        RemoteSkyBlockRepo.request(PetRepoCache.PETS_URL).thenApply {
             PetRepoCache.gson.fromJson(it, SkysoftPetsRepoJson::class.java)
-        }
-        val skullsFuture = RemoteSkyBlockRepo.request(PetRepoCache.ANIMATED_SKULLS_URL).thenApply {
-            PetRepoCache.gson.fromJson(it, SkysoftAnimatedSkullsRepoJson::class.java)
-        }
-        CompletableFuture.allOf(petsFuture, skullsFuture).whenComplete { _, error ->
+        }.whenComplete { pets, error ->
             if (error == null) {
-                PetRepoCache.petsJson = petsFuture.getNow(null)
-                PetRepoCache.animatedSkullsJson = skullsFuture.getNow(null)
+                PetRepoCache.petsJson = pets
             } else {
-                SkysoftMod.LOGGER.warn("Failed to load pet constants", error)
+                SkysoftMod.LOGGER.warn("Failed to load pet data", error)
             }
             PetRepoCache.loadingConstants.set(false)
         }

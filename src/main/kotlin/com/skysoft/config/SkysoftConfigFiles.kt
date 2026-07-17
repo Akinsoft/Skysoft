@@ -19,6 +19,7 @@ object SkysoftConfigFiles {
     val config: Path = directory.resolve("skysoft.json")
     val chatHistory: Path = directory.resolve("chat-history.json")
     val profileStorage: Path = directory.resolve("skysoft-storage.json")
+    val learnedPetAnimations: Path = directory.resolve("pet-animations.json")
     val dianaHubSurfaceCache: Path = directory.resolve("diana-hub-surface-cache.json")
     val mythologicalRitualTracker: Path = directory
         .resolve("trackers")
