@@ -51,7 +51,7 @@ open class ItemInHandRendererMixin {
         }
     }
 
-    @Inject(method = ["renderArmWithItem"], at = [At("HEAD")])
+    @Inject(method = [ITEM_IN_HAND_ARM_METHOD], at = [At("HEAD")])
     protected fun skysoftBeginHeldItemSwing(
         player: AbstractClientPlayer,
         frameInterp: Float,
@@ -69,7 +69,7 @@ open class ItemInHandRendererMixin {
         HeldItemSwingVisuals.begin(itemStack, attack, arm)
     }
 
-    @Inject(method = ["renderArmWithItem"], at = [At("TAIL")])
+    @Inject(method = [ITEM_IN_HAND_ARM_METHOD], at = [At("TAIL")])
     protected fun skysoftEndHeldItemSwing(
         player: AbstractClientPlayer,
         frameInterp: Float,
