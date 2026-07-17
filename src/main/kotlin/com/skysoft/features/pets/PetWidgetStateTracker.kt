@@ -15,6 +15,7 @@ object PetWidgetStateTracker {
         get() = when {
             isCurrentWidgetState &&
                 state == State.NOT_READY &&
+                ActivePetTracker.currentPet != null &&
                 TabListApi.hasWaitedForSkyBlockData(widgetLoadGrace) -> listOf(
                 "§cPet Tab Widget Missing",
                 "§cDo /widget and enable the pet widget",
