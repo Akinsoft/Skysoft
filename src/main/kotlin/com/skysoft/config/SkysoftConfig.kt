@@ -18,7 +18,7 @@ import io.github.notenoughupdates.moulconfig.observer.PropertyTypeAdapterFactory
 import java.nio.file.Files
 import java.nio.file.Path
 
-class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
+open class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
     @JvmField
     @field:Expose
     var configMigrationVersion = SkysoftConfigMigrations.CURRENT_CONFIG_MIGRATION_VERSION
@@ -110,16 +110,26 @@ class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
             .setPrettyPrinting()
             .create()
         private val CONFIG_PATH: Path = SkysoftConfigFiles.config
+        private var configClass: Class<out SkysoftConfig> = SkysoftConfig::class.java
+        private var configFactory: (String?) -> SkysoftConfig = ::SkysoftConfig
+
+        internal fun useImplementation(
+            implementationClass: Class<out SkysoftConfig>,
+            factory: (String?) -> SkysoftConfig,
+        ) {
+            configClass = implementationClass
+            configFactory = factory
+        }
 
         fun load(): SkysoftConfig {
             if (SkysoftConfigFiles.migrateConfig() == MigrationResult.FAILED) {
-                return SkysoftConfig(
+                return createConfig(
                     "legacy ${SkysoftConfigFiles.legacyConfig} could not be copied to $CONFIG_PATH. " +
                         "Move it manually or fix file permissions to save changes.",
                 )
             }
             if (!SkysoftConfigFiles.hasFileOrBackup(CONFIG_PATH)) {
-                return SkysoftConfig()
+                return createConfig()
             }
 
             return try {
@@ -127,16 +137,19 @@ class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
                     Files.newBufferedReader(path).use { reader ->
                         val json = JsonParser.parseReader(reader).asJsonObject
                         SkysoftConfigMigrations.apply(json, GSON)
-                        (GSON.fromJson(json, SkysoftConfig::class.java) ?: SkysoftConfig()).also {
+                        (GSON.fromJson(json, configClass) ?: createConfig()).also {
                             it.repairLoadedValues()
                         }
                     }
                 }
             } catch (e: Exception) {
                 SkysoftMod.LOGGER.warn("Failed to load Skysoft config or backup, using defaults", e)
-                SkysoftConfig("$CONFIG_PATH failed to load. Fix or delete the file to save changes.")
+                createConfig("$CONFIG_PATH failed to load. Fix or delete the file to save changes.")
             }
         }
+
+        private fun createConfig(saveDisabledReason: String? = null): SkysoftConfig =
+            configFactory(saveDisabledReason)
     }
 
     fun repairLoadedValues() {
