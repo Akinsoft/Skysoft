@@ -48,7 +48,6 @@ internal object PetStoragePetItems {
             exp = petInfoExp ?: petExp ?: PetRepository.levelToXp(level, petInternalName) ?: 0.0,
             uuid = petInfo?.ownedUuid,
             displayIconTexture = item.playerHeadTextureOrNull(),
-            skinVariantIndex = petInfo?.skinVariantIndex,
             exactItemStack = item.copy(),
         )
     }
@@ -58,7 +57,6 @@ internal object PetStoragePetItems {
             StoredPetData(
                 petInternalName = "${it.type};${it.tier.id}",
                 skinInternalName = it.properSkinItem,
-                skinVariantIndex = it.skinVariantIndex,
                 heldItemInternalName = it.heldItem,
                 exp = it.exp,
                 uuid = it.ownedUuid,

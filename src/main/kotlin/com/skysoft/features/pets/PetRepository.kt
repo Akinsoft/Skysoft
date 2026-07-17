@@ -1,6 +1,5 @@
 package com.skysoft.features.pets
 
-import com.google.gson.JsonObject
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -9,19 +8,19 @@ import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.utils.TextUtilities.removeColor
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import kotlin.math.roundToInt
 
 object PetRepository {
     fun register() {
+        PetSkins.load()
         LocalSkyBlockRepo.load()
         ClientTickEvents.END_CLIENT_TICK.register {
             if (!PetRepoCache.localRepoCacheLoaded) {
                 LocalSkyBlockRepo.load()
             }
-            if (PetRepoCache.petsJson == null || PetRepoCache.animatedSkullsJson == null) {
+            if (PetRepoCache.petsJson == null) {
                 PetRepoConstants.load()
             }
         }
@@ -97,10 +96,16 @@ object PetRepository {
             ?.first
     }
 
-    fun getSkinStackOrNull(skinInternalName: String?, variantIndex: Int? = null): ItemStack? {
+    fun getSkinStackOrNull(
+        skinInternalName: String?,
+        displayIconTexture: String? = null,
+    ): ItemStack? {
         if (skinInternalName == null) return null
-        PetSkins.animatedTexture(skinInternalName, variantIndex)?.let { texture ->
-            return PetRepoCache.skinStacks.computeIfAbsent("$skinInternalName:$variantIndex") {
+        displayIconTexture?.let { texture ->
+            return SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
+        }
+        PetSkins.animatedTexture(skinInternalName)?.let { texture ->
+            return PetRepoCache.skinStacks.computeIfAbsent(skinInternalName) {
                 SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
             }.copy()
         }
@@ -109,22 +114,25 @@ object PetRepository {
 
     fun getAnimatedSkinFrames(
         skinInternalName: String?,
-        variantIndex: Int? = null,
         firstFrameOnly: Boolean = false,
         animationSpeed: Float = 1f,
         displayIconTexture: String? = null,
     ): List<PetItemFrame>? {
         if (skinInternalName == null) return null
-        val animation = PetSkins.animated(skinInternalName, variantIndex, displayIconTexture)
-            ?: return getSkinStackOrNull(skinInternalName, variantIndex)?.let { listOf(PetItemFrame(it)) }
-        val ticks = if (firstFrameOnly || animationSpeed <= 0f) {
-            1
-        } else {
-            (animation.ticks / animationSpeed).roundToInt().coerceAtLeast(1)
-        }
+        val animation = PetSkins.animated(skinInternalName, displayIconTexture)
+            ?: return getSkinStackOrNull(skinInternalName, displayIconTexture)
+                ?.let { listOf(PetItemFrame(it)) }
         return animation.textures
             .take(if (firstFrameOnly) 1 else animation.textures.size)
-            .map { PetItemFrame(SkyBlockStackFactory.texturedHead(it, Component.literal("Pet Skin")), ticks) }
+            .mapIndexed { index, texture ->
+                val sourceTicks = animation.ticksPerTexture.getOrNull(index) ?: animation.ticks
+                val ticks = if (firstFrameOnly || animationSpeed <= 0f) {
+                    1
+                } else {
+                    (sourceTicks / animationSpeed).roundToInt().coerceAtLeast(1)
+                }
+                PetItemFrame(SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin")), ticks)
+            }
     }
 
     fun resolvePetItemOrNull(itemName: String): String? {
@@ -200,10 +208,6 @@ object PetRepository {
         val rarityAbove = rarity.oneAbove() ?: return false
         return levelToXp(1, "$properName;${rarityAbove.id}") != null
     }
-
-    fun skinVariantIndex(extraData: CompoundTag): Int? = PetSkins.variantIndex(extraData)
-
-    fun skinVariantIndex(extraData: JsonObject?): Int? = PetSkins.variantIndex(extraData)
 
     private val colorCodePattern = Regex("""§.""")
 }

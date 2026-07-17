@@ -125,7 +125,6 @@ object ActivePetTracker {
         val storedPet = uuid?.let { petUuid -> storage.pets.firstOrNull { it.uuid == petUuid } } ?: return this
         return copy(
             skinInternalName = skinInternalName ?: storedPet.skinInternalName,
-            skinVariantIndex = skinVariantIndex ?: storedPet.skinVariantIndex,
             heldItemInternalName = heldItemInternalName ?: storedPet.heldItemInternalName,
             exp = exp ?: storedPet.exp,
             displayIconTexture = displayIconTexture ?: storedPet.displayIconTexture,

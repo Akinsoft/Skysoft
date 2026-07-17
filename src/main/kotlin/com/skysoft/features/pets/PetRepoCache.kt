@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal object PetRepoCache {
     const val RAW_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master"
     const val PETS_URL = "$RAW_BASE/constants/pets.json"
-    const val ANIMATED_SKULLS_URL = "$RAW_BASE/constants/animatedskulls.json"
     const val GITHUB_TREE_URL =
         "https://api.github.com/repos/NotEnoughUpdates/NotEnoughUpdates-REPO/git/trees/master?recursive=1"
 
@@ -46,7 +45,15 @@ internal object PetRepoCache {
     var petsJson: SkysoftPetsRepoJson? = null
 
     @Volatile
-    var animatedSkullsJson: SkysoftAnimatedSkullsRepoJson? = null
+    var petAnimations: PetAnimationsJson? = null
+        set(value) {
+            animatedSkinMatches.clear()
+            missingAnimatedSkinMatches.clear()
+            field = value
+        }
+
+    @Volatile
+    var learnedPetAnimations: PetAnimationsJson = PetAnimationsJson()
         set(value) {
             animatedSkinMatches.clear()
             missingAnimatedSkinMatches.clear()

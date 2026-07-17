@@ -54,14 +54,14 @@ internal data class NeuPetData(
     @SerializedName("xp_multiplier") val xpMultiplier: Double? = null,
 )
 
-internal data class SkysoftAnimatedSkullsRepoJson(
+internal data class PetAnimationsJson(
     val skins: Map<String, AnimatedSkinJson> = emptyMap(),
-    @SerializedName("pet_skin_variant") val petSkinVariants: Map<String, List<String>> = emptyMap(),
-    @SerializedName("pet_skin_nbt_name") val petSkinNbtNames: Set<String> = emptySet(),
 )
 
 internal data class AnimatedSkinJson(
     val ticks: Int = 1,
+    val ticksPerTexture: List<Int> = emptyList(),
+    val matchTextures: List<String> = emptyList(),
     val textures: List<String> = emptyList(),
 )
 

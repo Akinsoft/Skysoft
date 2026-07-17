@@ -1,0 +1,68 @@
+package com.skysoft.features.pets
+
+import com.skysoft.SkysoftMod
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+
+internal object PetAnimationLearner {
+    private var captureKey: String? = null
+    private var recorder: PetAnimationLoopRecorder? = null
+
+    fun register() {
+        ClientTickEvents.END_CLIENT_TICK.register { tick() }
+        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> discardCapture() }
+    }
+
+    private fun tick() {
+        val currentPet = ActivePetTracker.currentPet
+        val skin = currentPet?.skinInternalName?.takeIf(String::isNotBlank)
+        if (currentPet == null || skin == null) {
+            discardCapture()
+            return
+        }
+
+        val observation = ActivePetEntityTracker.current()
+        if (observation == null || !observation.matches(currentPet)) {
+            discardCapture()
+            return
+        }
+        if (PetSkins.hasBundled(skin, observation.texture) || PetSkins.hasLearned(skin, observation.texture)) {
+            discardCapture()
+            return
+        }
+
+        val nextCaptureKey = "$skin:${currentPet.uuid}:${observation.entity.id}"
+        if (captureKey != nextCaptureKey) {
+            captureKey = nextCaptureKey
+            recorder = PetAnimationLoopRecorder()
+        }
+
+        val activeRecorder = recorder ?: return
+        val confirmed = activeRecorder.observe(observation.texture)
+        if (confirmed != null) {
+            saveConfirmedAnimation(skin, confirmed)
+        }
+    }
+
+    private fun saveConfirmedAnimation(
+        skin: String,
+        loop: ConfirmedPetAnimationLoop,
+    ) {
+        val identityTexture = loop.textures.first()
+        val animation = AnimatedSkinJson(
+            ticksPerTexture = loop.ticksPerTexture,
+            textures = loop.textures,
+        )
+        PetSkins.storeLearned(skin, identityTexture, animation)
+            .onSuccess { discardCapture() }
+            .onFailure { error ->
+                discardCapture()
+                SkysoftMod.LOGGER.error("Failed to save learned pet animation for $skin", error)
+            }
+    }
+
+    private fun discardCapture() {
+        captureKey = null
+        recorder = null
+    }
+}
