@@ -1,7 +1,10 @@
 package com.skysoft.config
 
 object InventoryButtonDefaults {
+    private const val DEFAULT_EDGE_BUTTONS = 8
+
     const val PLAYER_INVENTORY_HEIGHT = 166
+    const val DEFAULT_BUTTON_COUNT = DEFAULT_EDGE_BUTTONS * 4
 
     fun create(): MutableList<InventoryButtonConfig> {
         val right = List(DEFAULT_EDGE_BUTTONS) { index ->
@@ -40,9 +43,14 @@ object InventoryButtonDefaults {
         y: Int,
         anchorRight: Boolean = false,
         anchorBottom: Boolean = false,
-    ): InventoryButtonConfig = InventoryButtonConfig(x, y, null, false, anchorRight, anchorBottom, 0, "")
+    ): InventoryButtonConfig = InventoryButtonConfig(
+        x = x,
+        y = y,
+        anchorRight = anchorRight,
+        anchorBottom = anchorBottom,
+        isUserCreated = false,
+    )
 
-    private const val DEFAULT_EDGE_BUTTONS = 8
     private const val EDGE_BUTTON_START = 2
     private const val EDGE_BUTTON_STEP = 20
     private const val EDGE_BUTTON_BOTTOM_ANCHOR_THRESHOLD = 80

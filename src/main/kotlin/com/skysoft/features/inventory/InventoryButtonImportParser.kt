@@ -91,6 +91,7 @@ internal object InventoryButtonImportParser {
                 anchorBottom = raw.anchorBottom,
                 backgroundIndex = raw.backgroundIndex.coerceIn(0, MAX_BACKGROUND_INDEX),
                 command = raw.command.orEmpty().trim().removePrefix("/"),
+                isUserCreated = false,
             )
         }
         return ParsedButtons(parsed, malformed, substitutedIcons, unsupportedIcons, giganticButtons)

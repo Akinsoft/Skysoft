@@ -135,10 +135,13 @@ internal fun planInventoryButtonImport(
     return InventoryButtonImportPlan(read, merged, imported, duplicates, conflicts)
 }
 
-private fun importBounds(button: InventoryButtonConfig): Rect = InventoryButtonCanvas(
-    Rect(0, 0, IMPORT_INVENTORY_WIDTH, InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT),
-    playerInventory = true,
-).position(button).let { Rect(it.x, it.y, InventoryButtonManager.BUTTON_SIZE, InventoryButtonManager.BUTTON_SIZE) }
+private fun importBounds(button: InventoryButtonConfig): Rect = InventoryButtonLayout.buttonBounds(
+    InventoryButtonCanvas(
+        Rect(0, 0, IMPORT_INVENTORY_WIDTH, InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT),
+        playerInventory = true,
+    ),
+    button,
+)
 
 internal fun inventoryButtonsWithEditorSlots(buttons: List<InventoryButtonConfig>): List<InventoryButtonConfig> =
     buttons + InventoryButtonDefaults.create().filter { slot ->
