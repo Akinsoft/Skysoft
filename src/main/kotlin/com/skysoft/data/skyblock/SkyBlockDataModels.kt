@@ -315,3 +315,8 @@ internal data class SkyBlockDataSnapshot(
     val tierFamilies: Map<String, ItemListTierFamily> = emptyMap(),
     val tierFamilyByItem: Map<ItemListEntryKey, String> = emptyMap(),
 )
+
+internal data class SkyBlockRecipeSnapshot(
+    val version: Long,
+    val recipesByResult: Map<ItemListEntryKey, List<SkyBlockRecipe>>,
+)

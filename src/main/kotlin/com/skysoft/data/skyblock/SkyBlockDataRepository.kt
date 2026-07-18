@@ -19,7 +19,8 @@ object SkyBlockDataRepository {
     private var wasDemanded = false
     @Volatile
     var snapshotVersion = 0L
-        private set
+        internal set
+    private var pricingRecipeSnapshot: SkyBlockRecipeSnapshot? = null
     @Volatile
     var updateMessage: String = "Using bundled item data"
         private set
@@ -165,6 +166,22 @@ object SkyBlockDataRepository {
     fun recipesFor(key: ItemListEntryKey): List<SkyBlockRecipe> =
         (snapshot?.recipesByResult?.get(key).orEmpty() + MinecraftRecipeAdapter.recipesFor(key)).distinct()
 
+    internal val pricingRecipes: SkyBlockRecipeSnapshot?
+        get() {
+            val repositorySnapshot = snapshot ?: return null
+            val minecraftRecipes = MinecraftRecipeAdapter.recipesByResult
+            val version = snapshotVersion
+            pricingRecipeSnapshot?.takeIf { it.version == version }?.let { return it }
+            val recipesByResult = if (minecraftRecipes.isEmpty()) {
+                repositorySnapshot.recipesByResult
+            } else {
+                (repositorySnapshot.recipesByResult.keys + minecraftRecipes.keys).associateWith { key ->
+                    (repositorySnapshot.recipesByResult[key].orEmpty() + minecraftRecipes[key].orEmpty()).distinct()
+                }
+            }
+            return SkyBlockRecipeSnapshot(version, recipesByResult).also { pricingRecipeSnapshot = it }
+        }
+
     fun usagesFor(key: ItemListEntryKey): List<SkyBlockRecipe> =
         (snapshot?.recipesByIngredient?.get(key).orEmpty() + MinecraftRecipeAdapter.usagesFor(key)).distinct()
 
@@ -215,6 +232,7 @@ object SkyBlockDataRepository {
     private fun clearDerivedCaches() {
         synchronized(stackCache) { stackCache.clear() }
         synchronized(searchCache) { searchCache.clear() }
+        pricingRecipeSnapshot = null
         SkyBlockEntityStacks.clear()
         SkyBlockPetStacks.clear()
     }
