@@ -186,7 +186,7 @@ object InventoryButtonEditorScreen {
                     true
                 }
                 iconField.focused && handleIconFieldKey(event) == InputHandlingResult.CONSUMED -> true
-                event.key() == GLFW.GLFW_KEY_R -> {
+                event.key() == GLFW.GLFW_KEY_R && !commandField.focused && !iconField.focused -> {
                     val index = hoveredIndex ?: selectedIndex
                     when (index?.let(InventoryButtonEditorActions::resetOrRemoveButton)) {
                         InventoryButtonResetShortcutResult.RESET -> true
