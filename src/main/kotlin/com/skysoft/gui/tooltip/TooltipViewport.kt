@@ -19,6 +19,8 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+interface TooltipScrollExcludedScreen
+
 object TooltipViewport {
     private val minecraft = Minecraft.getInstance()
     private var session: PanSession? = null
@@ -162,7 +164,7 @@ object TooltipViewport {
     }
 
     private fun isEnabledForCurrentScreen(settings: TooltipScrollConfig): Boolean =
-        MinecraftClient.screen(minecraft) !is ChatScreen || settings.settings.isEnabledInChat
+        isTooltipScrollEnabledForScreen(MinecraftClient.screen(minecraft), settings.settings.isEnabledInChat)
 
     private fun isHorizontalModifierDown(
         settings: TooltipScrollConfig,
@@ -356,3 +358,6 @@ object TooltipViewport {
     private const val PERCENT_SCALE = 100.0
     private const val SETTLE_TOLERANCE = 0.05
 }
+
+internal fun isTooltipScrollEnabledForScreen(screen: Screen?, isEnabledInChat: Boolean): Boolean =
+    screen !is TooltipScrollExcludedScreen && (screen !is ChatScreen || isEnabledInChat)

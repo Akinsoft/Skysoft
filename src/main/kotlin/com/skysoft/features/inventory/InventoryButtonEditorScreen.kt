@@ -7,6 +7,7 @@ import com.skysoft.features.inventory.InventoryButtonManager.BUTTON_SIZE
 import com.skysoft.features.inventory.InventoryButtonManager.IconCandidate
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.gui.tooltip.TooltipScrollExcludedScreen
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelButtonRenderer
@@ -37,7 +38,8 @@ object InventoryButtonEditorScreen {
 
     class EditorScreen(private val parent: Screen?) :
         Screen(Component.literal("Skysoft Inventory Buttons")),
-        InventoryScaledScreen {
+        InventoryScaledScreen,
+        TooltipScrollExcludedScreen {
         override fun inventoryScaleLimit(): Int = 2
         internal val config get() = SkysoftConfigGui.config().inventory.inventoryButtons
         internal val commandField = TextFieldState(maxLength = 128)
