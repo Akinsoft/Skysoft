@@ -2,6 +2,7 @@ package com.skysoft.features.chat
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.SoundUtilities
+import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
 import java.util.Optional
 import net.minecraft.network.chat.Component
@@ -21,15 +22,17 @@ object ChatNotifier {
         isEnabled: Boolean,
         playPing: (String, Float) -> Unit,
     ): Component {
-        if (!isEnabled || entries.isEmpty()) return content
+        if (!isEnabled) return content
+        if (entries.isEmpty()) return content
         var decorated = content
         var pingVolumePercent = 0f
         var pingVolume = 0f
         var pingSound = SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID
         entries.forEach { entry ->
             val text = entry.text.trim()
-            if (text.isEmpty() || !content.string.contains(text, ignoreCase = true)) return@forEach
-            decorated = highlight(decorated, text, entry.colour.getEffectiveColourRGB())
+            if (text.isEmpty()) return@forEach
+            if (!content.string.contains(text, ignoreCase = true)) return@forEach
+            decorated = highlight(decorated, text, entry.colour)
             if (entry.isSoundEnabled) {
                 val volume = entry.soundVolumePercent.coerceIn(
                     TextListEntry.MIN_SOUND_VOLUME_PERCENT,
@@ -46,7 +49,7 @@ object ChatNotifier {
         return decorated
     }
 
-    private fun highlight(content: Component, text: String, colour: Int): Component {
+    private fun highlight(content: Component, text: String, colour: ChromaColour): Component {
         val result = Component.empty()
         content.visit(
             FormattedText.StyledContentConsumer<Unit> { style, segment ->
@@ -58,7 +61,13 @@ object ChatNotifier {
         return result
     }
 
-    private fun appendHighlighted(result: MutableComponent, segment: String, style: Style, text: String, colour: Int) {
+    private fun appendHighlighted(
+        result: MutableComponent,
+        segment: String,
+        style: Style,
+        text: String,
+        colour: ChromaColour,
+    ) {
         var start = 0
         while (start < segment.length) {
             val match = segment.indexOf(text, start, ignoreCase = true)
@@ -67,7 +76,10 @@ object ChatNotifier {
                 return
             }
             if (match > start) result.append(Component.literal(segment.substring(start, match)).withStyle(style))
-            result.append(Component.literal(segment.substring(match, match + text.length)).withStyle(style.withColor(colour)))
+            result.append(
+                Component.literal(segment.substring(match, match + text.length))
+                    .withStyle(ChatNotifyChromaRendering.apply(style, colour)),
+            )
             start = match + text.length
         }
     }

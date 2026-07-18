@@ -27,6 +27,7 @@
     "TooltipGuiScaleMixin",
     "TooltipRenderUtilMixin",
     "ToggleKeyMappingAccessor",
+    "TextColorMixin",
     "OverlayMessageAccessor",
     "GuiGraphicsExtractorAccessor",
     "GuiGraphicsExtractorMixin",
