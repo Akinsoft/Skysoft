@@ -44,15 +44,20 @@ object ChatNotifier {
             val message = ChatMessageClassifier.classify(SkysoftMessage(content, SkysoftMessageSource.GAME))
             if (isOwnMessage(message, ownPlayerName)) return content
         }
-        var decorated = content
+        val plainText = content.string
+        val matchingEntries = entries.mapIndexedNotNull { index, entry ->
+            val text = entry.text.trim()
+            if (text.isEmpty() || !plainText.contains(text, ignoreCase = true)) {
+                null
+            } else {
+                MatchingNotificationEntry(entry, text, index)
+            }
+        }
         var pingVolumePercent = 0f
         var pingVolume = 0f
         var pingSound = SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID
-        entries.forEach { entry ->
-            val text = entry.text.trim()
-            if (text.isEmpty()) return@forEach
-            if (!content.string.contains(text, ignoreCase = true)) return@forEach
-            decorated = highlight(decorated, text, entry.colour)
+        matchingEntries.forEach { match ->
+            val entry = match.entry
             if (entry.isSoundEnabled) {
                 val volume = entry.soundVolumePercent.coerceIn(
                     TextListEntry.MIN_SOUND_VOLUME_PERCENT,
@@ -66,7 +71,7 @@ object ChatNotifier {
             }
         }
         if (pingVolume > 0f) playPing(pingSound, pingVolume)
-        return decorated
+        return if (matchingEntries.isEmpty()) content else highlight(content, matchingEntries)
     }
 
     internal fun isOwnMessage(message: ChatMessage, ownPlayerName: String?): Boolean {
@@ -81,11 +86,14 @@ object ChatNotifier {
         }
     }
 
-    private fun highlight(content: Component, text: String, colour: ChromaColour): Component {
+    private fun highlight(content: Component, entries: List<MatchingNotificationEntry>): Component {
+        val ranges = resolveHighlightRanges(content.string, entries)
         val result = Component.empty()
+        var segmentStart = 0
         content.visit(
             FormattedText.StyledContentConsumer<Unit> { style, segment ->
-                appendHighlighted(result, segment, style, text, colour)
+                appendHighlighted(result, segment, segmentStart, style, ranges)
+                segmentStart += segment.length
                 Optional.empty()
             },
             Style.EMPTY,
@@ -93,27 +101,72 @@ object ChatNotifier {
         return result
     }
 
+    private fun resolveHighlightRanges(
+        content: String,
+        entries: List<MatchingNotificationEntry>,
+    ): List<HighlightRange> {
+        val candidates = buildList {
+            entries.forEach { entry ->
+                var searchStart = 0
+                while (searchStart < content.length) {
+                    val start = content.indexOf(entry.text, searchStart, ignoreCase = true)
+                    if (start < 0) break
+                    add(HighlightRange(start, start + entry.text.length, entry.entry.colour, entry.index))
+                    searchStart = start + 1
+                }
+            }
+        }
+        val accepted = mutableListOf<HighlightRange>()
+        candidates.sortedWith(
+            compareByDescending<HighlightRange> { it.endExclusive - it.start }
+                .thenBy(HighlightRange::entryIndex)
+                .thenBy(HighlightRange::start),
+        ).forEach { candidate ->
+            if (accepted.none(candidate::overlaps)) accepted += candidate
+        }
+        return accepted.sortedBy(HighlightRange::start)
+    }
+
     private fun appendHighlighted(
         result: MutableComponent,
         segment: String,
+        segmentStart: Int,
         style: Style,
-        text: String,
-        colour: ChromaColour,
+        ranges: List<HighlightRange>,
     ) {
-        var start = 0
-        while (start < segment.length) {
-            val match = segment.indexOf(text, start, ignoreCase = true)
-            if (match < 0) {
-                result.append(Component.literal(segment.substring(start)).withStyle(style))
-                return
+        val segmentEnd = segmentStart + segment.length
+        var cursor = 0
+        ranges.forEach { range ->
+            if (range.endExclusive <= segmentStart || range.start >= segmentEnd) return@forEach
+            val matchStart = maxOf(range.start, segmentStart) - segmentStart
+            val matchEnd = minOf(range.endExclusive, segmentEnd) - segmentStart
+            if (matchStart > cursor) {
+                result.append(Component.literal(segment.substring(cursor, matchStart)).withStyle(style))
             }
-            if (match > start) result.append(Component.literal(segment.substring(start, match)).withStyle(style))
             result.append(
-                Component.literal(segment.substring(match, match + text.length))
-                    .withStyle(ChatNotifyChromaRendering.apply(style, colour).withBold(true)),
+                Component.literal(segment.substring(matchStart, matchEnd))
+                    .withStyle(ChatNotifyChromaRendering.apply(style, range.colour).withBold(true)),
             )
-            start = match + text.length
+            cursor = matchEnd
         }
+        if (cursor < segment.length) {
+            result.append(Component.literal(segment.substring(cursor)).withStyle(style))
+        }
+    }
+
+    private data class MatchingNotificationEntry(
+        val entry: TextListEntry,
+        val text: String,
+        val index: Int,
+    )
+
+    private data class HighlightRange(
+        val start: Int,
+        val endExclusive: Int,
+        val colour: ChromaColour,
+        val entryIndex: Int,
+    ) {
+        fun overlaps(other: HighlightRange): Boolean = start < other.endExclusive && other.start < endExclusive
     }
 
     private fun playPing(sound: String, volume: Float) {
