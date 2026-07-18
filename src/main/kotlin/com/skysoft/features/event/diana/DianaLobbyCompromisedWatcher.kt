@@ -27,9 +27,13 @@ internal object DianaLobbyCompromisedWatcher {
     private var lastTabSessionId = Long.MIN_VALUE
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Diana Lobby Compromised tick") { onTick() }
+        TabListApi.registerConsumer("Diana Lobby Compromised", ::isConfigured)
+        SkysoftClientEvents.onEndTick(
+            "Diana Lobby Compromised tick",
+            isActive = { isConfigured() || lastTabSessionId != Long.MIN_VALUE },
+        ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Lobby Compromised disconnect reset", ::clear)
-        ChatEvents.onPartyMessage("Diana compromised-lobby chat") { message -> handlePartyMessage(message) }
+        ChatEvents.onPartyMessage("Diana compromised-lobby chat", ::isConfigured) { message -> handlePartyMessage(message) }
     }
 
     private fun onTick() {
@@ -62,6 +66,8 @@ internal object DianaLobbyCompromisedWatcher {
             settings.lobbyCompromised &&
             DianaEventState.isOnHub() &&
             DianaEventState.isMythologicalRitualActive()
+
+    private fun isConfigured(): Boolean = config.enabled && settings.lobbyCompromised
 
     private fun currentPopulation(now: Long): DianaLobbyPopulation? {
         if (

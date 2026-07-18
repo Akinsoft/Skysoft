@@ -1,6 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import net.hypixel.modapi.HypixelModAPI
 import net.hypixel.modapi.packet.impl.clientbound.ClientboundHelloPacket
@@ -10,7 +11,9 @@ import net.hypixel.modapi.packet.impl.serverbound.ServerboundPartyInfoPacket
 import java.util.UUID
 
 object HypixelPartyApi {
+    private val consumers = ActiveConsumerRegistry()
     private var isRegistered = false
+    private var isBackgroundActive = false
     private var lastRequestAtMillis = 0L
     private var nextRefreshAtMillis = 0L
 
@@ -35,11 +38,14 @@ object HypixelPartyApi {
 
         val modApi = HypixelModAPI.getInstance()
         modApi.createHandler(ClientboundHelloPacket::class.java) {
-            requestPartyInfo(force = true)
+            if (hasActiveConsumers) requestPartyInfo(force = true)
         }
         modApi.createHandler(ClientboundPartyInfoPacket::class.java, ::onPartyInfoPacket)
 
-        SkysoftClientEvents.onEndTick("Hypixel Party refresh") {
+        SkysoftClientEvents.onEndTick(
+            "Hypixel Party refresh",
+            isActive = { hasActiveConsumers || isBackgroundActive },
+        ) {
             onTick()
         }
         SkysoftClientEvents.onDisconnect("Hypixel Party reset", ::reset)
@@ -48,7 +54,22 @@ object HypixelPartyApi {
     fun member(uuid: UUID): HypixelPartyMember? =
         state.members[uuid]
 
+    val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
     private fun onTick() {
+        if (!hasActiveConsumers) {
+            reset()
+            return
+        }
+        if (!isBackgroundActive) {
+            isBackgroundActive = true
+            nextRefreshAtMillis = 0L
+        }
         if (!HypixelLocationState.inSkyBlock) return
         val now = System.currentTimeMillis()
         if (now < nextRefreshAtMillis) return
@@ -81,6 +102,7 @@ object HypixelPartyApi {
     }
 
     private fun onPartyInfoPacket(packet: ClientboundPartyInfoPacket) {
+        if (!hasActiveConsumers) return
         acceptPartyInfo(packet, System.currentTimeMillis())
     }
 
@@ -100,6 +122,7 @@ object HypixelPartyApi {
     }
 
     private fun reset() {
+        isBackgroundActive = false
         state = HypixelPartyState.EMPTY
         lastRequestAtMillis = 0L
         nextRefreshAtMillis = 0L

@@ -45,7 +45,10 @@ object ItemListSearchCommand {
         MinecraftClient.setScreen(ItemListViewerScreen(null, key))
     }
 
+    fun hasPendingScreen(): Boolean = pendingKey != null
+
     private fun queueItem(source: FabricClientCommandSource, rawQuery: String): Int {
+        SkyBlockDataRepository.ensureLoaded()
         if (SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY) {
             SkysoftChat.error(source, "Item List data is not ready yet.")
             return 0
@@ -61,6 +64,7 @@ object ItemListSearchCommand {
     }
 
     private fun suggestItems(builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+        SkyBlockDataRepository.ensureLoaded()
         if (SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY) return builder.buildFuture()
         val remaining = builder.remaining.lowercase(Locale.US)
         itemCommandSuggestions(SkyBlockDataRepository.ItemListData.search(builder.remaining), remaining)

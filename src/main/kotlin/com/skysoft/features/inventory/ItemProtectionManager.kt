@@ -31,6 +31,10 @@ object ItemProtectionManager {
     private val protectedItemUuids get() = ProfileStorageApi.storage.protectedItemUuids
     private var activeProtectKey: Int? = null
 
+    fun register() {
+        ProfileStorageApi.registerConsumer("Protect Item") { config.enabled }
+    }
+
     @JvmStatic
     fun beginFrame() {
         activeProtectKey?.takeUnless(InputUtilities::isKeyDown)?.let { activeProtectKey = null }

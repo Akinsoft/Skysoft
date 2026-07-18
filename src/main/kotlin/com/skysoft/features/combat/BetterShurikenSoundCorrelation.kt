@@ -18,9 +18,9 @@ internal object BetterShurikenSoundCorrelation {
     private var recentProjection: TimedProjection? = null
     private var targetConsumer: ((SoundTargetResolution) -> Unit)? = null
 
-    fun register(consumer: (SoundTargetResolution) -> Unit) {
+    fun register(isActive: () -> Boolean, consumer: (SoundTargetResolution) -> Unit) {
         targetConsumer = consumer
-        ClientSoundEvents.register("Better Shuriken sound correlation", ::onSound)
+        ClientSoundEvents.register("Better Shuriken sound correlation", isActive, ::onSound)
     }
 
     fun noteThrow() {

@@ -3,6 +3,7 @@ package com.skysoft.features.fishing
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.FishingHotspotType
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatEvents
@@ -26,8 +27,12 @@ object FishingHotspotSharing {
     private var ticks = 0
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Fishing Hotspot Sharing tick") { onTick() }
-        ChatEvents.onPartyMessage("Fishing Hotspot party chat") { message ->
+        HypixelPartyApi.registerConsumer("Fishing Hotspot Sharing") { isConfigured }
+        SkysoftClientEvents.onEndTick(
+            "Fishing Hotspot Sharing tick",
+            isActive = { isConfigured || hasRuntimeState },
+        ) { onTick() }
+        ChatEvents.onPartyMessage("Fishing Hotspot party chat", { isConfigured }) { message ->
             if (receivePartyMessage(message) == null) {
                 ChatMessageVisibility.SHOW
             } else {
@@ -35,10 +40,18 @@ object FishingHotspotSharing {
             }
         }
         SkysoftClientEvents.onDisconnect("Fishing Hotspot Sharing disconnect reset", ::clear)
-        WorldRenderDispatcher.registerHandler("Fishing Hotspot shared-waypoint rendering", ::onRenderWorld)
+        WorldRenderDispatcher.registerHandler(
+            "Fishing Hotspot shared-waypoint rendering",
+            isActive = { isConfigured && waypointHotspots.isNotEmpty() },
+            handler = ::onRenderWorld,
+        )
     }
 
     private fun onTick() {
+        if (!isConfigured) {
+            clear()
+            return
+        }
         if (!HypixelLocationState.inSkyBlock) {
             clear()
             return
@@ -239,6 +252,12 @@ object FishingHotspotSharing {
     private fun isAllowedIsland(): Boolean =
         HypixelLocationState.inSkyBlock &&
             HypixelLocationState.currentIsland in FISHING_HOTSPOT_ISLANDS
+
+    private val isConfigured: Boolean
+        get() = config.shareHotspots || config.settings.receivedHotspots.get().isNotEmpty()
+
+    private val hasRuntimeState: Boolean
+        get() = sharedHotspots.isNotEmpty() || pendingShares.isNotEmpty() || waypointHotspots.isNotEmpty()
 
     private data class TimedHotspot(
         val share: FishingHotspotShare,

@@ -32,10 +32,13 @@ object ActivePetTracker {
         }
 
     fun register() {
-        SkyBlockProfileApi.onProfileChange("Active Pet profile reset") {
+        SkyBlockProfileApi.onProfileChange("Active Pet profile reset", PetFeatureDemand::isActive) {
             resetProfileState()
         }
-        SkysoftClientEvents.onEndTick("Active Pet tab assertion") {
+        SkysoftClientEvents.onEndTick(
+            "Active Pet tab assertion",
+            isActive = PetFeatureDemand::isActive,
+        ) {
             if (++ticks % TAB_ASSERTION_INTERVAL_TICKS != 0) return@onEndTick
             val petData = pendingTabPetData ?: return@onEndTick
             if (shouldDelayTabAssertion()) return@onEndTick
@@ -44,8 +47,12 @@ object ActivePetTracker {
         }
     }
 
-    fun onChange(boundary: String, listener: (StoredPetData?) -> Unit) {
-        changeListeners += PetChangeListener(boundary, listener)
+    fun onChange(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: (StoredPetData?) -> Unit,
+    ) {
+        changeListeners += PetChangeListener(boundary, isActive, listener)
     }
 
     fun assertFoundCurrentData(petData: StoredPetData, source: PetDataAssertionSource) {
@@ -96,7 +103,9 @@ object ActivePetTracker {
 
     private fun notifyChange(petData: StoredPetData?) {
         changeListeners.forEach { listener ->
-            SkysoftErrorBoundary.run(listener.boundary) { listener.callback(petData) }
+            if (listener.isActive()) {
+                SkysoftErrorBoundary.run(listener.boundary) { listener.callback(petData) }
+            }
         }
     }
 
@@ -150,6 +159,7 @@ object ActivePetTracker {
 
 private data class PetChangeListener(
     val boundary: String,
+    val isActive: () -> Boolean,
     val callback: (StoredPetData?) -> Unit,
 )
 

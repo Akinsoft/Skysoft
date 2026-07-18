@@ -6,30 +6,46 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.utils.TextUtilities.removeColor
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import kotlin.math.roundToInt
 
 object PetRepository {
+    private val consumers = ActiveConsumerRegistry()
+    private var wasActive = false
+
     fun register() {
-        PetSkins.load()
-        LocalSkyBlockRepo.load()
-        SkysoftClientEvents.onEndTick("Pet Repository loading") {
-            if (!PetRepoCache.localRepoCacheLoaded) {
-                LocalSkyBlockRepo.load()
+        SkysoftClientEvents.onEndTick(
+            "Pet Repository loading",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) {
+            if (!consumers.hasActiveConsumers) {
+                if (wasActive) {
+                    PetRepoCache.requests.cancelAll()
+                    PetRepoCache.localRepoLoadFuture?.cancel(true)
+                    PetRepoCache.localRepoLoadFuture = null
+                    PetRepoCache.loadingLocalRepoCache.set(false)
+                }
+                wasActive = false
+                return@onEndTick
             }
-            if (PetRepoCache.petsJson == null) {
-                PetRepoConstants.load()
-            }
+            wasActive = true
+            ensureLoaded()
         }
         SkysoftClientEvents.onClientStopping("Pet Repository request cancellation") {
             PetRepoCache.requests.cancelAll()
         }
     }
 
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
     fun itemStackOrNull(internalName: String?): ItemStack? {
         if (internalName == null) return null
+        ensureLoaded()
         SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(internalName))?.let { return it }
         PetRepoCache.itemStacks[internalName]?.let { return it.copy() }
         LocalSkyBlockRepo.itemStackOrNull(internalName)?.let { stack ->
@@ -42,6 +58,7 @@ object PetRepository {
 
     fun itemName(internalName: String?): String? {
         if (internalName == null) return null
+        ensureLoaded()
         SkyBlockDataRepository.entry(SkyBlockDataRepository.itemKey(internalName))?.let { return it.formattedDisplayName }
         PetRepoCache.itemNames[internalName]?.let { return it }
         LocalSkyBlockRepo.itemNameOrNull(internalName)?.let { itemName ->
@@ -53,6 +70,8 @@ object PetRepository {
     }
 
     fun searchItemIconCandidates(query: String, limit: Int = 512): List<ItemIconCandidate> {
+        ensureLoaded()
+        SkyBlockDataRepository.ensureLoaded()
         if (SkyBlockDataRepository.status.state == SkyBlockDataLoadState.READY) {
             return SkyBlockDataRepository.search(query).asSequence()
                 .filter { it.key.kind == ItemListEntryKind.SKYBLOCK }
@@ -67,6 +86,7 @@ object PetRepository {
 
     fun skinColorCodeOrNull(skinInternalName: String?): String? {
         if (skinInternalName == null) return null
+        ensureLoaded()
         val itemName = PetRepoCache.itemNames[skinInternalName]
             ?: LocalSkyBlockRepo.itemNameOrNull(skinInternalName)?.also { PetRepoCache.itemNames[skinInternalName] = it }
             ?: run {
@@ -77,6 +97,7 @@ object PetRepository {
     }
 
     fun findPetSkinInternalNameOrNull(petInternalName: String, skinMarker: String?): String? {
+        ensureLoaded()
         val marker = skinMarker?.takeIf { it.contains('✦') } ?: return null
         val properName = PetInternalNames.properName(petInternalName) ?: return null
         val skinInternalNames = PetRepoCache.petSkinInternalNames ?: run {
@@ -100,6 +121,7 @@ object PetRepository {
         displayIconTexture: String? = null,
     ): ItemStack? {
         if (skinInternalName == null) return null
+        ensureLoaded()
         displayIconTexture?.let { texture ->
             return SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
         }
@@ -118,6 +140,7 @@ object PetRepository {
         displayIconTexture: String? = null,
     ): List<PetItemFrame>? {
         if (skinInternalName == null) return null
+        ensureLoaded()
         val animation = PetSkins.animated(skinInternalName, displayIconTexture)
             ?: return getSkinStackOrNull(skinInternalName, displayIconTexture)
                 ?.let { listOf(PetItemFrame(it)) }
@@ -135,7 +158,6 @@ object PetRepository {
     }
 
     fun resolvePetItemOrNull(itemName: String): String? {
-        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockRepo.load()
         val clean = itemName.removeColor()
         val map = PetRepoCache.petsJson?.petItemResolution.orEmpty()
         return map[itemName]
@@ -206,6 +228,12 @@ object PetRepository {
         val (properName, rarity) = PetInternalNames.split(petInternalName) ?: return false
         val rarityAbove = rarity.oneAbove() ?: return false
         return levelToXp(1, "$properName;${rarityAbove.id}") != null
+    }
+
+    private fun ensureLoaded() {
+        PetSkins.load()
+        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockRepo.load()
+        if (PetRepoCache.petsJson == null) PetRepoConstants.load()
     }
 
     private val colorCodePattern = Regex("""§.""")

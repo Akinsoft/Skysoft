@@ -24,6 +24,7 @@ object PriceTooltips {
     private var catalogIdsByDisplayName: Map<String, List<String>> = emptyMap()
 
     fun register() {
+        SkyBlockDataRepository.Demand.register("Price Tooltips") { config.enabled }
         ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
             SkysoftErrorBoundary.run("Price Tooltip rendering") tooltip@{
                 if (!shouldShow()) return@tooltip
@@ -68,7 +69,7 @@ object PriceTooltips {
         val currentVersion = SkyBlockDataRepository.snapshotVersion
         if (catalogVersion == currentVersion) return
         catalogVersion = currentVersion
-        catalogIdsByDisplayName = SkyBlockDataRepository.entries()
+        catalogIdsByDisplayName = SkyBlockDataRepository.entries
             .asSequence()
             .filter { it.key.kind == ItemListEntryKind.SKYBLOCK }
             .groupBy({ it.displayName }, { it.key.id })

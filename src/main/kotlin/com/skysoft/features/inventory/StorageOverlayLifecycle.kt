@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.ProfileStorageApi
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -18,10 +19,15 @@ import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
 
 internal fun registerStorageOverlay() {
-    SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset") { resetTransientState() }
+    ProfileStorageApi.registerConsumer("Storage Overlay") { isStorageOverlayEnabled }
+    SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset", { isStorageOverlayEnabled }) { resetTransientState() }
     SkysoftClientEvents.onDisconnect("Storage Overlay disconnect reset", ::resetTransientState)
     registerStorageOverlayChat()
-    SkysoftClientEvents.onEndTick("Storage Overlay tick") {
+    SkysoftClientEvents.onEndTick(
+        "Storage Overlay tick",
+        isActive = { isStorageOverlayEnabled || wasStorageOverlayEnabled },
+    ) {
+        wasStorageOverlayEnabled = isStorageOverlayEnabled
         onClientTick()
     }
     registerMouseClickInterceptor()
@@ -29,6 +35,7 @@ internal fun registerStorageOverlay() {
 
 internal fun registerMouseClickInterceptor() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
+        if (!isStorageOverlayEnabled) return@register
         SkysoftErrorBoundary.run("Storage Overlay screen initialization") {
             if (screen is AbstractContainerScreen<*>) {
                 ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
@@ -40,6 +47,8 @@ internal fun registerMouseClickInterceptor() {
         }
     }
 }
+
+private var wasStorageOverlayEnabled = false
 
 internal fun storageOverlayIsActive(screen: AbstractContainerScreen<*>?): Boolean = handleFor(screen) != null
 

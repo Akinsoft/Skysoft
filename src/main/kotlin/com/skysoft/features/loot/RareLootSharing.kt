@@ -2,6 +2,9 @@ package com.skysoft.features.loot
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.HypixelPartyApi
+import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.features.pets.PetRepository
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
@@ -16,9 +19,19 @@ internal object RareLootSharing {
     private var lastInvalidThreshold: String? = null
 
     fun register() {
+        HypixelPartyApi.registerConsumer("Rare Loot Sharing") { config.enabled }
+        SkyBlockDataRepository.Demand.register("Rare Loot Sharing") { config.enabled }
+        PetRepository.registerConsumer("Rare Loot Sharing") { config.enabled }
         SkysoftClientEvents.onDisconnect("Rare Loot Sharing disconnect reset", ::clear)
-        ChatEvents.onVisibleGameMessageModify("Rare Loot party glyph rendering", RareLootPartyGlyphRenderer::render)
-        ChatEvents.onVisibleMessage("Rare Loot chat") { message ->
+        ChatEvents.onVisibleGameMessageModify(
+            "Rare Loot party glyph rendering",
+            isActive = { config.enabled },
+            modifier = RareLootPartyGlyphRenderer::render,
+        )
+        ChatEvents.onVisibleMessage(
+            "Rare Loot chat",
+            isActive = { config.enabled || RareLootContextRegistry.hasActiveContributors() },
+        ) { message ->
             onMessage(message)
             ChatMessageVisibility.SHOW
         }

@@ -20,7 +20,11 @@ object ChatTabs {
     private val feedbackTracker = ChatTabFeedbackTracker()
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Chat Tabs filter update", ::updateFilter)
+        SkysoftClientEvents.onEndTick(
+            "Chat Tabs filter update",
+            isActive = { isEnabled() || appliedState?.isEnabled == true },
+            action = ::updateFilter,
+        )
     }
 
     fun isEnabled(): Boolean = SkysoftConfigGui.config().chat.tabs.enabled

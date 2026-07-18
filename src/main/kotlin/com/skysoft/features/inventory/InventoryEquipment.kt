@@ -17,12 +17,16 @@ import net.minecraft.world.item.ItemStack
 object InventoryEquipment {
     @JvmStatic
     fun register() {
-        SkysoftClientEvents.onEndTick("Inventory Equipment tick") { tickInventoryEquipment() }
+        ProfileStorageApi.registerConsumer("Inventory Equipment") { inventoryEquipmentConfig.enabled }
+        SkysoftClientEvents.onEndTick(
+            "Inventory Equipment tick",
+            isActive = { inventoryEquipmentConfig.enabled || lastEquipmentInventoryKey != null },
+        ) { tickInventoryEquipment() }
         SkysoftClientEvents.onDisconnect(
             "Inventory Equipment disconnect reset",
             ::resetInventoryEquipmentRuntimeState,
         )
-        SkyBlockProfileApi.onProfileChange("Inventory Equipment profile reset") {
+        SkyBlockProfileApi.onProfileChange("Inventory Equipment profile reset", { inventoryEquipmentConfig.enabled }) {
             resetInventoryEquipmentRuntimeState()
         }
     }

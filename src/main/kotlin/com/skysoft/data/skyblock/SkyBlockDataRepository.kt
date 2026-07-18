@@ -1,6 +1,8 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.LinkedHashMap
 import java.util.concurrent.CompletableFuture
@@ -13,6 +15,8 @@ object SkyBlockDataRepository {
 
     @Volatile
     private var snapshot: SkyBlockDataSnapshot? = null
+    private var loadingFuture: CompletableFuture<SkyBlockDataUpdater.CachedCatalog>? = null
+    private var wasDemanded = false
     @Volatile
     var snapshotVersion = 0L
         private set
@@ -29,8 +33,29 @@ object SkyBlockDataRepository {
     }
 
     fun register() {
-        if (status.state != SkyBlockDataLoadState.NOT_LOADED) return
         MinecraftRecipeAdapter.register()
+        SkysoftClientEvents.onEndTick(
+            "SkyBlock data demand load",
+            isActive = { Demand.hasActiveConsumers || wasDemanded },
+        ) {
+            if (!Demand.hasActiveConsumers) {
+                if (wasDemanded) {
+                    loadingFuture?.cancel(true)
+                    loadingFuture = null
+                    if (status.state == SkyBlockDataLoadState.LOADING) {
+                        status = SkyBlockDataStatus(SkyBlockDataLoadState.NOT_LOADED)
+                    }
+                }
+                wasDemanded = false
+                return@onEndTick
+            }
+            wasDemanded = true
+            ensureLoaded()
+        }
+    }
+
+    fun ensureLoaded() {
+        if (status.state != SkyBlockDataLoadState.NOT_LOADED) return
         load()
     }
 
@@ -40,10 +65,14 @@ object SkyBlockDataRepository {
 
     private fun load() {
         status = SkyBlockDataStatus(SkyBlockDataLoadState.LOADING, message = "Loading item data")
-        CompletableFuture.supplyAsync {
+        val request = CompletableFuture.supplyAsync {
             SkyBlockDataUpdater.loadCached() ?: SkyBlockDataUpdater.CachedCatalog("bundled", SkyBlockDataLoader.loadBundled())
-        }.whenComplete { loaded, error ->
+        }
+        loadingFuture = request
+        request.whenComplete { loaded, error ->
             SkysoftErrorBoundary.onClientThread("Item List data load async completion") {
+                if (loadingFuture !== request) return@onClientThread
+                loadingFuture = null
                 if (error != null || loaded == null) {
                     status = SkyBlockDataStatus(
                         SkyBlockDataLoadState.FAILED,
@@ -68,11 +97,12 @@ object SkyBlockDataRepository {
         }
     }
 
-    fun entries(): List<ItemListEntry> = snapshot?.entries.orEmpty()
+    val entries: List<ItemListEntry>
+        get() = snapshot?.entries.orEmpty()
 
     fun search(query: String): List<ItemListEntry> {
         synchronized(searchCache) { searchCache[query]?.let { return it } }
-        val result = ItemListSearch.filter(entries(), query)
+        val result = ItemListSearch.filter(entries, query)
         synchronized(searchCache) { searchCache[query] = result }
         return result
     }
@@ -116,6 +146,17 @@ object SkyBlockDataRepository {
             val current = snapshot ?: return null
             val familyId = current.tierFamilyByItem[key] ?: return null
             return current.tierFamilies[familyId]
+        }
+    }
+
+    object Demand {
+        private val consumers = ActiveConsumerRegistry()
+
+        val hasActiveConsumers: Boolean
+            get() = consumers.hasActiveConsumers
+
+        fun register(id: String, isActive: () -> Boolean) {
+            consumers.register(id, isActive)
         }
     }
 

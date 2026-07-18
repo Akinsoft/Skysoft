@@ -29,14 +29,19 @@ import kotlin.math.sqrt
 
 object BetterShurikens {
     fun register() {
-        SkysoftClientEvents.onEndTick("Better Shurikens tick", ::onTick)
-        EntityLifecycleEvents.onLoad("Better Shurikens entity loading", ::onEntityLoad)
-        EntityLifecycleEvents.onUnload("Better Shurikens entity unloading", ::onEntityUnload)
-        BetterShurikenSoundCorrelation.register { resolution ->
+        PetRepository.registerConsumer("Better Shurikens", ::isEnabled)
+        SkysoftClientEvents.onEndTick(
+            "Better Shurikens tick",
+            isActive = { isEnabled() || hasRuntimeState },
+            action = ::onTick,
+        )
+        EntityLifecycleEvents.onLoad("Better Shurikens entity loading", ::isEnabled, ::onEntityLoad)
+        EntityLifecycleEvents.onUnload("Better Shurikens entity unloading", ::isEnabled, ::onEntityUnload)
+        BetterShurikenSoundCorrelation.register(::isEnabled) { resolution ->
             resolution.replacedMobUuid?.let(taggedMobs::remove)
             taggedMobs[resolution.target.uuid] = resolution.target
         }
-        WorldRenderDispatcher.registerHandler("Better Shurikens world rendering", ::renderWorld)
+        WorldRenderDispatcher.registerHandler("Better Shurikens world rendering", ::isEnabled, ::renderWorld)
     }
 
     @JvmStatic
@@ -285,6 +290,10 @@ object BetterShurikens {
 
     private fun isEnabled(): Boolean =
         HypixelLocationState.inSkyBlock && SkysoftConfigGui.config().combat.isBetterShurikensEnabled
+
+    private val hasRuntimeState: Boolean
+        get() = activeLevel != null || heldShuriken != null || detectionTicksRemaining > 0 || pendingThrows > 0 ||
+            trackedShurikens.isNotEmpty() || recentItemDisplays.isNotEmpty() || taggedMobs.isNotEmpty()
 
     private data class HeldShuriken(
         val slot: Int,

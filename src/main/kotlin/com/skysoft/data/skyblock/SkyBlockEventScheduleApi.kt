@@ -3,6 +3,7 @@ package com.skysoft.data.skyblock
 import com.google.gson.Gson
 import com.skysoft.SkysoftMod
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.net.PendingHttpRequests
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -10,15 +11,26 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 object SkyBlockEventScheduleApi {
     private val gson = Gson()
+    private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
     private val loading = AtomicBoolean(false)
 
     @Volatile
     private var schedule = SkyBlockEventSchedule()
     private var ticksUntilRefresh = 0
+    private var wasActive = false
 
     fun register() {
-        SkysoftClientEvents.onEndTick("SkyBlock Event Schedule refresh") tick@{
+        SkysoftClientEvents.onEndTick(
+            "SkyBlock Event Schedule refresh",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) tick@{
+            if (!consumers.hasActiveConsumers) {
+                if (wasActive) reset()
+                wasActive = false
+                return@tick
+            }
+            wasActive = true
             if (!HypixelLocationState.inSkyBlock) {
                 ticksUntilRefresh = 0
                 return@tick
@@ -31,6 +43,13 @@ object SkyBlockEventScheduleApi {
             requests.cancelAll()
         }
     }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
 
     fun activeEvents(nowMillis: Long): Set<SkyBlockEvent> {
         val current = schedule
@@ -72,6 +91,13 @@ object SkyBlockEventScheduleApi {
                     }
                 }
             }
+    }
+
+    private fun reset() {
+        requests.cancelAll()
+        loading.set(false)
+        schedule = SkyBlockEventSchedule()
+        ticksUntilRefresh = 0
     }
 
     private const val EVENTS_URL = "https://api.findthesoft.com/skyblock/events"

@@ -3,6 +3,7 @@ package com.skysoft.features.pets
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.ActiveConsumerRegistry
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.Display
@@ -18,17 +19,29 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 internal object ActivePetEntityTracker {
+    private val consumers = ActiveConsumerRegistry()
     private var observation: ActivePetEntityObservation? = null
     private var ticks = 0
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Active Pet entity tracking") { tick() }
+        SkysoftClientEvents.onEndTick(
+            "Active Pet entity tracking",
+            isActive = { consumers.hasActiveConsumers || observation != null },
+        ) { tick() }
         SkysoftClientEvents.onDisconnect("Active Pet entity disconnect reset", ::clear)
+    }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
     }
 
     fun current(): ActivePetEntityObservation? = observation
 
     private fun tick() {
+        if (!consumers.hasActiveConsumers) {
+            clear()
+            return
+        }
         ticks++
         val context = trackingContext() ?: run {
             clear()

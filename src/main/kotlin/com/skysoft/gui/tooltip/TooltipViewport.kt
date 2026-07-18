@@ -89,6 +89,8 @@ object TooltipViewport {
         if (x != 0.0 || y != 0.0) activeSession.panBy(x, y)
     }
 
+    fun needsKeyboardUpdate(): Boolean = config().enabled || session != null
+
     @JvmStatic
     fun clear() {
         session = null

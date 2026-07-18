@@ -32,18 +32,17 @@ object LotumHelper {
     private var ticks = 0
 
     fun register() {
-        WorldRenderDispatcher.registerHandler("Lotum Helper world rendering", ::onRenderWorld)
+        WorldRenderDispatcher.registerHandler("Lotum Helper world rendering", ::isActive, ::onRenderWorld)
 
-        EntityInteractionEvents.register("Lotum Helper entity interaction") { event ->
-            if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
-                return@register false
-            }
-
+        EntityInteractionEvents.register("Lotum Helper entity interaction", ::isActive) { event ->
             trackedLotums += event.clickedEntity.findLotumNameTag() ?: return@register false
             false
         }
 
-        SkysoftClientEvents.onEndTick("Lotum Helper tick") tick@{
+        SkysoftClientEvents.onEndTick(
+            "Lotum Helper tick",
+            isActive = { isActive() || trackedLotums.isNotEmpty() || highlightedLotums.isNotEmpty() },
+        ) tick@{
             if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
                 clear()
                 return@tick
@@ -92,6 +91,8 @@ object LotumHelper {
             config.enabled && config.settings.highlightLotums && SkyBlockIsland.LOTUS_ATOLL.isInIsland() && lotum.isAlive
         }
     }
+
+    private fun isActive(): Boolean = config.enabled && SkyBlockIsland.LOTUS_ATOLL.isInIsland()
 
     private fun removeInvalidLotums() = trackedLotums.removeIf { !it.isAlive || !it.isLotumName() }
 

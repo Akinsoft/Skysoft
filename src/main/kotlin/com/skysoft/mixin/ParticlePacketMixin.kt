@@ -28,6 +28,7 @@ open class ParticlePacketMixin {
         cancellable = true,
     )
     protected fun skysoftPostReceiveParticleEvent(packet: ClientboundLevelParticlesPacket, ci: CallbackInfo) {
+        if (!ClientParticleEvents.hasActiveListeners()) return
         val cancelled = SkysoftErrorBoundary.value("Particle packet dispatch", false) {
             ClientParticleEvents.shouldCancelParticle(
                 ClientParticleEvent(

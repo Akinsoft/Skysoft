@@ -22,14 +22,17 @@ object FishingHotspotRadar {
     private var activeLevel: ClientLevel? = null
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Fishing Hotspot Radar tick") { onTick() }
+        SkysoftClientEvents.onEndTick(
+            "Fishing Hotspot Radar tick",
+            isActive = { isEnabled() || activeLevel != null },
+        ) { onTick() }
         SkysoftClientEvents.onDisconnect("Fishing Hotspot Radar disconnect reset", ::clearSession)
-        ClientParticleEvents.register("Fishing Hotspot particles") { event ->
+        ClientParticleEvents.register("Fishing Hotspot particles", ::isEnabled) { event ->
             handleParticle(event)
             false
         }
-        ItemUseEvents.register("Fishing Hotspot item use") { event -> processItemUse(event).shouldCancel }
-        WorldRenderDispatcher.registerHandler("Fishing Hotspot radar rendering", ::onRenderWorld)
+        ItemUseEvents.register("Fishing Hotspot item use", ::isEnabled) { event -> processItemUse(event).shouldCancel }
+        WorldRenderDispatcher.registerHandler("Fishing Hotspot radar rendering", ::isEnabled, ::onRenderWorld)
     }
 
     private fun onTick() {
@@ -39,7 +42,7 @@ object FishingHotspotRadar {
             clear()
         }
         if (!isEnabled()) {
-            clear()
+            clearSession()
             return
         }
         val guess = solver.guess ?: return

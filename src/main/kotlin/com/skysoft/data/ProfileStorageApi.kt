@@ -4,6 +4,8 @@ import com.google.gson.GsonBuilder
 import com.skysoft.SkysoftMod
 import com.skysoft.config.MigrationResult
 import com.skysoft.config.SkysoftConfigFiles
+import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import java.nio.file.Files
@@ -11,29 +13,27 @@ import java.nio.file.Path
 import kotlin.time.Duration.Companion.seconds
 
 object ProfileStorageApi {
+    private val consumers = ActiveConsumerRegistry()
     private val storagePath: Path = SkysoftConfigFiles.profileStorage
-    private var saveDisabledReason: String? = if (SkysoftConfigFiles.migrateProfileStorage() == MigrationResult.READY) {
-        null
-    } else {
-        "legacy ${SkysoftConfigFiles.legacyProfileStorage} could not be copied to $storagePath. " +
-            "Move it manually or fix file permissions to save changes."
-    }
-    private var loadedFromDisk = SkysoftConfigFiles.hasFileOrBackup(storagePath)
+    private val state: StorageState by lazy(::initializeStorage)
     private var jsonNeedsSave = false
-    private val storageData: ProfileStorage = loadStorage()
     private var lastSaved = ElapsedTimeMark.farPast()
 
     val storage: ProfileStorage.ProfileSpecific
-        get() = storageData.activeProfile()
+        get() = state.storageData.activeProfile()
 
     val playerStorage: ProfileStorage.PlayerSpecific
-        get() = storageData.activePlayer()
+        get() = state.storageData.activePlayer()
 
     val allStorage: ProfileStorage
-        get() = storageData
+        get() = state.storageData
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Profile Storage autosave") {
+        SkyBlockProfileApi.registerConsumer("Profile Storage") { consumers.hasActiveConsumers }
+        SkysoftClientEvents.onEndTick(
+            "Profile Storage autosave",
+            isActive = { consumers.hasActiveConsumers || jsonNeedsSave },
+        ) {
             if (jsonNeedsSave && lastSaved.passedSince() >= 30.seconds) {
                 saveNow()
             }
@@ -41,9 +41,16 @@ object ProfileStorageApi {
         SkysoftClientEvents.onDisconnect("Profile Storage disconnect save", ::saveNow)
     }
 
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
+
     fun importLegacyStorage(legacy: ProfileStorage) {
-        if (loadedFromDisk) return
-        storageData.importFrom(legacy)
+        if (state.loadedFromDisk) return
+        state.storageData.importFrom(legacy)
         markDirty()
     }
 
@@ -55,31 +62,46 @@ object ProfileStorageApi {
         if (!jsonNeedsSave) return
 
         lastSaved = ElapsedTimeMark.now()
-        if (saveDisabledReason != null) {
-            SkysoftMod.LOGGER.warn("Skipping Skysoft profile storage save because $saveDisabledReason")
+        if (state.saveDisabledReason != null) {
+            SkysoftMod.LOGGER.warn("Skipping Skysoft profile storage save because ${state.saveDisabledReason}")
             return
         }
 
         try {
-            storageData.repairLoadedValues()
-            val json = profileStorageGson.toJson(storageData)
+            state.storageData.repairLoadedValues()
+            val json = profileStorageGson.toJson(state.storageData)
             SkysoftConfigFiles.writeStringSafely(storagePath, json)
-            loadedFromDisk = true
+            state.loadedFromDisk = true
             jsonNeedsSave = false
         } catch (e: Exception) {
             SkysoftMod.LOGGER.error("Failed to save Skysoft profile storage", e)
         }
     }
 
-    private fun loadStorage(): ProfileStorage {
-        if (!loadedFromDisk) return ProfileStorage()
+    private fun initializeStorage(): StorageState {
+        val saveDisabledReason = if (SkysoftConfigFiles.migrateProfileStorage() == MigrationResult.READY) {
+            null
+        } else {
+            "legacy ${SkysoftConfigFiles.legacyProfileStorage} could not be copied to $storagePath. " +
+                "Move it manually or fix file permissions to save changes."
+        }
+        val storageState = StorageState(
+            saveDisabledReason = saveDisabledReason,
+            loadedFromDisk = SkysoftConfigFiles.hasFileOrBackup(storagePath),
+        )
+        storageState.storageData = loadStorage(storageState)
+        return storageState
+    }
+
+    private fun loadStorage(storageState: StorageState): ProfileStorage {
+        if (!storageState.loadedFromDisk) return ProfileStorage()
         return try {
             SkysoftConfigFiles.readWithBackup(storagePath) { path ->
                 readStorage(path)
             }
         } catch (e: Exception) {
             SkysoftMod.LOGGER.warn("Failed to load Skysoft profile storage or backup from $storagePath", e)
-            saveDisabledReason = storageLoadFailureReason()
+            storageState.saveDisabledReason = storageLoadFailureReason()
             loadFallbackStorage() ?: run {
                 SkysoftMod.LOGGER.warn("Using default Skysoft profile storage because no fallback storage could be loaded")
                 ProfileStorage()
@@ -111,6 +133,13 @@ object ProfileStorageApi {
 
     private fun readStorage(path: Path): ProfileStorage =
         readProfileStorage(path)
+
+    private class StorageState(
+        var saveDisabledReason: String?,
+        var loadedFromDisk: Boolean,
+    ) {
+        lateinit var storageData: ProfileStorage
+    }
 }
 
 private val profileStorageGson = GsonBuilder()

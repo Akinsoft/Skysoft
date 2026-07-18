@@ -2,6 +2,9 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.hypixel.HypixelPartyApi
+import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.events.input.ItemUseEvent
 import com.skysoft.events.input.ItemUseEvents
 import com.skysoft.events.particle.ClientParticleEvent
@@ -28,10 +31,16 @@ object DianaBurrowHelper {
     private var wasOnHub = false
 
     fun register() {
+        ProfileStorageApi.registerConsumer("Diana Burrow Helper") { config.enabled }
+        MayorPerkApi.registerConsumer("Diana Burrow Helper") { config.enabled }
+        HypixelPartyApi.registerConsumer("Diana Burrow Helper") { config.enabled }
         DianaBurrowStorage.register()
-        SkysoftClientEvents.onEndTick("Diana Burrow Helper tick") { onTick() }
+        SkysoftClientEvents.onEndTick(
+            "Diana Burrow Helper tick",
+            isActive = { isEnabled() || hasRuntimeState() },
+        ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Burrow Helper disconnect reset", ::clearSession)
-        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change") { profile ->
+        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", { config.enabled }) { profile ->
             DianaBurrowStorage.saveCurrentTargets()
             clearTargets(persistTargets = false)
             DianaBurrowStorage.resetLoadedProfile()
@@ -42,28 +51,37 @@ object DianaBurrowHelper {
             }
             wasOnHub = false
         }
-        ClientParticleEvents.register("Diana Burrow particles") { event ->
+        ClientParticleEvents.register("Diana Burrow particles", DianaEventState::canUseHelper) { event ->
             handleParticle(event)
             shouldHideArrowParticle(event)
         }
-        ItemUseEvents.register("Diana Burrow item use") { event ->
+        ItemUseEvents.register("Diana Burrow item use", DianaEventState::canUseHelper) { event ->
             onItemUse(event)
             false
         }
-        ChatEvents.onVisibleMessage("Diana Burrow chat") { message ->
+        ChatEvents.onVisibleMessage("Diana Burrow chat", ::isEnabled) { message ->
             if (message.isSystemLike) {
                 handleWarpFailure(message.cleanText)
                 DianaBurrowInteractions.onMessage(message)
             }
             ChatMessageVisibility.SHOW
         }
-        WorldRenderDispatcher.registerHandler("Diana Burrow world rendering", ::onRenderWorld)
+        WorldRenderDispatcher.registerHandler(
+            "Diana Burrow world rendering",
+            isActive = { config.enabled && DianaEventState.isOnHub() },
+            handler = ::onRenderWorld,
+        )
         DianaWarpTitleRenderer.register(::activeWarpSuggestion)
         DianaBurrowInteractions.register()
         DianaLobbyCompromisedWatcher.register()
         DianaRareMobSharing.register()
         MythologicalRitualTracker.register()
     }
+
+    private fun isEnabled(): Boolean = config.enabled
+
+    private fun hasRuntimeState(): Boolean =
+        wasOnHub || warpKeyWasDown || DianaBurrowTargetTracker.hasTargets()
 
     private fun onTick() {
         val now = System.currentTimeMillis()

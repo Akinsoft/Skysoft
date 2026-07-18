@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 
@@ -24,20 +25,47 @@ enum class SkyBlockEvent(val displayName: String) {
 }
 
 object SkyBlockEventState {
+    private val consumers = ActiveConsumerRegistry()
     @Volatile
     private var snapshot = SkyBlockEventSnapshot()
     private var ticks = 0
+    private var wasActive = false
 
     @Volatile
     var version: Long = 0
         private set
 
     fun register() {
-        SkysoftClientEvents.onEndTick("SkyBlock Event state refresh") {
+        TabListApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
+        MayorPerkApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
+        SkyBlockEventScheduleApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
+        SkysoftClientEvents.onEndTick(
+            "SkyBlock Event state refresh",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) {
+            val isActive = consumers.hasActiveConsumers
+            if (!isActive) {
+                if (wasActive) clear()
+                wasActive = false
+                ticks = 0
+                return@onEndTick
+            }
+            if (!wasActive) {
+                wasActive = true
+                refresh()
+                return@onEndTick
+            }
             if (++ticks % REFRESH_INTERVAL_TICKS != 0) return@onEndTick
             refresh()
         }
     }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
 
     fun isActive(event: SkyBlockEvent): Boolean = event in snapshot.activeEvents
 
@@ -76,6 +104,12 @@ object SkyBlockEventState {
         )
         if (next == snapshot) return
         snapshot = next
+        version++
+    }
+
+    private fun clear() {
+        if (snapshot == SkyBlockEventSnapshot()) return
+        snapshot = SkyBlockEventSnapshot()
         version++
     }
 

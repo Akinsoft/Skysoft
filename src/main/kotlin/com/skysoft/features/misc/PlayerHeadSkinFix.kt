@@ -28,6 +28,7 @@ object PlayerHeadSkinFix {
 
     @JvmStatic
     fun setOwner(state: LivingEntityRenderState, entity: LivingEntity) {
+        if (!enabled) return
         (state as FabricRenderState).setData(ownerKey, entity.uuid)
         if (state.wornHeadType != SkullBlock.Types.PLAYER) {
             headRenderTypes.remove(entity.uuid)

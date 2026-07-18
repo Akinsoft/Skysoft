@@ -32,11 +32,18 @@ object SkillExpGainApi {
     private var activeSkill: SkyBlockSkill? = null
 
     fun register() {
-        ChatEvents.onActionBar("Skill Experience action bar") { message ->
+        TabListApi.registerConsumer("Skill Experience API", PetFeatureDemand::isActive)
+        ChatEvents.onActionBar(
+            "Skill Experience action bar",
+            isActive = PetFeatureDemand::isActive,
+        ) { message ->
             if (HypixelLocationState.inSkyBlock) handleActionBar(message.component)
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onVisibleMessage("Skill Experience chat") { message ->
+        ChatEvents.onVisibleMessage(
+            "Skill Experience chat",
+            isActive = PetFeatureDemand::isActive,
+        ) { message ->
             if (HypixelLocationState.inSkyBlock) handleChat(message.formattedText)
             ChatMessageVisibility.SHOW
         }
@@ -45,8 +52,12 @@ object SkillExpGainApi {
         }
     }
 
-    fun onSkillExpGain(boundary: String, listener: (SkillExpGain) -> Unit) {
-        listeners += Listener(boundary, listener)
+    fun onSkillExpGain(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: (SkillExpGain) -> Unit,
+    ) {
+        listeners += Listener(boundary, isActive, listener)
     }
 
     fun getSkillInfo(skill: SkyBlockSkill): SkillInfo? = storage[skill]
@@ -269,7 +280,9 @@ object SkillExpGainApi {
 
     private fun post(event: SkillExpGain) {
         listeners.forEach { listener ->
-            SkysoftErrorBoundary.run(listener.boundary) { listener.callback(event) }
+            if (listener.isActive()) {
+                SkysoftErrorBoundary.run(listener.boundary) { listener.callback(event) }
+            }
         }
     }
 
@@ -284,7 +297,11 @@ object SkillExpGainApi {
         val source: String = ACTIONBAR_SOURCE,
     )
 
-    private data class Listener(val boundary: String, val callback: (SkillExpGain) -> Unit)
+    private data class Listener(
+        val boundary: String,
+        val isActive: () -> Boolean,
+        val callback: (SkillExpGain) -> Unit,
+    )
 
     data class SkillInfo(
         @Expose var level: Int = 0,

@@ -1,6 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.ChatEvents
@@ -10,7 +11,9 @@ import java.util.Locale
 
 object SkyBlockProfileApi {
     private val profileChangeListeners = mutableListOf<ProfileChangeListener>()
+    private val consumers = ActiveConsumerRegistry()
     private var ticks = 0
+    private var wasActive = false
 
     var currentProfileName: String? = null
         private set
@@ -27,11 +30,26 @@ object SkyBlockProfileApi {
     }
 
     fun register() {
-        ChatEvents.onVisibleMessage("SkyBlock Profile chat") { message ->
+        TabListApi.registerConsumer("SkyBlock Profile API") { consumers.hasActiveConsumers }
+        ChatEvents.onVisibleMessage(
+            "SkyBlock Profile chat",
+            isActive = { consumers.hasActiveConsumers },
+        ) { message ->
             handleChat(message.plainText)
             ChatMessageVisibility.SHOW
         }
-        SkysoftClientEvents.onEndTick("SkyBlock Profile update") {
+        SkysoftClientEvents.onEndTick(
+            "SkyBlock Profile update",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) {
+            val isActive = consumers.hasActiveConsumers
+            if (!isActive) {
+                if (wasActive) setProfile(null)
+                wasActive = false
+                ticks = 0
+                return@onEndTick
+            }
+            wasActive = true
             if (!HypixelLocationState.inSkyBlock) {
                 setProfile(null)
                 ticks = 0
@@ -42,11 +60,23 @@ object SkyBlockProfileApi {
         SkysoftClientEvents.onDisconnect("SkyBlock Profile reset") {
             setProfile(null)
             ticks = 0
+            wasActive = false
         }
     }
 
-    fun onProfileChange(boundary: String, listener: (String?) -> Unit) {
-        profileChangeListeners += ProfileChangeListener(boundary, listener)
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
+
+    fun onProfileChange(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: (String?) -> Unit,
+    ) {
+        profileChangeListeners += ProfileChangeListener(boundary, isActive, listener)
     }
 
     private fun handleChat(message: String) {
@@ -77,7 +107,9 @@ object SkyBlockProfileApi {
         if (currentProfileName == normalized) return
         currentProfileName = normalized
         profileChangeListeners.forEach { listener ->
-            SkysoftErrorBoundary.run(listener.boundary) { listener.callback(normalized) }
+            if (listener.isActive()) {
+                SkysoftErrorBoundary.run(listener.boundary) { listener.callback(normalized) }
+            }
         }
     }
 
@@ -90,6 +122,7 @@ object SkyBlockProfileApi {
 
 private data class ProfileChangeListener(
     val boundary: String,
+    val isActive: () -> Boolean,
     val callback: (String?) -> Unit,
 )
 

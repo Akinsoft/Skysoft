@@ -21,12 +21,20 @@ object ItemUseEvents {
             listeners.any { it.shouldCancelItemUse(event) }
         }
     }
+    private var activePredicates: List<() -> Boolean> = emptyList()
 
-    fun register(boundary: String, listener: ItemUseCallback) {
+    fun register(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: ItemUseCallback,
+    ) {
+        activePredicates += isActive
         event.register { event ->
-            SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelItemUse(event) }
+            isActive() && SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelItemUse(event) }
         }
     }
+
+    fun hasActiveListeners(): Boolean = activePredicates.any { it() }
 
     fun shouldCancelItemUse(itemUse: ItemUseEvent): Boolean = event.invoker().shouldCancelItemUse(itemUse)
 }

@@ -28,7 +28,10 @@ object FullInventoryWarning {
     private var wasWarning = false
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Full Inventory Warning tick") { tick() }
+        SkysoftClientEvents.onEndTick(
+            "Full Inventory Warning tick",
+            isActive = { config.enabled || wasWarning },
+        ) { tick() }
         SkysoftClientEvents.onDisconnect("Full Inventory Warning disconnect reset", ::reset)
     }
 

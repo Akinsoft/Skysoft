@@ -2,8 +2,6 @@ package com.skysoft.events.sound
 
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.SkysoftErrorBoundary
-import net.fabricmc.fabric.api.event.Event
-import net.fabricmc.fabric.api.event.EventFactory
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundSource
 
@@ -22,18 +20,29 @@ fun interface ReceiveSoundCallback {
 }
 
 object ClientSoundEvents {
-    private val event: Event<ReceiveSoundCallback> =
-        EventFactory.createArrayBacked(ReceiveSoundCallback::class.java) { listeners ->
-            ReceiveSoundCallback { event -> listeners.forEach { it.onReceiveSound(event) } }
-        }
+    private var listeners: List<ActiveSoundListener> = emptyList()
 
-    fun register(boundary: String, listener: ReceiveSoundCallback) {
-        event.register { event ->
-            SkysoftErrorBoundary.run(boundary) { listener.onReceiveSound(event) }
-        }
+    fun register(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: ReceiveSoundCallback,
+    ) {
+        listeners += ActiveSoundListener(boundary, isActive, listener)
     }
+
+    fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
 
     fun dispatch(sound: ClientSoundEvent) {
-        event.invoker().onReceiveSound(sound)
+        listeners.forEach { listener ->
+            if (listener.isActive()) {
+                SkysoftErrorBoundary.run(listener.boundary) { listener.callback.onReceiveSound(sound) }
+            }
+        }
     }
+
+    private data class ActiveSoundListener(
+        val boundary: String,
+        val isActive: () -> Boolean,
+        val callback: ReceiveSoundCallback,
+    )
 }

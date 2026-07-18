@@ -15,6 +15,8 @@ fun interface EntityUnloadCallback {
 }
 
 object EntityLifecycleEvents {
+    private var loadPredicates: List<() -> Boolean> = emptyList()
+    private var unloadPredicates: List<() -> Boolean> = emptyList()
     private val load: Event<EntityLoadCallback> = EventFactory.createArrayBacked(EntityLoadCallback::class.java) { listeners ->
         EntityLoadCallback { entity ->
             listeners.forEach { it.onEntityLoad(entity) }
@@ -28,19 +30,33 @@ object EntityLifecycleEvents {
     }
 
     fun register() {
-        ClientEntityEvents.ENTITY_LOAD.register { entity, _ -> load.invoker().onEntityLoad(entity) }
-        ClientEntityEvents.ENTITY_UNLOAD.register { entity, _ -> unload.invoker().onEntityUnload(entity) }
-    }
-
-    fun onLoad(boundary: String, listener: EntityLoadCallback) {
-        load.register { entity ->
-            SkysoftErrorBoundary.run(boundary) { listener.onEntityLoad(entity) }
+        ClientEntityEvents.ENTITY_LOAD.register { entity, _ ->
+            if (loadPredicates.any { it() }) load.invoker().onEntityLoad(entity)
+        }
+        ClientEntityEvents.ENTITY_UNLOAD.register { entity, _ ->
+            if (unloadPredicates.any { it() }) unload.invoker().onEntityUnload(entity)
         }
     }
 
-    fun onUnload(boundary: String, listener: EntityUnloadCallback) {
+    fun onLoad(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: EntityLoadCallback,
+    ) {
+        loadPredicates += isActive
+        load.register { entity ->
+            if (isActive()) SkysoftErrorBoundary.run(boundary) { listener.onEntityLoad(entity) }
+        }
+    }
+
+    fun onUnload(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: EntityUnloadCallback,
+    ) {
+        unloadPredicates += isActive
         unload.register { entity ->
-            SkysoftErrorBoundary.run(boundary) { listener.onEntityUnload(entity) }
+            if (isActive()) SkysoftErrorBoundary.run(boundary) { listener.onEntityUnload(entity) }
         }
     }
 }

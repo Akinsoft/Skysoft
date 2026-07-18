@@ -43,6 +43,9 @@ internal class ServerTpsService(private val estimator: ServerTpsEstimator = Serv
 internal object ServerTpsProvider {
     private val service = ServerTpsService()
 
+    val hasActiveConsumers: Boolean
+        get() = service.hasActiveConsumers
+
     val tps: Double?
         get() = service.tps
 

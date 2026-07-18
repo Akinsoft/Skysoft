@@ -29,7 +29,11 @@ object AutoSprint {
 
     fun register() {
         itemCatalogue.startSession(config.settings.combinations)
-        SkysoftClientEvents.onEndTick("Auto Sprint tick") { minecraft ->
+        SkyBlockEventState.registerConsumer("Auto Sprint") { config.enabled }
+        SkysoftClientEvents.onEndTick(
+            "Auto Sprint tick",
+            isActive = { config.enabled || wasActive },
+        ) { minecraft ->
             val player = minecraft.player ?: return@onEndTick
             val isCurrentlyActive = isActive(player)
             if (wasActive && !isCurrentlyActive) {

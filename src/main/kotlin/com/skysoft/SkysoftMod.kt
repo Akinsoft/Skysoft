@@ -33,6 +33,8 @@ import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
 import com.skysoft.features.inventory.ItemProtectionManager
+import com.skysoft.features.inventory.registerSlotBindingStorage
+import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.itemlist.ItemListNpcWaypoint
 import com.skysoft.features.inventory.itemlist.ItemListSearchCommand
@@ -53,6 +55,7 @@ import com.skysoft.features.pets.ActivePetEntityTracker
 import com.skysoft.features.pets.ActivePetOverlay
 import com.skysoft.features.pets.ActivePetTracker
 import com.skysoft.features.pets.PetAnimationLearner
+import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.pets.PetStorageService
 import com.skysoft.features.pets.PetXpEstimator
 import com.skysoft.features.pets.SkillExpGainApi
@@ -63,6 +66,7 @@ import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.commands.SkysoftCommandRegistry
 import com.skysoft.utils.commands.SkysoftCommandRegistry.Companion.literal
@@ -75,7 +79,6 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -109,6 +112,9 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Full Inventory Warning", FullInventoryWarning::register)
         registerFeature("Inventory Buttons", InventoryButtonManager::register)
         registerFeature("Inventory Equipment", InventoryEquipment::register)
+        registerFeature("Slot Bindings", ::registerSlotBindingStorage)
+        registerFeature("Slot Locking", SlotLockManager::register)
+        registerFeature("Protect Item", ItemProtectionManager::register)
         registerFeature("Item List", ItemListController::register)
         registerFeature("Item List Waypoints", ItemListNpcWaypoint::register)
         registerFeature("Storage Overlay", StorageOverlayController::register)
@@ -122,6 +128,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)
         registerFeature("Auto Sprint", AutoSprint::register)
         registerFeature("Block Overlay", BlockOverlay::register)
+        registerFeature("Pet Repository", PetRepository::register)
         registerFeature("Active Pet Tracker", ActivePetTracker::register)
         registerFeature("Skill Experience API", SkillExpGainApi::register)
         registerFeature("Pet Experience Estimator", PetXpEstimator::register)
@@ -144,13 +151,15 @@ class SkysoftMod : ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
             SkysoftErrorBoundary.run("Command registration") { registerCommands(dispatcher) }
         }
-        ClientTickEvents.END_CLIENT_TICK.register {
-            SkysoftErrorBoundary.run("Position Editor keybind") { handlePositionEditorKeybind() }
-            SkysoftErrorBoundary.run("Tooltip keyboard navigation") { TooltipViewport.updateKeyboardPan() }
-            SkysoftErrorBoundary.run("Pending Skysoft screens") {
-                openPendingScreens()
-            }
-            SkysoftErrorBoundary.run("Item List search opening") { ItemListSearchCommand.openPending() }
+        SkysoftClientEvents.onEndTick("Position Editor keybind", ::hasPositionEditorKeybind) {
+            handlePositionEditorKeybind()
+        }
+        SkysoftClientEvents.onEndTick("Tooltip keyboard navigation", TooltipViewport::needsKeyboardUpdate) {
+            TooltipViewport.updateKeyboardPan()
+        }
+        SkysoftClientEvents.onEndTick("Pending Skysoft screens", ::hasPendingScreens) { openPendingScreens() }
+        SkysoftClientEvents.onEndTick("Item List search opening", ItemListSearchCommand::hasPendingScreen) {
+            ItemListSearchCommand.openPending()
         }
     }
 
@@ -195,6 +204,12 @@ class SkysoftMod : ClientModInitializer {
                 HeldItemEditorScreen.open()
             }
         }
+
+        private fun hasPendingScreens(): Boolean =
+            shouldOpenMenu || shouldOpenEditor || shouldOpenButtonEditor || shouldOpenHeldItemEditor
+
+        private fun hasPositionEditorKeybind(): Boolean =
+            SkysoftConfigGui.config().gui.positionEditor.keybind != GLFW.GLFW_KEY_UNKNOWN || positionEditorKeyWasDown
 
         private fun registerCommands(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
             SkysoftCommandRegistry(dispatcher).apply {

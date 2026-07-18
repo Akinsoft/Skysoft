@@ -6,6 +6,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -27,11 +28,19 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.sounds.SoundEvents
 
 internal fun registerBazaarTracker() {
+    ProfileStorageApi.registerConsumer("Bazaar Tracker") { config.enabled }
+    SkyBlockDataRepository.Demand.register("Bazaar Tracker") { config.enabled }
     registerChatListeners()
     registerMouseClickCapture()
-    SkysoftClientEvents.onEndTick("Bazaar Tracker tick") { onClientTick() }
+    SkysoftClientEvents.onEndTick(
+        "Bazaar Tracker tick",
+        isActive = { config.enabled || wasBazaarTrackerEnabled },
+    ) {
+        wasBazaarTrackerEnabled = config.enabled
+        onClientTick()
+    }
     SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset") { resetTransientState(true) }
-    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset") { resetTransientState(true) }
+    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset", { config.enabled }) { resetTransientState(true) }
     GuiOverlayRegistry.register(
         GuiOverlay(
             id = "bazaar_tracker",
@@ -78,7 +87,7 @@ internal fun resetBazaarTrackerDisplayedProfit() {
 }
 
 internal fun registerChatListeners() {
-    ChatEvents.onVisibleMessage("Bazaar Tracker chat") { message ->
+    ChatEvents.onVisibleMessage("Bazaar Tracker chat", { config.enabled }) { message ->
         handleChat(message.plainText)
         ChatMessageVisibility.SHOW
     }
@@ -86,10 +95,12 @@ internal fun registerChatListeners() {
 
 internal fun registerMouseClickCapture() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
+        if (!config.enabled) return@register
         SkysoftErrorBoundary.run("Bazaar Tracker screen initialization") {
             if (screen is AbstractContainerScreen<*>) {
                 ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
                     SkysoftErrorBoundary.value("Bazaar Tracker mouse click", true) {
+                        if (!config.enabled) return@value true
                         recordClickedOrder(screen, click)
                         true
                     }
@@ -98,6 +109,8 @@ internal fun registerMouseClickCapture() {
         }
     }
 }
+
+private var wasBazaarTrackerEnabled = false
 
 internal fun onClientTick() {
     if (!HypixelLocationState.inSkyBlock || !config.enabled) {

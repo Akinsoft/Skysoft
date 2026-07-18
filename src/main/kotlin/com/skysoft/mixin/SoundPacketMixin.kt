@@ -29,6 +29,7 @@ open class SoundPacketMixin {
         ],
     )
     protected fun skysoftPostReceiveSoundEvent(packet: ClientboundSoundPacket, ci: CallbackInfo) {
+        if (!ClientSoundEvents.hasActiveListeners()) return
         SkysoftErrorBoundary.run("Sound packet dispatch") {
             ClientSoundEvents.dispatch(
                 ClientSoundEvent(
@@ -58,6 +59,7 @@ open class SoundPacketMixin {
         ],
     )
     protected fun skysoftPostReceiveEntitySoundEvent(packet: ClientboundSoundEntityPacket, ci: CallbackInfo) {
+        if (!ClientSoundEvents.hasActiveListeners()) return
         SkysoftErrorBoundary.run("Entity sound packet dispatch") {
             val entity = Minecraft.getInstance().level?.getEntity(packet.id)
             ClientSoundEvents.dispatch(

@@ -5,6 +5,7 @@ import com.skysoft.data.skyblock.SkyBlockPetInfo
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
 import net.minecraft.world.item.ItemStack
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -17,6 +18,7 @@ internal object PetRepoCache {
     val gson = Gson()
     val requests = PendingHttpRequests()
     val loadingLocalRepoCache = AtomicBoolean(false)
+    var localRepoLoadFuture: CompletableFuture<*>? = null
     val loadingConstants = AtomicBoolean(false)
     val requestedItems = ConcurrentHashMap.newKeySet<String>()
     val loadingItemIndexes = AtomicBoolean(false)
@@ -31,6 +33,9 @@ internal object PetRepoCache {
 
     @Volatile
     var localRepoCacheLastFailure = ElapsedTimeMark.farPast()
+
+    @Volatile
+    var constantsLastFailure = ElapsedTimeMark.farPast()
 
     @Volatile
     var localItemsByInternalName: Map<String, SkyblockRepoItemJson> = emptyMap()

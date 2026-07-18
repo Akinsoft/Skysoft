@@ -27,14 +27,23 @@ internal object ItemListNpcWaypoint {
     private val warpFailures = mutableMapOf<String, Long>()
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Item List NPC Waypoint tick") { tick() }
+        SkyBlockEventState.registerConsumer("Item List NPC Waypoint", ::hasActiveState)
+        SkysoftClientEvents.onEndTick("Item List NPC Waypoint tick", ::hasActiveState) { tick() }
         SkysoftClientEvents.onDisconnect("Item List NPC Waypoint disconnect reset", ::clear)
-        ChatEvents.onVisibleMessage("Item List waypoint chat") { message ->
+        ChatEvents.onVisibleMessage("Item List waypoint chat", ::hasPendingWarp) { message ->
             recordWarpFailure(message.body)
             ChatMessageVisibility.SHOW
         }
-        WorldRenderDispatcher.registerHandler("Item List waypoint rendering", ::renderWorld)
+        WorldRenderDispatcher.registerHandler(
+            "Item List waypoint rendering",
+            isActive = { activeWaypoint != null },
+            handler = ::renderWorld,
+        )
     }
+
+    private fun hasPendingWarp(): Boolean = pendingWarp != null
+
+    private fun hasActiveState(): Boolean = pendingWarp != null || activeWaypoint != null
 
     fun requestWarp(entityId: String): NpcWarpRequestResult {
         if (!HypixelLocationState.inSkyBlock) return NpcWarpRequestResult.REJECTED

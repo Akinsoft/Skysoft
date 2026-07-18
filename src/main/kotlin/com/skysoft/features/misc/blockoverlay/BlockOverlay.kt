@@ -34,7 +34,12 @@ object BlockOverlay {
 
     fun register() {
         itemCatalogue.startSession(config.settings.combinations)
-        WorldRenderDispatcher.registerHandler("Block Overlay world rendering", ::renderWorld)
+        SkyBlockEventState.registerConsumer("Block Overlay") { config.enabled }
+        WorldRenderDispatcher.registerHandler(
+            "Block Overlay world rendering",
+            isActive = { pendingTarget != null },
+            handler = ::renderWorld,
+        )
     }
 
     @JvmStatic

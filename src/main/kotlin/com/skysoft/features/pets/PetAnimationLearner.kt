@@ -8,11 +8,19 @@ internal object PetAnimationLearner {
     private var recorder: PetAnimationLoopRecorder? = null
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Pet Animation Learner tick") { tick() }
+        ActivePetEntityTracker.registerConsumer("Pet Animation Learner", PetFeatureDemand::isDisplayActive)
+        SkysoftClientEvents.onEndTick(
+            "Pet Animation Learner tick",
+            isActive = { PetFeatureDemand.isDisplayActive() || recorder != null },
+        ) { tick() }
         SkysoftClientEvents.onDisconnect("Pet Animation Learner disconnect reset", ::discardCapture)
     }
 
     private fun tick() {
+        if (!PetFeatureDemand.isDisplayActive()) {
+            discardCapture()
+            return
+        }
         val currentPet = ActivePetTracker.currentPet
         val skin = currentPet?.skinInternalName?.takeIf(String::isNotBlank)
         if (currentPet == null || skin == null) {

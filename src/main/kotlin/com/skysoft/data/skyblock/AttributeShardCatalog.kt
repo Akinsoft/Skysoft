@@ -12,6 +12,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.getCompoundOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.utils.NumberUtilities.formatInt
+import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
@@ -22,6 +23,7 @@ import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.features.pets.PetFeatureDemand
 import com.skysoft.utils.net.PendingHttpRequests
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.network.chat.Component
@@ -30,15 +32,30 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.seconds
 
 object AttributeShardCatalog {
     private val storage get() = ProfileStorageApi.storage.attributeShards
+    private var wasActive = false
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Attribute Shard loading") {
+        ProfileStorageApi.registerConsumer("Attribute Shard Catalog", PetFeatureDemand::isActive)
+        SkysoftClientEvents.onEndTick(
+            "Attribute Shard loading",
+            isActive = { PetFeatureDemand.isActive() || wasActive },
+        ) {
+            if (!PetFeatureDemand.isActive()) {
+                if (wasActive) AttributeShardConstants.cancelAll()
+                wasActive = false
+                return@onEndTick
+            }
+            wasActive = true
             AttributeShardConstants.ensureLoaded()
         }
-        ChatEvents.onVisibleMessage("Attribute Shard chat") { message ->
+        ChatEvents.onVisibleMessage(
+            "Attribute Shard chat",
+            isActive = PetFeatureDemand::isActive,
+        ) { message ->
             handleIncomingMessage(message.component)
             ChatMessageVisibility.SHOW
         }
@@ -299,6 +316,7 @@ private object AttributeShardConstants {
     private val gson = Gson()
     private val requests = PendingHttpRequests()
     private val loadingConstants = AtomicBoolean(false)
+    private var constantsLastFailure = ElapsedTimeMark.farPast()
 
     @Volatile
     private var attributeLevelling = mapOf<SkyBlockRarity, List<Int>>()
@@ -394,6 +412,7 @@ private object AttributeShardConstants {
     }
 
     private fun loadConstants() {
+        if (constantsLastFailure.passedSince() < CONSTANTS_RETRY_DELAY) return
         if (!loadingConstants.compareAndSet(false, true)) return
         request(ATTRIBUTE_SHARDS_URL)
             .thenApply { gson.fromJson(it, SkysoftAttributeShardRepoJson::class.java) }
@@ -403,6 +422,7 @@ private object AttributeShardConstants {
                         if (error == null && data != null) {
                             applyConstants(data)
                         } else {
+                            constantsLastFailure = ElapsedTimeMark.now()
                             SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
                         }
                     } finally {
@@ -448,6 +468,8 @@ private object AttributeShardConstants {
     }
 
     private fun request(url: String) = requests.getString(url)
+
+    private val CONSTANTS_RETRY_DELAY = 30.seconds
 
     private fun String.normalizeAttributeShardInternalName(): String {
         val normalized = uppercase(Locale.US).replace(':', '-')
