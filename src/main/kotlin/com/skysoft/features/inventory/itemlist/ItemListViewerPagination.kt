@@ -283,7 +283,7 @@ internal enum class ViewerInputResult {
 
     fun playSound() {
         if (!isHandled) return
-        pageDelta?.let(SoundUtilities::playPageSound) ?: SoundUtilities.playClickSound()
+        pageDelta?.let(SoundUtilities::playNavigationSound) ?: SoundUtilities.playClickSound()
     }
 
     companion object {
