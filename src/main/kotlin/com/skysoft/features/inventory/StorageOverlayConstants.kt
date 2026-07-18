@@ -44,8 +44,6 @@ internal object StoragePlayerInventory {
 internal object StorageSearch {
     const val HEIGHT = 18
     const val GAP = 4
-    const val TEXT_X_OFFSET = 5
-    const val TEXT_Y_OFFSET = 5
 }
 
 internal object StorageTitle {

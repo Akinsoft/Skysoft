@@ -156,7 +156,7 @@ private fun processClosedStorageSettingsClick(
     }
     isStorageSettingsPanelOpen = true
     SoundUtilities.playClickSound()
-    searchFocused = false
+    storageSearchField.focused = false
     finishTitleEdit()
     lastStorageSettingsOutcome = "opened"
     return InputHandlingResult.CONSUMED

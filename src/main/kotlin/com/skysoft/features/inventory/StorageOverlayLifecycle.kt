@@ -5,7 +5,6 @@ import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.nonPlayerSlots
-import com.skysoft.utils.gui.textAfterDeletingPreviousWord
 import com.skysoft.utils.input.InputHandlingResult
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
@@ -191,10 +190,13 @@ internal fun handleStorageOverlayMouseClick(
             InputHandlingResult.CONSUMED
         }
         pointInSearch(measurements, mouseX, mouseY) -> {
-            searchFocused = true
+            storageSearchField.focused = true
             finishTitleEdit()
-            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT && searchText.isNotEmpty()) {
-                searchText = ""
+            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                storageSearchField.placeCursorAt(mouseX, measurements.search.x, measurements.search.width)
+            }
+            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT && storageSearchField.text.isNotEmpty()) {
+                storageSearchField.text = ""
                 resetStorageScroll()
                 coerceScroll(measurements, pageLayouts(measurements, activePage).contentHeight)
             }
@@ -204,7 +206,7 @@ internal fun handleStorageOverlayMouseClick(
             val titlePage = titlePageAt(pageLayoutResult.pages, mouseX, mouseY)
             if (titlePage != null) {
                 startTitleEdit(titlePage)
-                searchFocused = false
+                storageSearchField.focused = false
                 InputHandlingResult.CONSUMED
             } else {
                 finishTitleEdit()
@@ -217,7 +219,7 @@ internal fun handleStorageOverlayMouseClick(
         config.settings.miniMenu && measurements.selectorBounds.contains(mouseX, mouseY) -> InputHandlingResult.CONSUMED
         measurements.playerBounds.contains(mouseX, mouseY) -> InputHandlingResult.IGNORED
         else -> {
-            searchFocused = false
+            storageSearchField.focused = false
             finishTitleEdit()
             handlePageAreaClick(
                 screen,
@@ -341,41 +343,20 @@ internal fun handleStorageOverlayKeyPress(screen: AbstractContainerScreen<*>, ev
     if (!storageOverlayIsActive(screen)) return InputHandlingResult.IGNORED
     if (processStorageSettingsKey(event.key()) == InputHandlingResult.CONSUMED) return InputHandlingResult.CONSUMED
     if (editingTitlePage != null) return handleTitleEditKeyPress(screen, event)
-    if (!searchFocused) return InputHandlingResult.IGNORED
-    when (event.key()) {
-        GLFW.GLFW_KEY_ESCAPE -> {
-            if (searchText.isEmpty()) {
-                searchFocused = false
-            } else {
-                searchText = ""
-                resetStorageScroll()
-                storageOverlayLayoutScreen(screen)
-            }
-            return InputHandlingResult.CONSUMED
+    if (!storageSearchField.focused) return InputHandlingResult.IGNORED
+    if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+        if (storageSearchField.text.isEmpty()) {
+            storageSearchField.focused = false
+        } else {
+            storageSearchField.text = ""
+            resetStorageScroll()
+            storageOverlayLayoutScreen(screen)
         }
-
-        GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
-            searchFocused = false
-            return InputHandlingResult.CONSUMED
-        }
-
-        GLFW.GLFW_KEY_BACKSPACE -> {
-            if (searchText.isNotEmpty()) {
-                val control = event.modifiers() and GLFW.GLFW_MOD_CONTROL != 0
-                searchText = if (control) textAfterDeletingPreviousWord(searchText) else searchText.dropLast(1)
-                resetStorageScroll()
-                storageOverlayLayoutScreen(screen)
-            }
-            return InputHandlingResult.CONSUMED
-        }
+        return InputHandlingResult.CONSUMED
     }
-    val typed = when (event.key()) {
-        GLFW.GLFW_KEY_SPACE -> " "
-        else -> GLFW.glfwGetKeyName(event.key(), event.scancode())
-    }
-    val blockedModifiers = GLFW.GLFW_MOD_CONTROL or GLFW.GLFW_MOD_ALT or GLFW.GLFW_MOD_SUPER
-    if (typed?.length == 1 && (event.modifiers() and blockedModifiers) == 0) {
-        searchText += typed
+    val previousText = storageSearchField.text
+    storageSearchField.keyPressed(event)
+    if (previousText != storageSearchField.text) {
         resetStorageScroll()
         storageOverlayLayoutScreen(screen)
     }

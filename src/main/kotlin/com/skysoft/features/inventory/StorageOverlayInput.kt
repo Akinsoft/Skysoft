@@ -151,7 +151,7 @@ internal fun pageHeight(page: ProfileStorage.SkyBlockStoragePageData): Int =
 internal fun pointInSearch(measurements: Measurements, x: Int, y: Int): Boolean = measurements.search.contains(x, y)
 
 internal fun updateSearchFocusFromClick(measurements: Measurements, mouseX: Int, mouseY: Int) {
-    searchFocused = searchFocused && measurements.search.contains(mouseX, mouseY)
+    storageSearchField.focused = storageSearchField.focused && measurements.search.contains(mouseX, mouseY)
 }
 
 internal fun coerceScroll(measurements: Measurements, contentHeight: Int) {
