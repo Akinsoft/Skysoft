@@ -13,12 +13,15 @@ import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.Button
+import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.network.chat.Component
 import org.spongepowered.asm.mixin.Mixin
+import org.spongepowered.asm.mixin.Shadow
 import org.spongepowered.asm.mixin.Unique
 import org.spongepowered.asm.mixin.injection.At
 import org.spongepowered.asm.mixin.injection.Inject
@@ -44,6 +47,12 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
 
     @field:Unique
     private val skysoftTabButtons = mutableMapOf<ChatTabChannel, Button>()
+
+    @field:Unique
+    private var skysoftDidSelectTab = false
+
+    @field:Shadow
+    protected lateinit var input: EditBox
 
     @Inject(method = ["init()V"], at = [At("TAIL")])
     protected fun skysoftBeginOpenAnimation(ci: CallbackInfo) {
@@ -80,6 +89,11 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
         }
     }
 
+    @Inject(method = ["keyPressed"], at = [At("RETURN")])
+    protected fun skysoftRestoreInputFocusAfterKeySelection(event: KeyEvent, cir: CallbackInfoReturnable<Boolean>) {
+        skysoftRestoreInputFocusAfterTabSelection()
+    }
+
     @Inject(method = ["mouseClicked"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftCopyHoveredMessageOnClick(
         click: MouseButtonEvent,
@@ -91,6 +105,37 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
         }
         if (copied) {
             cir.returnValue = true
+        }
+    }
+
+    @Inject(method = ["mouseClicked"], at = [At("RETURN")])
+    protected fun skysoftRestoreInputFocusAfterMouseSelection(
+        click: MouseButtonEvent,
+        doubled: Boolean,
+        cir: CallbackInfoReturnable<Boolean>,
+    ) {
+        skysoftRestoreInputFocusAfterTabSelection()
+    }
+
+    @WrapOperation(
+        method = ["handleChatInput"],
+        at = [
+            At(
+                value = "INVOKE",
+                target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendChat(Ljava/lang/String;)V",
+            ),
+        ],
+    )
+    protected fun skysoftSendMessageToActiveTab(
+        connection: ClientPacketListener,
+        message: String,
+        original: Operation<Void>,
+    ) {
+        val command = ChatTabs.prepareOutgoingCommand(message)
+        if (command == null) {
+            original.call(connection, message)
+        } else {
+            connection.sendCommand(command)
         }
     }
 
@@ -195,6 +240,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
             val button = Button.builder(Component.literal(channel.toString())) {
                 ChatTabs.select(channel)
                 skysoftUpdateTabButtons()
+                skysoftDidSelectTab = true
             }.bounds(bound.x, bound.y, bound.width, bound.height).build()
             skysoftTabButtons[channel] = addRenderableWidget(button)
         }
@@ -205,5 +251,12 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     private fun skysoftUpdateTabButtons() {
         val activeChannel = ChatTabs.activeChannel()
         skysoftTabButtons.forEach { (channel, button) -> button.active = channel != activeChannel }
+    }
+
+    @Unique
+    private fun skysoftRestoreInputFocusAfterTabSelection() {
+        if (!skysoftDidSelectTab) return
+        setFocused(input)
+        skysoftDidSelectTab = false
     }
 }

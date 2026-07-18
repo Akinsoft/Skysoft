@@ -3,6 +3,7 @@ package com.skysoft.features.chat
 import com.skysoft.config.ChatTabChannel
 import com.skysoft.config.ChatTabPosition
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.mixin.ChatComponentAccessor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
@@ -16,6 +17,7 @@ import net.minecraft.client.multiplayer.chat.GuiMessageSource
 object ChatTabs {
     private var selectedChannel = ChatTabChannel.ALL
     private var appliedState: FilterState? = null
+    private val feedbackTracker = ChatTabFeedbackTracker()
 
     fun register() {
         SkysoftClientEvents.onEndTick("Chat Tabs filter update", ::updateFilter)
@@ -35,7 +37,34 @@ object ChatTabs {
 
     fun select(channel: ChatTabChannel) {
         selectedChannel = channel
+        if (channel != ChatTabChannel.PARTY) feedbackTracker.clearPendingResponse()
         updateFilter(Minecraft.getInstance(), isForced = true)
+    }
+
+    internal fun prepareOutgoingCommand(message: String): String? {
+        if (!isEnabled()) return null
+        val channel = activeChannel()
+        val command = outgoingCommand(channel, message) ?: return null
+        if (channel != ChatTabChannel.PARTY) return command
+        val minecraft = Minecraft.getInstance()
+        val existingMessages = (MinecraftClient.chat(minecraft) as ChatComponentAccessor).skysoftAllMessages()
+        feedbackTracker.recordOutgoingAttempt(channel, existingMessages)
+        return command
+    }
+
+    internal fun outgoingCommand(message: String): String? {
+        if (!isEnabled()) return null
+        return outgoingCommand(activeChannel(), message)
+    }
+
+    internal fun outgoingCommand(channel: ChatTabChannel, message: String): String? {
+        val command = when (channel) {
+            ChatTabChannel.ALL -> return null
+            ChatTabChannel.GUILD -> "gc"
+            ChatTabChannel.DM -> "r"
+            ChatTabChannel.PARTY -> "pc"
+        }
+        return "$command $message"
     }
 
     internal fun isVisible(channel: ChatTabChannel, message: GuiMessage): Boolean {
@@ -46,6 +75,7 @@ object ChatTabs {
         ) {
             return true
         }
+        if (feedbackTracker.isVisible(channel, message, content.string)) return true
         val type = ChatMessageClassifier.classify(
             SkysoftMessage(content, SkysoftMessageSource.GAME),
         ).type
@@ -99,6 +129,7 @@ object ChatTabs {
             chat.setVisibleMessageFilter { message -> isVisible(state.channel, message) }
             chat.resetChatScroll()
         } else if (appliedState?.isEnabled == true) {
+            feedbackTracker.clearPendingResponse()
             chat.setVisibleMessageFilter { true }
             chat.resetChatScroll()
         }
