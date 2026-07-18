@@ -1,7 +1,6 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.utils.MinecraftClient
 import net.minecraft.client.Minecraft
@@ -12,12 +11,7 @@ import kotlin.math.roundToInt
 
 internal fun renderHud(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
-    if (
-        !config.enabled ||
-        !shouldShowBazaarTrackerContent(config.details.hideWhenEmpty, storage.activeOrders.isNotEmpty()) ||
-        MinecraftClient.isGuiHidden(minecraft) ||
-        !HypixelLocationState.inSkyBlock
-    ) {
+    if (!isBazaarTrackerVisible(minecraft)) {
         hoveredControlArea = null
         return
     }
@@ -41,10 +35,7 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
 
 internal fun shouldRenderBazaarTrackerInventoryOverlay(): Boolean {
     val minecraft = Minecraft.getInstance()
-    return config.enabled &&
-        shouldShowBazaarTrackerContent(config.details.hideWhenEmpty, storage.activeOrders.isNotEmpty()) &&
-        !MinecraftClient.isGuiHidden(minecraft) &&
-        HypixelLocationState.inSkyBlock &&
+    return isBazaarTrackerVisible(minecraft) &&
         MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
 }
 
