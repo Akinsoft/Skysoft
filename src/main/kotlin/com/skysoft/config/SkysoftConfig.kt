@@ -79,7 +79,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Fixes", desc = "Fixes for SkyBlock issues.")
+    @field:Category(name = "Fixes", desc = "Fixes for Minecraft and SkyBlock issues.")
     val fixes = FixesConfig()
 
     override fun getTitle(): StructuredText =
