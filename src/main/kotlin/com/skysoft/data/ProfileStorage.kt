@@ -171,17 +171,7 @@ data class ProfileStorage(
         }
 
         private fun repairSlotBindings() {
-            val usedSlots = mutableSetOf<Int>()
-            val iterator = slotBindings.iterator()
-            while (iterator.hasNext()) {
-                val binding = iterator.next()
-                if (!binding.isValid() || binding.firstSlot in usedSlots || binding.secondSlot in usedSlots) {
-                    iterator.remove()
-                    continue
-                }
-                usedSlots += binding.firstSlot
-                usedSlots += binding.secondSlot
-            }
+            SlotBindingGraph.repair(slotBindings)
         }
 
         private fun repairSlotLocks() {
@@ -397,18 +387,7 @@ data class ProfileStorage(
         @Expose var firstSlot: Int = -1,
         @Expose var secondSlot: Int = -1,
     ) {
-        fun isValid(): Boolean =
-            firstSlot != secondSlot &&
-                firstSlot in PLAYER_SLOT_RANGE &&
-                secondSlot in PLAYER_SLOT_RANGE &&
-                (isHotbarSlot(firstSlot) || isHotbarSlot(secondSlot))
-
-        companion object {
-            private val PLAYER_SLOT_RANGE = 0..39
-            private val HOTBAR_SLOT_RANGE = 0..8
-
-            private fun isHotbarSlot(slot: Int): Boolean = slot in HOTBAR_SLOT_RANGE
-        }
+        fun isValid(): Boolean = SlotBindingGraph.isValidPair(firstSlot, secondSlot)
     }
 
     data class AttributeShardData(
