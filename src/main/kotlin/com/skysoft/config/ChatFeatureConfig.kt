@@ -24,6 +24,11 @@ class ChatFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Chat Peek", desc = "Temporarily expand chat without opening it.")
+    val chatPeek = ChatPeekConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Chat History", desc = "Configure chat history size and persistence.")
     val history = ChatHistoryConfig()
 
@@ -119,6 +124,29 @@ class ChatFeatureConfig {
         @field:ConfigOption(name = "Hide Message Indicator", desc = "Hide the message indicator line to the left of chat messages.")
         @field:ConfigEditorBoolean
         var hideMessageIndicator = true
+    }
+
+    class ChatPeekConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Enabled", desc = "Expand chat while the peek key is held.")
+        @field:ConfigEditorBoolean
+        var enabled = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Chat Peek settings.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = ChatPeekSettingsConfig()
+    }
+
+    class ChatPeekSettingsConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Peek Key", desc = "Key held to expand chat.")
+        @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_Z)
+        var key = GLFW.GLFW_KEY_Z
     }
 
     class ChatHistoryConfig {
