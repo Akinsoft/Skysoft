@@ -52,6 +52,7 @@
     "ServerPackDataAccessor",
     "ServerPackManagerMixin",
     "ServerPackReloadCallbacksMixin",
+    "ServerInfoPacketMixin",
     "SoundPacketMixin",
     "StatusEffectHudMixin"
   ],
