@@ -22,15 +22,23 @@ import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay
 
 internal object MinecraftRecipeAdapter {
     private var snapshot: ClientRecipeSnapshot? = null
+    private val resetSnapshot = {
+        snapshot = null
+        SkyBlockDataRepository.snapshotVersion++
+        Unit
+    }
 
     fun register() {
-        SkysoftClientEvents.onJoin("Minecraft recipe join reset") { snapshot = null }
-        SkysoftClientEvents.onDisconnect("Minecraft recipe disconnect reset") { snapshot = null }
+        SkysoftClientEvents.onJoin("Minecraft recipe join reset", resetSnapshot)
+        SkysoftClientEvents.onDisconnect("Minecraft recipe disconnect reset", resetSnapshot)
     }
 
     fun recipesFor(key: ItemListEntryKey): List<SkyBlockRecipe> = current()?.byResult?.get(key).orEmpty()
 
     fun usagesFor(key: ItemListEntryKey): List<SkyBlockRecipe> = current()?.byIngredient?.get(key).orEmpty()
+
+    val recipesByResult: Map<ItemListEntryKey, List<SkyBlockRecipe>>
+        get() = current()?.byResult.orEmpty()
 
     private fun current(): ClientRecipeSnapshot? {
         val player = Minecraft.getInstance().player ?: return null
@@ -53,6 +61,7 @@ internal object MinecraftRecipeAdapter {
             byIngredient = buildUsageIndex(recipes) { it.registryKeyOrNull() },
         ).also {
             snapshot = it
+            SkyBlockDataRepository.snapshotVersion++
         }
     }
 

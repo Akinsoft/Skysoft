@@ -46,6 +46,18 @@ data class SkysoftBazaarDepthResponse(
     val products: Map<String, SkysoftBazaarDepthProduct> = emptyMap(),
 )
 
+data class HypixelSkyBlockItemsResponse(
+    val success: Boolean = false,
+    val lastUpdated: Long = 0L,
+    val items: List<HypixelSkyBlockItem> = emptyList(),
+)
+
+data class HypixelSkyBlockItem(
+    val id: String = "",
+    @SerializedName("npc_sell_price")
+    val npcSellPrice: Double? = null,
+)
+
 data class SkysoftBazaarDepthProduct(
     val buySummary: List<SkysoftBazaarDepthRow> = emptyList(),
     val sellSummary: List<SkysoftBazaarDepthRow> = emptyList(),

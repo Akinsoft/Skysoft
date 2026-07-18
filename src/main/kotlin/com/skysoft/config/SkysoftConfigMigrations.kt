@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 4
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 5
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -21,6 +21,9 @@ internal object SkysoftConfigMigrations {
         migrateRareLootSharingIntoMisc(json)
         migrateBuggedNameplatesIntoMisc(json)
         migrateOrganizedConfigLayout(json)
+        if (migrationVersion < PRICE_TOOLTIP_CUSTOMIZATION_VERSION) {
+            migratePriceTooltipCustomization(json)
+        }
         if (migrationVersion < CONFIG_MENU_ORGANIZATION_VERSION) {
             ConfigMenuOrganizationMigration.apply(json)
         }
@@ -333,8 +336,20 @@ internal object SkysoftConfigMigrations {
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
     private const val CONFIG_MENU_ORGANIZATION_VERSION = 3
+    private const val PRICE_TOOLTIP_CUSTOMIZATION_VERSION = 5
     private const val INVENTORY_EQUIPMENT_CATEGORY_VERSION = 4
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
+}
+
+private fun migratePriceTooltipCustomization(json: JsonObject) {
+    val settingsJson = json.get("inventory")?.takeIf { it.isJsonObject }?.asJsonObject
+        ?.get("priceTooltips")?.takeIf { it.isJsonObject }?.asJsonObject
+        ?.get("settings")?.takeIf { it.isJsonObject }?.asJsonObject
+        ?: return
+    val legacyType = settingsJson.remove("bazaarPriceType") ?: return
+    if (!settingsJson.has("priceLines")) {
+        settingsJson.add("legacyBazaarPriceType", legacyType)
+    }
 }
 
 private fun JsonObject.migrateHeldItemTextureModes() {
