@@ -458,7 +458,9 @@ class InventoryButtonsConfig {
 
     fun repairLoadedValues() {
         buttons = InventoryButtonDefaults.resettableButtons(buttons)
-        buttons.forEach { it.repairLoadedValues() }
+        buttons.forEachIndexed { index, button ->
+            button.repairLoadedValues(isLegacyExtraButton = index >= InventoryButtonDefaults.DEFAULT_BUTTON_COUNT)
+        }
     }
 }
 
@@ -911,13 +913,21 @@ class InventoryButtonConfig(
     @JvmField @field:Expose var anchorBottom: Boolean = false,
     @JvmField @field:Expose var backgroundIndex: Int = 0,
     @JvmField @field:Expose var command: String = "",
+    @JvmField @field:Expose var scale: Float = DEFAULT_INVENTORY_BUTTON_SCALE,
+    @JvmField @field:Expose var isUserCreated: Boolean? = null,
 ) {
     fun isActive(): Boolean = command.trim().isNotEmpty()
 
-    fun repairLoadedValues() {
+    fun repairLoadedValues(isLegacyExtraButton: Boolean = false) {
         backgroundIndex = backgroundIndex.coerceIn(MIN_BUTTON_BACKGROUND_INDEX, MAX_BUTTON_BACKGROUND_INDEX)
         command = command.trimStart()
         icon = icon?.trim()?.takeIf { it.isNotEmpty() }
+        scale = scale
+            .takeIf(Float::isFinite)
+            ?.takeIf { it > 0f }
+            ?.coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
+            ?: DEFAULT_INVENTORY_BUTTON_SCALE
+        isUserCreated = isUserCreated ?: isLegacyExtraButton
     }
 }
 
@@ -1138,6 +1148,10 @@ const val MIN_SMOOTH_SWAPPING_SPEED = 25
 const val MAX_SMOOTH_SWAPPING_SPEED = 300
 const val DEFAULT_SMOOTH_SWAPPING_SPEED = 125
 const val DEFAULT_SMOOTH_SWAPPING_DURATION = 180
+const val MIN_INVENTORY_BUTTON_SCALE = 0.5f
+const val MAX_INVENTORY_BUTTON_SCALE = 3f
+const val DEFAULT_INVENTORY_BUTTON_SCALE = 1f
+const val INVENTORY_BUTTON_SCALE_STEP = 0.1f
 private const val MIN_BUTTON_BACKGROUND_INDEX = 0
 private const val MAX_BUTTON_BACKGROUND_INDEX = 6
 private const val MIN_BAZAAR_TRACKER_ORDERS = 1

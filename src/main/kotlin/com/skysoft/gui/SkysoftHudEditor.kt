@@ -1,7 +1,9 @@
 package com.skysoft.gui
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.features.inventory.InventoryButtonEditorActions
 import com.skysoft.features.inventory.InventoryButtonManager
+import com.skysoft.features.inventory.InventoryButtonResetShortcutResult
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
@@ -89,8 +91,10 @@ object SkysoftHudEditor {
                                 "§cSkysoft Position Editor",
                                 "§bInventory Button",
                                 "§7Command: §e${button?.command?.takeIf { it.isNotBlank() } ?: "empty"}",
+                                "§7Scale: §e${"%.2f".format(Locale.US, button?.scale ?: 1f)}",
                                 "§eLeft-click drag §7to move",
-                                "§eR §7to reset",
+                                "§eScroll-Wheel §7to resize",
+                                if (button?.isUserCreated == true) "§eR §7to remove" else "§eR §7to reset",
                             )
                         }
 
@@ -98,7 +102,7 @@ object SkysoftHudEditor {
                             "§cSkysoft Position Editor",
                             "§7Hover a HUD element or inventory button to move it.",
                             "§eLeft-click drag §7to move",
-                            "§eScroll §7to resize HUD elements",
+                            "§eScroll §7to resize",
                         )
 
                         else -> buildList {
@@ -332,28 +336,49 @@ object SkysoftHudEditor {
 
         override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
             val element = grabbedElement ?: elementAt(mouseX.toInt(), mouseY.toInt())
-                ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-            if (element.applyEditorScroll(scrollY) == InputHandlingResult.CONSUMED) return true
-            if (!element.canScale) return true
-            editorScale.withElementGuiScale(element) {
-                val oldScale = element.position.scale
-                element.position.scale += if (scrollY > 0.0) SCALE_STEP else -SCALE_STEP
-                val oldWidth = (element.width() * oldScale).roundToInt()
-                val oldHeight = (element.height() * oldScale).roundToInt()
-                val newWidth = (element.width() * element.position.scale).roundToInt()
-                val newHeight = (element.height() * element.position.scale).roundToInt()
-                val oldX = element.position.getAbsX0AllowingOverflow(oldWidth)
-                val oldY = element.position.getAbsY0AllowingOverflow(oldHeight)
-                element.position.moveToAbsoluteAllowingOverflow(oldX, oldY, newWidth, newHeight)
+            if (element != null) {
+                if (element.applyEditorScroll(scrollY) == InputHandlingResult.CONSUMED) return true
+                if (!element.canScale) return true
+                editorScale.withElementGuiScale(element) {
+                    val oldScale = element.position.scale
+                    element.position.scale += if (scrollY > 0.0) SCALE_STEP else -SCALE_STEP
+                    val oldWidth = (element.width() * oldScale).roundToInt()
+                    val oldHeight = (element.height() * oldScale).roundToInt()
+                    val newWidth = (element.width() * element.position.scale).roundToInt()
+                    val newHeight = (element.height() * element.position.scale).roundToInt()
+                    val oldX = element.position.getAbsX0AllowingOverflow(oldWidth)
+                    val oldY = element.position.getAbsY0AllowingOverflow(oldHeight)
+                    element.position.moveToAbsoluteAllowingOverflow(oldX, oldY, newWidth, newHeight)
+                }
+                return true
             }
-            return true
+
+            val buttonIndex = grabbedInventoryButtonIndex ?: if (InventoryButtonManager.isAvailableInCurrentLocation()) {
+                oldScreen?.let { InventoryButtonManager.placements(it, includeInactive = true) }
+                    ?.lastOrNull { it.bounds.contains(mouseX.toInt(), mouseY.toInt()) }
+                    ?.index
+            } else {
+                null
+            }
+            return if (buttonIndex != null &&
+                InventoryButtonEditorActions.changeButtonScale(buttonIndex, scrollY) == InputHandlingResult.CONSUMED
+            ) {
+                true
+            } else {
+                super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+            }
         }
 
         override fun keyPressed(event: KeyEvent): Boolean {
             if (event.key() == GLFW.GLFW_KEY_R) {
                 val buttonIndex = grabbedInventoryButtonIndex ?: hoveredInventoryButtonIndex
                 if (buttonIndex != null) {
-                    InventoryButtonManager.resetButtonPosition(buttonIndex)
+                    if (InventoryButtonEditorActions.resetOrRemoveButton(buttonIndex) ==
+                        InventoryButtonResetShortcutResult.REMOVED
+                    ) {
+                        grabbedInventoryButtonIndex = null
+                        hoveredInventoryButtonIndex = null
+                    }
                     return true
                 }
                 val element = grabbedElement ?: hoveredElement ?: return true

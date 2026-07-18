@@ -107,6 +107,8 @@ internal fun InventoryButtonConfig.copyForImport(): InventoryButtonConfig = Inve
     anchorBottom = anchorBottom,
     backgroundIndex = backgroundIndex,
     command = command,
+    scale = scale,
+    isUserCreated = isUserCreated,
 )
 
 private val TEXTURE_HASH = Regex("^[0-9a-fA-F]{32,128}$")

@@ -16,6 +16,7 @@ import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -84,6 +85,7 @@ object InventoryButtonEditorScreen {
                 playerInventory = true,
                 includeInactive = true,
             ).lastOrNull { it.bounds.contains(previewMouseX, previewMouseY) }
+            val addButtonClicked = InventoryButtonLayout.editorAddButtonBounds.contains(previewMouseX, previewMouseY)
             val panelButton = selectedButton()?.takeIf {
                 lastPanelBounds?.contains(mouseX, mouseY) == true
             }
@@ -101,6 +103,12 @@ object InventoryButtonEditorScreen {
                     config.buttons = InventoryButtonDefaults.create()
                     InventoryButtonManager.clearIconCache()
                     selectedIndex = null
+                    syncFieldsFromSelection()
+                    true
+                }
+                addButtonClicked -> {
+                    SoundUtilities.playClickSound()
+                    selectedIndex = InventoryButtonEditorActions.addButtonSlot()
                     syncFieldsFromSelection()
                     true
                 }
@@ -129,10 +137,11 @@ object InventoryButtonEditorScreen {
             if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
             val button = grabbedIndex?.let(config.buttons::getOrNull)
                 ?: return super.mouseDragged(click, dragX, dragY)
-            InventoryButtonCanvas(
-                Rect(0, 0, InventoryPreview.WIDTH, InventoryPreview.HEIGHT),
-                playerInventory = true,
-            ).move(
+            InventoryButtonLayout.moveButton(
+                InventoryButtonCanvas(
+                    Rect(0, 0, InventoryPreview.WIDTH, InventoryPreview.HEIGHT),
+                    playerInventory = true,
+                ),
                 button,
                 EditorRenderer.previewMouseX(this, click.x().toInt()) - grabbedOffsetX,
                 EditorRenderer.previewMouseY(this, click.y().toInt()) - grabbedOffsetY,
@@ -145,6 +154,21 @@ object InventoryButtonEditorScreen {
             if (results != null && results.contains(mouseX.toInt(), mouseY.toInt())) {
                 val maxScroll = maxResultScrollRow()
                 resultScrollRow = (resultScrollRow - scrollY.toInt()).coerceIn(0, maxScroll)
+                return true
+            }
+            val previewMouseX = EditorRenderer.previewMouseX(this, mouseX.toInt())
+            val previewMouseY = EditorRenderer.previewMouseY(this, mouseY.toInt())
+            val placement = InventoryButtonManager.placements(
+                left = 0,
+                top = 0,
+                imageWidth = InventoryPreview.WIDTH,
+                imageHeight = InventoryPreview.HEIGHT,
+                playerInventory = true,
+                includeInactive = true,
+            ).lastOrNull { it.bounds.contains(previewMouseX, previewMouseY) }
+            if (placement != null &&
+                InventoryButtonEditorActions.changeButtonScale(placement.index, scrollY) == InputHandlingResult.CONSUMED
+            ) {
                 return true
             }
             return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
@@ -162,10 +186,28 @@ object InventoryButtonEditorScreen {
                     true
                 }
                 iconField.focused && handleIconFieldKey(event) == InputHandlingResult.CONSUMED -> true
-                event.key() == GLFW.GLFW_KEY_R -> (hoveredIndex ?: selectedIndex)?.let { index ->
-                    InventoryButtonManager.resetButtonPosition(index)
-                    true
-                } ?: super.keyPressed(event)
+                event.key() == GLFW.GLFW_KEY_R -> {
+                    val index = hoveredIndex ?: selectedIndex
+                    when (index?.let(InventoryButtonEditorActions::resetOrRemoveButton)) {
+                        InventoryButtonResetShortcutResult.RESET -> true
+                        InventoryButtonResetShortcutResult.REMOVED -> {
+                            val removedIndex = requireNotNull(index)
+                            val shiftedIndex: (Int?) -> Int? = { value ->
+                                when {
+                                    value == null || value == removedIndex -> null
+                                    value > removedIndex -> value - 1
+                                    else -> value
+                                }
+                            }
+                            grabbedIndex = shiftedIndex(grabbedIndex)
+                            hoveredIndex = shiftedIndex(hoveredIndex)
+                            selectedIndex = shiftedIndex(selectedIndex)
+                            syncFieldsFromSelection()
+                            true
+                        }
+                        else -> super.keyPressed(event)
+                    }
+                }
                 (event.key() == GLFW.GLFW_KEY_DELETE || event.key() == GLFW.GLFW_KEY_BACKSPACE) &&
                     clearSelectedButtonIfPresent() == InputHandlingResult.CONSUMED -> true
                 else -> super.keyPressed(event)
@@ -558,14 +600,45 @@ object InventoryButtonEditorScreen {
                             } else {
                                 "§7Empty button slot"
                             },
+                            "§7Scale: §e${"%.2f".format(Locale.US, placement.button.scale)}",
                             "§eLeft-click §7to $action",
                             "§eLeft-click drag §7to move",
-                            "§eR §7to reset",
+                            "§eScroll-Wheel §7to resize",
+                            if (placement.button.isUserCreated == true) {
+                                "§eR §7to remove"
+                            } else {
+                                "§eR §7to reset"
+                            },
                         ),
                         tooltipMouseX,
                         tooltipMouseY,
                     )
                 }
+            }
+            val addBounds = InventoryButtonLayout.editorAddButtonBounds.let { bounds ->
+                Rect(left + bounds.x, top + bounds.y, bounds.width, bounds.height)
+            }
+            val hoveredAddButton = addBounds.contains(mouseX, mouseY)
+            PixelButtonRenderer.draw(
+                context,
+                Minecraft.getInstance().font,
+                addBounds,
+                "+",
+                selected = false,
+                hovered = hoveredAddButton,
+                enabled = true,
+                tone = PixelButtonTone.CONFIRM,
+            )
+            if (hoveredAddButton) {
+                SkysoftNativeTooltip.setForNextFrame(
+                    context,
+                    listOf(
+                        "§aAdd inventory button",
+                        "§eLeft-click §7to create a button to the right",
+                    ),
+                    tooltipMouseX,
+                    tooltipMouseY,
+                )
             }
         }
 
@@ -611,6 +684,7 @@ object InventoryButtonEditorScreen {
                 button,
                 active = button.isActive(),
                 hovered = false,
+                renderScale = 1f,
             )
             y += SelectedEditor.LABEL_TO_FIELD_GAP
             val selectedIconText = (button.icon ?: "No icon selected").take(SelectedEditor.ICON_LABEL_MAX_LENGTH)

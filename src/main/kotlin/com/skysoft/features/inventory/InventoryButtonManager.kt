@@ -4,9 +4,13 @@ import com.mojang.authlib.GameProfile
 import com.mojang.authlib.properties.Property
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.skysoft.SkysoftMod
+import com.skysoft.config.DEFAULT_INVENTORY_BUTTON_SCALE
+import com.skysoft.config.INVENTORY_BUTTON_SCALE_STEP
 import com.skysoft.config.InventoryButtonClickType
 import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
+import com.skysoft.config.MAX_INVENTORY_BUTTON_SCALE
+import com.skysoft.config.MIN_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.pets.PetRepository
@@ -20,6 +24,7 @@ import java.util.Base64
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
+import kotlin.math.roundToInt
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import com.skysoft.utils.SkysoftClientEvents
@@ -39,11 +44,12 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.ResolvableProfile
 import org.lwjgl.glfw.GLFW
 
+private const val ADD_ICON_X_OFFSET = 6
+private const val ADD_ICON_Y_OFFSET = 5
+
 object InventoryButtonManager {
     const val BUTTON_SIZE = 18
 
-    private const val ADD_ICON_X_OFFSET = 6
-    private const val ADD_ICON_Y_OFFSET = 5
     private const val BUTTON_INNER_INSET = 1
     private const val BUTTON_HIGHLIGHT_INSET = 2
     private const val BUTTON_HIGHLIGHT_BOTTOM_Y_OFFSET = 7
@@ -154,8 +160,7 @@ object InventoryButtonManager {
         return config.buttons.mapIndexedNotNull { index, button ->
             if (!includeInactive && !button.isActive()) return@mapIndexedNotNull null
             if (button.playerInvOnly && !playerInventory) return@mapIndexedNotNull null
-            val point = canvas.position(button)
-            val bounds = Rect(point.x, point.y, BUTTON_SIZE, BUTTON_SIZE)
+            val bounds = InventoryButtonLayout.buttonBounds(canvas, button)
             if (canvas.overlapsContainer(bounds)) return@mapIndexedNotNull null
             ButtonPlacement(index, button, bounds)
         }
@@ -169,18 +174,25 @@ object InventoryButtonManager {
         val imageWidth = accessor.skysoftGetImageWidth()
         val imageHeight = accessor.skysoftGetImageHeight()
         val playerInventory = screen is InventoryScreen
-        InventoryButtonCanvas(Rect(left, top, imageWidth, imageHeight), playerInventory)
-            .move(button, screenX, screenY)
+        InventoryButtonLayout.moveButton(
+            InventoryButtonCanvas(Rect(left, top, imageWidth, imageHeight), playerInventory),
+            button,
+            screenX,
+            screenY,
+        )
     }
 
     fun resetButtonPosition(index: Int) {
         val button = config.buttons.getOrNull(index) ?: return
-        val default = InventoryButtonDefaults.create().getOrNull(index) ?: return
-        button.x = default.x
-        button.y = default.y
-        button.playerInvOnly = default.playerInvOnly
-        button.anchorRight = default.anchorRight
-        button.anchorBottom = default.anchorBottom
+        InventoryButtonDefaults.create().getOrNull(index)?.let { default ->
+            button.x = default.x
+            button.y = default.y
+            button.playerInvOnly = default.playerInvOnly
+            button.anchorRight = default.anchorRight
+            button.anchorBottom = default.anchorBottom
+        }
+        button.scale = DEFAULT_INVENTORY_BUTTON_SCALE
+        InventoryButtonEditorActions.recordReset(index, button.scale)
     }
 
     fun drawButton(
@@ -191,20 +203,14 @@ object InventoryButtonManager {
         active: Boolean,
         hovered: Boolean,
         selected: Boolean = false,
+        renderScale: Float = button.scale,
     ) {
-        drawButtonBackground(context, x, y, button.backgroundIndex, active, hovered, selected)
-        if (active) {
-            val icon = button.icon?.takeIf { it.isNotBlank() }
-            val stack = icon?.let { iconStack(it) }
-            if (stack != null && !stack.isEmpty) {
-                context.item(stack, x + 1, y + 1)
-                return
-            }
-            InventoryButtonIcons.drawFallbackIcon(context, x, y, button.command, icon)
-        } else {
-            val color = if (hovered || selected) 0xFFFFFFFF.toInt() else 0xFFCCCCCC.toInt()
-            context.text(Minecraft.getInstance().font, "+", x + ADD_ICON_X_OFFSET, y + ADD_ICON_Y_OFFSET, color, false)
-        }
+        val scale = normalizedInventoryButtonScale(renderScale)
+        context.pose().pushMatrix()
+        context.pose().translate(x.toFloat(), y.toFloat())
+        context.pose().scale(scale, scale)
+        drawButtonContents(context, button, active, hovered, selected)
+        context.pose().popMatrix()
     }
 
     fun drawButtonBackground(
@@ -399,6 +405,142 @@ object InventoryButtonManager {
         "BOOK" to "minecraft:book",
     )
 }
+
+internal enum class InventoryButtonResetShortcutResult {
+    IGNORED,
+    RESET,
+    REMOVED,
+}
+
+internal object InventoryButtonEditorActions {
+    private val config get() = SkysoftConfigGui.config().inventory.inventoryButtons
+
+    internal var lastOutcome = "none"
+        private set
+
+    fun changeButtonScale(index: Int, scrollY: Double): InputHandlingResult {
+        val button = config.buttons.getOrNull(index) ?: return InputHandlingResult.IGNORED
+        if (scrollY == 0.0) return InputHandlingResult.IGNORED
+        val oldScale = normalizedInventoryButtonScale(button.scale)
+        button.scale = inventoryButtonScaleAfterScroll(oldScale, scrollY)
+        lastOutcome = "resize index=$index oldScale=$oldScale newScale=${button.scale} scrollY=$scrollY"
+        return InputHandlingResult.CONSUMED
+    }
+
+    fun addButtonSlot(): Int {
+        val button = InventoryButtonLayout.nextEditorButtonSlot(config.buttons)
+        config.buttons.add(button)
+        val index = config.buttons.lastIndex
+        lastOutcome = "add index=$index x=${button.x} y=${button.y}"
+        return index
+    }
+
+    fun resetOrRemoveButton(index: Int): InventoryButtonResetShortcutResult {
+        val button = config.buttons.getOrNull(index) ?: return InventoryButtonResetShortcutResult.IGNORED
+        if (button.isUserCreated == true) {
+            config.buttons.removeAt(index)
+            lastOutcome = "remove index=$index x=${button.x} y=${button.y}"
+            return InventoryButtonResetShortcutResult.REMOVED
+        }
+        InventoryButtonManager.resetButtonPosition(index)
+        return InventoryButtonResetShortcutResult.RESET
+    }
+
+    fun recordReset(index: Int, scale: Float) {
+        lastOutcome = "reset index=$index scale=$scale"
+    }
+}
+
+internal object InventoryButtonLayout {
+    internal val editorAddButtonBounds = Rect(
+        EDITOR_INVENTORY_WIDTH + EDITOR_ADD_BUTTON_GAP,
+        EDITOR_ADD_BUTTON_Y,
+        InventoryButtonManager.BUTTON_SIZE,
+        InventoryButtonManager.BUTTON_SIZE,
+    )
+
+    fun buttonBounds(canvas: InventoryButtonCanvas, button: InventoryButtonConfig): Rect {
+        val point = canvas.position(button)
+        val size = inventoryButtonSizeAtScale(button.scale)
+        val growth = size - InventoryButtonManager.BUTTON_SIZE
+        val x = if (point.x + InventoryButtonManager.BUTTON_SIZE <= canvas.container.x) point.x - growth else point.x
+        val y = if (point.y + InventoryButtonManager.BUTTON_SIZE <= canvas.container.y) point.y - growth else point.y
+        return Rect(x, y, size, size)
+    }
+
+    fun moveButton(
+        canvas: InventoryButtonCanvas,
+        button: InventoryButtonConfig,
+        screenX: Int,
+        screenY: Int,
+    ) {
+        val size = inventoryButtonSizeAtScale(button.scale)
+        val growth = size - InventoryButtonManager.BUTTON_SIZE
+        val baseX = if (screenX + size <= canvas.container.x) screenX + growth else screenX
+        val baseY = if (screenY + size <= canvas.container.y) screenY + growth else screenY
+        canvas.move(button, baseX, baseY)
+    }
+
+    fun nextEditorButtonSlot(buttons: List<InventoryButtonConfig>): InventoryButtonConfig {
+        val canvas = InventoryButtonCanvas(
+            Rect(0, 0, EDITOR_INVENTORY_WIDTH, InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT),
+            playerInventory = true,
+        )
+        val occupied = buttons.map { button -> buttonBounds(canvas, button) }
+        var x = editorAddButtonBounds.x + editorAddButtonBounds.width + EDITOR_BUTTON_GAP
+        while (occupied.any { it.intersects(Rect(x, EDITOR_ADD_BUTTON_Y, BUTTON_SIZE, BUTTON_SIZE)) }) {
+            x += BUTTON_SIZE + EDITOR_BUTTON_GAP
+        }
+        return InventoryButtonConfig(x = x, y = EDITOR_ADD_BUTTON_Y, isUserCreated = true)
+    }
+
+    private const val BUTTON_SIZE = InventoryButtonManager.BUTTON_SIZE
+    private const val EDITOR_INVENTORY_WIDTH = 176
+    private const val EDITOR_ADD_BUTTON_GAP = 2
+    private const val EDITOR_ADD_BUTTON_Y = -19
+    private const val EDITOR_BUTTON_GAP = 2
+}
+
+private fun drawButtonContents(
+    context: GuiGraphicsExtractor,
+    button: InventoryButtonConfig,
+    active: Boolean,
+    hovered: Boolean,
+    selected: Boolean,
+) {
+    InventoryButtonManager.drawButtonBackground(context, 0, 0, button.backgroundIndex, active, hovered, selected)
+    if (active) {
+        val icon = button.icon?.takeIf { it.isNotBlank() }
+        val stack = icon?.let(InventoryButtonManager::iconStack)
+        if (stack != null && !stack.isEmpty) {
+            context.item(stack, 1, 1)
+            return
+        }
+        InventoryButtonIcons.drawFallbackIcon(context, 0, 0, button.command, icon)
+    } else {
+        val color = if (hovered || selected) 0xFFFFFFFF.toInt() else 0xFFCCCCCC.toInt()
+        context.text(Minecraft.getInstance().font, "+", ADD_ICON_X_OFFSET, ADD_ICON_Y_OFFSET, color, false)
+    }
+}
+
+internal fun normalizedInventoryButtonScale(scale: Float): Float = scale
+    .takeIf(Float::isFinite)
+    ?.takeIf { it > 0f }
+    ?.coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
+    ?: DEFAULT_INVENTORY_BUTTON_SCALE
+
+internal fun inventoryButtonScaleAfterScroll(scale: Float, scrollY: Double): Float {
+    val current = normalizedInventoryButtonScale(scale)
+    if (scrollY == 0.0) return current
+    val direction = if (scrollY > 0.0) 1 else -1
+    val stepsPerUnit = (1f / INVENTORY_BUTTON_SCALE_STEP).roundToInt()
+    val steps = (current * stepsPerUnit).roundToInt() + direction
+    return (steps / stepsPerUnit.toFloat())
+        .coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
+}
+
+internal fun inventoryButtonSizeAtScale(scale: Float): Int =
+    (InventoryButtonManager.BUTTON_SIZE * normalizedInventoryButtonScale(scale)).roundToInt().coerceAtLeast(1)
 
 private object InventoryButtonIcons {
     private const val PLAYER_HEAD_CACHE_REFRESH_INTERVAL_MILLIS = 4 * 60 * 1000L
