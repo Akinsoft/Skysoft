@@ -262,9 +262,10 @@ object HeldItemEditorScreen {
 
         private fun processClick(mouseX: Int, mouseY: Int, button: Int) {
             val isLeftClick = button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+            val headerAction = headerActionAt(layout, isLeftClick, mouseX, mouseY, ::onClose)
             val historyAction = if (isLeftClick) historyActionAt(layout, historyController, mouseX, mouseY) else null
             when {
-                isLeftClick && layout.closeBounds().contains(mouseX, mouseY) -> activateEditorButton(::onClose)
+                headerAction != null -> activateEditorButton(headerAction)
                 historyAction != null -> activateEditorButton { markChanged(historyAction()) }
                 isLeftClick && layout.textureToggleBounds().contains(mouseX, mouseY) && editorState.canToggleTexture() -> {
                     activateEditorButton {
@@ -376,6 +377,21 @@ private class HeldItemEditorControlActions(
 private fun activateEditorButton(action: () -> Unit) {
     SoundUtilities.playClickSound()
     action()
+}
+
+private fun headerActionAt(
+    layout: HeldItemEditorLayout,
+    isLeftClick: Boolean,
+    mouseX: Int,
+    mouseY: Int,
+    close: () -> Unit,
+): (() -> Unit)? {
+    if (!isLeftClick) return null
+    return when {
+        previewButtonBounds(layout).contains(mouseX, mouseY) -> HeldItemSwingPreview::play
+        layout.closeBounds().contains(mouseX, mouseY) -> close
+        else -> null
+    }
 }
 
 private fun historyActionAt(
@@ -769,6 +785,13 @@ private data class EditorActionBounds(
     val done: Rect,
 )
 
+private fun previewButtonBounds(layout: HeldItemEditorLayout): Rect = Rect(
+    layout.panelX + EditorHeader.PREVIEW_LEFT_INSET,
+    layout.panelY + EditorHeader.BUTTON_Y,
+    EditorHeader.PREVIEW_SIZE,
+    EditorHeader.BUTTON_HEIGHT,
+)
+
 private object HeldItemEditorRenderer {
     fun render(
         context: GuiGraphicsExtractor,
@@ -829,6 +852,7 @@ private object HeldItemEditorRenderer {
                 SkysoftNativeTooltip.setForNextFrame(context, listOf(state.textureTooltip()), mouseX, mouseY)
             }
         }
+        drawPreviewButton(context, font, previewButtonBounds(layout), mouseX, mouseY)
         drawButton(
             context,
             font,
@@ -875,6 +899,20 @@ private object HeldItemEditorRenderer {
             mouseY,
             tone = PixelButtonTone.CONFIRM,
         )
+    }
+
+    private fun drawPreviewButton(
+        context: GuiGraphicsExtractor,
+        font: Font,
+        bounds: Rect,
+        mouseX: Int,
+        mouseY: Int,
+    ) {
+        PixelButtonRenderer.draw(context, font, bounds, "", false, bounds.contains(mouseX, mouseY), true)
+        drawPixelIcon(context, bounds, PREVIEW_ICON, EditorHeader.PREVIEW_ICON_SCALE, true)
+        if (bounds.contains(mouseX, mouseY)) {
+            SkysoftNativeTooltip.setForNextFrame(context, listOf("Preview swing"), mouseX, mouseY)
+        }
     }
 
     private fun drawAdvancedToggle(
@@ -1014,6 +1052,7 @@ private object HeldItemEditorRenderer {
     private val TEXTURE_RESTORE_ICON = listOf("..X....", ".XX....", "XXXXXXX", ".XX....", "..X....")
     private val UNDO_ICON = listOf("..X..", ".XX..", "XXXXX", ".XX..", "..X..")
     private val REDO_ICON = listOf("..X..", "..XX.", "XXXXX", "..XX.", "..X..")
+    private val PREVIEW_ICON = listOf("X....", "XXX..", "XXXXX", "XXX..", "X....")
     private val EXPAND_ICON = listOf("X...X", ".X.X.", "..X..")
     private val COLLAPSE_ICON = listOf("..X..", ".X.X.", "X...X")
 
@@ -1246,6 +1285,9 @@ private object EditorHeader {
     const val BUTTON_Y = (HEIGHT - BUTTON_HEIGHT) / 2
     const val CLOSE_RIGHT_INSET = 18
     const val CLOSE_SIZE = 14
+    const val PREVIEW_LEFT_INSET = 4
+    const val PREVIEW_SIZE = 14
+    const val PREVIEW_ICON_SCALE = 1
 
     fun contentWidth(headerWidth: Int): Int = headerWidth - CONTENT_INSET * 2
 }
