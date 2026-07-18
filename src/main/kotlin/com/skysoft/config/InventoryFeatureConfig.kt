@@ -625,6 +625,12 @@ class ProtectItemSettingsConfig {
     var allowDungeonUltimates = true
 
     @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Drop Messages", desc = "Hide chat messages when a protected item drop is blocked.")
+    @field:ConfigEditorBoolean
+    var hideProtectedItemDropMessages = false
+
+    @JvmField
     @field:ConfigOption(name = "Reset Protected Items", desc = "Unprotect every item on the current SkyBlock profile.")
     @field:ConfigEditorButton(buttonText = "Reset")
     val resetProtectedItems = Runnable { ItemProtectionManager.resetProtectedItems() }
