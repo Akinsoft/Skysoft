@@ -6,6 +6,7 @@ import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryButtonResetShortcutResult
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.gui.tooltip.TooltipScrollExcludedScreen
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.ScreenTitleRenderer
@@ -35,7 +36,9 @@ object SkysoftHudEditor {
     }
 
     class EditorScreen(private val oldScreen: AbstractContainerScreen<*>? = null) :
-        Screen(Component.literal("Skysoft Position Editor")), InventoryScaledScreen {
+        Screen(Component.literal("Skysoft Position Editor")),
+        InventoryScaledScreen,
+        TooltipScrollExcludedScreen {
         override fun usesInventoryScale(): Boolean = oldScreen != null
 
         private var grabbedElement: HudEditorElement? = null
