@@ -9,6 +9,7 @@ import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatMotionProfile
 import com.skysoft.features.chat.ChatMotionSettings
 import com.skysoft.features.chat.ChatNotifier
+import com.skysoft.features.chat.ChatPeek
 import com.skysoft.features.chat.ChatTimestamps
 import com.skysoft.features.chat.PreparedChatMessage
 import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
@@ -29,6 +30,7 @@ import org.spongepowered.asm.mixin.injection.Inject
 import org.spongepowered.asm.mixin.injection.ModifyConstant
 import org.spongepowered.asm.mixin.injection.ModifyVariable
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable
 
 @Mixin(ChatComponent::class)
 abstract class ChatComponentMixin {
@@ -46,6 +48,23 @@ abstract class ChatComponentMixin {
 
     @Shadow
     private fun getLineHeight(): Int = throw AssertionError()
+
+    @ModifyVariable(
+        method = [
+            "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;" +
+                "Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/" +
+                "ChatComponent\$DisplayMode;Z)V",
+        ],
+        at = At("HEAD"),
+        argsOnly = true,
+    )
+    protected fun skysoftExpandChatDisplayMode(displayMode: ChatComponent.DisplayMode): ChatComponent.DisplayMode =
+        ChatPeek.displayMode(displayMode)
+
+    @Inject(method = ["getHeight()I"], at = [At("HEAD")], cancellable = true)
+    protected fun skysoftExpandChatHeight(cir: CallbackInfoReturnable<Int>) {
+        ChatPeek.expandedHeight()?.let(cir::setReturnValue)
+    }
 
     @WrapOperation(
         method = [
