@@ -4,6 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
 import com.skysoft.utils.SoundUtilities
+import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageClassifier
 import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.chat.PrivateMessageDirection
@@ -39,7 +40,10 @@ object ChatNotifier {
     ): Component {
         if (!isEnabled) return content
         if (entries.isEmpty()) return content
-        if (isOwnMessagesIgnored && isOwnMessage(content, ownPlayerName)) return content
+        if (isOwnMessagesIgnored) {
+            val message = ChatMessageClassifier.classify(SkysoftMessage(content, SkysoftMessageSource.GAME))
+            if (isOwnMessage(message, ownPlayerName)) return content
+        }
         var decorated = content
         var pingVolumePercent = 0f
         var pingVolume = 0f
@@ -65,10 +69,7 @@ object ChatNotifier {
         return decorated
     }
 
-    private fun isOwnMessage(content: Component, ownPlayerName: String?): Boolean {
-        val message = ChatMessageClassifier.classify(
-            SkysoftMessage(content, SkysoftMessageSource.GAME),
-        )
+    internal fun isOwnMessage(message: ChatMessage, ownPlayerName: String?): Boolean {
         return when (message.type) {
             ChatMessageType.ALL,
             ChatMessageType.PARTY,
