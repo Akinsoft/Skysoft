@@ -258,6 +258,12 @@ class ChatFeatureConfig {
     class ChatNotifySettingsConfig {
         @JvmField
         @field:Expose
+        @field:ConfigOption(name = "Ignore Own", desc = "Do not notify on messages sent by you.")
+        @field:ConfigEditorBoolean
+        var isOwnMessagesIgnored = true
+
+        @JvmField
+        @field:Expose
         @field:ConfigOption(name = "Words", desc = "Words or phrases to highlight and optionally notify you about.")
         @field:ConfigEditorTextList(
             disabledSound = SoundUtilities.NAVIGATION_LEFT_SOUND_ID,

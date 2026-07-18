@@ -210,7 +210,9 @@ internal object ChatMessageClassifier {
     private val guildPattern = Regex("""^Guild > (?<sender>.+?): (?<body>.*)$""")
     private val coopPattern = Regex("""^Co-op > (?<sender>.+?): (?<body>.*)$""")
     private val privatePattern = Regex("""^(?<direction>From|To) (?<sender>.+?): (?<body>.*)$""")
-    private val allPattern = Regex("""^(?<sender>(?:\[[^]]+] )*[A-Za-z0-9_]{1,16}(?: \[[^]]+])?): (?<body>.*)$""")
+    private val allPattern = Regex(
+        """^(?<sender>(?:\[[^]]+] )*[A-Za-z0-9_]{1,16}(?: \[[^]]+])?(?: [^A-Za-z0-9_\s:]+)*): (?<body>.*)$""",
+    )
     private val bracketGroupPattern = Regex("""\[[^]]+]""")
     private val whitespacePattern = Regex("""\s+""")
     private val playerNamePattern = Regex("""[A-Za-z0-9_]{1,16}""")
