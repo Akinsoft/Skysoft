@@ -4,6 +4,9 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SlotBindingHighlightStyle
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.SlotBindingAdditionDecision
+import com.skysoft.data.SlotBindingGraph
+import com.skysoft.data.SlotBindingShiftClickDecision
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockMenuItem.isSkyBlockMenu
 import com.skysoft.gui.OverlayControlMouse
@@ -61,13 +64,12 @@ object SlotBindingManager {
             return InputHandlingResult.IGNORED
         }
         repairBindings(screen)
-        val binding = bindingFor(slot.containerSlot) ?: return InputHandlingResult.IGNORED
-        val firstSlot = Geometry.findPlayerSlot(screen, binding.firstSlot) ?: return InputHandlingResult.IGNORED
-        val secondSlot = Geometry.findPlayerSlot(screen, binding.secondSlot) ?: return InputHandlingResult.IGNORED
-        return if (trySwapSlots(screen, firstSlot, secondSlot)) {
-            InputHandlingResult.CONSUMED
-        } else {
-            InputHandlingResult.IGNORED
+        return when (val decision = SlotBindingGraph.shiftClickDecision(bindings, slot.containerSlot)) {
+            SlotBindingShiftClickDecision.Unbound -> InputHandlingResult.IGNORED
+
+            SlotBindingShiftClickDecision.AmbiguousAnchor -> InputHandlingResult.CONSUMED
+
+            is SlotBindingShiftClickDecision.Swap -> swapBoundSlots(screen, decision.binding)
         }
     }
 
@@ -83,35 +85,35 @@ object SlotBindingManager {
             val slotPairs = bindings.mapNotNull { binding ->
                 val firstSlot = Geometry.findPlayerSlot(screen, binding.firstSlot) ?: return@mapNotNull null
                 val secondSlot = Geometry.findPlayerSlot(screen, binding.secondSlot) ?: return@mapNotNull null
-                firstSlot to secondSlot
+                Triple(binding, firstSlot, secondSlot)
             }
 
-            val hoveredBinding = if (config.details.showShiftHoverHighlight && isShiftDown() && hoveredSlot != null) {
-                bindingFor(hoveredSlot.containerSlot)
+            val hoveredBindings = if (config.details.showShiftHoverHighlight && isShiftDown() && hoveredSlot != null) {
+                bindingsFor(hoveredSlot.containerSlot)
             } else {
-                null
+                emptyList()
             }
 
-            for ((firstSlot, secondSlot) in slotPairs) {
-                val highlighted = hoveredBinding != null &&
-                    Geometry.bindingContains(hoveredBinding, firstSlot.containerSlot) &&
-                    Geometry.bindingContains(hoveredBinding, secondSlot.containerSlot)
+            for ((binding, firstSlot, secondSlot) in slotPairs) {
+                val highlighted = binding in hoveredBindings
                 Renderer.drawBinding(context, screen, firstSlot, secondSlot, if (highlighted) WHITE_LINE else Renderer.bindingLineColor())
                 Renderer.drawSlotHighlight(context, screen, firstSlot, Renderer.bindingFillColor(), Renderer.bindingOutlineColor())
                 Renderer.drawSlotHighlight(context, screen, secondSlot, Renderer.bindingFillColor(), Renderer.bindingOutlineColor())
             }
 
-            if (hoveredBinding != null && hoveredSlot != null) {
-                Geometry.otherSlot(hoveredBinding, hoveredSlot.containerSlot)?.let { otherSlotIndex ->
-                    Geometry.findPlayerSlot(screen, otherSlotIndex)?.let { otherSlot ->
-                        Renderer.drawSlotHighlight(context, screen, otherSlot, Renderer.whiteFillColor(), WHITE_OUTLINE)
+            if (hoveredBindings.isNotEmpty() && hoveredSlot != null) {
+                hoveredBindings.forEach { binding ->
+                    Geometry.otherSlot(binding, hoveredSlot.containerSlot)?.let { otherSlotIndex ->
+                        Geometry.findPlayerSlot(screen, otherSlotIndex)?.let { otherSlot ->
+                            Renderer.drawSlotHighlight(context, screen, otherSlot, Renderer.whiteFillColor(), WHITE_OUTLINE)
+                        }
                     }
                 }
             }
 
             if (dragState == null && isBindingKeyDown()) {
                 hoveredSlot?.takeUnless(Geometry::isSkyBlockMenuSlot)?.let { slot ->
-                    val color = if (bindingFor(slot.containerSlot) != null) WHITE_OUTLINE else Renderer.bindingOutlineColor()
+                    val color = if (bindingsFor(slot.containerSlot).isNotEmpty()) WHITE_OUTLINE else Renderer.bindingOutlineColor()
                     Renderer.drawSlotHighlight(context, screen, slot, Renderer.bindingFillColor(), color)
                 }
             }
@@ -121,7 +123,7 @@ object SlotBindingManager {
             dragState == null &&
             isBindingKeyDown() &&
             hoveredSlot != null &&
-            bindingFor(hoveredSlot.containerSlot) == null &&
+            bindingsFor(hoveredSlot.containerSlot).isEmpty() &&
             Geometry.isSkyBlockMenuSlot(hoveredSlot)
         ) {
             pendingTooltip = PendingTooltip(Tooltips.skyBlockMenuBindingTooltipLines(), mouseX, mouseY)
@@ -182,18 +184,14 @@ object SlotBindingManager {
         }
 
         val hoveredSlotIndex = hoveredSlot.containerSlot
-        if (bindingFor(hoveredSlotIndex) != null) {
-            SlotLockManager.cancelPendingLock()
-            removeBindingsInvolving(hoveredSlotIndex)
-            dragState = null
-            return
-        }
         if (Geometry.isSkyBlockMenuSlot(hoveredSlot)) {
             dragState = null
             return
         }
 
-        dragState = DragState(screen.menu.containerId, hoveredSlotIndex)
+        val wasBound = bindingsFor(hoveredSlotIndex).isNotEmpty()
+        if (wasBound) SlotLockManager.cancelPendingLock()
+        dragState = DragState(screen.menu.containerId, hoveredSlotIndex, wasBound)
     }
 
     private fun finishDrag(screen: AbstractContainerScreen<*>, targetSlot: Slot?) {
@@ -204,7 +202,9 @@ object SlotBindingManager {
         }
         if (drag.containerId != screen.menu.containerId || !isAvailable()) return
         val sourceSlot = Geometry.findPlayerSlot(screen, drag.sourceSlot) ?: return
-        if (targetSlot != null && targetSlot.containerSlot != sourceSlot.containerSlot) {
+        if (targetSlot?.containerSlot == sourceSlot.containerSlot) {
+            if (drag.wasBound) removeBindingsInvolving(sourceSlot.containerSlot)
+        } else if (targetSlot != null) {
             bindSlots(sourceSlot, targetSlot)
         }
     }
@@ -216,23 +216,13 @@ object SlotBindingManager {
     }
 
     private fun bindSlots(firstSlot: Slot, secondSlot: Slot) {
-        if (!Geometry.isValidBindingPair(firstSlot, secondSlot)) {
-            return
-        }
+        if (!Geometry.isValidBindingPair(firstSlot, secondSlot)) return
         val firstSlotIndex = firstSlot.containerSlot
         val secondSlotIndex = secondSlot.containerSlot
-        var changed = false
-        val iterator = bindings.iterator()
-        while (iterator.hasNext()) {
-            val binding = iterator.next()
-            if (Geometry.bindingMatches(binding, firstSlotIndex, secondSlotIndex)) return
-            if (Geometry.bindingContains(binding, firstSlotIndex) || Geometry.bindingContains(binding, secondSlotIndex)) {
-                iterator.remove()
-                changed = true
-            }
+        val result = SlotBindingGraph.add(bindings, firstSlotIndex, secondSlotIndex)
+        if (result == SlotBindingAdditionDecision.ADD) {
+            ProfileStorageApi.markDirty()
         }
-        bindings.add(ProfileStorage.SlotBindingData(firstSlotIndex, secondSlotIndex))
-        if (changed || bindings.isNotEmpty()) ProfileStorageApi.markDirty()
     }
 
     private fun removeBindingsInvolving(slotIndex: Int) {
@@ -242,55 +232,31 @@ object SlotBindingManager {
         }
     }
 
-    private fun bindingFor(slotIndex: Int): ProfileStorage.SlotBindingData? =
-        bindings.firstOrNull { Geometry.bindingContains(it, slotIndex) }
+    private fun bindingsFor(slotIndex: Int): List<ProfileStorage.SlotBindingData> =
+        SlotBindingGraph.bindingsForSlot(bindings, slotIndex)
 
     private fun repairBindings(screen: AbstractContainerScreen<*>? = null) {
-        val usedSlots = mutableSetOf<Int>()
-        val iterator = bindings.iterator()
-        var changed = false
-        while (iterator.hasNext()) {
-            val binding = iterator.next()
-            if (
-                !binding.isValid() ||
-                !Geometry.isValidBindingPair(binding.firstSlot, binding.secondSlot) ||
-                Geometry.involvesSkyBlockMenuSlot(binding, screen) ||
-                binding.firstSlot in usedSlots ||
-                binding.secondSlot in usedSlots
-            ) {
-                iterator.remove()
-                changed = true
-                continue
-            }
-            usedSlots += binding.firstSlot
-            usedSlots += binding.secondSlot
+        val repair = SlotBindingGraph.repair(bindings)
+        val menuBindingCount = bindings.count { Geometry.involvesSkyBlockMenuSlot(it, screen) }
+        if (menuBindingCount > 0) {
+            bindings.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
         }
-        if (changed) ProfileStorageApi.markDirty()
+        if (repair.changed || menuBindingCount > 0) ProfileStorageApi.markDirty()
     }
 
-    private fun trySwapSlots(screen: AbstractContainerScreen<*>, firstSlot: Slot, secondSlot: Slot): Boolean {
-        val firstHotbar = Geometry.isHotbarSlot(firstSlot.containerSlot)
-        val secondHotbar = Geometry.isHotbarSlot(secondSlot.containerSlot)
-        if (!Geometry.isValidBindingPair(firstSlot, secondSlot)) return false
-        return when {
-            firstHotbar -> trySwapWithHotbar(screen, secondSlot, firstSlot.containerSlot)
-            secondHotbar -> trySwapWithHotbar(screen, firstSlot, secondSlot.containerSlot)
-            else -> false
+    private fun swapBoundSlots(
+        screen: AbstractContainerScreen<*>,
+        binding: ProfileStorage.SlotBindingData,
+    ): InputHandlingResult {
+        val firstSlot = Geometry.findPlayerSlot(screen, binding.firstSlot)
+        val secondSlot = Geometry.findPlayerSlot(screen, binding.secondSlot)
+        if (firstSlot == null || secondSlot == null) return InputHandlingResult.IGNORED
+        val swapResult = SlotBindingSwapper.swapSlots(screen, firstSlot, secondSlot)
+        return if (swapResult == SlotBindingSwapResult.SWAPPED) {
+            InputHandlingResult.CONSUMED
+        } else {
+            InputHandlingResult.IGNORED
         }
-    }
-
-    private fun trySwapWithHotbar(screen: AbstractContainerScreen<*>, slot: Slot, hotbarSlot: Int): Boolean {
-        val minecraft = Minecraft.getInstance()
-        val player = minecraft.player ?: return false
-        val gameMode = minecraft.gameMode ?: return false
-        gameMode.handleContainerInput(
-            screen.menu.containerId,
-            slot.index,
-            hotbarSlot,
-            ContainerInput.SWAP,
-            player,
-        )
-        return true
     }
 
     private fun renderDraggingBinding(
@@ -333,6 +299,8 @@ object SlotBindingManager {
         fun invalidBindingReason(source: Slot, target: Slot): InvalidBindingReason? = when {
             Geometry.isSkyBlockMenuSlot(source) || Geometry.isSkyBlockMenuSlot(target) -> InvalidBindingReason.SKYBLOCK_MENU
             !Geometry.isValidBindingPair(source.containerSlot, target.containerSlot) -> InvalidBindingReason.HOTBAR_REQUIRED
+            SlotBindingGraph.additionDecision(bindings, source.containerSlot, target.containerSlot) ==
+                SlotBindingAdditionDecision.SLOT_CONFLICT -> InvalidBindingReason.SLOT_CONFLICT
             else -> null
         }
 
@@ -344,6 +312,11 @@ object SlotBindingManager {
             )
 
             InvalidBindingReason.SKYBLOCK_MENU -> skyBlockMenuBindingTooltipLines()
+            InvalidBindingReason.SLOT_CONFLICT -> listOf(
+                "§cInvalid Slot Binding",
+                "§7One of these slots is already bound.",
+                "§7Unbind it first.",
+            )
         }
 
         fun skyBlockMenuBindingTooltipLines(): List<String> = listOf(
@@ -534,10 +507,6 @@ object SlotBindingManager {
         fun bindingContains(binding: ProfileStorage.SlotBindingData, slotIndex: Int): Boolean =
             binding.firstSlot == slotIndex || binding.secondSlot == slotIndex
 
-        fun bindingMatches(binding: ProfileStorage.SlotBindingData, firstSlot: Int, secondSlot: Int): Boolean =
-            (binding.firstSlot == firstSlot && binding.secondSlot == secondSlot) ||
-                (binding.firstSlot == secondSlot && binding.secondSlot == firstSlot)
-
         fun otherSlot(binding: ProfileStorage.SlotBindingData, slotIndex: Int): Int? = when (slotIndex) {
             binding.firstSlot -> binding.secondSlot
             binding.secondSlot -> binding.firstSlot
@@ -563,11 +532,57 @@ object SlotBindingManager {
     private enum class InvalidBindingReason {
         HOTBAR_REQUIRED,
         SKYBLOCK_MENU,
+        SLOT_CONFLICT,
     }
 
-    private data class DragState(val containerId: Int, val sourceSlot: Int)
+    private data class DragState(val containerId: Int, val sourceSlot: Int, val wasBound: Boolean)
     private data class PendingTooltip(val lines: List<String>, val mouseX: Int, val mouseY: Int)
     private data class LineValues(val x0: Double, val y0: Double, val x1: Double, val y1: Double, val gradient: Double)
+}
+
+private object SlotBindingSwapper {
+    fun swapSlots(
+        screen: AbstractContainerScreen<*>,
+        firstSlot: Slot,
+        secondSlot: Slot,
+    ): SlotBindingSwapResult {
+        if (!SlotBindingGraph.isValidPair(firstSlot.containerSlot, secondSlot.containerSlot)) {
+            return SlotBindingSwapResult.INVALID_PAIR
+        }
+        return when {
+            isHotbarSlot(firstSlot) -> swapSlotWithHotbar(screen, secondSlot, firstSlot.containerSlot)
+            isHotbarSlot(secondSlot) -> swapSlotWithHotbar(screen, firstSlot, secondSlot.containerSlot)
+            else -> SlotBindingSwapResult.NO_HOTBAR_SLOT
+        }
+    }
+
+    private fun swapSlotWithHotbar(
+        screen: AbstractContainerScreen<*>,
+        slot: Slot,
+        hotbarSlot: Int,
+    ): SlotBindingSwapResult {
+        val minecraft = Minecraft.getInstance()
+        val player = minecraft.player ?: return SlotBindingSwapResult.PLAYER_UNAVAILABLE
+        val gameMode = minecraft.gameMode ?: return SlotBindingSwapResult.GAME_MODE_UNAVAILABLE
+        gameMode.handleContainerInput(
+            screen.menu.containerId,
+            slot.index,
+            hotbarSlot,
+            ContainerInput.SWAP,
+            player,
+        )
+        return SlotBindingSwapResult.SWAPPED
+    }
+
+    private fun isHotbarSlot(slot: Slot): Boolean = slot.containerSlot in 0..8
+}
+
+private enum class SlotBindingSwapResult {
+    SWAPPED,
+    INVALID_PAIR,
+    NO_HOTBAR_SLOT,
+    PLAYER_UNAVAILABLE,
+    GAME_MODE_UNAVAILABLE,
 }
 
 internal fun shouldKeepPendingSlotLock(
