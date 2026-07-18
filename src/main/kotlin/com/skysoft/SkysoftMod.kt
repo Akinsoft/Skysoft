@@ -42,6 +42,8 @@ import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.loot.RareLootSharing
 import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
+import com.skysoft.features.misc.ServerInfoDisplay
+import com.skysoft.features.misc.ServerTpsProvider
 import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import com.skysoft.features.misc.actionbar.ActionBarBackground
@@ -115,6 +117,8 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Chat Tabs", ChatTabs::register)
         registerFeature("Action Bar Background", ActionBarBackground::register)
         registerFeature("Day Display", DayDisplay::register)
+        registerFeature("Server TPS Provider", ServerTpsProvider::register)
+        registerFeature("Server Info Display", ServerInfoDisplay::register)
         registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)
         registerFeature("Auto Sprint", AutoSprint::register)
         registerFeature("Block Overlay", BlockOverlay::register)

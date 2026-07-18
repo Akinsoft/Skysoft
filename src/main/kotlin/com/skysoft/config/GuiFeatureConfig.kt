@@ -35,6 +35,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Server Info Display", desc = "Show FPS, TPS, and ping.")
+    val serverInfoDisplay = ServerInfoDisplayConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Inventory & Tooltip Scale", desc = "GUI scaling for inventory screens and tooltips.")
     val inventoryScreen = InventoryScreenConfig()
 
