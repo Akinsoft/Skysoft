@@ -260,8 +260,8 @@ class ChatFeatureConfig {
         @field:Expose
         @field:ConfigOption(name = "Words", desc = "Words or phrases to highlight and optionally notify you about.")
         @field:ConfigEditorTextList(
-            disabledSound = SoundUtilities.PREVIOUS_PAGE_SOUND_ID,
-            enabledSound = SoundUtilities.NEXT_PAGE_SOUND_ID,
+            disabledSound = SoundUtilities.NAVIGATION_LEFT_SOUND_ID,
+            enabledSound = SoundUtilities.NAVIGATION_RIGHT_SOUND_ID,
             defaultSound = SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID,
             showColour = true,
             showNotification = true,
@@ -319,6 +319,7 @@ class ChatFeatureConfig {
 
 enum class ChatTabPosition(private val displayName: String) {
     ABOVE("Above Chat"),
+    UNDER("Under Chat"),
     RIGHT("Right of Chat"),
     ;
 

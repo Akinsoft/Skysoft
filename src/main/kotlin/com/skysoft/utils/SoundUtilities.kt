@@ -8,11 +8,12 @@ import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundSource
 import net.minecraft.util.RandomSource
+import kotlin.random.Random
 
 object SoundUtilities {
     private val clickSound by lazy { createSound("ui.button.click", 1f) }
-    private val previousPageSound by lazy { createSound(PREVIOUS_PAGE_SOUND_ID, 1f, 1f) }
-    private val nextPageSound by lazy { createSound(NEXT_PAGE_SOUND_ID, 1f, 1f) }
+    private val navigationLeftSound by lazy { createSound(NAVIGATION_LEFT_SOUND_ID, 1f, 1f) }
+    private val navigationRightSound by lazy { createSound(NAVIGATION_RIGHT_SOUND_ID, 1f, 1f) }
     private val itemProtectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 4096L) }
     private val itemUnprotectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 0L) }
 
@@ -20,11 +21,15 @@ object SoundUtilities {
         playSound(clickSound)
     }
 
-    fun playPageSound(delta: Int) {
+    fun playNavigationSound(delta: Int) {
         when {
-            delta < 0 -> playSound(previousPageSound)
-            delta > 0 -> playSound(nextPageSound)
+            delta < 0 -> playSound(navigationLeftSound)
+            delta > 0 -> playSound(navigationRightSound)
         }
+    }
+
+    fun playRandomNavigationSound() {
+        playNavigationSound(if (Random.nextBoolean()) -1 else 1)
     }
 
     fun playItemProtectedSound() {
@@ -67,7 +72,7 @@ object SoundUtilities {
         }
     }
 
-    const val PREVIOUS_PAGE_SOUND_ID = "skysoft:item_list.page_left"
-    const val NEXT_PAGE_SOUND_ID = "skysoft:item_list.page_right"
+    const val NAVIGATION_LEFT_SOUND_ID = "skysoft:item_list.page_left"
+    const val NAVIGATION_RIGHT_SOUND_ID = "skysoft:item_list.page_right"
     const val CHAT_NOTIFY_DEFAULT_SOUND_ID = "minecraft:block.note_block.pling"
 }

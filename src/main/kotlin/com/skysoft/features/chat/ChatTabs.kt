@@ -103,6 +103,13 @@ object ChatTabs {
                         .also { x += width + TAB_GAP }
                 }
             }
+            ChatTabPosition.UNDER -> {
+                var x = CHAT_LEFT
+                buttonWidths.map { width ->
+                    ChatTabBounds(x, chatBottom + TAB_GAP, width, TAB_HEIGHT)
+                        .also { x += width + TAB_GAP }
+                }
+            }
             ChatTabPosition.RIGHT -> {
                 val totalHeight = buttonWidths.size * TAB_HEIGHT + (buttonWidths.size - 1).coerceAtLeast(0) * TAB_GAP
                 var y = (chatBottom - maxOf(chatHeight, totalHeight)).coerceAtLeast(0)

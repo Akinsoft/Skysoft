@@ -640,7 +640,7 @@ object ItemListController {
         val nextPage = (ItemListState.page + delta).coerceIn(0, count - 1)
         if (nextPage == ItemListState.page) return
         ItemListState.page = nextPage
-        SoundUtilities.playPageSound(delta)
+        SoundUtilities.playNavigationSound(delta)
     }
 
     private fun openViewer(

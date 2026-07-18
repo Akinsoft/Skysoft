@@ -10,9 +10,10 @@ import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.CopyChatResult
 import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.SoundUtilities
+import com.skysoft.utils.gui.PixelButtonWidget
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
@@ -46,7 +47,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     private var skysoftMouseY = 0
 
     @field:Unique
-    private val skysoftTabButtons = mutableMapOf<ChatTabChannel, Button>()
+    private val skysoftTabButtons = mutableMapOf<ChatTabChannel, PixelButtonWidget>()
 
     @field:Unique
     private var skysoftDidSelectTab = false
@@ -237,11 +238,21 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
             net.minecraft.client.gui.components.ChatComponent.getHeight(minecraft.options.chatHeightFocused().get()),
         )
         channels.zip(bounds).forEach { (channel, bound) ->
-            val button = Button.builder(Component.literal(channel.toString())) {
-                ChatTabs.select(channel)
-                skysoftUpdateTabButtons()
-                skysoftDidSelectTab = true
-            }.bounds(bound.x, bound.y, bound.width, bound.height).build()
+            val button = PixelButtonWidget(
+                bound.x,
+                bound.y,
+                bound.width,
+                bound.height,
+                Component.literal(channel.toString()),
+                onPress = {
+                    val isSwitchingTab = ChatTabs.activeChannel() != channel
+                    ChatTabs.select(channel)
+                    skysoftUpdateTabButtons()
+                    skysoftDidSelectTab = true
+                    if (isSwitchingTab) SoundUtilities.playRandomNavigationSound()
+                },
+                isClickSoundEnabled = false,
+            )
             skysoftTabButtons[channel] = addRenderableWidget(button)
         }
         skysoftUpdateTabButtons()
@@ -250,7 +261,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     @Unique
     private fun skysoftUpdateTabButtons() {
         val activeChannel = ChatTabs.activeChannel()
-        skysoftTabButtons.forEach { (channel, button) -> button.active = channel != activeChannel }
+        skysoftTabButtons.forEach { (channel, button) -> button.isSelected = channel == activeChannel }
     }
 
     @Unique
