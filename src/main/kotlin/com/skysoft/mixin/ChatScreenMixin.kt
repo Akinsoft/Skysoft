@@ -252,6 +252,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
                     if (isSwitchingTab) SoundUtilities.playRandomNavigationSound()
                 },
                 isClickSoundEnabled = false,
+                canReceiveArrowFocus = false,
             )
             skysoftTabButtons[channel] = addRenderableWidget(button)
         }
