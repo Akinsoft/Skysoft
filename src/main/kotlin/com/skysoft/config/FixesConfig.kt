@@ -26,6 +26,15 @@ class FixesConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Centered Crosshair",
+        desc = "Fix the vanilla crosshair being slightly off-center.",
+    )
+    @field:ConfigEditorBoolean
+    var isCenteredCrosshairFixEnabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Hide Glitch Mobs",
         desc = "Hide nametagless rare mob player models left behind by Hypixel.",
     )
