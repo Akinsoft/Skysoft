@@ -12,15 +12,25 @@ object SkysoftPartyShare {
     private val recentSentMessages = mutableListOf<RecentSentPartyMessage>()
     private val commandQueue = SkysoftPartyCommandQueue(::partyCommand, ::partySendBlockedReason, ::rememberSentMessage)
     private var partyChatObservedUntilMillis = 0L
+    private var wasActive = false
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Party Share queue") { sendNextQueuedPartyMessage() }
+        SkysoftClientEvents.onEndTick(
+            "Party Share queue",
+            isActive = { HypixelPartyApi.hasActiveConsumers || wasActive },
+        ) { updateQueue() }
         SkysoftClientEvents.onDisconnect("Party Share disconnect reset", ::clearRecentSentMessages)
-        ChatEvents.onVisibleMessage("Party Share sent-message tracking") { message ->
+        ChatEvents.onVisibleMessage(
+            "Party Share sent-message tracking",
+            isActive = HypixelPartyApi::hasActiveConsumers,
+        ) { message ->
             recordCommandCooldownFailure(message.cleanText)
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onPartyMessage("Party Share received-message tracking") { message ->
+        ChatEvents.onPartyMessage(
+            "Party Share received-message tracking",
+            isActive = HypixelPartyApi::hasActiveConsumers,
+        ) { message ->
             message.sender?.takeIf { it.isLocalPlayerName(localPlayerName()) }?.let {
                 commandQueue.recordLocalPartyChat()
                 recordPartyEchoDelivered(message.body)
@@ -80,6 +90,7 @@ object SkysoftPartyShare {
         recentSentMessages.clear()
         commandQueue.clear()
         partyChatObservedUntilMillis = 0L
+        wasActive = false
     }
 
     fun showFoundReplacement(
@@ -119,6 +130,15 @@ object SkysoftPartyShare {
     private fun sendNextQueuedPartyMessage() {
         val command = nextPartyCommand() ?: return
         Minecraft.getInstance().connection?.sendCommand(command)
+    }
+
+    private fun updateQueue() {
+        if (!HypixelPartyApi.hasActiveConsumers) {
+            clearRecentSentMessages()
+            return
+        }
+        wasActive = true
+        sendNextQueuedPartyMessage()
     }
 
     private fun hasRecentPartyChatEvidence(now: Long = System.currentTimeMillis()): Boolean =

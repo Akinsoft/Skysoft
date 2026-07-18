@@ -1,6 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
@@ -11,29 +12,51 @@ import java.time.ZonedDateTime
 import net.minecraft.network.chat.Component
 
 object SkyBlockCookieBuffApi {
+    private val consumers = ActiveConsumerRegistry()
     private var ticks = 0
     private var lastTabContentVersion = Long.MIN_VALUE
+    private var wasActive = false
 
     @Volatile
     var status = CookieBuffStatus(CookieBuffState.LOADING)
         private set
 
     fun register() {
-        ChatEvents.onVisibleMessage("Cookie Buff chat") { message ->
+        ProfileStorageApi.registerConsumer("Cookie Buff API") { consumers.hasActiveConsumers }
+        TabListApi.registerConsumer("Cookie Buff API") { consumers.hasActiveConsumers }
+        ChatEvents.onVisibleMessage(
+            "Cookie Buff chat",
+            isActive = { consumers.hasActiveConsumers },
+        ) { message ->
             if (message.isSystemLike && isBoosterCookieConsumedMessage(message.cleanText.trim())) {
                 recordConsumedCookie()
             }
             ChatMessageVisibility.SHOW
         }
-        SkysoftClientEvents.onEndTick("Cookie Buff update") {
+        SkysoftClientEvents.onEndTick(
+            "Cookie Buff update",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) {
+            if (!consumers.hasActiveConsumers) {
+                reset()
+                return@onEndTick
+            }
+            if (!wasActive) {
+                wasActive = true
+                updateStatus()
+                return@onEndTick
+            }
             if (++ticks % STATUS_INTERVAL_TICKS == 0) updateStatus()
         }
-        SkysoftClientEvents.onDisconnect("Cookie Buff reset") {
-            ticks = 0
-            lastTabContentVersion = Long.MIN_VALUE
-            status = rememberedStatus(System.currentTimeMillis())
-        }
+        SkysoftClientEvents.onDisconnect("Cookie Buff reset", ::reset)
     }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
 
     private fun updateStatus(now: Long = System.currentTimeMillis()) {
         val contentChanged = lastTabContentVersion != TabListApi.contentVersion
@@ -102,6 +125,13 @@ object SkyBlockCookieBuffApi {
     private fun setStatus(next: CookieBuffStatus) {
         if (next == status) return
         status = next
+    }
+
+    private fun reset() {
+        ticks = 0
+        lastTabContentVersion = Long.MIN_VALUE
+        status = CookieBuffStatus(CookieBuffState.LOADING)
+        wasActive = false
     }
 
     private const val STATUS_INTERVAL_TICKS = 20

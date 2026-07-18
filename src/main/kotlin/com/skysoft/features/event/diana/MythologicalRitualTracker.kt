@@ -19,25 +19,32 @@ internal object MythologicalRitualTracker {
     private var ticks = 0
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Mythological Ritual Tracker tick") { onTick() }
+        SkysoftClientEvents.onEndTick(
+            "Mythological Ritual Tracker tick",
+            isActive = { isEnabled() || ticks > 0 },
+        ) { onTick() }
         SkysoftClientEvents.onDisconnect("Mythological Ritual Tracker disconnect reset", ::clearSession)
         SkysoftClientEvents.onClientStopping("Mythological Ritual Tracker save") {
             MythologicalRitualTrackerRepository.saveNow()
         }
         RareLootContextRegistry.register(rareLootContextContributor)
-        ChatEvents.onVisibleMessage("Mythological Ritual tracker chat") { message ->
+        ChatEvents.onVisibleMessage("Mythological Ritual tracker chat", ::isEnabled) { message ->
             handleVisibleMessage(message)
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onPartyMessage("Mythological Ritual party chat") { message ->
+        ChatEvents.onPartyMessage("Mythological Ritual party chat", ::isEnabled) { message ->
             handlePartyMessage(message)
             ChatMessageVisibility.SHOW
         }
     }
 
     private fun onTick() {
+        if (!config.enabled) {
+            clearSession()
+            return
+        }
         if (++ticks % ACTIVE_TIME_TICK_INTERVAL != 0) return
-        if (!config.enabled || !isDianaActivityContext()) return
+        if (!isDianaActivityContext()) return
         MythologicalRitualTrackerRepository.recordActiveAt(System.currentTimeMillis())
     }
 
@@ -67,6 +74,8 @@ internal object MythologicalRitualTracker {
         DianaEventState.isOnHub() &&
             (DianaEventState.isMythologicalRitualActive() || DianaEventState.hasSpadeInHotbar())
 
+    private fun isEnabled(): Boolean = config.enabled
+
     private fun clearSession() {
         lootShareWindow.clear()
         partyCommandCooldown.clear()
@@ -75,6 +84,8 @@ internal object MythologicalRitualTracker {
     }
 
     private val rareLootContextContributor = object : RareLootContextContributor {
+        override fun isActive(): Boolean = config.enabled && DianaEventState.isOnHub()
+
         override fun hasLootShareEvidence(now: Long): Boolean =
             DianaRareMobSharing.likelyRemoteRareLoot
 

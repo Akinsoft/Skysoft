@@ -30,7 +30,10 @@ object SmoothSwapping {
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Smooth Swapping disconnect reset", ::clearTransientState)
-        SkysoftClientEvents.onEndTick("Smooth Swapping tick") {
+        SkysoftClientEvents.onEndTick(
+            "Smooth Swapping tick",
+            isActive = { config.enabled || hasTransientState() },
+        ) {
             if (MinecraftClient.screen() !is AbstractContainerScreen<*>) {
                 clearTransientState()
             }
@@ -108,6 +111,9 @@ object SmoothSwapping {
     }
 
     private fun isAvailable(): Boolean = config.enabled
+
+    private fun hasTransientState(): Boolean =
+        activeScreenKey != null || animations.isNotEmpty() || suppressedSlots.isNotEmpty()
 
     private fun clearTransientState() {
         activeScreenKey = null

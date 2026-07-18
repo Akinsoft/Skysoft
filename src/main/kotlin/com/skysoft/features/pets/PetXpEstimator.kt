@@ -26,8 +26,8 @@ object PetXpEstimator {
     private val recentEstimatedPetExp = mutableMapOf<UUID, ElapsedTimeMark>()
 
     fun register() {
-        SkillExpGainApi.onSkillExpGain("Pet Experience estimation", ::onSkillExpGain)
-        SkyBlockProfileApi.onProfileChange("Pet Experience profile reset") {
+        SkillExpGainApi.onSkillExpGain("Pet Experience estimation", PetFeatureDemand::isActive, ::onSkillExpGain)
+        SkyBlockProfileApi.onProfileChange("Pet Experience profile reset", PetFeatureDemand::isActive) {
             resetProfileState()
         }
         SkysoftClientEvents.onDisconnect("Pet Experience disconnect reset") {

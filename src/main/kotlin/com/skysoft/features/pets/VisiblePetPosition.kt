@@ -29,7 +29,11 @@ object VisiblePetPosition {
     private var ticks = 0
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Visible Pet Position tick") { tick() }
+        ActivePetEntityTracker.registerConsumer("Visible Pet Position") { config.enabled }
+        SkysoftClientEvents.onEndTick(
+            "Visible Pet Position tick",
+            isActive = { config.enabled || activePetEntityId != null || activePetNameEntityId != null },
+        ) { tick() }
         SkysoftClientEvents.onDisconnect("Visible Pet Position disconnect reset", ::clear)
     }
 

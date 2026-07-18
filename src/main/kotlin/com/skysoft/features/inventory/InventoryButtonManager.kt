@@ -13,6 +13,7 @@ import com.skysoft.config.MAX_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.MIN_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.mixin.AbstractContainerScreenAccessor
@@ -66,7 +67,9 @@ object InventoryButtonManager {
     private var hoveredMillis = 0L
 
     fun register() {
-        InventoryButtonIcons.registerPlayerHeadCacheRefresh {
+        SkyBlockDataRepository.Demand.register("Inventory Buttons") { config.enabled }
+        PetRepository.registerConsumer("Inventory Buttons") { config.enabled }
+        InventoryButtonIcons.registerPlayerHeadCacheRefresh({ config.enabled }) {
             config.buttons.asSequence()
                 .filter { it.isActive() }
                 .mapNotNull { it.icon }
@@ -554,8 +557,11 @@ private object InventoryButtonIcons {
     private const val MIN_FALLBACK_ICON_LENGTH = 1
     private const val FALLBACK_ICON_TEXT_Y_OFFSET = 5
 
-    fun registerPlayerHeadCacheRefresh(activeIcons: () -> Sequence<String>) {
-        SkysoftClientEvents.onEndTick("Inventory Button player head cache") tick@{ minecraft ->
+    fun registerPlayerHeadCacheRefresh(
+        isActive: () -> Boolean,
+        activeIcons: () -> Sequence<String>,
+    ) {
+        SkysoftClientEvents.onEndTick("Inventory Button player head cache", isActive) tick@{ minecraft ->
             if (minecraft.connection == null) {
                 nextPlayerHeadCacheRefreshMillis = 0L
                 return@tick

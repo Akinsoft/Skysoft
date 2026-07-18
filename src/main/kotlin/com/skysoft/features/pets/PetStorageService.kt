@@ -6,6 +6,8 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.AccessoryBagData
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.features.pets.PetItemUtilities.getPetInfo
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
@@ -28,14 +30,23 @@ object PetStorageService {
         get() = PetWidgetStateTracker.displayMessage
 
     fun register() {
-        SkyBlockProfileApi.onProfileChange("Pet Storage profile reset") {
+        ProfileStorageApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
+        TabListApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
+        MayorPerkApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
+        SkyBlockProfileApi.onProfileChange("Pet Storage profile reset", PetFeatureDemand::isActive) {
             PetWidgetStateTracker.reset()
             lastInventoryKey = null
         }
-        ChatEvents.onVisibleMessage("Pet Storage chat") { message ->
+        ChatEvents.onVisibleMessage(
+            "Pet Storage chat",
+            isActive = PetFeatureDemand::isActive,
+        ) { message ->
             PetStorageChat.handleIncomingMessage(message.component)
         }
-        SkysoftClientEvents.onEndTick("Pet Storage inventory reader") {
+        SkysoftClientEvents.onEndTick(
+            "Pet Storage inventory reader",
+            isActive = PetFeatureDemand::isActive,
+        ) {
             PetStorageInventoryReader.onClientTick()
         }
         SkysoftClientEvents.onDisconnect("Pet Storage disconnect reset") {
@@ -50,12 +61,15 @@ object PetStorageService {
 
     @JvmStatic
     fun onSlotClick(slot: Slot?, slotId: Int, clickedButton: Int) {
+        if (!PetFeatureDemand.isActive()) return
         AccessoryBagData.onSlotClick(slot, clickedButton)
         PetStorageClickHandler.onSlotClick(slot, slotId, clickedButton)
     }
 
     @JvmStatic
-    fun onUseItem() = PetStorageHeldPetAdd.recordUseItem()
+    fun onUseItem() {
+        if (PetFeatureDemand.isActive()) PetStorageHeldPetAdd.recordUseItem()
+    }
 
     fun getActiveExpSharePets(): List<StoredPetData> = PetStorageExpSharing.activePets()
 

@@ -75,7 +75,8 @@ object ActivePetOverlay {
     }
 
     fun register() {
-        PetRepository.register()
+        PetRepository.registerConsumer("Pet Features", PetFeatureDemand::isActive)
+        ActivePetEntityTracker.registerConsumer("Pet Display", PetFeatureDemand::isDisplayActive)
         GuiOverlayRegistry.register(
             GuiOverlay(
                 id = "pet_display",
@@ -98,7 +99,7 @@ object ActivePetOverlay {
             }
             override fun openConfig() = PetOverlayConfigScreen.open()
         })
-        ActivePetTracker.onChange("Active Pet Overlay state change") { petData ->
+        ActivePetTracker.onChange("Active Pet Overlay state change", PetFeatureDemand::isDisplayActive) { petData ->
             if (petData == null) lastDisplayState = null
             val petKey = petData?.uuid ?: petData?.fauxInternalName
             if (petKey != animatedPetKey) {

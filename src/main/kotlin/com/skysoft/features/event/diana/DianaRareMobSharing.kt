@@ -32,10 +32,16 @@ internal object DianaRareMobSharing {
     private var ticks = 0
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Diana Rare Mob Sharing tick") { onTick() }
+        SkysoftClientEvents.onEndTick(
+            "Diana Rare Mob Sharing tick",
+            isActive = { isEnabledOnHub || hasRuntimeState },
+        ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Rare Mob Sharing disconnect reset", ::clear)
-        ChatEvents.onVisibleMessage("Diana Rare Mob chat") { message -> onMessage(message) }
-        ClientEntityMetadataEvents.register("Diana Rare Mob entity metadata") { event ->
+        ChatEvents.onVisibleMessage("Diana Rare Mob chat", { isEnabledOnHub }) { message -> onMessage(message) }
+        ClientEntityMetadataEvents.register(
+            "Diana Rare Mob entity metadata",
+            isActive = { isEnabledOnHub && targets.isNotEmpty() },
+        ) { event ->
             if (config.enabled && DianaEventState.isOnHub()) {
                 DianaRareMobLootshare.handleMetadata(
                     event,
@@ -45,14 +51,25 @@ internal object DianaRareMobSharing {
                 )
             }
         }
-        EntityLifecycleEvents.onLoad("Diana Rare Mob entity loading") { entity -> onEntityLoad(entity) }
-        EntityLifecycleEvents.onUnload("Diana Rare Mob entity unloading") { entity -> onEntityUnload(entity) }
-        EntityInteractionEvents.register("Diana Rare Mob entity interaction") { event ->
+        EntityLifecycleEvents.onLoad("Diana Rare Mob entity loading", { isEnabledOnHub }) { entity -> onEntityLoad(entity) }
+        EntityLifecycleEvents.onUnload("Diana Rare Mob entity unloading", { isEnabledOnHub }) { entity -> onEntityUnload(entity) }
+        EntityInteractionEvents.register("Diana Rare Mob entity interaction", { isEnabledOnHub }) { event ->
             onEntityClick(event)
             false
         }
-        WorldRenderDispatcher.registerHandler("Diana Rare Mob world rendering", ::onRenderWorld)
+        WorldRenderDispatcher.registerHandler(
+            "Diana Rare Mob world rendering",
+            isActive = { isEnabledOnHub && targets.isNotEmpty() },
+            handler = ::onRenderWorld,
+        )
     }
+
+    private val isEnabledOnHub: Boolean
+        get() = config.enabled && DianaEventState.isOnHub()
+
+    private val hasRuntimeState: Boolean
+        get() = targets.isNotEmpty() || pendingLocalSpawns.isNotEmpty() ||
+            pendingLocalClears.isNotEmpty() || pendingRemoteClears.isNotEmpty()
 
     fun hasActiveTarget(): Boolean =
         targets.isNotEmpty()

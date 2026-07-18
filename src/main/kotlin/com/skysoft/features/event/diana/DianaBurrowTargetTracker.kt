@@ -10,6 +10,8 @@ internal object DianaBurrowTargetTracker {
 
     fun snapshot(): List<DianaBurrowTarget> = targets.values.toList()
 
+    fun hasTargets(): Boolean = targets.isNotEmpty()
+
     fun setChangeListener(listener: ((List<DianaBurrowTarget>, Long) -> Unit)?) {
         changeListener = listener
     }

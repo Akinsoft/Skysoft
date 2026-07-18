@@ -15,7 +15,7 @@ object ScreenAlertRenderer {
         if (registered) return
         registered = true
         ScreenTitleRenderer.registerPositionEditor()
-        SkysoftClientEvents.onEndTick("Screen Alert tick") { tick() }
+        SkysoftClientEvents.onEndTick("Screen Alert tick", { activeAlerts.isNotEmpty() }) { tick() }
         SkysoftClientEvents.onDisconnect("Screen Alert disconnect reset", ::clearAll)
         ScreenTitleRenderer.registerTitleOverlay(
             id = "screen_alerts",

@@ -5,6 +5,7 @@ import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.core.HudPosition
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.SkyBlockCookieBuffApi
 import com.skysoft.data.skyblock.ItemListEntry
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
@@ -70,6 +71,8 @@ object ItemListController {
 
     @JvmStatic
     fun register() {
+        SkyBlockDataRepository.Demand.register("Item List", ::isItemListActive)
+        SkyBlockCookieBuffApi.registerConsumer("Item List", ::isItemListViewerOpen)
         ItemListState.register()
         HudEditorRegistry.register(object : HudEditorElement {
             override val id: String = "item_list"
@@ -687,6 +690,11 @@ object ItemListController {
     private val FAVORITE_HEART = net.minecraft.resources.Identifier.withDefaultNamespace("hud/heart/full")
     private const val FAVORITE_HEART_SIZE = 9
 }
+
+private fun isItemListActive(): Boolean =
+    SkysoftConfigGui.config().inventory.itemList.enabled || isItemListViewerOpen()
+
+private fun isItemListViewerOpen(): Boolean = MinecraftClient.screen() is ItemListViewerScreen
 
 private object FooterPresentation {
     const val IDLE_ALPHA = 0.5

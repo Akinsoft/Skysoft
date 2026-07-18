@@ -9,7 +9,7 @@ object EntityHighlightRenderer {
     private val highlights = ConcurrentHashMap<LivingEntity, EntityHighlight>()
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Entity Highlight cleanup") {
+        SkysoftClientEvents.onEndTick("Entity Highlight cleanup", { highlights.isNotEmpty() }) {
             highlights.keys.removeIf { entity -> !entity.isAlive }
         }
         SkysoftClientEvents.onDisconnect("Entity Highlight disconnect reset", highlights::clear)

@@ -29,6 +29,7 @@ abstract class EntityMetadataPacketMixin {
         packet: ClientboundSetEntityDataPacket,
         ci: CallbackInfo,
     ) {
+        if (!ClientEntityMetadataEvents.hasActiveListeners()) return
         SkysoftErrorBoundary.run("Entity metadata packet dispatch") {
             ClientEntityMetadataEvents.dispatch(
                 ClientEntityMetadataEvent(packet.id(), packet.packedItems()),

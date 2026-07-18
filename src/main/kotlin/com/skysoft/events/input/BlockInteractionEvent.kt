@@ -23,12 +23,20 @@ object BlockInteractionEvents {
             listeners.any { it.shouldCancelBlockClick(event) }
         }
     }
+    private var activePredicates: List<() -> Boolean> = emptyList()
 
-    fun register(boundary: String, listener: BlockClickCallback) {
+    fun register(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: BlockClickCallback,
+    ) {
+        activePredicates += isActive
         event.register { event ->
-            SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelBlockClick(event) }
+            isActive() && SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelBlockClick(event) }
         }
     }
+
+    fun hasActiveListeners(): Boolean = activePredicates.any { it() }
 
     fun shouldCancelBlockClick(blockClick: BlockInteractionEvent): Boolean = event.invoker().shouldCancelBlockClick(blockClick)
 }

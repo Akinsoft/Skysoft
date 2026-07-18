@@ -25,6 +25,12 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 
+internal fun registerSlotBindingStorage() {
+    ProfileStorageApi.registerConsumer("Slot Bindings") {
+        SkysoftConfigGui.config().inventory.slotBindings.enabled
+    }
+}
+
 object SlotBindingManager {
     private const val SLOT_CENTER_OFFSET = 8
     private const val SLOT_HIT_PADDING = 1

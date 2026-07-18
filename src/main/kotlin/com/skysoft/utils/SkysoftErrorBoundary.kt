@@ -6,7 +6,6 @@ import java.io.StringWriter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -24,7 +23,10 @@ internal object SkysoftErrorBoundary {
 
     fun register() {
         if (!isRegistered.compareAndSet(false, true)) return
-        ClientTickEvents.END_CLIENT_TICK.register { flushPendingReports() }
+        SkysoftClientEvents.onEndTick(
+            "Pending error reports",
+            isActive = { pendingReports.isNotEmpty() },
+        ) { flushPendingReports() }
     }
 
     internal inline fun run(boundary: String, action: () -> Unit) {

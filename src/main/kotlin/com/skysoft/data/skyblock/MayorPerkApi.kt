@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
 import com.skysoft.utils.SkysoftClientEvents
@@ -20,10 +21,12 @@ object MayorPerkApi {
     private const val REFRESH_CHECK_INTERVAL_TICKS = 40
 
     private val gson = Gson()
+    private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
     private val loading = AtomicBoolean(false)
     private var lastUpdate = ElapsedTimeMark.farPast()
     private var ticks = 0
+    private var wasActive = false
 
     @Volatile
     var sharingIsCaringActive: Boolean = false
@@ -54,7 +57,16 @@ object MayorPerkApi {
         private set
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Mayor Perk refresh") tick@{
+        SkysoftClientEvents.onEndTick(
+            "Mayor Perk refresh",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) tick@{
+            if (!consumers.hasActiveConsumers) {
+                if (wasActive) reset()
+                wasActive = false
+                return@tick
+            }
+            wasActive = true
             if (++ticks % REFRESH_CHECK_INTERVAL_TICKS != 0) return@tick
             if (lastUpdate.passedSince() < 20.minutes) return@tick
             refresh()
@@ -88,6 +100,27 @@ object MayorPerkApi {
                     }
                 }
             }
+    }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
+
+    private fun reset() {
+        requests.cancelAll()
+        loading.set(false)
+        lastUpdate = ElapsedTimeMark.farPast()
+        ticks = 0
+        sharingIsCaringActive = false
+        petXpBuffActive = false
+        mythologicalRitualActive = false
+        carnivalActive = false
+        fishingFestivalActive = false
+        miningFiestaActive = false
+        mythologicalRitualEventKey = null
     }
 
     private fun ElectionResponse.hasPerk(perkName: String): Boolean =

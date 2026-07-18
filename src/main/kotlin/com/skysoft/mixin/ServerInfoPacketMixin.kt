@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
 open class ServerInfoPacketMixin {
     @Inject(method = ["handleSetTime"], at = [At("TAIL")])
     protected fun skysoftRecordServerTime(packet: ClientboundSetTimePacket, ci: CallbackInfo) {
+        if (!ServerTpsProvider.hasActiveConsumers) return
         SkysoftErrorBoundary.run("Server Info time packet") {
             ServerTpsProvider.recordServerTime(packet.gameTime(), System.nanoTime())
         }
@@ -22,6 +23,7 @@ open class ServerInfoPacketMixin {
 
     @Inject(method = ["handlePongResponse"], at = [At("TAIL")])
     protected fun skysoftRecordPong(packet: ClientboundPongResponsePacket, ci: CallbackInfo) {
+        if (!ServerInfoDisplay.isPingMeasurementActive) return
         val receivedAtNanos = System.nanoTime()
         SkysoftErrorBoundary.onClientThread("Server Info pong packet") {
             ServerInfoDisplay.recordPong(packet.time(), receivedAtNanos)

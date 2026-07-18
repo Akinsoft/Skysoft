@@ -38,6 +38,10 @@ object SlotLockManager {
     private var blockedSlot: Int? = null
     private var blockedUntilMillis = 0L
 
+    fun register() {
+        ProfileStorageApi.registerConsumer("Slot Locking") { config.enabled }
+    }
+
     @JvmStatic
     fun beginFrame() {
         activeLockKey?.takeUnless(InputUtilities::isKeyDown)?.let {

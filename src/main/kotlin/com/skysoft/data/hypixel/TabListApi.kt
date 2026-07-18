@@ -1,6 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TabListFooter
@@ -26,6 +27,8 @@ object TabListApi {
     private var lastLocationVersion = Long.MIN_VALUE
     private var ticks = 0
     private var skyBlockDataLoadStartedAt = ElapsedTimeMark.farPast()
+    private val consumers = ActiveConsumerRegistry()
+    private var wasActive = false
 
     var sessionId: Long = 0
         private set
@@ -55,18 +58,39 @@ object TabListApi {
         get() = if (isSkyBlockDataLoaded) cachedFooter else null
 
     fun register() {
-        SkysoftClientEvents.onEndTick("Tab List update") {
+        SkysoftClientEvents.onEndTick(
+            "Tab List update",
+            isActive = { consumers.hasActiveConsumers || wasActive },
+        ) {
             onClientTick()
         }
         SkysoftClientEvents.onDisconnect("Tab List reset") {
             resetSession()
+            wasActive = false
         }
     }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
+    internal val hasActiveConsumers: Boolean
+        get() = consumers.hasActiveConsumers
 
     fun hasWaitedForSkyBlockData(duration: Duration): Boolean =
         HypixelLocationState.inSkyBlock && skyBlockDataLoadStartedAt.passedSince() >= duration
 
     private fun onClientTick() {
+        val isActive = consumers.hasActiveConsumers
+        if (!isActive) {
+            if (wasActive) resetSession()
+            wasActive = false
+            return
+        }
+        if (!wasActive) {
+            resetSession()
+            wasActive = true
+        }
         if (!HypixelLocationState.inSkyBlock) {
             ticks = 0
             return

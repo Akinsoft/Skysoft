@@ -25,11 +25,15 @@ import net.minecraft.util.Util
 object ServerInfoDisplay {
     private val pingTracker = ServerPingTracker()
     private var isPingTrackingActive = false
+    private var hasActiveMetrics = false
     private val config get() = SkysoftConfigGui.config().gui.serverInfoDisplay
 
     fun register() {
         ServerTpsProvider.registerConsumer(TPS_CONSUMER_ID)
-        SkysoftClientEvents.onEndTick("Server Info metrics") { minecraft -> updateMetrics(minecraft) }
+        SkysoftClientEvents.onEndTick(
+            "Server Info metrics",
+            isActive = { isConfigured() || hasActiveMetrics },
+        ) { minecraft -> updateMetrics(minecraft) }
         SkysoftClientEvents.onJoin("Server Info join reset", ::resetMeasurements)
         SkysoftClientEvents.onDisconnect("Server Info disconnect reset", ::resetMeasurements)
         GuiOverlayRegistry.register(
@@ -60,6 +64,9 @@ object ServerInfoDisplay {
         if (!isPingTrackingActive) return PingSampleResult.IGNORED_INACTIVE
         return pingTracker.recordPong(requestId, timestampNanos)
     }
+
+    internal val isPingMeasurementActive: Boolean
+        get() = isPingTrackingActive
 
     internal fun diagnosticSnapshot(): ServerInfoDiagnosticSnapshot {
         val minecraft = Minecraft.getInstance()
@@ -108,6 +115,7 @@ object ServerInfoDisplay {
 
     private fun updateMetrics(minecraft: Minecraft) {
         val activeMetrics = if (config.enabled && isRemoteServer(minecraft)) configuredMetrics() else emptyList()
+        hasActiveMetrics = activeMetrics.isNotEmpty()
         ServerTpsProvider.updateConsumerState(TPS_CONSUMER_ID, ServerInfoMetric.TPS in activeMetrics)
         updatePing(minecraft, ServerInfoMetric.PING in activeMetrics)
     }
@@ -133,7 +141,10 @@ object ServerInfoDisplay {
         ServerTpsProvider.updateConsumerState(TPS_CONSUMER_ID, false)
         pingTracker.reset()
         isPingTrackingActive = false
+        hasActiveMetrics = false
     }
+
+    private fun isConfigured(): Boolean = config.enabled && configuredMetrics().isNotEmpty()
 
     private fun currentRenderable(): GuiRenderable? {
         val metrics = configuredMetrics()

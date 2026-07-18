@@ -19,6 +19,7 @@ private val LOCAL_REPO_CACHE_RETRY_DELAY = 30.seconds
 
 internal object PetRepoConstants {
     fun load() {
+        if (PetRepoCache.constantsLastFailure.passedSince() < PET_CONSTANTS_RETRY_DELAY) return
         if (!PetRepoCache.loadingConstants.compareAndSet(false, true)) return
         RemoteSkyBlockRepo.request(PetRepoCache.PETS_URL).thenApply {
             PetRepoCache.gson.fromJson(it, SkysoftPetsRepoJson::class.java)
@@ -28,6 +29,7 @@ internal object PetRepoConstants {
                     if (error == null) {
                         PetRepoCache.petsJson = pets
                     } else {
+                        PetRepoCache.constantsLastFailure = ElapsedTimeMark.now()
                         SkysoftMod.LOGGER.warn("Failed to load pet data", error)
                     }
                 } finally {
@@ -38,25 +40,32 @@ internal object PetRepoConstants {
     }
 }
 
+private val PET_CONSTANTS_RETRY_DELAY = 30.seconds
+
 internal object LocalSkyBlockRepo {
     fun load() {
         if (PetRepoCache.localRepoCacheLoaded) return
         if (PetRepoCache.localRepoCacheLastFailure.passedSince() < LOCAL_REPO_CACHE_RETRY_DELAY) return
         if (!PetRepoCache.loadingLocalRepoCache.compareAndSet(false, true)) return
-        CompletableFuture.runAsync {
+        val request = CompletableFuture.supplyAsync {
             val items = readLocalItems(SkyBlockRepoCacheFiles.resolve("items.min.json"))
             val itemNameResolution = buildItemNameResolution(items)
             val pets = readLocalPets(SkyBlockRepoCacheFiles.resolve("pets.min.json"))
-            PetRepoCache.localItemsByInternalName = items
-            PetRepoCache.localItemNameResolution = itemNameResolution
-            PetRepoCache.localPets = pets
-        }.whenComplete { _, error ->
+            LocalRepoSnapshot(items, itemNameResolution, pets)
+        }
+        PetRepoCache.localRepoLoadFuture = request
+        request.whenComplete { snapshot, error ->
             SkysoftErrorBoundary.run("Local Pet Repository async completion") {
+                if (PetRepoCache.localRepoLoadFuture !== request) return@run
+                PetRepoCache.localRepoLoadFuture = null
                 try {
                     if (error != null) {
                         SkysoftMod.LOGGER.warn("Failed to load local SkyBlock repo cache", error)
                         PetRepoCache.localRepoCacheLastFailure = ElapsedTimeMark.now()
                     } else {
+                        PetRepoCache.localItemsByInternalName = snapshot.items
+                        PetRepoCache.localItemNameResolution = snapshot.itemNameResolution
+                        PetRepoCache.localPets = snapshot.pets
                         PetRepoCache.localRepoCacheLoaded = true
                     }
                 } finally {
@@ -127,6 +136,12 @@ internal object LocalSkyBlockRepo {
     }
 
     private val localPetsMapType = object : TypeToken<Map<String, SkyBlockPetInfo>>() {}.type
+
+    private data class LocalRepoSnapshot(
+        val items: Map<String, SkyblockRepoItemJson>,
+        val itemNameResolution: Map<String, String>,
+        val pets: Map<String, SkyBlockPetInfo>,
+    )
 }
 
 internal object RemoteSkyBlockRepo {

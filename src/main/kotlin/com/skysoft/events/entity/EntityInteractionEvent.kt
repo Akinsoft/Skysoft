@@ -28,12 +28,20 @@ object EntityInteractionEvents {
             listeners.any { it.shouldCancelEntityClick(event) }
         }
     }
+    private var activePredicates: List<() -> Boolean> = emptyList()
 
-    fun register(boundary: String, listener: EntityClickCallback) {
+    fun register(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: EntityClickCallback,
+    ) {
+        activePredicates += isActive
         event.register { event ->
-            SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelEntityClick(event) }
+            isActive() && SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelEntityClick(event) }
         }
     }
+
+    fun hasActiveListeners(): Boolean = activePredicates.any { it() }
 
     fun shouldCancelEntityClick(entityClick: EntityInteractionEvent): Boolean =
         event.invoker().shouldCancelEntityClick(entityClick)

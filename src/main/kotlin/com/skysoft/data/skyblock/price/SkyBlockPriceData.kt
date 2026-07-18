@@ -46,9 +46,22 @@ object SkyBlockPriceData {
 
     private var ticksUntilBazaarRefresh = 0
     private var ticksUntilLowestBinsRefresh = 0
+    private var wasDemanded = false
 
     fun register() {
-        SkysoftClientEvents.onEndTick("SkyBlock Price refresh") {
+        ProfileStorageApi.registerConsumer("SkyBlock Price Data") {
+            SkysoftConfigGui.config().inventory.bazaar.enabled
+        }
+        SkysoftClientEvents.onEndTick(
+            "SkyBlock Price refresh",
+            isActive = { hasDemand || wasDemanded },
+        ) {
+            if (!hasDemand) {
+                if (wasDemanded) stopBackgroundWork()
+                wasDemanded = false
+                return@onEndTick
+            }
+            wasDemanded = true
             if (shouldRefreshBazaar()) {
                 if (ticksUntilBazaarRefresh-- <= 0) {
                     ticksUntilBazaarRefresh = BAZAAR_REFRESH_INTERVAL_TICKS
@@ -249,6 +262,24 @@ object SkyBlockPriceData {
             isBazaarTrackerEnabled = inventoryConfig.bazaar.enabled,
             hasActiveOrders = currentBazaarTrackerHasActiveOrders(),
         )
+    }
+
+    private val hasDemand: Boolean
+        get() {
+            val config = SkysoftConfigGui.config()
+            return hasItemListMarketInterest.get() ||
+                config.inventory.priceTooltips.enabled ||
+                config.misc.rareLootSharing.enabled ||
+                config.inventory.bazaar.enabled
+        }
+
+    private fun stopBackgroundWork() {
+        requests.cancelAll()
+        fetchingBazaar.set(false)
+        fetchingBazaarDepth.set(false)
+        fetchingLowestBins.set(false)
+        ticksUntilBazaarRefresh = 0
+        ticksUntilLowestBinsRefresh = 0
     }
 
     private fun shouldRefreshLowestBins(): Boolean = shouldRefreshLowestBinData(

@@ -15,7 +15,10 @@ internal object DianaBurrowInteractions {
     private val activeMobBurrowIds = mutableSetOf<Long>()
 
     fun register() {
-        BlockInteractionEvents.register("Diana Burrow block interaction") { event ->
+        BlockInteractionEvents.register(
+            "Diana Burrow block interaction",
+            isActive = { config.enabled && DianaEventState.isOnHub() },
+        ) { event ->
             onBlockClick(event).shouldCancel
         }
     }
