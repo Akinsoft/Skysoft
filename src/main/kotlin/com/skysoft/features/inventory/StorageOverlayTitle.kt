@@ -84,11 +84,21 @@ internal fun handleStorageOverlayCharTyped(
     screen: AbstractContainerScreen<*>,
     event: CharacterEvent,
 ): InputHandlingResult {
-    if (editingTitlePage == null) return InputHandlingResult.IGNORED
     if (!storageOverlayIsActive(screen)) return InputHandlingResult.IGNORED
-    appendTitleText(event.codepointAsString())
-    storageOverlayLayoutScreen(screen)
-    return InputHandlingResult.CONSUMED
+    return when {
+        editingTitlePage != null -> {
+            appendTitleText(event.codepointAsString())
+            storageOverlayLayoutScreen(screen)
+            InputHandlingResult.CONSUMED
+        }
+        storageSearchField.focused && event.isAllowedChatCharacter -> {
+            storageSearchField.charTyped(event)
+            resetStorageScroll()
+            storageOverlayLayoutScreen(screen)
+            InputHandlingResult.CONSUMED
+        }
+        else -> InputHandlingResult.IGNORED
+    }
 }
 
 private fun appendTitleText(value: String) {

@@ -43,9 +43,9 @@ internal object StorageSearchIndex {
     }
 
     private fun query(): InventoryItemSearchQuery {
-        if (searchText == indexedQuery) return searchQuery
-        indexedQuery = searchText
-        searchQuery = InventoryItemSearchQuery.from(searchText)
+        if (storageSearchField.text == indexedQuery) return searchQuery
+        indexedQuery = storageSearchField.text
+        searchQuery = InventoryItemSearchQuery.from(storageSearchField.text)
         pageMatches.clear()
         return searchQuery
     }

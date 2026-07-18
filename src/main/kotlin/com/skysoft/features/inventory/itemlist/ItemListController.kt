@@ -368,6 +368,9 @@ object ItemListController {
             }
             layout.search.contains(mouseX, mouseY) -> {
                 searchField.focused = true
+                if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                    searchField.placeCursorAt(mouseX, layout.search.x, layout.search.width)
+                }
                 when {
                     click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT &&
                         SkysoftConfigGui.config().inventory.itemList.settings.isRightClickClearEnabled -> {
@@ -440,6 +443,7 @@ object ItemListController {
             if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
                 itemListCompiledCalculation(searchField.text)?.let { result ->
                     searchField.text = result
+                    searchField.moveCursorToEnd()
                     Minecraft.getInstance().keyboardHandler.setClipboard(result)
                     updateSearch(screen, result)
                     return InputHandlingResult.CONSUMED
@@ -494,6 +498,10 @@ object ItemListController {
     @JvmStatic
     fun reservedBounds(screen: AbstractContainerScreen<*>): Rect? =
         if (isVisible(screen)) ItemListLayout.create(screen, favoriteEntries().isNotEmpty())?.panel else null
+
+    internal fun searchFieldDebugSummary(): String =
+        "focused=${searchField.focused} length=${searchField.text.length} cursor=${searchField.cursorIndex} " +
+            "selected=${searchField.selectedCharacterCount}"
 
     private fun isVisible(screen: AbstractContainerScreen<*>): Boolean {
         val config = SkysoftConfigGui.config().inventory.itemList

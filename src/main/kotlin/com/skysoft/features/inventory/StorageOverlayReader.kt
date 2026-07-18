@@ -49,8 +49,8 @@ internal fun resetTransientState() {
     clearPageFocusRequest()
     preservedScrollPageIndex = null
     rememberedPageIndex = null
-    searchFocused = false
-    searchText = ""
+    storageSearchField.focused = false
+    storageSearchField.text = ""
     editingTitlePage = null
     editingTitleText = ""
     editingTitleSelected = false

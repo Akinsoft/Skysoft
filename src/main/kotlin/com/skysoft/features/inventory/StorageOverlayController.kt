@@ -5,6 +5,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -102,8 +103,7 @@ internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
 internal val isStorageOverlayEnabled get() = SkysoftConfigGui.config().inventory.isStorageOverlayEnabled
 
 internal var lastInventoryKey: String? = null
-internal var searchText = ""
-internal var searchFocused = false
+internal val storageSearchField = TextFieldState()
 internal var editingTitlePage: Int? = null
 internal var editingTitleText = ""
 internal var editingTitleSelected = false

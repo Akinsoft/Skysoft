@@ -189,21 +189,15 @@ internal fun drawScrollBar(context: GuiGraphicsExtractor, measurements: Measurem
 
 internal fun drawSearchBox(context: GuiGraphicsExtractor, measurements: Measurements) {
     val box = measurements.search
-    context.fill(box.x, box.y, box.x + box.width, box.y + box.height, StorageColors.SEARCH_BACKGROUND)
-    context.outline(
+    storageSearchField.render(
+        context,
         box.x,
         box.y,
         box.width,
         box.height,
-        if (searchFocused) StorageColors.SELECTED else StorageColors.PANEL_OUTLINE,
-    )
-    val display = if (searchText.isEmpty() && !searchFocused) "§8Search..." else "§f$searchText"
-    LegacyTextRenderer.draw(
-        context,
-        display,
-        box.x + StorageSearch.TEXT_X_OFFSET,
-        box.y + StorageSearch.TEXT_Y_OFFSET,
-        shadow = false,
+        "Search...",
+        backgroundColor = StorageColors.SEARCH_BACKGROUND,
+        outlineColor = if (storageSearchField.focused) StorageColors.SELECTED else StorageColors.PANEL_OUTLINE,
     )
 }
 
