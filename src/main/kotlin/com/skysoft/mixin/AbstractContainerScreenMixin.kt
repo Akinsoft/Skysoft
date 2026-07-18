@@ -380,20 +380,28 @@ abstract class AbstractContainerScreenMixin {
         ci: CallbackInfo,
     ) {
         val screen = this as AbstractContainerScreen<*>
-        val slotLockResult = SkysoftErrorBoundary.value("Slot Lock slot click", InputHandlingResult.IGNORED) {
-            SlotLockManager.handleSlotClick(screen, slot, button, action)
-        }
         val itemProtectionResult = SkysoftErrorBoundary.value("Item Protection slot click", InputHandlingResult.IGNORED) {
             ItemProtectionManager.handleContainerDrop(screen, slot, slotId, action)
         }
-        if (slotLockResult == InputHandlingResult.CONSUMED || itemProtectionResult == InputHandlingResult.CONSUMED) {
+        if (itemProtectionResult == InputHandlingResult.CONSUMED) {
+            ci.cancel()
+            return
+        }
+        val slotBindingResult = SkysoftErrorBoundary.value("Slot Binding slot click", InputHandlingResult.IGNORED) {
+            SlotBindingManager.handleSlotClick(screen, slot, action)
+        }
+        if (slotBindingResult == InputHandlingResult.CONSUMED) {
+            SkysoftErrorBoundary.run("Pet Storage slot click") { PetStorageService.onSlotClick(slot, slotId, button) }
+            ci.cancel()
+            return
+        }
+        val slotLockResult = SkysoftErrorBoundary.value("Slot Lock slot click", InputHandlingResult.IGNORED) {
+            SlotLockManager.handleSlotClick(screen, slot, button, action)
+        }
+        if (slotLockResult == InputHandlingResult.CONSUMED) {
             ci.cancel()
             return
         }
         SkysoftErrorBoundary.run("Pet Storage slot click") { PetStorageService.onSlotClick(slot, slotId, button) }
-        val slotBindingResult = SkysoftErrorBoundary.value("Slot Binding slot click", InputHandlingResult.IGNORED) {
-            SlotBindingManager.handleSlotClick(screen, slot, action)
-        }
-        if (slotBindingResult == InputHandlingResult.CONSUMED) ci.cancel()
     }
 }
