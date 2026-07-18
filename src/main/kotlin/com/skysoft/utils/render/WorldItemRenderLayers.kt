@@ -26,12 +26,11 @@ object WorldItemRenderLayers {
     @JvmStatic
     fun throughWalls(texture: Identifier, isTranslucent: Boolean): RenderType =
         layers.getOrPut(texture to isTranslucent) {
-            val setup = RenderSetup.builder(if (isTranslucent) translucentPipeline else cutoutPipeline)
+            val setupBuilder = RenderSetup.builder(if (isTranslucent) translucentPipeline else cutoutPipeline)
                 .withTexture("Sampler0", texture)
-                .useLightmap()
-                .apply { if (isTranslucent) sortOnUpload() }
-                .createRenderSetup()
-            RenderType("skysoft_world_item_xray", setup)
+            SkysoftPipelineBuilder.configureItemRenderSetup(setupBuilder)
+            if (isTranslucent) setupBuilder.sortOnUpload()
+            RenderType("skysoft_world_item_xray", setupBuilder.createRenderSetup())
         }
 
     private fun itemPipeline(name: String, blend: BlendFunction? = null) = RenderPipelines.register(
