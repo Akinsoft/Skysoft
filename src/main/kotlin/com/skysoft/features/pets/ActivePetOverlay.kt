@@ -158,17 +158,27 @@ object ActivePetOverlay {
 
     private val displayState: PetDisplayState?
         get() {
-            if (!TabDataOverlays.hasStableData) return lastDisplayState
-            PetStorageService.petWidgetDisplayMessage?.let { lines -> return PetDisplayState(messageLines = lines) }
-            if (!PetStorageService.isPetWidgetReadyForDisplay) return lastDisplayState
-            val currentPet = ActivePetTracker.currentPet ?: return lastDisplayState
+            val trackedPet = ActivePetTracker.currentPet
+            val dataSource = PetStorageService.petDisplayDataSource
+            if (!TabDataOverlays.hasStableData && dataSource.requiresStableTabData) {
+                return lastDisplayState
+            }
+            PetStorageService.petWidgetDisplayMessage?.let { lines ->
+                return PetDisplayState(messageLines = lines)
+            }
+            if (!dataSource.canRefreshDisplay) {
+                return lastDisplayState
+            }
+            val currentPet = trackedPet ?: return lastDisplayState
             val observedTexture = ActivePetEntityTracker.current()
                 ?.takeIf { currentPet.skinInternalName != null && it.matches(currentPet) }
                 ?.texture
             return PetDisplayState(
                 currentPet = currentPet.copy(displayIconTexture = observedTexture ?: currentPet.displayIconTexture),
                 expSharePets = getVisibleExpSharePetStates(currentPet.uuid).map { it.copyState() },
-            ).also { lastDisplayState = it }
+            ).also {
+                lastDisplayState = it
+            }
         }
 
     private fun StoredPetData.buildRenderable(expSharePets: List<ExpSharePetState>): GuiRenderable? {

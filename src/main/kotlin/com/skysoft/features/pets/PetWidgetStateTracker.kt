@@ -1,5 +1,6 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import kotlin.time.Duration.Companion.seconds
 
@@ -11,10 +12,14 @@ object PetWidgetStateTracker {
     val isReadyForDisplay: Boolean
         get() = isCurrentWidgetState && state == State.READY
 
+    internal val displayDataSource: PetDisplayDataSource
+        get() = petDisplayDataSource(isReadyForDisplay, HypixelLocationState.currentIsland)
+
     val displayMessage: List<String>?
         get() = when {
             isCurrentWidgetState &&
                 state == State.NOT_READY &&
+                displayDataSource.shouldWarnAboutMissingWidget &&
                 ActivePetTracker.currentPet != null &&
                 TabListApi.hasWaitedForSkyBlockData(widgetLoadGrace) -> listOf(
                 "§cPet Tab Widget Missing",
