@@ -1227,6 +1227,12 @@ private fun defaultPriceTooltipLines(): MutableList<PriceTooltipLine> = mutableL
 class BazaarTrackerDetailsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Only in Menus", desc = "Only show the Bazaar tracker while a container menu is open.")
+    @field:ConfigEditorBoolean
+    var isOnlyInMenus = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Hide When Empty", desc = "Hide the Bazaar tracker when no orders are being tracked.")
     @field:ConfigEditorBoolean
     var hideWhenEmpty = false
