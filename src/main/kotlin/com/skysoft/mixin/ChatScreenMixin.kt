@@ -14,7 +14,6 @@ import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelButtonWidget
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
@@ -22,7 +21,6 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.network.chat.Component
 import org.spongepowered.asm.mixin.Mixin
-import org.spongepowered.asm.mixin.Shadow
 import org.spongepowered.asm.mixin.Unique
 import org.spongepowered.asm.mixin.injection.At
 import org.spongepowered.asm.mixin.injection.Inject
@@ -51,9 +49,6 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
 
     @field:Unique
     private var skysoftDidSelectTab = false
-
-    @field:Shadow
-    protected lateinit var input: EditBox
 
     @Inject(method = ["init()V"], at = [At("TAIL")])
     protected fun skysoftBeginOpenAnimation(ci: CallbackInfo) {
@@ -268,7 +263,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     @Unique
     private fun skysoftRestoreInputFocusAfterTabSelection() {
         if (!skysoftDidSelectTab) return
-        setFocused(input)
+        setFocused((this as ChatScreenAccessor).skysoftGetInput())
         skysoftDidSelectTab = false
     }
 }
