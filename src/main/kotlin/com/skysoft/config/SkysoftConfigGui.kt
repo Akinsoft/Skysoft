@@ -1,5 +1,7 @@
 package com.skysoft.config
 
+import com.skysoft.config.discovery.NewSettingsConfigEditor
+import com.skysoft.config.discovery.NewSettingsEditor
 import com.skysoft.utils.MinecraftClient
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.gui.GuiContext
@@ -31,9 +33,18 @@ object SkysoftConfigGui {
     }
 
     fun createScreen(parent: Screen?): Screen =
+        createScreen(parent, editor())
+
+    internal fun openNewSettings(optionIds: Set<String>): NewSettingsEditor<SkysoftConfig>? {
+        val filteredEditor = NewSettingsConfigEditor.create(config, optionIds) ?: return null
+        MinecraftClient.setScreen(createScreen(null, filteredEditor.editor))
+        return filteredEditor
+    }
+
+    private fun createScreen(parent: Screen?, configEditor: MoulConfigEditor<SkysoftConfig>): Screen =
         object : MoulConfigScreenComponent(
             Component.empty(),
-            GuiContext(GuiElementComponent(editor())),
+            GuiContext(GuiElementComponent(configEditor)),
             parent,
         ) {
             override fun removed() {

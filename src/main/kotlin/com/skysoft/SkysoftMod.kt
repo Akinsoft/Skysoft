@@ -5,6 +5,8 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.logging.LogUtils
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.discovery.NewSettingsDiscovery
+import com.skysoft.config.discovery.NewSettingsOpenResult
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
@@ -143,6 +145,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Fishing Hotspot Radar", FishingHotspotRadar::register)
         registerFeature("Rare Loot Sharing", RareLootSharing::register)
         registerFeature("Diana Burrow Helper", DianaBurrowHelper::register)
+        registerFeature("New Settings Discovery", NewSettingsDiscovery::register)
         registerFeature("Update Checker", ModUpdateChecker::register)
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             SkysoftErrorBoundary.run("Config save") { SkysoftConfigGui.config().saveNow() }
@@ -179,6 +182,7 @@ class SkysoftMod : ClientModInitializer {
         private var shouldOpenEditor = false
         private var shouldOpenButtonEditor = false
         private var shouldOpenHeldItemEditor = false
+        private var shouldOpenNewSettings = false
         private var positionEditorKeyWasDown = false
 
         private fun registerFeature(name: String, registration: () -> Unit) {
@@ -203,10 +207,17 @@ class SkysoftMod : ClientModInitializer {
                 shouldOpenHeldItemEditor = false
                 HeldItemEditorScreen.open()
             }
+            if (shouldOpenNewSettings) {
+                shouldOpenNewSettings = false
+                if (NewSettingsDiscovery.openPresentedSettings() != NewSettingsOpenResult.OPENED) {
+                    SkysoftChat.chat("No new Skysoft settings have been discovered yet.")
+                }
+            }
         }
 
         private fun hasPendingScreens(): Boolean =
-            shouldOpenMenu || shouldOpenEditor || shouldOpenButtonEditor || shouldOpenHeldItemEditor
+            shouldOpenMenu || shouldOpenEditor || shouldOpenButtonEditor || shouldOpenHeldItemEditor ||
+                shouldOpenNewSettings
 
         private fun hasPositionEditorKeybind(): Boolean =
             SkysoftConfigGui.config().gui.positionEditor.keybind != GLFW.GLFW_KEY_UNKNOWN || positionEditorKeyWasDown
@@ -218,6 +229,7 @@ class SkysoftMod : ClientModInitializer {
                 child { InventoryButtonImportCommand.command(::openButtonEditor) }
                 child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
+                child("new") { name -> literal(name).executes { openNewSettings(it.source) } }
                 child("protect") { name -> literal(name).executes { ItemProtectionManager.toggleHeldItem(it.source) } }
                 child("update", "ssupdate") { name -> literal(name).executes { checkUpdate() } }
                 child("download") { name -> literal(name).executes { downloadUpdate(it.source) } }
@@ -255,6 +267,15 @@ class SkysoftMod : ClientModInitializer {
 
         private fun openHeldItemEditor(): Int {
             shouldOpenHeldItemEditor = true
+            return Command.SINGLE_SUCCESS
+        }
+
+        private fun openNewSettings(source: FabricClientCommandSource): Int {
+            if (!NewSettingsDiscovery.hasPresentedSettings()) {
+                SkysoftChat.feedback(source, "No new Skysoft settings have been discovered yet.")
+                return Command.SINGLE_SUCCESS
+            }
+            shouldOpenNewSettings = true
             return Command.SINGLE_SUCCESS
         }
 

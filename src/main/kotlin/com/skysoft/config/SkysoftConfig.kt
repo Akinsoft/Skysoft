@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.annotations.Expose
 import com.skysoft.SkysoftMod
+import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
@@ -123,12 +124,14 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
         fun load(): SkysoftConfig {
             if (SkysoftConfigFiles.migrateConfig() == MigrationResult.FAILED) {
+                NewSettingsConfigBootstrap.captureUnavailableConfig("Legacy config migration failed")
                 return createConfig(
                     "legacy ${SkysoftConfigFiles.legacyConfig} could not be copied to $CONFIG_PATH. " +
                         "Move it manually or fix file permissions to save changes.",
                 )
             }
             if (!SkysoftConfigFiles.hasFileOrBackup(CONFIG_PATH)) {
+                NewSettingsConfigBootstrap.captureFreshConfig()
                 return createConfig()
             }
 
@@ -137,12 +140,14 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
                     Files.newBufferedReader(path).use { reader ->
                         val json = JsonParser.parseReader(reader).asJsonObject
                         SkysoftConfigMigrations.apply(json, GSON)
+                        NewSettingsConfigBootstrap.captureLoadedConfig(json)
                         (GSON.fromJson(json, configClass) ?: createConfig()).also {
                             it.repairLoadedValues()
                         }
                     }
                 }
             } catch (e: Exception) {
+                NewSettingsConfigBootstrap.captureUnavailableConfig("Config and backups failed to load")
                 SkysoftMod.LOGGER.warn("Failed to load Skysoft config or backup, using defaults", e)
                 createConfig("$CONFIG_PATH failed to load. Fix or delete the file to save changes.")
             }
