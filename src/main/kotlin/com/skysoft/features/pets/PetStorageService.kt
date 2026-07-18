@@ -26,6 +26,9 @@ object PetStorageService {
     val isPetWidgetReadyForDisplay: Boolean
         get() = PetWidgetStateTracker.isReadyForDisplay
 
+    internal val petDisplayDataSource: PetDisplayDataSource
+        get() = PetWidgetStateTracker.displayDataSource
+
     val petWidgetDisplayMessage: List<String>?
         get() = PetWidgetStateTracker.displayMessage
 
