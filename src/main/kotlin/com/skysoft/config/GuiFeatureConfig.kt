@@ -35,6 +35,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Real Time Display", desc = "Show your local time.")
+    val realTimeDisplay = RealTimeDisplayConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Server Info Display", desc = "Show FPS, TPS, and ping.")
     val serverInfoDisplay = ServerInfoDisplayConfig()
 
