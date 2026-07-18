@@ -10,9 +10,7 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.RarityHighlightDetailsConfig
 import com.skysoft.config.RarityHighlightType
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.render.SkysoftDrawMode
 import com.skysoft.utils.render.SkysoftPipelineBuilder
 import com.skysoft.utils.render.shader.SkysoftCircleShaderRenderer
@@ -28,6 +26,8 @@ import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
 import net.minecraft.client.renderer.state.gui.GuiRenderState
+import net.minecraft.core.component.DataComponents
+import net.minecraft.resources.Identifier
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
@@ -118,7 +118,7 @@ object RarityHighlightRenderer {
             return it.rarity
         }
         if (rarityByHash.size >= MAX_CACHED_ITEM_HASHES) rarityByHash.clear()
-        return rarityFromLoreLines(stack.loreLines()).also { rarity ->
+        return rarityFromTooltipStyle(stack.get(DataComponents.TOOLTIP_STYLE)).also { rarity ->
             rarityByHash.getOrPut(hash) { mutableListOf() } += CachedRarity(stack.copyWithCount(1), rarity)
         }
     }
@@ -143,24 +143,12 @@ object RarityHighlightRenderer {
     private const val RGB_MASK = 0xFFFFFF
 }
 
-internal fun rarityFromLoreLines(lines: List<String>): SkyBlockRarity? {
-    val footer = lines.asReversed()
-        .asSequence()
-        .map { it.cleanSkyBlockText() }
-        .firstOrNull(String::isNotBlank)
-        ?: return null
-    val rarityName = RARITY_FOOTER_PATTERN.find(footer)?.value?.replace(' ', '_') ?: return null
-    return SkyBlockRarity.getByName(rarityName)
+internal fun rarityFromTooltipStyle(style: Identifier?): SkyBlockRarity? {
+    if (style?.namespace != SKYBLOCK_TOOLTIP_NAMESPACE) return null
+    return SkyBlockRarity.getByName(style.path)
 }
 
-private val RARITY_FOOTER_PATTERN = Regex(
-    SkyBlockRarity.entries
-        .sortedByDescending { it.name.length }
-        .joinToString(prefix = "\\b(?:", postfix = ")\\b", separator = "|") {
-            Regex.escape(it.name.replace('_', ' '))
-        },
-    RegexOption.IGNORE_CASE,
-)
+private const val SKYBLOCK_TOOLTIP_NAMESPACE = "hypixel_skyblock"
 
 private class RarityContourRenderState(
     private val itemState: GuiItemRenderState,
