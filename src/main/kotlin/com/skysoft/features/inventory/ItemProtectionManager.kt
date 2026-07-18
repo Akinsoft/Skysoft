@@ -79,16 +79,14 @@ object ItemProtectionManager {
         if (!isFeatureAvailable() || !isContainerItemDrop(action, slotId)) return InputHandlingResult.IGNORED
         val stack = slot?.item ?: screen.menu.carried
         if (!isProtected(stack)) return InputHandlingResult.IGNORED
-        SkysoftChat.error("${stack.hoverName.string} is protected.")
-        return InputHandlingResult.CONSUMED
+        return blockProtectedItemDrop(stack)
     }
 
     @JvmStatic
     fun handleWorldDrop(player: LocalPlayer): InputHandlingResult {
         val stack = player.mainHandItem
         if (worldDropDecision(stack) != ItemDropProtectionDecision.BLOCK) return InputHandlingResult.IGNORED
-        SkysoftChat.error("${stack.hoverName.string} is protected.")
-        return InputHandlingResult.CONSUMED
+        return blockProtectedItemDrop(stack)
     }
 
     @JvmStatic
@@ -139,6 +137,13 @@ object ItemProtectionManager {
             isDungeon = HypixelLocationState.currentIsland == SkyBlockIsland.DUNGEONS,
             allowDungeonUltimates = config.settings.allowDungeonUltimates,
         )
+
+    private fun blockProtectedItemDrop(stack: ItemStack): InputHandlingResult {
+        if (!config.settings.hideProtectedItemDropMessages) {
+            SkysoftChat.error("${stack.hoverName.string} is protected.")
+        }
+        return InputHandlingResult.CONSUMED
+    }
 
     private fun changeProtection(stack: ItemStack): ItemProtectionChangeResult {
         if (stack.isEmpty) return ItemProtectionChangeResult.NO_ITEM
