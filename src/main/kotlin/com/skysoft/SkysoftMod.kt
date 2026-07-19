@@ -54,6 +54,7 @@ import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
+import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import com.skysoft.features.misc.actionbar.ActionBarBackground
@@ -141,6 +142,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Real Time Display", RealTimeDisplay::register)
         registerFeature("Server TPS Provider", ServerTpsProvider::register)
         registerFeature("Server Info Display", ServerInfoDisplay::register)
+        registerFeature("Scoreboard Position Editor", ScoreboardPositionEditor::register)
         registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)
         registerFeature("Auto Sprint", AutoSprint::register)
         registerFeature("Block Overlay", BlockOverlay::register)
