@@ -42,7 +42,9 @@ import com.skysoft.features.inventory.itemlist.ItemListNpcWaypoint
 import com.skysoft.features.inventory.itemlist.ItemListSearchCommand
 import com.skysoft.features.inventory.PriceTooltips
 import com.skysoft.features.inventory.SmoothSwapping
+import com.skysoft.features.inventory.StorageCache
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.loot.RareLootSharing
 import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
@@ -99,6 +101,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("SkyBlock Profile API", SkyBlockProfileApi::register)
         registerFeature("Entity Lifecycle Events", EntityLifecycleEvents::register)
         registerFeature("Profile Storage", ProfileStorageApi::register)
+        registerFeature("Storage Cache", StorageCache::register)
         registerFeature("Attribute Shard Catalog", AttributeShardCatalog::register)
         registerFeature("Mayor Perk API", MayorPerkApi::register)
         registerFeature("SkyBlock Event Schedule", SkyBlockEventScheduleApi::register)
@@ -112,6 +115,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Screen Alert Renderer", ScreenAlertRenderer::register)
         registerFeature("Lotum Helper", LotumHelper::register)
         registerFeature("Price Tooltips", PriceTooltips::register)
+        registerFeature("Storage Previews", StoragePreviews::register)
         registerFeature("Full Inventory Warning", FullInventoryWarning::register)
         registerFeature("Inventory Buttons", InventoryButtonManager::register)
         registerFeature("Inventory Equipment", InventoryEquipment::register)

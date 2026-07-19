@@ -11,7 +11,6 @@ import com.skysoft.utils.gui.nonPlayerInventoryKey
 import com.skysoft.utils.gui.nonPlayerSlots
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
@@ -28,7 +27,6 @@ internal fun onClientTick() {
         resetScreenState()
         return
     }
-    readScreen(screen, handle)
     if (routePendingOverviewShortcutClick(screen, handle) == InputHandlingResult.CONSUMED) {
         storageOverlayLayoutScreen(screen)
     }
@@ -63,16 +61,7 @@ internal fun resetTransientState() {
 
 internal fun handleFor(screen: AbstractContainerScreen<*>?): StorageHandle? {
     if (screen == null || !HypixelLocationState.inSkyBlock || !isStorageOverlayEnabled) return null
-    if (screen !is ContainerScreen) return null
-    val menu = screen.menu
-    val title = screen.title.cleanSkyBlockText()
-    if (title == "Storage") return StorageHandle.Overview
-    val riftPageNumber = riftStorageTitlePattern.matchEntire(title)?.groupValues?.get(1)?.toIntOrNull()
-    if (riftPageNumber != null) {
-        return StorageHandle.Rift(riftStoragePageIndex(riftPageNumber - 1), menu.rowCount - 1)
-    }
-    ToolkitType.fromTitle(title)?.let { return StorageHandle.Toolkit(it, menu.rowCount) }
-    return storagePageHandle(title, menu.rowCount)
+    return storageHandleFor(screen)
 }
 
 internal fun storagePageHandle(title: String, rows: Int): StorageHandle.Page? {
@@ -92,7 +81,7 @@ internal fun readScreen(screen: AbstractContainerScreen<*>, handle: StorageHandl
     val key = buildInventoryKey(screen)
     if (key == lastInventoryKey) return
     lastInventoryKey = key
-    StorageSearchIndex.invalidatePages()
+    if (isStorageOverlayEnabled) StorageSearchIndex.invalidatePages()
     when (handle) {
         StorageHandle.Overview -> readOverview(screen)
         is StorageHandle.Page -> readStoragePage(
@@ -136,10 +125,11 @@ internal fun readOverview(screen: AbstractContainerScreen<*>) {
 }
 
 internal fun readOverviewSlot(slot: Slot): ChangeResult {
-    val pageIndex = StorageOverviewSlots.pageIndexForSlot(slot.containerSlot) ?: return readToolkitOverviewSlot(slot)
+    val pageIndex = StorageOverviewSlots.pageIndexForSlot(slot.containerSlot)
+        ?: return if (isStorageOverlayEnabled) readToolkitOverviewSlot(slot) else ChangeResult.UNCHANGED
     val stack = slot.item
     if (stack.isEmpty) {
-        emptyOverviewStacks.remove(pageIndex)
+        if (isStorageOverlayEnabled) emptyOverviewStacks.remove(pageIndex)
         return ChangeResult.UNCHANGED
     }
     return when (storageOverviewSlotState(stack)) {
@@ -169,7 +159,7 @@ internal fun readToolkitOverviewSlot(slot: Slot): ChangeResult {
 
 internal fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     return if (isEnderChestPage(pageIndex)) {
-        emptyOverviewStacks[pageIndex] = stack.copy()
+        if (isStorageOverlayEnabled) emptyOverviewStacks[pageIndex] = stack.copy()
         ensureUnloadedPage(pageIndex)
     } else {
         readUnavailableOverviewSlot(pageIndex, stack)
@@ -177,13 +167,13 @@ internal fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResu
 }
 
 internal fun readUnavailableOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
-    emptyOverviewStacks[pageIndex] = stack.copy()
+    if (isStorageOverlayEnabled) emptyOverviewStacks[pageIndex] = stack.copy()
     return ChangeResult.from(storage.skyBlockStoragePages.remove(pageIndex) != null)
 }
 
 internal fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     var changed = false
-    emptyOverviewStacks.remove(pageIndex)
+    if (isStorageOverlayEnabled) emptyOverviewStacks.remove(pageIndex)
     val page = storage.skyBlockStoragePages.getOrPut(pageIndex) {
         changed = true
         ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(pageIndex), 0)
