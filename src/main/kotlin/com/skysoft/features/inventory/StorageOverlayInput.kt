@@ -26,7 +26,7 @@ internal fun routeActivePageSlotClick(
     val mouseX = click.x().toInt()
     val mouseY = click.y().toInt()
     if (!outsideVanillaContainer(screen, mouseX, mouseY)) return InputHandlingResult.IGNORED
-    val measurements = measurements(screen.width, screen.height)
+    val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
     val slotAndAction = pageLayouts(measurements, activePage).pages[activePage]?.let { activeLayout ->
         activePageSlotAt(screen, measurements, handle, rows, activeLayout, mouseX, mouseY)?.let { slot ->
             slotClickAction(screen, click, slot)?.let { action -> slot to action }

@@ -67,6 +67,10 @@ internal fun handleFor(screen: AbstractContainerScreen<*>?): StorageHandle? {
     val menu = screen.menu
     val title = screen.title.cleanSkyBlockText()
     if (title == "Storage") return StorageHandle.Overview
+    val riftPageNumber = riftStorageTitlePattern.matchEntire(title)?.groupValues?.get(1)?.toIntOrNull()
+    if (riftPageNumber != null) {
+        return StorageHandle.Rift(riftStoragePageIndex(riftPageNumber - 1), menu.rowCount - 1)
+    }
     ToolkitType.fromTitle(title)?.let { return StorageHandle.Toolkit(it, menu.rowCount) }
     return storagePageHandle(title, menu.rowCount)
 }
@@ -91,7 +95,32 @@ internal fun readScreen(screen: AbstractContainerScreen<*>, handle: StorageHandl
     StorageSearchIndex.invalidatePages()
     when (handle) {
         StorageHandle.Overview -> readOverview(screen)
-        is StorageHandle.Page -> readPage(screen, handle)
+        is StorageHandle.Page -> readStoragePage(
+            screen,
+            handle.pageIndex,
+            handle.pageIndex,
+            handle.rows,
+            StoragePages.COLUMNS,
+            storage.skyBlockStoragePages,
+        )
+        is StorageHandle.Rift -> {
+            var changed = false
+            repeat(ProfileStorage.SKYBLOCK_RIFT_STORAGE_PAGE_COUNT) { pageNumber ->
+                storage.skyBlockRiftStoragePages.getOrPut(pageNumber) {
+                    changed = true
+                    ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(riftStoragePageIndex(pageNumber)), 0)
+                }
+            }
+            readStoragePage(
+                screen,
+                handle.pageIndex,
+                riftStoragePageNumber(handle.pageIndex),
+                handle.rows,
+                RiftStorage.SLOT_OFFSET,
+                storage.skyBlockRiftStoragePages,
+                changed,
+            )
+        }
         is StorageHandle.Toolkit -> readToolkit(screen, handle)
     }
 }
@@ -168,14 +197,22 @@ internal fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeRe
     return ChangeResult.from(changed)
 }
 
-internal fun readPage(screen: AbstractContainerScreen<*>, handle: StorageHandle.Page) {
-    val rows = handle.rows.coerceIn(1, ProfileStorage.SKYBLOCK_STORAGE_PAGE_MAX_ROWS)
-    var changed = false
-    val page = storage.skyBlockStoragePages.getOrPut(handle.pageIndex) {
+internal fun readStoragePage(
+    screen: AbstractContainerScreen<*>,
+    pageIndex: Int,
+    storedPageIndex: Int,
+    menuRows: Int,
+    slotOffset: Int,
+    pages: MutableMap<Int, ProfileStorage.SkyBlockStoragePageData>,
+    wasChanged: Boolean = false,
+) {
+    val rows = menuRows.coerceIn(1, ProfileStorage.SKYBLOCK_STORAGE_PAGE_MAX_ROWS)
+    var changed = wasChanged
+    val page = pages.getOrPut(storedPageIndex) {
         changed = true
-        ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(handle.pageIndex), rows)
+        ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(pageIndex), rows)
     }
-    changed = ensurePageTitle(page, handle.pageIndex) == ChangeResult.CHANGED || changed
+    changed = ensurePageTitle(page, pageIndex) == ChangeResult.CHANGED || changed
     if (page.rows != rows) {
         page.rows = rows
         changed = true
@@ -183,7 +220,7 @@ internal fun readPage(screen: AbstractContainerScreen<*>, handle: StorageHandle.
     page.repairLoadedValues()
     val items = page.items
     for (slot in screen.nonPlayerSlots()) {
-        val pageSlot = slot.containerSlot - StoragePages.COLUMNS
+        val pageSlot = slot.containerSlot - slotOffset
         if (pageSlot !in 0 until rows * StoragePages.COLUMNS) continue
         val itemData = encodeItem(slot.item)
         if (items[pageSlot].encodedStack != itemData.encodedStack) {

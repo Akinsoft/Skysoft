@@ -11,7 +11,11 @@ import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Blocks
 
-internal fun measurements(width: Int, height: Int): Measurements {
+internal fun measurements(
+    width: Int,
+    height: Int,
+    isSelectorVisible: Boolean,
+): Measurements {
     val columns = config.details.columns.coerceIn(
         StorageOverlayConfigBounds.MIN_COLUMNS,
         maximumStorageColumns(width),
@@ -21,7 +25,7 @@ internal fun measurements(width: Int, height: Int): Measurements {
     val storageX = (width - storageWidth) / 2
     val playerX = width / 2 - StoragePlayerInventory.WIDTH / 2
     val sideSelectorX = StorageSelectorLayout.sideX(playerX)
-    val stackedSelectorHeight = if (config.settings.miniMenu && sideSelectorX == null) {
+    val stackedSelectorHeight = if (isSelectorVisible && sideSelectorX == null) {
         StorageSelector.HEIGHT + StorageSelector.STACKED_GAP
     } else {
         0
@@ -78,6 +82,7 @@ internal fun measurements(width: Int, height: Int): Measurements {
         selectorBounds = selectorBounds,
         totalBounds = totalBounds,
         columns = columns,
+        isSelectorVisible = isSelectorVisible,
     )
 }
 
@@ -103,9 +108,10 @@ internal fun pageLayouts(measurements: Measurements, activePage: Int?): PageLayo
     var y = measurements.scrollPanel.y - scroll
     var rowHeight = 0
     var completedRowHeight = 0
-    for ((pageIndex, page) in displayStorageEntries()) {
+    for ((pageIndex, page) in displayStorageEntries(activePage)) {
         if (
             ToolkitType.fromPageIndex(pageIndex) == null &&
+            !isRiftStoragePage(pageIndex) &&
             pageIndex !in 0 until ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT
         ) {
             continue
@@ -149,9 +155,14 @@ internal fun selectorSlotAt(measurements: Measurements, mouseX: Int, mouseY: Int
     return null
 }
 
-internal fun selectorPageAt(measurements: Measurements, mouseX: Int, mouseY: Int): Int? {
+internal fun selectorPageAt(
+    measurements: Measurements,
+    activePage: Int?,
+    mouseX: Int,
+    mouseY: Int,
+): Int? {
     if (!measurements.selectorBounds.contains(mouseX, mouseY)) return null
-    for (pageIndex in 0 until ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT) {
+    for (pageIndex in selectorPageIndices(activePage)) {
         val pos = selectorPagePosition(measurements, pageIndex)
         if (selectorSlotBounds(pos).contains(mouseX, mouseY)) {
             return pageIndex.takeIf {
@@ -160,10 +171,12 @@ internal fun selectorPageAt(measurements: Measurements, mouseX: Int, mouseY: Int
             }
         }
     }
-    for (type in ToolkitType.entries) {
-        val pos = selectorToolkitPosition(measurements, type)
-        if (selectorSlotBounds(pos).contains(mouseX, mouseY)) {
-            return type.pageIndex.takeIf(::storageEntryExists)
+    if (activePage == null || !isRiftStoragePage(activePage)) {
+        for (type in ToolkitType.entries) {
+            val pos = selectorToolkitPosition(measurements, type)
+            if (selectorSlotBounds(pos).contains(mouseX, mouseY)) {
+                return type.pageIndex.takeIf(::storageEntryExists)
+            }
         }
     }
     return null
@@ -195,7 +208,10 @@ internal fun selectorIconStack(pageIndex: Int, page: ProfileStorage.SkyBlockStor
     }
     emptyOverviewStacks[pageIndex]?.let { return it }
     if (page == null) return ItemStack.EMPTY
-    return if (pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES) {
+    return if (
+        pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES ||
+        isRiftStoragePage(pageIndex)
+    ) {
         ItemStack(Blocks.ENDER_CHEST.asItem())
     } else {
         ItemStack(Blocks.CHEST.asItem())

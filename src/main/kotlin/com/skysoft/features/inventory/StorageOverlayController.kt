@@ -160,6 +160,7 @@ internal enum class ToolkitType(
 internal sealed interface StorageHandle {
     data object Overview : StorageHandle
     data class Page(val pageIndex: Int, val rows: Int) : StorageHandle
+    data class Rift(val pageIndex: Int, val rows: Int) : StorageHandle
     data class Toolkit(val type: ToolkitType, val rows: Int) : StorageHandle
 }
 
@@ -175,6 +176,7 @@ internal data class Measurements(
     val selectorBounds: Rect,
     val totalBounds: Rect,
     val columns: Int,
+    val isSelectorVisible: Boolean = false,
 )
 
 internal data class PageLayoutResult(
@@ -216,3 +218,4 @@ internal data class PendingOverviewShortcutClick(
 
 internal val enderChestTitlePattern = Regex("""^Ender Chest (?:✦ )?\(([1-9])/[1-9]\)$""")
 internal val backpackTitlePattern = Regex("""^.+Backpack (?:✦ )?\(Slot #([0-9]+)\)$""")
+internal val riftStorageTitlePattern = Regex("""^Rift Storage \(([1-2])/2\)$""")

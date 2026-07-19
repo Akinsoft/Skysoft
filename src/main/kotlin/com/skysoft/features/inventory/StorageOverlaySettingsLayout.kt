@@ -25,7 +25,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     fun range(screenWidth: Int, screenHeight: Int, measurements: Measurements): IntRange = when (this) {
         COLUMNS -> StorageOverlayConfigBounds.MIN_COLUMNS..maximumStorageColumns(screenWidth)
         HEIGHT -> {
-            val isSelectorStacked = config.settings.miniMenu &&
+            val isSelectorStacked = measurements.isSelectorVisible &&
                 StorageSelectorLayout.sideX(measurements.playerBounds.x) == null
             val stackedHeight = if (isSelectorStacked) StorageSelector.HEIGHT + StorageSelector.STACKED_GAP else 0
             StorageOverlayConfigBounds.MIN_HEIGHT..maximumStorageHeight(screenHeight, stackedHeight)

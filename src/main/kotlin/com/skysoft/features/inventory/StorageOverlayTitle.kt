@@ -12,8 +12,8 @@ import org.lwjgl.glfw.GLFW
 
 internal fun titlePageAt(layouts: Map<Int, PageLayout>, mouseX: Int, mouseY: Int): Int? =
     layouts.values.firstOrNull { layout ->
-        if (ToolkitType.fromPageIndex(layout.pageIndex) != null) return@firstOrNull false
-        val page = storage.skyBlockStoragePages[layout.pageIndex] ?: return@firstOrNull false
+        if (fixedPageTitle(layout.pageIndex) != null) return@firstOrNull false
+        val page = storageEntry(layout.pageIndex) ?: return@firstOrNull false
         titleBounds(layout, titleDisplayText(titleText(layout.pageIndex, page.title))).contains(mouseX, mouseY)
     }?.pageIndex
 
@@ -25,8 +25,8 @@ internal fun titleBounds(layout: PageLayout, title: String): Rect =
         StorageTitle.BOUNDS_HEIGHT,
     )
 
-internal fun titleText(pageIndex: Int, title: String? = storage.skyBlockStoragePages[pageIndex]?.title): String {
-    ToolkitType.fromPageIndex(pageIndex)?.let { return it.title }
+internal fun titleText(pageIndex: Int, title: String? = storageEntry(pageIndex)?.title): String {
+    fixedPageTitle(pageIndex)?.let { return it }
     if (editingTitlePage == pageIndex) return editingTitleText
     return title?.ifBlank { defaultPageTitle(pageIndex) } ?: defaultPageTitle(pageIndex)
 }
@@ -55,7 +55,7 @@ internal fun startTitleEdit(pageIndex: Int) {
 
 internal fun finishTitleEdit() {
     val pageIndex = editingTitlePage ?: return
-    val page = storage.skyBlockStoragePages[pageIndex]
+    val page = storageEntry(pageIndex)
     val title = editingTitleText.ifBlank { defaultPageTitle(pageIndex) }
     if (page != null && page.title != title) {
         page.title = title
