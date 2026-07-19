@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.mojang.blaze3d.platform.Window
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.gui.scale.CursorController
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.gui.scale.InventoryCursorMemory
@@ -67,15 +68,17 @@ open class MouseHandlerMixin : CursorController {
     }
 
     @Inject(method = ["onButton"], at = [At("HEAD")], cancellable = true)
-    protected fun skysoftClickBazaarTrackerControl(
+    protected fun skysoftProcessOverlayMouseControl(
         window: Long,
         buttonInfo: MouseButtonInfo,
         action: Int,
         ci: CallbackInfo,
     ) {
-        val isConsumed = SkysoftErrorBoundary.value("Bazaar Tracker mouse control", false) {
-            action == GLFW.GLFW_PRESS &&
-                BazaarTracker.handleMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED
+        val isConsumed = SkysoftErrorBoundary.value("Overlay mouse control", false) {
+            action == GLFW.GLFW_PRESS && (
+                ScreenshotCapturePreview.processMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED ||
+                    BazaarTracker.handleMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED
+                )
         }
         if (isConsumed) ci.cancel()
     }

@@ -70,7 +70,7 @@ internal object ScreenshotManagerRenderer {
         textures: ScreenshotTextureStore,
         visuals: ScreenshotFocusVisuals,
         notice: ScreenshotNotice?,
-        isDeleteConfirmationVisible: Boolean,
+        confirmation: ScreenshotConfirmation?,
         areActionsEnabled: Boolean,
         canNavigatePrevious: Boolean,
         canNavigateNext: Boolean,
@@ -117,8 +117,9 @@ internal object ScreenshotManagerRenderer {
             layout,
             visuals,
             notice,
-            isDeleteConfirmationVisible,
+            confirmation,
             areActionsEnabled,
+            entry.path,
             mouseX,
             mouseY,
         )
@@ -130,16 +131,18 @@ internal object ScreenshotManagerRenderer {
         layout: ScreenshotFocusLayout,
         visuals: ScreenshotFocusVisuals,
         notice: ScreenshotNotice?,
-        isDeleteConfirmationVisible: Boolean,
+        confirmation: ScreenshotConfirmation?,
         areActionsEnabled: Boolean,
+        screenshotPath: java.nio.file.Path,
         mouseX: Int,
         mouseY: Int,
     ) {
-        val visibleNotice = if (isDeleteConfirmationVisible) {
-            ScreenshotNotice("Delete this screenshot?", false, Long.MAX_VALUE)
-        } else {
-            notice
+        val confirmationNotice = when (confirmation) {
+            ScreenshotConfirmation.SHARE -> "Upload publicly for 30 days?"
+            ScreenshotConfirmation.DELETE -> "Delete this screenshot?"
+            null -> null
         }
+        val visibleNotice = confirmationNotice?.let { ScreenshotNotice(it, false, Long.MAX_VALUE) } ?: notice
         visibleNotice?.let {
             drawCenteredText(
                 context,
@@ -150,7 +153,7 @@ internal object ScreenshotManagerRenderer {
                 (if (it.isError) ERROR_TEXT else MUTED_TEXT).withScaledAlpha(visuals.chromeAlpha),
             )
         }
-        if (isDeleteConfirmationVisible) {
+        if (confirmation != null) {
             drawButton(
                 context,
                 font,
@@ -165,15 +168,25 @@ internal object ScreenshotManagerRenderer {
                 context,
                 font,
                 layout.confirmDelete,
-                "Delete",
+                if (confirmation == ScreenshotConfirmation.SHARE) "Upload" else "Delete",
                 areActionsEnabled,
                 mouseX,
                 mouseY,
-                PixelButtonTone.DANGER,
+                if (confirmation == ScreenshotConfirmation.SHARE) PixelButtonTone.NORMAL else PixelButtonTone.DANGER,
                 visuals.chromeAlpha,
             )
             return
         }
+        drawButton(
+            context,
+            font,
+            layout.share,
+            ScreenshotSharing.buttonLabel(screenshotPath),
+            areActionsEnabled && ScreenshotSharing.status(screenshotPath).state != ScreenshotShareState.UPLOADING,
+            mouseX,
+            mouseY,
+            alpha = visuals.chromeAlpha,
+        )
         drawButton(
             context,
             font,

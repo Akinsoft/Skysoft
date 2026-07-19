@@ -93,6 +93,7 @@ internal data class ScreenshotFocusLayout(
     val previous: Rect,
     val next: Rect,
     val noticeY: Int,
+    val share: Rect,
     val copy: Rect,
     val saveAs: Rect,
     val delete: Rect,
@@ -111,10 +112,22 @@ internal data class ScreenshotFocusLayout(
             val close = screenshotCloseButton(panel)
             val actionY = panel.y + panel.height - ScreenshotLayoutDimensions.ACTION_BOTTOM -
                 ScreenshotLayoutDimensions.ACTION_HEIGHT
-            val actionGroupWidth = ScreenshotLayoutDimensions.COPY_WIDTH + ScreenshotLayoutDimensions.SAVE_WIDTH +
-                ScreenshotLayoutDimensions.DELETE_WIDTH + ScreenshotLayoutDimensions.ACTION_GAP * 2
+            val actionGroupWidth = ScreenshotLayoutDimensions.SHARE_WIDTH + ScreenshotLayoutDimensions.COPY_WIDTH +
+                ScreenshotLayoutDimensions.SAVE_WIDTH + ScreenshotLayoutDimensions.DELETE_WIDTH +
+                ScreenshotLayoutDimensions.ACTION_GAP * ScreenshotLayoutDimensions.ACTION_GAP_COUNT
             val actionX = panel.x + (panel.width - actionGroupWidth) / 2
-            val copy = Rect(actionX, actionY, ScreenshotLayoutDimensions.COPY_WIDTH, ScreenshotLayoutDimensions.ACTION_HEIGHT)
+            val share = Rect(
+                actionX,
+                actionY,
+                ScreenshotLayoutDimensions.SHARE_WIDTH,
+                ScreenshotLayoutDimensions.ACTION_HEIGHT,
+            )
+            val copy = Rect(
+                share.x + share.width + ScreenshotLayoutDimensions.ACTION_GAP,
+                actionY,
+                ScreenshotLayoutDimensions.COPY_WIDTH,
+                ScreenshotLayoutDimensions.ACTION_HEIGHT,
+            )
             val saveAs = Rect(
                 copy.x + copy.width + ScreenshotLayoutDimensions.ACTION_GAP,
                 actionY,
@@ -172,6 +185,7 @@ internal data class ScreenshotFocusLayout(
                 previous,
                 next,
                 noticeY,
+                share,
                 copy,
                 saveAs,
                 delete,
@@ -235,6 +249,8 @@ internal object ScreenshotLayoutDimensions {
     const val ACTION_HEIGHT = 18
     const val ACTION_BOTTOM = 10
     const val ACTION_GAP = 6
+    const val ACTION_GAP_COUNT = 3
+    const val SHARE_WIDTH = 72
     const val COPY_WIDTH = 82
     const val SAVE_WIDTH = 82
     const val DELETE_WIDTH = 62

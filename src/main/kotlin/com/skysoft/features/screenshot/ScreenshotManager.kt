@@ -6,9 +6,11 @@ import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputUtilities
+import java.nio.file.Path
 import java.util.function.Consumer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.Screenshot
+import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.contents.TranslatableContents
 import org.lwjgl.glfw.GLFW
@@ -31,7 +33,10 @@ object ScreenshotManager {
     internal fun decorateCaptureCallback(callback: Consumer<Component>): Consumer<Component> {
         if (!config().enabled) return callback
         SoundUtilities.playScreenshotShutterSound()
-        return Consumer { message -> callback.accept(replacementCaptureMessage(message)) }
+        return Consumer { message ->
+            capturePath(message)?.let(ScreenshotCapturePreview::present)
+            callback.accept(replacementCaptureMessage(message))
+        }
     }
 
     private fun hasManagerKeyWork(): Boolean {
@@ -59,6 +64,14 @@ object ScreenshotManager {
         val translation = message.contents as? TranslatableContents
         if (translation?.key != SCREENSHOT_SUCCESS_KEY) return message
         return SkysoftChat.prefixed(Component.literal("Screenshot captured."))
+    }
+
+    private fun capturePath(message: Component): Path? {
+        val translation = message.contents as? TranslatableContents ?: return null
+        if (translation.key != SCREENSHOT_SUCCESS_KEY) return null
+        val pathComponent = translation.args.firstOrNull() as? Component ?: return null
+        val openFile = pathComponent.style.clickEvent as? ClickEvent.OpenFile ?: return null
+        return Path.of(openFile.path())
     }
 
     private fun config() = SkysoftConfigGui.config().gui.screenshotManager
