@@ -68,6 +68,13 @@ class GuiScaleController private constructor() {
             config().separateTooltipGuiScale && supportsInventoryScale(screen)
 
         @JvmStatic
+        fun hasDistinctInventoryScale(screen: Screen?, window: Window): Boolean {
+            if (!usesSeparateInventoryScale(screen)) return false
+            val scales = resolve(screen, window)
+            return scales.normal() != scales.inventory()
+        }
+
+        @JvmStatic
         fun resolve(screen: Screen?, window: Window): ResolvedScales {
             val config = config()
             val normal = resolve(window, minecraft.options.guiScale().get())
