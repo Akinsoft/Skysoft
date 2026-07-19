@@ -5,10 +5,6 @@ import com.skysoft.config.ChatTabPosition
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.mixin.ChatComponentAccessor
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.SkysoftMessage
-import com.skysoft.utils.SkysoftMessageSource
-import com.skysoft.utils.chat.ChatMessageClassifier
-import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.chat.GuiMessage
@@ -18,6 +14,7 @@ object ChatTabs {
     private var selectedChannel = ChatTabChannel.ALL
     private var appliedState: FilterState? = null
     private val feedbackTracker = ChatTabFeedbackTracker()
+    private val commandResponseTracker = ChatTabCommandResponseTracker()
 
     fun register() {
         SkysoftClientEvents.onEndTick(
@@ -58,6 +55,13 @@ object ChatTabs {
         return command
     }
 
+    internal fun recordOutgoingCommand(command: String) {
+        if (!isEnabled()) return
+        val minecraft = Minecraft.getInstance()
+        val existingMessages = (MinecraftClient.chat(minecraft) as ChatComponentAccessor).skysoftAllMessages()
+        commandResponseTracker.record(command, activeChannel(), existingMessages)
+    }
+
     internal fun outgoingCommand(message: String): String? {
         if (!isEnabled()) return null
         return outgoingCommand(activeChannel(), message)
@@ -74,23 +78,14 @@ object ChatTabs {
     }
 
     internal fun isVisible(channel: ChatTabChannel, message: GuiMessage): Boolean {
-        if (channel == ChatTabChannel.ALL) return true
         val content = ChatTimestamps.originalContent(message.content())
-        if (message.source() == GuiMessageSource.SYSTEM_CLIENT &&
-            content.string.startsWith(SKYSOFT_PREFIX)
-        ) {
-            return true
-        }
-        if (feedbackTracker.isVisible(channel, message, content.string)) return true
-        val type = ChatMessageClassifier.classify(
-            SkysoftMessage(content, SkysoftMessageSource.GAME),
-        ).type
-        return when (channel) {
-            ChatTabChannel.ALL -> true
-            ChatTabChannel.GUILD -> type == ChatMessageType.GUILD
-            ChatTabChannel.DM -> type == ChatMessageType.PRIVATE_MESSAGE
-            ChatTabChannel.PARTY -> type == ChatMessageType.PARTY
-        }
+        val text = content.string.trim()
+        commandResponseTracker.observe(message, text)
+        if (channel == ChatTabChannel.ALL) return true
+        if (message.source() == GuiMessageSource.SYSTEM_CLIENT && text.startsWith(SKYSOFT_PREFIX)) return true
+        if (feedbackTracker.isVisible(channel, message, text)) return true
+        if (commandResponseTracker.isVisible(channel, message)) return true
+        return ChatTabMessageRouter.isVisible(channel, content, text)
     }
 
     internal fun layout(
@@ -143,6 +138,7 @@ object ChatTabs {
             chat.resetChatScroll()
         } else if (appliedState?.isEnabled == true) {
             feedbackTracker.clearPendingResponse()
+            commandResponseTracker.clearPendingResponse()
             chat.setVisibleMessageFilter { true }
             chat.resetChatScroll()
         }
