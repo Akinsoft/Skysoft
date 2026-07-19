@@ -6,11 +6,15 @@ import com.skysoft.features.inventory.ClientStoragePreviewTooltip
 import com.skysoft.features.inventory.RarityHighlightRenderer
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.StoragePreviewTooltip
+import com.skysoft.gui.tooltip.AdjacentTooltipRenderer
 import com.skysoft.utils.SkysoftErrorBoundary
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
 import net.minecraft.client.renderer.state.gui.GuiRenderState
+import net.minecraft.resources.Identifier
 import net.minecraft.world.inventory.tooltip.TooltipComponent
 import org.spongepowered.asm.mixin.Mixin
 import org.spongepowered.asm.mixin.injection.At
@@ -52,6 +56,28 @@ abstract class GuiGraphicsExtractorMixin {
     ) {
         SkysoftErrorBoundary.run("Slot Binding tooltip rendering") {
             SlotBindingManager.renderTopLayer((this as Any) as GuiGraphicsExtractor)
+        }
+    }
+
+    @Inject(
+        method = [
+            "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;II" +
+                "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;" +
+                "Lnet/minecraft/resources/Identifier;)V",
+        ],
+        at = [At("TAIL")],
+    )
+    protected fun skysoftRenderAdjacentTooltip(
+        font: Font,
+        lines: List<ClientTooltipComponent>,
+        x: Int,
+        y: Int,
+        positioner: ClientTooltipPositioner,
+        style: Identifier?,
+        ci: CallbackInfo,
+    ) {
+        SkysoftErrorBoundary.run("Adjacent tooltip rendering") {
+            AdjacentTooltipRenderer.renderPending((this as Any) as GuiGraphicsExtractor, font)
         }
     }
 

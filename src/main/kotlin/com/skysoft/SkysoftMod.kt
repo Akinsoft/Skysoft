@@ -36,6 +36,7 @@ import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
 import com.skysoft.features.inventory.ItemProtectionManager
+import com.skysoft.features.inventory.MinisterCalendarTooltip
 import com.skysoft.features.inventory.registerSlotBindingStorage
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.itemlist.ItemListController
@@ -120,6 +121,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Screen Alert Renderer", ScreenAlertRenderer::register)
         registerFeature("Lotum Helper", LotumHelper::register)
         registerFeature("Price Tooltips", PriceTooltips::register)
+        registerFeature("Minister in Calendar", MinisterCalendarTooltip::register)
         registerFeature("Storage Previews", StoragePreviews::register)
         registerFeature("Full Inventory Warning", FullInventoryWarning::register)
         registerFeature("Inventory Buttons", InventoryButtonManager::register)

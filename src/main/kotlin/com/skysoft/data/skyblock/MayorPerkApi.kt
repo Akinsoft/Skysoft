@@ -29,6 +29,10 @@ object MayorPerkApi {
     private var wasActive = false
 
     @Volatile
+    var currentMinister: CurrentMinister? = null
+        private set
+
+    @Volatile
     var sharingIsCaringActive: Boolean = false
         private set
 
@@ -66,7 +70,11 @@ object MayorPerkApi {
                 wasActive = false
                 return@tick
             }
-            wasActive = true
+            if (!wasActive) {
+                wasActive = true
+                refresh()
+                return@tick
+            }
             if (++ticks % REFRESH_CHECK_INTERVAL_TICKS != 0) return@tick
             if (lastUpdate.passedSince() < 20.minutes) return@tick
             refresh()
@@ -85,6 +93,7 @@ object MayorPerkApi {
                 SkysoftErrorBoundary.run("Mayor Perk async completion") {
                     try {
                         if (error == null && response != null) {
+                            currentMinister = response.currentMinister()
                             sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING)
                             petXpBuffActive = response.hasPerk(PET_XP_BUFF)
                             mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL)
@@ -114,6 +123,7 @@ object MayorPerkApi {
         loading.set(false)
         lastUpdate = ElapsedTimeMark.farPast()
         ticks = 0
+        currentMinister = null
         sharingIsCaringActive = false
         petXpBuffActive = false
         mythologicalRitualActive = false
@@ -121,6 +131,18 @@ object MayorPerkApi {
         fishingFestivalActive = false
         miningFiestaActive = false
         mythologicalRitualEventKey = null
+    }
+
+    private fun ElectionResponse.currentMinister(): CurrentMinister? {
+        val minister = mayor?.minister ?: return null
+        val perk = minister.perk ?: return null
+        return CurrentMinister(
+            name = minister.name?.takeIf { it.isNotBlank() } ?: return null,
+            perk = CurrentMinisterPerk(
+                name = perk.name?.takeIf { it.isNotBlank() } ?: return null,
+                description = perk.description?.takeIf { it.isNotBlank() } ?: return null,
+            ),
+        )
     }
 
     private fun ElectionResponse.hasPerk(perkName: String): Boolean =
@@ -168,9 +190,20 @@ object MayorPerkApi {
 
     private data class MayorPerk(
         val name: String?,
+        val description: String?,
     )
 
     private data class Election(
         val year: Int?,
     )
 }
+
+data class CurrentMinister(
+    val name: String,
+    val perk: CurrentMinisterPerk,
+)
+
+data class CurrentMinisterPerk(
+    val name: String,
+    val description: String,
+)
