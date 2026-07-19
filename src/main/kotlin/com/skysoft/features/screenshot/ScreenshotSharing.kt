@@ -89,15 +89,15 @@ internal object ScreenshotSharing {
         }
 
     private fun copyLink(upload: ScreenshotUpload) {
-        Minecraft.getInstance().keyboardHandler.clipboard = upload.imageUrl
+        Minecraft.getInstance().keyboardHandler.clipboard = upload.pageUrl
         SkysoftChat.success("Copied the screenshot link to your clipboard.")
     }
 
     private fun announce(upload: ScreenshotUpload) {
-        val link = Component.literal(upload.imageUrl).withStyle { style ->
+        val link = Component.literal(upload.pageUrl).withStyle { style ->
             style.withColor(ChatFormatting.AQUA)
                 .withUnderlined(true)
-                .withClickEvent(ClickEvent.OpenUrl(URI.create(upload.imageUrl)))
+                .withClickEvent(ClickEvent.OpenUrl(URI.create(upload.pageUrl)))
                 .withHoverEvent(HoverEvent.ShowText(Component.literal("Click to open")))
         }
         SkysoftChat.chat(Component.literal("Screenshot uploaded: ").append(link))
