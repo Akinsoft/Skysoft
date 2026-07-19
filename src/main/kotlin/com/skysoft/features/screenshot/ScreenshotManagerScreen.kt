@@ -100,7 +100,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         if (previousSelectionIndex >= 0 && selectedIndex >= 0 && previousSelectionIndex != selectedIndex) {
             SoundUtilities.playNavigationSound((selectedIndex - previousSelectionIndex).coerceIn(-1, 1))
         } else {
-            SoundUtilities.playClickSound()
+            SoundUtilities.playRandomNavigationSound()
         }
         return true
     }
@@ -133,12 +133,12 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         }
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && confirmation != null) {
             confirmation = null
-            SoundUtilities.playClickSound()
+            SoundUtilities.playRandomNavigationSound()
             return true
         }
         if (event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) && selectedPath != null) {
             returnToGallery()
-            SoundUtilities.playClickSound()
+            SoundUtilities.playRandomNavigationSound()
             return true
         }
         return super.keyPressed(event)
