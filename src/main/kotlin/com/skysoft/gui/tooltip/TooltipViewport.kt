@@ -35,7 +35,12 @@ object TooltipViewport {
         original: ClientTooltipPositioner,
     ): ClientTooltipPositioner {
         val settings = config()
-        if (!settings.enabled || !isEnabledForCurrentScreen(settings) || components.isEmpty()) return original
+        if (
+            original is TooltipViewportExcludedPositioner ||
+            !settings.enabled ||
+            !isEnabledForCurrentScreen(settings) ||
+            components.isEmpty()
+        ) return original
         return OffsetPositioner(original, tooltipIdentity(font, components), anchorX, anchorY)
     }
 

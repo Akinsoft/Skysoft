@@ -7,12 +7,14 @@ import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryDropSelectionGuard
 import com.skysoft.features.inventory.InventoryEquipment
 import com.skysoft.features.inventory.ItemProtectionManager
+import com.skysoft.features.inventory.MinisterCalendarTooltip
 import com.skysoft.features.inventory.SkyBlockMenuInventoryDropFix
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.pets.PetStorageService
+import com.skysoft.gui.tooltip.AdjacentTooltipRenderer
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -55,11 +57,17 @@ abstract class AbstractContainerScreenMixin {
         mouseY: Int,
         ci: CallbackInfo,
     ) {
+        AdjacentTooltipRenderer.clear()
+        val screen = this as AbstractContainerScreen<*>
         val shouldSuppress = SkysoftErrorBoundary.value("Slot Binding tooltip suppression", false) {
-            SlotBindingManager.shouldSuppressRegularTooltips(this as AbstractContainerScreen<*>)
+            SlotBindingManager.shouldSuppressRegularTooltips(screen)
         }
         if (shouldSuppress) {
             ci.cancel()
+            return
+        }
+        SkysoftErrorBoundary.run("Minister in Calendar tooltip preparation") {
+            MinisterCalendarTooltip.prepare(screen, context)
         }
     }
 

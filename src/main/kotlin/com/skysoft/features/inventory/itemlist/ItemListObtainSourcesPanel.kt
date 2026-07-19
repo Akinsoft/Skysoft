@@ -354,24 +354,7 @@ private fun sourceTooltip(font: Font, source: SkyBlockInfoSource): List<String> 
         else -> "§f"
     }
     add("$color${source.displayName}")
-    source.details.forEach { detail -> addAll(wrapTooltipLine(font, "§7$detail", TOOLTIP_WIDTH)) }
-}
-
-private fun wrapTooltipLine(font: Font, text: String, maximumWidth: Int): List<String> {
-    val words = text.split(' ')
-    val lines = mutableListOf<String>()
-    var current = ""
-    words.forEach { word ->
-        val candidate = if (current.isEmpty()) word else "$current $word"
-        if (current.isNotEmpty() && font.width(candidate) > maximumWidth) {
-            lines += current
-            current = "§7$word"
-        } else {
-            current = candidate
-        }
-    }
-    if (current.isNotEmpty()) lines += current
-    return lines
+    source.details.forEach { detail -> addAll(LegacyTextRenderer.wrap(font, "§7$detail", TOOLTIP_WIDTH)) }
 }
 
 private const val TOOLTIP_WIDTH = 220

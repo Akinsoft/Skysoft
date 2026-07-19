@@ -74,6 +74,12 @@ class InventoryFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Minister in Calendar", desc = "Show the current minister and perk beside the mayor tooltip.")
+    @field:ConfigEditorBoolean
+    var isMinisterInCalendarShown = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Storage Overlay", desc = "Replace SkyBlock storage screens with a searchable overlay.")
     @field:ConfigEditorBoolean
     var isStorageOverlayEnabled = false

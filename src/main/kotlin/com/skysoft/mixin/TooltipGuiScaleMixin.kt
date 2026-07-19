@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation
 import com.llamalad7.mixinextras.sugar.Local
 import com.skysoft.gui.scale.GuiScaleController
+import com.skysoft.gui.tooltip.AdjacentTooltipRenderer
 import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -126,6 +127,12 @@ open class TooltipGuiScaleMixin {
         val scrollingPositioner = SkysoftErrorBoundary.value("Scrollable tooltip positioning", positioner) {
             TooltipViewport.decorate(font, tooltip, x, y, positioner)
         }
-        return original.call(scrollingPositioner, screenWidth, screenHeight, x, y, tooltipWidth, tooltipHeight)
+        val result = original.call(scrollingPositioner, screenWidth, screenHeight, x, y, tooltipWidth, tooltipHeight)
+        AdjacentTooltipRenderer.captureMainFrame(
+            (this as Any) as GuiGraphicsExtractor,
+            result,
+            tooltipWidth,
+        )
+        return result
     }
 }
