@@ -23,11 +23,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.render.GuiItemAtlas
 import net.minecraft.client.gui.render.TextureSetup
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
 import net.minecraft.client.renderer.state.gui.GuiRenderState
-import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
 object RarityHighlightRenderer {
@@ -42,16 +42,41 @@ object RarityHighlightRenderer {
     }
 
     @JvmStatic
-    fun renderBackground(context: GuiGraphicsExtractor, slot: Slot) {
-        renderBackground(context, slot.item, slot.x, slot.y)
+    fun renderContainerBackgrounds(context: GuiGraphicsExtractor, screen: AbstractContainerScreen<*>) {
+        val highlight = config
+        if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
+        if (StorageOverlayController.isActive(screen)) return
+        for (slot in screen.menu.slots) {
+            if (slot.isActive) {
+                renderBackground(
+                    context,
+                    slot.item,
+                    slot.x,
+                    slot.y,
+                    highlight.settings.type,
+                    highlight.details.opacity,
+                )
+            }
+        }
     }
 
     @JvmStatic
     fun renderBackground(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
         val highlight = config
         if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
-        val color = rarityColor(rarity(stack) ?: return, highlight.details.opacity)
-        when (highlight.settings.type) {
+        renderBackground(context, stack, x, y, highlight.settings.type, highlight.details.opacity)
+    }
+
+    private fun renderBackground(
+        context: GuiGraphicsExtractor,
+        stack: ItemStack,
+        x: Int,
+        y: Int,
+        type: RarityHighlightType,
+        opacity: Int,
+    ) {
+        val color = rarityColor(rarity(stack) ?: return, opacity)
+        when (type) {
             RarityHighlightType.ROUND -> SkysoftCircleShaderRenderer.drawFilledCircle(
                 context,
                 x + 1,
