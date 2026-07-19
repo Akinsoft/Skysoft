@@ -46,6 +46,11 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Slayer", desc = "Slayer quest helpers.")
+    val slayer = SlayerFeatureConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Chat", desc = "Chat history, compacting, and visual settings.")
     val chat = ChatFeatureConfig()
 
