@@ -36,6 +36,8 @@
     "GuiRendererAccessor",
     "ItemInHandRendererMixin",
     "ItemFeatureRendererMixin",
+    "ItemEntityRendererMixin",
+    "ItemEntityRenderStateMixin",
     "ItemModelResolverMixin",
     "KeyMappingMixin",
     "KeyboardHandlerMixin",

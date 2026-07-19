@@ -25,6 +25,11 @@ class MiscFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Dropped Item Scaling", desc = "Customize dropped SkyBlock item sizes by rarity.")
+    val droppedItemScaling = DroppedItemScalingConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(
         name = "Hide Dead Entities",
         desc = "Hide entities during their death animation.",
@@ -41,6 +46,9 @@ class MiscFeatureConfig {
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
+    fun repairLoadedValues() {
+        droppedItemScaling.repairLoadedValues()
+    }
 }
 
 class RareLootSharingConfig {
