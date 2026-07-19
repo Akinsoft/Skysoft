@@ -65,6 +65,7 @@ import com.skysoft.features.pets.PetStorageService
 import com.skysoft.features.pets.PetXpEstimator
 import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.VisiblePetPosition
+import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.TooltipViewport
@@ -136,6 +137,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)
         registerFeature("Auto Sprint", AutoSprint::register)
         registerFeature("Block Overlay", BlockOverlay::register)
+        registerFeature("Screenshot Manager", ScreenshotManager::register)
         registerFeature("Pet Repository", PetRepository::register)
         registerFeature("Active Pet Tracker", ActivePetTracker::register)
         registerFeature("Skill Experience API", SkillExpGainApi::register)
