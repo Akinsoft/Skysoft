@@ -5,8 +5,11 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.SmoothFloatTransition
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelButtonRenderer
+import com.skysoft.utils.gui.PixelButtonTone
+import com.skysoft.utils.gui.PixelControlColors
+import com.skysoft.utils.gui.PixelControlPanelRenderer
+import com.skysoft.utils.gui.PixelSliderRenderer
 import com.skysoft.utils.input.InputHandlingResult
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -34,7 +37,7 @@ internal fun drawStorageSettingsPanel(
     mouseX: Int,
     mouseY: Int,
 ) {
-    val layout = StorageSettingsPanelLayout.create(screenWidth, screenHeight, measurements.playerBounds)
+    val layout = storageSettingsPanelLayout(screenWidth, screenHeight, measurements)
     val progress = storageSettingsTransition.value(if (isStorageSettingsPanelOpen) 1f else 0f)
     storageSettingsPanelProgress = progress
     if (progress <= MIN_VISIBLE_PROGRESS) {
@@ -42,32 +45,30 @@ internal fun drawStorageSettingsPanel(
         return
     }
     val visiblePanel = layout.animatedPanel(progress)
-    context.fill(
-        visiblePanel.x,
-        visiblePanel.y,
-        visiblePanel.x + visiblePanel.width,
-        visiblePanel.y + visiblePanel.height,
-        StorageColors.PAGE_PANEL,
-    )
-    context.outline(
-        visiblePanel.x,
-        visiblePanel.y,
-        visiblePanel.width,
-        visiblePanel.height,
-        StorageColors.PAGE_PANEL_OUTLINE,
-    )
+    PixelControlPanelRenderer.draw(context, visiblePanel, StorageSettingsPanel.HEADER_HEIGHT)
     context.enableScissor(visiblePanel.x, visiblePanel.y, visiblePanel.x + visiblePanel.width, visiblePanel.y + visiblePanel.height)
     try {
+        val font = Minecraft.getInstance().font
+        val title = "Storage Settings"
+        context.text(
+            font,
+            title,
+            layout.panel.x + (layout.panel.width - font.width(title)) / 2,
+            layout.panel.y + (StorageSettingsPanel.HEADER_HEIGHT - font.lineHeight + 2) / 2,
+            PixelControlColors.TEXT,
+            false,
+        )
         PixelButtonRenderer.draw(
             context,
-            Minecraft.getInstance().font,
+            font,
             layout.close,
             "X",
             false,
             layout.close.contains(mouseX, mouseY),
             true,
+            PixelButtonTone.DANGER,
         )
-        StorageVisualSetting.entries.forEach { setting ->
+        layout.settings.forEach { setting ->
             drawStorageVisualSetting(context, layout, setting, screenWidth, screenHeight, measurements, mouseX, mouseY)
         }
     } finally {
@@ -82,7 +83,7 @@ internal fun processStorageSettingsClick(
 ): InputHandlingResult {
     val mouseX = click.x().toInt()
     val mouseY = click.y().toInt()
-    val layout = StorageSettingsPanelLayout.create(screen.width, screen.height, measurements.playerBounds)
+    val layout = storageSettingsPanelLayout(screen.width, screen.height, measurements)
     if (!isStorageSettingsPanelOpen) {
         return processClosedStorageSettingsClick(click, layout, mouseX, mouseY)
     }
@@ -101,7 +102,7 @@ internal fun processStorageSettingsDrag(
         draggedStorageVisualSetting = null
         return InputHandlingResult.IGNORED
     }
-    val layout = StorageSettingsPanelLayout.create(screen.width, screen.height, layoutState.measurements.playerBounds)
+    val layout = storageSettingsPanelLayout(screen.width, screen.height, layoutState.measurements)
     updateStorageSettingFromPointer(screen, layoutState.measurements, layout, setting, click.x().toInt())
     return InputHandlingResult.CONSUMED
 }
@@ -129,7 +130,7 @@ internal fun storageSettingsContains(
     mouseX: Int,
     mouseY: Int,
 ): Boolean {
-    val layout = StorageSettingsPanelLayout.create(screenWidth, screenHeight, measurements.playerBounds)
+    val layout = storageSettingsPanelLayout(screenWidth, screenHeight, measurements)
     val progress = storageSettingsTransition.value(if (isStorageSettingsPanelOpen) 1f else 0f)
     return if (progress <= MIN_VISIBLE_PROGRESS) {
         layout.button.contains(mouseX, mouseY)
@@ -137,6 +138,18 @@ internal fun storageSettingsContains(
         layout.animatedPanel(progress).contains(mouseX, mouseY)
     }
 }
+
+internal fun storageSettingsPanelLayout(
+    screenWidth: Int,
+    screenHeight: Int,
+    measurements: Measurements,
+): StorageSettingsPanelLayout = StorageSettingsPanelLayout.create(
+    screenWidth = screenWidth,
+    screenHeight = screenHeight,
+    playerBounds = measurements.playerBounds,
+    settings = visibleStorageSettings(),
+    buttonAnchor = if (measurements.isModern) measurements.search else measurements.playerBounds,
+)
 
 private fun processClosedStorageSettingsClick(
     click: MouseButtonEvent,
@@ -227,7 +240,14 @@ private fun drawStorageVisualSetting(
 ) {
     val font = Minecraft.getInstance().font
     val row = layout.row(setting)
-    context.text(font, setting.label, row.x, row.y, StorageColors.TEXT_WHITE, false)
+    context.text(
+        font,
+        setting.label,
+        row.x,
+        row.y + StorageSettingsPanel.TEXT_Y,
+        PixelControlColors.MUTED_TEXT,
+        false,
+    )
     if (setting.isToggle) {
         val toggle = layout.toggle(setting)
         PixelButtonRenderer.draw(
@@ -244,24 +264,21 @@ private fun drawStorageVisualSetting(
     val range = setting.range(screenWidth, screenHeight, measurements)
     val currentValue = setting.value().coerceIn(range)
     val value = currentValue.toString()
-    context.text(font, value, row.x + row.width - font.width(value), row.y, StorageColors.TEXT_WHITE, false)
+    context.text(
+        font,
+        value,
+        row.x + row.width - font.width(value),
+        row.y + StorageSettingsPanel.TEXT_Y,
+        PixelControlColors.TEXT,
+        false,
+    )
     val track = layout.track(setting)
     val progress = if (range.first >= range.last) {
         0f
     } else {
         ((currentValue - range.first).toFloat() / (range.last - range.first)).coerceIn(0f, 1f)
     }
-    val fillWidth = (track.width * progress).roundToInt()
-    context.fill(track.x, track.y, track.x + track.width, track.y + track.height, StorageColors.SCROLLBAR_TRACK)
-    context.fill(track.x, track.y, track.x + fillWidth, track.y + track.height, StorageColors.SELECTED)
-    val knobX = (track.x + fillWidth).coerceIn(track.x, track.x + track.width)
-    context.fill(
-        knobX - 1,
-        track.y - 2,
-        knobX + 1,
-        track.y + track.height + 2,
-        if (row.contains(mouseX, mouseY)) StorageColors.TEXT_WHITE else StorageColors.SCROLLBAR_KNOB,
-    )
+    PixelSliderRenderer.draw(context, track, progress, row.contains(mouseX, mouseY))
 }
 
 private fun drawStorageSettingsButton(

@@ -17,6 +17,7 @@ internal fun rememberActivePage(handle: StorageHandle) {
 
 internal fun redirectToRememberedPage(screen: AbstractContainerScreen<*>, handle: StorageHandle) {
     if (handle != StorageHandle.Overview || !screen.menu.carried.isEmpty || pendingOverviewShortcutClick != null) return
+    if (isModernStorageOverlay && !config.settings.autoOpenPrevious) return
     val pageIndex = rememberedPageIndex?.takeIf { storageEntryExists(it) } ?: return
     val screenId = System.identityHashCode(screen)
     if (redirectedOverviewScreenId == screenId) return
@@ -106,7 +107,11 @@ internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int, m
     }
     if (sent) {
         preservedScrollPageIndex = null
-        requestPageFocus(pageIndex)
+        if (isModernStorageOverlay) {
+            requestModernPageFocus(pageIndex)
+        } else {
+            requestPageFocus(pageIndex)
+        }
     }
     return sent
 }
@@ -114,8 +119,13 @@ internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int, m
 internal fun tryNavigateToRememberedPage(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
     val sent = trySendPageCommand(pageIndex) { saveCurrentCursorBeforeNavigation(screen) }
     if (sent) {
-        preservedScrollPageIndex = pageIndex
-        clearPageFocusRequest()
+        if (isModernStorageOverlay) {
+            preservedScrollPageIndex = null
+            requestModernPageFocus(pageIndex, shouldAnimate = false)
+        } else {
+            preservedScrollPageIndex = pageIndex
+            clearPageFocusRequest()
+        }
     }
     return sent
 }

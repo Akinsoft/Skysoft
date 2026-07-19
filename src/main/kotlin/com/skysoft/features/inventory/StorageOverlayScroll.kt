@@ -115,6 +115,7 @@ internal fun shouldPreferStorageOverlayMouseScroll(
     val handle = handleFor(screen)
     if (handle == null || scrollY == 0.0) return false
     val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
+    if (measurements.isFocusExpanded) return false
     return measurements.scrollPanel.contains(mouseX.toInt(), mouseY.toInt()) ||
         storageSettingsContains(screen.width, screen.height, measurements, mouseX.toInt(), mouseY.toInt())
 }

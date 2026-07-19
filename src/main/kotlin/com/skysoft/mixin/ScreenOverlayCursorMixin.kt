@@ -184,6 +184,7 @@ open class ScreenOverlayCursorMixin : ScaledScreenState {
         if (StorageOverlayController.isActive(screen)) {
             context.nextStratum()
             StorageOverlayController.renderBackground(screen, context, mouseX, mouseY)
+            screen.extractCarriedItem(context, mouseX, mouseY)
         }
     }
 }

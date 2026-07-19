@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 5
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 6
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -29,6 +29,9 @@ internal object SkysoftConfigMigrations {
         }
         if (migrationVersion < INVENTORY_EQUIPMENT_CATEGORY_VERSION) {
             migrateInventoryEquipmentIntoCategory(json)
+        }
+        if (migrationVersion < MODERN_STORAGE_OVERLAY_VERSION) {
+            migrateEnabledStorageOverlayToModern(json)
         }
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
@@ -184,6 +187,19 @@ internal object SkysoftConfigMigrations {
         inventoryJson.remove("isInventoryEquipmentEnabled")
     }
 
+    private fun migrateEnabledStorageOverlayToModern(json: JsonObject) {
+        val inventoryJson = json.getObjectOrNull("inventory") ?: return
+        val isEnabled = inventoryJson.get("isStorageOverlayEnabled")
+            ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
+            ?.asBoolean
+            ?: false
+        if (!isEnabled) return
+        inventoryJson
+            .getOrCreateObject("storageOverlay")
+            .getOrCreateObject("settings")
+            .addProperty("mode", StorageOverlayMode.MODERN.name)
+    }
+
     private fun migrateChatLayout(json: JsonObject) {
         val smoothChatJson = json.getObjectOrNull("chat")?.getObjectOrNull("smoothChat") ?: return
         smoothChatJson.moveFieldsInto("settings", SMOOTH_CHAT_SETTINGS_FIELDS)
@@ -264,12 +280,6 @@ internal object SkysoftConfigMigrations {
         json.remove(legacyName)
     }
 
-    private fun JsonObject.getObjectOrNull(name: String): JsonObject? =
-        get(name)?.takeIf { it.isJsonObject }?.asJsonObject
-
-    private fun JsonObject.getOrCreateObject(name: String): JsonObject =
-        getObjectOrNull(name) ?: JsonObject().also { add(name, it) }
-
     private val DIANA_SETTINGS_FIELDS = listOf(
         "crosshairLine",
         "clickCounter",
@@ -338,8 +348,15 @@ internal object SkysoftConfigMigrations {
     private const val CONFIG_MENU_ORGANIZATION_VERSION = 3
     private const val PRICE_TOOLTIP_CUSTOMIZATION_VERSION = 5
     private const val INVENTORY_EQUIPMENT_CATEGORY_VERSION = 4
+    private const val MODERN_STORAGE_OVERLAY_VERSION = 6
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
+
+private fun JsonObject.getObjectOrNull(name: String): JsonObject? =
+    get(name)?.takeIf { it.isJsonObject }?.asJsonObject
+
+private fun JsonObject.getOrCreateObject(name: String): JsonObject =
+    getObjectOrNull(name) ?: JsonObject().also { add(name, it) }
 
 private fun migratePriceTooltipCustomization(json: JsonObject) {
     val settingsJson = json.get("inventory")?.takeIf { it.isJsonObject }?.asJsonObject

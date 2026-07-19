@@ -64,12 +64,16 @@ internal fun storageOverlayLayoutScreen(
     if (shouldReadScreen) readScreen(screen, handle)
     rememberActivePage(handle)
     redirectToRememberedPage(screen, handle)
+    synchronizeModernFocus(screen, handle)
     advanceStorageScroll()
 
     val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
     val activePage = handle.entryIndex()
     var pageLayoutResult = pageLayouts(measurements, activePage)
-    if (focusActivePageIfNeeded(activePage, measurements, pageLayoutResult) == PageLayoutRefresh.REQUIRED) {
+    if (
+        !measurements.isModern &&
+        focusActivePageIfNeeded(activePage, measurements, pageLayoutResult) == PageLayoutRefresh.REQUIRED
+    ) {
         pageLayoutResult = pageLayouts(measurements, activePage)
     }
     val pageLayouts = pageLayoutResult.pages
@@ -80,7 +84,9 @@ internal fun storageOverlayLayoutScreen(
     val playerInventory = Minecraft.getInstance().player?.inventory
     for (slot in screen.menu.slots) {
         val position = when {
-            playerInventory != null && slot.container === playerInventory ->
+            playerInventory != null &&
+                slot.container === playerInventory &&
+                (!measurements.isModern || measurements.focusProgress > ModernStoragePanel.MIN_VISIBLE_PROGRESS) ->
                 playerSlotPosition(measurements, slot.containerSlot)
 
             handle.gridRows() != null ->
@@ -130,7 +136,7 @@ internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtracto
     val contentMouseX = if (isPointerOverSettings) StorageRuntime.OFFSCREEN else mouseX
     val contentMouseY = if (isPointerOverSettings) StorageRuntime.OFFSCREEN else mouseY
 
-    drawStoragePanel(context, measurements)
+    if (!measurements.isModern) drawStoragePanel(context, measurements)
     drawPages(
         context,
         screen,
@@ -140,9 +146,13 @@ internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtracto
         contentMouseX,
         contentMouseY,
     )
-    drawScrollBar(context, measurements, pageLayoutResult.contentHeight)
-    drawSearchBox(context, measurements)
-    drawPlayerInventoryPanel(context, screen, measurements, contentMouseX, contentMouseY)
+    if (!measurements.isFocusExpanded) {
+        drawScrollBar(context, measurements, pageLayoutResult.contentHeight)
+        drawSearchBox(context, measurements)
+    }
+    if (!measurements.isModern || measurements.focusProgress > ModernStoragePanel.MIN_VISIBLE_PROGRESS) {
+        drawPlayerInventoryPanel(context, screen, measurements, contentMouseX, contentMouseY)
+    }
     if (measurements.isSelectorVisible) {
         drawStorageSelectorPanel(context, measurements, activePage, contentMouseX, contentMouseY)
     }
@@ -190,6 +200,16 @@ internal fun handleStorageOverlayMouseClick(
     }
     updateSearchFocusFromClick(measurements, mouseX, mouseY)
 
+    if (
+        processModernFocusCollapse(click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY) ==
+        InputHandlingResult.CONSUMED
+    ) {
+        storageOverlayLayoutScreen(screen, shouldReadScreen = false)
+        return InputHandlingResult.CONSUMED
+    }
+    routeModernForegroundClick(click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY)
+        ?.let { return it }
+
     return when {
         click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && measurements.scrollbar.contains(mouseX, mouseY) -> {
             val maximum = maxScroll(measurements, pageLayoutResult.contentHeight)
@@ -214,7 +234,7 @@ internal fun handleStorageOverlayMouseClick(
         }
         click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && measurements.scrollPanel.contains(mouseX, mouseY) -> {
             val titlePage = titlePageAt(pageLayoutResult.pages, mouseX, mouseY)
-            if (titlePage != null) {
+            if (titlePage != null && (!measurements.isModern || measurements.isFocusExpanded)) {
                 startTitleEdit(titlePage)
                 storageSearchField.focused = false
                 InputHandlingResult.CONSUMED
@@ -294,6 +314,7 @@ internal fun routeOverviewShortcutClick(
         return InputHandlingResult.IGNORED
     }
     redirectedOverviewScreenId = System.identityHashCode(screen)
+    requestModernPageFocus(pageIndex)
     (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
         slot,
         slot.index,
@@ -324,7 +345,16 @@ internal fun handlePageAreaClick(
     }
 
     return if (clickedPage.pageIndex != activePage && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        storageSearchField.focused = false
+        finishTitleEdit()
         if (screen.menu.carried.isEmpty) tryNavigateTo(screen, clickedPage.pageIndex, mouseX, mouseY)
+        InputHandlingResult.CONSUMED
+    } else if (
+        measurements.isModern &&
+        clickedPage.pageIndex == activePage &&
+        click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT
+    ) {
+        expandModernPage(clickedPage.pageIndex)
         InputHandlingResult.CONSUMED
     } else {
         InputHandlingResult.IGNORED
@@ -340,6 +370,7 @@ internal fun handleStorageOverlayMouseScroll(
     if (scrollY == 0.0) return InputHandlingResult.IGNORED
     val layoutState = storageOverlayLayoutScreen(screen) ?: return InputHandlingResult.IGNORED
     val measurements = layoutState.measurements
+    if (measurements.isFocusExpanded) return InputHandlingResult.IGNORED
     if (storageSettingsContains(screen.width, screen.height, measurements, mouseX.toInt(), mouseY.toInt())) {
         return InputHandlingResult.CONSUMED
     }

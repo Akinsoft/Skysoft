@@ -5,8 +5,10 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.itemWithDecorations
 import com.skysoft.utils.render.LegacyTextRenderer
+import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -47,6 +49,8 @@ internal fun drawPages(
     hoveredStorageItem = ItemStack.EMPTY
     val activePage = activeHandle?.entryIndex()
     val activeSlots = activeHandle?.let { activePageSlots(screen, it) }.orEmpty()
+    val focusedPageIndex = measurements.focusedPageIndex
+        ?.takeIf { measurements.focusProgress > ModernStoragePanel.MIN_VISIBLE_PROGRESS }
     context.enableScissor(
         measurements.scrollPanel.x,
         measurements.scrollPanel.y,
@@ -55,6 +59,7 @@ internal fun drawPages(
     )
     try {
         for (layout in layouts.values) {
+            if (layout.pageIndex == focusedPageIndex) continue
             if (!layout.intersects(measurements.scrollPanel)) continue
             val page = storageEntry(layout.pageIndex) ?: continue
             drawPage(
@@ -65,13 +70,51 @@ internal fun drawPages(
                 measurements.scrollPanel,
                 layout.pageIndex == activePage,
                 activeSlots,
-                mouseX,
-                mouseY,
+                if (focusedPageIndex == null) mouseX else StorageRuntime.OFFSCREEN,
+                if (focusedPageIndex == null) mouseY else StorageRuntime.OFFSCREEN,
             )
         }
     } finally {
         context.disableScissor()
     }
+    val focusedLayout = focusedPageIndex?.let(layouts::get)
+    val focusedPage = focusedPageIndex?.let(::storageEntry)
+    if (focusedPageIndex != null && focusedLayout != null && focusedPage != null) {
+        context.fill(
+            measurements.totalBounds.x,
+            measurements.totalBounds.y,
+            measurements.totalBounds.x + measurements.totalBounds.width,
+            measurements.totalBounds.y + measurements.totalBounds.height,
+            focusBackdropColor(measurements.focusProgress),
+        )
+        val visibleBounds = storagePageVisibleBounds(measurements, focusedLayout)
+        context.enableScissor(
+            visibleBounds.x,
+            visibleBounds.y,
+            visibleBounds.x + visibleBounds.width,
+            visibleBounds.y + visibleBounds.height,
+        )
+        try {
+            drawPage(
+                context,
+                screen,
+                focusedPage,
+                focusedLayout,
+                visibleBounds,
+                focusedPageIndex == activePage,
+                activeSlots,
+                mouseX,
+                mouseY,
+            )
+        } finally {
+            context.disableScissor()
+        }
+    }
+}
+
+private fun focusBackdropColor(progress: Float): Int {
+    val alpha = ((StorageColors.FOCUS_BACKDROP ushr COLOR_ALPHA_SHIFT) * progress.coerceIn(0f, 1f)).roundToInt()
+    return alpha shl COLOR_ALPHA_SHIFT or (StorageColors.FOCUS_BACKDROP and COLOR_RGB_MASK)
 }
 
 internal fun drawPage(
@@ -149,11 +192,33 @@ internal fun drawPage(
         )
         return
     }
+    drawPageSlots(context, screen, page, layout, visibleBounds, active, activeSlots, mouseX, mouseY)
+}
+
+private fun drawPageSlots(
+    context: GuiGraphicsExtractor,
+    screen: ContainerScreen,
+    page: ProfileStorage.SkyBlockStoragePageData,
+    layout: PageLayout,
+    visibleBounds: Rect,
+    active: Boolean,
+    activeSlots: Map<Int, Slot>,
+    mouseX: Int,
+    mouseY: Int,
+) {
+    val itemScissor = ScreenRectangle(visibleBounds.x, visibleBounds.y, visibleBounds.width, visibleBounds.height)
+    drawSlotGridBackground(
+        context,
+        pageSlotX(layout, 0),
+        pageSlotY(layout, 0),
+        StoragePages.COLUMNS,
+        page.rows,
+        scissorArea = itemScissor,
+    )
     for (index in 0 until page.rows * StoragePages.COLUMNS) {
         val slotX = pageSlotX(layout, index)
         val slotY = pageSlotY(layout, index)
         if (!slotIntersects(visibleBounds, slotX, slotY)) continue
-        drawSlotBackground(context, slotX, slotY)
         val hovered = isSlotHovered(mouseX, mouseY, slotX, slotY) && context.containsPointInScissor(mouseX, mouseY)
         val storedItem = page.items.getOrNull(index)
         val activeSlot = if (active) activeSlots[index] else null
@@ -166,7 +231,11 @@ internal fun drawPage(
                 InventoryItemSearchHighlight.render(context, slotX, slotY)
             }
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
-                context.itemWithDecorations(stack, slotX, slotY)
+                if (active) {
+                    context.itemWithDecorations(stack, slotX, slotY)
+                } else {
+                    StorageOverlayItemRenderer.drawStoredItem(context, stack, slotX, slotY, itemScissor)
+                }
             }
         }
         if (hovered) {
@@ -210,30 +279,38 @@ internal fun drawPlayerInventoryPanel(
 ) {
     val bounds = measurements.playerBounds
     val playerInventory = Minecraft.getInstance().player?.inventory
+    val playerSlots = arrayOfNulls<Slot>(Inventory.INVENTORY_SIZE)
+    if (playerInventory != null) {
+        for (slot in screen.menu.slots) {
+            if (slot.container === playerInventory && slot.containerSlot in playerSlots.indices) {
+                playerSlots[slot.containerSlot] = slot
+            }
+        }
+    }
     context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, StorageColors.PLAYER_PANEL)
     context.outline(bounds.x, bounds.y, bounds.width, bounds.height, StorageColors.PANEL_OUTLINE)
-    for (slot in 9 until 36) {
-        drawPlayerSlot(context, screen, playerInventory, measurements, slot, mouseX, mouseY)
+    val inventoryStart = playerSlotPosition(measurements, StoragePlayerInventory.HOTBAR_SLOT_COUNT)
+    drawSlotGridBackground(context, inventoryStart.x, inventoryStart.y, StoragePages.COLUMNS, PLAYER_INVENTORY_ROWS)
+    val hotbarStart = playerSlotPosition(measurements, 0)
+    drawSlotGridBackground(context, hotbarStart.x, hotbarStart.y, StoragePages.COLUMNS, 1)
+    for (containerSlot in StoragePlayerInventory.HOTBAR_SLOT_COUNT until Inventory.INVENTORY_SIZE) {
+        drawPlayerSlot(context, screen, measurements, containerSlot, playerSlots[containerSlot], mouseX, mouseY)
     }
-    for (slot in 0 until 9) {
-        drawPlayerSlot(context, screen, playerInventory, measurements, slot, mouseX, mouseY)
+    for (containerSlot in 0 until StoragePlayerInventory.HOTBAR_SLOT_COUNT) {
+        drawPlayerSlot(context, screen, measurements, containerSlot, playerSlots[containerSlot], mouseX, mouseY)
     }
 }
 
 internal fun drawPlayerSlot(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    playerInventory: net.minecraft.world.entity.player.Inventory?,
     measurements: Measurements,
     containerSlot: Int,
+    slot: Slot?,
     mouseX: Int,
     mouseY: Int,
 ) {
     val pos = playerSlotPosition(measurements, containerSlot)
-    drawSlotBackground(context, pos.x, pos.y)
-    val slot = screen.menu.slots.firstOrNull {
-        playerInventory != null && it.container === playerInventory && it.containerSlot == containerSlot
-    }
     val stack = slot?.item ?: ItemStack.EMPTY
     if (!stack.isEmpty && !SmoothSwapping.shouldSuppressSlot(screen, slot)) {
         context.itemWithDecorations(stack, pos.x, pos.y)
@@ -264,10 +341,15 @@ internal fun drawStorageSelectorPanel(
         bounds.y + StorageSelector.TEXT_Y_OFFSET,
         defaultColor = StorageColors.TEXT_WHITE,
     )
-    for (slot in 0 until StorageSelector.COLUMNS * StorageSelector.ROWS) {
-        val pos = selectorSlotPosition(measurements, slot)
-        drawSelectorSlotBackground(context, pos.x, pos.y)
-    }
+    val firstSlot = selectorSlotPosition(measurements, 0)
+    drawSlotGridBackground(
+        context,
+        firstSlot.x,
+        firstSlot.y,
+        StorageSelector.COLUMNS,
+        StorageSelector.ROWS,
+        StorageColors.PAGE_PANEL,
+    )
     for (pageIndex in selectorPageIndices(activePage)) {
         val page = storageEntry(pageIndex)
         val pos = selectorPagePosition(measurements, pageIndex)
@@ -338,22 +420,11 @@ internal fun drawSlotHover(context: GuiGraphicsExtractor, x: Int, y: Int) {
     context.fill(x, y, x + StorageSlots.INNER_SIZE, y + StorageSlots.INNER_SIZE, StorageColors.SLOT_HOVER)
 }
 
-internal fun drawSelectorSlotBackground(context: GuiGraphicsExtractor, x: Int, y: Int) {
-    context.fill(x, y, x + StorageSlots.INNER_SIZE, y + StorageSlots.INNER_SIZE, StorageColors.SELECTOR_SLOT)
-}
-
 internal fun drawMiniItem(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
     context.itemWithDecorations(stack, x, y)
 }
 
-internal fun drawSlotBackground(context: GuiGraphicsExtractor, x: Int, y: Int) {
-    context.fill(
-        x - StorageSlots.BORDER,
-        y - StorageSlots.BORDER,
-        x + StorageSlots.SIZE - StorageSlots.BORDER,
-        y + StorageSlots.SIZE - StorageSlots.BORDER,
-        StorageColors.SLOT_BACKGROUND,
-    )
-    context.fill(x, y, x + StorageSlots.INNER_SIZE, y + StorageSlots.INNER_SIZE, StorageColors.SELECTOR_SLOT)
-}
+private const val PLAYER_INVENTORY_ROWS = 3
+private const val COLOR_ALPHA_SHIFT = 24
+private const val COLOR_RGB_MASK = 0x00FFFFFF
 

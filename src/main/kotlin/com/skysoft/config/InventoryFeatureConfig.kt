@@ -1031,11 +1031,27 @@ class StorageOverlayConfig {
 class StorageOverlaySettingsConfig {
     @JvmField
     @field:Expose
+    var mode = StorageOverlayMode.MODERN
+
+    @JvmField
+    @field:Expose
+    var autoOpenPrevious = true
+
+    @JvmField
+    @field:Expose
     var miniMenu = true
 
     @JvmField
     @field:Expose
     var isAutofocusEnabled = true
+}
+
+enum class StorageOverlayMode(private val displayName: String) {
+    MODERN("Modern"),
+    CLASSIC("Classic"),
+    ;
+
+    override fun toString(): String = displayName
 }
 
 class StorageOverlayDetailsConfig {
