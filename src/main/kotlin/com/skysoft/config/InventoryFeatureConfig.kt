@@ -140,6 +140,7 @@ class InventoryFeatureConfig {
         smoothSwapping.repairLoadedValues()
         inventoryButtons.repairLoadedValues()
         fullInventory.repairLoadedValues()
+        storagePreviews.repairLoadedValues()
         storageOverlay.repairLoadedValues()
         rarityHighlight.repairLoadedValues()
     }
@@ -955,9 +956,22 @@ class StoragePreviewsConfig {
     @field:ConfigOption(name = "Settings", desc = "Choose which storage items show previews.")
     @field:Accordion
     val settings = StoragePreviewsSettingsConfig()
+
+    fun repairLoadedValues() {
+        settings.gridScale = settings.gridScale
+            .takeIf(Float::isFinite)
+            ?.coerceIn(MIN_STORAGE_PREVIEW_SCALE, MAX_STORAGE_PREVIEW_SCALE)
+            ?: DEFAULT_STORAGE_PREVIEW_SCALE
+    }
 }
 
 class StoragePreviewsSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Grid Scale", desc = "Scale of items and slots in storage previews.")
+    @field:ConfigEditorSlider(minValue = 0.5f, maxValue = 2f, minStep = 0.05f)
+    var gridScale = DEFAULT_STORAGE_PREVIEW_SCALE
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Cake Bags", desc = "Preview New Year Cake Bags.")
@@ -1328,6 +1342,9 @@ const val MIN_INVENTORY_BUTTON_SCALE = 0.5f
 const val MAX_INVENTORY_BUTTON_SCALE = 3f
 const val DEFAULT_INVENTORY_BUTTON_SCALE = 1f
 const val INVENTORY_BUTTON_SCALE_STEP = 0.1f
+const val MIN_STORAGE_PREVIEW_SCALE = 0.5f
+const val MAX_STORAGE_PREVIEW_SCALE = 2f
+const val DEFAULT_STORAGE_PREVIEW_SCALE = 1f
 private const val MIN_BUTTON_BACKGROUND_INDEX = 0
 private const val MAX_BUTTON_BACKGROUND_INDEX = 6
 private const val MIN_BAZAAR_TRACKER_ORDERS = 1

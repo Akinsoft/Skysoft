@@ -70,6 +70,7 @@ object StoragePreviews {
             items = page.items.map(::stackFor),
             columns = ProfileStorage.SLOTS_PER_STORAGE_ROW,
             rows = page.rows,
+            scale = config.settings.gridScale,
         )
     }
 
@@ -104,7 +105,7 @@ object StoragePreviews {
             if (configuredItemId.isBlank()) return@forEach
             items[slot] = SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(configuredItemId)) ?: return null
         }
-        return StoragePreviewTooltip(items, dimensions.columns, dimensions.rows)
+        return StoragePreviewTooltip(items, dimensions.columns, dimensions.rows, config.settings.gridScale)
     }
 
     private fun encodedContainerTooltip(customData: CompoundTag, key: String): StoragePreviewTooltip? {
@@ -124,7 +125,7 @@ object StoragePreviews {
                 .orElseThrow { IllegalArgumentException("Storage preview contains an invalid item") }
             if (!item.isEmpty) items[index] = decodeLegacySkyBlockItem(item)
         }
-        return StoragePreviewTooltip(items, ProfileStorage.SLOTS_PER_STORAGE_ROW, rows)
+        return StoragePreviewTooltip(items, ProfileStorage.SLOTS_PER_STORAGE_ROW, rows, config.settings.gridScale)
     }
 
     private fun settingsSignature(): Int {
@@ -134,7 +135,7 @@ object StoragePreviews {
         if (settings.personalDeletors) signature = signature or PERSONAL_DELETORS_SETTING
         if (settings.personalCompactors) signature = signature or PERSONAL_COMPACTORS_SETTING
         if (settings.backpacks) signature = signature or BACKPACKS_SETTING
-        return signature
+        return SETTINGS_SIGNATURE_MULTIPLIER * signature + settings.gridScale.toBits()
     }
 
     private data class CachedEmbeddedPreview(
@@ -159,6 +160,7 @@ object StoragePreviews {
     private const val PERSONAL_DELETORS_SETTING = 1 shl 1
     private const val PERSONAL_COMPACTORS_SETTING = 1 shl 2
     private const val BACKPACKS_SETTING = 1 shl 3
+    private const val SETTINGS_SIGNATURE_MULTIPLIER = 31
     private val PERSONAL_STORAGE_ID = Regex("PERSONAL_(?<type>COMPACTOR|DELETOR)_(?<size>[0-9]+)")
     private val PERSONAL_STORAGE_DIMENSIONS = mapOf(
         "4000" to PreviewDimensions(1, 1),
