@@ -115,6 +115,24 @@ open class ScreenOverlayCursorMixin : ScaledScreenState {
         SkysoftErrorBoundary.run("Below-screen overlay rendering") {
             GuiOverlayRegistry.renderLayer(GuiOverlayLayer.BELOW_SCREEN, context)
         }
+    }
+
+    @Inject(
+        method = ["extractRenderStateWithTooltipAndSubtitles"],
+        at = [
+            At(
+                value = "INVOKE",
+                target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;extractDeferredElements(IIF)V",
+            ),
+        ],
+    )
+    protected fun skysoftRenderStorageOverlayAboveScreenContents(
+        context: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        delta: Float,
+        ci: CallbackInfo,
+    ) {
         SkysoftErrorBoundary.run("Storage Overlay background rendering") {
             skysoftRenderStorageOverlay(context, mouseX, mouseY)
         }
