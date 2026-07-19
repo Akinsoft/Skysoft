@@ -8,6 +8,8 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.features.screenshot.ScreenshotUploadMetadataStore
+import com.skysoft.features.screenshot.loadScaledScreenshotImage
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -34,11 +36,15 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.resources.Identifier
 import org.lwjgl.glfw.GLFW
 
+internal const val MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH = 1024
+internal const val MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT = 576
+
 object ImageLinkPreview {
     private val textures = LinkedHashMap<String, RemoteImageTexture>(CACHE_SIZE, 0.75f, true)
     private val failures = mutableSetOf<String>()
     private var pendingUrl: String? = null
     private var pendingRequest: CompletableFuture<*>? = null
+    private var isPendingRequestRemote = false
     private var candidate: ImageLinkCandidate? = null
     private var nextTextureId = 0
 
@@ -70,7 +76,7 @@ object ImageLinkPreview {
             current.copy(mouseX = mouseX, mouseY = mouseY)
         } else {
             cancelPendingRequest()
-            ImageLinkCandidate(link.url, link.requestUri, link.host, link.isTrusted, mouseX, mouseY, System.currentTimeMillis())
+            ImageLinkCandidate(link.url, link.requestUri, link.host, link.isTrusted, mouseX, mouseY)
         }
         if (isImageRevealRequested()) {
             requestCandidateImage()
@@ -90,7 +96,7 @@ object ImageLinkPreview {
         val current = candidate ?: return InputHandlingResult.IGNORED
         if (current.isTrusted || !Minecraft.getInstance().hasShiftDown()) return InputHandlingResult.IGNORED
         TrustedImageHosts.trust(current.host)
-        candidate = current.copy(isTrusted = true, hoveredAtMillis = System.currentTimeMillis())
+        candidate = current.copy(isTrusted = true)
         return InputHandlingResult.CONSUMED
     }
 
@@ -118,22 +124,33 @@ object ImageLinkPreview {
         ) {
             return
         }
-        if (System.currentTimeMillis() - current.hoveredAtMillis < HOVER_DELAY_MILLIS) return
         pendingUrl = current.url
-        val request = RemoteImageLoader.load(current.requestUri)
+        val localScreenshot = ScreenshotUploadMetadataStore.screenshotForUrl(current.url)
+        val request = if (localScreenshot != null) {
+            loadScaledScreenshotImage(
+                localScreenshot,
+                MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH,
+                MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT,
+            )
+        } else {
+            RemoteImageLoader.load(current.requestUri)
+        }
         pendingRequest = request
+        isPendingRequestRemote = localScreenshot == null
         request.whenComplete { image, failure ->
             Minecraft.getInstance().execute {
-                if (pendingUrl == current.url) {
+                val isCurrentRequest = pendingRequest === request
+                if (isCurrentRequest) {
                     pendingUrl = null
                     pendingRequest = null
+                    isPendingRequestRemote = false
                 }
                 when {
-                    image != null && SkysoftConfigGui.config().chat.previewImage.enabled -> {
+                    image != null && isCurrentRequest && SkysoftConfigGui.config().chat.previewImage.enabled -> {
                         installTexture(current.url, image)
                     }
                     image != null -> image.close()
-                    failure != null && !request.isCancelled &&
+                    failure != null && isCurrentRequest &&
                         SkysoftConfigGui.config().chat.previewImage.enabled -> failures += current.url
                 }
             }
@@ -268,10 +285,11 @@ object ImageLinkPreview {
     }
 
     private fun cancelPendingRequest() {
-        pendingRequest?.cancel(true)
+        if (isPendingRequestRemote) pendingRequest?.cancel(true)
         RemoteImageLoader.cancel()
         pendingRequest = null
         pendingUrl = null
+        isPendingRequestRemote = false
     }
 
     private fun clear() {
@@ -287,7 +305,6 @@ object ImageLinkPreview {
     }
 
     private const val CACHE_SIZE = 8
-    private const val HOVER_DELAY_MILLIS = 250L
     private const val MAXIMUM_RENDER_WIDTH = 420
     private const val MAXIMUM_RENDER_HEIGHT = 236
     private const val PANEL_PADDING = 5
@@ -432,7 +449,6 @@ private data class ImageLinkCandidate(
     val isTrusted: Boolean,
     val mouseX: Int,
     val mouseY: Int,
-    val hoveredAtMillis: Long,
 )
 
 private data class RemoteImageTexture(

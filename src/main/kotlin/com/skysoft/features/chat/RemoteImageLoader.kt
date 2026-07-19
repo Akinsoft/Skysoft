@@ -31,6 +31,11 @@ internal object RemoteImageLoader {
             """(?:property|name)\s*=\s*["'](?:og:image(?::url)?|twitter:image)["'][^>]*>""",
         RegexOption.IGNORE_CASE,
     )
+    private val imgBbViewerImagePattern = Regex(
+        """<img\b[^>]*src\s*=\s*["'](?<url>https://i\.ibb\.co/[^"']+)["'][^>]*""" +
+            """data-load\s*=\s*["']full["'][^>]*>""",
+        RegexOption.IGNORE_CASE,
+    )
     private val redirectStatusCodes = setOf(301, 302, 303, 307, 308)
     private val supportedContentTypes = setOf(
         "image/png",
@@ -130,7 +135,12 @@ internal object RemoteImageLoader {
     }
 
     private fun imageUriFromHtml(pageUri: URI, html: String): URI {
-        val match = imageMetaPattern.find(html) ?: reversedImageMetaPattern.find(html)
+        val host = pageUri.host.lowercase(Locale.ROOT)
+        val match = if (host == "ibb.co" || host == "www.ibb.co") {
+            imgBbViewerImagePattern.find(html)
+        } else {
+            imageMetaPattern.find(html) ?: reversedImageMetaPattern.find(html)
+        }
         val value = match?.groups?.get("url")?.value ?: throw IllegalStateException("Image page omitted its preview")
         return pageUri.resolve(value.replace("&amp;", "&"))
     }
@@ -153,7 +163,10 @@ internal object RemoteImageLoader {
                 }
                 val bufferedImage = reader.read(0)
                 val scale = min(
-                    min(MAXIMUM_TEXTURE_WIDTH.toDouble() / sourceWidth, MAXIMUM_TEXTURE_HEIGHT.toDouble() / sourceHeight),
+                    min(
+                        MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH.toDouble() / sourceWidth,
+                        MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT.toDouble() / sourceHeight,
+                    ),
                     1.0,
                 )
                 val width = (sourceWidth * scale).roundToInt().coerceAtLeast(1)
@@ -206,8 +219,6 @@ internal object RemoteImageLoader {
     private const val MAXIMUM_DOWNLOAD_BYTES = 8 * 1024 * 1024
     private const val MAXIMUM_SOURCE_DIMENSION = 8192
     private const val MAXIMUM_SOURCE_PIXELS = 16_000_000L
-    private const val MAXIMUM_TEXTURE_WIDTH = 1024
-    private const val MAXIMUM_TEXTURE_HEIGHT = 576
     private const val IPV6_UNIQUE_LOCAL_MASK = 0xFE
     private const val IPV6_UNIQUE_LOCAL_PREFIX = 0xFC
 }
