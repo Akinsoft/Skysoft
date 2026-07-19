@@ -60,6 +60,30 @@ abstract class AbstractContainerScreenRenderingMixin {
         if (shouldSuppress) ci.cancel()
     }
 
+    @Inject(
+        method = ["extractContents"],
+        at = [
+            At(
+                value = "INVOKE",
+                target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;" +
+                    "extractLabels(Lnet/minecraft/client/gui/GuiGraphicsExtractor;II)V",
+                shift = At.Shift.AFTER,
+            ),
+        ],
+    )
+    protected fun skysoftRenderRarityHighlightBackgrounds(
+        context: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        delta: Float,
+        ci: CallbackInfo,
+    ) {
+        val screen = this as AbstractContainerScreen<*>
+        SkysoftErrorBoundary.run("Rarity Highlight backgrounds") {
+            RarityHighlightRenderer.renderContainerBackgrounds(context, screen)
+        }
+    }
+
     @Inject(method = ["extractContents"], at = [At("TAIL")])
     protected fun skysoftRenderInventoryButtons(
         context: GuiGraphicsExtractor,
@@ -102,7 +126,7 @@ abstract class AbstractContainerScreenRenderingMixin {
     }
 
     @Inject(method = ["extractSlot"], at = [At("HEAD")])
-    protected fun skysoftRenderActivePetHighlightBackground(
+    protected fun skysoftRenderSlotBackgrounds(
         context: GuiGraphicsExtractor,
         slot: Slot,
         mouseX: Int,
@@ -110,7 +134,6 @@ abstract class AbstractContainerScreenRenderingMixin {
         ci: CallbackInfo,
     ) {
         val screen = this as AbstractContainerScreen<*>
-        SkysoftErrorBoundary.run("Rarity Highlight background") { RarityHighlightRenderer.renderBackground(context, slot) }
         SkysoftErrorBoundary.run("Container Search highlighting") {
             ContainerSearchHighlighter.renderBackground(screen, context, slot)
         }
