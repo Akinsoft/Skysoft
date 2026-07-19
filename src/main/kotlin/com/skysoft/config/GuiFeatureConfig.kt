@@ -112,6 +112,12 @@ class ScreenshotManagerConfig {
 class ScreenshotManagerSettingsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Copy to Clipboard", desc = "Copy new screenshots to the clipboard.")
+    @field:ConfigEditorBoolean
+    var isClipboardCopyEnabled = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Manager Key", desc = "Press this key to open the Screenshot Manager.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_F4)
     var managerKey = GLFW.GLFW_KEY_F4

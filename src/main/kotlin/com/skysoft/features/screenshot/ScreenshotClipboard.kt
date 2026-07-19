@@ -17,12 +17,17 @@ import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
 import javax.imageio.ImageIO
+import net.minecraft.util.Util
 
 internal object ScreenshotClipboard {
     private var retainedAwtContents: Transferable? = null
 
-    fun copy(path: Path) {
+    fun copyAsync(path: Path): CompletableFuture<Void> =
+        CompletableFuture.runAsync({ copy(path) }, Util.ioPool())
+
+    private fun copy(path: Path) {
         val image = requireNotNull(ImageIO.read(path.toFile())) { "Unsupported screenshot image: $path" }
         if (Platform.isWindows()) {
             WindowsImageClipboard.copy(image)

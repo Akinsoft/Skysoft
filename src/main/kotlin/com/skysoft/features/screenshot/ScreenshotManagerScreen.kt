@@ -253,7 +253,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         val path = selectedPath ?: return InputHandlingResult.IGNORED
         pendingAction = ScreenshotAction.COPY
         notice = ScreenshotNotice("Copying...", false, Long.MAX_VALUE)
-        CompletableFuture.runAsync({ ScreenshotClipboard.copy(path) }, Util.ioPool())
+        ScreenshotClipboard.copyAsync(path)
             .whenComplete { _, failure ->
                 completeAction(
                     ScreenshotAction.COPY,
