@@ -469,16 +469,4 @@ private fun HudEditorElement.isHovered(mouseX: Int, mouseY: Int): Boolean {
         mouseY in (y - HUD_EDITOR_BORDER)..(y + scaledHeight + HUD_EDITOR_BORDER)
 }
 
-private fun HudEditorElement.absoluteX(width: Int): Int = if (keepsInsideScreen) {
-    position.getAbsX0(width)
-} else {
-    position.getAbsX0AllowingOverflow(width)
-}
-
-private fun HudEditorElement.absoluteY(height: Int): Int = if (keepsInsideScreen) {
-    position.getAbsY0(height)
-} else {
-    position.getAbsY0AllowingOverflow(height)
-}
-
 private const val HUD_EDITOR_BORDER = 2

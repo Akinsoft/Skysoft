@@ -134,6 +134,14 @@ class PositionEditorConfig {
     val titlePosition = HudPosition(0, -82, centerX = true, centerY = true).rememberDefault()
 
     @JvmField
+    @field:Expose
+    val scoreboardPosition = HudPosition(centerX = true, centerY = true).rememberDefault()
+
+    @JvmField
+    @field:Expose
+    var isScoreboardPositionCustomized = false
+
+    @JvmField
     @field:ConfigOption(name = "Editor", desc = "Open the Position Editor.")
     @field:ConfigEditorButton(buttonText = "Open")
     val openEditor = Runnable { SkysoftHudEditor.open() }
