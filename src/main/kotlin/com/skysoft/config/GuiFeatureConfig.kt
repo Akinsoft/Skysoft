@@ -57,6 +57,21 @@ class GuiFeatureConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Merge Absorption Hearts",
+        desc = "Show absorption within the normal heart grid instead of extending the health bar.",
+    )
+    @field:ConfigEditorBoolean
+    var areAbsorptionHeartsMerged = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Stop Heart Bobbing", desc = "Stop regeneration and low-health heart movement.")
+    @field:ConfigEditorBoolean
+    var isHeartBobbingDisabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Hide Vanilla Status Effects",
         desc = "Hide Minecraft's status effects beside inventories and in the top-right HUD.",
     )
