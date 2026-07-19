@@ -8,12 +8,15 @@ import com.skysoft.features.chat.ChatMotionProfile
 import com.skysoft.features.chat.ChatMotionSettings
 import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.CopyChatResult
+import com.skysoft.features.chat.ImageLinkPreview
 import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelButtonWidget
+import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
@@ -21,6 +24,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.network.chat.Component
 import org.spongepowered.asm.mixin.Mixin
+import org.spongepowered.asm.mixin.Shadow
 import org.spongepowered.asm.mixin.Unique
 import org.spongepowered.asm.mixin.injection.At
 import org.spongepowered.asm.mixin.injection.Inject
@@ -32,6 +36,9 @@ private const val MIN_TAB_WIDTH = 36
 
 @Mixin(ChatScreen::class)
 abstract class ChatScreenMixin(title: Component) : Screen(title) {
+    @field:Shadow
+    private lateinit var displayMode: ChatComponent.DisplayMode
+
     @field:Unique
     private val skysoftOpeningMotion = AnimationClock()
 
@@ -73,6 +80,9 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     ) {
         skysoftMouseX = mouseX
         skysoftMouseY = mouseY
+        SkysoftErrorBoundary.run("Chat image link hover") {
+            ImageLinkPreview.updateHoveredLink(mouseX, mouseY, displayMode)
+        }
     }
 
     @Inject(method = ["keyPressed"], at = [At("HEAD")], cancellable = true)
@@ -96,12 +106,13 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
         doubled: Boolean,
         cir: CallbackInfoReturnable<Boolean>,
     ) {
-        val copied = SkysoftErrorBoundary.value("Chat Copy mouse input", false) {
+        val isImageTrustProcessed = SkysoftErrorBoundary.value("Chat image trust input", false) {
+            ImageLinkPreview.processTrustClick(click.button()) == InputHandlingResult.CONSUMED
+        }
+        val copied = !isImageTrustProcessed && SkysoftErrorBoundary.value("Chat Copy mouse input", false) {
             ChatCopy.copyHoveredMessage(click.button(), click.x().toInt(), click.y().toInt()) == CopyChatResult.COPIED
         }
-        if (copied) {
-            cir.returnValue = true
-        }
+        if (isImageTrustProcessed || copied) cir.returnValue = true
     }
 
     @Inject(method = ["mouseClicked"], at = [At("RETURN")])
@@ -221,6 +232,7 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     @Inject(method = ["removed"], at = [At("HEAD")])
     protected fun skysoftResetOpenAnimation(ci: CallbackInfo) {
         SkysoftErrorBoundary.run("Chat input motion", skysoftOpeningMotion::stop)
+        SkysoftErrorBoundary.run("Chat image link session", ImageLinkPreview::endChatSession)
     }
 
     @Unique
