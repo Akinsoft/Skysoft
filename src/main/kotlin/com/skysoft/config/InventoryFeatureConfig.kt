@@ -59,6 +59,11 @@ class InventoryFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Storage Previews", desc = "Preview the contents of SkyBlock storage items.")
+    val storagePreviews = StoragePreviewsConfig()
+
+    @JvmField
+    @field:Expose
     val storageOverlay = StorageOverlayConfig()
 
     @JvmField
@@ -936,6 +941,52 @@ class InventoryButtonConfig(
             ?: DEFAULT_INVENTORY_BUTTON_SCALE
         isUserCreated = isUserCreated ?: isLegacyExtraButton
     }
+}
+
+class StoragePreviewsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Show storage contents on item tooltips.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Choose which storage items show previews.")
+    @field:Accordion
+    val settings = StoragePreviewsSettingsConfig()
+}
+
+class StoragePreviewsSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Cake Bags", desc = "Preview New Year Cake Bags.")
+    @field:ConfigEditorBoolean
+    var cakeBags = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Personal Deletors", desc = "Preview Personal Deletor slots.")
+    @field:ConfigEditorBoolean
+    var personalDeletors = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Personal Compactors", desc = "Preview Personal Compactor slots.")
+    @field:ConfigEditorBoolean
+    var personalCompactors = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Backpacks", desc = "Preview backpacks and cached Storage pages.")
+    @field:ConfigEditorBoolean
+    var backpacks = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Ender Chests", desc = "Preview cached Ender Chest pages.")
+    @field:ConfigEditorBoolean
+    var enderChests = true
 }
 
 class StorageOverlayConfig {

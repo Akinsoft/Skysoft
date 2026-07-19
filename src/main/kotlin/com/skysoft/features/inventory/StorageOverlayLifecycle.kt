@@ -1,7 +1,6 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.data.ProfileStorageApi
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -19,7 +18,7 @@ import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
 
 internal fun registerStorageOverlay() {
-    ProfileStorageApi.registerConsumer("Storage Overlay") { isStorageOverlayEnabled }
+    StorageCache.registerConsumer("Storage Overlay") { isStorageOverlayEnabled }
     SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset", { isStorageOverlayEnabled }) { resetTransientState() }
     SkysoftClientEvents.onDisconnect("Storage Overlay disconnect reset", ::resetTransientState)
     registerStorageOverlayChat()
@@ -27,7 +26,9 @@ internal fun registerStorageOverlay() {
         "Storage Overlay tick",
         isActive = { isStorageOverlayEnabled || wasStorageOverlayEnabled },
     ) {
-        wasStorageOverlayEnabled = isStorageOverlayEnabled
+        val isEnabled = isStorageOverlayEnabled
+        if (isEnabled && !wasStorageOverlayEnabled) lastInventoryKey = null
+        wasStorageOverlayEnabled = isEnabled
         onClientTick()
     }
     registerMouseClickInterceptor()

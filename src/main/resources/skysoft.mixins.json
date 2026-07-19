@@ -35,6 +35,7 @@
     "GuiGraphicsExtractorMixin",
     "GuiRendererAccessor",
     "ItemInHandRendererMixin",
+    "ItemStackTooltipMixin",
     "ItemFeatureRendererMixin",
     "ItemEntityRendererMixin",
     "ItemEntityRenderStateMixin",
