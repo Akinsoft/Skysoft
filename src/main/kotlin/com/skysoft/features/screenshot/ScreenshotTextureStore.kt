@@ -79,7 +79,7 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
             return
         }
         pendingThumbnails.add(path)
-        loadScaledImage(path, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT).whenComplete { image, failure ->
+        loadScaledScreenshotImage(path, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT).whenComplete { image, failure ->
             minecraft.execute {
                 pendingThumbnails.remove(path)
                 when {
@@ -107,7 +107,7 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
 
     private fun requestPreview(path: Path) {
         pendingPreviewPath = path
-        loadScaledImage(path, PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT).whenComplete { image, failure ->
+        loadScaledScreenshotImage(path, PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT).whenComplete { image, failure ->
             minecraft.execute {
                 if (pendingPreviewPath == path) pendingPreviewPath = null
                 when {
@@ -160,7 +160,7 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
     }
 }
 
-private fun loadScaledImage(path: Path, maximumWidth: Int, maximumHeight: Int): CompletableFuture<NativeImage> =
+internal fun loadScaledScreenshotImage(path: Path, maximumWidth: Int, maximumHeight: Int): CompletableFuture<NativeImage> =
     CompletableFuture.supplyAsync(
         {
             val source = NativeImage.read(Files.newInputStream(path))

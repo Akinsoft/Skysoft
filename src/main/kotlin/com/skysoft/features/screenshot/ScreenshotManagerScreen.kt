@@ -27,7 +27,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
     private var focusLayout: ScreenshotFocusLayout? = null
     private var pendingAction: ScreenshotAction? = null
     private var notice: ScreenshotNotice? = null
-    private var isDeleteConfirmationVisible = false
+    private var confirmation: ScreenshotConfirmation? = null
     private var hasStartedLoading = false
     private var isDisposed = false
 
@@ -42,7 +42,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         val selectedEntry = selectedPath?.let { path -> entries.firstOrNull { it.path == path } }
         if (selectedEntry == null) {
             selectedPath = null
-            isDeleteConfirmationVisible = false
+            confirmation = null
             val layout = ScreenshotGalleryLayout.create(width, height, entries.size, scrollOffset)
             scrollOffset = layout.scrollOffset
             galleryLayout = layout
@@ -73,7 +73,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
                 textures,
                 visuals,
                 notice?.takeIf { System.currentTimeMillis() <= it.expiresAtMillis },
-                isDeleteConfirmationVisible,
+                confirmation,
                 pendingAction == null && visuals.isInteractive,
                 selectedIndex > 0,
                 selectedIndex >= 0 && selectedIndex + 1 < entries.size,
@@ -121,7 +121,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         if (
             selectedPath != null &&
             pendingAction == null &&
-            !isDeleteConfirmationVisible &&
+            confirmation == null &&
             focusTransition.isComplete() &&
             event.key() in listOf(GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT)
         ) {
@@ -131,8 +131,8 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
             }
             return true
         }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && isDeleteConfirmationVisible) {
-            isDeleteConfirmationVisible = false
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE && confirmation != null) {
+            confirmation = null
             SoundUtilities.playClickSound()
             return true
         }
@@ -184,7 +184,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
             ?: return InputHandlingResult.IGNORED
         selectedPath = entries.getOrNull(tile.index)?.path ?: return InputHandlingResult.IGNORED
         focusTransition.startExpansion(tile.image)
-        isDeleteConfirmationVisible = false
+        confirmation = null
         notice = null
         return InputHandlingResult.CONSUMED
     }
@@ -201,14 +201,24 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
             returnToGallery()
             return InputHandlingResult.CONSUMED
         }
-        if (isDeleteConfirmationVisible) return activateDeleteConfirmationAt(layout, mouseX, mouseY)
+        if (confirmation != null) return activateConfirmationAt(layout, mouseX, mouseY)
         return when {
             layout.previous.contains(mouseX, mouseY) -> navigateSelection(-1)
             layout.next.contains(mouseX, mouseY) -> navigateSelection(1)
+            layout.share.contains(mouseX, mouseY) -> {
+                val path = selectedPath ?: return InputHandlingResult.IGNORED
+                if (ScreenshotSharing.status(path).state == ScreenshotShareState.UPLOADED) {
+                    ScreenshotSharing.share(path)
+                } else {
+                    confirmation = ScreenshotConfirmation.SHARE
+                    notice = null
+                }
+                InputHandlingResult.CONSUMED
+            }
             layout.copy.contains(mouseX, mouseY) -> startClipboardCopy()
             layout.saveAs.contains(mouseX, mouseY) -> startSaveAs()
             layout.delete.contains(mouseX, mouseY) -> {
-                isDeleteConfirmationVisible = true
+                confirmation = ScreenshotConfirmation.DELETE
                 notice = null
                 InputHandlingResult.CONSUMED
             }
@@ -216,18 +226,27 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         }
     }
 
-    private fun activateDeleteConfirmationAt(
+    private fun activateConfirmationAt(
         layout: ScreenshotFocusLayout,
         mouseX: Int,
         mouseY: Int,
     ): InputHandlingResult {
         if (pendingAction != null) return InputHandlingResult.IGNORED
         if (layout.cancelDelete.contains(mouseX, mouseY)) {
-            isDeleteConfirmationVisible = false
+            confirmation = null
             return InputHandlingResult.CONSUMED
         }
         if (!layout.confirmDelete.contains(mouseX, mouseY)) return InputHandlingResult.IGNORED
-        return deleteSelectedScreenshot()
+        return when (confirmation) {
+            ScreenshotConfirmation.SHARE -> {
+                val path = selectedPath ?: return InputHandlingResult.IGNORED
+                confirmation = null
+                ScreenshotSharing.share(path)
+                InputHandlingResult.CONSUMED
+            }
+            ScreenshotConfirmation.DELETE -> deleteSelectedScreenshot()
+            null -> InputHandlingResult.IGNORED
+        }
     }
 
     private fun startClipboardCopy(): InputHandlingResult {
@@ -272,7 +291,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
                 minecraftClient.execute {
                     if (isDisposed || pendingAction != ScreenshotAction.DELETE) return@execute
                     pendingAction = null
-                    isDeleteConfirmationVisible = false
+                    confirmation = null
                     if (failure == null) {
                         textures.discard(path)
                         entries = entries.filterNot { it.path == path }
@@ -291,7 +310,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         val currentIndex = entries.indexOfFirst { it.path == selectedPath }
         val nextEntry = entries.getOrNull(currentIndex + direction) ?: return InputHandlingResult.IGNORED
         selectedPath = nextEntry.path
-        isDeleteConfirmationVisible = false
+        confirmation = null
         notice = null
         textures.thumbnail(nextEntry.path)
         focusTransition.startNavigation(direction)
@@ -313,7 +332,7 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
 
     private fun returnToGallery() {
         selectedPath = null
-        isDeleteConfirmationVisible = false
+        confirmation = null
         notice = null
         pendingAction = null
         textures.clearSelectedPreview()
@@ -336,4 +355,9 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
         const val SUCCESS_NOTICE_MILLIS = 2500L
         const val ERROR_NOTICE_MILLIS = 3500L
     }
+}
+
+internal enum class ScreenshotConfirmation {
+    SHARE,
+    DELETE,
 }
