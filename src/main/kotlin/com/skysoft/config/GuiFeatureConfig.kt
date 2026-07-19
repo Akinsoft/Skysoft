@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.HudPosition
+import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.gui.SkysoftHudEditor
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -17,6 +18,11 @@ class GuiFeatureConfig {
     @field:Expose
     @field:Category(name = "Position Editor", desc = "Move and scale HUD elements.")
     val positionEditor = PositionEditorConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Screenshot Manager", desc = "Browse and manage Minecraft screenshots.")
+    val screenshotManager = ScreenshotManagerConfig()
 
     @JvmField
     @field:Expose
@@ -67,6 +73,33 @@ class GuiFeatureConfig {
         heldItem.repairLoadedValues()
         actionBar.repairLoadedValues()
     }
+}
+
+class ScreenshotManagerConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Enable screenshot sounds, messages, and the manager key.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Screenshot Manager settings.")
+    @field:Accordion
+    val settings = ScreenshotManagerSettingsConfig()
+}
+
+class ScreenshotManagerSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Manager Key", desc = "Press this key to open the Screenshot Manager.")
+    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_F4)
+    var managerKey = GLFW.GLFW_KEY_F4
+
+    @JvmField
+    @field:ConfigOption(name = "Open Manager", desc = "Open the Screenshot Manager.")
+    @field:ConfigEditorButton(buttonText = "Open")
+    val openManager = Runnable { ScreenshotManager.open() }
 }
 
 class PositionEditorConfig {

@@ -16,6 +16,8 @@ object SoundUtilities {
     private val navigationRightSound by lazy { createSound(NAVIGATION_RIGHT_SOUND_ID, 1f, 1f) }
     private val itemProtectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 4096L) }
     private val itemUnprotectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 0L) }
+    private val screenshotShutterSound by lazy { createSound("block.piston.contract", 1.7f, 0.35f) }
+    private val screenshotSnapSound by lazy { createSound("entity.item_frame.add_item", 1.2f, 0.55f) }
 
     fun playClickSound() {
         playSound(clickSound)
@@ -38,6 +40,11 @@ object SoundUtilities {
 
     fun playItemUnprotectedSound() {
         playSound(itemUnprotectedSound)
+    }
+
+    fun playScreenshotShutterSound() {
+        playSound(screenshotShutterSound)
+        playSound(screenshotSnapSound)
     }
 
     fun playUiSound(soundId: String, pitch: Float, volume: Float) {

@@ -54,6 +54,7 @@
     "PictureInPictureRendererAccessor",
     "RecipeBookComponentAccessor",
     "ScreenOverlayCursorMixin",
+    "ScreenshotCaptureMixin",
     "ServerPackDataAccessor",
     "ServerPackManagerMixin",
     "ServerPackReloadCallbacksMixin",
