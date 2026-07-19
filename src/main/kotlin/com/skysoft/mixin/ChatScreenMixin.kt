@@ -136,6 +136,24 @@ abstract class ChatScreenMixin(title: Component) : Screen(title) {
     }
 
     @WrapOperation(
+        method = ["handleChatInput"],
+        at = [
+            At(
+                value = "INVOKE",
+                target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendCommand(Ljava/lang/String;)V",
+            ),
+        ],
+    )
+    protected fun skysoftRecordTabCommand(
+        connection: ClientPacketListener,
+        command: String,
+        original: Operation<Void>,
+    ) {
+        ChatTabs.recordOutgoingCommand(command)
+        original.call(connection, command)
+    }
+
+    @WrapOperation(
         method = ["extractRenderState"],
         at = [
             At(
