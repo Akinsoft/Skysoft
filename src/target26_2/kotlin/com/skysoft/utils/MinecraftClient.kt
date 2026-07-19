@@ -14,4 +14,6 @@ object MinecraftClient {
     fun isGuiHidden(minecraft: Minecraft): Boolean = minecraft.gui.hud.isHidden
 
     fun chat(minecraft: Minecraft): ChatComponent = minecraft.gui.hud.chat
+
+    fun guiTicks(minecraft: Minecraft): Int = minecraft.gui.hud.guiTicks
 }

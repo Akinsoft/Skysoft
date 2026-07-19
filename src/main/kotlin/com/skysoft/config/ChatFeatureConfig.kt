@@ -57,10 +57,38 @@ class ChatFeatureConfig {
     @field:Category(name = "Copy Chat", desc = "Copy complete chat messages from the chat screen.")
     val copyChat = CopyChatConfig()
 
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Preview Image", desc = "Preview image links hovered in chat.")
+    val previewImage = ImagePreviewConfig()
+
     fun repairLoadedValues() {
         smoothChat.repairLoadedValues()
         history.repairLoadedValues()
         compacting.repairLoadedValues()
+    }
+
+    class ImagePreviewConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Enabled", desc = "Show image links hovered in chat.")
+        @field:ConfigEditorBoolean
+        var enabled = false
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Settings", desc = "Image preview controls.")
+        @field:Accordion
+        @field:ConfigVisibleIf("enabled")
+        val settings = ImagePreviewSettingsConfig()
+    }
+
+    class ImagePreviewSettingsConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Preview Key", desc = "Hold to show the image. Leave unbound to show it automatically.")
+        @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+        var previewKey = GLFW.GLFW_KEY_UNKNOWN
     }
 
     class SmoothChatConfig {

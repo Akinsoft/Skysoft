@@ -24,6 +24,7 @@ import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.combat.BetterShurikens
 import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatTabs
+import com.skysoft.features.chat.ImageLinkPreview
 import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.fishing.FishingHotspotRadar
 import com.skysoft.features.fishing.FishingHotspotSharing
@@ -114,6 +115,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("World Render Dispatcher", WorldRenderDispatcher::register)
         registerFeature("Item Render Support", SkysoftItemRenderSupport::register)
         registerFeature("GUI Overlay Registry", GuiOverlayRegistry::register)
+        registerFeature("Chat Image Preview", ImageLinkPreview::register)
         registerFeature("Screen Alert Renderer", ScreenAlertRenderer::register)
         registerFeature("Lotum Helper", LotumHelper::register)
         registerFeature("Price Tooltips", PriceTooltips::register)
