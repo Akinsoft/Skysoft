@@ -23,6 +23,7 @@ internal fun routeActivePageSlotClick(
     val activePage = handle.entryIndex()
     val rows = handle.gridRows()
     if (activePage == null || rows == null) return InputHandlingResult.IGNORED
+    if (isModernStorageOverlay && !isModernPageExpanded(activePage)) return InputHandlingResult.IGNORED
     val mouseX = click.x().toInt()
     val mouseY = click.y().toInt()
     if (!outsideVanillaContainer(screen, mouseX, mouseY)) return InputHandlingResult.IGNORED
@@ -53,13 +54,14 @@ internal fun activePageSlotAt(
     mouseX: Int,
     mouseY: Int,
 ): Slot? {
-    if (!measurements.scrollPanel.contains(mouseX, mouseY)) return null
+    val visibleBounds = storagePageVisibleBounds(measurements, layout)
+    if (!visibleBounds.contains(mouseX, mouseY)) return null
     for (slot in screen.menu.slots) {
         val pageSlot = slot.containerSlot - handle.slotOffset()
         if (pageSlot !in 0 until rows.coerceAtLeast(0) * StoragePages.COLUMNS) continue
         val slotX = pageSlotX(layout, pageSlot)
         val slotY = pageSlotY(layout, pageSlot)
-        if (slotIntersects(measurements.scrollPanel, slotX, slotY) && isSlotHovered(mouseX, mouseY, slotX, slotY)) {
+        if (slotIntersects(visibleBounds, slotX, slotY) && isSlotHovered(mouseX, mouseY, slotX, slotY)) {
             return slot
         }
     }

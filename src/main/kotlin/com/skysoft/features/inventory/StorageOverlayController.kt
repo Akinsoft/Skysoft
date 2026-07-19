@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.StorageOverlayMode
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftItems
@@ -101,6 +102,7 @@ internal val emptyOverviewItems: Set<Item> = buildSet {
 internal val storage get() = ProfileStorageApi.storage
 internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
 internal val isStorageOverlayEnabled get() = SkysoftConfigGui.config().inventory.isStorageOverlayEnabled
+internal val isModernStorageOverlay get() = config.settings.mode == StorageOverlayMode.MODERN
 
 internal var lastInventoryKey: String? = null
 internal val storageSearchField = TextFieldState()
@@ -177,6 +179,10 @@ internal data class Measurements(
     val totalBounds: Rect,
     val columns: Int,
     val isSelectorVisible: Boolean = false,
+    val isModern: Boolean = false,
+    val focusedPageIndex: Int? = null,
+    val focusProgress: Float = 0f,
+    val isFocusExpanded: Boolean = false,
 )
 
 internal data class PageLayoutResult(

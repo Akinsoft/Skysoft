@@ -25,6 +25,16 @@ internal object StoragePanel {
     const val TOP_MIN = 8
 }
 
+internal object ModernStoragePanel {
+    const val EDGE_MARGIN = 8
+    const val SEARCH_WIDTH = StoragePlayerInventory.WIDTH
+    const val FOCUS_GAP = 8
+    const val FOCUS_ANIMATION_NANOS = 160_000_000L
+    const val MIN_VISIBLE_PROGRESS = 0.001f
+    const val PAGE_WIDTH = StoragePlayerInventory.WIDTH
+    const val MAX_COLUMN_GAP = 12
+}
+
 internal object StorageScrollbar {
     const val GAP = 4
     const val WIDTH = 10
@@ -124,4 +134,5 @@ internal object StorageColors {
     val PLAYER_PANEL = 0xD0181818.toInt()
     val SELECTOR_SLOT = 0xFF101010.toInt()
     val SLOT_BACKGROUND = 0xFF303030.toInt()
+    val FOCUS_BACKDROP = 0xB0000000.toInt()
 }

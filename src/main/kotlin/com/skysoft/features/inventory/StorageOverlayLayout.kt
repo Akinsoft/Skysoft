@@ -15,6 +15,16 @@ internal fun measurements(
     width: Int,
     height: Int,
     isSelectorVisible: Boolean,
+): Measurements = if (isModernStorageOverlay) {
+    modernMeasurements(width, height)
+} else {
+    classicMeasurements(width, height, isSelectorVisible)
+}
+
+private fun classicMeasurements(
+    width: Int,
+    height: Int,
+    isSelectorVisible: Boolean,
 ): Measurements {
     val columns = config.details.columns.coerceIn(
         StorageOverlayConfigBounds.MIN_COLUMNS,
@@ -118,8 +128,13 @@ internal fun pageLayouts(measurements: Measurements, activePage: Int?): PageLayo
         }
         if (pageIndex != activePage && !StorageSearchIndex.matches(page)) continue
         val pageHeight = pageHeight(page)
-        val x = measurements.scrollPanel.x + xIndex * (StoragePages.WIDTH + StoragePages.PADDING)
-        layouts[pageIndex] = PageLayout(pageIndex, x, y, StoragePages.WIDTH, pageHeight)
+        val pageWidth = if (measurements.isModern) ModernStoragePanel.PAGE_WIDTH else StoragePages.WIDTH
+        val x = if (measurements.isModern) {
+            modernStoragePageX(measurements, xIndex)
+        } else {
+            measurements.scrollPanel.x + xIndex * (StoragePages.WIDTH + StoragePages.PADDING)
+        }
+        layouts[pageIndex] = PageLayout(pageIndex, x, y, pageWidth, pageHeight)
         rowHeight = maxOf(rowHeight, pageHeight)
         xIndex++
         if (xIndex >= measurements.columns) {
@@ -141,6 +156,13 @@ internal fun pageLayouts(measurements: Measurements, activePage: Int?): PageLayo
         0
     }
     val contentHeight = contentBottom + focusPadding
+    val focusedPageIndex = measurements.focusedPageIndex
+    if (measurements.isModern && focusedPageIndex != null && measurements.focusProgress > 0f) {
+        val layout = layouts[focusedPageIndex]
+        if (layout != null) {
+            layouts[focusedPageIndex] = modernFocusedPageLayout(measurements, layout)
+        }
+    }
     return PageLayoutResult(layouts, contentHeight)
 }
 
@@ -237,7 +259,10 @@ internal fun playerSlotPosition(measurements: Measurements, slot: Int): Point =
     }
 
 internal fun pageSlotX(layout: PageLayout, slot: Int): Int =
-    layout.x + StoragePages.SLOT_X_OFFSET + (slot % StoragePages.COLUMNS) * StorageSlots.SIZE
+    layout.x +
+        (layout.width - StoragePages.COLUMNS * StorageSlots.SIZE) / 2 +
+        StorageSlots.BORDER +
+        (slot % StoragePages.COLUMNS) * StorageSlots.SIZE
 
 internal fun pageSlotY(layout: PageLayout, slot: Int): Int =
     layout.y +
@@ -256,7 +281,7 @@ internal fun pageSlotPosition(
     if (layout == null || pageSlot !in 0 until rows * StoragePages.COLUMNS) return null
     val x = pageSlotX(layout, pageSlot)
     val y = pageSlotY(layout, pageSlot)
-    if (!slotInside(measurements.scrollPanel, x, y)) return null
+    if (!slotInside(storagePageVisibleBounds(measurements, layout), x, y)) return null
     return Point(x, y)
 }
 

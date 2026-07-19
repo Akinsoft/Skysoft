@@ -9,6 +9,7 @@ import com.skysoft.features.inventory.RarityHighlightRenderer
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.SmoothSwapping
+import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.pets.ActivePetHighlighter
@@ -44,6 +45,19 @@ abstract class AbstractContainerScreenRenderingMixin {
         SkysoftErrorBoundary.run("Inventory Equipment background rendering") {
             InventoryEquipment.renderBackground(screen, context)
         }
+    }
+
+    @Inject(method = ["extractSlots"], at = [At("HEAD")], cancellable = true)
+    protected fun skysoftSuppressStorageOverlaySlots(
+        context: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        ci: CallbackInfo,
+    ) {
+        val shouldSuppress = SkysoftErrorBoundary.value("Storage Overlay slot rendering", false) {
+            StorageOverlayController.isActive(this as AbstractContainerScreen<*>)
+        }
+        if (shouldSuppress) ci.cancel()
     }
 
     @Inject(method = ["extractContents"], at = [At("TAIL")])

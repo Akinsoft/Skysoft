@@ -44,7 +44,7 @@ object PlayerHeadSkinFix {
         }
 
         val profile = stack.get(DataComponents.PROFILE)
-        return if (isLoaded(profile)) {
+        return if (isProfileLoaded(profile)) {
             slotStacks[slot] = stack.copy()
             stack
         } else {
@@ -58,7 +58,7 @@ object PlayerHeadSkinFix {
         val owner = (state as FabricRenderState).getData(ownerKey) ?: return renderType
         val profile = state.wornHeadProfile
 
-        return if (isLoaded(profile)) {
+        return if (isProfileLoaded(profile)) {
             headRenderTypes[owner] = renderType
             renderType
         } else {
@@ -69,7 +69,7 @@ object PlayerHeadSkinFix {
     private val enabled: Boolean
         get() = SkysoftConfigGui.config().fixes.playerHeadSkinFix
 
-    private fun isLoaded(profile: ResolvableProfile?): Boolean =
+    fun isProfileLoaded(profile: ResolvableProfile?): Boolean =
         profile != null && hasTexture(profile) && isReady(profile)
 
     private fun hasTexture(profile: ResolvableProfile): Boolean =

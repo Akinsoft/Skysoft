@@ -39,6 +39,8 @@ internal fun resetScreenState() {
     lastInventoryKey = null
     redirectedOverviewScreenId = null
     focusedPageKey = null
+    StorageOverlayItemRenderer.reset()
+    resetModernScreenState()
     resetStorageSettingsPanel()
 }
 
@@ -53,6 +55,7 @@ internal fun resetTransientState() {
     editingTitleText = ""
     editingTitleSelected = false
     pendingOverviewShortcutClick = null
+    resetModernTransientState()
     resetStorageScroll()
     decodedStacks.clear()
     emptyOverviewStacks.clear()

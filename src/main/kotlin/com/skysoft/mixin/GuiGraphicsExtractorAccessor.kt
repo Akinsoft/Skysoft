@@ -8,6 +8,9 @@ import org.spongepowered.asm.mixin.gen.Accessor
 
 @Mixin(GuiGraphicsExtractor::class)
 interface GuiGraphicsExtractorAccessor {
+    @Accessor("guiRenderState")
+    fun skysoftGetGuiRenderState(): GuiRenderState
+
     @Mutable
     @Accessor("guiRenderState")
     fun skysoftSetGuiRenderState(renderState: GuiRenderState)
