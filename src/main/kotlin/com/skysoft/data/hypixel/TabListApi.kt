@@ -1,10 +1,10 @@
 package com.skysoft.data.hypixel
 
-import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.TabListFooter
+import com.skysoft.utils.TabListOverlay
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -20,6 +20,7 @@ object TabListApi {
 
     private var cachedLines: List<Component> = emptyList()
     private var cachedEntries: List<TabListEntry> = emptyList()
+    private var cachedHeader: Component? = null
     private var cachedFooter: Component? = null
     private var loaded = false
     private var skyBlockDataLoaded = false
@@ -45,6 +46,9 @@ object TabListApi {
     val entries: List<TabListEntry>
         get() = if (isLoaded) cachedEntries else emptyList()
 
+    val header: Component?
+        get() = if (isLoaded) cachedHeader else null
+
     val footer: Component?
         get() = if (isLoaded) cachedFooter else null
 
@@ -53,6 +57,9 @@ object TabListApi {
 
     val skyBlockLines: List<Component>
         get() = if (isSkyBlockDataLoaded) cachedLines else emptyList()
+
+    val skyBlockHeader: Component?
+        get() = if (isSkyBlockDataLoaded) cachedHeader else null
 
     val skyBlockFooter: Component?
         get() = if (isSkyBlockDataLoaded) cachedFooter else null
@@ -109,10 +116,13 @@ object TabListApi {
         }
 
         val nextLines = nextEntries.map { it.displayName }
-        val nextFooter = TabListFooter.read(Minecraft.getInstance())
-        if (nextLines != cachedLines || nextFooter != cachedFooter) contentVersion++
+        val minecraft = Minecraft.getInstance()
+        val nextHeader = TabListOverlay.readHeader(minecraft)
+        val nextFooter = TabListOverlay.readFooter(minecraft)
+        if (nextLines != cachedLines || nextHeader != cachedHeader || nextFooter != cachedFooter) contentVersion++
         cachedEntries = Collections.unmodifiableList(nextEntries)
         cachedLines = Collections.unmodifiableList(nextLines)
+        cachedHeader = nextHeader
         cachedFooter = nextFooter
         loaded = true
         updateSkyBlockDataLoadState(nextLines)
@@ -120,9 +130,10 @@ object TabListApi {
 
     private fun resetSession() {
         sessionId++
-        if (cachedLines.isNotEmpty()) contentVersion++
+        if (cachedLines.isNotEmpty() || cachedHeader != null || cachedFooter != null) contentVersion++
         cachedLines = emptyList()
         cachedEntries = emptyList()
+        cachedHeader = null
         cachedFooter = null
         loaded = false
         skyBlockDataLoaded = false
@@ -136,6 +147,7 @@ object TabListApi {
         contentVersion++
         cachedLines = emptyList()
         cachedEntries = emptyList()
+        cachedHeader = null
         cachedFooter = null
         loaded = false
         resetSkyBlockDataLoad()

@@ -48,6 +48,7 @@ import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.loot.RareLootSharing
 import com.skysoft.features.misc.DayDisplay
+import com.skysoft.features.misc.bettertab.BetterTab
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
 import com.skysoft.features.misc.ServerInfoDisplay
@@ -133,6 +134,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Chat History", ChatHistoryPersistence::register)
         registerFeature("Chat Tabs", ChatTabs::register)
         registerFeature("Action Bar Background", ActionBarBackground::register)
+        registerFeature("Better TAB", BetterTab::register)
         registerFeature("Day Display", DayDisplay::register)
         registerFeature("Real Time Display", RealTimeDisplay::register)
         registerFeature("Server TPS Provider", ServerTpsProvider::register)
