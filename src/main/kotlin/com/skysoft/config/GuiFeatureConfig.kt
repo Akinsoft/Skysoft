@@ -36,6 +36,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Better TAB", desc = "Compact the Hypixel SkyBlock tab list.")
+    val betterTab = BetterTabConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Day Display", desc = "Show the current Minecraft day.")
     val dayDisplay = DayDisplayConfig()
 
