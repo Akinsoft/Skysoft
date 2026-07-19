@@ -9,7 +9,9 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
-import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.gui.PixelControlColors
+import com.skysoft.utils.gui.PixelControlPanelRenderer
+import com.skysoft.utils.gui.PixelSliderRenderer
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
@@ -804,14 +806,7 @@ private object HeldItemEditorRenderer {
         mouseY: Int,
     ) {
         val bounds = layout.panelBounds()
-        OverlayPanelStyle.draw(context, bounds.x, bounds.y, bounds.width, bounds.height)
-        context.fill(
-            bounds.x + EditorPanel.BORDER,
-            bounds.y + EditorPanel.BORDER,
-            bounds.x + bounds.width - EditorPanel.BORDER,
-            bounds.y + EditorHeader.HEIGHT,
-            EditorColors.HEADER,
-        )
+        PixelControlPanelRenderer.draw(context, bounds, EditorHeader.HEIGHT)
         val item = state.previewItem()
         val itemName = if (item.isEmpty) Component.literal("Empty hand") else item.hoverName
         val hasItem = !item.isEmpty
@@ -1103,18 +1098,8 @@ private object HeldItemEditorRenderer {
         val track = layout.sliderTrackBounds(field)
         val value = field.value(state.displayTransform())
         val progress = ((value - field.min) / (field.max - field.min)).coerceIn(0f, 1f)
-        val fillWidth = (track.width * progress).roundToInt()
         context.text(font, field.label, row.x, row.y + EditorSliders.TEXT_Y, EditorColors.MUTED_TEXT, false)
-        context.fill(track.x, track.y, track.x + track.width, track.y + track.height, EditorColors.SLIDER_TRACK)
-        context.fill(track.x, track.y, track.x + fillWidth, track.y + track.height, EditorColors.ACCENT)
-        val knobX = (track.x + fillWidth).coerceIn(track.x, track.x + track.width)
-        context.fill(
-            knobX - EditorSliders.KNOB_HALF_WIDTH,
-            track.y - EditorSliders.KNOB_OVERHANG,
-            knobX + EditorSliders.KNOB_HALF_WIDTH,
-            track.y + track.height + EditorSliders.KNOB_OVERHANG,
-            if (row.contains(mouseX, mouseY)) EditorColors.WHITE_TEXT else EditorColors.SLIDER_KNOB,
-        )
+        PixelSliderRenderer.draw(context, track, progress, row.contains(mouseX, mouseY))
         val valueText = field.formattedValue(value)
         context.text(
             font,
@@ -1269,7 +1254,6 @@ private object EditorPanel {
     const val BASE_HEIGHT = 190
     const val MARGIN = 8
     const val INSET = 9
-    const val BORDER = 1
 }
 
 private object EditorHeader {
@@ -1306,8 +1290,6 @@ private object EditorSliders {
     const val TRACK_HEIGHT = 3
     const val LABEL_WIDTH = 42
     const val RESERVED_WIDTH = 84
-    const val KNOB_HALF_WIDTH = 2
-    const val KNOB_OVERHANG = 2
 }
 
 private object EditorAdvanced {
@@ -1372,12 +1354,8 @@ private object EditorAnimation {
 }
 
 private object EditorColors {
-    val HEADER = 0x801B2530.toInt()
-    val WHITE_TEXT = 0xFFFFFFFF.toInt()
-    val MUTED_TEXT = 0xFF9AA4AE.toInt()
+    val WHITE_TEXT = PixelControlColors.TEXT
+    val MUTED_TEXT = PixelControlColors.MUTED_TEXT
     val DISABLED_TEXT = 0xFF606870.toInt()
     val BUTTON_OUTLINE = 0x805A626A.toInt()
-    val SLIDER_TRACK = 0xFF30363B.toInt()
-    val SLIDER_KNOB = 0xFFB9C2CA.toInt()
-    val ACCENT = 0xFF45A3FF.toInt()
 }
