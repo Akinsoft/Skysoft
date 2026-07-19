@@ -10,13 +10,16 @@ import com.skysoft.features.chat.ChatMotionProfile
 import com.skysoft.features.chat.ChatMotionSettings
 import com.skysoft.features.chat.ChatNotifier
 import com.skysoft.features.chat.ChatPeek
+import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.ChatTimestamps
 import com.skysoft.features.chat.PreparedChatMessage
 import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.SkysoftErrorBoundary
+import java.util.function.Predicate
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.ChatComponent
+import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.client.multiplayer.chat.GuiMessageSource
 import net.minecraft.client.multiplayer.chat.GuiMessageTag
 import net.minecraft.network.chat.Component
@@ -39,6 +42,9 @@ abstract class ChatComponentMixin {
 
     @field:Unique
     private val skysoftMessageArrival = AnimationClock()
+
+    @field:Unique
+    private var skysoftAddedMessageIsVisible = true
 
     @field:Unique
     private var skysoftPendingCompaction: PreparedChatMessage? = null
@@ -105,7 +111,31 @@ abstract class ChatComponentMixin {
         }
     }
 
-    @Inject(
+    @WrapOperation(
+        method = [
+            "addMessage(Lnet/minecraft/network/chat/Component;" +
+                "Lnet/minecraft/network/chat/MessageSignature;" +
+                "Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;" +
+                "Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
+        ],
+        at = [
+            At(
+                value = "INVOKE",
+                target = "Ljava/util/function/Predicate;test(Ljava/lang/Object;)Z",
+            ),
+        ],
+    )
+    protected fun skysoftIsTabMessageStorageAllowed(
+        predicate: Predicate<GuiMessage>,
+        message: Any,
+        original: Operation<Boolean>,
+    ): Boolean {
+        val isVisible = original.call(predicate, message)
+        skysoftAddedMessageIsVisible = isVisible
+        return isVisible || ChatTabs.isFilterApplied()
+    }
+
+    @WrapOperation(
         method = [
             "addMessage(Lnet/minecraft/network/chat/Component;" +
                 "Lnet/minecraft/network/chat/MessageSignature;" +
@@ -120,14 +150,14 @@ abstract class ChatComponentMixin {
             ),
         ],
     )
-    protected fun skysoftRecordVisibleMessageTime(
-        contents: Component,
-        signature: MessageSignature?,
-        source: GuiMessageSource,
-        tag: GuiMessageTag?,
-        ci: CallbackInfo,
+    protected fun skysoftAddVisibleMessageToDisplayQueue(
+        chat: ChatComponent,
+        message: GuiMessage,
+        original: Operation<Void>,
     ) {
+        if (!skysoftAddedMessageIsVisible) return
         SkysoftErrorBoundary.run("Chat message motion", skysoftMessageArrival::restart)
+        original.call(chat, message)
     }
 
     @Inject(
