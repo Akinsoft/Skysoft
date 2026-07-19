@@ -56,17 +56,16 @@ internal fun ensureUnloadedPage(pageIndex: Int): ChangeResult {
 internal fun isEnderChestPage(pageIndex: Int): Boolean =
     pageIndex in 0 until ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES
 
-internal fun defaultPageTitle(pageIndex: Int): String =
-    ToolkitType.fromPageIndex(pageIndex)?.title ?: if (
-        pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES
-    ) {
-        "Ender Chest #${pageIndex + 1}"
-    } else {
-        "Backpack #${pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1}"
-    }
+internal fun fixedPageTitle(pageIndex: Int): String? = ToolkitType.fromPageIndex(pageIndex)?.title
+
+internal fun defaultPageTitle(pageIndex: Int): String = fixedPageTitle(pageIndex) ?: when {
+    isRiftStoragePage(pageIndex) -> "Rift Storage #${riftStoragePageNumber(pageIndex) + 1}"
+    pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES -> "Ender Chest #${pageIndex + 1}"
+    else -> "Backpack #${pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1}"
+}
 
 internal fun ensurePageTitle(page: ProfileStorage.SkyBlockStoragePageData, pageIndex: Int): ChangeResult {
-    val title = ToolkitType.fromPageIndex(pageIndex)?.title
+    val title = fixedPageTitle(pageIndex)
         ?: page.title.takeIf { it.isNotBlank() }
         ?: defaultPageTitle(pageIndex)
     if (page.title == title) return ChangeResult.UNCHANGED

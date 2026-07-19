@@ -77,6 +77,14 @@ internal object StorageSelector {
     const val TEXT_Y_OFFSET = 4
 }
 
+internal object RiftStorage {
+    const val FIRST_PAGE_INDEX = ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT
+    const val LAST_PAGE_INDEX = FIRST_PAGE_INDEX + ProfileStorage.SKYBLOCK_RIFT_STORAGE_PAGE_COUNT - 1
+    const val SLOT_OFFSET = StoragePages.COLUMNS
+    const val PREVIOUS_PAGE_SLOT = 6
+    const val NEXT_PAGE_SLOT = 7
+}
+
 internal object StorageToolkit {
     const val FARMING_PAGE_INDEX = -1
     const val HUNTING_PAGE_INDEX = -2

@@ -2,10 +2,13 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.gui.scale.InventoryCursorMemory
+import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.gui.nonPlayerSlots
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
 
 internal fun rememberActivePage(handle: StorageHandle) {
@@ -95,7 +98,12 @@ internal fun focusActivePageIfNeeded(
 }
 
 internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int, mouseX: Int, mouseY: Int): Boolean {
-    val sent = trySendPageCommand(pageIndex) { saveCursorBeforeNavigation(screen, mouseX, mouseY) }
+    val saveCursor = { saveCursorBeforeNavigation(screen, mouseX, mouseY) }
+    val sent = if (isRiftStoragePage(pageIndex)) {
+        clickRiftStorageNavigation(screen, pageIndex, saveCursor) == RiftNavigationResult.CLICKED
+    } else {
+        trySendPageCommand(pageIndex, saveCursor)
+    }
     if (sent) {
         preservedScrollPageIndex = null
         requestPageFocus(pageIndex)
@@ -110,6 +118,40 @@ internal fun tryNavigateToRememberedPage(screen: AbstractContainerScreen<*>, pag
         clearPageFocusRequest()
     }
     return sent
+}
+
+internal enum class RiftNavigationResult {
+    CLICKED,
+    UNAVAILABLE,
+}
+
+internal fun clickRiftStorageNavigation(
+    screen: AbstractContainerScreen<*>,
+    pageIndex: Int,
+    saveCursor: () -> Unit,
+): RiftNavigationResult {
+    val current = handleFor(screen) as? StorageHandle.Rift ?: return RiftNavigationResult.UNAVAILABLE
+    val currentPageNumber = riftStoragePageNumber(current.pageIndex)
+    val targetPageNumber = riftStoragePageNumber(pageIndex)
+    val navigationSlot = when (targetPageNumber - currentPageNumber) {
+        -1 -> RiftStorage.PREVIOUS_PAGE_SLOT
+        1 -> RiftStorage.NEXT_PAGE_SLOT
+        else -> return RiftNavigationResult.UNAVAILABLE
+    }
+    val slot = screen.nonPlayerSlots().firstOrNull { it.containerSlot == navigationSlot && it.hasItem() }
+        ?: return RiftNavigationResult.UNAVAILABLE
+    freezeStorageScroll()
+    saveCursor()
+    val carried = screen.menu.carried.copy()
+    (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
+        slot,
+        slot.index,
+        GLFW.GLFW_MOUSE_BUTTON_LEFT,
+        ContainerInput.PICKUP,
+    )
+    screen.menu.setCarried(carried)
+    screen.skysoftSetSkipNextRelease(true)
+    return RiftNavigationResult.CLICKED
 }
 
 internal fun trySendPageCommand(pageIndex: Int, saveCursor: () -> Unit): Boolean {

@@ -65,7 +65,7 @@ internal fun storageOverlayLayoutScreen(
     redirectToRememberedPage(screen, handle)
     advanceStorageScroll()
 
-    val measurements = measurements(screen.width, screen.height)
+    val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
     val activePage = handle.entryIndex()
     var pageLayoutResult = pageLayouts(measurements, activePage)
     if (focusActivePageIfNeeded(activePage, measurements, pageLayoutResult) == PageLayoutRefresh.REQUIRED) {
@@ -142,7 +142,7 @@ internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtracto
     drawScrollBar(context, measurements, pageLayoutResult.contentHeight)
     drawSearchBox(context, measurements)
     drawPlayerInventoryPanel(context, screen, measurements, contentMouseX, contentMouseY)
-    if (config.settings.miniMenu) {
+    if (measurements.isSelectorVisible) {
         drawStorageSelectorPanel(context, measurements, activePage, contentMouseX, contentMouseY)
     }
     drawStorageSettingsPanel(context, screen.width, screen.height, measurements, mouseX, mouseY)
@@ -222,10 +222,11 @@ internal fun handleStorageOverlayMouseClick(
                 handlePageAreaClick(screen, click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY)
             }
         }
-        config.settings.miniMenu &&
+        measurements.isSelectorVisible &&
             handleSelectorPageClick(screen, handle, click, measurements, pageLayoutResult, activePage, mouseX, mouseY) ==
             InputHandlingResult.CONSUMED -> InputHandlingResult.CONSUMED
-        config.settings.miniMenu && measurements.selectorBounds.contains(mouseX, mouseY) -> InputHandlingResult.CONSUMED
+        measurements.isSelectorVisible && measurements.selectorBounds.contains(mouseX, mouseY) ->
+            InputHandlingResult.CONSUMED
         measurements.playerBounds.contains(mouseX, mouseY) -> InputHandlingResult.IGNORED
         else -> {
             storageSearchField.focused = false
@@ -253,7 +254,8 @@ internal fun handleSelectorPageClick(
     mouseX: Int,
     mouseY: Int,
 ): InputHandlingResult {
-    val pageIndex = selectorPageAt(measurements, mouseX, mouseY) ?: return InputHandlingResult.IGNORED
+    val pageIndex = selectorPageAt(measurements, activePage, mouseX, mouseY)
+        ?: return InputHandlingResult.IGNORED
     if (
         handle == StorageHandle.Overview &&
         routeOverviewShortcutClick(screen, click.button(), pageIndex) == InputHandlingResult.CONSUMED
@@ -377,10 +379,10 @@ internal fun isStorageOverlayClickInside(
     mouseX: Double,
     mouseY: Double,
 ): Boolean {
-    if (!storageOverlayIsActive(screen)) return false
-    val measurements = measurements(screen.width, screen.height)
+    val handle = handleFor(screen) ?: return false
+    val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
     return measurements.totalBounds.contains(mouseX.toInt(), mouseY.toInt()) ||
         measurements.playerBounds.contains(mouseX.toInt(), mouseY.toInt()) ||
-        (config.settings.miniMenu && measurements.selectorBounds.contains(mouseX.toInt(), mouseY.toInt())) ||
+        (measurements.isSelectorVisible && measurements.selectorBounds.contains(mouseX.toInt(), mouseY.toInt())) ||
         storageSettingsContains(screen.width, screen.height, measurements, mouseX.toInt(), mouseY.toInt())
 }

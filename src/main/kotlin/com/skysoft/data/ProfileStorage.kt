@@ -131,6 +131,7 @@ data class ProfileStorage(
         @Expose var beastmasterPetXpMultiplier: Double? = null,
         @Expose val accessories: MutableMap<String, AccessoryData> = mutableMapOf(),
         @Expose val skyBlockStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
+        @Expose val skyBlockRiftStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
         @Expose val skyBlockToolkits: MutableMap<String, SkyBlockStoragePageData> = mutableMapOf(),
         @Expose var skyBlockToolkitIcon: String = "",
         @Expose val inventoryEquipment: MutableList<SkyBlockStorageItemData> = mutableListOf(),
@@ -150,6 +151,9 @@ data class ProfileStorage(
             }
             skyBlockStoragePages.entries.removeIf { (page, data) ->
                 page !in 0 until SKYBLOCK_STORAGE_PAGE_COUNT || !data.isUsable()
+            }
+            skyBlockRiftStoragePages.entries.removeIf { (page, data) ->
+                page !in 0 until SKYBLOCK_RIFT_STORAGE_PAGE_COUNT || !data.isUsable()
             }
             skyBlockToolkits.entries.removeIf { (toolkit, data) ->
                 toolkit !in SKYBLOCK_TOOLKIT_KEYS || !data.isUsable()
@@ -429,6 +433,7 @@ data class ProfileStorage(
         const val SKYBLOCK_STORAGE_BACKPACK_PAGES = 18
         const val SKYBLOCK_STORAGE_PAGE_COUNT = SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + SKYBLOCK_STORAGE_BACKPACK_PAGES
         const val SKYBLOCK_STORAGE_PAGE_MAX_ROWS = 5
+        const val SKYBLOCK_RIFT_STORAGE_PAGE_COUNT = 2
         const val SKYBLOCK_CONTAINER_MAX_ROWS = 6
         const val SLOTS_PER_STORAGE_ROW = 9
         const val SKYBLOCK_STORAGE_MAX_ROWS = SKYBLOCK_CONTAINER_MAX_ROWS
