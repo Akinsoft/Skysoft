@@ -34,8 +34,19 @@ object ScreenshotManager {
         if (!config().enabled) return callback
         SoundUtilities.playScreenshotShutterSound()
         return Consumer { message ->
-            capturePath(message)?.let(ScreenshotCapturePreview::present)
+            capturePath(message)?.let(::processCapturedScreenshot)
             callback.accept(replacementCaptureMessage(message))
+        }
+    }
+
+    private fun processCapturedScreenshot(path: Path) {
+        ScreenshotCapturePreview.present(path)
+        if (!config().settings.isClipboardCopyEnabled) return
+        ScreenshotClipboard.copyAsync(path).whenComplete { _, failure ->
+            if (failure == null) return@whenComplete
+            Minecraft.getInstance().execute {
+                SkysoftChat.error("Couldn't copy screenshot to clipboard.")
+            }
         }
     }
 
