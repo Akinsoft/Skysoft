@@ -10,6 +10,7 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.RarityHighlightDetailsConfig
 import com.skysoft.config.RarityHighlightType
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.render.SkysoftDrawMode
 import com.skysoft.utils.render.SkysoftPipelineBuilder
@@ -26,15 +27,12 @@ import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
 import net.minecraft.client.renderer.state.gui.GuiRenderState
-import net.minecraft.core.component.DataComponents
-import net.minecraft.resources.Identifier
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
 object RarityHighlightRenderer {
     private val config get() = SkysoftConfigGui.config().inventory.rarityHighlight
     private val contourColors = IdentityHashMap<GuiItemRenderState, Int>()
-    private val rarityByHash = mutableMapOf<Int, MutableList<CachedRarity>>()
     private var pendingContourColor: Int? = null
 
     @JvmStatic
@@ -111,17 +109,7 @@ object RarityHighlightRenderer {
         renderState.addGlyphToCurrentLayer(RarityContourRenderState(itemState, slotView, color))
     }
 
-    internal fun rarity(stack: ItemStack): SkyBlockRarity? {
-        if (stack.isEmpty) return null
-        val hash = ItemStack.hashItemAndComponents(stack)
-        rarityByHash[hash]?.firstOrNull { ItemStack.isSameItemSameComponents(it.stack, stack) }?.let {
-            return it.rarity
-        }
-        if (rarityByHash.size >= MAX_CACHED_ITEM_HASHES) rarityByHash.clear()
-        return rarityFromTooltipStyle(stack.get(DataComponents.TOOLTIP_STYLE)).also { rarity ->
-            rarityByHash.getOrPut(hash) { mutableListOf() } += CachedRarity(stack.copyWithCount(1), rarity)
-        }
-    }
+    internal fun rarity(stack: ItemStack): SkyBlockRarity? = SkyBlockItemRarity.from(stack)
 
     private fun rarityColor(rarity: SkyBlockRarity, opacity: Int): Int {
         val clampedOpacity = opacity.coerceIn(
@@ -132,23 +120,13 @@ object RarityHighlightRenderer {
         return alpha shl ALPHA_SHIFT or (rarity.color.rgb and RGB_MASK)
     }
 
-    private data class CachedRarity(val stack: ItemStack, val rarity: SkyBlockRarity?)
-
     private const val SLOT_SIZE = 16
     private const val ROUND_RADIUS = 7
-    private const val MAX_CACHED_ITEM_HASHES = 512
     private const val MAX_ALPHA = 255
     private const val HALF_PERCENT = 50
     private const val ALPHA_SHIFT = 24
     private const val RGB_MASK = 0xFFFFFF
 }
-
-internal fun rarityFromTooltipStyle(style: Identifier?): SkyBlockRarity? {
-    if (style?.namespace != SKYBLOCK_TOOLTIP_NAMESPACE) return null
-    return SkyBlockRarity.getByName(style.path)
-}
-
-private const val SKYBLOCK_TOOLTIP_NAMESPACE = "hypixel_skyblock"
 
 private class RarityContourRenderState(
     private val itemState: GuiItemRenderState,

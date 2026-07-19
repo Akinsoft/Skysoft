@@ -163,6 +163,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
         inventory.repairLoadedValues()
         chat.repairLoadedValues()
         events.repairLoadedValues()
+        misc.repairLoadedValues()
         ProfileStorageApi.allStorage.repairLoadedValues()
         pets.repairLoadedValues()
     }
