@@ -112,9 +112,15 @@ abstract class ChatComponentMixin {
                 "Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;" +
                 "Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
         ],
-        at = [At("TAIL")],
+        at = [
+            At(
+                value = "INVOKE",
+                target = "Lnet/minecraft/client/gui/components/ChatComponent;" +
+                    "addMessageToDisplayQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V",
+            ),
+        ],
     )
-    protected fun skysoftRecordMessageTime(
+    protected fun skysoftRecordVisibleMessageTime(
         contents: Component,
         signature: MessageSignature?,
         source: GuiMessageSource,
