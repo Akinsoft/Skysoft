@@ -35,6 +35,7 @@ object SlayerBossAlerts {
                         BOSS_COCOON_SOUND_ID,
                         BOSS_COCOON_SOUND_PITCH,
                         BOSS_COCOON_SOUND_VOLUME,
+                        ALERT_SOUND_REPEAT_INTERVAL_MILLIS,
                     ),
                 )
             }
@@ -62,6 +63,7 @@ object SlayerBossAlerts {
                     BOSS_SPAWN_SOUND_ID,
                     BOSS_SPAWN_SOUND_PITCH,
                     BOSS_SPAWN_SOUND_VOLUME,
+                    BOSS_SPAWN_SOUND_REPEAT_INTERVAL_MILLIS,
                 ),
             )
         }
@@ -81,14 +83,20 @@ object SlayerBossAlerts {
         )
     }
 
-    private fun alertSound(enabled: Boolean, soundId: String, pitch: Float, volume: Float): ScreenAlertSound? =
+    private fun alertSound(
+        enabled: Boolean,
+        soundId: String,
+        pitch: Float,
+        volume: Float,
+        repeatIntervalMillis: Long,
+    ): ScreenAlertSound? =
         if (enabled) {
             ScreenAlertSound(
                 event = SoundEvent.createVariableRangeEvent(Identifier.parse(soundId)),
                 pitch = pitch,
                 volume = volume,
                 plays = ALERT_SOUND_PLAYS,
-                repeatIntervalMillis = ALERT_SOUND_REPEAT_INTERVAL_MILLIS,
+                repeatIntervalMillis = repeatIntervalMillis,
             )
         } else {
             null
@@ -109,17 +117,18 @@ object SlayerBossAlerts {
 
     private const val ALERT_ID = "slayer_boss_alert"
     private const val ALERT_DURATION_MILLIS = 2_500L
-    private const val ALERT_SOUND_PLAYS = 3
+    private const val ALERT_SOUND_PLAYS = 4
     private const val ALERT_SOUND_REPEAT_INTERVAL_MILLIS = 450L
     private const val TITLE_SCALE = 2.7f
     private const val BOSS_SPAWNED_TITLE = "Boss Spawned!"
     private const val BOSS_COCOONED_TITLE = "Boss Cocooned!"
-    private const val BOSS_SPAWN_SOUND_ID = "skysoft:slayer.boss_spawn"
+    private const val BOSS_SPAWN_SOUND_ID = "minecraft:block.note_block.pling"
     private const val BOSS_SPAWN_SOUND_PITCH = 1.0f
-    private const val BOSS_SPAWN_SOUND_VOLUME = 1.0f
+    private const val BOSS_SPAWN_SOUND_VOLUME = 0.8f
+    private const val BOSS_SPAWN_SOUND_REPEAT_INTERVAL_MILLIS = 225L
     private const val BOSS_COCOON_SOUND_ID = "minecraft:entity.horse.saddle"
     private const val BOSS_COCOON_SOUND_PITCH = 1.0f
-    private const val BOSS_COCOON_SOUND_VOLUME = 1.0f
+    private const val BOSS_COCOON_SOUND_VOLUME = 1.75f
 }
 
 internal fun didSlayerBossSpawn(wasBossActive: Boolean?, bossActive: Boolean): Boolean =
