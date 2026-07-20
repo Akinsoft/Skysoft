@@ -142,6 +142,7 @@ data class ProfileStorage(
         @Expose val protectedItemUuids: MutableList<UUID> = mutableListOf(),
         @Expose val inventoryItemCounts: MutableMap<String, Int> = mutableMapOf(),
         @Expose val sackContents: MutableMap<String, SackItemData> = mutableMapOf(),
+        @Expose val profitTracker: ProfitTrackerData = ProfitTrackerData(),
         @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
         @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
         @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
@@ -169,6 +170,7 @@ data class ProfileStorage(
             inventoryItemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0 }
             sackContents.keys.removeIf(String::isBlank)
             sackContents.values.forEach(SackItemData::repairLoadedValues)
+            profitTracker.repairLoadedValues()
             bazaarTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
@@ -187,6 +189,49 @@ data class ProfileStorage(
             val repaired = slotLocks.filter { it in PLAYER_INVENTORY_SLOT_RANGE }.distinct().sorted()
             slotLocks.clear()
             slotLocks.addAll(repaired)
+        }
+    }
+
+    data class ProfitTrackerData(
+        @Expose val totals: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
+        @Expose var todayEpochDay: Long = 0L,
+        @Expose val today: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
+        @Expose val displayPeriods: MutableMap<String, String> = mutableMapOf(),
+        @Expose var lastSlayerType: String = "",
+    ) {
+        fun repairLoadedValues() {
+            totals.keys.removeIf(String::isBlank)
+            today.keys.removeIf(String::isBlank)
+            displayPeriods.entries.removeIf { (preset, period) ->
+                preset.isBlank() || period !in PROFIT_TRACKER_PERIODS
+            }
+            totals.values.forEach(ProfitTrackerStats::repairLoadedValues)
+            today.values.forEach(ProfitTrackerStats::repairLoadedValues)
+            if (todayEpochDay < 0L) todayEpochDay = 0L
+        }
+    }
+
+    data class ProfitTrackerStats(
+        @Expose val itemCounts: MutableMap<String, Long> = mutableMapOf(),
+        @Expose val costs: MutableMap<String, Long> = mutableMapOf(),
+        @Expose var mobKillCoins: Double = 0.0,
+        @Expose var activeMillis: Long = 0L,
+        @Expose var bosses: Long = 0L,
+    ) {
+        fun repairLoadedValues() {
+            itemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0L }
+            costs.entries.removeIf { (currency, amount) -> currency.isBlank() || amount <= 0L }
+            if (!mobKillCoins.isFinite() || mobKillCoins < 0.0) mobKillCoins = 0.0
+            if (activeMillis < 0L) activeMillis = 0L
+            if (bosses < 0L) bosses = 0L
+        }
+
+        fun clear() {
+            itemCounts.clear()
+            costs.clear()
+            mobKillCoins = 0.0
+            activeMillis = 0L
+            bosses = 0L
         }
     }
 
@@ -460,6 +505,8 @@ data class ProfileStorage(
         val SKYBLOCK_TOOLKIT_KEYS = setOf("farming", "hunting")
     }
 }
+
+private val PROFIT_TRACKER_PERIODS = setOf("SESSION", "TODAY", "TOTAL")
 
 private fun repairPetReferences(
     pets: MutableList<StoredPetData>,

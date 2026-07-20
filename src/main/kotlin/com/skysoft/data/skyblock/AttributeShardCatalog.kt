@@ -37,14 +37,15 @@ import kotlin.time.Duration.Companion.seconds
 object AttributeShardCatalog {
     private val storage get() = ProfileStorageApi.storage.attributeShards
     private var wasActive = false
+    private var gainListeners: List<GainListener> = emptyList()
 
     fun register() {
-        ProfileStorageApi.registerConsumer("Attribute Shard Catalog", PetFeatureDemand::isActive)
+        ProfileStorageApi.registerConsumer("Attribute Shard Catalog", ::isActive)
         SkysoftClientEvents.onEndTick(
             "Attribute Shard loading",
-            isActive = { PetFeatureDemand.isActive() || wasActive },
+            isActive = { isActive() || wasActive },
         ) {
-            if (!PetFeatureDemand.isActive()) {
+            if (!isActive()) {
                 if (wasActive) AttributeShardConstants.cancelAll()
                 wasActive = false
                 return@onEndTick
@@ -52,9 +53,10 @@ object AttributeShardCatalog {
             wasActive = true
             AttributeShardConstants.ensureLoaded()
         }
+        AttributeShardTransfers.register()
         ChatEvents.onVisibleMessage(
             "Attribute Shard chat",
-            isActive = PetFeatureDemand::isActive,
+            isActive = ::isActive,
         ) { message ->
             handleIncomingMessage(message.component)
             ChatMessageVisibility.SHOW
@@ -62,6 +64,10 @@ object AttributeShardCatalog {
         SkysoftClientEvents.onClientStopping("Attribute Shard request cancellation") {
             AttributeShardConstants.cancelAll()
         }
+    }
+
+    fun onGain(boundary: String, isActive: () -> Boolean, listener: (SkyBlockAttributeShardGain) -> Unit) {
+        gainListeners += GainListener(boundary, isActive, listener)
     }
 
     fun readOpenInventory(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
@@ -74,6 +80,8 @@ object AttributeShardCatalog {
             inventoryName == "Hunting Box" -> processHuntingBoxItems(inventoryItems.values)
         }
     }
+
+    fun bazaarProductAliases(): Map<String, String> = AttributeShardConstants.bazaarProductAliases()
 
     fun getActiveLevelByAbilityName(abilityName: String): Int {
         if (!AttributeShardConstants.ensureLoaded()) return 0
@@ -235,20 +243,22 @@ object AttributeShardCatalog {
     }
 
     private fun handleShardAmountMessage(message: String) {
-        caughtShardsPattern.matchEntire(message)?.let { match ->
-            updateAmountInBoxDeltaByDisplayName(match.group("shardName"), match.groupOrNull("amount")?.toInt() ?: 1)
+        parseAttributeShardGain(message)?.let { gain ->
+            val internalName = AttributeShardConstants.internalNameByDisplayName(gain.displayName) ?: return
+            updateAmountInBoxDelta(internalName, gain.amount)
+            gainListeners.forEach { registered ->
+                if (registered.isActive()) {
+                    SkysoftErrorBoundary.run(registered.boundary) {
+                        registered.listener(SkyBlockAttributeShardGain(internalName, gain.amount))
+                    }
+                }
+            }
             return
         }
-        lootShareShardPattern.matchEntire(message)?.let { match ->
-            updateAmountInBoxDeltaByDisplayName(match.group("shardName"), match.groupOrNull("amount")?.toInt() ?: 1)
-            return
-        }
-        charmedShardPattern.matchEntire(message)?.let { match ->
-            updateAmountInBoxDeltaByDisplayName(match.group("shardName"), match.groupOrNull("amount")?.toInt() ?: 1)
-            return
-        }
-        sentToHuntingBoxPattern.matchEntire(message)?.let { match ->
-            updateAmountInBoxDeltaByDisplayName(match.group("shardName"), match.groupOrNull("amount")?.toInt() ?: 1)
+        parseHuntingBoxDeposit(message)?.let { deposit ->
+            val internalName = AttributeShardConstants.internalNameByDisplayName(deposit.displayName) ?: return
+            updateAmountInBoxDelta(internalName, deposit.amount)
+            AttributeShardTransfers.recordDeposit(internalName, deposit.amount)
             return
         }
         fusionShardPattern.matchEntire(message)?.let { match ->
@@ -269,7 +279,49 @@ object AttributeShardCatalog {
         }
     }
 
+    private fun isActive(): Boolean =
+        PetFeatureDemand.isActive() || gainListeners.any { it.isActive() } || AttributeShardTransfers.hasActiveListeners()
+
+    private data class GainListener(
+        val boundary: String,
+        val isActive: () -> Boolean,
+        val listener: (SkyBlockAttributeShardGain) -> Unit,
+    )
+
     private const val SHARD_BOX_BOOTSTRAP_LIMIT = 30
+}
+
+data class SkyBlockAttributeShardGain(
+    val itemId: String,
+    val amount: Int,
+)
+
+internal data class ParsedAttributeShardGain(
+    val displayName: String,
+    val amount: Int,
+)
+
+internal data class ParsedHuntingBoxDeposit(
+    val displayName: String,
+    val amount: Int,
+)
+
+internal fun parseHuntingBoxDeposit(message: String): ParsedHuntingBoxDeposit? {
+    val match = sentToHuntingBoxPattern.matchEntire(message) ?: return null
+    return ParsedHuntingBoxDeposit(
+        displayName = match.group("shardName"),
+        amount = match.groupOrNull("amount")?.toInt() ?: 1,
+    )
+}
+
+internal fun parseAttributeShardGain(message: String): ParsedAttributeShardGain? {
+    val match = sequenceOf(caughtShardsPattern, lootShareShardPattern, charmedShardPattern)
+        .firstNotNullOfOrNull { pattern -> pattern.matchEntire(message) }
+        ?: return null
+    return ParsedAttributeShardGain(
+        displayName = match.group("shardName"),
+        amount = match.groupOrNull("amount")?.toInt() ?: 1,
+    )
 }
 
 private const val ADVANCED_MODE_SLOT = 52
@@ -372,6 +424,8 @@ private object AttributeShardConstants {
     }
 
     fun shardNameByInternalName(internalName: String): String? = internalNameToShard[internalName]
+
+    fun bazaarProductAliases(): Map<String, String> = internalNameToShard
 
     fun isConsumable(shardName: String): Boolean = shardName !in unconsumableAttributes
 
@@ -478,7 +532,7 @@ private object AttributeShardConstants {
     }
 }
 
-private object AttributeShardItemResolver {
+internal object AttributeShardItemResolver {
     fun internalNameOrNull(item: ItemStack, inventoryName: String?): String? {
         if (isAttributeShardInventoryName(inventoryName)) {
             resolveContextualShardInternalName(item, inventoryName)?.let { return it }

@@ -7,6 +7,7 @@ import com.skysoft.config.PriceTooltipLine
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.utils.net.PendingHttpRequests
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
@@ -148,7 +149,7 @@ object SkyBlockPriceData {
         }
     }
 
-    fun getBazaarPrice(itemId: String): BazaarPriceData? = bazaar.products[itemId]?.let {
+    fun getBazaarPrice(itemId: String): BazaarPriceData? = bazaar.products[bazaarProductId(itemId)]?.let {
         BazaarPriceData(
             instantBuyPrice = it.instantBuyPrice,
             instantSellPrice = it.instantSellPrice,
@@ -157,14 +158,14 @@ object SkyBlockPriceData {
         )
     }
 
-    fun getBazaarProduct(itemId: String): SkysoftBazaarProduct? = bazaar.products[itemId]
+    fun getBazaarProduct(itemId: String): SkysoftBazaarProduct? = bazaar.products[bazaarProductId(itemId)]
 
     fun getBazaarUpdatedAtMillis(): Long = bazaar.updatedAtMillis
 
     fun bazaarAvailability(itemId: String): BazaarProductAvailability = bazaarProductAvailability(
         bazaarStatus.state,
         bazaar.products.keys,
-        itemId,
+        bazaarProductId(itemId),
     )
 
     fun setItemListMarketInterest(isActive: Boolean) {
@@ -215,21 +216,21 @@ object SkyBlockPriceData {
         productIds: Collection<String>,
         sinceMillis: Long,
     ): CompletableFuture<Map<String, SkysoftBazaarDepthProduct>>? {
-        val ids = productIds
+        val requestedIds = productIds
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
             .take(BAZAAR_DEPTH_PRODUCT_LIMIT)
-        if (ids.isEmpty() || !fetchingBazaarDepth.compareAndSet(false, true)) return null
-
-        val products = ids.joinToString(",") { URLEncoder.encode(it, StandardCharsets.UTF_8) }
+        if (requestedIds.isEmpty() || !fetchingBazaarDepth.compareAndSet(false, true)) return null
+        val requestedIdByProductId = requestedIds.associateBy(::bazaarProductId)
+        val products = requestedIdByProductId.keys.joinToString(",") { URLEncoder.encode(it, StandardCharsets.UTF_8) }
         return directRequests.getString("$BAZAAR_DEPTH_URL?products=$products&since=${sinceMillis.coerceAtLeast(0L)}")
             .thenApply { gson.fromJson(it, SkysoftBazaarDepthResponse::class.java) }
             .thenApply { response ->
                 if (!response.success) {
                     throw IllegalStateException("Skysoft bazaar depth response failed: ${response.cause}")
                 }
-                response.products
+                response.products.mapKeys { (productId, _) -> requestedIdByProductId[productId] ?: productId }
             }
             .whenComplete { _, error ->
                 SkysoftErrorBoundary.run("Bazaar depth async completion") {
@@ -394,25 +395,42 @@ object SkyBlockPriceData {
         bazaarConsumers.register("Bazaar Tracker") {
             SkysoftConfigGui.config().inventory.bazaar.enabled && hasCurrentBazaarTrackerOrders()
         }
+        bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTracker.enabled }
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Sharing", ::isRareLootSharingActive)
+        lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTracker.enabled }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
         }
+        npcSellPriceConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTracker.enabled }
     }
 
     private fun updateRawCraftMarketSnapshot() {
         synchronized(rawCraftMarketSnapshotLock) {
             rawCraftMarketSnapshot = RawCraftMarketSnapshot(
                 version = rawCraftMarketSnapshotVersion.incrementAndGet(),
-                bazaarProducts = bazaar.products,
+                bazaarProducts = bazaarProductsWithAliases(
+                    bazaar.products,
+                    AttributeShardCatalog.bazaarProductAliases(),
+                ),
                 lowestBins = lowestBins,
             )
         }
     }
 
     private const val BAZAAR_DEPTH_PRODUCT_LIMIT = 50
+}
+
+private fun bazaarProductId(itemId: String): String =
+    AttributeShardCatalog.bazaarProductAliases()[itemId] ?: itemId
+
+internal fun bazaarProductsWithAliases(
+    products: Map<String, SkysoftBazaarProduct>,
+    aliases: Map<String, String>,
+): Map<String, SkysoftBazaarProduct> = buildMap {
+    putAll(products)
+    aliases.forEach { (itemId, productId) -> products[productId]?.let { product -> put(itemId, product) } }
 }
 
 private fun arePriceTooltipLinesActive(predicate: (PriceTooltipLine) -> Boolean): Boolean {

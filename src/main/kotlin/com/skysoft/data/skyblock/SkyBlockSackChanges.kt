@@ -22,7 +22,10 @@ object SkyBlockSackChanges {
                 val hoverTexts = message.component.hoverTextComponents().map { hover -> hover.string }.distinct()
                 val changes = parseSackChanges(hoverTexts)
                 val incomplete = hoverTexts.any { hover -> OTHER_ITEMS_TEXT in hover }
-                if (changes.isNotEmpty() || incomplete) dispatch(SkyBlockSackChangeBatch(changes, incomplete))
+                val windowSeconds = parseSackWindowSeconds(message.cleanText)
+                if (changes.isNotEmpty() || incomplete) {
+                    dispatch(SkyBlockSackChangeBatch(changes, incomplete, windowSeconds))
+                }
             }
             if (config.hideSacksMessages) ChatMessageVisibility.HIDE else ChatMessageVisibility.SHOW
         }
@@ -57,6 +60,7 @@ object SkyBlockSackChanges {
 data class SkyBlockSackChangeBatch(
     val changes: List<SkyBlockSackChange>,
     val incomplete: Boolean = false,
+    val windowSeconds: Int? = null,
 )
 
 data class SkyBlockSackChange(
@@ -64,6 +68,12 @@ data class SkyBlockSackChange(
     val amount: Int,
     val sacks: List<String>,
 )
+
+internal fun parseSackWindowSeconds(message: String): Int? = SACK_WINDOW_PATTERN.find(message)
+    ?.groups
+    ?.get("seconds")
+    ?.value
+    ?.toIntOrNull()
 
 internal fun parseSackChanges(hoverTexts: Iterable<String>): List<SkyBlockSackChange> =
     hoverTexts.distinct().flatMap { hoverText ->
@@ -85,3 +95,4 @@ private const val ADDED_ITEMS_HEADER = "Added items:"
 private const val REMOVED_ITEMS_HEADER = "Removed items:"
 private const val OTHER_ITEMS_TEXT = "other items"
 private val SACK_CHANGE_PATTERN = Regex("^\\s*(?<amount>[+-][\\d,]+) (?<item>.+) \\((?<sacks>.+)\\)$")
+private val SACK_WINDOW_PATTERN = Regex("\\(Last (?<seconds>\\d+)s\\.\\)")

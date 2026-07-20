@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 
@@ -15,6 +16,12 @@ object SkyBlockItemChanges {
         ) { inventoryChange ->
             pendingChanges.add(SkyBlockItemChangeSource.INVENTORY, inventoryChange.changes)
         }
+        AttributeShardCatalog.onGain(
+            "SkyBlock Attribute Shard item changes",
+            isActive = ::hasActiveListeners,
+        ) { gain ->
+            pendingChanges.add(SkyBlockItemChangeSource.HUNTING_BOX, mapOf(gain.itemId to gain.amount))
+        }
         SkyBlockSackChanges.onChange(
             "SkyBlock Sacks item changes",
             isActive = ::hasActiveListeners,
@@ -25,7 +32,7 @@ object SkyBlockItemChanges {
                     put(itemId, getOrDefault(itemId, 0) + change.amount)
                 }
             }
-            pendingChanges.add(SkyBlockItemChangeSource.SACKS, changes)
+            pendingChanges.add(SkyBlockItemChangeSource.SACKS, changes, sackChange.windowSeconds)
         }
         SkysoftClientEvents.onEndTick(
             "SkyBlock item changes",
@@ -34,6 +41,11 @@ object SkyBlockItemChanges {
             pendingChanges.drain()?.let(::dispatch)
         }
         SkysoftClientEvents.onDisconnect("SkyBlock item changes reset", pendingChanges::clear)
+        SkyBlockProfileApi.onProfileChange(
+            "SkyBlock item changes profile reset",
+            isActive = { pendingChanges.isNotEmpty },
+            listener = { pendingChanges.clear() },
+        )
     }
 
     fun onChange(
@@ -63,43 +75,57 @@ object SkyBlockItemChanges {
 
 internal class SkyBlockItemChangeAccumulator {
     private val changes = linkedMapOf<String, Int>()
+    private val grossGains = linkedMapOf<String, Int>()
     private val sources = mutableSetOf<SkyBlockItemChangeSource>()
+    private var sackWindowSeconds: Int? = null
 
     val isNotEmpty: Boolean
         get() = changes.isNotEmpty()
 
-    fun add(source: SkyBlockItemChangeSource, additions: Map<String, Int>) {
+    fun add(source: SkyBlockItemChangeSource, additions: Map<String, Int>, sackWindowSeconds: Int? = null) {
         if (additions.isEmpty()) return
         sources += source
+        if (source == SkyBlockItemChangeSource.SACKS && sackWindowSeconds != null) {
+            this.sackWindowSeconds = maxOf(this.sackWindowSeconds ?: 0, sackWindowSeconds)
+        }
         additions.forEach { (itemId, amount) ->
             changes[itemId] = changes.getOrDefault(itemId, 0) + amount
+            if (amount > 0) grossGains[itemId] = grossGains.getOrDefault(itemId, 0) + amount
         }
     }
 
     fun drain(): SkyBlockItemChangeBatch? {
         val netChanges = changes.filterValues { amount -> amount != 0 }
+        val gains = grossGains.toMap()
         val source = when (sources.size) {
             0 -> null
             1 -> sources.single()
             else -> SkyBlockItemChangeSource.MIXED
         }
+        val windowSeconds = sackWindowSeconds
         clear()
-        return source?.let { SkyBlockItemChangeBatch(it, netChanges) }?.takeIf { it.changes.isNotEmpty() }
+        return source?.let { SkyBlockItemChangeBatch(it, netChanges, windowSeconds, gains) }
+            ?.takeIf { it.changes.isNotEmpty() || it.grossGains.isNotEmpty() }
     }
 
     fun clear() {
         changes.clear()
+        grossGains.clear()
         sources.clear()
+        sackWindowSeconds = null
     }
 }
 
 data class SkyBlockItemChangeBatch(
     val source: SkyBlockItemChangeSource,
     val changes: Map<String, Int>,
+    val sackWindowSeconds: Int? = null,
+    val grossGains: Map<String, Int> = changes.filterValues { it > 0 },
 )
 
 enum class SkyBlockItemChangeSource {
     INVENTORY,
     SACKS,
+    HUNTING_BOX,
     MIXED,
 }

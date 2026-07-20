@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.getCompoundOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getIntOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
+import java.util.Locale
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.item.ItemStack
 
@@ -21,6 +22,7 @@ object SkyBlockItemId {
             "ENCHANTED_BOOK" -> extraAttributes.enchantedBookId() ?: itemId
             "RUNE" -> extraAttributes.runeId() ?: itemId
             "PET" -> extraAttributes.petId() ?: itemId
+            "ATTRIBUTE_SHARD" -> extraAttributes.attributeShardId() ?: itemId
             else -> itemId
         }
     }
@@ -37,6 +39,12 @@ object SkyBlockItemId {
         return "${key.uppercase()}_RUNE;$level"
     }
 
+    private fun CompoundTag.attributeShardId(): String? =
+        getCompoundOrNull("attributes")
+            ?.keySet()
+            ?.singleOrNull()
+            ?.let(::attributeShardInternalName)
+
     private fun CompoundTag.petId(): String? {
         val petInfo = getStringOrNull("petInfo") ?: return null
         return runCatching {
@@ -50,3 +58,6 @@ object SkyBlockItemId {
     private fun petTierIndex(tier: String): Int =
         SkyBlockRarity.getByName(tier)?.id ?: SkyBlockRarity.COMMON.id
 }
+
+internal fun attributeShardInternalName(attributeName: String): String =
+    "ATTRIBUTE_SHARD_${attributeName.uppercase(Locale.US)};1"

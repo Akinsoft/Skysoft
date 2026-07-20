@@ -15,13 +15,17 @@ import com.skysoft.data.hypixel.SkyBlockCookieBuffApi
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.data.skyblock.MayorPerkApi
+import com.skysoft.data.skyblock.SkyBlockAreaState
 import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.data.skyblock.SkyBlockEventScheduleApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockDroppedItems
 import com.skysoft.data.skyblock.SkyBlockInventoryChanges
 import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
+import com.skysoft.data.skyblock.SkyBlockPurseChanges
 import com.skysoft.data.skyblock.SkyBlockSackChanges
+import com.skysoft.data.skyblock.SkyBlockSackTransfers
 import com.skysoft.data.skyblock.SkyBlockSackContents
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
@@ -75,6 +79,7 @@ import com.skysoft.features.pets.ActivePetTracker
 import com.skysoft.features.pets.PetAnimationLearner
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.pets.PetStorageService
+import com.skysoft.features.profit.ProfitTracker
 import com.skysoft.features.pets.PetXpEstimator
 import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.VisiblePetPosition
@@ -117,10 +122,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Tab List API", TabListApi::register)
         registerFeature("Cookie Buff API", SkyBlockCookieBuffApi::register)
         registerFeature("SkyBlock Profile API", SkyBlockProfileApi::register)
-        registerFeature("SkyBlock Inventory Changes", SkyBlockInventoryChanges::register)
-        registerFeature("SkyBlock Open Inventory API", SkyBlockOpenInventoryApi::register)
-        registerFeature("SkyBlock Sacks Changes", SkyBlockSackChanges::register)
-        registerFeature("SkyBlock Item Changes", SkyBlockItemChanges::register)
+        registerSkyBlockTrackingApis()
         registerFeature("Entity Lifecycle Events", EntityLifecycleEvents::register)
         registerFeature("Profile Storage", ProfileStorageApi::register)
         registerFeature("SkyBlock Sack Contents", SkyBlockSackContents::register)
@@ -141,6 +143,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Lotum Helper", LotumHelper::register)
         registerFeature("Price Tooltips", PriceTooltips::register)
         registerFeature("Item Change Log", ItemChangeLog::register)
+        registerFeature("Profit Tracker", ProfitTracker::register)
         registerFeature("Max Enchant Chroma", MaxEnchantChroma::register)
         registerFeature("Minister in Calendar", MinisterCalendarTooltip::register)
         registerFeature("Storage Previews", StoragePreviews::register)
@@ -206,6 +209,17 @@ class SkysoftMod : ClientModInitializer {
         SkysoftClientEvents.onEndTick("Item List search opening", ItemListSearchCommand::hasPendingScreen) {
             ItemListSearchCommand.openPending()
         }
+    }
+
+    private fun registerSkyBlockTrackingApis() {
+        registerFeature("SkyBlock Area State", SkyBlockAreaState::register)
+        registerFeature("SkyBlock Inventory Changes", SkyBlockInventoryChanges::register)
+        registerFeature("SkyBlock Dropped Items", SkyBlockDroppedItems::register)
+        registerFeature("SkyBlock Sack Transfers", SkyBlockSackTransfers::register)
+        registerFeature("SkyBlock Open Inventory API", SkyBlockOpenInventoryApi::register)
+        registerFeature("SkyBlock Purse Changes", SkyBlockPurseChanges::register)
+        registerFeature("SkyBlock Sacks Changes", SkyBlockSackChanges::register)
+        registerFeature("SkyBlock Item Changes", SkyBlockItemChanges::register)
     }
 
     companion object {
