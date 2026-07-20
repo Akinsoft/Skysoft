@@ -20,6 +20,7 @@ import java.util.WeakHashMap
 object PlayerHeadSkinFix {
     private val ownerKey: RenderStateDataKey<UUID> = RenderStateDataKey.create { "skysoft:head_skin_owner" }
     private val slotStacks = WeakHashMap<Slot, ItemStack>()
+    private val stableHeadStacks = HashMap<Any, ItemStack>()
     private val headRenderTypes = HashMap<UUID, RenderType>()
 
     fun register() {
@@ -49,6 +50,21 @@ object PlayerHeadSkinFix {
             stack
         } else {
             slotStacks[slot]?.copy() ?: stack
+        }
+    }
+
+    fun stableHeadStack(key: Any, stack: ItemStack): ItemStack? {
+        if (!enabled) return stack
+        if (stack.item != Items.PLAYER_HEAD) {
+            stableHeadStacks.remove(key)
+            return stack
+        }
+
+        return if (isProfileLoaded(stack.get(DataComponents.PROFILE))) {
+            stableHeadStacks[key] = stack.copy()
+            stack
+        } else {
+            stableHeadStacks[key]?.copy()
         }
     }
 
@@ -82,6 +98,7 @@ object PlayerHeadSkinFix {
 
     private fun clear() {
         slotStacks.clear()
+        stableHeadStacks.clear()
         headRenderTypes.clear()
     }
 }

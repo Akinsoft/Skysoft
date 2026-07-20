@@ -11,6 +11,7 @@ import com.skysoft.config.features.pets.display.visual.RingStyleConfig
 import com.skysoft.config.features.pets.display.visual.PetVisualConfig
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
@@ -367,6 +368,10 @@ object ActivePetOverlay {
             cursor += it.ticks
             tick < cursor
         } ?: frames.first()
+        val stableStack = PlayerHeadSkinFix.stableHeadStack(
+            PetHeadRenderKey(uuid, petInternalName, skinInternalName, displayIconTexture),
+            frame.stack,
+        ) ?: return null
         val elapsedSeconds = (nowMillis % MILLIS_PER_HOUR) / MILLIS_PER_SECOND_FLOAT
         val staticX = icon.rotation.staticRotation.xRotation.get()
         val spinX = icon.rotation.spinRotation.speedX.get() * elapsedSeconds
@@ -375,7 +380,7 @@ object ActivePetOverlay {
         val staticZ = icon.rotation.staticRotation.zRotation.get()
         val spinZ = icon.rotation.spinRotation.speedZ.get() * elapsedSeconds
         return ItemIconRenderable(
-            frame.stack,
+            stableStack,
             scale = icon.scale.get().toDouble(),
             xRotationDegrees = staticX + spinX,
             yRotationDegrees = staticY + spinY,
@@ -612,5 +617,12 @@ private fun combineAnchoredVisualAndTextRenderables(
 }
 
 private fun ChromaColour.toArgb(): Int = toColor().rgb
+
+private data class PetHeadRenderKey(
+    val uuid: UUID?,
+    val petInternalName: String,
+    val skinInternalName: String?,
+    val displayIconTexture: String?,
+)
 
 private const val TEXT_VISUAL_SPACING = 2
