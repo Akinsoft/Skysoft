@@ -8,6 +8,7 @@ import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageClassifier
 import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.chat.PrivateMessageDirection
+import com.skysoft.utils.render.ChromaTextRendering
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
 import java.util.Optional
@@ -145,7 +146,7 @@ object ChatNotifier {
             }
             result.append(
                 Component.literal(segment.substring(matchStart, matchEnd))
-                    .withStyle(ChatNotifyChromaRendering.apply(style, range.colour).withBold(true)),
+                    .withStyle(ChromaTextRendering.apply(style, range.colour).withBold(true)),
             )
             cursor = matchEnd
         }
