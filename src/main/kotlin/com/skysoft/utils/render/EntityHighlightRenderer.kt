@@ -1,5 +1,6 @@
 package com.skysoft.utils.render
 
+import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.world.entity.LivingEntity
 import java.awt.Color
@@ -18,7 +19,7 @@ object EntityHighlightRenderer {
     @JvmStatic
     fun getEntityGlowColor(entity: LivingEntity): Int? {
         val highlight = highlights[entity] ?: return null
-        return highlight.color.rgb.takeIf { highlight.condition() }
+        return highlight.color.rgb.takeIf { entity.isVisibleToPlayer() && highlight.condition() }
     }
 
     fun setEntityColor(entity: LivingEntity, color: Color, condition: () -> Boolean) {
