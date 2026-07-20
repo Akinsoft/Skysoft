@@ -8,14 +8,14 @@ import kotlin.math.pow
 import kotlin.math.round
 
 object NumberUtilities {
-    private val integerFormat = DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US))
-    private val shortDecimalFormat = DecimalFormat("#,##0.#", DecimalFormatSymbols(Locale.US))
+    private val integerFormat = ThreadLocal.withInitial { DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US)) }
+    private val shortDecimalFormat = ThreadLocal.withInitial { DecimalFormat("#,##0.#", DecimalFormatSymbols(Locale.US)) }
 
     data class CompactNumber(val value: Double, val approximate: Boolean)
 
-    fun Int.addSeparators(): String = integerFormat.format(this)
-    fun Long.addSeparators(): String = integerFormat.format(this)
-    fun Double.addSeparators(): String = integerFormat.format(this)
+    fun Int.addSeparators(): String = integerFormat.get().format(this)
+    fun Long.addSeparators(): String = integerFormat.get().format(this)
+    fun Double.addSeparators(): String = integerFormat.get().format(this)
 
     fun String.formatInt(): Int = replace(",", "").toInt()
 
@@ -63,13 +63,13 @@ object NumberUtilities {
         return DecimalFormat(pattern, DecimalFormatSymbols(Locale.US)).format(value) + suffix.first
     }
 
-    fun Double.coinAmountFormat(): String = shortDecimalFormat.format(this)
+    fun Double.coinAmountFormat(): String = shortDecimalFormat.get().format(this)
 
     fun Double.coinFormat(): String = when {
-        abs(this) >= BILLION -> shortDecimalFormat.format(this / BILLION) + "b"
-        abs(this) >= MILLION -> shortDecimalFormat.format(this / MILLION) + "m"
-        abs(this) >= THOUSAND -> shortDecimalFormat.format(this / THOUSAND) + "k"
-        else -> shortDecimalFormat.format(this)
+        abs(this) >= BILLION -> shortDecimalFormat.get().format(this / BILLION) + "b"
+        abs(this) >= MILLION -> shortDecimalFormat.get().format(this / MILLION) + "m"
+        abs(this) >= THOUSAND -> shortDecimalFormat.get().format(this / THOUSAND) + "k"
+        else -> shortDecimalFormat.get().format(this)
     }
 
     fun Double.signedCoinFormat(): String = (if (this >= 0.0) "+" else "-") + abs(this).coinFormat()
