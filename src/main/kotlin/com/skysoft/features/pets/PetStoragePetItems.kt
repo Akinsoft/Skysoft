@@ -5,8 +5,8 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
 import com.skysoft.features.pets.PetItemUtilities.getPetInfo
-import com.skysoft.features.pets.PetItemUtilities.playerHeadTextureOrNull
 import com.skysoft.features.pets.PetItemUtilities.toExactPetDataOrNull
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.formatInt
@@ -47,7 +47,7 @@ internal object PetStoragePetItems {
             heldItemInternalName = petInfo?.heldItem,
             exp = petInfoExp ?: petExp ?: PetRepository.levelToXp(level, petInternalName) ?: 0.0,
             uuid = petInfo?.ownedUuid,
-            displayIconTexture = item.playerHeadTextureOrNull(),
+            displayIconTexture = item.playerHeadTexture(),
             exactItemStack = item.copy(),
         )
     }
@@ -60,7 +60,7 @@ internal object PetStoragePetItems {
                 heldItemInternalName = it.heldItem,
                 exp = it.exp,
                 uuid = it.ownedUuid,
-                displayIconTexture = item.playerHeadTextureOrNull(),
+                displayIconTexture = item.playerHeadTexture(),
                 exactItemStack = item.copy(),
             )
         } ?: toVisiblePetDataOrNull(item, null)
