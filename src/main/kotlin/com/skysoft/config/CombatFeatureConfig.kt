@@ -45,3 +45,7 @@ class CocoonDisplaySettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Timer Prefix", desc = "Show \"Hatches in\" before the cocoon timer.")
+    @field:ConfigEditorBoolean
+    var showTimerPrefix = true
+}
