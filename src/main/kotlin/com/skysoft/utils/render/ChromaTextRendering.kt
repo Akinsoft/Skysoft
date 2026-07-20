@@ -16,9 +16,22 @@ object ChromaTextRendering {
     fun resolve(fallbackRgb: Int, colour: ChromaColour?): Int =
         colour?.getEffectiveColourRGB()?.and(RGB_MASK) ?: fallbackRgb
 
+    fun resolveGlyph(
+        fallbackRgb: Int,
+        colour: ChromaColour?,
+        x: Float,
+        y: Float,
+        screenWidth: Int,
+    ): Int = colour
+        ?.getEffectiveColourRGB((x - y) / (screenWidth.coerceAtLeast(1) * CHROMA_SIZE))
+        ?.and(RGB_MASK)
+        ?: fallbackRgb
+
+    private const val CHROMA_SIZE = 0.3f
     private const val RGB_MASK = 0xFFFFFF
 }
 
 interface ChromaTextColor {
     fun skysoftUseChromaColour(colour: ChromaColour)
+    fun skysoftChromaColour(): ChromaColour?
 }

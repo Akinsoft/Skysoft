@@ -20,6 +20,9 @@ abstract class TextColorMixin : ChromaTextColor {
         skysoftChromaColour = colour
     }
 
+    @Unique
+    override fun skysoftChromaColour(): ChromaColour? = skysoftChromaColour
+
     @Inject(method = ["getValue"], at = [At("HEAD")], cancellable = true)
     protected fun skysoftResolveChromaColour(cir: CallbackInfoReturnable<Int>) {
         val chromaColour = skysoftChromaColour ?: return

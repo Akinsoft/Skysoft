@@ -74,6 +74,12 @@ class InventoryFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Max Enchant Chroma", desc = "Show maximum-level enchantments in animated chroma.")
+    @field:ConfigEditorBoolean
+    var maxEnchantChroma = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Minister in Calendar", desc = "Show the current minister and perk beside the mayor tooltip.")
     @field:ConfigEditorBoolean
     var isMinisterInCalendarShown = false

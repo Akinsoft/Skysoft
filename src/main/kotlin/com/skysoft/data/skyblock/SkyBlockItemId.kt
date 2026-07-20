@@ -6,6 +6,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getCompoundOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getIntOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.item.ItemStack
 
@@ -25,10 +26,8 @@ object SkyBlockItemId {
     }
 
     private fun CompoundTag.enchantedBookId(): String? {
-        val enchantments = getCompoundOrNull("enchantments") ?: return null
-        val key = enchantments.keySet().singleOrNull() ?: return null
-        val level = enchantments.getIntOrNull(key) ?: return null
-        return "ENCHANTMENT_${key.uppercase()}_$level"
+        val (key, level) = skyBlockEnchantments().entries.singleOrNull() ?: return null
+        return "ENCHANTMENT_${key.uppercase()}_$level".takeIf { level > 0 }
     }
 
     private fun CompoundTag.runeId(): String? {
