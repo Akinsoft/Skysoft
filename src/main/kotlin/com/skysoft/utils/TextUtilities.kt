@@ -33,6 +33,26 @@ object TextUtilities {
     fun CharSequence.cleanSkyBlockText(): String = removeColor().removeResets().trim()
     fun Component.cleanSkyBlockText(): String = string.cleanSkyBlockText()
 
+    fun CharSequence.truncateLegacyText(maximumLength: Int): String {
+        if (removeColor().length <= maximumLength) return toString()
+        return buildString {
+            var index = 0
+            var visibleLength = 0
+            while (index < this@truncateLegacyText.length && visibleLength < maximumLength) {
+                val character = this@truncateLegacyText[index]
+                append(character)
+                index++
+                if (character == LEGACY_FORMAT_PREFIX && index < this@truncateLegacyText.length) {
+                    append(this@truncateLegacyText[index])
+                    index++
+                } else {
+                    visibleLength++
+                }
+            }
+            append("...")
+        }
+    }
+
     fun String.parseUUIDOrNull(): UUID? = runCatching {
         if (length == COMPACT_UUID_LENGTH) {
             UUID.fromString(
@@ -68,6 +88,7 @@ object TextUtilities {
 
     private fun TextColor.legacyCode(): Char? = legacyColorCodes[value]
 
+    private const val LEGACY_FORMAT_PREFIX = '\u00A7'
     private const val COMPACT_UUID_LENGTH = 32
     private const val UUID_FIRST_GROUP_START = 0
     private const val UUID_FIRST_GROUP_END = 8

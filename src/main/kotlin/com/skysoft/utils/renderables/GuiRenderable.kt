@@ -37,9 +37,9 @@ fun HudPosition.renderRenderable(context: GuiGraphicsExtractor, renderable: GuiR
     }
 }
 
-inline fun GuiGraphicsExtractor.withIsolatedPose(block: GuiGraphicsExtractor.() -> Unit) {
+inline fun <T> GuiGraphicsExtractor.withIsolatedPose(block: GuiGraphicsExtractor.() -> T): T {
     pose().pushMatrix()
-    try {
+    return try {
         block()
     } finally {
         pose().popMatrix()

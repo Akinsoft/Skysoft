@@ -3,6 +3,7 @@ package com.skysoft.features.inventory.itemlist
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockEntityInfo
+import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.SkyBlockDropSource
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.gui.Rect
@@ -329,7 +330,7 @@ private fun dropChanceLines(entity: SkyBlockEntityInfo, sources: List<SkyBlockDr
 }
 
 internal fun derivedEntityDetails(entityId: String, entity: SkyBlockEntityInfo): List<String> = when {
-    SLAYER_BOSS_PATTERN.matches(entityId) -> listOf(slayerSpawnDescription(entityId))
+    SkyBlockSlayerType.fromBossEntityId(entityId) != null -> listOf(slayerSpawnDescription(entityId))
     entity.type.equals("Sea Creature", ignoreCase = true) -> listOf("Caught while fishing")
     entity.type.contains("Pest", ignoreCase = true) -> listOf("Found in the Garden")
     entity.type.contains("Mythological", ignoreCase = true) -> listOf("Found during the Mythological Ritual")
@@ -347,17 +348,8 @@ internal fun formatDropChance(chance: Double): String {
 }
 
 private fun slayerSpawnDescription(entityId: String): String {
-    val match = requireNotNull(SLAYER_BOSS_PATTERN.matchEntire(entityId))
-    val boss = when (match.groupValues[1]) {
-        "REVENANT_HORROR" -> "Zombie"
-        "TARANTULA_BROODFATHER" -> "Spider"
-        "SVEN_PACKMASTER" -> "Wolf"
-        "VOIDGLOOM_SERAPH" -> "Enderman"
-        "INFERNO_DEMONLORD" -> "Blaze"
-        "RIFTSTALKER_BLOODFIEND" -> "Vampire"
-        else -> "Slayer"
-    }
-    return "Spawned from a Tier ${match.groupValues[2]} $boss Slayer quest"
+    val (type, tier) = requireNotNull(SkyBlockSlayerType.fromBossEntityId(entityId))
+    return "Spawned from a Tier $tier ${type.displayName} Slayer quest"
 }
 
 internal fun SkyBlockEntityInfo.canNavigateToEntity(): Boolean =
@@ -374,7 +366,3 @@ private const val SMALL_PERCENT_THRESHOLD = 0.01
 private const val WHOLE_PERCENT_DECIMALS = 2
 private const val SMALL_PERCENT_DECIMALS = 4
 private const val TINY_PERCENT_DECIMALS = 6
-private val SLAYER_BOSS_PATTERN = Regex(
-    "(REVENANT_HORROR|TARANTULA_BROODFATHER|SVEN_PACKMASTER|VOIDGLOOM_SERAPH|" +
-        "INFERNO_DEMONLORD|RIFTSTALKER_BLOODFIEND)_([1-5])_BOSS",
-)

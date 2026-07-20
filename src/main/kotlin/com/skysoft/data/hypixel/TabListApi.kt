@@ -64,6 +64,9 @@ object TabListApi {
     val skyBlockFooter: Component?
         get() = if (isSkyBlockDataLoaded) cachedFooter else null
 
+    val skyBlockAreaName: String?
+        get() = parseSkyBlockTabArea(skyBlockLines.map { it.cleanSkyBlockText() })
+
     fun register() {
         SkysoftClientEvents.onEndTick(
             "Tab List update",
@@ -195,6 +198,13 @@ object TabListApi {
     private const val READ_INTERVAL_TICKS = 5
 }
 
+internal fun parseSkyBlockTabArea(lines: Iterable<String>): String? = lines.firstNotNullOfOrNull { line ->
+    line.trim().takeIf { it.startsWith(SKYBLOCK_AREA_PREFIX) }
+        ?.removePrefix(SKYBLOCK_AREA_PREFIX)
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+}
+
 data class TabListEntry(
     val uuid: UUID,
     val profileName: String,
@@ -212,4 +222,5 @@ internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =
             .thenBy(String.CASE_INSENSITIVE_ORDER) { it.profileName },
     ).take(MAX_RENDERED_TAB_ENTRIES)
 
+private const val SKYBLOCK_AREA_PREFIX = "Area:"
 private const val MAX_RENDERED_TAB_ENTRIES = 80

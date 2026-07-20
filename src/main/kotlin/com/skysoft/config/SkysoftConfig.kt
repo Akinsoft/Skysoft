@@ -51,6 +51,11 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Profit Tracker", desc = "Track profit from supported activities.")
+    val profitTracker = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Chat", desc = "Chat history, compacting, and visual settings.")
     val chat = ChatFeatureConfig()
 
