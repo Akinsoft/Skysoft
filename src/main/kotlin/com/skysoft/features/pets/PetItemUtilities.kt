@@ -7,10 +7,9 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
 import com.skysoft.utils.TextUtilities.parseUUIDOrNull
-import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
 import java.util.UUID
 
 object PetItemUtilities {
@@ -53,14 +52,8 @@ object PetItemUtilities {
             heldItemInternalName = petInfo.heldItem,
             exp = petInfo.exp,
             uuid = petInfo.ownedUuid,
-            displayIconTexture = playerHeadTextureOrNull(),
+            displayIconTexture = playerHeadTexture(),
             exactItemStack = copy(),
         )
-    }
-
-    fun ItemStack.playerHeadTextureOrNull(): String? {
-        if (isEmpty || item != Items.PLAYER_HEAD) return null
-        val profile = get(DataComponents.PROFILE) ?: return null
-        return profile.partialProfile().properties().get("textures").firstOrNull()?.value?.takeIf { it.isNotBlank() }
     }
 }

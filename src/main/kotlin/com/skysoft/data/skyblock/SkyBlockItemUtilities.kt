@@ -6,6 +6,7 @@ import java.util.UUID
 import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 
 object SkyBlockItemUtilities {
     fun ItemStack.extraAttributes(): CompoundTag? =
@@ -15,6 +16,17 @@ object SkyBlockItemUtilities {
         get(DataComponents.LORE)?.lines()?.map { with(TextUtilities) { it.formattedText() } }.orEmpty()
 
     fun ItemStack.formattedHoverName(): String = with(TextUtilities) { hoverName.formattedText() }
+
+    fun ItemStack.playerHeadTexture(): String? {
+        if (isEmpty || item != Items.PLAYER_HEAD) return null
+        return get(DataComponents.PROFILE)
+            ?.partialProfile()
+            ?.properties()
+            ?.get("textures")
+            ?.firstOrNull()
+            ?.value
+            ?.takeIf(String::isNotBlank)
+    }
 
     fun ItemStack.skyBlockUuid(): UUID? =
         extraAttributes()?.getStringOrNull("uuid")?.parseUUIDOrNull()

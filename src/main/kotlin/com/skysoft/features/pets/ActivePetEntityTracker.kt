@@ -2,10 +2,10 @@ package com.skysoft.features.pets
 
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.ActiveConsumerRegistry
 import net.minecraft.client.Minecraft
-import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.Display
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
@@ -13,7 +13,6 @@ import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import net.minecraft.world.item.component.ResolvableProfile
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -334,14 +333,6 @@ private fun StoredPetData.expectedTextures(): Set<String> =
 
 private fun StoredPetData.observationIdentity(): ActivePetObservationIdentity =
     ActivePetObservationIdentity(uuid, petInternalName, skinInternalName, displayIconTexture)
-
-private fun ItemStack.playerHeadTexture(): String? {
-    if (isEmpty || item != Items.PLAYER_HEAD) return null
-    return get(DataComponents.PROFILE)?.texture()
-}
-
-private fun ResolvableProfile.texture(): String? =
-    partialProfile().properties().get("textures").firstOrNull()?.value
 
 private data class PetNameCandidate(
     val entity: ArmorStand,
