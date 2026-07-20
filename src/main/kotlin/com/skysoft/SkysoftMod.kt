@@ -73,7 +73,9 @@ import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.VisiblePetPosition
 import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.features.screenshot.ScreenshotManager
+import com.skysoft.features.slayer.SlayerBossAlerts
 import com.skysoft.features.slayer.SlayerMinibossAlert
+import com.skysoft.features.slayer.SlayerTargetHighlighting
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.TooltipViewport
@@ -164,7 +166,9 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Bazaar Tracker", BazaarTracker::register)
         registerFeature("Cocoon Tracker", CocoonTracker::register)
         registerFeature("Better Shurikens", BetterShurikens::register)
+        registerFeature("Slayer Boss Alerts", SlayerBossAlerts::register)
         registerFeature("Slayer Miniboss Alert", SlayerMinibossAlert::register)
+        registerFeature("Slayer Target Highlighting", SlayerTargetHighlighting::register)
         registerFeature("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         registerFeature("Fishing Hotspot Radar", FishingHotspotRadar::register)
         registerFeature("Rare Loot Sharing", RareLootSharing::register)
