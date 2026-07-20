@@ -5,6 +5,7 @@ import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SidebarScoreboard
 import com.skysoft.utils.input.InputHandlingResult
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -12,7 +13,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.numbers.StyledFormat
 import net.minecraft.world.scores.Objective
-import net.minecraft.world.scores.PlayerScoreEntry
 import net.minecraft.world.scores.PlayerTeam
 
 object ScoreboardPositionEditor {
@@ -31,7 +31,7 @@ object ScoreboardPositionEditor {
             override fun height(): Int = currentLayout()?.height ?: 0
 
             override fun isVisible(): Boolean =
-                !MinecraftClient.isGuiHidden(Minecraft.getInstance()) && VanillaScoreboardHud.currentObjective() != null
+                !MinecraftClient.isGuiHidden(Minecraft.getInstance()) && SidebarScoreboard.currentObjective() != null
 
             override fun absoluteX(width: Int): Int = if (config.isScoreboardPositionCustomized) {
                 super.absoluteX(width)
@@ -46,10 +46,10 @@ object ScoreboardPositionEditor {
             }
 
             override fun renderDummy(context: GuiGraphicsExtractor) {
-                val objective = VanillaScoreboardHud.currentObjective() ?: return
+                val objective = SidebarScoreboard.currentObjective() ?: return
                 isRenderingEditorPreview = true
                 try {
-                    VanillaScoreboardHud.render(context, objective)
+                    SidebarScoreboard.render(context, objective)
                 } finally {
                     isRenderingEditorPreview = false
                 }
@@ -141,7 +141,7 @@ object ScoreboardPositionEditor {
     }
 
     private fun currentLayout(): ScoreboardLayout? {
-        val objective = VanillaScoreboardHud.currentObjective() ?: return null
+        val objective = SidebarScoreboard.currentObjective() ?: return null
         val minecraft = Minecraft.getInstance()
         return layout(
             minecraft.window.guiScaledWidth,
@@ -157,12 +157,7 @@ object ScoreboardPositionEditor {
         val font = Minecraft.getInstance().font
         val scoreboard = objective.scoreboard
         val numberFormat = objective.numberFormatOrDefault(StyledFormat.SIDEBAR_DEFAULT)
-        val entries = scoreboard.listPlayerScores(objective)
-            .asSequence()
-            .filterNot { it.isHidden }
-            .sortedWith(SCORE_DISPLAY_ORDER)
-            .take(MAX_ENTRIES)
-            .toList()
+        val entries = SidebarScoreboard.visibleEntries(objective)
         val spacerWidth = font.width(": ")
         val contentWidth = entries.fold(font.width(objective.displayName)) { widest, entry ->
             val team = scoreboard.getPlayersTeam(entry.owner())
@@ -190,9 +185,6 @@ private data class ScoreboardLayout(
     val height: Int,
 )
 
-private val SCORE_DISPLAY_ORDER = compareByDescending<PlayerScoreEntry> { it.value() }
-    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.owner() }
-private const val MAX_ENTRIES = 15
 private const val HORIZONTAL_INSET = 5
 private const val BACKGROUND_EXTRA_WIDTH = 4
 private const val HEADER_HEIGHT = 10
