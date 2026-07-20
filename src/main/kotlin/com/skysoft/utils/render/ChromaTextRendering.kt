@@ -1,9 +1,9 @@
-package com.skysoft.features.chat
+package com.skysoft.utils.render
 
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import net.minecraft.network.chat.Style
 
-internal object ChatNotifyChromaRendering {
+object ChromaTextRendering {
     fun apply(style: Style, colour: ChromaColour): Style {
         val highlighted = style.withColor(colour.getEffectiveColourRGB())
         if (colour.timeForFullRotationInMillis > 0) {
