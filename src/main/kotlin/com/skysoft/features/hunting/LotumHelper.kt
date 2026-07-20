@@ -5,6 +5,7 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.utils.ColorUtilities.addAlpha
 import com.skysoft.utils.EntityUtilities.cleanName
+import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.getWorldVec
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -77,11 +78,15 @@ object LotumHelper {
         removeInvalidLotums()
 
         val player = Minecraft.getInstance().player ?: return
-        val closestLotum = trackedLotums.minByOrNull { it.distanceToSqr(player) } ?: return
+        val closestLotum = trackedLotums
+            .filter { lotum -> lotum.isVisibleToPlayer() }
+            .minByOrNull { lotum -> lotum.distanceToSqr(player) }
+            ?: return
 
         context.drawLineToCrosshair(
             closestLotum.getWorldVec(),
             LOTUM_COLOR,
+            depth = true,
         )
     }
 

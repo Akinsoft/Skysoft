@@ -2,6 +2,7 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaDetailsConfig
 import com.skysoft.utils.ColorUtilities.toColor
+import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.BlockHighlightRenderer
 import com.skysoft.utils.render.EntityLabelRenderer
@@ -26,7 +27,15 @@ internal object DianaRareMobRenderer {
     ) {
         targets.forEach { target -> renderTarget(context, target, drawLootshareRadius, localPlayerName, lootshareColors) }
         if (currentTarget != null && drawCrosshairLine) {
-            context.drawLineToCrosshair(currentTarget.lineLocation(), RARE_MOB_COLOR, RARE_MOB_LINE_WIDTH)
+            val lineEntity = currentTarget.entity ?: currentTarget.nameplate
+            if (lineEntity?.isVisibleToPlayer() == true) {
+                context.drawLineToCrosshair(
+                    currentTarget.lineLocation(),
+                    RARE_MOB_COLOR,
+                    RARE_MOB_LINE_WIDTH,
+                    depth = true,
+                )
+            }
         }
     }
 
