@@ -39,6 +39,11 @@ class ChatFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Message Filtering", desc = "Hide selected game messages.")
+    val messageFiltering = MessageFilteringConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Chat Notify", desc = "Highlight chosen words and optionally play a ping.")
     val notify = ChatNotifyConfig()
 
@@ -66,6 +71,14 @@ class ChatFeatureConfig {
         smoothChat.repairLoadedValues()
         history.repairLoadedValues()
         compacting.repairLoadedValues()
+    }
+
+    class MessageFilteringConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(name = "Hide Sacks Messages", desc = "Hide item transfer summaries from Sacks.")
+        @field:ConfigEditorBoolean
+        var hideSacksMessages = false
     }
 
     class ImagePreviewConfig {

@@ -5,12 +5,12 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.AccessoryBagData
 import com.skysoft.data.skyblock.AttributeShardCatalog
+import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
 import com.skysoft.features.pets.PetItemUtilities.toExactPetDataOrNull
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
@@ -18,11 +18,8 @@ import com.skysoft.utils.RegexUtilities.groupOrNull
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.formattedText
 import com.skysoft.utils.TextUtilities.removeResets
-import com.skysoft.utils.gui.nonPlayerInventoryItems
-import com.skysoft.utils.gui.nonPlayerInventoryKey
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 
@@ -32,27 +29,25 @@ internal object PetStorageInventoryReader {
         PetWidgetStateTracker.syncLoadingState()
 
         if (inSkyBlock) {
-            readOpenInventory()
             if (++PetStorageService.ticks % PET_TAB_WIDGET_READ_INTERVAL_TICKS == 0) readPetTabWidget()
         } else {
             PetStorageService.ticks = 0
         }
     }
 
-    fun readOpenInventory() {
-        val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
+    fun readOpenInventory(snapshot: SkyBlockOpenInventorySnapshot?) {
+        if (snapshot == null) {
             PetStorageService.lastInventoryKey = null
             return
         }
-        val inventoryName = screen.title.cleanSkyBlockText()
-        val key = screen.nonPlayerInventoryKey(inventoryName)
-        val inventoryItems = screen.nonPlayerInventoryItems()
+        val inventoryName = snapshot.title
+        val inventoryItems = snapshot.items
         AttributeShardCatalog.readOpenInventory(inventoryName, inventoryItems)
         SkillExpGainApi.readOpenInventory(inventoryName, inventoryItems)
-        AccessoryBagData.readOpenInventory(inventoryName, inventoryItems, screen.menu.containerId)
+        AccessoryBagData.readOpenInventory(inventoryName, inventoryItems, snapshot.containerId)
 
-        if (key == PetStorageService.lastInventoryKey) return
-        PetStorageService.lastInventoryKey = key
+        if (snapshot.key == PetStorageService.lastInventoryKey) return
+        PetStorageService.lastInventoryKey = snapshot.key
 
         val exactPetMenuUuids = readPetsMenuItems(inventoryName, inventoryItems)
         readEquipmentPetData(inventoryName, inventoryItems)

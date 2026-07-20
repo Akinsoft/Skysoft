@@ -54,6 +54,11 @@ class InventoryFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Item Change Log", desc = "Show recent inventory item gains and losses.")
+    val itemChangeLog = ItemChangeLogConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Rarity Highlight", desc = "Highlight inventory items by SkyBlock rarity.")
     val rarityHighlight = RarityHighlightConfig()
 

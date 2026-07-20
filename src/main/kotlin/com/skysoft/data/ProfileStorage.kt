@@ -140,6 +140,8 @@ data class ProfileStorage(
         @Expose val slotBindings: MutableList<SlotBindingData> = mutableListOf(),
         @Expose val slotLocks: MutableList<Int> = mutableListOf(),
         @Expose val protectedItemUuids: MutableList<UUID> = mutableListOf(),
+        @Expose val inventoryItemCounts: MutableMap<String, Int> = mutableMapOf(),
+        @Expose val sackContents: MutableMap<String, SackItemData> = mutableMapOf(),
         @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
         @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
         @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
@@ -164,6 +166,9 @@ data class ProfileStorage(
             val repairedProtectedItemUuids = protectedItemUuids.distinct()
             protectedItemUuids.clear()
             protectedItemUuids.addAll(repairedProtectedItemUuids)
+            inventoryItemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0 }
+            sackContents.keys.removeIf(String::isBlank)
+            sackContents.values.forEach(SackItemData::repairLoadedValues)
             bazaarTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
@@ -182,6 +187,19 @@ data class ProfileStorage(
             val repaired = slotLocks.filter { it in PLAYER_INVENTORY_SLOT_RANGE }.distinct().sorted()
             slotLocks.clear()
             slotLocks.addAll(repaired)
+        }
+    }
+
+    data class SackItemData(
+        @Expose var amount: Long = 0L,
+        @Expose var exact: Boolean = false,
+        @Expose var displayName: String = "",
+    ) {
+        fun repairLoadedValues() {
+            if (amount < 0L) {
+                amount = 0L
+                exact = false
+            }
         }
     }
 
