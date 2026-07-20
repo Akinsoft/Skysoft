@@ -23,6 +23,7 @@
     "EntityRenderDispatcherMixin",
     "EntityRendererMixin",
     "EffectsInInventoryMixin",
+    "FontPreparedTextBuilderMixin",
     "GameRendererMixin",
     "GuiMixin",
     "GuiMessageLineMixin",

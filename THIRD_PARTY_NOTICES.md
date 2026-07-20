@@ -34,13 +34,19 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 
 - Project: https://hypixelskyblock.minecraft.wiki/
 - License: Creative Commons Attribution-ShareAlike 3.0
-- Usage: build-time item and enchantment obtain summaries with page revision provenance
+- Usage: item and enchantment metadata reference
 
 ### Official Hypixel SkyBlock Wiki
 
 - Project: https://wiki.hypixel.net/
 - Terms: https://hypixel.net/terms
 - Usage: build-time fallback item facts and event NPC availability provenance
+
+### SkyHanni Repository Data
+
+- Project: https://github.com/hannibal002/SkyHanni-REPO
+- License: MIT License
+- Usage: enchantment data validation reference
 
 ## Runtime and Build Dependencies
 

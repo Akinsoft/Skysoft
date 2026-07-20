@@ -31,6 +31,11 @@ object SkyBlockItemUtilities {
     fun ItemStack.skyBlockUuid(): UUID? =
         extraAttributes()?.getStringOrNull("uuid")?.parseUUIDOrNull()
 
+    fun CompoundTag.skyBlockEnchantments(): Map<String, Int> {
+        val enchantments = getCompoundOrNull("enchantments") ?: return emptyMap()
+        return enchantments.keySet().associateWith { key -> enchantments.getInt(key).orElse(0) }
+    }
+
     fun CompoundTag.getStringOrNull(key: String): String? =
         if (contains(key)) getString(key).orElse("").takeUnless { it.isBlank() } else null
 
