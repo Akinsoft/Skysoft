@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 6
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 7
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -32,6 +32,9 @@ internal object SkysoftConfigMigrations {
         }
         if (migrationVersion < MODERN_STORAGE_OVERLAY_VERSION) {
             migrateEnabledStorageOverlayToModern(json)
+        }
+        if (migrationVersion < BETTER_SHURIKENS_CATEGORY_VERSION) {
+            migrateBetterShurikensIntoCategory(json)
         }
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
@@ -200,6 +203,15 @@ internal object SkysoftConfigMigrations {
             .addProperty("mode", StorageOverlayMode.MODERN.name)
     }
 
+    private fun migrateBetterShurikensIntoCategory(json: JsonObject) {
+        val combatJson = json.getObjectOrNull("combat") ?: return
+        val legacyEnabled = combatJson.remove("isBetterShurikensEnabled") ?: return
+        val betterShurikensJson = combatJson.getOrCreateObject("betterShurikens")
+        if (!betterShurikensJson.has("enabled")) {
+            betterShurikensJson.add("enabled", legacyEnabled.deepCopy())
+        }
+    }
+
     private fun migrateChatLayout(json: JsonObject) {
         val smoothChatJson = json.getObjectOrNull("chat")?.getObjectOrNull("smoothChat") ?: return
         smoothChatJson.moveFieldsInto("settings", SMOOTH_CHAT_SETTINGS_FIELDS)
@@ -349,6 +361,7 @@ internal object SkysoftConfigMigrations {
     private const val PRICE_TOOLTIP_CUSTOMIZATION_VERSION = 5
     private const val INVENTORY_EQUIPMENT_CATEGORY_VERSION = 4
     private const val MODERN_STORAGE_OVERLAY_VERSION = 6
+    private const val BETTER_SHURIKENS_CATEGORY_VERSION = 7
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 

@@ -5,9 +5,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.pets.PetRepository
-import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.SkysoftRenderContext
-import com.skysoft.utils.render.WorldItemBadgeRenderer
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
@@ -25,7 +23,6 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.phys.Vec3
 import java.util.UUID
 import kotlin.math.min
-import kotlin.math.sqrt
 
 object BetterShurikens {
     fun register() {
@@ -53,16 +50,10 @@ object BetterShurikens {
     private fun renderWorld(context: SkysoftRenderContext) {
         if (!isEnabled()) return
         val stack = shurikenStack() ?: return
-        taggedMobs.values.filter { mob -> mob.isShurikenTarget }.forEach { mob ->
-            val position = mob.getPosition(context.partialTicks)
-            WorldItemBadgeRenderer.draw(
-                context,
-                WorldVec(position.x, position.y + MARKER_HEIGHT, position.z),
-                stack,
-                APPLIED_BADGE,
-                cameraOffset = mob.markerCameraOffset(),
-            )
-        }
+        BetterShurikenReminderMarkers.render(context, stack, taggedMobs.keys)
+        taggedMobs.values.asSequence()
+            .filter { mob -> mob.isShurikenTarget }
+            .forEach { mob -> drawShurikenBadge(context, mob, stack, APPLIED_BADGE) }
     }
 
     private fun onTick(minecraft: Minecraft) {
@@ -89,6 +80,11 @@ object BetterShurikens {
         }
         updateTrackedShurikens(entities)
         updateTaggedMobs(level, entities)
+        BetterShurikenReminderMarkers.update(
+            clientTick,
+            entities,
+            SkysoftConfigGui.config().combat.betterShurikens.settings.reminderMobs.get().flatMap { it.matchLabels },
+        )
         recentItemDisplays.entries.removeIf { (uuid, display) ->
             uuid in trackedShurikens || clientTick - display.loadedTick > Detection.RECENT_DISPLAY_TICKS
         }
@@ -196,6 +192,7 @@ object BetterShurikens {
 
     private fun onEntityUnload(entity: Entity) {
         taggedMobs.remove(entity.uuid)
+        BetterShurikenReminderMarkers.remove(entity.uuid)
         val tracked = trackedShurikens.remove(entity.uuid) ?: return
         val candidates = activeLevel?.entitiesForRendering()
             ?.filterIsInstance<LivingEntity>()
@@ -220,9 +217,6 @@ object BetterShurikens {
             taggedMobs[hitMob.uuid] = hitMob
         }
     }
-
-    private val LivingEntity.isShurikenTarget: Boolean
-        get() = isAlive && this !is ArmorStand && this !is Player
 
     private fun ItemStack.isShuriken(): Boolean =
         skyBlockId() == SHURIKEN_ITEM_ID || (item == Items.NETHER_STAR && hoverName.string == SHURIKEN_ITEM_NAME)
@@ -253,12 +247,6 @@ object BetterShurikens {
             verticalOffset in MIN_VERTICAL_OFFSET..MAX_VERTICAL_OFFSET
     }
 
-    private fun LivingEntity.markerCameraOffset(): Double {
-        val bounds = boundingBox
-        val horizontalRadius = sqrt(bounds.xsize * bounds.xsize + bounds.zsize * bounds.zsize) / 2.0
-        return horizontalRadius + MARKER_CLEARANCE
-    }
-
     private fun clearRuntimeState() {
         activeLevel = null
         clientTick = 0
@@ -268,6 +256,7 @@ object BetterShurikens {
         trackedShurikens.clear()
         recentItemDisplays.clear()
         taggedMobs.clear()
+        BetterShurikenReminderMarkers.clear()
         BetterShurikenSoundCorrelation.clear()
     }
 
@@ -289,11 +278,12 @@ object BetterShurikens {
     }
 
     private fun isEnabled(): Boolean =
-        HypixelLocationState.inSkyBlock && SkysoftConfigGui.config().combat.isBetterShurikensEnabled
+        HypixelLocationState.inSkyBlock && SkysoftConfigGui.config().combat.betterShurikens.enabled
 
     private val hasRuntimeState: Boolean
         get() = activeLevel != null || heldShuriken != null || detectionTicksRemaining > 0 || pendingThrows > 0 ||
-            trackedShurikens.isNotEmpty() || recentItemDisplays.isNotEmpty() || taggedMobs.isNotEmpty()
+            trackedShurikens.isNotEmpty() || recentItemDisplays.isNotEmpty() || taggedMobs.isNotEmpty() ||
+            BetterShurikenReminderMarkers.hasState
 
     private data class HeldShuriken(
         val slot: Int,
@@ -394,8 +384,6 @@ object BetterShurikens {
     private const val SHURIKEN_ITEM_NAME = "Extremely Real Shuriken"
     private const val SHURIKEN_MARKER_SUFFIX = " ✯"
     private const val APPLIED_BADGE_COLOR = 0x55FF55
-    private const val MARKER_HEIGHT = 0.22
-    private const val MARKER_CLEARANCE = 0.75
     private const val SHURIKEN_THROW_COUNT = 1
     private const val MAX_HORIZONTAL_OFFSET_SQUARED = 0.25 * 0.25
     private const val MIN_VERTICAL_OFFSET = 1.5
