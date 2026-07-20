@@ -5,6 +5,7 @@ import com.skysoft.features.combat.DamageSplash
 import com.skysoft.features.combat.DamageSplashAttribution
 import com.skysoft.features.combat.DamageSplashTargetView
 import com.skysoft.features.combat.DamageSplashText
+import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatSenderParser
@@ -52,7 +53,7 @@ internal object DianaRareMobLootshare {
 
     fun scan(targets: Collection<DianaRareMobTarget>, localPlayerName: String?, now: Long) {
         if (targets.none { it.shouldShowLootshare(localPlayerName) }) return
-        DianaRareMobEntityMatcher.allEntities()
+        SkyBlockMobEntityMatcher.allEntities()
             .filterIsInstance<ArmorStand>()
             .forEach { armorStand -> tryHandleDamageSplash(armorStand, targets, localPlayerName, now) }
     }

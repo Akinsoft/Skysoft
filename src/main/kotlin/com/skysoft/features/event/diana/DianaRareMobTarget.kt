@@ -2,6 +2,7 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaRareMobOption
 import com.skysoft.features.combat.DamageSplashAttackContext
+import com.skysoft.features.combat.SkyBlockMobHealth
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.toWorldVec
@@ -152,7 +153,7 @@ internal class DianaRareMobTarget(
     fun hasConfirmedTrackedEntityDeath(now: Long, confirmationMillis: Long): Boolean =
         trackedEntityDeathSinceMillis?.let { since -> now - since >= confirmationMillis } == true
 
-    private fun updateHealth(health: DianaMobHealth, now: Long) {
+    private fun updateHealth(health: SkyBlockMobHealth, now: Long) {
         val oldHealth = currentHealth
         currentHealth = health.current
         maxHealth = health.max ?: maxOf(maxHealth ?: 0L, health.current)
