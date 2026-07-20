@@ -1,5 +1,7 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.pipeline.RenderPipeline
+import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SlotBindingHighlightStyle
 import com.skysoft.data.ProfileStorageApi
@@ -18,15 +20,22 @@ import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.render.GuiRenderStateAccess
 import com.skysoft.utils.input.InputUtilities
 import kotlin.math.abs
 import kotlin.math.floor
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.navigation.ScreenRectangle
+import net.minecraft.client.gui.render.TextureSetup
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.client.renderer.state.gui.GuiElementRenderState
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
+import org.joml.Matrix3x2f
+import org.joml.Matrix3x2fc
 
 internal fun registerSlotBindingStorage() {
     ProfileStorageApi.registerConsumer("Slot Bindings") {
@@ -280,7 +289,15 @@ object SlotBindingManager {
                 Renderer.drawBinding(context, screen, source, target, Renderer.bindingLineColor())
             } else {
                 val sourceCenter = Geometry.slotCenter(screen, source)
-                Renderer.drawLine(context, sourceCenter.x, sourceCenter.y, mouseX, mouseY, Renderer.bindingLineColor())
+                Renderer.drawLine(
+                    context,
+                    screen,
+                    sourceCenter.x,
+                    sourceCenter.y,
+                    mouseX,
+                    mouseY,
+                    Renderer.bindingLineColor(),
+                )
             }
         }
 
@@ -350,7 +367,7 @@ object SlotBindingManager {
         ) {
             val first = Geometry.slotCenter(screen, firstSlot)
             val second = Geometry.slotCenter(screen, secondSlot)
-            drawLine(context, first.x, first.y, second.x, second.y, color)
+            drawLine(context, screen, first.x, first.y, second.x, second.y, color)
         }
 
         fun drawSlotHighlight(
@@ -373,37 +390,26 @@ object SlotBindingManager {
             context.outline(position.x - 1, position.y - 1, SLOT_OUTLINE_SIZE, SLOT_OUTLINE_SIZE, outlineColor)
         }
 
-        fun drawLine(context: GuiGraphicsExtractor, startX: Int, startY: Int, endX: Int, endY: Int, color: Int) {
-            if (startX == endX && startY == endY) {
-                drawPixel(context, startX, startY, color, 1.0)
-                return
-            }
-
-            var x0 = startX.toDouble()
-            var y0 = startY.toDouble()
-            var x1 = endX.toDouble()
-            var y1 = endY.toDouble()
-            val steep = abs(y1 - y0) > abs(x1 - x0)
-            if (steep) {
-                val oldX0 = x0
-                x0 = y0
-                y0 = oldX0
-                val oldX1 = x1
-                x1 = y1
-                y1 = oldX1
-            }
-            if (x0 > x1) {
-                val oldX0 = x0
-                x0 = x1
-                x1 = oldX0
-                val oldY0 = y0
-                y0 = y1
-                y1 = oldY0
-            }
-
-            val dx = x1 - x0
-            val gradient = if (dx == 0.0) 1.0 else (y1 - y0) / dx
-            drawLineEndpoints(context, steep, color, LineValues(x0, y0, x1, y1, gradient))
+        fun drawLine(
+            context: GuiGraphicsExtractor,
+            screen: AbstractContainerScreen<*>,
+            startX: Int,
+            startY: Int,
+            endX: Int,
+            endY: Int,
+            color: Int,
+        ) {
+            if (!canRenderSlotBindingLine(screen.width, screen.height, startX, startY, endX, endY)) return
+            GuiRenderStateAccess.get(context).addGuiElement(
+                SlotBindingLineRenderState(
+                    Matrix3x2f(context.pose()),
+                    startX,
+                    startY,
+                    endX,
+                    endY,
+                    color,
+                ),
+            )
         }
 
         private fun bindingColor(alphaScale: Double): Int {
@@ -411,60 +417,116 @@ object SlotBindingManager {
             return color.toPackedArgb(alphaScale)
         }
 
-        private fun drawLineEndpoints(
-            context: GuiGraphicsExtractor,
-            steep: Boolean,
-            color: Int,
-            values: LineValues,
-        ) {
-            val xEnd1 = roundLineCoordinate(values.x0)
-            val yEnd1 = values.y0 + values.gradient * (xEnd1 - values.x0)
-            val xGap1 = reverseFractionalPart(values.x0 + SUBPIXEL_CENTER)
-            val xPixel1 = xEnd1.toInt()
-            val yPixel1 = integerPart(yEnd1)
-            plotLinePixel(context, steep, xPixel1, yPixel1, color, reverseFractionalPart(yEnd1) * xGap1)
-            plotLinePixel(context, steep, xPixel1, yPixel1 + 1, color, fractionalPart(yEnd1) * xGap1)
+        private class SlotBindingLineRenderState(
+            private val pose: Matrix3x2fc,
+            private val startX: Int,
+            private val startY: Int,
+            private val endX: Int,
+            private val endY: Int,
+            private val color: Int,
+        ) : GuiElementRenderState {
+            private val bounds = ScreenRectangle(
+                minOf(startX, endX) - PIXEL_SIZE,
+                minOf(startY, endY) - PIXEL_SIZE,
+                abs(endX - startX) + PIXEL_SIZE * 3,
+                abs(endY - startY) + PIXEL_SIZE * 3,
+            ).transformMaxBounds(pose)
 
-            val xEnd2 = roundLineCoordinate(values.x1)
-            val yEnd2 = values.y1 + values.gradient * (xEnd2 - values.x1)
-            val xGap2 = fractionalPart(values.x1 + SUBPIXEL_CENTER)
-            val xPixel2 = xEnd2.toInt()
-            val yPixel2 = integerPart(yEnd2)
-            plotLinePixel(context, steep, xPixel2, yPixel2, color, reverseFractionalPart(yEnd2) * xGap2)
-            plotLinePixel(context, steep, xPixel2, yPixel2 + 1, color, fractionalPart(yEnd2) * xGap2)
+            override fun pipeline(): RenderPipeline = RenderPipelines.GUI
 
-            var interY = yEnd1 + values.gradient
-            for (x in (xPixel1 + 1) until xPixel2) {
-                val y = integerPart(interY)
-                plotLinePixel(context, steep, x, y, color, reverseFractionalPart(interY))
-                plotLinePixel(context, steep, x, y + 1, color, fractionalPart(interY))
-                interY += values.gradient
+            override fun textureSetup(): TextureSetup = TextureSetup.noTexture()
+
+            override fun scissorArea(): ScreenRectangle? = null
+
+            override fun bounds(): ScreenRectangle = bounds
+
+            override fun buildVertices(consumer: VertexConsumer) {
+                if (startX == endX && startY == endY) {
+                    drawPixel(consumer, startX, startY, 1.0)
+                    return
+                }
+
+                var x0 = startX.toDouble()
+                var y0 = startY.toDouble()
+                var x1 = endX.toDouble()
+                var y1 = endY.toDouble()
+                val steep = abs(y1 - y0) > abs(x1 - x0)
+                if (steep) {
+                    val oldX0 = x0
+                    x0 = y0
+                    y0 = oldX0
+                    val oldX1 = x1
+                    x1 = y1
+                    y1 = oldX1
+                }
+                if (x0 > x1) {
+                    val oldX0 = x0
+                    x0 = x1
+                    x1 = oldX0
+                    val oldY0 = y0
+                    y0 = y1
+                    y1 = oldY0
+                }
+
+                val dx = x1 - x0
+                val gradient = if (dx == 0.0) 1.0 else (y1 - y0) / dx
+                drawLineEndpoints(consumer, steep, LineValues(x0, y0, x1, y1, gradient))
             }
+
+            private fun drawLineEndpoints(consumer: VertexConsumer, steep: Boolean, values: LineValues) {
+                val xEnd1 = roundLineCoordinate(values.x0)
+                val yEnd1 = values.y0 + values.gradient * (xEnd1 - values.x0)
+                val xGap1 = reverseFractionalPart(values.x0 + SUBPIXEL_CENTER)
+                val xPixel1 = xEnd1.toInt()
+                val yPixel1 = integerPart(yEnd1)
+                plotLinePixel(consumer, steep, xPixel1, yPixel1, reverseFractionalPart(yEnd1) * xGap1)
+                plotLinePixel(consumer, steep, xPixel1, yPixel1 + 1, fractionalPart(yEnd1) * xGap1)
+
+                val xEnd2 = roundLineCoordinate(values.x1)
+                val yEnd2 = values.y1 + values.gradient * (xEnd2 - values.x1)
+                val xGap2 = fractionalPart(values.x1 + SUBPIXEL_CENTER)
+                val xPixel2 = xEnd2.toInt()
+                val yPixel2 = integerPart(yEnd2)
+                plotLinePixel(consumer, steep, xPixel2, yPixel2, reverseFractionalPart(yEnd2) * xGap2)
+                plotLinePixel(consumer, steep, xPixel2, yPixel2 + 1, fractionalPart(yEnd2) * xGap2)
+
+                var interY = yEnd1 + values.gradient
+                for (x in (xPixel1 + 1) until xPixel2) {
+                    val y = integerPart(interY)
+                    plotLinePixel(consumer, steep, x, y, reverseFractionalPart(interY))
+                    plotLinePixel(consumer, steep, x, y + 1, fractionalPart(interY))
+                    interY += values.gradient
+                }
+            }
+
+            private fun plotLinePixel(
+                consumer: VertexConsumer,
+                steep: Boolean,
+                x: Int,
+                y: Int,
+                coverage: Double,
+            ) {
+                if (steep) drawPixel(consumer, y, x, coverage) else drawPixel(consumer, x, y, coverage)
+            }
+
+            private fun drawPixel(consumer: VertexConsumer, x: Int, y: Int, coverage: Double) {
+                if (coverage <= 0.0) return
+                val pixelColor = color.withScaledAlpha(coverage)
+                consumer.addVertexWith2DPose(pose, x.toFloat(), y.toFloat()).setColor(pixelColor)
+                consumer.addVertexWith2DPose(pose, x.toFloat(), y + PIXEL_SIZE.toFloat()).setColor(pixelColor)
+                consumer.addVertexWith2DPose(pose, x + PIXEL_SIZE.toFloat(), y + PIXEL_SIZE.toFloat())
+                    .setColor(pixelColor)
+                consumer.addVertexWith2DPose(pose, x + PIXEL_SIZE.toFloat(), y.toFloat()).setColor(pixelColor)
+            }
+
+            private fun integerPart(value: Double): Int = floor(value).toInt()
+
+            private fun roundLineCoordinate(value: Double): Double = floor(value + SUBPIXEL_CENTER)
+
+            private fun fractionalPart(value: Double): Double = value - floor(value)
+
+            private fun reverseFractionalPart(value: Double): Double = 1.0 - fractionalPart(value)
         }
-
-        private fun plotLinePixel(
-            context: GuiGraphicsExtractor,
-            steep: Boolean,
-            x: Int,
-            y: Int,
-            color: Int,
-            coverage: Double,
-        ) {
-            if (steep) drawPixel(context, y, x, color, coverage) else drawPixel(context, x, y, color, coverage)
-        }
-
-        private fun drawPixel(context: GuiGraphicsExtractor, x: Int, y: Int, color: Int, coverage: Double) {
-            if (coverage <= 0.0) return
-            context.fill(x, y, x + PIXEL_SIZE, y + PIXEL_SIZE, color.withScaledAlpha(coverage))
-        }
-
-        private fun integerPart(value: Double): Int = floor(value).toInt()
-
-        private fun roundLineCoordinate(value: Double): Double = floor(value + SUBPIXEL_CENTER)
-
-        private fun fractionalPart(value: Double): Double = value - floor(value)
-
-        private fun reverseFractionalPart(value: Double): Double = 1.0 - fractionalPart(value)
     }
 
     private object Geometry {
@@ -539,6 +601,19 @@ object SlotBindingManager {
     private data class PendingTooltip(val lines: List<String>, val mouseX: Int, val mouseY: Int)
     private data class LineValues(val x0: Double, val y0: Double, val x1: Double, val y1: Double, val gradient: Double)
 }
+
+internal fun canRenderSlotBindingLine(
+    screenWidth: Int,
+    screenHeight: Int,
+    startX: Int,
+    startY: Int,
+    endX: Int,
+    endY: Int,
+): Boolean =
+    startX in 0 until screenWidth &&
+        startY in 0 until screenHeight &&
+        endX in 0 until screenWidth &&
+        endY in 0 until screenHeight
 
 private object SlotBindingSwapper {
     fun swapSlots(
