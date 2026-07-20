@@ -260,6 +260,15 @@ enum class DianaRareMobOption(
             entries.firstOrNull { option ->
                 option.matchLabels.any { it.equals(label, ignoreCase = true) }
             }
+
+        fun fromMobName(name: String): DianaRareMobOption? {
+            val cleanName = name.trim()
+            return entries.firstOrNull { option ->
+                option.matchLabels.any { label ->
+                    cleanName.contains(label, ignoreCase = true)
+                }
+            }
+        }
     }
 }
 

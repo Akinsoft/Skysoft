@@ -17,6 +17,7 @@
     "ClientTextTooltipAccessor",
     "ParticlePacketMixin",
     "ContainerScreenMixin",
+    "CocoonEquipmentPacketMixin",
     "CustomHeadLayerMixin",
     "EntityMetadataPacketMixin",
     "EntityRenderDispatcherMixin",

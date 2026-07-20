@@ -23,6 +23,7 @@ import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.combat.BetterShurikens
+import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.ImageLinkPreview
@@ -161,6 +162,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Pet Animation Learner", PetAnimationLearner::register)
         registerFeature("Visible Pet Position", VisiblePetPosition::register)
         registerFeature("Bazaar Tracker", BazaarTracker::register)
+        registerFeature("Cocoon Tracker", CocoonTracker::register)
         registerFeature("Better Shurikens", BetterShurikens::register)
         registerFeature("Slayer Miniboss Alert", SlayerMinibossAlert::register)
         registerFeature("Fishing Hotspot Sharing", FishingHotspotSharing::register)
