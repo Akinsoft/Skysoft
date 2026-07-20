@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaRareMobOption
+import com.skysoft.features.combat.CocoonMessageParser
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.WorldVec
 import java.util.regex.Pattern
@@ -54,10 +55,6 @@ internal object DianaRareMobShareParser {
     )
     private val playerDeathPattern = Regex(
         """^(?:☠ )?(?<player>[A-Za-z0-9_]{1,16}) was killed by (?<killer>.+)\.$""",
-    )
-    private val localCocoonPattern = Regex(
-        """^CAUGHT! You cocooned an? (?<mob>[^!]+)!$""",
-        RegexOption.IGNORE_CASE,
     )
     private val partyCocoonPattern = Regex(
         """^(?<marker>Cocooned an? (?<mob>[^!]+)!)$""",
@@ -119,9 +116,9 @@ internal object DianaRareMobShareParser {
     }
 
     fun parseLocalCocoon(message: String): DianaRareMobCocoon? {
-        val match = localCocoonPattern.matchEntire(message) ?: return null
-        val mob = mobFromShareText(match.groups["mob"]?.value.orEmpty()) ?: return null
-        return DianaRareMobCocoon(mob, match.value)
+        val cocoon = CocoonMessageParser.parseLocal(message) ?: return null
+        val mob = mobFromShareText(cocoon.mobName) ?: return null
+        return DianaRareMobCocoon(mob, cocoon.marker)
     }
 
     fun parseCocoon(message: String): DianaRareMobCocoon? {
@@ -171,10 +168,7 @@ internal object DianaRareMobShareParser {
 
     private fun mobFromShareText(text: String): DianaRareMobOption? {
         val cleaned = text.trim().removePrefix("|").trim().removeSuffix("!").trim()
-        DianaRareMobOption.fromLabel(cleaned)?.let { return it }
-        return DianaRareMobOption.entries.firstOrNull { option ->
-            option.matchLabels.any { label -> cleaned.contains(label, ignoreCase = true) }
-        }
+        return DianaRareMobOption.fromMobName(cleaned)
     }
 
     private fun mobFromDeathKiller(text: String): DianaRareMobOption? {
