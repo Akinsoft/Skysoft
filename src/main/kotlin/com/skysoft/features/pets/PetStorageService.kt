@@ -8,6 +8,7 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.MayorPerkApi
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.features.pets.PetItemUtilities.getPetInfo
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
@@ -40,6 +41,11 @@ object PetStorageService {
             PetWidgetStateTracker.reset()
             lastInventoryKey = null
         }
+        SkyBlockOpenInventoryApi.onUpdate(
+            "Pet Storage open inventory",
+            isActive = PetFeatureDemand::isActive,
+            listener = PetStorageInventoryReader::readOpenInventory,
+        )
         ChatEvents.onVisibleMessage(
             "Pet Storage chat",
             isActive = PetFeatureDemand::isActive,
@@ -47,7 +53,7 @@ object PetStorageService {
             PetStorageChat.handleIncomingMessage(message.component)
         }
         SkysoftClientEvents.onEndTick(
-            "Pet Storage inventory reader",
+            "Pet Storage update",
             isActive = PetFeatureDemand::isActive,
         ) {
             PetStorageInventoryReader.onClientTick()

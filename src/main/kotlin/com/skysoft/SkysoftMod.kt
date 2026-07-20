@@ -18,6 +18,11 @@ import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.data.skyblock.SkyBlockEventScheduleApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockInventoryChanges
+import com.skysoft.data.skyblock.SkyBlockItemChanges
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
+import com.skysoft.data.skyblock.SkyBlockSackChanges
+import com.skysoft.data.skyblock.SkyBlockSackContents
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.events.entity.EntityLifecycleEvents
@@ -37,6 +42,7 @@ import com.skysoft.features.inventory.InventoryButtonEditorScreen
 import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.ItemChangeLog
 import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.MaxEnchantChroma
 import com.skysoft.features.inventory.MinisterCalendarTooltip
@@ -111,8 +117,13 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Tab List API", TabListApi::register)
         registerFeature("Cookie Buff API", SkyBlockCookieBuffApi::register)
         registerFeature("SkyBlock Profile API", SkyBlockProfileApi::register)
+        registerFeature("SkyBlock Inventory Changes", SkyBlockInventoryChanges::register)
+        registerFeature("SkyBlock Open Inventory API", SkyBlockOpenInventoryApi::register)
+        registerFeature("SkyBlock Sacks Changes", SkyBlockSackChanges::register)
+        registerFeature("SkyBlock Item Changes", SkyBlockItemChanges::register)
         registerFeature("Entity Lifecycle Events", EntityLifecycleEvents::register)
         registerFeature("Profile Storage", ProfileStorageApi::register)
+        registerFeature("SkyBlock Sack Contents", SkyBlockSackContents::register)
         registerFeature("Storage Cache", StorageCache::register)
         registerFeature("Attribute Shard Catalog", AttributeShardCatalog::register)
         registerFeature("Mayor Perk API", MayorPerkApi::register)
@@ -129,6 +140,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Screen Alert Renderer", ScreenAlertRenderer::register)
         registerFeature("Lotum Helper", LotumHelper::register)
         registerFeature("Price Tooltips", PriceTooltips::register)
+        registerFeature("Item Change Log", ItemChangeLog::register)
         registerFeature("Max Enchant Chroma", MaxEnchantChroma::register)
         registerFeature("Minister in Calendar", MinisterCalendarTooltip::register)
         registerFeature("Storage Previews", StoragePreviews::register)

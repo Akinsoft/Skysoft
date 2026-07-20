@@ -10,9 +10,9 @@ import com.skysoft.utils.TextUtilities.formattedText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.TextUtilities.removeResets
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.chat.hoverTextComponents
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.HoverEvent
 
 internal object PetStorageChat {
     fun handleIncomingMessage(component: Component): ChatMessageVisibility {
@@ -100,21 +100,12 @@ internal object PetStorageChat {
         PetStorageService.markDirty()
     }
 
-    private fun hoverTextLines(component: Component): List<String> = buildList {
-        addHoverTextLines(component)
-    }
+    private fun hoverTextLines(component: Component): List<String> =
+        component.hoverTextComponents().flatMap { hover -> hover.formattedText().split("\n") }
 
     private fun autopetTriggerOrNull(lines: List<String>): String? =
         lines.map { it.cleanSkyBlockText() }
             .zipWithNext()
             .firstOrNull { (line, trigger) -> line == "When:" && trigger.isNotBlank() }
             ?.second
-
-    private fun MutableList<String>.addHoverTextLines(component: Component) {
-        val hover = component.style.hoverEvent
-        if (hover is HoverEvent.ShowText) {
-            addAll(hover.value().formattedText().split("\n"))
-        }
-        component.siblings.forEach { addHoverTextLines(it) }
-    }
 }
