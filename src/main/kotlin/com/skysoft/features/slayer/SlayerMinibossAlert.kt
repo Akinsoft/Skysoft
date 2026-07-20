@@ -2,6 +2,7 @@ package com.skysoft.features.slayer
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.SlayerMessageParser
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.render.ScreenAlert
@@ -20,7 +21,7 @@ object SlayerMinibossAlert {
             "Slayer Miniboss Alert chat",
             isActive = { config.minibossAlert && HypixelLocationState.inSkyBlock },
         ) { message ->
-            parseSlayerMinibossSpawn(message.cleanText)?.let(::showAlert)
+            SlayerMessageParser.parseMinibossSpawn(message.cleanText)?.let(::showAlert)
             ChatMessageVisibility.SHOW
         }
     }
@@ -60,13 +61,3 @@ object SlayerMinibossAlert {
     private const val TITLE_SCALE = 2.7f
     private const val SUBTITLE_SCALE = 1.55f
 }
-
-internal fun parseSlayerMinibossSpawn(message: String): String? =
-    slayerMinibossSpawnPattern.matchEntire(message)
-        ?.groups
-        ?.get("name")
-        ?.value
-        ?.trim()
-        ?.takeIf(String::isNotEmpty)
-
-private val slayerMinibossSpawnPattern = Regex("""^SLAYER MINI-BOSS (?<name>.+?) has spawned!$""")

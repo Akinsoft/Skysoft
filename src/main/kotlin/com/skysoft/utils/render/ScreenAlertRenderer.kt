@@ -48,7 +48,7 @@ object ScreenAlertRenderer {
         activeAlerts[id]?.isActive(now) == true
 
     fun hasActiveAlerts(now: Long = System.currentTimeMillis()): Boolean =
-        activeAlerts.values.any { alert -> alert.isActive(now) }
+        activeAlerts.values.any { alert -> alert.isActive(now) && alert.alert.visible }
 
     internal fun tick(now: Long = System.currentTimeMillis()) {
         activeAlerts.entries.removeIf { (_, alert) -> !alert.isActive(now) }
@@ -61,7 +61,7 @@ object ScreenAlertRenderer {
     private fun render(context: GuiGraphicsExtractor) {
         val now = System.currentTimeMillis()
         val active = activeAlerts.values
-            .filter { alert -> alert.isActive(now) }
+            .filter { alert -> alert.isActive(now) && alert.alert.visible }
             .sortedWith(compareBy<ActiveScreenAlert> { it.alert.priority }.thenBy { it.createdAtMillis })
         val placements = layoutAlerts(active.map { alert -> alert.alert })
         placements.forEach { placement ->
@@ -120,6 +120,7 @@ data class ScreenAlert(
     val lines: List<ScreenTitleLine>,
     val durationMillis: Long,
     val sound: ScreenAlertSound? = null,
+    val visible: Boolean = true,
     val preferredYOffset: Float = DEFAULT_TITLE_Y_OFFSET,
     val priority: Int = 0,
     val collisionPadding: Float = DEFAULT_ALERT_COLLISION_PADDING,
