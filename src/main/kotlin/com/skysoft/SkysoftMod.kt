@@ -18,6 +18,7 @@ import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.data.skyblock.SkyBlockEventScheduleApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.bazaar.BazaarTracker
@@ -113,6 +114,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Mayor Perk API", MayorPerkApi::register)
         registerFeature("SkyBlock Event Schedule", SkyBlockEventScheduleApi::register)
         registerFeature("SkyBlock Event State", SkyBlockEventState::register)
+        registerFeature("Slayer Quest State", SlayerQuestState::register)
         registerFeature("SkyBlock Price Data", SkyBlockPriceData::register)
         registerFeature("SkyBlock Data Repository", SkyBlockDataRepository::register)
         registerFeature("Entity Highlight Renderer", EntityHighlightRenderer::register)
