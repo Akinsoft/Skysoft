@@ -166,6 +166,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
         ProfileStorageApi.importLegacyStorage(pets.petDisplay.legacyStorage)
         gui.repairLoadedValues()
         inventory.repairLoadedValues()
+        combat.repairLoadedValues()
         chat.repairLoadedValues()
         events.repairLoadedValues()
         misc.repairLoadedValues()
