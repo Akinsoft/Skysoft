@@ -8,10 +8,5 @@
     "sounds": [
       "minecraft:entity/painting/break3"
     ]
-  },
-  "slayer.boss_spawn": {
-    "sounds": [
-      "minecraft:block/note_block/icechime"
-    ]
   }
 }
