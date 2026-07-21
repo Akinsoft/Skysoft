@@ -6,7 +6,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
-import com.skysoft.data.skyblock.SkyBlockSlayerType
+import com.skysoft.features.pets.PetRepository
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -131,16 +131,16 @@ private fun renderPositioned(
 }
 
 private fun buildProfitRenderable(inventoryOpen: Boolean): ProfitTrackerRenderable? {
-    val type = ProfitTracker.selectedSlayerType()?.takeIf(ProfitTracker::isInPresetArea) ?: return null
-    val stats = ProfitTracker.stats(type)
+    val preset = ProfitTracker.selectedPreset()?.takeIf(ProfitTracker::isInPresetArea) ?: return null
+    val stats = ProfitTracker.stats(preset)
     val items = profitDisplayItems(stats)
     val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
-    val scrollKey = ItemScrollKey(type, ProfitTracker.displayPeriod(type))
+    val scrollKey = ItemScrollKey(preset, ProfitTracker.displayPeriod(preset))
     val maximumOffset = (items.size - maximumItems).coerceAtLeast(0)
     val scrollOffset = itemScrollOffsets.getOrDefault(scrollKey, 0).coerceIn(0, maximumOffset)
     if (scrollOffset == 0) itemScrollOffsets.remove(scrollKey) else itemScrollOffsets[scrollKey] = scrollOffset
     return ProfitTrackerRenderable(
-        type = type,
+        preset = preset,
         stats = stats,
         items = items,
         maximumItems = maximumItems,
@@ -168,16 +168,16 @@ private fun registerMouseCapture() {
 
 private fun wasControlClickHandled(button: Int): Boolean {
     val area = hoveredControl ?: return false
-    val type = ProfitTracker.selectedSlayerType() ?: return false
+    val preset = ProfitTracker.selectedPreset() ?: return false
     val activated = when (area.action) {
         ProfitTrackerControl.PERIOD -> {
             if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
-            ProfitTracker.cyclePeriod(type, backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+            ProfitTracker.cyclePeriod(preset, backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
             true
         }
         ProfitTrackerControl.RESET -> {
             if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
-            ProfitTracker.selectedSlayerType()?.let(ProfitTracker::resetDisplayed)
+            ProfitTracker.selectedPreset()?.let(ProfitTracker::resetDisplayed)
             true
         }
     }
@@ -187,12 +187,12 @@ private fun wasControlClickHandled(button: Int): Boolean {
 
 private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
     if (verticalAmount == 0.0) return false
-    val type = ProfitTracker.selectedSlayerType() ?: return false
-    val period = ProfitTracker.displayPeriod(type)
+    val preset = ProfitTracker.selectedPreset() ?: return false
+    val period = ProfitTracker.displayPeriod(preset)
     val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
-    val maximumOffset = (profitDisplayItems(ProfitTracker.stats(type)).size - maximumItems).coerceAtLeast(0)
+    val maximumOffset = (profitDisplayItems(ProfitTracker.stats(preset)).size - maximumItems).coerceAtLeast(0)
     if (maximumOffset == 0) return false
-    val key = ItemScrollKey(type, period)
+    val key = ItemScrollKey(preset, period)
     val current = itemScrollOffsets.getOrDefault(key, 0)
     itemScrollOffsets[key] = profitTrackerScrollOffset(current, verticalAmount, maximumOffset)
     return true
@@ -201,14 +201,15 @@ private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
 private fun profitDisplayItems(stats: ProfileStorage.ProfitTrackerStats): List<ProfitDisplayItem> =
     stats.itemCounts.mapNotNull { (itemId, amount) ->
         val key = SkyBlockDataRepository.itemKey(itemId)
-        val entry = SkyBlockDataRepository.entry(key) ?: return@mapNotNull null
-        val stack = SkyBlockDataRepository.displayStack(key) ?: return@mapNotNull null
+        val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId) ?: return@mapNotNull null
+        val name = (SkyBlockDataRepository.entry(key)?.formattedDisplayName ?: PetRepository.itemName(itemId) ?: itemId)
+            .replace("Enchanted ", "Ench ")
         val unitValue = ProfitTracker.unitValue(itemId)
-        ProfitDisplayItem(entry.formattedDisplayName, stack, amount, unitValue?.times(amount))
+        ProfitDisplayItem(name, stack, amount, unitValue?.times(amount))
     }.sortedWith(compareByDescending<ProfitDisplayItem> { it.value ?: Double.NEGATIVE_INFINITY }.thenBy { it.name })
 
 private class ProfitTrackerRenderable(
-    private val type: SkyBlockSlayerType,
+    private val preset: ProfitTrackerPreset,
     private val stats: ProfileStorage.ProfitTrackerStats,
     items: List<ProfitDisplayItem>,
     maximumItems: Int,
@@ -219,11 +220,11 @@ private class ProfitTrackerRenderable(
     private val displayedItems = items.drop(scrollOffset).take(maximumItems)
     private val remainingItems = (items.size - scrollOffset - displayedItems.size).coerceAtLeast(0)
     private val hiddenItemsAbove = scrollOffset
-    private val revenue = items.sumOf { it.value ?: 0.0 } + stats.mobKillCoins
+    private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins
     private val hasUnknownPrices = items.any { it.value == null }
     private val coinCosts = stats.costs[COIN_CURRENCY]?.toDouble() ?: 0.0
     private val profit = revenue - coinCosts
-    private val period = ProfitTracker.displayPeriod(type)
+    private val period = ProfitTracker.displayPeriod(preset)
     private val padding = if (background) OverlayPanelStyle.PADDING else 0
     private val lines = buildLines()
 
@@ -277,7 +278,7 @@ private class ProfitTrackerRenderable(
     private fun buildLines(): List<ProfitLine> = buildList {
         val itemRows = displayedItems.map { item -> item to item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH) }
         val itemNameColumnWidth = itemRows.maxOfOrNull { (_, name) -> LegacyTextRenderer.width(name) } ?: 0
-        add(ProfitLine("§e§l${type.displayName} Slayer Profit", height = TITLE_HEIGHT))
+        add(ProfitLine("§e§l${preset.displayName} Profit", height = TITLE_HEIGHT))
         if (displayedItems.isEmpty()) {
             add(ProfitLine("§7No tracked drops yet."))
         } else {
@@ -312,8 +313,8 @@ private class ProfitTrackerRenderable(
         val profitPerHour = profitPerHour(profit, stats.activeMillis)
         config.details.summaryLines.get().distinct().forEach { summaryLine ->
             when (summaryLine) {
-                ProfitTrackerSummaryLine.MOB_KILL_COINS -> if (stats.mobKillCoins > 0.0) {
-                    add(ProfitLine("§7Mob Kill Coins", "§6${stats.mobKillCoins.coinFormat()}"))
+                ProfitTrackerSummaryLine.COINS -> if (stats.coins > 0.0) {
+                    add(ProfitLine("§7${preset.coinLabel}", "§6${stats.coins.coinFormat()}"))
                 }
                 ProfitTrackerSummaryLine.QUEST_COSTS -> stats.costs.forEach { (currency, amount) ->
                     val value = if (currency == COIN_CURRENCY) amount.toDouble().coinFormat() else amount.addSeparators()
@@ -326,11 +327,11 @@ private class ProfitTrackerRenderable(
                     val label = if (profitLabel == "Total Profit") "Profit/h" else "$profitLabel/h"
                     add(ProfitLine("§7$label", profitColor(profitPerHour) + profitPerHour.signedCoinFormat()))
                 }
-                ProfitTrackerSummaryLine.BOSSES_KILLED -> {
-                    add(ProfitLine("§7Bosses Killed", "§e${stats.bosses.addSeparators()}"))
+                ProfitTrackerSummaryLine.ACTIONS -> {
+                    add(ProfitLine("§7${preset.actionLabel}", "§e${stats.actions.addSeparators()}"))
                 }
                 ProfitTrackerSummaryLine.UPTIME -> {
-                    val paused = if (ProfitTracker.isTimerPaused(type)) " §c(paused)" else ""
+                    val paused = if (ProfitTracker.isTimerPaused(preset)) " §c(paused)" else ""
                     add(ProfitLine("§7Uptime", "§b${formatProfitUptime(stats.activeMillis)}$paused"))
                 }
             }
@@ -347,7 +348,7 @@ private class ProfitTrackerRenderable(
             ProfitTrackingPeriod.entries.map(ProfitTrackingPeriod::displayName),
             period.ordinal,
         )
-        ProfitTrackerControl.RESET -> listOf("§7Reset ${period.displayName} ${type.displayName} Slayer data.")
+        ProfitTrackerControl.RESET -> listOf("§7Reset ${period.displayName} ${preset.displayName} data.")
     }
 }
 
@@ -389,7 +390,7 @@ internal fun profitTrackerScrollOffset(current: Int, verticalAmount: Double, max
     (current + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
 
 private data class ItemScrollKey(
-    val type: SkyBlockSlayerType,
+    val preset: ProfitTrackerPreset,
     val period: ProfitTrackingPeriod,
 )
 

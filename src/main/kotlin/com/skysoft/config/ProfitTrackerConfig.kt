@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -70,11 +71,11 @@ class ProfitTrackerDetailsConfig {
     @field:ConfigEditorDraggableList
     val summaryLines: Property<MutableList<ProfitTrackerSummaryLine>> = Property.of(
         mutableListOf(
-            ProfitTrackerSummaryLine.MOB_KILL_COINS,
+            ProfitTrackerSummaryLine.COINS,
             ProfitTrackerSummaryLine.QUEST_COSTS,
             ProfitTrackerSummaryLine.TOTAL_PROFIT,
             ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
-            ProfitTrackerSummaryLine.BOSSES_KILLED,
+            ProfitTrackerSummaryLine.ACTIONS,
             ProfitTrackerSummaryLine.UPTIME,
         ),
     )
@@ -95,11 +96,13 @@ enum class ProfitTrackerQuantityPosition(private val displayName: String) {
 }
 
 enum class ProfitTrackerSummaryLine(private val displayName: String) {
-    MOB_KILL_COINS("Mob Kill Coins"),
-    QUEST_COSTS("Quest Costs"),
+    @SerializedName(value = "COINS", alternate = ["MOB_KILL_COINS"])
+    COINS("Coins"),
+    QUEST_COSTS("Costs"),
     TOTAL_PROFIT("Total Profit"),
     PROFIT_PER_HOUR("Profit/h"),
-    BOSSES_KILLED("Bosses Killed"),
+    @SerializedName(value = "ACTIONS", alternate = ["BOSSES_KILLED"])
+    ACTIONS("Actions"),
     UPTIME("Uptime"),
     ;
 
