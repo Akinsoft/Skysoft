@@ -213,7 +213,7 @@ object SkysoftHudEditor {
             val color = if (selected) PANEL_HOVER else PANEL_BACKGROUND
             if (element.hasEditorBackground) {
                 context.fill(x - BORDER, y - BORDER, x + scaledWidth + BORDER, y + scaledHeight + BORDER, color)
-            } else {
+            } else if (selected) {
                 drawEditorOutline(context, x, y, scaledWidth, scaledHeight, color)
             }
             context.pose().pushMatrix()
