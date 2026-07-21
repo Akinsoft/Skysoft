@@ -54,6 +54,7 @@ internal fun registerProfitTrackerHud() {
             id = "profit_tracker",
             layer = GuiOverlayLayer.BELOW_SCREEN,
             contexts = GuiOverlayContextType.entries.toSet(),
+            screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderProfitTracker(context) },
         ),
     )
