@@ -95,8 +95,9 @@ public abstract class ChatScreenMixin extends Screen {
 
     @WrapOperation(method = "handleChatInput", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendCommand(Ljava/lang/String;)V"))
     protected void skysoftRecordTabCommand(ClientPacketListener connection, String command, Operation<Void> original) {
-        MixinFeatureAdapters.recordOutgoingChatCommand(command);
-        original.call(connection, command);
+        String rewritten = MixinFeatureAdapters.rewriteOutgoingCommand(command);
+        MixinFeatureAdapters.recordOutgoingChatCommand(rewritten);
+        original.call(connection, rewritten);
     }
 
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"))
