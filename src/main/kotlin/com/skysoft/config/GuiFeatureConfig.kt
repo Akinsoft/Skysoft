@@ -36,6 +36,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Custom Bars", desc = "Replace SkyBlock status displays with custom bars.")
+    val customBars = CustomBarsConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Better TAB", desc = "Compact the Hypixel SkyBlock tab list.")
     val betterTab = BetterTabConfig()
 
@@ -92,6 +97,7 @@ class GuiFeatureConfig {
     fun repairLoadedValues() {
         heldItem.repairLoadedValues()
         actionBar.repairLoadedValues()
+        customBars.repairLoadedValues()
     }
 }
 
