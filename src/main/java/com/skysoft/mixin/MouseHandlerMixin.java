@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
 import com.skysoft.features.bazaar.BazaarTracker;
 import com.skysoft.features.inventory.StorageOverlayController;
+import com.skysoft.features.misc.MouseLock;
 import com.skysoft.features.screenshot.ScreenshotCapturePreview;
 import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.gui.scale.InventoryCursorMemory;
@@ -17,6 +18,7 @@ import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.client.player.LocalPlayer;
 import org.lwjgl.glfw.GLFW;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -50,6 +52,11 @@ public class MouseHandlerMixin {
         xpos = cursor.x();
         ypos = cursor.y();
         GLFW.glfwSetCursorPos(Minecraft.getInstance().getWindow().handle(), cursor.x(), cursor.y());
+    }
+
+    @WrapOperation(method = "turnPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;turn(DD)V"))
+    protected void skysoftApplyMouseLock(LocalPlayer player, double x, double y, Operation<Void> original) {
+        original.call(player, MouseLock.apply(x), MouseLock.apply(y));
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
