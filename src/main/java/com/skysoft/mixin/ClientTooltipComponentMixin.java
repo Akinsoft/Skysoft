@@ -1,7 +1,6 @@
 package com.skysoft.mixin;
 
-import com.skysoft.features.inventory.ClientStoragePreviewTooltip;
-import com.skysoft.features.inventory.StoragePreviewTooltip;
+import com.skysoft.gui.tooltip.SkysoftTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,12 +16,12 @@ public interface ClientTooltipComponentMixin {
         at = @At("HEAD"),
         cancellable = true
     )
-    private static void skysoftCreateStoragePreviewTooltip(
+    private static void skysoftCreateTooltipComponent(
         TooltipComponent component,
         CallbackInfoReturnable<ClientTooltipComponent> cir
     ) {
-        if (component instanceof StoragePreviewTooltip preview) {
-            cir.setReturnValue(new ClientStoragePreviewTooltip(preview));
+        if (component instanceof SkysoftTooltipComponent skysoftComponent) {
+            cir.setReturnValue(skysoftComponent.clientComponent());
         }
     }
 }

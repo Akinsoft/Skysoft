@@ -1,10 +1,10 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.gui.tooltip.SkysoftTooltipComponent
 import kotlin.math.ceil
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
-import net.minecraft.world.inventory.tooltip.TooltipComponent
 import net.minecraft.world.item.ItemStack
 
 internal data class StoragePreviewTooltip(
@@ -12,12 +12,14 @@ internal data class StoragePreviewTooltip(
     val columns: Int,
     val rows: Int,
     val scale: Float,
-) : TooltipComponent {
+) : SkysoftTooltipComponent {
     init {
         require(columns > 0 && rows > 0) { "Storage preview dimensions must be positive" }
         require(items.size == columns * rows) { "Storage preview items do not match its dimensions" }
         require(scale.isFinite() && scale > 0f) { "Storage preview scale must be positive and finite" }
     }
+
+    override fun clientComponent(): ClientTooltipComponent = ClientStoragePreviewTooltip(this)
 }
 
 internal class ClientStoragePreviewTooltip(
