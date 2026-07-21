@@ -11,6 +11,7 @@ import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.misc.ServerInfoDisplay
+import com.skysoft.features.misc.WarpAliases
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.config.ChatTabPosition
 import java.util.function.Consumer
@@ -35,6 +36,9 @@ object MixinFeatureAdapters {
 
     @JvmStatic
     fun prepareOutgoingChatCommand(message: String): String? = ChatTabs.prepareOutgoingCommand(message)
+
+    @JvmStatic
+    fun rewriteOutgoingCommand(command: String): String = WarpAliases.rewrite(command)
 
     @JvmStatic
     fun recordOutgoingChatCommand(command: String) = ChatTabs.recordOutgoingCommand(command)

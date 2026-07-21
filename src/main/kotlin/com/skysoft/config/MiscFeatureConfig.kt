@@ -31,6 +31,15 @@ class MiscFeatureConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Short Warp Commands",
+        desc = "Use warp names such as /garden and /crypts without typing /warp.",
+    )
+    @field:ConfigEditorBoolean
+    var shortWarpCommands = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Hide Dead Entities",
         desc = "Hide entities during their death animation.",
     )
