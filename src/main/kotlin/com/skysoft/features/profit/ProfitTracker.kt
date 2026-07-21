@@ -234,13 +234,13 @@ object ProfitTracker {
     }
 
     internal fun unitValue(preset: ProfitTrackerPreset, itemId: String): Double? {
-        val bazaarPrice = profitTrackerBazaarPrice(
+        val sourcePrice = profitTrackerSourcePrice(
             SkyBlockPriceData.getBazaarPrice(itemId),
+            SkyBlockPriceData.getNpcSellPrice(itemId),
             ProfitTrackerItemCustomizations.priceSource(preset, itemId),
         )
-        return bazaarPrice?.takeIf { it > 0.0 }
+        return sourcePrice?.takeIf { it > 0.0 }
             ?: SkyBlockPriceData.getLowestBin(itemId)?.toDouble()?.takeIf { it > 0.0 }
-            ?: SkyBlockPriceData.getNpcSellPrice(itemId)?.takeIf { it > 0.0 }
     }
 
     internal fun trackedItemIds(preset: ProfitTrackerPreset): Set<String> {
@@ -350,13 +350,15 @@ object ProfitTracker {
     }
 }
 
-internal fun profitTrackerBazaarPrice(
-    price: BazaarPriceData?,
+internal fun profitTrackerSourcePrice(
+    bazaarPrice: BazaarPriceData?,
+    npcSellPrice: Double?,
     source: ProfitTrackerPriceSource,
 ): Double? = when (source) {
-    ProfitTrackerPriceSource.INSTANT_SELL -> price?.instantSellPrice
-    ProfitTrackerPriceSource.SELL_ORDER -> price?.sellOrderPrice
-    ProfitTrackerPriceSource.BUY_ORDER -> price?.buyOrderPrice
+    ProfitTrackerPriceSource.INSTANT_SELL -> bazaarPrice?.instantSellPrice
+    ProfitTrackerPriceSource.SELL_ORDER -> bazaarPrice?.sellOrderPrice
+    ProfitTrackerPriceSource.BUY_ORDER -> bazaarPrice?.buyOrderPrice
+    ProfitTrackerPriceSource.NPC_SELL -> npcSellPrice
 }
 
 internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =

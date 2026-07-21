@@ -82,7 +82,7 @@ class ProfitTrackerConfig {
 class ProfitTrackerSettingsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Price Source", desc = "Choose which Bazaar price is used for tracked items.")
+    @field:ConfigOption(name = "Price Source", desc = "Choose how tracked items are valued.")
     @field:ConfigEditorDropdown
     var priceSource = ProfitTrackerPriceSource.INSTANT_SELL
 
@@ -138,6 +138,7 @@ enum class ProfitTrackerPriceSource(private val displayName: String) {
     INSTANT_SELL("Instant Sell"),
     SELL_ORDER("Sell Order"),
     BUY_ORDER("Buy Order"),
+    NPC_SELL("NPC Sell"),
     ;
 
     override fun toString(): String = displayName
