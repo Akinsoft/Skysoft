@@ -62,6 +62,7 @@ import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.loot.RareLootSharing
 import com.skysoft.features.misc.DayDisplay
+import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.bettertab.BetterTab
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
@@ -165,6 +166,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Real Time Display", RealTimeDisplay::register)
         registerFeature("Server TPS Provider", ServerTpsProvider::register)
         registerFeature("Server Info Display", ServerInfoDisplay::register)
+        registerFeature("Mouse Lock", MouseLock::register)
         registerFeature("Scoreboard Position Editor", ScoreboardPositionEditor::register)
         registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)
         registerFeature("Auto Sprint", AutoSprint::register)
@@ -285,6 +287,7 @@ class SkysoftMod : ClientModInitializer {
                 child { InventoryButtonImportCommand.command(::openButtonEditor) }
                 child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
+                child("mouselock", "ssmouselock") { name -> literal(name).executes { MouseLock.toggle(it.source) } }
                 child("new") { name -> literal(name).executes { openNewSettings(it.source) } }
                 child("protect") { name -> literal(name).executes { ItemProtectionManager.toggleHeldItem(it.source) } }
                 child("update", "ssupdate") { name -> literal(name).executes { checkUpdate() } }
