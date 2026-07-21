@@ -8,7 +8,6 @@ import com.skysoft.data.skyblock.SkyBlockDroppedItems
 import com.skysoft.data.skyblock.SkyBlockItemChangeBatch
 import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockItemNames
-import com.skysoft.data.skyblock.SkyBlockSackTransferDirection
 import com.skysoft.data.skyblock.SkyBlockSackTransfers
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -37,13 +36,10 @@ internal class ProfitTrackerItemTracking {
     private val suppressions = ProfitItemSuppressions()
     private val removalSuppressions = ProfitItemRemovalSuppressions()
 
-    fun register(
-        isActive: () -> Boolean,
-        shouldSuppressSupercraft: () -> Boolean,
-        listener: (SkyBlockItemChangeBatch) -> Unit,
-    ) {
+    fun register(isActive: () -> Boolean, listener: (SkyBlockItemChangeBatch) -> Unit) {
         SkyBlockDroppedItems.onDrop("Profit Tracker dropped items", isActive) { drop ->
             suppressions.add(drop.itemId, drop.amount, DROPPED_ITEM_SUPPRESSION_MILLIS)
+            removalSuppressions.add(drop.itemId, drop.amount, DROPPED_ITEM_SUPPRESSION_MILLIS)
         }
         AttributeShardTransfers.onTransfer("Profit Tracker Hunting Box transfers", isActive) { transfer ->
             if (transfer.direction == AttributeShardTransferDirection.FROM_BOX) {
@@ -51,12 +47,8 @@ internal class ProfitTrackerItemTracking {
             }
         }
         SkyBlockSackTransfers.onTransfer("Profit Tracker Sack transfers", isActive) { transfer ->
-            val lifetime = if (transfer.direction == SkyBlockSackTransferDirection.TO_SACKS) {
-                SACK_INSERTION_SUPPRESSION_MILLIS
-            } else {
-                SACK_WITHDRAWAL_SUPPRESSION_MILLIS
-            }
-            suppressions.add(transfer.itemId, transfer.amount, lifetime)
+            suppressions.add(transfer.itemId, transfer.amount, SACK_TRANSFER_SUPPRESSION_MILLIS)
+            removalSuppressions.add(transfer.itemId, transfer.amount, SACK_TRANSFER_SUPPRESSION_MILLIS)
         }
         SkyBlockBazaarTransfers.onTransfer("Profit Tracker Bazaar transfers", isActive) { transfer ->
             SkyBlockItemNames.itemId(transfer.displayName)?.let { itemId ->
@@ -76,7 +68,7 @@ internal class ProfitTrackerItemTracking {
             }
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onVisibleMessage("Profit Tracker Supercraft", { isActive() && shouldSuppressSupercraft() }) { message ->
+        ChatEvents.onVisibleMessage("Profit Tracker Supercraft", isActive) { message ->
             parseSupercraftResult(message.cleanText)?.let { crafted ->
                 SkyBlockItemNames.itemId(crafted.displayName)?.let { itemId ->
                     suppressions.add(itemId, crafted.amount)
@@ -86,8 +78,13 @@ internal class ProfitTrackerItemTracking {
         }
     }
 
-    fun consume(batch: SkyBlockItemChangeBatch): Map<String, Int> =
-        removalSuppressions.consume(suppressions.consume(batch.changes, batch.grossGains))
+    fun consume(batch: SkyBlockItemChangeBatch): Map<String, Int> {
+        val grossRemovals = (batch.changes.keys + batch.grossGains.keys).associateWith { itemId ->
+            (batch.grossGains.getOrDefault(itemId, 0) - batch.changes.getOrDefault(itemId, 0)).coerceAtLeast(0)
+        }
+        val withoutRemovals = removalSuppressions.consume(batch.changes, grossRemovals)
+        return suppressions.consume(withoutRemovals, batch.grossGains)
+    }
 
     fun suppressGain(itemId: String, amount: Int) = suppressions.add(itemId, amount)
 
@@ -102,22 +99,26 @@ internal class ProfitItemRemovalSuppressions(
 ) {
     private val suppressions = mutableMapOf<String, RemovalSuppression>()
 
-    fun add(itemId: String, amount: Int) {
+    fun add(itemId: String, amount: Int, lifetimeMillis: Long = SUPERCRAFT_SUPPRESSION_MILLIS) {
         if (amount <= 0) return
         val now = currentTimeMillis()
         val current = suppressions[itemId]?.takeIf { it.expiresAtMillis > now }
         suppressions[itemId] = RemovalSuppression(
             amount = (current?.amount ?: 0) + amount,
-            expiresAtMillis = now + SUPERCRAFT_SUPPRESSION_MILLIS,
+            expiresAtMillis = now + lifetimeMillis,
         )
     }
 
-    fun consume(changes: Map<String, Int>): Map<String, Int> = buildMap {
+    fun consume(
+        changes: Map<String, Int>,
+        grossRemovals: Map<String, Int> = changes.filterValues { it < 0 }.mapValues { -it.value },
+    ): Map<String, Int> = buildMap {
         val now = currentTimeMillis()
         suppressions.entries.removeIf { (_, suppression) -> suppression.expiresAtMillis <= now }
-        changes.forEach { (itemId, amount) ->
+        (changes.keys + grossRemovals.keys).forEach { itemId ->
+            val amount = changes[itemId] ?: 0
             val suppression = suppressions[itemId]
-            val suppressed = minOf((-amount).coerceAtLeast(0), suppression?.amount ?: 0)
+            val suppressed = minOf(grossRemovals[itemId] ?: 0, suppression?.amount ?: 0)
             val remaining = amount + suppressed
             if (remaining != 0) put(itemId, remaining)
             if (suppression != null && suppressed > 0) {
@@ -187,6 +188,5 @@ private val SUPERCRAFT_PATTERN = Regex("^You Supercrafted (?<item>.+?)(?: x(?<am
 private val NPC_SALE_PATTERN = Regex("^You sold (?<item>.+) x(?<amount>[\\d,]+) for [\\d,]+ Coins!$")
 private const val SUPERCRAFT_SUPPRESSION_MILLIS = 60_000L
 private const val DROPPED_ITEM_SUPPRESSION_MILLIS = 10_000L
-private const val SACK_INSERTION_SUPPRESSION_MILLIS = 60_000L
-private const val SACK_WITHDRAWAL_SUPPRESSION_MILLIS = 5_000L
+private const val SACK_TRANSFER_SUPPRESSION_MILLIS = 60_000L
 private const val HUNTING_BOX_REMOVAL_SUPPRESSION_MILLIS = 5_000L

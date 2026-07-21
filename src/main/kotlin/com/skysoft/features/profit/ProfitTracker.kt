@@ -16,6 +16,7 @@ import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockPurseChanges
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.SlayerQuestState
@@ -28,6 +29,7 @@ import com.skysoft.utils.chat.ChatMessageVisibility
 import java.time.LocalDate
 import net.fabricmc.fabric.api.event.client.player.ClientPlayerBlockBreakEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 
@@ -46,18 +48,14 @@ object ProfitTracker {
     private val craftingReconciliation = ProfitCraftingReconciliation()
     private var dropCatalogVersion = -1L
     private var trackedItems = emptyMap<ProfitTrackerPreset, Set<String>>()
-    private var craftingInputs = emptyMap<ProfitTrackerPreset, Set<String>>()
+    private val pendingReplenishCosts = mutableMapOf<ReplenishCrop, Int>()
 
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { config.enabled }
         TabListApi.registerConsumer("Profit Tracker") { config.enabled }
         SkyBlockDataRepository.Demand.register("Profit Tracker") { config.enabled }
         PetRepository.registerConsumer("Profit Tracker") { config.enabled }
-        itemTracking.register(
-            { config.enabled },
-            { (attributionPreset ?: currentPreset) != ProfitTrackerPreset.FARMING },
-            ::recordItemChanges,
-        )
+        itemTracking.register({ config.enabled }, ::recordItemChanges)
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, state -> recordFarmingBlock(state.block) }
         SkyBlockPurseChanges.onChange("Profit Tracker coins", { config.enabled }) { change ->
             val preset = attributionPreset ?: currentPreset ?: return@onChange
@@ -182,6 +180,7 @@ object ProfitTracker {
     internal fun resetDisplayed(preset: ProfitTrackerPreset) {
         itemTracking.clear()
         craftingReconciliation.clear(preset)
+        pendingReplenishCosts.clear()
         when (displayPeriod(preset)) {
             ProfitTrackingPeriod.SESSION -> sessionStats[preset.name]?.clear()
             ProfitTrackingPeriod.TODAY -> {
@@ -198,8 +197,14 @@ object ProfitTracker {
     }
 
     private fun recordFarmingBlock(block: Block) {
-        if (config.enabled && currentPreset == ProfitTrackerPreset.FARMING && isFarmingCropBlock(block)) {
-            markActivity(ProfitTrackerPreset.FARMING)
+        if (!config.enabled || currentPreset != ProfitTrackerPreset.FARMING || !isFarmingCropBlock(block)) return
+        markActivity(ProfitTrackerPreset.FARMING)
+        val minecraft = Minecraft.getInstance()
+        if (minecraft.player?.mainHandItem?.extraAttributes()?.skyBlockEnchantments()?.containsKey("replenish") != true) {
+            return
+        }
+        replenishCrop(block, minecraft.level?.gameTime ?: 0L)?.let { crop ->
+            pendingReplenishCosts[crop] = pendingReplenishCosts.getOrDefault(crop, 0) + 1
         }
     }
 
@@ -232,19 +237,27 @@ object ProfitTracker {
         val unsuppressedChanges = itemTracking.consume(batch)
         val preset = itemAttributionPreset(batch)
         val allowedItems = preset?.let(::trackedItemIds).orEmpty()
-        val changes = when (preset) {
-            ProfitTrackerPreset.FARMING -> trackedItemChanges(
-                unsuppressedChanges,
-                allowedItems,
-                craftingInputs[ProfitTrackerPreset.FARMING].orEmpty(),
-            )
-            null -> emptyMap()
+        val changes = when {
+            preset == null -> emptyMap()
+            batch.source == SkyBlockItemChangeSource.INVENTORY &&
+                MinecraftClient.screen() is AbstractContainerScreen<*> -> emptyMap()
             else -> craftingReconciliation.reconcile(preset, batch.source, unsuppressedChanges, allowedItems)
+                .withReplenishCosts(preset)
         }
         ProfitTrackerDebug.record(batch, unsuppressedChanges, preset, changes)
         if (preset == null || changes.isEmpty()) return
         markActivity(preset)
         update(preset) { stats -> applyTrackedItemChanges(stats, changes) }
+    }
+
+    private fun Map<String, Int>.withReplenishCosts(preset: ProfitTrackerPreset): Map<String, Int> {
+        if (preset != ProfitTrackerPreset.FARMING || pendingReplenishCosts.isEmpty()) return this
+        val costs = pendingReplenishCosts.filterKeys { crop -> getOrDefault(crop.harvestItemId, 0) > 0 }
+        if (costs.isEmpty()) return this
+        pendingReplenishCosts.keys.removeAll(costs.keys)
+        return toMutableMap().apply {
+            costs.forEach { (crop, amount) -> merge(crop.costItemId, -amount, Int::plus) }
+        }.filterValues { it != 0 }
     }
 
     private fun update(preset: ProfitTrackerPreset, action: (ProfileStorage.ProfitTrackerStats) -> Unit) {
@@ -289,13 +302,6 @@ object ProfitTracker {
                 .map { entry -> entry.key.id }
             presetItems + compactedDrops
         }
-        craftingInputs = trackedItems.mapValues { (_, items) ->
-            items.asSequence().flatMap { outputId ->
-                SkyBlockDataRepository.recipesFor(SkyBlockDataRepository.itemKey(outputId)).asSequence()
-                    .filterIsInstance<SkyBlockRecipe.Crafting>()
-                    .mapNotNull { recipe -> recipe.ingredients.map { it.id }.distinct().singleOrNull() }
-            }.filter(items::contains).toSet()
-        }
         dropCatalogVersion = SkyBlockDataRepository.snapshotVersion
     }
 
@@ -325,6 +331,7 @@ object ProfitTracker {
         lastActivityAtMillis.clear()
         itemTracking.clear()
         craftingReconciliation.clear()
+        pendingReplenishCosts.clear()
     }
 }
 
@@ -364,6 +371,8 @@ private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
 private const val TALISMAN_OF_COINS_AMOUNT = 1.0
 private const val MAXIMUM_COIN_GAIN = 100_000.0
 private const val BOUNTIFUL_ATTRIBUTION_MILLIS = 2_000L
+private const val MINECRAFT_DAY_TICKS = 24_000L
+private const val MINECRAFT_NIGHT_START_TICK = 12_000L
 
 private fun shouldTrackCoinGain(
     preset: ProfitTrackerPreset,
@@ -391,6 +400,23 @@ internal fun parseFarmingChatDrop(message: String): FarmingChatDrop? {
         ?.toIntOrNull()
         ?: 1
     return FarmingChatDrop(itemName, amount)
+}
+
+internal data class ReplenishCrop(val harvestItemId: String, val costItemId: String)
+
+internal fun replenishCrop(block: Block, dayTime: Long = 0L): ReplenishCrop? = when (block) {
+    Blocks.WHEAT -> ReplenishCrop("WHEAT", "SEEDS")
+    Blocks.CARROTS -> ReplenishCrop("CARROT_ITEM", "CARROT_ITEM")
+    Blocks.POTATOES -> ReplenishCrop("POTATO_ITEM", "POTATO_ITEM")
+    Blocks.NETHER_WART -> ReplenishCrop("NETHER_STALK", "NETHER_STALK")
+    Blocks.COCOA -> ReplenishCrop("INK_SACK-3", "INK_SACK-3")
+    Blocks.ROSE_BUSH -> ReplenishCrop("WILD_ROSE", "WILD_ROSE")
+    Blocks.SUNFLOWER -> if (dayTime % MINECRAFT_DAY_TICKS >= MINECRAFT_NIGHT_START_TICK) {
+        ReplenishCrop("MOONFLOWER", "MOONFLOWER")
+    } else {
+        ReplenishCrop("DOUBLE_PLANT", "DOUBLE_PLANT")
+    }
+    else -> null
 }
 
 internal fun isFarmingCropBlock(block: Block): Boolean = when (block) {
