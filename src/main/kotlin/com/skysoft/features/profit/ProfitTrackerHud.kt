@@ -1,5 +1,7 @@
 package com.skysoft.features.profit
 
+import com.skysoft.config.ProfitTrackerConfig
+import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.ProfitTrackerQuantityPosition
 import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.config.SkysoftConfigGui
@@ -40,13 +42,13 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
-private val config get() = SkysoftConfigGui.config().profitTracker
 private var hoveredControl: OverlayControlArea<ProfitTrackerControl>? = null
 private var isTrackerHovered = false
 private val itemScrollOffsets = mutableMapOf<ItemScrollKey, Int>()
 
 internal fun registerProfitTrackerHud() {
     registerMouseCapture()
+    ProfitTrackerPreset.entries.forEach(::registerProfitTrackerHudEditor)
     GuiOverlayRegistry.register(
         GuiOverlay(
             id = "profit_tracker",
@@ -55,40 +57,43 @@ internal fun registerProfitTrackerHud() {
             render = { context, _ -> renderProfitTracker(context) },
         ),
     )
+}
+
+private fun registerProfitTrackerHudEditor(preset: ProfitTrackerPreset) {
+    val config = presetConfig(preset)
     HudEditorRegistry.register(object : HudEditorElement {
-        override val id: String = "profit_tracker"
-        override val label: String = "Profit Tracker"
+        override val id: String = "profit_tracker_${preset.name.lowercase()}"
+        override val label: String = "${preset.displayName} Profit Tracker"
         override val position get() = config.position
         override val hasEditorBackground: Boolean get() = !config.details.showBackground
-        override fun width(): Int = buildProfitRenderable(false)?.width ?: 0
-        override fun height(): Int = buildProfitRenderable(false)?.height ?: 0
+        override fun width(): Int = buildProfitRenderable(preset, false).width
+        override fun height(): Int = buildProfitRenderable(preset, false).height
         override fun isVisible(): Boolean = config.enabled
-        override fun renderDummy(context: GuiGraphicsExtractor) {
-            buildProfitRenderable(false)?.render(context)
-        }
-        override fun openConfig() = SkysoftConfigGui.open("Profit Tracker")
+        override fun renderDummy(context: GuiGraphicsExtractor) = buildProfitRenderable(preset, false).render(context)
+        override fun openConfig() = SkysoftConfigGui.open(preset.displayName)
     })
 }
 
 private fun renderProfitTracker(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
-    if (!config.enabled || !HypixelLocationState.inSkyBlock || MinecraftClient.isGuiHidden(minecraft)) {
+    if (!HypixelLocationState.inSkyBlock || MinecraftClient.isGuiHidden(minecraft)) {
+        hoveredControl = null
+        isTrackerHovered = false
+        return
+    }
+    val preset = ProfitTracker.selectedPreset()?.takeIf(ProfitTracker::isInPresetArea) ?: run {
         hoveredControl = null
         isTrackerHovered = false
         return
     }
     val inventoryOpen = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
-    val renderable = buildProfitRenderable(inventoryOpen) ?: run {
-        hoveredControl = null
-        isTrackerHovered = false
-        return
-    }
+    val renderable = buildProfitRenderable(preset, inventoryOpen)
     val window = minecraft.window
     val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
     val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
     context.nextStratum()
-    renderPositioned(context, renderable, inventoryOpen, normalMouseX, normalMouseY)
+    renderPositioned(context, renderable, preset, inventoryOpen, normalMouseX, normalMouseY)
     if (inventoryOpen) {
         context.nextStratum()
         hoveredControl?.let { area ->
@@ -101,15 +106,17 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
 private fun renderPositioned(
     context: GuiGraphicsExtractor,
     renderable: ProfitTrackerRenderable,
+    preset: ProfitTrackerPreset,
     interactive: Boolean,
     mouseX: Int,
     mouseY: Int,
 ) {
-    val scale = config.position.effectiveScale
+    val position = presetConfig(preset).position
+    val scale = position.effectiveScale
     val scaledWidth = (renderable.width * scale).roundToInt()
     val scaledHeight = (renderable.height * scale).roundToInt()
-    val x = config.position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = config.position.getAbsY0AllowingOverflow(scaledHeight)
+    val x = position.getAbsX0AllowingOverflow(scaledWidth)
+    val y = position.getAbsY0AllowingOverflow(scaledHeight)
     val localMouseX = floor((mouseX - x) / scale).toInt()
     val localMouseY = floor((mouseY - y) / scale).toInt()
     val localControl = context.withIsolatedPose {
@@ -130,10 +137,10 @@ private fun renderPositioned(
     }
 }
 
-private fun buildProfitRenderable(inventoryOpen: Boolean): ProfitTrackerRenderable? {
-    val preset = ProfitTracker.selectedPreset()?.takeIf(ProfitTracker::isInPresetArea) ?: return null
+private fun buildProfitRenderable(preset: ProfitTrackerPreset, inventoryOpen: Boolean): ProfitTrackerRenderable {
+    val config = presetConfig(preset)
     val stats = ProfitTracker.stats(preset)
-    val items = profitDisplayItems(stats)
+    val items = profitDisplayItems(preset, stats)
     val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
     val scrollKey = ItemScrollKey(preset, ProfitTracker.displayPeriod(preset))
     val maximumOffset = (items.size - maximumItems).coerceAtLeast(0)
@@ -146,21 +153,26 @@ private fun buildProfitRenderable(inventoryOpen: Boolean): ProfitTrackerRenderab
         maximumItems = maximumItems,
         scrollOffset = scrollOffset,
         inventoryOpen = inventoryOpen,
+        config = config,
         background = config.details.showBackground,
     )
 }
 
 private fun registerMouseCapture() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (!config.enabled || screen !is AbstractContainerScreen<*>) return@register
+        if (ProfitTrackerPreset.entries.none { presetConfig(it).enabled } ||
+            screen !is AbstractContainerScreen<*>
+        ) return@register
         ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
             SkysoftErrorBoundary.value("Profit Tracker mouse click", true) {
-                !config.enabled || !wasControlClickHandled(click.button())
+                ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
+                    !wasControlClickHandled(click.button())
             }
         }
         ScreenMouseEvents.allowMouseScroll(screen).register { _, _, _, _, verticalAmount ->
             SkysoftErrorBoundary.value("Profit Tracker mouse scroll", true) {
-                !config.enabled || !isTrackerHovered || !wasItemScrollHandled(verticalAmount)
+                ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
+                    !isTrackerHovered || !wasItemScrollHandled(verticalAmount)
             }
         }
     }
@@ -173,6 +185,16 @@ private fun wasControlClickHandled(button: Int): Boolean {
         ProfitTrackerControl.PERIOD -> {
             if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
             ProfitTracker.cyclePeriod(preset, backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+            true
+        }
+        ProfitTrackerControl.PRICE_SOURCE -> {
+            if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
+            val settings = presetConfig(preset).settings
+            settings.priceSource = nextProfitTrackerPriceSource(
+                settings.priceSource,
+                backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT,
+            )
+            SkysoftConfigGui.config().saveNow()
             true
         }
         ProfitTrackerControl.RESET -> {
@@ -189,8 +211,8 @@ private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
     if (verticalAmount == 0.0) return false
     val preset = ProfitTracker.selectedPreset() ?: return false
     val period = ProfitTracker.displayPeriod(preset)
-    val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
-    val maximumOffset = (profitDisplayItems(ProfitTracker.stats(preset)).size - maximumItems).coerceAtLeast(0)
+    val maximumItems = presetConfig(preset).settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
+    val maximumOffset = (profitDisplayItems(preset, ProfitTracker.stats(preset)).size - maximumItems).coerceAtLeast(0)
     if (maximumOffset == 0) return false
     val key = ItemScrollKey(preset, period)
     val current = itemScrollOffsets.getOrDefault(key, 0)
@@ -198,13 +220,16 @@ private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
     return true
 }
 
-private fun profitDisplayItems(stats: ProfileStorage.ProfitTrackerStats): List<ProfitDisplayItem> =
+private fun profitDisplayItems(
+    preset: ProfitTrackerPreset,
+    stats: ProfileStorage.ProfitTrackerStats,
+): List<ProfitDisplayItem> =
     stats.itemCounts.mapNotNull { (itemId, amount) ->
         val key = SkyBlockDataRepository.itemKey(itemId)
         val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId) ?: return@mapNotNull null
         val name = (SkyBlockDataRepository.entry(key)?.formattedDisplayName ?: PetRepository.itemName(itemId) ?: itemId)
             .replace("Enchanted ", "Ench ")
-        val unitValue = ProfitTracker.unitValue(itemId)
+        val unitValue = ProfitTracker.unitValue(preset, itemId)
         ProfitDisplayItem(name, stack, amount, unitValue?.times(amount))
     }.sortedWith(compareByDescending<ProfitDisplayItem> { it.value ?: Double.NEGATIVE_INFINITY }.thenBy { it.name })
 
@@ -215,6 +240,7 @@ private class ProfitTrackerRenderable(
     maximumItems: Int,
     scrollOffset: Int,
     private val inventoryOpen: Boolean,
+    private val config: ProfitTrackerConfig,
     private val background: Boolean,
 ) : GuiRenderable {
     private val displayedItems = items.drop(scrollOffset).take(maximumItems)
@@ -338,6 +364,7 @@ private class ProfitTrackerRenderable(
         }
         if (inventoryOpen) {
             add(ProfitLine("§7Display Mode §a§l[${period.displayName}]", control = ProfitTrackerControl.PERIOD))
+            add(ProfitLine("§7Price Source §e§l[${config.settings.priceSource}]", control = ProfitTrackerControl.PRICE_SOURCE))
             add(ProfitLine("§c[Reset ${period.displayName}]", control = ProfitTrackerControl.RESET))
         }
     }
@@ -347,6 +374,11 @@ private class ProfitTrackerRenderable(
             "Display Mode",
             ProfitTrackingPeriod.entries.map(ProfitTrackingPeriod::displayName),
             period.ordinal,
+        )
+        ProfitTrackerControl.PRICE_SOURCE -> OverlayControlTooltips.cycle(
+            "Price Source",
+            ProfitTrackerPriceSource.entries.map(ProfitTrackerPriceSource::toString),
+            config.settings.priceSource.ordinal,
         )
         ProfitTrackerControl.RESET -> listOf("§7Reset ${period.displayName} ${preset.displayName} data.")
     }
@@ -389,6 +421,16 @@ internal fun profitPerHour(profit: Double, activeMillis: Long): Double =
 internal fun profitTrackerScrollOffset(current: Int, verticalAmount: Double, maximumOffset: Int): Int =
     (current + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
 
+internal fun nextProfitTrackerPriceSource(
+    current: ProfitTrackerPriceSource,
+    backwards: Boolean,
+): ProfitTrackerPriceSource {
+    val step = if (backwards) -1 else 1
+    return ProfitTrackerPriceSource.entries[
+        Math.floorMod(current.ordinal + step, ProfitTrackerPriceSource.entries.size)
+    ]
+}
+
 private data class ItemScrollKey(
     val preset: ProfitTrackerPreset,
     val period: ProfitTrackingPeriod,
@@ -412,6 +454,7 @@ private data class LocalControlArea(
 
 private enum class ProfitTrackerControl {
     PERIOD,
+    PRICE_SOURCE,
     RESET,
 }
 

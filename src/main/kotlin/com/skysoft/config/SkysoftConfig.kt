@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.annotations.Expose
+import com.google.gson.annotations.SerializedName
 import com.skysoft.SkysoftMod
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
@@ -51,8 +52,9 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Profit Tracker", desc = "Track profit from supported activities.")
-    val profitTracker = ProfitTrackerConfig()
+    @field:SerializedName(value = "profitTrackers", alternate = ["profitTracker"])
+    @field:Category(name = "Profit Trackers", desc = "Configure activity profit trackers.")
+    val profitTrackers = ProfitTrackersConfig()
 
     @JvmField
     @field:Expose

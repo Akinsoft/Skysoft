@@ -395,15 +395,15 @@ object SkyBlockPriceData {
         bazaarConsumers.register("Bazaar Tracker") {
             SkysoftConfigGui.config().inventory.bazaar.enabled && hasCurrentBazaarTrackerOrders()
         }
-        bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTracker.enabled }
+        bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Sharing", ::isRareLootSharingActive)
-        lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTracker.enabled }
+        lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
         }
-        npcSellPriceConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTracker.enabled }
+        npcSellPriceConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
     }
 
     private fun updateRawCraftMarketSnapshot() {

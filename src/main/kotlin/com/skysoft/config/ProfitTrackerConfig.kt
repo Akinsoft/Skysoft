@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
+import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
@@ -12,10 +13,50 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
+class ProfitTrackersConfig {
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Farming", desc = "Track Farming profit.")
+    val farming = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Zombie Slayer", desc = "Track Zombie Slayer profit.")
+    val zombie = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Spider Slayer", desc = "Track Spider Slayer profit.")
+    val spider = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Wolf Slayer", desc = "Track Wolf Slayer profit.")
+    val wolf = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Enderman Slayer", desc = "Track Enderman Slayer profit.")
+    val enderman = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Blaze Slayer", desc = "Track Blaze Slayer profit.")
+    val blaze = ProfitTrackerConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Vampire Slayer", desc = "Track Vampire Slayer profit.")
+    val vampire = ProfitTrackerConfig()
+
+    fun isAnyEnabled(): Boolean = farming.enabled || zombie.enabled || spider.enabled || wolf.enabled ||
+        enderman.enabled || blaze.enabled || vampire.enabled
+}
+
 class ProfitTrackerConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Track profit from supported activities.")
+    @field:ConfigOption(name = "Enabled", desc = "Track profit for this activity.")
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -39,6 +80,12 @@ class ProfitTrackerConfig {
 }
 
 class ProfitTrackerSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Price Source", desc = "Choose which Bazaar price is used for tracked items.")
+    @field:ConfigEditorDropdown
+    var priceSource = ProfitTrackerPriceSource.INSTANT_SELL
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Pause After", desc = "Pause time tracking after this many seconds without tracked activity.")
@@ -85,6 +132,15 @@ class ProfitTrackerDetailsConfig {
     @field:ConfigOption(name = "Show Background", desc = "Draw a dark background behind the Profit Tracker.")
     @field:ConfigEditorBoolean
     var showBackground = false
+}
+
+enum class ProfitTrackerPriceSource(private val displayName: String) {
+    INSTANT_SELL("Instant Sell"),
+    SELL_ORDER("Sell Order"),
+    BUY_ORDER("Buy Order"),
+    ;
+
+    override fun toString(): String = displayName
 }
 
 enum class ProfitTrackerQuantityPosition(private val displayName: String) {
