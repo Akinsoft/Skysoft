@@ -59,6 +59,14 @@ class HudPosition @JvmOverloads constructor(
         x == it.x && y == it.y && scale == it.scale && centerX == it.centerX && centerY == it.centerY
     } ?: true
 
+    fun anchorToTop(objHeight: Int) = anchorToTop(screenHeight(), objHeight)
+
+    internal fun anchorToTop(screenHeight: Int, objHeight: Int) {
+        if (!centerY) return
+        y = calcAbs0(y, screenHeight, objHeight, centered = true, clampEnd = false)
+        centerY = false
+    }
+
     fun moveToAbsoluteAllowingOverflow(absX: Int, absY: Int, objWidth: Int, objHeight: Int): HudPosition {
         return moveToAbsolute(absX, absY, objWidth, objHeight, clampEnd = false)
     }

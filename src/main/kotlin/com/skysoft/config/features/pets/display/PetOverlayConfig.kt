@@ -47,7 +47,7 @@ class PetOverlayConfig : Config() {
         @JvmField
         @field:Expose
         @field:ConfigLink(owner = GeneralPetOverlayConfig::class, field = "enabled")
-        val position: HudPosition = HudPosition(0, 19).rememberDefault()
+        val position: HudPosition = HudPosition(0, 19, centerY = false).rememberDefault()
     }
 
     class GeneralPetOverlaySettingsConfig {

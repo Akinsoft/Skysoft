@@ -50,6 +50,11 @@ import net.minecraft.network.chat.Component
 import java.util.UUID
 import kotlin.math.roundToInt
 
+private fun anchorPetPositionToTop(renderable: GuiRenderable) {
+    val position = SkysoftConfigGui.config().pets.display.general.position
+    position.anchorToTop((renderable.height * position.effectiveScale).roundToInt())
+}
+
 private typealias TextLocation = PetTextConfig.TextLocationOption
 private typealias ExpShareTextMode = PetTextConfig.ExpSharePetTextConfig.TextMode
 private typealias TextCenter = PetTextConfig.EquippedPetTextConfig.CenterTarget
@@ -130,10 +135,11 @@ object ActivePetOverlay {
         }
     }
 
-    fun previewRenderable(): GuiRenderable? =
+    fun previewRenderable(): GuiRenderable? = (
         buildDisplayRenderable(displayState)
             ?: xpAnimations.withAnimatedEquipped(previewPet).buildRenderable(emptyList())
                 ?.withOverlayPanel(config.general.settings.background.get())
+        )?.also(::anchorPetPositionToTop)
 
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
@@ -145,6 +151,7 @@ object ActivePetOverlay {
         context.nextStratum()
         val renderable = buildDisplayRenderable(displayState)
         renderable?.also {
+            anchorPetPositionToTop(it)
             config.general.position.renderRenderable(context, it)
         }
     }
