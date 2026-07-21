@@ -46,7 +46,7 @@ object PriceTooltips {
     private fun shouldShow(): Boolean {
         if (!config.enabled) return false
         if (!config.settings.requireKey) return true
-        return InputUtilities.isKeyDown(config.settings.hotkey)
+        return InputUtilities.isBindingDown(config.settings.hotkey)
     }
 
     internal fun priceItemId(stack: ItemStack): String? {
@@ -111,7 +111,7 @@ object PriceTooltips {
         val hasBazaarLine = selectedLines.any(PriceTooltipLine::needsBazaarData)
         val hasLowestBinLine = selectedLines.any(PriceTooltipLine::needsLowestBinData)
         val stackMultiplier = if (
-            stackCount > 1 && InputUtilities.isKeyDown(config.settings.stackTotalKey)
+            stackCount > 1 && InputUtilities.isBindingDown(config.settings.stackTotalKey)
         ) {
             stackCount
         } else {

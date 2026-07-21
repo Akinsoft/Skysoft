@@ -184,7 +184,7 @@ object TooltipViewport {
         return usesLeftShift || usesConfiguredKey
     }
 
-    private fun isKeyDown(key: Int): Boolean = InputUtilities.isKeyDown(key)
+    private fun isKeyDown(key: Int): Boolean = InputUtilities.isBindingDown(key)
 
     private fun tooltipIdentity(font: Font, components: List<ClientTooltipComponent>): Int {
         var result = 1

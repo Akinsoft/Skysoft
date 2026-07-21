@@ -158,7 +158,7 @@ object DianaBurrowHelper {
 
     private fun handleWarpKey(now: Long) {
         val key = settings.warpKey
-        val keyDown = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isKeyDown(key)
+        val keyDown = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isBindingDown(key)
         if (!keyDown) {
             warpKeyWasDown = false
             return

@@ -44,7 +44,7 @@ object SlotLockManager {
 
     @JvmStatic
     fun beginFrame() {
-        activeLockKey?.takeUnless(InputUtilities::isKeyDown)?.let {
+        activeLockKey?.takeUnless(InputUtilities::isBindingDown)?.let {
             activeLockKey = null
             pendingLockSlot?.takeIf { isFeatureAvailable() }?.let(::toggleLock)
             pendingLockSlot = null

@@ -36,7 +36,7 @@ internal object ChatPeek {
             isEnabled = settings.enabled,
             key = key,
             hasPlayer = { Minecraft.getInstance().player != null },
-            isKeyDown = { InputUtilities.isKeyDown(key) },
+            isKeyDown = { InputUtilities.isBindingDown(key) },
         )
     }
 }
