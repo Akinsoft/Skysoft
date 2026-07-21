@@ -25,7 +25,6 @@ import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
 import com.skysoft.utils.NumberUtilities.signedCoinFormat
 import com.skysoft.utils.SkysoftErrorBoundary
-import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.truncateLegacyText
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
@@ -40,10 +39,11 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 private var hoveredControl: OverlayControlArea<ProfitTrackerControl>? = null
 private var isTrackerHovered = false
+private val itemPanel = ProfitTrackerItemPanel()
+private val hudControls = ProfitTrackerHudControls(itemPanel)
 private val itemScrollOffsets = mutableMapOf<ItemScrollKey, Int>()
 
 internal fun registerProfitTrackerHud() {
@@ -87,6 +87,7 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
         return
     }
     val inventoryOpen = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
+    if (!inventoryOpen) itemPanel.clear()
     val renderable = buildProfitRenderable(preset, inventoryOpen)
     val window = minecraft.window
     val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
@@ -98,7 +99,25 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
         context.nextStratum()
         hoveredControl?.let { area ->
             val (tooltipX, tooltipY) = OverlayControlMouse.deferredTooltipPoint(mouseX, mouseY)
-            SkysoftNativeTooltip.setForNextFrame(context, area.tooltipLines, tooltipX, tooltipY)
+            val managedItem = area.action as? ProfitTrackerControl.ManageItem
+            if (managedItem != null) {
+                SkysoftNativeTooltip.setItemActionForNextFrame(
+                    context,
+                    managedItem.stack,
+                    "Manage",
+                    managedItem.formattedName,
+                    tooltipX,
+                    tooltipY,
+                )
+            } else {
+                SkysoftNativeTooltip.setForNextFrame(
+                    context,
+                    area.tooltipLines,
+                    tooltipX,
+                    tooltipY,
+                    scrollable = false,
+                )
+            }
         }
     }
 }
@@ -119,10 +138,34 @@ private fun renderPositioned(
     val y = position.getAbsY0AllowingOverflow(scaledHeight)
     val localMouseX = floor((mouseX - x) / scale).toInt()
     val localMouseY = floor((mouseY - y) / scale).toInt()
+    val placePanelRight = x + ((renderable.width + SIDE_PANEL_ESTIMATED_WIDTH) * scale).roundToInt() <=
+        Minecraft.getInstance().window.guiScaledWidth
     val localControl = context.withIsolatedPose {
         pose().translate(x.toFloat(), y.toFloat())
         pose().scale(scale, scale)
-        renderable.renderInteractive(context, if (interactive) localMouseX else null, if (interactive) localMouseY else null)
+        val trackerControl = renderable.renderInteractive(
+            context,
+            if (interactive) localMouseX else null,
+            if (interactive) localMouseY else null,
+        )
+        val panelControl = itemPanel.render(
+            context,
+            preset,
+            renderable.width,
+            placePanelRight,
+            if (interactive) localMouseX else Int.MIN_VALUE,
+            if (interactive) localMouseY else Int.MIN_VALUE,
+        )
+        panelControl?.let { control ->
+            LocalControlArea(
+                control.action,
+                control.x,
+                control.y,
+                control.width,
+                control.height,
+                control.tooltipLines,
+            )
+        } ?: trackerControl
     }
     isTrackerHovered = interactive && localMouseX in 0..renderable.width && localMouseY in 0..renderable.height
     hoveredControl = localControl?.let { area ->
@@ -166,7 +209,7 @@ private fun registerMouseCapture() {
         ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
             SkysoftErrorBoundary.value("Profit Tracker mouse click", true) {
                 ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
-                    !wasControlClickHandled(click.button())
+                    !hudControls.wasClickHandled(screen, hoveredControl?.action, click.button())
             }
         }
         ScreenMouseEvents.allowMouseScroll(screen).register { _, _, _, _, verticalAmount ->
@@ -176,35 +219,6 @@ private fun registerMouseCapture() {
             }
         }
     }
-}
-
-private fun wasControlClickHandled(button: Int): Boolean {
-    val area = hoveredControl ?: return false
-    val preset = ProfitTracker.selectedPreset() ?: return false
-    val activated = when (area.action) {
-        ProfitTrackerControl.PERIOD -> {
-            if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
-            ProfitTracker.cyclePeriod(preset, backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
-            true
-        }
-        ProfitTrackerControl.PRICE_SOURCE -> {
-            if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
-            val settings = presetConfig(preset).settings
-            settings.priceSource = nextProfitTrackerPriceSource(
-                settings.priceSource,
-                backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT,
-            )
-            SkysoftConfigGui.config().saveNow()
-            true
-        }
-        ProfitTrackerControl.RESET -> {
-            if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
-            ProfitTracker.selectedPreset()?.let(ProfitTracker::resetDisplayed)
-            true
-        }
-    }
-    if (activated) SoundUtilities.playClickSound()
-    return activated
 }
 
 private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
@@ -225,12 +239,15 @@ private fun profitDisplayItems(
     stats: ProfileStorage.ProfitTrackerStats,
 ): List<ProfitDisplayItem> =
     stats.itemCounts.mapNotNull { (itemId, amount) ->
+        if (itemId !in ProfitTracker.trackedItemIds(preset) || ProfitTrackerItemCustomizations.isExcluded(preset, itemId)) {
+            return@mapNotNull null
+        }
         val key = SkyBlockDataRepository.itemKey(itemId)
         val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId) ?: return@mapNotNull null
         val name = (SkyBlockDataRepository.entry(key)?.formattedDisplayName ?: PetRepository.itemName(itemId) ?: itemId)
             .replace("Enchanted ", "Ench ")
         val unitValue = ProfitTracker.unitValue(preset, itemId)
-        ProfitDisplayItem(name, stack, amount, unitValue?.times(amount))
+        ProfitDisplayItem(itemId, name, stack, amount, unitValue?.times(amount))
     }.sortedWith(compareByDescending<ProfitDisplayItem> { it.value ?: Double.NEGATIVE_INFINITY }.thenBy { it.name })
 
 private class ProfitTrackerRenderable(
@@ -251,6 +268,7 @@ private class ProfitTrackerRenderable(
     private val coinCosts = stats.costs[COIN_CURRENCY]?.toDouble() ?: 0.0
     private val profit = revenue - coinCosts
     private val period = ProfitTracker.displayPeriod(preset)
+    private val renderItemIcons = config.details.showItemIcons
     private val padding = if (background) OverlayPanelStyle.PADDING else 0
     private val lines = buildLines()
 
@@ -266,39 +284,51 @@ private class ProfitTrackerRenderable(
         var y = padding
         var hovered: LocalControlArea? = null
         lines.forEach { line ->
-            line.leading?.let { LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset) }
-            line.icon?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, padding + line.contentOffset, y) }
-            val textX = if (line.centered) {
-                (width - LegacyTextRenderer.width(line.left)) / 2
-            } else {
-                padding + line.contentOffset + if (line.icon == null) 0 else ITEM_TEXT_OFFSET
-            }
-            LegacyTextRenderer.draw(context, line.left, textX, y + line.textYOffset)
-            line.middle?.let { middle ->
-                val middleX = textX + line.leftColumnWidth + ITEM_COLUMN_GAP
-                LegacyTextRenderer.draw(context, middle, middleX, y + line.textYOffset)
-            }
-            line.right?.let { right ->
-                LegacyTextRenderer.draw(context, right, width - padding - LegacyTextRenderer.width(right), y + line.textYOffset)
-            }
-            line.control?.let { action ->
-                val area = LocalControlArea(
-                    action = action,
-                    x = padding,
-                    y = y,
-                    width = line.width,
-                    height = line.height,
-                    tooltipLines = controlTooltip(action),
-                )
-                if (mouseX != null && mouseY != null && mouseX in area.x..(area.x + area.width) &&
-                    mouseY in area.y..(area.y + area.height)
-                ) {
-                    hovered = area
-                }
-            }
+            renderLine(context, line, y, mouseX, mouseY)?.let { hovered = it }
             y += line.height
         }
         return hovered
+    }
+
+    private fun renderLine(
+        context: GuiGraphicsExtractor,
+        line: ProfitLine,
+        y: Int,
+        mouseX: Int?,
+        mouseY: Int?,
+    ): LocalControlArea? {
+        val primaryWidth = line.primaryControlWidth(width, padding)
+        val rightWidth = line.right?.let(LegacyTextRenderer::width) ?: 0
+        val secondaryX = width - padding - rightWidth
+        val primaryArea = line.control?.let { action ->
+            LocalControlArea(action, padding, y, primaryWidth, line.height, emptyList())
+        }
+        val secondaryArea = line.secondaryControl?.let { action ->
+            LocalControlArea(action, secondaryX, y, rightWidth, line.height, emptyList())
+        }
+        primaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
+            context.fill(area.x, y, area.x + area.width, y + line.height, CONTROL_HOVER_COLOR)
+        }
+        secondaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
+            context.fill(area.x, y, area.x + area.width, y + line.height, CONTROL_HOVER_COLOR)
+        }
+        line.leading?.let { LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset) }
+        line.icon?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, padding + line.contentOffset, y) }
+        val textX = if (line.centered) {
+            (width - LegacyTextRenderer.width(line.left)) / 2
+        } else {
+            padding + line.contentOffset + if (line.icon == null) 0 else ITEM_TEXT_OFFSET
+        }
+        LegacyTextRenderer.draw(context, line.left, textX, y + line.textYOffset)
+        line.middle?.let { middle ->
+            LegacyTextRenderer.draw(context, middle, textX + line.leftColumnWidth + ITEM_COLUMN_GAP, y + line.textYOffset)
+        }
+        line.right?.let { right ->
+            LegacyTextRenderer.draw(context, right, width - padding - LegacyTextRenderer.width(right), y + line.textYOffset)
+        }
+        val hoveredArea = secondaryArea?.takeIf { it.contains(mouseX, mouseY) }
+            ?: primaryArea?.takeIf { it.contains(mouseX, mouseY) }
+        return hoveredArea?.copy(tooltipLines = controlTooltip(hoveredArea.action))
     }
 
     private fun buildLines(): List<ProfitLine> = buildList {
@@ -318,10 +348,12 @@ private class ProfitTrackerRenderable(
                         middle = count.takeUnless { quantityLeft },
                         leftColumnWidth = if (quantityLeft) LegacyTextRenderer.width(name) else itemNameColumnWidth,
                         right = value,
-                        icon = item.stack.takeIf { config.details.showItemIcons },
+                        icon = item.stack.takeIf { renderItemIcons },
                         height = ITEM_ROW_HEIGHT,
                         textYOffset = 2,
                         leading = count.takeIf { quantityLeft },
+                        control = ProfitTrackerControl.ManageItem(item.itemId, item.stack, item.name)
+                            .takeIf { inventoryOpen },
                     ),
                 )
             }
@@ -363,24 +395,34 @@ private class ProfitTrackerRenderable(
             }
         }
         if (inventoryOpen) {
-            add(ProfitLine("§7Display Mode §a§l[${period.displayName}]", control = ProfitTrackerControl.PERIOD))
-            add(ProfitLine("§7Price Source §e§l[${config.settings.priceSource}]", control = ProfitTrackerControl.PRICE_SOURCE))
-            add(ProfitLine("§c[Reset ${period.displayName}]", control = ProfitTrackerControl.RESET))
+            add(ProfitLine("§7Display Mode §a§l[${period.displayName}]", control = ProfitTrackerControl.Period))
+            add(ProfitLine("§7Price Source §e§l[${config.settings.priceSource}]", control = ProfitTrackerControl.PriceSource))
+            add(
+                ProfitLine(
+                    "§c[Reset ${period.displayName}]",
+                    right = "§7...",
+                    control = ProfitTrackerControl.Reset,
+                    secondaryControl = ProfitTrackerControl.More,
+                ),
+            )
         }
     }
 
     private fun controlTooltip(action: ProfitTrackerControl): List<String> = when (action) {
-        ProfitTrackerControl.PERIOD -> OverlayControlTooltips.cycle(
+        ProfitTrackerControl.Period -> OverlayControlTooltips.cycle(
             "Display Mode",
             ProfitTrackingPeriod.entries.map(ProfitTrackingPeriod::displayName),
             period.ordinal,
         )
-        ProfitTrackerControl.PRICE_SOURCE -> OverlayControlTooltips.cycle(
+        ProfitTrackerControl.PriceSource -> OverlayControlTooltips.cycle(
             "Price Source",
             ProfitTrackerPriceSource.entries.map(ProfitTrackerPriceSource::toString),
             config.settings.priceSource.ordinal,
         )
-        ProfitTrackerControl.RESET -> listOf("§7Reset ${period.displayName} ${preset.displayName} data.")
+        ProfitTrackerControl.Reset -> listOf("§7Reset ${period.displayName} ${preset.displayName} data.")
+        ProfitTrackerControl.More -> listOf("§7Manage tracked items.")
+        is ProfitTrackerControl.ManageItem -> emptyList()
+        else -> emptyList()
     }
 }
 
@@ -391,6 +433,7 @@ private data class ProfitLine(
     val height: Int = TEXT_ROW_HEIGHT,
     val textYOffset: Int = 0,
     val control: ProfitTrackerControl? = null,
+    val secondaryControl: ProfitTrackerControl? = null,
     val centered: Boolean = false,
     val leading: String? = null,
     val middle: String? = null,
@@ -401,6 +444,12 @@ private data class ProfitLine(
     val width: Int = contentOffset + (if (icon == null) 0 else ITEM_TEXT_OFFSET) + leftColumnWidth +
         (middle?.let { LegacyTextRenderer.width(it) + ITEM_COLUMN_GAP } ?: 0) +
         (right?.let { LegacyTextRenderer.width(it) + COLUMN_GAP } ?: 0)
+
+    fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {
+        control is ProfitTrackerControl.ManageItem -> totalWidth - padding * 2
+        secondaryControl == null -> width
+        else -> LegacyTextRenderer.width(left)
+    }
 }
 
 internal fun formatProfitUptime(activeMillis: Long): String {
@@ -437,6 +486,7 @@ private data class ItemScrollKey(
 )
 
 private data class ProfitDisplayItem(
+    val itemId: String,
     val name: String,
     val stack: ItemStack,
     val amount: Long,
@@ -452,11 +502,8 @@ private data class LocalControlArea(
     val tooltipLines: List<String>,
 )
 
-private enum class ProfitTrackerControl {
-    PERIOD,
-    PRICE_SOURCE,
-    RESET,
-}
+private fun LocalControlArea.contains(mouseX: Int?, mouseY: Int?): Boolean =
+    mouseX != null && mouseY != null && mouseX in x..(x + width) && mouseY in y..(y + height)
 
 private fun profitColor(value: Double): String = if (value >= 0.0) "§a" else "§c"
 
@@ -475,3 +522,5 @@ private const val ICON_SCALE = 0.75
 private const val ITEM_TEXT_OFFSET = 14
 private const val COLUMN_GAP = 8
 private const val ITEM_COLUMN_GAP = 4
+private const val SIDE_PANEL_ESTIMATED_WIDTH = 220
+private const val CONTROL_HOVER_COLOR = 0x20FFFFFF

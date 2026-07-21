@@ -27,7 +27,7 @@ data class ItemIconRenderable(
         if (stack.isEmpty || renderScale <= 0.0 || alpha <= 0f) return
 
         val rotationVector = Vec3(xRotationDegrees.toDouble(), yRotationDegrees.toDouble(), zRotationDegrees.toDouble())
-        if (rotationVector != Vec3.ZERO || alpha < OPAQUE_ALPHA_THRESHOLD || renderScale != 1.0) {
+        if (rotationVector != Vec3.ZERO || alpha < OPAQUE_ALPHA_THRESHOLD) {
             SkysoftItemRenderSupport.submit(context, stack, renderScale, rotationVector, alpha)
             return
         }

@@ -236,7 +236,7 @@ object ProfitTracker {
     internal fun unitValue(preset: ProfitTrackerPreset, itemId: String): Double? {
         val bazaarPrice = profitTrackerBazaarPrice(
             SkyBlockPriceData.getBazaarPrice(itemId),
-            presetConfig(preset).settings.priceSource,
+            ProfitTrackerItemCustomizations.priceSource(preset, itemId),
         )
         return bazaarPrice?.takeIf { it > 0.0 }
             ?: SkyBlockPriceData.getLowestBin(itemId)?.toDouble()?.takeIf { it > 0.0 }
@@ -245,7 +245,7 @@ object ProfitTracker {
 
     internal fun trackedItemIds(preset: ProfitTrackerPreset): Set<String> {
         if (dropCatalogVersion != SkyBlockDataRepository.snapshotVersion) rebuildDropCatalog()
-        return trackedItems[preset].orEmpty()
+        return trackedItems[preset].orEmpty() + ProfitTrackerItemCustomizations.customItems(preset)
     }
 
     private fun recordItemChanges(batch: SkyBlockItemChangeBatch) {
