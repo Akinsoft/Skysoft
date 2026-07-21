@@ -64,7 +64,7 @@ object CocoonTracker {
             .filter { now - it.detectedAtMillis <= MESSAGE_LINK_WINDOW_MILLIS }
             .minByOrNull { tracked -> playerLocation?.distanceSq(tracked.location) ?: -tracked.detectedAtMillis.toDouble() }
         if (cocoon != null) {
-            cocoon.mobName = message.mobName
+            updateMobName(cocoon, message.mobName)
         } else {
             pendingMessages += PendingCocoonMessage(message.mobName, playerLocation, now)
         }
@@ -77,7 +77,7 @@ object CocoonTracker {
         }
         if (existing != null) {
             existing.entityIds += entityId
-            if (existing.mobName == null) existing.mobName = nearbyMobName(existing.location)
+            if (existing.mobName == null) updateMobName(existing, nearbyMobName(existing.location))
             return
         }
 
@@ -85,13 +85,14 @@ object CocoonTracker {
             message.location?.distanceSq(location) ?: -message.receivedAtMillis.toDouble()
         }
         pending?.let(pendingMessages::remove)
-        cocoons += TrackedCocoon(
+        val cocoon = TrackedCocoon(
             entityIds = mutableSetOf(entityId),
             location = location,
             detectedAtMillis = now,
             expiresAtMillis = now + COCOON_LIFETIME_MILLIS,
-            mobName = pending?.mobName ?: nearbyMobName(location),
         )
+        updateMobName(cocoon, pending?.mobName ?: nearbyMobName(location))
+        cocoons += cocoon
     }
 
     private fun nearbyMobName(location: WorldVec): String? =
@@ -116,7 +117,7 @@ object CocoonTracker {
         pendingMessages.removeIf { now - it.receivedAtMillis > MESSAGE_LINK_WINDOW_MILLIS }
         cocoons.removeIf { now >= it.expiresAtMillis }
         if (++ticks % NAME_SCAN_INTERVAL_TICKS == 0) {
-            cocoons.filter { it.mobName == null }.forEach { it.mobName = nearbyMobName(it.location) }
+            cocoons.filter { it.mobName == null }.forEach { updateMobName(it, nearbyMobName(it.location)) }
         }
     }
 
@@ -143,11 +144,24 @@ object CocoonTracker {
 
     private fun shouldRender(cocoon: TrackedCocoon): Boolean {
         if (!config.settings.onlySlayerTargets || !SlayerQuestState.isActive) return true
+        if (cocoon.matchedTargetFilter) return true
         val mobName = cocoon.mobName ?: return false
         return shouldShowFilteredCocoon(
+            wasPreviouslyMatched = false,
             isSlayerTarget = SlayerQuestState.isSlayerTarget(mobName),
             isDianaRareMob = DianaRareMobOption.fromMobName(mobName) != null,
-        )
+        ).also { cocoon.matchedTargetFilter = it }
+    }
+
+    private fun updateMobName(cocoon: TrackedCocoon, mobName: String?) {
+        cocoon.mobName = mobName
+        if (mobName != null) {
+            cocoon.matchedTargetFilter = shouldShowFilteredCocoon(
+                wasPreviouslyMatched = cocoon.matchedTargetFilter,
+                isSlayerTarget = SlayerQuestState.isSlayerTarget(mobName),
+                isDianaRareMob = DianaRareMobOption.fromMobName(mobName) != null,
+            )
+        }
     }
 
     private fun clear() {
@@ -170,7 +184,8 @@ object CocoonTracker {
         val location: WorldVec,
         val detectedAtMillis: Long,
         val expiresAtMillis: Long,
-        var mobName: String?,
+        var mobName: String? = null,
+        var matchedTargetFilter: Boolean = false,
     )
 
     private data class PendingCocoonMessage(
@@ -209,8 +224,11 @@ private fun isPossibleMobNameplate(cocoon: WorldVec, nameplate: WorldVec): Boole
 internal fun formatCocoonTime(remainingMillis: Long): String =
     String.format(Locale.ROOT, "%.1fs", remainingMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND)
 
-internal fun shouldShowFilteredCocoon(isSlayerTarget: Boolean, isDianaRareMob: Boolean): Boolean =
-    isSlayerTarget || isDianaRareMob
+internal fun shouldShowFilteredCocoon(
+    wasPreviouslyMatched: Boolean,
+    isSlayerTarget: Boolean,
+    isDianaRareMob: Boolean,
+): Boolean = wasPreviouslyMatched || isSlayerTarget || isDianaRareMob
 
 private const val COCOON_GROUP_HORIZONTAL_DISTANCE_SQ = 1.0
 private const val NAMEPLATE_HORIZONTAL_DISTANCE_SQ = 1.0
