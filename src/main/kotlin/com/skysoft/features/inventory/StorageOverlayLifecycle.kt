@@ -176,10 +176,6 @@ internal fun handlePreScreenMouseClick(
     }
     updateSearchFocusFromClick(layoutState.measurements, mouseX, mouseY)
 
-    if (routeActivePageSlotClick(screen, layoutState.handle, click) == InputHandlingResult.CONSUMED) {
-        return InputHandlingResult.CONSUMED
-    }
-
     return handleStorageOverlayMouseClick(screen, click, layoutState)
 }
 
@@ -199,6 +195,7 @@ internal fun handleStorageOverlayMouseClick(
         return InputHandlingResult.CONSUMED
     }
     updateSearchFocusFromClick(measurements, mouseX, mouseY)
+    routeActivePageSlotClick(screen, handle, click)?.let { return it }
 
     if (
         processModernFocusCollapse(click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY) ==

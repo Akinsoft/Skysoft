@@ -19,21 +19,18 @@ internal fun routeActivePageSlotClick(
     screen: AbstractContainerScreen<*>,
     handle: StorageHandle,
     click: MouseButtonEvent,
-): InputHandlingResult {
+): InputHandlingResult? {
     val activePage = handle.entryIndex()
     val rows = handle.gridRows()
-    if (activePage == null || rows == null) return InputHandlingResult.IGNORED
-    if (isModernStorageOverlay && !isModernPageExpanded(activePage)) return InputHandlingResult.IGNORED
+    if (activePage == null || rows == null || isModernStorageOverlay && !isModernPageExpanded(activePage)) return null
     val mouseX = click.x().toInt()
     val mouseY = click.y().toInt()
-    if (!outsideVanillaContainer(screen, mouseX, mouseY)) return InputHandlingResult.IGNORED
     val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
-    val slotAndAction = pageLayouts(measurements, activePage).pages[activePage]?.let { activeLayout ->
-        activePageSlotAt(screen, measurements, handle, rows, activeLayout, mouseX, mouseY)?.let { slot ->
-            slotClickAction(screen, click, slot)?.let { action -> slot to action }
-        }
-    } ?: return InputHandlingResult.IGNORED
-    val (slot, action) = slotAndAction
+    val slot = pageLayouts(measurements, activePage).pages[activePage]?.let { activeLayout ->
+        activePageSlotAt(screen, measurements, handle, rows, activeLayout, mouseX, mouseY)
+    } ?: return null
+    if (!outsideVanillaContainer(screen, mouseX, mouseY)) return InputHandlingResult.IGNORED
+    val action = slotClickAction(screen, click, slot) ?: return null
     (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
         slot,
         slot.index,
