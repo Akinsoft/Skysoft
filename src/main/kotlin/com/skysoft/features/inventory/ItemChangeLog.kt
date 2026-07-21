@@ -34,6 +34,7 @@ object ItemChangeLog {
     private val config get() = SkysoftConfigGui.config().inventory.itemChangeLog
     private val state = ItemChangeLogState()
     private var wasEnabled = false
+    private var retainedEditorWidth = EDITOR_MINIMUM_WIDTH
 
     fun register() {
         SkyBlockItemChanges.onChange(
@@ -68,8 +69,11 @@ object ItemChangeLog {
             private var dragWidth = 0
             private var dragHeight = 0
 
-            override fun width(): Int = currentRenderable()?.width ?: 0
-            override fun height(): Int = currentRenderable()?.height ?: 0
+            override fun width(): Int {
+                currentRenderable()
+                return retainedEditorWidth
+            }
+            override fun height(): Int = itemChangeLogHeight(config.settings.maximumLines)
             override fun isVisible(): Boolean = config.enabled
             override fun absoluteY(height: Int): Int = itemChangeLogY(
                 anchorY = position.getAbsY0AllowingOverflow(0),
@@ -77,7 +81,12 @@ object ItemChangeLog {
                 growsDownward = config.settings.invertDirection,
             )
             override fun renderDummy(context: GuiGraphicsExtractor) {
-                currentRenderable()?.render(context)
+                val renderable = currentRenderable() ?: return
+                val y = if (config.settings.invertDirection) 0 else height() - renderable.height
+                context.withIsolatedPose {
+                    pose().translate(0f, y.toFloat())
+                    renderable.render(context)
+                }
             }
             override fun beginEditorDrag(localX: Int, localY: Int, width: Int, height: Int) {
                 dragWidth = width
@@ -137,7 +146,9 @@ object ItemChangeLog {
             newestFirst = config.settings.invertDirection,
         )
         val rows = entries.mapNotNull(::entryRenderable)
-        return rows.takeIf { it.isNotEmpty() }?.let { verticalLayout(it, spacing = ROW_SPACING) }
+        return rows.takeIf { it.isNotEmpty() }
+            ?.let { verticalLayout(it, spacing = ROW_SPACING) }
+            ?.also { retainedEditorWidth = maxOf(retainedEditorWidth, it.width) }
     }
 
     private fun entryRenderable(entry: ItemChangeVisual): GuiRenderable? {
@@ -178,6 +189,9 @@ object ItemChangeLog {
 
 internal fun itemChangeLogY(anchorY: Int, height: Int, growsDownward: Boolean): Int =
     if (growsDownward) anchorY else (anchorY - height).coerceAtLeast(0)
+
+private fun itemChangeLogHeight(lines: Int): Int =
+    lines.coerceAtLeast(1) * ITEM_ROW_HEIGHT + (lines - 1).coerceAtLeast(0) * ROW_SPACING
 
 internal class ItemChangeLogState(
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
@@ -243,6 +257,8 @@ private const val FADE_OUT_MILLIS = 500L
 private const val ROW_SPACING = 1
 private const val COLUMN_SPACING = 2
 private const val ICON_SCALE = 0.75
+private const val ITEM_ROW_HEIGHT = 12
+private const val EDITOR_MINIMUM_WIDTH = 120
 private const val HUD_SCALE_STEP = 0.1f
 private const val SMOOTH_STEP_END = 3f
 private const val SMOOTH_STEP_SCALE = 2f
