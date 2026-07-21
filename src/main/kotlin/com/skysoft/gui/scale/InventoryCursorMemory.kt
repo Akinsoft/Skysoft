@@ -1,10 +1,12 @@
 package com.skysoft.gui.scale
 
-import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.Window
 import com.skysoft.config.SkysoftConfigGui
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.multiplayer.ClientLevel
+import org.lwjgl.glfw.GLFW
 
 class InventoryCursorMemory private constructor() {
     @JvmRecord
@@ -12,107 +14,72 @@ class InventoryCursorMemory private constructor() {
 
     private data class CursorSnapshot(
         val cursor: CursorPoint,
-        val grabCenter: CursorPoint?,
+        val level: ClientLevel?,
         val capturedAt: Long,
     )
 
     companion object {
         private const val EXPIRY_NANOS = 1_000_000_000L
-        private const val CENTER_TOLERANCE = 1.0
-        private const val RESTORE_ATTEMPTS = 3
 
-        private var cursorBeforeGrab: CursorPoint? = null
-        private var snapshot: CursorSnapshot? = null
-        private var remainingRestores = 0
+        private var inventoryScreenClosed = false
+        private var pending: CursorSnapshot? = null
+        private var waitForCursorEvents = false
 
         @JvmStatic
-        fun rememberScreenCursor(screen: Screen?, x: Double, y: Double) {
-            if (!canRemember(screen)) {
-                discard()
-                return
-            }
-            snapshot = CursorSnapshot(CursorPoint(x, y), null, System.nanoTime())
-            remainingRestores = 0
+        fun prepareForMouseGrab() {
+            inventoryScreenClosed = isEnabled()
         }
 
         @JvmStatic
-        fun beginMouseGrab(x: Double, y: Double) {
-            if (!isEnabled()) {
+        fun beginMouseGrab(window: Window) {
+            val shouldCapture = inventoryScreenClosed
+            inventoryScreenClosed = false
+            if (!isEnabled() || !shouldCapture) {
                 discard()
                 return
             }
-            cursorBeforeGrab = CursorPoint(x, y)
-        }
-
-        @JvmStatic
-        fun finishMouseGrab(centerX: Double, centerY: Double) {
-            if (!isEnabled()) {
-                discard()
-                return
+            val level = Minecraft.getInstance().level
+            if (!isUsable(pending) || pending?.level !== level) {
+                val x = doubleArrayOf(0.0)
+                val y = doubleArrayOf(0.0)
+                GLFW.glfwGetCursorPos(window.handle(), x, y)
+                pending = CursorSnapshot(CursorPoint(x[0], y[0]), level, System.nanoTime())
             }
-            val cursor = cursorBeforeGrab ?: return
-            snapshot = CursorSnapshot(cursor, CursorPoint(centerX, centerY), System.nanoTime())
-            cursorBeforeGrab = null
+            waitForCursorEvents = true
         }
 
         @JvmStatic
-        fun cursorForRelease(centerX: Double, centerY: Double): CursorPoint? {
-            if (!isUsable()) return null
-            val current = checkNotNull(snapshot)
-            val expected = current.grabCenter ?: return null
+        fun cursorAfterInput(screen: Screen?): CursorPoint? {
+            val minecraft = Minecraft.getInstance()
             if (
-                kotlin.math.abs(expected.x - centerX) >= CENTER_TOLERANCE ||
-                kotlin.math.abs(expected.y - centerY) >= CENTER_TOLERANCE
+                !isEnabled() ||
+                !minecraft.isWindowActive ||
+                !isUsable(pending) ||
+                pending?.level !== minecraft.level ||
+                screen != null && screen !is AbstractContainerScreen<*>
             ) {
                 discard()
                 return null
             }
-            remainingRestores = RESTORE_ATTEMPTS
-            snapshot = CursorSnapshot(current.cursor, null, current.capturedAt)
-            return current.cursor
-        }
-
-        @JvmStatic
-        fun restoreWhenScreenInitializes(screen: Screen?, window: Window, cursor: CursorController) {
-            if (!canRestore(screen)) return
-            remainingRestores = RESTORE_ATTEMPTS
-            restoreOnce(window, cursor)
-        }
-
-        @JvmStatic
-        fun continueRestore(screen: Screen?, window: Window, cursor: CursorController) {
-            if (remainingRestores <= 0 || !canRestore(screen)) return
-            restoreOnce(window, cursor)
-        }
-
-        private fun restoreOnce(window: Window, cursor: CursorController) {
-            val point = checkNotNull(snapshot).cursor
-            cursor.skysoftMoveCursor(point.x, point.y)
-            InputConstants.grabOrReleaseMouse(window, InputConstants.CURSOR_NORMAL, point.x, point.y)
-            remainingRestores--
-            if (remainingRestores == 0) discard()
-        }
-
-        private fun canRemember(screen: Screen?): Boolean =
-            isEnabled() && screen is AbstractContainerScreen<*>
-
-        private fun canRestore(screen: Screen?): Boolean {
-            if (!canRemember(screen) || !isUsable()) {
-                discard()
-                return false
+            if (screen == null) return null
+            if (waitForCursorEvents) {
+                waitForCursorEvents = false
+                return null
             }
-            return true
+            val cursor = checkNotNull(pending).cursor
+            discard()
+            return cursor
         }
 
-        private fun isUsable(): Boolean =
+        private fun isUsable(snapshot: CursorSnapshot?): Boolean =
             snapshot?.let { System.nanoTime() - it.capturedAt <= EXPIRY_NANOS } == true
 
         private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.preserveCursorPosition
 
         private fun discard() {
-            cursorBeforeGrab = null
-            snapshot = null
-            remainingRestores = 0
+            inventoryScreenClosed = false
+            pending = null
+            waitForCursorEvents = false
         }
     }
 }

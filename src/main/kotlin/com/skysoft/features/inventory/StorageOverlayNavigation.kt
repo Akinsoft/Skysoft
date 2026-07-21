@@ -1,7 +1,6 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
-import com.skysoft.gui.scale.InventoryCursorMemory
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.gui.nonPlayerSlots
 import com.skysoft.utils.input.InputHandlingResult
@@ -21,15 +20,13 @@ internal fun redirectToRememberedPage(screen: AbstractContainerScreen<*>, handle
     val pageIndex = rememberedPageIndex?.takeIf { storageEntryExists(it) } ?: return
     val screenId = System.identityHashCode(screen)
     if (redirectedOverviewScreenId == screenId) return
-    if (tryNavigateToRememberedPage(screen, pageIndex)) redirectedOverviewScreenId = screenId
+    if (tryNavigateToRememberedPage(pageIndex)) redirectedOverviewScreenId = screenId
 }
 
 internal fun requestOverviewShortcutClick(
     screen: AbstractContainerScreen<*>,
     click: MouseButtonEvent,
     pageIndex: Int,
-    mouseX: Int,
-    mouseY: Int,
 ): InputHandlingResult {
     if (
         click.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT ||
@@ -43,7 +40,6 @@ internal fun requestOverviewShortcutClick(
     if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return InputHandlingResult.IGNORED
     lastCommandMillis = now
     pendingOverviewShortcutClick = PendingOverviewShortcutClick(pageIndex, click.button(), now)
-    saveCursorBeforeNavigation(screen, mouseX, mouseY)
     connection.sendCommand("storage")
     return InputHandlingResult.CONSUMED
 }
@@ -98,12 +94,11 @@ internal fun focusActivePageIfNeeded(
     return if (scroll != previousScroll) PageLayoutRefresh.REQUIRED else PageLayoutRefresh.UNCHANGED
 }
 
-internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int, mouseX: Int, mouseY: Int): Boolean {
-    val saveCursor = { saveCursorBeforeNavigation(screen, mouseX, mouseY) }
+internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
     val sent = if (isRiftStoragePage(pageIndex)) {
-        clickRiftStorageNavigation(screen, pageIndex, saveCursor) == RiftNavigationResult.CLICKED
+        clickRiftStorageNavigation(screen, pageIndex) == RiftNavigationResult.CLICKED
     } else {
-        trySendPageCommand(pageIndex, saveCursor)
+        trySendPageCommand(pageIndex)
     }
     if (sent) {
         preservedScrollPageIndex = null
@@ -116,8 +111,8 @@ internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int, m
     return sent
 }
 
-internal fun tryNavigateToRememberedPage(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
-    val sent = trySendPageCommand(pageIndex) { saveCurrentCursorBeforeNavigation(screen) }
+internal fun tryNavigateToRememberedPage(pageIndex: Int): Boolean {
+    val sent = trySendPageCommand(pageIndex)
     if (sent) {
         if (isModernStorageOverlay) {
             preservedScrollPageIndex = null
@@ -138,7 +133,6 @@ internal enum class RiftNavigationResult {
 internal fun clickRiftStorageNavigation(
     screen: AbstractContainerScreen<*>,
     pageIndex: Int,
-    saveCursor: () -> Unit,
 ): RiftNavigationResult {
     val current = handleFor(screen) as? StorageHandle.Rift ?: return RiftNavigationResult.UNAVAILABLE
     val currentPageNumber = riftStoragePageNumber(current.pageIndex)
@@ -151,7 +145,6 @@ internal fun clickRiftStorageNavigation(
     val slot = screen.nonPlayerSlots().firstOrNull { it.containerSlot == navigationSlot && it.hasItem() }
         ?: return RiftNavigationResult.UNAVAILABLE
     freezeStorageScroll()
-    saveCursor()
     val carried = screen.menu.carried.copy()
     (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
         slot,
@@ -164,14 +157,13 @@ internal fun clickRiftStorageNavigation(
     return RiftNavigationResult.CLICKED
 }
 
-internal fun trySendPageCommand(pageIndex: Int, saveCursor: () -> Unit): Boolean {
+internal fun trySendPageCommand(pageIndex: Int): Boolean {
     val command = commandForPage(pageIndex) ?: return false
     val connection = Minecraft.getInstance().connection ?: return false
     val now = System.currentTimeMillis()
     if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return false
     lastCommandMillis = now
     freezeStorageScroll()
-    saveCursor()
     connection.sendCommand(command)
     return true
 }
@@ -188,19 +180,6 @@ internal fun commandForPage(pageIndex: Int): String? = when (pageIndex) {
     StorageToolkit.FARMING_PAGE_INDEX -> ToolkitType.FARMING.command
     StorageToolkit.HUNTING_PAGE_INDEX -> ToolkitType.HUNTING.command
     else -> null
-}
-
-internal fun saveCursorBeforeNavigation(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int) {
-    val minecraft = Minecraft.getInstance()
-    val window = minecraft.window
-    val rawX = mouseX * window.screenWidth / screen.width.coerceAtLeast(1).toDouble()
-    val rawY = mouseY * window.screenHeight / screen.height.coerceAtLeast(1).toDouble()
-    InventoryCursorMemory.rememberScreenCursor(screen, rawX, rawY)
-}
-
-internal fun saveCurrentCursorBeforeNavigation(screen: AbstractContainerScreen<*>) {
-    val minecraft = Minecraft.getInstance()
-    InventoryCursorMemory.rememberScreenCursor(screen, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos())
 }
 
 internal fun requestPageFocus(pageIndex: Int) {
