@@ -6,12 +6,9 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.features.inventory.StorageOverlayController;
 import com.skysoft.gui.GuiOverlayLayer;
 import com.skysoft.gui.GuiOverlayRegistry;
-import com.skysoft.gui.scale.CursorController;
-import com.skysoft.gui.scale.InventoryCursorMemory;
 import com.skysoft.gui.scale.ScaledScreenState;
 import com.skysoft.gui.tooltip.TooltipViewport;
 import net.minecraft.client.KeyboardHandler;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -43,12 +40,8 @@ public class ScreenOverlayCursorMixin implements ScaledScreenState {
     }
 
     @Inject(method = "removed", at = @At("HEAD"))
-    protected void skysoftSaveCursorBeforeRemove(CallbackInfo ci) {
-        MixinErrorBoundary.run("Inventory cursor screen removal", () -> {
-            Minecraft minecraft = Minecraft.getInstance();
-            TooltipViewport.clear();
-            InventoryCursorMemory.rememberScreenCursor((Screen) (Object) this, minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos());
-        });
+    protected void skysoftClearTooltipViewportBeforeRemove(CallbackInfo ci) {
+        MixinErrorBoundary.run("Tooltip viewport screen removal", TooltipViewport::clear);
     }
 
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;extractBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", shift = At.Shift.AFTER))
@@ -62,14 +55,6 @@ public class ScreenOverlayCursorMixin implements ScaledScreenState {
     }
 
     @Inject(method = "init(II)V", at = @At("HEAD")) protected void skysoftClearInventoryGuiSizeBeforeInit(int width, int height, CallbackInfo ci) { skysoftForgetScaleDimensions(); }
-    @Inject(method = "init(II)V", at = @At("TAIL"))
-    protected void skysoftRestoreCursorAfterInit(int width, int height, CallbackInfo ci) {
-        MixinErrorBoundary.run("Inventory cursor screen initialization", () -> { Minecraft minecraft = Minecraft.getInstance(); InventoryCursorMemory.restoreWhenScreenInitializes((Screen) (Object) this, minecraft.getWindow(), (CursorController) minecraft.mouseHandler); });
-    }
-    @Inject(method = "tick", at = @At("HEAD"))
-    protected void skysoftRestoreCursorAfterDelayedRecenter(CallbackInfo ci) {
-        MixinErrorBoundary.run("Inventory cursor delayed restore", () -> { Minecraft minecraft = Minecraft.getInstance(); InventoryCursorMemory.continueRestore((Screen) (Object) this, minecraft.getWindow(), (CursorController) minecraft.mouseHandler); });
-    }
     @Inject(method = "resize", at = @At("HEAD")) protected void skysoftClearInventoryGuiSizeBeforeResize(CallbackInfo ci) { skysoftForgetScaleDimensions(); }
 
     @Unique private boolean isSkysoftStorageOverlayActive() { return (Object) this instanceof AbstractContainerScreen<?> screen && StorageOverlayController.isActive(screen); }

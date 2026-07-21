@@ -7,18 +7,18 @@ import com.mojang.blaze3d.platform.Window;
 import com.skysoft.features.bazaar.BazaarTracker;
 import com.skysoft.features.inventory.StorageOverlayController;
 import com.skysoft.features.screenshot.ScreenshotCapturePreview;
-import com.skysoft.gui.scale.CursorController;
 import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.gui.scale.InventoryCursorMemory;
 import com.skysoft.gui.tooltip.TooltipViewport;
 import com.skysoft.utils.MinecraftClient;
 import com.skysoft.utils.input.InputHandlingResult;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonInfo;
-import org.objectweb.asm.Opcodes;
 import org.lwjgl.glfw.GLFW;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,17 +27,30 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MouseHandler.class)
-public class MouseHandlerMixin implements CursorController {
+public class MouseHandlerMixin {
     @Shadow private double xpos;
     @Shadow private double ypos;
 
-    @Override public void skysoftMoveCursor(double cursorX, double cursorY) { xpos = cursorX; ypos = cursorY; }
-
     @Inject(method = "grabMouse", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MouseHandler;mouseGrabbed:Z", opcode = Opcodes.PUTFIELD))
-    protected void skysoftSaveCursorBeforeGrab(CallbackInfo ci) { MixinErrorBoundary.run("Inventory cursor mouse grab", () -> InventoryCursorMemory.beginMouseGrab(xpos, ypos)); }
+    protected void skysoftRememberInventoryCursorGrab(CallbackInfo ci) {
+        MixinErrorBoundary.run(
+            "Inventory cursor mouse grab",
+            () -> InventoryCursorMemory.beginMouseGrab(Minecraft.getInstance().getWindow())
+        );
+    }
 
-    @Inject(method = "grabMouse", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/InputConstants;grabOrReleaseMouse(Lcom/mojang/blaze3d/platform/Window;IDD)V"))
-    protected void skysoftSaveCursorAfterGrab(CallbackInfo ci) { MixinErrorBoundary.run("Inventory cursor mouse grab", () -> InventoryCursorMemory.finishMouseGrab(xpos, ypos)); }
+    @Inject(method = "handleAccumulatedMovement", at = @At("TAIL"))
+    protected void skysoftRestoreInventoryCursorAfterInput(CallbackInfo ci) {
+        InventoryCursorMemory.CursorPoint cursor = MixinErrorBoundary.value(
+            "Inventory cursor restoration",
+            null,
+            () -> InventoryCursorMemory.cursorAfterInput(MinecraftClient.INSTANCE.screen())
+        );
+        if (cursor == null) return;
+        xpos = cursor.x();
+        ypos = cursor.y();
+        GLFW.glfwSetCursorPos(Minecraft.getInstance().getWindow().handle(), cursor.x(), cursor.y());
+    }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     protected void skysoftProcessOverlayMouseControl(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
@@ -53,15 +66,6 @@ public class MouseHandlerMixin implements CursorController {
             return overStorage ? TooltipViewport.isStorageOverlayScrollKeyDown() && TooltipViewport.didHandleStorageMouseScroll(horizontalAmount, verticalAmount) : TooltipViewport.didHandleMouseScroll(horizontalAmount, verticalAmount);
         });
         return handled || original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount);
-    }
-
-    @WrapOperation(method = "releaseMouse", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/InputConstants;grabOrReleaseMouse(Lcom/mojang/blaze3d/platform/Window;IDD)V"))
-    protected void skysoftRestoreCursorOnRelease(Window window, int cursorMode, double initialCursorX, double initialCursorY, Operation<Void> original) {
-        InventoryCursorMemory.CursorPoint restored = MixinErrorBoundary.value("Inventory cursor release", null, () -> InventoryCursorMemory.cursorForRelease(initialCursorX, initialCursorY));
-        double cursorX = restored == null ? initialCursorX : restored.x();
-        double cursorY = restored == null ? initialCursorY : restored.y();
-        if (restored != null) { xpos = cursorX; ypos = cursorY; }
-        original.call(window, cursorMode, cursorX, cursorY);
     }
 
     @Inject(method = "getScaledXPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("HEAD"), cancellable = true)

@@ -285,14 +285,14 @@ internal fun handleSelectorPageClick(
         return InputHandlingResult.CONSUMED
     }
     if (
-        requestOverviewShortcutClick(screen, click, pageIndex, mouseX, mouseY) == InputHandlingResult.CONSUMED
+        requestOverviewShortcutClick(screen, click, pageIndex) == InputHandlingResult.CONSUMED
     ) {
         return InputHandlingResult.CONSUMED
     }
     if (pageIndex == activePage || !screen.menu.carried.isEmpty || click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
         if (config.settings.isAutofocusEnabled) focusPage(measurements, pageLayoutResult, pageIndex)
     } else {
-        tryNavigateTo(screen, pageIndex, mouseX, mouseY)
+        tryNavigateTo(screen, pageIndex)
     }
     storageOverlayLayoutScreen(screen)
     return InputHandlingResult.CONSUMED
@@ -347,7 +347,7 @@ internal fun handlePageAreaClick(
     return if (clickedPage.pageIndex != activePage && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
         storageSearchField.focused = false
         finishTitleEdit()
-        if (screen.menu.carried.isEmpty) tryNavigateTo(screen, clickedPage.pageIndex, mouseX, mouseY)
+        if (screen.menu.carried.isEmpty) tryNavigateTo(screen, clickedPage.pageIndex)
         InputHandlingResult.CONSUMED
     } else if (
         measurements.isModern &&

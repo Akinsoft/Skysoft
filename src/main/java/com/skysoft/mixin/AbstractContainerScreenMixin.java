@@ -15,6 +15,7 @@ import com.skysoft.features.inventory.SlotLockManager;
 import com.skysoft.features.inventory.StorageOverlayController;
 import com.skysoft.features.inventory.itemlist.ItemListController;
 import com.skysoft.features.pets.PetStorageService;
+import com.skysoft.gui.scale.InventoryCursorMemory;
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer;
 import com.skysoft.utils.input.InputHandlingResult;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -41,8 +42,9 @@ public class AbstractContainerScreenMixin {
     }
 
     @Inject(method = "removed", at = @At("TAIL"))
-    private void skysoftRestoreInventoryEquipmentLayout(CallbackInfo ci) {
+    private void skysoftCleanUpContainerScreen(CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        MixinErrorBoundary.run("Inventory cursor screen removal", InventoryCursorMemory::prepareForMouseGrab);
         MixinErrorBoundary.run("Bazaar Tracker screen cleanup", () -> BazaarTracker.restoreOrderMenu(screen));
         MixinErrorBoundary.run("Inventory Equipment screen cleanup", () -> InventoryEquipment.restoreScreen(screen));
         MixinErrorBoundary.run("Slot Lock screen cleanup", SlotLockManager::clearInputState);
