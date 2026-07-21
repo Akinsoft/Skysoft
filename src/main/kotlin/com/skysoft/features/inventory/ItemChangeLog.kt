@@ -186,9 +186,14 @@ internal class ItemChangeLogState(
 
     fun add(itemId: String, change: Int, maximumLines: Int = Int.MAX_VALUE) {
         if (change == 0) return
-        val updatedAmount = (entries.remove(itemId)?.amount ?: 0L) + change
-        if (updatedAmount != 0L) {
-            entries[itemId] = ItemChangeEntry(itemId, updatedAmount, currentTimeMillis())
+        val now = currentTimeMillis()
+        val entry = entries[itemId]
+        if (entry == null) {
+            entries[itemId] = ItemChangeEntry(itemId, change.toLong(), now, now)
+        } else {
+            entry.amount += change
+            entry.updatedAtMillis = now
+            if (entry.amount == 0L) entries.remove(itemId)
         }
         while (entries.size > maximumLines.coerceAtLeast(1)) entries.remove(entries.keys.first())
     }
@@ -206,8 +211,8 @@ internal class ItemChangeLogState(
         val visibleEntries = entries.values.toList().takeLast(maximumLines.coerceAtLeast(1))
             .let { visible -> if (newestFirst) visible.asReversed() else visible }
         return visibleEntries.map { entry ->
-            val age = (now - entry.updatedAtMillis).coerceAtLeast(0L)
-            val remaining = (lifetime - age).coerceAtLeast(0L)
+            val age = (now - entry.createdAtMillis).coerceAtLeast(0L)
+            val remaining = (lifetime - (now - entry.updatedAtMillis)).coerceAtLeast(0L)
             val fadeIn = smoothStep((age.toFloat() / min(FADE_IN_MILLIS, lifetime).coerceAtLeast(1L)).coerceIn(0f, 1f))
             val fadeOut = smoothStep(
                 (remaining.toFloat() / min(FADE_OUT_MILLIS, lifetime).coerceAtLeast(1L)).coerceIn(0f, 1f),
@@ -218,8 +223,9 @@ internal class ItemChangeLogState(
 
     private data class ItemChangeEntry(
         val itemId: String,
-        val amount: Long,
-        val updatedAtMillis: Long,
+        var amount: Long,
+        val createdAtMillis: Long,
+        var updatedAtMillis: Long,
     )
 }
 
