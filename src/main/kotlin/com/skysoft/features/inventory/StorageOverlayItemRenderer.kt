@@ -25,19 +25,21 @@ internal object StorageOverlayItemRenderer {
         y: Int,
         scissorArea: ScreenRectangle,
     ) {
-        if (requiresLiveModel(stack)) {
-            context.item(stack, x, y)
-        } else {
-            val model = models.getOrPut(stack) { resolveModel(stack) }
-            GuiRenderStateAccess.get(context).addItem(
-                GuiItemRenderState(
+        RarityHighlightRenderer.renderSlot(context, stack, x, y) {
+            if (requiresLiveModel(stack)) {
+                context.item(stack, x, y)
+            } else {
+                val model = models.getOrPut(stack) { resolveModel(stack) }
+                val itemState = GuiItemRenderState(
                     Matrix3x2f(context.pose()),
                     model,
                     x,
                     y,
                     scissorArea,
-                ),
-            )
+                )
+                RarityHighlightRenderer.attachContour(itemState)
+                GuiRenderStateAccess.get(context).addItem(itemState)
+            }
         }
         context.itemDecorations(Minecraft.getInstance().font, stack, x, y)
     }

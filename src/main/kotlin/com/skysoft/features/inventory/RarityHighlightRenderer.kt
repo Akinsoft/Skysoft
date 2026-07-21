@@ -98,6 +98,18 @@ object RarityHighlightRenderer {
     }
 
     @JvmStatic
+    fun renderSlot(
+        context: GuiGraphicsExtractor,
+        stack: ItemStack,
+        x: Int,
+        y: Int,
+        render: () -> Unit,
+    ) {
+        renderBackground(context, stack, x, y)
+        renderItem(stack, render)
+    }
+
+    @JvmStatic
     fun renderItem(stack: ItemStack, render: () -> Unit) {
         val highlight = config
         if (!highlight.isEnabled || highlight.settings.type != RarityHighlightType.CONTOUR) {
