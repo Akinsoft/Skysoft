@@ -295,8 +295,6 @@ internal class BazaarTrackerRenderable(
 
 internal val buySetupPattern =
     Regex("""^\[Bazaar] Buy Order Setup! ([\d,]+)x (.+) for ([\d,.]+) coins\.$""")
-internal val sellSetupPattern =
-    Regex("""^\[Bazaar] Sell Offer Setup! ([\d,]+)x (.+) for ([\d,.]+) coins\.$""")
 internal val orderFlippedPattern =
     Regex("""^\[Bazaar] Order Flipped! ([\d,]+)x (.+) for ([\d,.]+) coins of total expected profit\.$""")
 internal val buyCancelPattern =
@@ -304,16 +302,8 @@ internal val buyCancelPattern =
         """^(?:\[Bazaar] )?Cancelled! Refunded ([\d,.]+) coins from cancelling Buy Order!$""",
         RegexOption.IGNORE_CASE,
     )
-internal val sellCancelPattern =
-    Regex(
-        """^(?:\[Bazaar] )?Cancelled! Refunded ([\d,]+)x (.+) from cancelling sell offer!$""",
-        RegexOption.IGNORE_CASE,
-    )
-internal val buyClaimPattern = Regex("""^\[Bazaar] Claimed ([\d,]+)x (.+) worth ([\d,.]+) coins bought for ([\d,.]+) each!$""")
 internal val sellClaimPattern = Regex("""^\[Bazaar] Claimed ([\d,.]+) coins from selling ([\d,]+)x (.+) at ([\d,.]+) each!$""")
 internal val filledPattern = Regex("""^\[Bazaar] Your (Buy Order|Sell Offer) for ([\d,]+)x (.+) was filled!$""")
-internal val instantBuyPattern = Regex("""^\[Bazaar] Bought ([\d,]+)x (.+) for ([\d,.]+) coins!$""")
-internal val instantSellPattern = Regex("""^\[Bazaar] Sold ([\d,]+)x (.+) for ([\d,.]+) coins!$""")
 
 internal val pricePerUnitPattern = Regex("""^Price per unit: ([\d,.]+[kKmMbB]?) coins$""")
 internal val confirmBuyAmountPattern = Regex("""^Order: ([\d,]+)x (.+)$""")

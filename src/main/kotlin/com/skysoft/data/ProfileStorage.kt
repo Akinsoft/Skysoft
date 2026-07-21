@@ -1,6 +1,7 @@
 package com.skysoft.data
 
 import com.google.gson.annotations.Expose
+import com.google.gson.annotations.SerializedName
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.features.bazaar.BazaarOrderType
 import com.skysoft.features.pets.SkillExpGainApi
@@ -197,7 +198,9 @@ data class ProfileStorage(
         @Expose var todayEpochDay: Long = 0L,
         @Expose val today: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
         @Expose val displayPeriods: MutableMap<String, String> = mutableMapOf(),
-        @Expose var lastSlayerType: String = "",
+        @Expose
+        @SerializedName(value = "lastPreset", alternate = ["lastSlayerType"])
+        var lastPreset: String = "",
     ) {
         fun repairLoadedValues() {
             totals.keys.removeIf(String::isBlank)
@@ -214,24 +217,28 @@ data class ProfileStorage(
     data class ProfitTrackerStats(
         @Expose val itemCounts: MutableMap<String, Long> = mutableMapOf(),
         @Expose val costs: MutableMap<String, Long> = mutableMapOf(),
-        @Expose var mobKillCoins: Double = 0.0,
+        @Expose
+        @SerializedName(value = "coins", alternate = ["mobKillCoins"])
+        var coins: Double = 0.0,
         @Expose var activeMillis: Long = 0L,
-        @Expose var bosses: Long = 0L,
+        @Expose
+        @SerializedName(value = "actions", alternate = ["bosses"])
+        var actions: Long = 0L,
     ) {
         fun repairLoadedValues() {
             itemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0L }
             costs.entries.removeIf { (currency, amount) -> currency.isBlank() || amount <= 0L }
-            if (!mobKillCoins.isFinite() || mobKillCoins < 0.0) mobKillCoins = 0.0
+            if (!coins.isFinite() || coins < 0.0) coins = 0.0
             if (activeMillis < 0L) activeMillis = 0L
-            if (bosses < 0L) bosses = 0L
+            if (actions < 0L) actions = 0L
         }
 
         fun clear() {
             itemCounts.clear()
             costs.clear()
-            mobKillCoins = 0.0
+            coins = 0.0
             activeMillis = 0L
-            bosses = 0L
+            actions = 0L
         }
     }
 

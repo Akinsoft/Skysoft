@@ -1,6 +1,8 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.skyblock.instantBuyPattern
+import com.skysoft.data.skyblock.instantSellPattern
 
 internal fun tryHandleInstantTransactionMessage(message: String): Boolean {
     val transaction = parseInstantBazaarTransaction(message, System.currentTimeMillis()) ?: return false
