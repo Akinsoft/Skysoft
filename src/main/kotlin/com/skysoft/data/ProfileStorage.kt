@@ -2,6 +2,7 @@ package com.skysoft.data
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.features.bazaar.BazaarOrderType
 import com.skysoft.features.pets.SkillExpGainApi
@@ -198,6 +199,7 @@ data class ProfileStorage(
         @Expose var todayEpochDay: Long = 0L,
         @Expose val today: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
         @Expose val displayPeriods: MutableMap<String, String> = mutableMapOf(),
+        @Expose val itemCustomizations: MutableMap<String, ProfitTrackerItemCustomizations> = mutableMapOf(),
         @Expose
         @SerializedName(value = "lastPreset", alternate = ["lastSlayerType"])
         var lastPreset: String = "",
@@ -208,9 +210,31 @@ data class ProfileStorage(
             displayPeriods.entries.removeIf { (preset, period) ->
                 preset.isBlank() || period !in PROFIT_TRACKER_PERIODS
             }
+            itemCustomizations.keys.removeIf(String::isBlank)
+            itemCustomizations.values.forEach(ProfitTrackerItemCustomizations::repairLoadedValues)
             totals.values.forEach(ProfitTrackerStats::repairLoadedValues)
             today.values.forEach(ProfitTrackerStats::repairLoadedValues)
             if (todayEpochDay < 0L) todayEpochDay = 0L
+        }
+    }
+
+    data class ProfitTrackerItemCustomizations(
+        @Expose val excludedItems: MutableList<String> = mutableListOf(),
+        @Expose val customItems: MutableList<String> = mutableListOf(),
+        @Expose val priceSources: MutableMap<String, String> = mutableMapOf(),
+    ) {
+        fun repairLoadedValues() {
+            excludedItems.repairItemIds()
+            customItems.repairItemIds()
+            priceSources.entries.removeIf { (itemId, source) ->
+                itemId.isBlank() || source !in PROFIT_TRACKER_PRICE_SOURCES
+            }
+        }
+
+        private fun MutableList<String>.repairItemIds() {
+            val repaired = filter(String::isNotBlank).distinct()
+            clear()
+            addAll(repaired)
         }
     }
 
@@ -514,6 +538,7 @@ data class ProfileStorage(
 }
 
 private val PROFIT_TRACKER_PERIODS = setOf("SESSION", "TODAY", "TOTAL")
+private val PROFIT_TRACKER_PRICE_SOURCES = ProfitTrackerPriceSource.entries.mapTo(mutableSetOf()) { it.name }
 
 private fun repairPetReferences(
     pets: MutableList<StoredPetData>,
