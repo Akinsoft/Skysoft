@@ -232,7 +232,9 @@ private fun drawPageSlots(
             }
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
                 if (active) {
-                    context.itemWithDecorations(stack, slotX, slotY)
+                    RarityHighlightRenderer.renderSlot(context, stack, slotX, slotY) {
+                        context.itemWithDecorations(stack, slotX, slotY)
+                    }
                 } else {
                     StorageOverlayItemRenderer.drawStoredItem(context, stack, slotX, slotY, itemScissor)
                 }
@@ -313,7 +315,9 @@ internal fun drawPlayerSlot(
     val pos = playerSlotPosition(measurements, containerSlot)
     val stack = slot?.item ?: ItemStack.EMPTY
     if (!stack.isEmpty && !SmoothSwapping.shouldSuppressSlot(screen, slot)) {
-        context.itemWithDecorations(stack, pos.x, pos.y)
+        RarityHighlightRenderer.renderSlot(context, stack, pos.x, pos.y) {
+            context.itemWithDecorations(stack, pos.x, pos.y)
+        }
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
         drawSlotHover(context, pos.x, pos.y)

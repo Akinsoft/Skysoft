@@ -36,6 +36,7 @@ internal fun renderInventoryEquipment(
         val renderBounds = geometry.localBounds
         if (hovered) drawEquipmentHighlight(context, renderBounds, front = false)
         val slot = slots[index]
+        RarityHighlightRenderer.renderBackground(context, slot.item, renderBounds.x, renderBounds.y)
         (screen as AbstractContainerScreenAccessor).skysoftExtractSlot(context, slot, mouseX, mouseY)
         drawInventoryEquipmentSlotRightEdge(context, renderBounds, index)
         if (hovered) {
