@@ -15,6 +15,7 @@
     "ChatScreenMixin",
     "CenteredCrosshairMixin",
     "ClientTextTooltipAccessor",
+    "ClientTooltipComponentMixin",
     "ParticlePacketMixin",
     "ContainerScreenMixin",
     "CocoonEquipmentPacketMixin",
