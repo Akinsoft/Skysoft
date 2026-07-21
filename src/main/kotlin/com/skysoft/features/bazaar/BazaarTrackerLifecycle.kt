@@ -46,6 +46,7 @@ internal fun registerBazaarTracker() {
             id = "bazaar_tracker",
             layer = GuiOverlayLayer.BELOW_SCREEN,
             contexts = GuiOverlayContextType.entries.toSet(),
+            screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderHud(context) },
         ),
     )

@@ -56,13 +56,18 @@ object GuiOverlayRegistry {
 
     private fun renderWorldLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor) {
         val overlayContext = context()
-        if (overlayContext.type == GuiOverlayContextType.WORLD) renderLayer(layer, context, overlayContext)
+        renderLayer(layer, context, overlayContext, GuiOverlayRenderPass.BEFORE_SCREEN_BACKGROUND)
     }
 
     private fun renderBelowScreenLayer(context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
         val screen = overlayContext.screen
         if (screen == null || !GuiScaleController.usesSeparateInventoryScale(screen)) {
-            renderLayer(GuiOverlayLayer.BELOW_SCREEN, context, overlayContext)
+            renderLayer(
+                GuiOverlayLayer.BELOW_SCREEN,
+                context,
+                overlayContext,
+                GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND,
+            )
             return
         }
 
@@ -76,7 +81,12 @@ object GuiOverlayRegistry {
         GuiScaleController.setOverlaysUseNormalCoordinates(true)
         context.pose().scale(normalScale / inventoryScale.toFloat(), normalScale / inventoryScale.toFloat())
         try {
-            renderLayer(GuiOverlayLayer.BELOW_SCREEN, context, overlayContext)
+            renderLayer(
+                GuiOverlayLayer.BELOW_SCREEN,
+                context,
+                overlayContext,
+                GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND,
+            )
         } finally {
             GuiScaleController.setOverlaysUseNormalCoordinates(false)
             window.guiScale = previousScale
@@ -84,11 +94,17 @@ object GuiOverlayRegistry {
         }
     }
 
-    private fun renderLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
+    private fun renderLayer(
+        layer: GuiOverlayLayer,
+        context: GuiGraphicsExtractor,
+        overlayContext: GuiOverlayContext,
+        pass: GuiOverlayRenderPass? = null,
+    ) {
         for (overlay in overlays) {
-            if (overlay.layer != layer || !SkysoftErrorBoundary.value(overlay.errorBoundary, false) {
-                    overlay.isVisible(overlayContext)
-                }
+            if (
+                overlay.layer != layer ||
+                pass?.let { !overlay.shouldRenderIn(overlayContext.type, it) } == true ||
+                !SkysoftErrorBoundary.value(overlay.errorBoundary, false) { overlay.isVisible(overlayContext) }
             ) {
                 continue
             }
@@ -118,6 +134,7 @@ data class GuiOverlay(
     val id: String,
     val layer: GuiOverlayLayer,
     val contexts: Set<GuiOverlayContextType>,
+    val screenForegroundContexts: Set<GuiOverlayContextType> = emptySet(),
     val visible: (GuiOverlayContext) -> Boolean = { true },
     val render: (GuiGraphicsExtractor, GuiOverlayContext) -> Unit,
 ) {
@@ -143,4 +160,21 @@ enum class GuiOverlayContextType {
     SIGN_INPUT,
     CHAT,
     SCREEN,
+    ;
+
+    companion object {
+        val INVENTORIES = setOf(INVENTORY, STORAGE)
+    }
 }
+
+internal enum class GuiOverlayRenderPass {
+    BEFORE_SCREEN_BACKGROUND,
+    AFTER_SCREEN_BACKGROUND,
+}
+
+internal fun GuiOverlay.shouldRenderIn(context: GuiOverlayContextType, pass: GuiOverlayRenderPass): Boolean =
+    if (context == GuiOverlayContextType.WORLD) {
+        pass == GuiOverlayRenderPass.BEFORE_SCREEN_BACKGROUND
+    } else {
+        (context in screenForegroundContexts) == (pass == GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND)
+    }
