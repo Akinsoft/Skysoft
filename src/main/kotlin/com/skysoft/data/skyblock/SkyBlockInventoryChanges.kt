@@ -57,7 +57,8 @@ object SkyBlockInventoryChanges {
             SkyBlockProfileApi.currentProfileKey,
             minecraft.level,
         )
-        val inventory = player.inventory.getNonEquipmentItems()
+        val inventory = player.inventory.getNonEquipmentItems() +
+            listOfNotNull(player.containerMenu.carried.takeUnless { it.isEmpty })
         val signature = inventory.map { stack ->
             ItemStack.hashItemAndComponents(stack) * HASH_MULTIPLIER + stack.count
         }
