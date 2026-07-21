@@ -69,7 +69,7 @@ private fun registerProfitTrackerHudEditor(preset: ProfitTrackerPreset) {
         override val hasEditorBackground: Boolean get() = !config.details.showBackground
         override fun width(): Int = buildProfitRenderable(preset, false).width
         override fun height(): Int = buildProfitRenderable(preset, false).height
-        override fun isVisible(): Boolean = config.enabled
+        override fun isVisible(): Boolean = ProfitTracker.isInPresetArea(preset)
         override fun renderDummy(context: GuiGraphicsExtractor) = buildProfitRenderable(preset, false).render(context)
         override fun openConfig() = SkysoftConfigGui.open(preset.displayName)
     })
