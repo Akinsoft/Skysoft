@@ -12,6 +12,7 @@ internal enum class SkyBlockStatGlyph(val character: Char) {
     FEROCITY('\uE00B'),
     SWING_RANGE('\uE024'),
     INTELLIGENCE('\uE003'),
+    OVERFLOW_MANA('\uE017'),
     ABILITY_DAMAGE('\uE002'),
     HEALTH_REGEN('\uE011'),
     VITALITY('\uE028'),

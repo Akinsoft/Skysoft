@@ -10,6 +10,7 @@ object ChatEvents {
     private var visibleListeners: List<Listener<ChatMessage, ChatMessageVisibility>> = emptyList()
     private var actionBarListeners: List<Listener<SkysoftMessage, ChatMessageVisibility>> = emptyList()
     private var visibleGameModifiers: List<Listener<ChatMessage, Component>> = emptyList()
+    private var actionBarModifiers: List<Listener<SkysoftMessage, Component>> = emptyList()
     private var registered = false
 
     fun onVisibleMessage(
@@ -58,6 +59,15 @@ object ChatEvents {
         visibleGameModifiers += Listener(boundary, isActive, modifier)
     }
 
+    fun onActionBarModify(
+        boundary: String,
+        isActive: () -> Boolean,
+        modifier: (SkysoftMessage) -> Component,
+    ) {
+        register()
+        actionBarModifiers += Listener(boundary, isActive, modifier)
+    }
+
     private fun register() {
         if (registered) return
         registered = true
@@ -74,7 +84,8 @@ object ChatEvents {
         }
         ClientReceiveMessageEvents.MODIFY_GAME.register { message, overlay ->
             SkysoftErrorBoundary.value("Game message modification", message) {
-                if (overlay) message else modifyVisibleGameMessage(SkysoftMessage(message, SkysoftMessageSource.GAME))
+                val incoming = SkysoftMessage(message, SkysoftMessageSource.GAME, overlay)
+                if (overlay) modifyActionBar(incoming) else modifyVisibleGameMessage(incoming)
             }
         }
     }
@@ -87,19 +98,24 @@ object ChatEvents {
     }
 
     private fun modifyVisibleGameMessage(message: SkysoftMessage): Component =
-        visibleGameModifiers.fold(message.component) { component, modifier ->
-            if (modifier.isActive()) {
-                SkysoftErrorBoundary.value(modifier.boundary, component) {
-                    modifier.callback(
-                        ChatMessageClassifier.classify(
-                            SkysoftMessage(component, message.source, message.overlay),
-                        ),
-                    )
-                }
-            } else {
-                component
+        modifyGameMessage(message, visibleGameModifiers, ChatMessageClassifier::classify)
+
+    private fun modifyActionBar(message: SkysoftMessage): Component =
+        modifyGameMessage(message, actionBarModifiers) { it }
+
+    private fun <T> modifyGameMessage(
+        message: SkysoftMessage,
+        modifiers: List<Listener<T, Component>>,
+        prepare: (SkysoftMessage) -> T,
+    ): Component = modifiers.fold(message.component) { component, modifier ->
+        if (modifier.isActive()) {
+            SkysoftErrorBoundary.value(modifier.boundary, component) {
+                modifier.callback(prepare(SkysoftMessage(component, message.source, message.overlay)))
             }
+        } else {
+            component
         }
+    }
 
     private fun dispatchVisible(message: ChatMessage): ChatMessageVisibility =
         dispatch(message, visibleListeners)

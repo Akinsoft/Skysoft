@@ -72,6 +72,7 @@ import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import com.skysoft.features.misc.actionbar.ActionBarBackground
+import com.skysoft.features.misc.custombars.CustomBars
 import com.skysoft.features.misc.update.DownloadOpenResult
 import com.skysoft.features.misc.update.ModUpdateChecker
 import com.skysoft.features.pets.ActivePetEntityTracker
@@ -161,6 +162,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Chat History", ChatHistoryPersistence::register)
         registerFeature("Chat Tabs", ChatTabs::register)
         registerFeature("Action Bar Background", ActionBarBackground::register)
+        registerFeature("Custom Bars", CustomBars::register)
         registerFeature("Better TAB", BetterTab::register)
         registerFeature("Day Display", DayDisplay::register)
         registerFeature("Real Time Display", RealTimeDisplay::register)
