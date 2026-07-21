@@ -1,5 +1,6 @@
 package com.skysoft.utils.gui
 
+import com.skysoft.utils.SoundUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.ComponentPath
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -30,7 +31,7 @@ class PixelButtonWidget(
     var isSelected = false
 
     override fun playDownSound(soundManager: SoundManager) {
-        if (isClickSoundEnabled) super.playDownSound(soundManager)
+        if (isClickSoundEnabled) SoundUtilities.playRandomNavigationSound()
     }
 
     override fun nextFocusPath(navigationEvent: FocusNavigationEvent): ComponentPath? {
