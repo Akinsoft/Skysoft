@@ -11,7 +11,6 @@ import net.minecraft.util.RandomSource
 import kotlin.random.Random
 
 object SoundUtilities {
-    private val clickSound by lazy { createSound("ui.button.click", 1f) }
     private val navigationLeftSound by lazy { createSound(NAVIGATION_LEFT_SOUND_ID, 1f, 1f) }
     private val navigationRightSound by lazy { createSound(NAVIGATION_RIGHT_SOUND_ID, 1f, 1f) }
     private val itemProtectedSound by lazy { createSound("entity.ender_eye.death", 1f, 1f, 4096L) }
@@ -20,7 +19,7 @@ object SoundUtilities {
     private val screenshotSnapSound by lazy { createSound("entity.item_frame.add_item", 1.2f, 0.55f) }
 
     fun playClickSound() {
-        playSound(clickSound)
+        playRandomNavigationSound()
     }
 
     fun playNavigationSound(delta: Int) {
