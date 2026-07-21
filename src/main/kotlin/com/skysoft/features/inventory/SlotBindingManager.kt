@@ -308,7 +308,7 @@ object SlotBindingManager {
 
     private fun isAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
-    private fun isBindingKeyDown(): Boolean = InputUtilities.isKeyDown(config.settings.bindingKey)
+    private fun isBindingKeyDown(): Boolean = InputUtilities.isBindingDown(config.settings.bindingKey)
 
     private fun isShiftDown(): Boolean = InputUtilities.isShiftDown()
 

@@ -276,7 +276,7 @@ object ImageLinkPreview {
 
     private fun isImageRevealRequested(): Boolean {
         val key = SkysoftConfigGui.config().chat.previewImage.settings.previewKey
-        return key == GLFW.GLFW_KEY_UNKNOWN || InputUtilities.isKeyDown(key)
+        return key == GLFW.GLFW_KEY_UNKNOWN || InputUtilities.isBindingDown(key)
     }
 
     private fun previewKeyName(): String {

@@ -59,14 +59,14 @@ object ScreenshotManager {
         val key = config().settings.managerKey
         val isKeyDown = key != GLFW.GLFW_KEY_UNKNOWN &&
             key != GLFW.GLFW_KEY_ENTER &&
-            InputUtilities.isKeyDown(key)
+            InputUtilities.isBindingDown(key)
         if (!isKeyDown) {
             managerKeyWasDown = false
             return
         }
         if (managerKeyWasDown) return
         managerKeyWasDown = true
-        if (key == GLFW.GLFW_KEY_F4 && InputUtilities.isKeyDown(GLFW.GLFW_KEY_F3)) return
+        if (key == GLFW.GLFW_KEY_F4 && InputUtilities.isBindingDown(GLFW.GLFW_KEY_F3)) return
         if (MinecraftClient.screen() != null) return
         open()
     }

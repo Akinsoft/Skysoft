@@ -37,7 +37,7 @@ object ItemProtectionManager {
 
     @JvmStatic
     fun beginFrame() {
-        activeProtectKey?.takeUnless(InputUtilities::isKeyDown)?.let { activeProtectKey = null }
+        activeProtectKey?.takeUnless(InputUtilities::isBindingDown)?.let { activeProtectKey = null }
     }
 
     @JvmStatic
