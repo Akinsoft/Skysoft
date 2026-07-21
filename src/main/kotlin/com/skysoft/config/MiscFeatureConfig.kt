@@ -20,6 +20,11 @@ class MiscFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Mouse Lock", desc = "Lock mouse movement and show its status.")
+    val mouseLock = MouseLockConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in party chat.")
     val rareLootSharing = RareLootSharingConfig()
 
