@@ -7,6 +7,7 @@ import com.skysoft.features.bazaar.BazaarTracker;
 import com.skysoft.features.inventory.InventoryButtonManager;
 import com.skysoft.features.inventory.InventoryEquipment;
 import com.skysoft.features.inventory.InventoryDropSelectionGuard;
+import com.skysoft.features.inventory.InventoryOverlayInput;
 import com.skysoft.features.inventory.ItemProtectionManager;
 import com.skysoft.features.inventory.MinisterCalendarTooltip;
 import com.skysoft.features.inventory.SkyBlockMenuInventoryDropFix;
@@ -271,11 +272,7 @@ public class AbstractContainerScreenMixin {
         int top,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (ItemListController.isClickInside((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY)) {
-            cir.setReturnValue(false);
-            return;
-        }
-        if (StorageOverlayController.isClickInsideOverlay((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY)) {
+        if (InventoryOverlayInput.isPointCovered((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY)) {
             cir.setReturnValue(false);
         }
     }

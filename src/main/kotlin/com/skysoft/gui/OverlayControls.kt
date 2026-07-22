@@ -49,7 +49,7 @@ object OverlayControlMouse {
             GuiScaleController.convertCoordinate(mouseY, window.guiScale, scales.normal())
     }
 
-    fun deferredTooltipPoint(mouseX: Int, mouseY: Int): Pair<Int, Int> {
+    fun screenPoint(mouseX: Int, mouseY: Int): Pair<Int, Int> {
         val minecraft = Minecraft.getInstance()
         val window = minecraft.window
         val screen = MinecraftClient.screen(minecraft)
