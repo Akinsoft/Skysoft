@@ -31,6 +31,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Selected Item Name", desc = "Customize the item name shown above the hotbar.")
+    val selectedItemName = SelectedItemNameConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Action Bar", desc = "Action bar visual settings.")
     val actionBar = SkysoftActionBarConfig()
 
@@ -96,6 +101,7 @@ class GuiFeatureConfig {
 
     fun repairLoadedValues() {
         heldItem.repairLoadedValues()
+        selectedItemName.repairLoadedValues()
         actionBar.repairLoadedValues()
         customBars.repairLoadedValues()
     }
