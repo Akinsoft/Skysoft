@@ -24,7 +24,7 @@ object ItemListSearchCommand {
         dispatcher.register(
             LiteralArgumentBuilder.literal<FabricClientCommandSource>("ssearch")
                 .executes { context ->
-                    SkysoftChat.error(context.source, "Usage: /ssearch <item name or ID>")
+                    SkysoftChat.error(context.source, "Usage: /ssearch <item or mob name or ID>")
                     0
                 }
                 .then(
@@ -56,7 +56,7 @@ object ItemListSearchCommand {
         val query = rawQuery.trim()
         val entry = resolveItemListCommandQuery(query, SkyBlockDataRepository.ItemListData.search(query))
         if (entry == null) {
-            SkysoftChat.error(source, "No Item List item found for '$query'.")
+            SkysoftChat.error(source, "No Item List entry found for '$query'.")
             return 0
         }
         pendingKey = entry.key

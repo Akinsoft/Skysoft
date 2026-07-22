@@ -30,6 +30,7 @@ data class SkyBlockDataStatus(
 
 enum class ItemListEntryKind {
     SKYBLOCK,
+    ENTITY,
     REGISTRY,
 }
 
@@ -153,7 +154,26 @@ data class SkyBlockEntityInfo(
     val island: SkyBlockIsland? = null,
     val position: WorldVec? = null,
     val details: List<String> = emptyList(),
+    val lootTables: List<SkyBlockEntityLootTable> = emptyList(),
     val availability: SkyBlockNpcAvailability? = null,
+)
+
+data class SkyBlockEntityLootTable(
+    val name: String,
+    val mobLevel: Int?,
+    val xp: Int?,
+    val combatXp: Int?,
+    val drops: List<SkyBlockEntityDrop>,
+)
+
+data class SkyBlockEntityDrop(
+    val itemId: String?,
+    val displayName: String,
+    val currency: String?,
+    val chance: Double?,
+    val minAmount: Long,
+    val maxAmount: Long,
+    val details: List<String> = emptyList(),
 )
 
 data class SkyBlockNpcAvailability(

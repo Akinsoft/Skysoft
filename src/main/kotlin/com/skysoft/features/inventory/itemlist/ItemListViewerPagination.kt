@@ -6,20 +6,21 @@ import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
 
-internal data class ViewerRecipeGrid(
+internal data class ViewerCardGrid(
     val bounds: Rect,
     val columns: Int,
     val rows: Int,
+    private val fixedTileHeight: Int? = null,
 ) {
     val pageSize: Int = columns * rows
 
     fun tile(index: Int, visibleCount: Int = pageSize): Rect {
-        require(visibleCount in 1..pageSize) { "Visible recipe count $visibleCount is outside page size $pageSize" }
-        require(index in 0 until visibleCount) { "Recipe tile index $index is outside visible count $visibleCount" }
+        require(visibleCount in 1..pageSize) { "Visible card count $visibleCount is outside page size $pageSize" }
+        require(index in 0 until visibleCount) { "Card index $index is outside visible count $visibleCount" }
         val gapWidth = (columns - 1) * TILE_GAP
         val gapHeight = (rows - 1) * TILE_GAP
         val tileWidth = (bounds.width - gapWidth) / columns
-        val tileHeight = (bounds.height - gapHeight) / rows
+        val tileHeight = fixedTileHeight ?: (bounds.height - gapHeight) / rows
         val usedRows = (visibleCount + columns - 1) / columns
         val row = index / columns
         val itemsInRow = minOf(columns, visibleCount - row * columns)
@@ -34,14 +35,27 @@ internal data class ViewerRecipeGrid(
     }
 
     companion object {
-        fun create(bounds: Rect): ViewerRecipeGrid = ViewerRecipeGrid(
+        fun create(bounds: Rect): ViewerCardGrid = ViewerCardGrid(
             bounds = bounds,
             columns = if (bounds.width >= TWO_COLUMN_MIN_WIDTH) 2 else 1,
             rows = if (bounds.height >= TWO_ROW_MIN_HEIGHT) 2 else 1,
         )
 
+        fun compact(bounds: Rect): ViewerCardGrid = ViewerCardGrid(
+            bounds = bounds,
+            columns = when {
+                bounds.width >= THREE_COMPACT_COLUMN_MIN_WIDTH -> 3
+                bounds.width >= TWO_COLUMN_MIN_WIDTH -> 2
+                else -> 1
+            },
+            rows = ((bounds.height + TILE_GAP) / (COMPACT_TILE_HEIGHT + TILE_GAP)).coerceAtLeast(1),
+            fixedTileHeight = COMPACT_TILE_HEIGHT,
+        )
+
         private const val TILE_GAP = 6
+        private const val COMPACT_TILE_HEIGHT = 40
         private const val TWO_COLUMN_MIN_WIDTH = 250
+        private const val THREE_COMPACT_COLUMN_MIN_WIDTH = 360
         private const val TWO_ROW_MIN_HEIGHT = 154
     }
 }

@@ -136,6 +136,7 @@ internal object SkyBlockDataLoader {
             providers,
             resolvedWiki,
         )
+        SkyBlockEntityCatalog.addTo(entityCatalog.entities, entries, providers)
 
         RegistryItemCatalog.addTo(entries, info, providers)
 
@@ -169,7 +170,7 @@ internal object SkyBlockDataLoader {
             }
         }
         val orderedEntries = entries.distinctBy(ItemListEntry::key).sortedWith(
-            compareBy<ItemListEntry> { it.key.kind != ItemListEntryKind.SKYBLOCK }
+            compareBy<ItemListEntry> { it.key.kind.ordinal }
                 .thenBy { it.source.lowercase(Locale.ROOT) }
                 .thenBy { it.displayName.lowercase(Locale.ROOT) },
         )
@@ -325,37 +326,30 @@ internal object SkyBlockDataLoader {
             val position = value.obj("position")?.let { position ->
                 WorldVec(position.coordinateValue("x"), position.coordinateValue("y"), position.coordinateValue("z"))
             }
+            val plainName = name.removeColor()
+            val type = value.string("type").ifBlank { "Entity" }
+            val lootTables = SkyBlockEntityCatalog.parseLootTables(id, plainName, value)
             entities[id] = SkyBlockEntityInfo(
                 id = id,
-                name = name.removeColor(),
-                type = value.string("type").ifBlank { "Entity" },
-                location = entityLocation(value) ?: contexts.firstOrNull(),
+                name = plainName,
+                type = type,
+                location = entityLocation(value)
+                    ?: "Hub".takeIf { type.equals("Mythological Creature", ignoreCase = true) }
+                    ?: contexts.firstOrNull(),
                 texture = value.string("texture").takeIf(String::isNotBlank),
                 itemId = value.string("itemId").takeIf(String::isNotBlank),
                 island = island,
                 position = position,
                 details = contexts,
+                lootTables = lootTables,
                 availability = npcAvailability[id],
             )
-            value.array("lootTables")?.forEach { table ->
-                val tableJson = table.asJsonObject
-                val sourceName = tableJson.string("name").removeColor().takeIf(String::isNotBlank)
-                tableJson.array("drops")?.forEach { drop ->
-                    val dropJson = drop.asJsonObject
-                    val itemId = dropJson.dropItemId() ?: return@forEach
+            lootTables.forEach { table ->
+                table.drops.forEach { drop ->
+                    val itemId = drop.itemId ?: return@forEach
                     droppedByItem.getOrPut(itemId) { mutableListOf() }.add(id)
-                    val chance = dropJson.get("chance")?.takeUnless { it.isJsonNull }?.asDouble
-                    require(chance == null || chance.isFinite() && chance in 0.0..MAXIMUM_DROP_CHANCE) {
-                        "Item List entity $id has an invalid drop chance for $itemId"
-                    }
-                    val details = dropJson.array("extraLore")?.map { detail ->
-                        detail.asString.removeColor().trim()
-                    }.orEmpty().filter(String::isNotBlank)
-                    require(details.all { it.length <= MAXIMUM_DROP_DETAIL_LENGTH }) {
-                        "Item List entity $id has an invalid drop detail for $itemId"
-                    }
                     dropSourcesByItem.getOrPut(itemId) { mutableListOf() }.add(
-                        SkyBlockDropSource(id, chance, sourceName, details),
+                        SkyBlockDropSource(id, drop.chance, table.name, drop.details),
                     )
                 }
             }
@@ -396,6 +390,7 @@ internal object SkyBlockDataLoader {
             val id = json.string("id").takeIf(String::isNotBlank) ?: return@mapNotNull null
             val key = when (json.string("type")) {
                 "item" -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id)
+                "mob" -> entityItemKey(id)
                 "pet" -> petItemKey("$id;${json.string("tier")}")
                 else -> null
             } ?: return@mapNotNull null
@@ -438,15 +433,6 @@ internal object SkyBlockDataLoader {
         }
     }
 
-    private fun JsonObject.dropItemId(): String? = when (string("type")) {
-        "enchantment" -> enchantmentItemId(
-            string("id"),
-            get("level")?.takeUnless { it.isJsonNull }?.asInt ?: return null,
-        )
-        "attribute" -> string("id").takeIf(String::isNotBlank)?.let { "ATTRIBUTE_SHARD_$it;1" }
-        else -> string("id").takeIf(String::isNotBlank)
-    }
-
     private fun JsonObject.itemIngredient(): RecipeIngredient? {
         val id = string("id").takeIf(String::isNotBlank) ?: return null
         return RecipeIngredient(id, long("count").coerceAtLeast(1L))
@@ -474,8 +460,6 @@ internal object SkyBlockDataLoader {
 
     private const val CRAFTING_SLOT_COUNT = 9
     private const val KAT_ENTITY_ID = "KAT_NPC"
-    private const val MAXIMUM_DROP_DETAIL_LENGTH = 160
-    private const val MAXIMUM_DROP_CHANCE = 100.0
 }
 
 private object RegistryItemCatalog {

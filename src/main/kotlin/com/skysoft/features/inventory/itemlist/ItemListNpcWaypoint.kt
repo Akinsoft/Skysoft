@@ -155,7 +155,11 @@ internal object ItemListNpcWaypoint {
         if (entity?.availability?.let { SkyBlockEventState.availability(it, now) } == SkyBlockEventAvailability.INACTIVE) {
             return "§c§lON VACATION"
         }
-        return if ((warpFailures[entityId] ?: 0L) > now) "§c§lWARP NOT UNLOCKED" else "§e§lWARP"
+        return if ((warpFailures[entityId] ?: 0L) > now) {
+            "§c§lWARP NOT UNLOCKED"
+        } else {
+            "§e§lRIGHT-CLICK TO WARP"
+        }
     }
 
     private fun isNpcAvailable(entityId: String, now: Long = System.currentTimeMillis()): Boolean =

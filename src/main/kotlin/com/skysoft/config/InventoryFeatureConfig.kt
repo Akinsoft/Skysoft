@@ -34,7 +34,7 @@ enum class BazaarTrackerSound(private val displayName: String) {
 class InventoryFeatureConfig {
     @JvmField
     @field:Expose
-    @field:Category(name = "Item List", desc = "Browse items, recipes, and usages.")
+    @field:Category(name = "Item List", desc = "Browse items, mobs, recipes, drops, and usages.")
     val itemList = ItemListConfig()
 
     @JvmField
@@ -267,19 +267,19 @@ class ItemListSettingsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Info Key", desc = "Open the hovered item's Item List Info tab.")
+    @field:ConfigOption(name = "Info Key", desc = "Open the hovered Item List entry's Info tab.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_I)
     var infoKey = GLFW.GLFW_KEY_I
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Recipes Key", desc = "Open the hovered item's Item List Obtain tab.")
+    @field:ConfigOption(name = "Recipes Key", desc = "Open the hovered Item List entry's Obtain or Drops tab.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_R)
     var recipesKey = GLFW.GLFW_KEY_R
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Uses Key", desc = "Open the hovered item's Item List Uses tab.")
+    @field:ConfigOption(name = "Uses Key", desc = "Open the hovered Item List entry's Uses tab.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_U)
     var usesKey = GLFW.GLFW_KEY_U
 
