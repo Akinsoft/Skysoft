@@ -545,8 +545,8 @@ internal class ItemListViewerScreen(
         displayedOverride: RecipeIngredient? = null,
         isSelectable: Boolean = false,
     ): ItemListEntryKey? {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, SLOT_BORDER)
-        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, SLOT_FILL)
+        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
+        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
         if (ingredient == null) return null
         val displayedIngredient = displayedOverride ?: displayedRecipeIngredient(ingredient)
         val key = displayedIngredient.itemKey()
@@ -645,8 +645,6 @@ internal class ItemListViewerScreen(
         const val MAX_PROCESS_INGREDIENTS = 7
         const val LINE_HEIGHT = 12
         val SCREEN_OVERLAY = 0xB0000000.toInt()
-        val SLOT_BORDER = 0xFF111315.toInt()
-        val SLOT_FILL = 0xD0202428.toInt()
     }
 }
 

@@ -1,5 +1,6 @@
 package com.skysoft.utils
 
+import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
@@ -7,30 +8,10 @@ import java.util.Optional
 import java.util.UUID
 
 object TextUtilities {
-    private val colorPattern = Regex("\u00A7[0-9a-fk-or]", RegexOption.IGNORE_CASE)
     private val resetPattern = Regex("\u00A7r", RegexOption.IGNORE_CASE)
-    private val legacyColorCodes = mapOf(
-        0x000000 to '0',
-        0x0000AA to '1',
-        0x00AA00 to '2',
-        0x00AAAA to '3',
-        0xAA0000 to '4',
-        0xAA00AA to '5',
-        0xFFAA00 to '6',
-        0xAAAAAA to '7',
-        0x555555 to '8',
-        0x5555FF to '9',
-        0x55FF55 to 'a',
-        0x55FFFF to 'b',
-        0xFF5555 to 'c',
-        0xFF55FF to 'd',
-        0xFFFF55 to 'e',
-        0xFFFFFF to 'f',
-    )
-
-    fun CharSequence.removeColor(): String = colorPattern.replace(this, "")
+    fun CharSequence.removeColor(): String = ChatFormatting.stripFormatting(toString()).orEmpty()
     fun CharSequence.removeResets(): String = resetPattern.replace(this, "")
-    fun CharSequence.cleanSkyBlockText(): String = removeColor().removeResets().trim()
+    fun CharSequence.cleanSkyBlockText(): String = removeColor().trim()
     fun Component.cleanSkyBlockText(): String = string.cleanSkyBlockText()
 
     fun CharSequence.truncateLegacyText(maximumLength: Int): String {
@@ -86,7 +67,10 @@ object TextUtilities {
         if (isItalic) append("\u00A7o")
     }
 
-    private fun TextColor.legacyCode(): Char? = legacyColorCodes[value]
+    private fun TextColor.legacyCode(): Char? = ChatFormatting.entries
+        .firstOrNull { TextColor.fromLegacyFormat(it) == this }
+        ?.toString()
+        ?.last()
 
     private const val LEGACY_FORMAT_PREFIX = '\u00A7'
     private const val COMPACT_UUID_LENGTH = 32

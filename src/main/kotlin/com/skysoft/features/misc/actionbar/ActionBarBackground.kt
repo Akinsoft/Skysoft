@@ -3,8 +3,8 @@ package com.skysoft.features.misc.actionbar
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.BottomHudLayout
-import com.skysoft.utils.ColorUtilities.ARGB_ALPHA_SHIFT
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.OverlayMessages
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -61,7 +61,7 @@ object ActionBarBackground {
         val x = (context.guiWidth() - textWidth) / 2
         val textY = context.guiHeight() - TEXT_Y_FROM_BOTTOM - BottomHudLayout.reservedHeight()
         val maxAlpha = config.details.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX
-        val color = (min(maxAlpha, alpha) shl ARGB_ALPHA_SHIFT) or BACKGROUND_RGB
+        val color = BACKGROUND_RGB.withAlpha(min(maxAlpha, alpha))
         val left = x - X_PADDING
         val top = textY - Y_PADDING
         val right = x + textWidth + X_PADDING

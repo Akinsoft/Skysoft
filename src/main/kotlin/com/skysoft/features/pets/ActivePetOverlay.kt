@@ -18,11 +18,11 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
-import com.skysoft.utils.ColorUtilities.ARGB_ALPHA_SHIFT
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.ColorUtilities.withOpacity
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -403,7 +403,7 @@ object ActivePetOverlay {
     ): GuiRenderable? {
         val textAlpha = (COLOR_CHANNEL_MAX * opacity).roundToInt()
             .coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
-        val textColor = (textAlpha shl ARGB_ALPHA_SHIFT) or RGB_MASK
+        val textColor = RGB_MASK.withAlpha(textAlpha)
         val lines = textConfig.enabledTexts.get().mapNotNull { textElement ->
             val textElementFormat = PetDisplayTextFormatter.formatElement(this, textElement, textConfig) ?: return@mapNotNull null
             val labelFormat = textElement.getFormattedLabel().takeIf { textConfig.textLabels.get() }.orEmpty()

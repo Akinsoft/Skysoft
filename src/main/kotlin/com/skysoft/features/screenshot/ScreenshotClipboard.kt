@@ -80,7 +80,7 @@ private object WindowsImageClipboard {
 
     private fun createDeviceIndependentBitmap(image: BufferedImage): ByteArray {
         val rowPixelBytes = Math.multiplyExact(image.width, BYTES_PER_PIXEL)
-        val rowStride = (rowPixelBytes + ROW_ALIGNMENT - 1) / ROW_ALIGNMENT * ROW_ALIGNMENT
+        val rowStride = Math.ceilDiv(rowPixelBytes, ROW_ALIGNMENT) * ROW_ALIGNMENT
         val imageBytes = Math.multiplyExact(rowStride, image.height)
         val buffer = ByteBuffer.allocate(Math.addExact(BITMAP_HEADER_BYTES, imageBytes)).order(ByteOrder.LITTLE_ENDIAN)
         buffer.putInt(BITMAP_HEADER_BYTES)

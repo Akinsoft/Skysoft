@@ -28,7 +28,7 @@ internal data class ItemListTierDropdown(
             var columns = 1
             var slotSize = 0
             for (candidateColumns in 1..tierCount.coerceAtMost(MAX_COLUMNS)) {
-                val candidateRows = (tierCount + candidateColumns - 1) / candidateColumns
+                val candidateRows = Math.ceilDiv(tierCount, candidateColumns)
                 val candidateSlotSize = minOf(
                     requestedSlotSize,
                     (panel.width - PADDING * 2) / candidateColumns,
@@ -40,7 +40,7 @@ internal data class ItemListTierDropdown(
                 }
             }
             require(slotSize > 0)
-            val rows = (tierCount + columns - 1) / columns
+            val rows = Math.ceilDiv(tierCount, columns)
             val width = columns * slotSize + PADDING * 2
             val height = rows * slotSize + PADDING * 2
             val x = (anchor.x + anchor.width / 2 - width / 2).coerceIn(panel.x, panel.x + panel.width - width)

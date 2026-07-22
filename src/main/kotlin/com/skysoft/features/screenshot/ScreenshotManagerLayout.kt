@@ -42,7 +42,7 @@ internal data class ScreenshotGalleryLayout(
             )
             val tileHeight = imageHeight + ScreenshotLayoutDimensions.TILE_FOOTER_HEIGHT
             val rowStep = tileHeight + ScreenshotLayoutDimensions.TILE_GAP
-            val rowCount = (entryCount + ScreenshotLayoutDimensions.COLUMNS - 1) / ScreenshotLayoutDimensions.COLUMNS
+            val rowCount = Math.ceilDiv(entryCount, ScreenshotLayoutDimensions.COLUMNS)
             val totalHeight = max(0, rowCount * rowStep - ScreenshotLayoutDimensions.TILE_GAP)
             val maximumScroll = max(0, totalHeight - content.height)
             val scrollOffset = requestedScroll.coerceIn(0, maximumScroll)

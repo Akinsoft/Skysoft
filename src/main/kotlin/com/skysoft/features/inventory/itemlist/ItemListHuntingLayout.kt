@@ -19,7 +19,7 @@ internal data class ItemListHuntingLayout(
             val needsNavigation = sourceCount > columns * rowsWithoutNavigation
             val rows = visibleRows(bounds.height, if (needsNavigation) NAVIGATION_HEIGHT else 0)
             val pageSize = columns * rows
-            val pageCount = (sourceCount + pageSize - 1) / pageSize
+            val pageCount = Math.ceilDiv(sourceCount, pageSize)
             val page = requestedPage.coerceIn(0, pageCount - 1)
             val visibleCount = minOf(pageSize, sourceCount - page * pageSize)
             val width = (bounds.width - HUNTING_INSET * 2 - HUNTING_GAP * (columns - 1)) / columns

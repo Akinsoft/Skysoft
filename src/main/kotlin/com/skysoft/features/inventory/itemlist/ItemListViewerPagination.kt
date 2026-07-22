@@ -22,7 +22,7 @@ internal data class ViewerCardGrid(
         val gapHeight = (rows - 1) * TILE_GAP
         val tileWidth = (bounds.width - gapWidth) / columns
         val tileHeight = fixedTileHeight ?: (bounds.height - gapHeight) / rows
-        val usedRows = (visibleCount + columns - 1) / columns
+        val usedRows = Math.ceilDiv(visibleCount, columns)
         val row = index / columns
         val itemsInRow = minOf(columns, visibleCount - row * columns)
         val rowWidth = itemsInRow * tileWidth + (itemsInRow - 1) * TILE_GAP
@@ -144,7 +144,7 @@ internal data class ViewerProcessLayout(
         fun create(tile: Rect, ingredientCount: Int, hasSource: Boolean = false): ViewerProcessLayout {
             val count = ingredientCount.coerceIn(0, MAX_INGREDIENTS)
             val ingredientColumns = count.coerceAtMost(MAX_INGREDIENT_COLUMNS).coerceAtLeast(1)
-            val ingredientRows = (count + MAX_INGREDIENT_COLUMNS - 1) / MAX_INGREDIENT_COLUMNS
+            val ingredientRows = Math.ceilDiv(count, MAX_INGREDIENT_COLUMNS)
             val baseIngredientWidth = ingredientColumns * SLOT_SIZE
             val baseSourceWidth = if (hasSource) SLOT_SIZE + SOURCE_GAP else 0
             val baseTotalWidth = baseSourceWidth + baseIngredientWidth + ITEM_GAP + ARROW_WIDTH + ITEM_GAP + SLOT_SIZE
@@ -231,8 +231,7 @@ private fun viewerContentScale(tile: Rect, baseWidth: Int, baseHeight: Int): Flo
 
 private fun scaled(value: Int, scale: Float): Int = (value * scale).roundToInt().coerceAtLeast(1)
 
-internal fun recipePageCount(recipeCount: Int, pageSize: Int): Int =
-    if (recipeCount == 0) 0 else (recipeCount + pageSize - 1) / pageSize
+internal fun recipePageCount(recipeCount: Int, pageSize: Int): Int = Math.ceilDiv(recipeCount, pageSize)
 
 internal fun availableViewerMode(
     requested: ItemListViewMode,

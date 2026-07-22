@@ -1,6 +1,7 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.utils.MinecraftItems
+import com.skysoft.utils.NumberUtilities.addSeparators
 import java.util.Locale
 import net.minecraft.network.chat.Component
 import net.minecraft.core.component.DataComponents
@@ -66,7 +67,7 @@ internal object SkyBlockCurrencyStacks {
         }
     }
 
-    private fun currencyName(amount: Long, name: String): String = String.format(Locale.US, "%,d", amount) + " $name"
+    private fun currencyName(amount: Long, name: String): String = "${amount.addSeparators()} $name"
 
     private const val COIN_TEXTURE =
         "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUv" +

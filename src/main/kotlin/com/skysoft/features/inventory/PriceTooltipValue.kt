@@ -3,6 +3,7 @@ package com.skysoft.features.inventory
 import com.skysoft.config.BazaarTooltipWording
 import com.skysoft.config.PriceTooltipLine
 import com.skysoft.data.skyblock.price.BazaarPriceData
+import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import net.minecraft.network.chat.Component
 
@@ -69,5 +70,3 @@ private fun PriceTooltipLine.tooltipLabel(wording: BazaarTooltipWording): String
     PriceTooltipLine.NPC_SELL_PRICE -> "NPC Sell Price"
     PriceTooltipLine.RAW_CRAFT_COST -> "Raw Craft Cost"
 }
-
-private const val RGB_MASK = 0xFFFFFF

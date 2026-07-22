@@ -52,13 +52,13 @@ internal class ItemListEntityDropsPanel {
         mouseY: Int,
     ) {
         val hovered = bounds.contains(mouseX, mouseY)
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CARD_BORDER)
+        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
         context.fill(
             bounds.x + 1,
             bounds.y + 1,
             bounds.x + bounds.width - 1,
             bounds.y + bounds.height - 1,
-            if (hovered) CARD_HOVER else CARD_FILL,
+            if (hovered) CARD_HOVER else ItemListSlotStyle.FILL,
         )
         val icon = Rect(bounds.x + CARD_INSET, bounds.y + (bounds.height - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
         renderViewerItem(
@@ -151,6 +151,4 @@ private const val ICON_SIZE = 18
 private const val TEXT_GAP = 4
 private const val LINE_HEIGHT = 10
 private const val EMPTY_INSET = 8
-private val CARD_BORDER = 0xFF111315.toInt()
-private val CARD_FILL = 0xD0202428.toInt()
 private val CARD_HOVER = 0xD02E3A42.toInt()

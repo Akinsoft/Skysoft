@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaDetailsConfig
+import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.WorldVec
@@ -123,7 +124,6 @@ internal object DianaRareMobRenderer {
     private const val LOOTSHARE_RADIUS = 30.0
     private const val LOOTSHARE_RADIUS_RENDER_DISTANCE = 50.0
     private const val CIRCLE_Y_OFFSET = 0.05
-    private const val RGB_MASK = 0xFFFFFF
     private val RARE_MOB_COLOR = Color(255, 85, 255, 230)
     private val RARE_MOB_FILL_COLOR = Color(170, 0, 255, 60)
     private val WAYPOINT_LABEL_OFFSET = WorldVec(0.5, 1.8, 0.5)

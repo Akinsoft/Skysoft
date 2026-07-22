@@ -7,6 +7,7 @@ import com.skysoft.config.HeldItemTransformLimits
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ChangeResult
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelControlColors
@@ -15,6 +16,7 @@ import com.skysoft.utils.gui.PixelSliderRenderer
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.elide
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
@@ -25,10 +27,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.FormattedText
-import net.minecraft.util.FormattedCharSequence
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
@@ -457,7 +456,7 @@ private class HeldItemEditorOpeningAnimation {
         val lineX = bounds.x + (bounds.width - lineWidth) / 2
         val lineY = bounds.y + bounds.height / 2
         val alpha = (EditorAnimation.MAX_ALPHA * opacity).roundToInt()
-        val color = (alpha shl EditorAnimation.ALPHA_SHIFT) or EditorAnimation.LINE_RGB
+        val color = EditorAnimation.LINE_RGB.withAlpha(alpha)
         context.fill(lineX, lineY, lineX + lineWidth, lineY + EditorAnimation.LINE_HEIGHT, color)
     }
 
@@ -815,7 +814,7 @@ private object HeldItemEditorRenderer {
         } else {
             0
         }
-        val itemText = fitText(font, itemName, itemTextWidth)
+        val itemText = font.elide(itemName, itemTextWidth)
         val itemGroupWidth = font.width(itemText) + if (hasItem) {
             EditorHeader.ITEM_SIZE + EditorHeader.ITEM_TEXT_GAP
         } else {
@@ -1126,18 +1125,6 @@ private object HeldItemEditorRenderer {
         PixelButtonRenderer.draw(context, font, bounds, label, selected, hovered, enabled, tone)
     }
 
-    private fun fitText(font: Font, text: String, maxWidth: Int): String {
-        if (font.width(text) <= maxWidth) return text
-        val suffix = "..."
-        return font.plainSubstrByWidth(text, maxWidth - font.width(suffix)) + suffix
-    }
-
-    private fun fitText(font: Font, text: Component, maxWidth: Int): FormattedCharSequence {
-        if (font.width(text) <= maxWidth) return text.visualOrderText
-        val suffix = FormattedText.of("...", text.style)
-        val head = font.substrByWidth(text, (maxWidth - font.width(suffix)).coerceAtLeast(0))
-        return Language.getInstance().getVisualOrder(FormattedText.composite(head, suffix))
-    }
 }
 
 internal enum class EditTarget {
@@ -1349,7 +1336,6 @@ private object EditorAnimation {
     const val LINE_HEIGHT = 1
     const val LINE_RGB = 0x005D6872
     const val MAX_ALPHA = 255
-    const val ALPHA_SHIFT = 24
     const val HIDDEN_MOUSE_COORDINATE = Int.MIN_VALUE
 }
 
