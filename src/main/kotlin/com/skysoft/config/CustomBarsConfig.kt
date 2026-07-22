@@ -36,6 +36,10 @@ class CustomBarsConfig {
 
     @JvmField
     @field:Expose
+    val vitalityPosition = defaultVitalityPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
     val experiencePosition = defaultExperiencePosition().rememberDefault()
 
     @JvmField
@@ -53,6 +57,7 @@ class CustomBarsConfig {
     fun repairLoadedValues() {
         healthPosition.rememberDefault(defaultHealthPosition())
         manaPosition.rememberDefault(defaultManaPosition())
+        vitalityPosition.rememberDefault(defaultVitalityPosition())
         experiencePosition.rememberDefault(defaultExperiencePosition())
         defensePosition.rememberDefault(defaultDefensePosition())
         speedPosition.rememberDefault(defaultSpeedPosition())
@@ -72,6 +77,12 @@ class CustomBarsSettingsConfig {
     @field:ConfigOption(name = "Mana", desc = "Show the Mana bar.")
     @field:ConfigEditorBoolean
     var mana = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Vitality", desc = "Show the Vitality bar.")
+    @field:ConfigEditorBoolean
+    var vitality = true
 
     @JvmField
     @field:Expose
@@ -109,6 +120,7 @@ class CustomBarsDetailsConfig {
 
 private val healthPositionDefault = HudPosition(-46, -35, centerX = true, centerY = false)
 private val manaPositionDefault = HudPosition(47, -35, centerX = true, centerY = false)
+private val vitalityPositionDefault = HudPosition(117, -45, centerX = true, centerY = false)
 private val experiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
 private val defensePositionDefault = HudPosition(117, -34, centerX = true, centerY = false)
 private val speedPositionDefault = HudPosition(117, -23, centerX = true, centerY = false)
@@ -116,6 +128,7 @@ private val airPositionDefault = HudPosition(117, -12, centerX = true, centerY =
 
 private fun defaultHealthPosition() = healthPositionDefault.copy()
 private fun defaultManaPosition() = manaPositionDefault.copy()
+private fun defaultVitalityPosition() = vitalityPositionDefault.copy()
 private fun defaultExperiencePosition() = experiencePositionDefault.copy()
 private fun defaultDefensePosition() = defensePositionDefault.copy()
 private fun defaultSpeedPosition() = speedPositionDefault.copy()

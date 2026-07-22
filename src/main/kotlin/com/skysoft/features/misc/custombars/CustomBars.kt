@@ -40,6 +40,7 @@ object CustomBars {
     private val config get() = SkysoftConfigGui.config().gui.customBars
     private var health: BarValue? = null
     private var mana: BarValue? = null
+    private var vitality: BarValue? = null
     private var defense: Int? = null
 
     fun register() {
@@ -52,6 +53,7 @@ object CustomBars {
             val hidden = buildSet {
                 if (settings.health) add(CustomBarStatus.HEALTH)
                 if (settings.mana) add(CustomBarStatus.MANA)
+                if (settings.vitality) add(CustomBarStatus.VITALITY)
                 if (settings.defense) add(CustomBarStatus.DEFENSE)
             }
             message.component.withoutRanges(CustomBarsActionBarParser.parse(message.plainText).ranges(hidden))
@@ -108,18 +110,21 @@ object CustomBars {
     private fun update(parsed: ParsedCustomBarActionBar) {
         parsed.health?.let { health = it }
         parsed.mana?.let { mana = it }
+        parsed.vitality?.let { vitality = it }
         parsed.defense?.let { defense = it }
     }
 
     private fun reset() {
         health = null
         mana = null
+        vitality = null
         defense = null
     }
 
     private enum class CustomBarPart(val label: String, val width: Int, val height: Int) {
         HEALTH("Health Bar", HALF_RESOURCE_WIDTH, RESOURCE_HEIGHT),
         MANA("Mana Bar", HALF_RESOURCE_WIDTH, RESOURCE_HEIGHT),
+        VITALITY("Vitality Bar", COMPACT_RESOURCE_WIDTH, RESOURCE_HEIGHT),
         EXPERIENCE("Experience Bar", FULL_RESOURCE_WIDTH, RESOURCE_HEIGHT),
         DEFENSE("Defense", READOUT_WIDTH, READOUT_ELEMENT_HEIGHT),
         SPEED("Speed", READOUT_WIDTH, READOUT_ELEMENT_HEIGHT),
@@ -129,6 +134,7 @@ object CustomBars {
         fun isEnabled(): Boolean = when (this) {
             HEALTH -> config.settings.health
             MANA -> config.settings.mana
+            VITALITY -> config.settings.vitality
             EXPERIENCE -> config.settings.experience
             DEFENSE -> config.settings.defense
             SPEED -> config.settings.speed
@@ -138,6 +144,7 @@ object CustomBars {
         fun position(): HudPosition = when (this) {
             HEALTH -> config.healthPosition
             MANA -> config.manaPosition
+            VITALITY -> config.vitalityPosition
             EXPERIENCE -> config.experiencePosition
             DEFENSE -> config.defensePosition
             SPEED -> config.speedPosition
@@ -159,12 +166,13 @@ object CustomBars {
     }
 
     private fun renderable(part: CustomBarPart, previewAir: Boolean = false): GuiRenderable =
-        CustomBarsRenderable(part, health, mana, defense, previewAir)
+        CustomBarsRenderable(part, health, mana, vitality, defense, previewAir)
 
     private class CustomBarsRenderable(
         private val part: CustomBarPart,
         private val health: BarValue?,
         private val mana: BarValue?,
+        private val vitality: BarValue?,
         private val defense: Int?,
         private val previewAir: Boolean,
     ) : GuiRenderable {
@@ -187,6 +195,13 @@ object CustomBars {
                     MANA_COLOR,
                     MANA_OVERFLOW_COLOR,
                     SkyBlockStatGlyph.INTELLIGENCE.toString(),
+                )
+                CustomBarPart.VITALITY -> drawBar(
+                    context,
+                    vitality,
+                    VITALITY_COLOR,
+                    VITALITY_COLOR,
+                    SkyBlockStatGlyph.VITALITY.toString(),
                 )
                 CustomBarPart.EXPERIENCE -> {
                     drawExperienceIcon(context)
@@ -238,13 +253,14 @@ object CustomBars {
             icon: String,
         ) {
             drawIcon(context, icon, 0, RESOURCE_BAR_Y + ICON_Y_OFFSET, color)
-            drawResourceBar(context, BAR_X, RESOURCE_BAR_Y, HALF_BAR_WIDTH, value, color, overflowColor)
+            val barWidth = width - ICON_SLOT_WIDTH
+            drawResourceBar(context, BAR_X, RESOURCE_BAR_Y, barWidth, value, color, overflowColor)
             drawCenteredText(
                 context,
-                resourceText(value, HALF_BAR_WIDTH),
+                resourceText(value, barWidth),
                 BAR_X,
                 RESOURCE_BAR_Y + BAR_TEXT_Y_OFFSET,
-                HALF_BAR_WIDTH,
+                barWidth,
                 color,
             )
         }
@@ -405,11 +421,14 @@ internal object CustomBarsActionBarParser {
         )
     private val defensePattern =
         Regex("(?<defense>[\\d,]+)\\s*[❈${SkyBlockStatGlyph.DEFENSE}](?:\\s+Defense)?")
+    private val vitalityPattern =
+        Regex("(?<current>[\\d,]+)/(?<maximum>[\\d,]+)\\s*${SkyBlockStatGlyph.VITALITY}")
 
     fun parse(text: String): ParsedCustomBarActionBar {
         val normalized = NormalizedActionBar(text)
         val healthMatch = healthPattern.find(normalized.text)
         val manaMatch = manaPattern.find(normalized.text)
+        val vitalityMatch = vitalityPattern.find(normalized.text)
         val defenseMatch = defensePattern.find(normalized.text)
         return ParsedCustomBarActionBar(
             health = healthMatch?.let {
@@ -417,6 +436,9 @@ internal object CustomBarsActionBarParser {
             },
             mana = manaMatch?.let {
                 BarValue(it.value("current"), it.value("maximum"), it.groups["overflow"]?.value?.skyBlockInt() ?: 0)
+            },
+            vitality = vitalityMatch?.let {
+                BarValue(it.value("current"), it.value("maximum"))
             },
             defense = defenseMatch?.groups?.get("defense")?.value?.skyBlockInt(),
             removals = buildList {
@@ -427,6 +449,9 @@ internal object CustomBarsActionBarParser {
                 }
                 manaMatch?.let {
                     add(StatusRemoval(CustomBarStatus.MANA, text.statusRange(normalized.rawRange(it.range))))
+                }
+                vitalityMatch?.let {
+                    add(StatusRemoval(CustomBarStatus.VITALITY, text.statusRange(normalized.rawRange(it.range))))
                 }
                 defenseMatch?.let {
                     add(StatusRemoval(CustomBarStatus.DEFENSE, text.statusRange(normalized.rawRange(it.range))))
@@ -446,9 +471,11 @@ internal object CustomBarsActionBarParser {
         var start = match.first
         val endExclusive = match.last + 1
         while (start > 0 && this[start - 1] == ' ') start--
-        if (match.first - start >= STATUS_SEPARATOR_LENGTH) return start until endExclusive
         var trailingEnd = endExclusive
         while (getOrNull(trailingEnd) == ' ') trailingEnd++
+        if (match.first - start >= STATUS_SEPARATOR_LENGTH) {
+            return start until if (trailingEnd == length) trailingEnd else endExclusive
+        }
         return if (trailingEnd - endExclusive >= STATUS_SEPARATOR_LENGTH) match.first until trailingEnd else match
     }
 
@@ -494,6 +521,7 @@ private class NormalizedActionBar(private val raw: String) {
 internal enum class CustomBarStatus {
     HEALTH,
     MANA,
+    VITALITY,
     DEFENSE,
 }
 
@@ -506,6 +534,7 @@ internal data class BarValue(val current: Int, val maximum: Int, val overflow: I
 internal data class ParsedCustomBarActionBar(
     val health: BarValue?,
     val mana: BarValue?,
+    val vitality: BarValue?,
     val defense: Int?,
     private val removals: List<StatusRemoval>,
 ) {
@@ -576,6 +605,7 @@ private const val BAR_GAP = 4
 private const val ICON_SLOT_WIDTH = 10
 private const val HALF_BAR_WIDTH = (HOTBAR_WIDTH - BAR_GAP - ICON_SLOT_WIDTH * 2) / 2
 private const val HALF_RESOURCE_WIDTH = ICON_SLOT_WIDTH + HALF_BAR_WIDTH
+private const val COMPACT_RESOURCE_WIDTH = 54
 private const val FULL_RESOURCE_WIDTH = HOTBAR_WIDTH
 private const val FULL_BAR_WIDTH = HOTBAR_WIDTH - ICON_SLOT_WIDTH
 private const val BAR_X = ICON_SLOT_WIDTH
@@ -613,6 +643,7 @@ private const val HEALTH_COLOR = 0xFFFF5555.toInt()
 private const val HEALTH_OVERFLOW_COLOR = 0xFFFFB42B.toInt()
 private const val MANA_COLOR = 0xFF55FFFF.toInt()
 private const val MANA_OVERFLOW_COLOR = 0xFFAA00FF.toInt()
+private const val VITALITY_COLOR = 0xFFAA0000.toInt()
 private const val XP_COLOR = 0xFF80FF20.toInt()
 private const val DEFENSE_ICON_COLOR = 0xFF55FF55.toInt()
 private const val SPEED_ICON_COLOR = 0xFFFFFFFF.toInt()
