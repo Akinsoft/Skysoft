@@ -8,6 +8,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
@@ -87,19 +88,22 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
         isTrackerHovered = false
         return
     }
-    val inventoryOpen = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
+    val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
+    val inventoryOpen = inventoryScreen != null
     if (!inventoryOpen) itemPanel.clear()
     val renderable = buildProfitRenderable(preset, inventoryOpen)
     val window = minecraft.window
     val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
     val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
+    val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
+    val interactive = inventoryScreen != null &&
+        !InventoryOverlayInput.isPointCovered(inventoryScreen, screenMouseX.toDouble(), screenMouseY.toDouble())
     context.nextStratum()
-    renderPositioned(context, renderable, preset, inventoryOpen, normalMouseX, normalMouseY)
-    if (inventoryOpen) {
+    renderPositioned(context, renderable, preset, interactive, normalMouseX, normalMouseY)
+    if (interactive) {
         context.nextStratum()
         hoveredControl?.let { area ->
-            val (tooltipX, tooltipY) = OverlayControlMouse.deferredTooltipPoint(mouseX, mouseY)
             val managedItem = area.action as? ProfitTrackerControl.ManageItem
             if (managedItem != null) {
                 SkysoftNativeTooltip.setItemActionForNextFrame(
@@ -107,15 +111,15 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
                     managedItem.stack,
                     "Manage",
                     managedItem.formattedName,
-                    tooltipX,
-                    tooltipY,
+                    screenMouseX,
+                    screenMouseY,
                 )
             } else {
                 SkysoftNativeTooltip.setForNextFrame(
                     context,
                     area.tooltipLines,
-                    tooltipX,
-                    tooltipY,
+                    screenMouseX,
+                    screenMouseY,
                     scrollable = false,
                 )
             }
@@ -209,13 +213,15 @@ private fun registerMouseCapture() {
         ) return@register
         ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
             SkysoftErrorBoundary.value("Profit Tracker mouse click", true) {
-                ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
+                InventoryOverlayInput.isPointCovered(screen, click.x(), click.y()) ||
+                    ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
                     !hudControls.wasClickHandled(screen, hoveredControl?.action, click.button())
             }
         }
-        ScreenMouseEvents.allowMouseScroll(screen).register { _, _, _, _, verticalAmount ->
+        ScreenMouseEvents.allowMouseScroll(screen).register { _, mouseX, mouseY, _, verticalAmount ->
             SkysoftErrorBoundary.value("Profit Tracker mouse scroll", true) {
-                ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
+                InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
+                    ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
                     !isTrackerHovered || !wasItemScrollHandled(verticalAmount)
             }
         }

@@ -146,7 +146,7 @@ object SlotBindingManager {
         val tooltip = pendingTooltip ?: return
         pendingTooltip = null
         context.nextStratum()
-        val (mouseX, mouseY) = OverlayControlMouse.deferredTooltipPoint(tooltip.mouseX, tooltip.mouseY)
+        val (mouseX, mouseY) = OverlayControlMouse.screenPoint(tooltip.mouseX, tooltip.mouseY)
         SkysoftNativeTooltip.setForNextFrame(context, tooltip.lines, mouseX, mouseY)
     }
 

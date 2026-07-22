@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.utils.MinecraftClient
 import net.minecraft.client.Minecraft
@@ -15,7 +16,8 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
         hoveredControlArea = null
         return
     }
-    val inventoryOpen = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
+    val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
+    val inventoryOpen = inventoryScreen != null
     val renderable = buildRenderable(inventoryOpen)
     if (renderable.width <= 0 || renderable.height <= 0) {
         hoveredControlArea = null
@@ -25,9 +27,12 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
     val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
     val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
+    val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
+    val interactive = inventoryScreen != null &&
+        !InventoryOverlayInput.isPointCovered(inventoryScreen, screenMouseX.toDouble(), screenMouseY.toDouble())
     context.nextStratum()
-    renderPositioned(context, renderable, inventoryOpen, normalMouseX, normalMouseY)
-    if (inventoryOpen) {
+    renderPositioned(context, renderable, interactive, normalMouseX, normalMouseY)
+    if (interactive) {
         context.nextStratum()
         renderTrackerControlTooltip(context, mouseX, mouseY)
     }
