@@ -88,6 +88,7 @@ import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.VisiblePetPosition
 import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.features.screenshot.ScreenshotManager
+import com.skysoft.features.spotify.SpotifyDisplay
 import com.skysoft.features.slayer.SlayerBossAlerts
 import com.skysoft.features.slayer.SlayerMinibossAlert
 import com.skysoft.features.slayer.SlayerTargetHighlighting
@@ -170,6 +171,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Real Time Display", RealTimeDisplay::register)
         registerFeature("Server TPS Provider", ServerTpsProvider::register)
         registerFeature("Server Info Display", ServerInfoDisplay::register)
+        registerFeature("Spotify Display", SpotifyDisplay::register)
         registerFeature("Mouse Lock", MouseLock::register)
         registerFeature("Scoreboard Position Editor", ScoreboardPositionEditor::register)
         registerFeature("Player Head Skin Fix", PlayerHeadSkinFix::register)

@@ -20,6 +20,7 @@ object SkysoftConfigFiles {
     val featureDiscovery: Path = directory.resolve("feature-discovery.json")
     val chatHistory: Path = directory.resolve("chat-history.json")
     val profileStorage: Path = directory.resolve("skysoft-storage.json")
+    val spotifyAuthentication: Path = directory.resolve("spotify-auth.json")
     val learnedPetAnimations: Path = directory.resolve("pet-animations.json")
     val dianaHubSurfaceCache: Path = directory.resolve("diana-hub-surface-cache.json")
     val mythologicalRitualTracker: Path = directory
@@ -48,6 +49,10 @@ object SkysoftConfigFiles {
 
     fun writeStringSafely(path: Path, text: String) {
         SkysoftConfigFileIo.writeStringSafely(path, text)
+    }
+
+    fun deleteWithBackups(path: Path) {
+        SkysoftConfigFileIo.deleteWithBackups(path)
     }
 
     fun <T> readWithBackup(path: Path, reader: (Path) -> T): T {
@@ -110,6 +115,11 @@ internal object SkysoftConfigFileIo {
 
         failures.drop(1).forEach(primaryException::addSuppressed)
         throw primaryException
+    }
+
+    fun deleteWithBackups(path: Path) {
+        Files.deleteIfExists(path)
+        backupPaths(path).forEach(Files::deleteIfExists)
     }
 
     fun copyLegacyFile(source: Path, target: Path): MigrationResult {

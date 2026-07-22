@@ -22,7 +22,7 @@ object SkysoftHttp {
             .GET()
             .build()
 
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        return sendString(request)
             .thenApply { response ->
                 if (response.statusCode() !in 200..299) {
                     throw IllegalStateException("GET $url returned HTTP ${response.statusCode()}")
@@ -41,7 +41,7 @@ object SkysoftHttp {
             .GET()
             .build()
 
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+        return sendBytes(request)
             .thenApply { response ->
                 if (response.statusCode() !in 200..299) {
                     throw IllegalStateException("GET $url returned HTTP ${response.statusCode()}")
@@ -49,6 +49,12 @@ object SkysoftHttp {
                 response.body()
             }
     }
+
+    fun sendString(request: HttpRequest): CompletableFuture<HttpResponse<String>> =
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+
+    fun sendBytes(request: HttpRequest): CompletableFuture<HttpResponse<ByteArray>> =
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
 
     private const val DEFAULT_REQUEST_TIMEOUT_SECONDS = 30L
 }
