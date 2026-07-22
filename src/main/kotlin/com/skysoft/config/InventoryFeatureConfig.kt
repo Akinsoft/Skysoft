@@ -133,15 +133,6 @@ class InventoryFeatureConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
-        name = "Hide Vanilla Recipe Book",
-        desc = "Hide the vanilla recipe book in your inventory on SkyBlock.",
-    )
-    @field:ConfigEditorBoolean
-    var isVanillaRecipeBookHidden = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(
         name = "Preserve Cursor Position",
         desc = "Keep the mouse at the same position when Minecraft briefly closes and reopens an inventory, " +
             "such as SkyBlock storage page swaps.",

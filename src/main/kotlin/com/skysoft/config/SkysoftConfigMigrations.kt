@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 7
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 8
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -35,6 +35,20 @@ internal object SkysoftConfigMigrations {
         }
         if (migrationVersion < BETTER_SHURIKENS_CATEGORY_VERSION) {
             migrateBetterShurikensIntoCategory(json)
+        }
+        if (migrationVersion < VANILLA_UI_CATEGORY_VERSION) {
+            val guiJson = json.getOrCreateObject("gui")
+            val vanillaUiJson = guiJson.getOrCreateObject("vanillaUi")
+            guiJson.remove("areVanillaStatusEffectsHidden")?.let { legacyValue ->
+                if (!vanillaUiJson.has("areVanillaStatusEffectsHidden")) {
+                    vanillaUiJson.add("areVanillaStatusEffectsHidden", legacyValue.deepCopy())
+                }
+            }
+            json.getObjectOrNull("inventory")?.remove("isVanillaRecipeBookHidden")?.let { legacyValue ->
+                if (!vanillaUiJson.has("isVanillaRecipeBookHidden")) {
+                    vanillaUiJson.add("isVanillaRecipeBookHidden", legacyValue.deepCopy())
+                }
+            }
         }
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
@@ -363,6 +377,7 @@ internal object SkysoftConfigMigrations {
     private const val INVENTORY_EQUIPMENT_CATEGORY_VERSION = 4
     private const val MODERN_STORAGE_OVERLAY_VERSION = 6
     private const val BETTER_SHURIKENS_CATEGORY_VERSION = 7
+    private const val VANILLA_UI_CATEGORY_VERSION = 8
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
