@@ -1,6 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TabListOverlay
@@ -29,7 +30,6 @@ object TabListApi {
     private var ticks = 0
     private var skyBlockDataLoadStartedAt = ElapsedTimeMark.farPast()
     private val consumers = ActiveConsumerRegistry()
-    private var wasActive = false
 
     var sessionId: Long = 0
         private set
@@ -70,13 +70,13 @@ object TabListApi {
     fun register() {
         SkysoftClientEvents.onEndTick(
             "Tab List update",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) {
             onClientTick()
         }
         SkysoftClientEvents.onDisconnect("Tab List reset") {
             resetSession()
-            wasActive = false
+            consumers.resetActivity()
         }
     }
 
@@ -91,15 +91,14 @@ object TabListApi {
         HypixelLocationState.inSkyBlock && skyBlockDataLoadStartedAt.passedSince() >= duration
 
     private fun onClientTick() {
-        val isActive = consumers.hasActiveConsumers
-        if (!isActive) {
-            if (wasActive) resetSession()
-            wasActive = false
-            return
-        }
-        if (!wasActive) {
-            resetSession()
-            wasActive = true
+        when (consumers.activity()) {
+            ConsumerActivity.INACTIVE -> return
+            ConsumerActivity.DEACTIVATED -> {
+                resetSession()
+                return
+            }
+            ConsumerActivity.ACTIVATED -> resetSession()
+            ConsumerActivity.ACTIVE -> Unit
         }
         if (!HypixelLocationState.inSkyBlock) {
             ticks = 0

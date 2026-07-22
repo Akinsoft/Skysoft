@@ -2,6 +2,7 @@ package com.skysoft.data.hypixel
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.ChatEvents
@@ -13,7 +14,6 @@ object SkyBlockProfileApi {
     private val profileChangeListeners = mutableListOf<ProfileChangeListener>()
     private val consumers = ActiveConsumerRegistry()
     private var ticks = 0
-    private var wasActive = false
 
     var currentProfileName: String? = null
         private set
@@ -40,16 +40,19 @@ object SkyBlockProfileApi {
         }
         SkysoftClientEvents.onEndTick(
             "SkyBlock Profile update",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) {
-            val isActive = consumers.hasActiveConsumers
-            if (!isActive) {
-                if (wasActive) setProfile(null)
-                wasActive = false
-                ticks = 0
-                return@onEndTick
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@onEndTick
+                ConsumerActivity.DEACTIVATED -> {
+                    setProfile(null)
+                    ticks = 0
+                    return@onEndTick
+                }
+                ConsumerActivity.ACTIVATED,
+                ConsumerActivity.ACTIVE,
+                -> Unit
             }
-            wasActive = true
             if (!HypixelLocationState.inSkyBlock) {
                 setProfile(null)
                 ticks = 0
@@ -60,7 +63,7 @@ object SkyBlockProfileApi {
         SkysoftClientEvents.onDisconnect("SkyBlock Profile reset") {
             setProfile(null)
             ticks = 0
-            wasActive = false
+            consumers.resetActivity()
         }
     }
 
