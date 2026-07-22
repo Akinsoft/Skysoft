@@ -16,9 +16,10 @@ internal object SkyBlockEntityStacks {
     }
     private val skinLookups = mutableMapOf<String, Supplier<PlayerSkin>>()
 
-    fun stack(id: String): ItemStack? {
-        synchronized(cache) { cache[id]?.let { return it } }
-        val entity = SkyBlockDataRepository.entity(id) ?: return null
+    fun stack(id: String): ItemStack? = SkyBlockDataRepository.entity(id)?.let(::stack)
+
+    fun stack(entity: SkyBlockEntityInfo): ItemStack? {
+        synchronized(cache) { cache[entity.id]?.let { return it } }
         val stack = when {
             entity.texture != null -> SkyBlockStackFactory.texturedHead(entity.texture, Component.literal(entity.name))
             entity.itemId != null -> Identifier.tryParse(entity.itemId)
@@ -26,7 +27,7 @@ internal object SkyBlockEntityStacks {
                 ?.let(::ItemStack)
             else -> null
         } ?: return null
-        synchronized(cache) { cache[id] = stack }
+        synchronized(cache) { cache[entity.id] = stack }
         return stack
     }
 

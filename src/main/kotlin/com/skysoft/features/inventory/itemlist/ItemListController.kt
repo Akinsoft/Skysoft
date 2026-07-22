@@ -179,7 +179,7 @@ object ItemListController {
                 } else {
                     footerWidth - ItemListLayout.CONFIG_BUTTON_WIDTH - ItemListLayout.CONTROL_GAP
                 }
-                searchField.render(context, 0, 0, searchWidth, ItemListLayout.FOOTER_HEIGHT, "Search items...")
+                searchField.render(context, 0, 0, searchWidth, ItemListLayout.FOOTER_HEIGHT, "Search items and mobs...")
                 if (!isSettingsButtonHidden) {
                     drawSettingsButton(
                         context,
@@ -320,7 +320,7 @@ object ItemListController {
             layout.search.y,
             layout.search.width,
             layout.search.height,
-            "Search items...",
+            "Search items and mobs...",
             alpha = footerOpacity,
             outlineColor = InventoryItemSearchHighlight.OUTLINE_COLOR.takeIf {
                 ContainerSearchHighlighter.isActive(screen)
@@ -528,6 +528,7 @@ object ItemListController {
         if (filterKey == currentKey) return filteredEntryCache
         return SkyBlockDataRepository.ItemListData.search(query).filter { entry ->
             entry.key.kind == ItemListEntryKind.SKYBLOCK ||
+                entry.key.kind == ItemListEntryKind.ENTITY ||
                 (entry.source == "minecraft" && settings.showVanilla)
         }.also {
             filterKey = currentKey
@@ -567,9 +568,9 @@ object ItemListController {
         ) {
             val status = SkyBlockDataRepository.status
             val text = when (status.state) {
-                SkyBlockDataLoadState.LOADING, SkyBlockDataLoadState.NOT_LOADED -> "§7Loading items..."
-                SkyBlockDataLoadState.FAILED -> "§c${status.message ?: "Item data failed"}"
-                SkyBlockDataLoadState.READY -> "§7No matching items"
+                SkyBlockDataLoadState.LOADING, SkyBlockDataLoadState.NOT_LOADED -> "§7Loading catalog..."
+                SkyBlockDataLoadState.FAILED -> "§c${status.message ?: "Item List data failed"}"
+                SkyBlockDataLoadState.READY -> "§7No matches"
             }
             LegacyTextRenderer.draw(
                 context,

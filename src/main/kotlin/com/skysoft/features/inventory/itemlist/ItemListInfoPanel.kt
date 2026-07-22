@@ -1,9 +1,11 @@
 package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.data.skyblock.ItemListEntryKey
+import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockEntityInfo
 import com.skysoft.data.skyblock.SkyBlockSlayerType
+import com.skysoft.data.skyblock.isMob
 import com.skysoft.data.skyblock.SkyBlockDropSource
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.gui.Rect
@@ -34,8 +36,9 @@ internal class ItemListInfoPanel {
         }
         panelBounds = bounds
         val info = SkyBlockDataRepository.info(key)
-        val lines = itemInfoLines(key, info)
-        val headerLineCount = 1 + (if (info?.category != null) 1 else 0)
+        val entity = key.takeIf { it.kind == ItemListEntryKind.ENTITY }?.let { SkyBlockDataRepository.entity(it.id) }
+        val lines = entity?.let(::entityInfoLines) ?: itemInfoLines(key, info)
+        val headerLineCount = if (entity == null) 1 + (if (info?.category != null) 1 else 0) else 2
         val headerLines = lines.take(headerLineCount)
         val loreLines = lines.drop(headerLineCount)
         val enchantmentTargets = info?.enchantment?.applicableOn?.let(::enchantmentTargets).orEmpty()
@@ -304,11 +307,36 @@ internal fun entityTooltipLines(
         dropDetails.forEach { add("§7$it") }
         addAll(dropChanceLines(entity, dropSources))
         add("§8${entity.type}")
-        if (canWarp) {
-            add("")
-            add(ItemListNpcWaypoint.warpActionLabel(entityId))
-        }
+        val canOpen = entity.isMob()
+        if (canOpen || canWarp) add("")
+        if (canOpen) add("§e§lCLICK TO VIEW")
+        if (canWarp) add(ItemListNpcWaypoint.warpActionLabel(entityId))
     }
+}
+
+internal fun entityInfoLines(entity: SkyBlockEntityInfo): List<String> = buildList {
+    add("§7ID: §f${entity.id}")
+    add("§7Type: §f${entity.type}")
+    entity.location?.let { add("§7Location: §f$it") }
+        ?: derivedEntityDetails(entity.id, entity).forEach { add("§7$it") }
+    val levels = entity.lootTables.mapNotNull { it.mobLevel }
+    val xp = entity.lootTables.mapNotNull { it.xp }
+    val combatXp = entity.lootTables.mapNotNull { it.combatXp }
+    entityStatRange("Level", levels)?.let(::add)
+    entityStatRange("XP", xp)?.let(::add)
+    entityStatRange("Combat XP", combatXp)?.let(::add)
+    entity.details.filterNot { it == entity.location }.distinct().forEach { add("§7$it") }
+}
+
+private fun entityStatRange(label: String, values: List<Int>): String? {
+    val distinct = values.distinct().sorted()
+    if (distinct.isEmpty()) return null
+    val formatted = if (distinct.size == 1) {
+        ItemListFormatting.number(distinct.single().toLong())
+    } else {
+        "${ItemListFormatting.number(distinct.first().toLong())}–${ItemListFormatting.number(distinct.last().toLong())}"
+    }
+    return "§7$label: §f$formatted"
 }
 
 private fun dropChanceLines(entity: SkyBlockEntityInfo, sources: List<SkyBlockDropSource>): List<String> {
@@ -351,6 +379,15 @@ private fun slayerSpawnDescription(entityId: String): String {
     val (type, tier) = requireNotNull(SkyBlockSlayerType.fromBossEntityId(entityId))
     return "Spawned from a Tier $tier ${type.displayName} Slayer quest"
 }
+
+internal fun itemListEntityAt(
+    mode: ItemListViewMode,
+    infoPanel: ItemListInfoPanel,
+    entityBounds: List<Pair<Rect, String>>,
+    mouseX: Int,
+    mouseY: Int,
+): String? = (if (mode == ItemListViewMode.INFO) infoPanel.entityAt(mouseX, mouseY) else null)
+    ?: entityBounds.firstOrNull { (bounds, _) -> bounds.contains(mouseX, mouseY) }?.second
 
 internal fun SkyBlockEntityInfo.canNavigateToEntity(): Boolean =
     SkyBlockDataRepository.ViewerData.bestWarpFor(id) != null &&

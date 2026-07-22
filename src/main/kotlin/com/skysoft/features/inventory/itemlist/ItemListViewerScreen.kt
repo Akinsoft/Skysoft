@@ -2,6 +2,7 @@ package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.ItemListEntryKey
+import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.ItemListTierFamily
 import com.skysoft.data.skyblock.ItemListTierFamilyKind
 import com.skysoft.data.skyblock.RecipeIngredient
@@ -13,6 +14,7 @@ import com.skysoft.data.skyblock.SkyBlockProgressionIconKind
 import com.skysoft.data.skyblock.SkyBlockProgressionRequirement
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockRecipeType
+import com.skysoft.data.skyblock.entityItemKey
 import com.skysoft.data.skyblock.petItemKey
 import com.skysoft.data.skyblock.recipeIngredientStack
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
@@ -51,6 +53,7 @@ internal class ItemListViewerScreen(
     private val backStack = mutableListOf<ViewerLocation>()
     private val forwardStack = mutableListOf<ViewerLocation>()
     private val infoPanel = ItemListInfoPanel()
+    private val entityDropsPanel = ItemListEntityDropsPanel()
     private val obtainSourcesPanel = ItemListObtainSourcesPanel()
     private val bazaarPanel = ItemListBazaarPanel()
     private val auctionHousePanel = ItemListAuctionHousePanel()
@@ -115,7 +118,11 @@ internal class ItemListViewerScreen(
         val mouseY = click.y().toInt()
         val result = when (click.button()) {
             GLFW.GLFW_MOUSE_BUTTON_LEFT -> applyLeftClick(currentLayout, mouseX, mouseY)
-            GLFW.GLFW_MOUSE_BUTTON_RIGHT -> navigateIngredient(mouseX, mouseY)
+            GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
+                val warp = requestNpcWarpAt(mode, infoPanel, entityBounds, mouseX, mouseY)
+                if (warp.shouldCloseScreen) MinecraftClient.setScreen(null)
+                warp.inputResult.orElse { navigateIngredient(mouseX, mouseY) }
+            }
             else -> ViewerInputResult.IGNORED
         }
         if (!result.isHandled) return super.mouseClicked(click, doubled)
@@ -156,10 +163,10 @@ internal class ItemListViewerScreen(
         }
         return when (event.key()) {
             GLFW.GLFW_KEY_BACKSPACE -> navigateBack().isHandled
-            GLFW.GLFW_KEY_LEFT -> selection.changePage(-1, layout?.recipeGrid?.pageSize ?: 1, auctionHousePanel)
+            GLFW.GLFW_KEY_LEFT -> selection.changePage(-1, layout?.pageSize(currentKey) ?: 1, auctionHousePanel)
                 .also(ViewerInputResult::playSound)
                 .isHandled
-            GLFW.GLFW_KEY_RIGHT -> selection.changePage(1, layout?.recipeGrid?.pageSize ?: 1, auctionHousePanel)
+            GLFW.GLFW_KEY_RIGHT -> selection.changePage(1, layout?.pageSize(currentKey) ?: 1, auctionHousePanel)
                 .also(ViewerInputResult::playSound)
                 .isHandled
             GLFW.GLFW_KEY_A -> {
@@ -199,8 +206,8 @@ internal class ItemListViewerScreen(
         layout.infoTab.contains(mouseX, mouseY) -> selection.changeMode(ItemListViewMode.INFO)
         layout.recipeTab.contains(mouseX, mouseY) -> selection.changeMode(ItemListViewMode.RECIPES)
         layout.usageTab.contains(mouseX, mouseY) -> selection.changeMode(ItemListViewMode.USAGES)
-        layout.previous.contains(mouseX, mouseY) -> selection.changePage(-1, layout.recipeGrid.pageSize, auctionHousePanel)
-        layout.next.contains(mouseX, mouseY) -> selection.changePage(1, layout.recipeGrid.pageSize, auctionHousePanel)
+        layout.previous.contains(mouseX, mouseY) -> selection.changePage(-1, layout.pageSize(currentKey), auctionHousePanel)
+        layout.next.contains(mouseX, mouseY) -> selection.changePage(1, layout.pageSize(currentKey), auctionHousePanel)
         layout.wiki.contains(mouseX, mouseY) -> openWiki(currentKey, isVisible = mode == ItemListViewMode.INFO)
         else -> run {
             val categories = selection.currentCategories().take(MAX_CATEGORY_BUTTONS)
@@ -231,9 +238,11 @@ internal class ItemListViewerScreen(
         }.orElse {
             sendProgressionCommandAt(progressionBounds, mouseX, mouseY)
         }.orElse {
-            val npcAction = requestNpcWarpAt(mode, infoPanel, entityBounds, mouseX, mouseY)
-            if (npcAction.shouldCloseScreen) MinecraftClient.setScreen(null)
-            npcAction.inputResult
+            itemListEntityAt(mode, infoPanel, entityBounds, mouseX, mouseY)?.let { entityId ->
+                entityItemKey(entityId)
+                    .takeIf { SkyBlockDataRepository.entry(it) != null }
+                    ?.let(::navigateTo)
+            } ?: ViewerInputResult.IGNORED
         }.orElse {
             navigateIngredient(mouseX, mouseY, canQuickCraft = true)
         }
@@ -283,18 +292,20 @@ internal class ItemListViewerScreen(
     }
 
     private fun renderTabs(context: GuiGraphicsExtractor, layout: ViewerLayout, mouseX: Int, mouseY: Int) {
+        val isEntity = currentKey.kind == ItemListEntryKind.ENTITY
         drawViewerTab(context, font, layout.infoTab, "Info", mode == ItemListViewMode.INFO, mouseX, mouseY, true, null)
         drawViewerTab(
             context,
             font,
             layout.recipeTab,
-            "Obtain",
+            if (isEntity) "Drops" else "Obtain",
             mode == ItemListViewMode.RECIPES,
             mouseX,
             mouseY,
             selection.hasObtainMethods(),
-            "No obtain methods found",
+            if (isEntity) "No drops found" else "No obtain methods found",
         )
+        if (isEntity) return
         drawViewerTab(
             context,
             font,
@@ -315,6 +326,23 @@ internal class ItemListViewerScreen(
         entityBounds = emptyList()
         petBounds = emptyList()
         fusionIngredientTriggers = emptyList()
+        val entity = currentKey.takeIf { it.kind == ItemListEntryKind.ENTITY }
+            ?.let { SkyBlockDataRepository.entity(it.id) }
+        if (entity != null) {
+            val dropCount = entityDropCount(entity)
+            val pageCount = recipePageCount(dropCount, layout.entityGrid.pageSize)
+            recipePage = recipePage.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+            ingredientBounds = entityDropsPanel.render(
+                context,
+                font,
+                layout.entityGrid,
+                entity,
+                recipePage,
+                mouseX,
+                mouseY,
+            )
+            return
+        }
         val categories = selection.currentCategories().take(MAX_CATEGORY_BUTTONS)
         selection.ensureSelectedCategory(categories)
         categories.forEachIndexed { index, category ->
@@ -462,6 +490,22 @@ internal class ItemListViewerScreen(
         val minionFamily = minionFamily(currentKey)
         renderTierFooter(context, font, layout, currentKey, minionFamily, mouseX, mouseY)
         if (mode == ItemListViewMode.INFO) return
+        val entity = currentKey.takeIf { it.kind == ItemListEntryKind.ENTITY }
+            ?.let { SkyBlockDataRepository.entity(it.id) }
+        if (entity != null) {
+            val pageCount = recipePageCount(entityDropCount(entity), layout.entityGrid.pageSize)
+            layout.renderPageFooter(
+                context,
+                font,
+                mouseX,
+                mouseY,
+                recipePage > 0,
+                recipePage + 1 < pageCount,
+                if (pageCount == 0) "0 / 0" else "${recipePage + 1} / $pageCount",
+                false,
+            )
+            return
+        }
         if (fusionSelectorPanel.isOpen) return
         if (selectedSupplemental == ViewerSupplementalCategory.AUCTION_HOUSE) {
             layout.renderPageFooter(
@@ -739,8 +783,7 @@ private fun requestNpcWarpAt(
     mouseX: Int,
     mouseY: Int,
 ): NpcWarpClickResult {
-    val entityId = (if (mode == ItemListViewMode.INFO) infoPanel.entityAt(mouseX, mouseY) else null)
-        ?: entityBounds.firstOrNull { (bounds, _) -> bounds.contains(mouseX, mouseY) }?.second
+    val entityId = itemListEntityAt(mode, infoPanel, entityBounds, mouseX, mouseY)
         ?: return NpcWarpClickResult.IGNORED
     return when (ItemListNpcWaypoint.requestWarp(entityId)) {
         NpcWarpRequestResult.WARP_SENT -> NpcWarpClickResult.WARP_SENT
@@ -929,13 +972,23 @@ private class ViewerSelection(
         return ViewerInputResult.HANDLED
     }
 
-    fun changePage(delta: Int, pageSize: Int, auctionHousePanel: ItemListAuctionHousePanel): ViewerInputResult {
-        if (mode == ItemListViewMode.RECIPES && selectedSupplemental == ViewerSupplementalCategory.AUCTION_HOUSE) {
-            return auctionHousePanel.changePage(delta)
+    fun changePage(
+        delta: Int,
+        pageSize: Int,
+        auctionHousePanel: ItemListAuctionHousePanel,
+    ): ViewerInputResult = when {
+        mode == ItemListViewMode.RECIPES && currentKey.kind == ItemListEntryKind.ENTITY -> {
+            val dropCount = SkyBlockDataRepository.entity(currentKey.id)?.let(::entityDropCount) ?: 0
+            changePageWithin(dropCount, pageSize, delta)
         }
-        if (mode == ItemListViewMode.INFO || selectedSupplemental != null) return ViewerInputResult.IGNORED
-        val recipes = selectedRecipes(currentRecipes())
-        val pageCount = recipePageCount(recipes.size, pageSize)
+        mode == ItemListViewMode.RECIPES && selectedSupplemental == ViewerSupplementalCategory.AUCTION_HOUSE ->
+            auctionHousePanel.changePage(delta)
+        mode == ItemListViewMode.INFO || selectedSupplemental != null -> ViewerInputResult.IGNORED
+        else -> changePageWithin(selectedRecipes(currentRecipes()).size, pageSize, delta)
+    }
+
+    private fun changePageWithin(entryCount: Int, pageSize: Int, delta: Int): ViewerInputResult {
+        val pageCount = recipePageCount(entryCount, pageSize)
         val nextPage = (recipePage + delta).coerceIn(0, (pageCount - 1).coerceAtLeast(0))
         if (nextPage == recipePage) return ViewerInputResult.IGNORED
         recipePage = nextPage
@@ -983,12 +1036,16 @@ private enum class ViewerSupplementalCategory(val label: String) {
     BAZAAR("Bazaar"),
 }
 
-private fun hasObtainMethods(key: ItemListEntryKey): Boolean =
-    SkyBlockDataRepository.recipesFor(key).isNotEmpty() ||
+private fun hasObtainMethods(key: ItemListEntryKey): Boolean {
+    val hasEntityDrops = key.kind == ItemListEntryKind.ENTITY &&
+        SkyBlockDataRepository.entity(key.id)?.lootTables?.any { it.drops.isNotEmpty() } == true
+    return hasEntityDrops ||
+        SkyBlockDataRepository.recipesFor(key).isNotEmpty() ||
         hasOtherObtainSources(key) ||
         hasObtainSourcesMatching(key, SPECIALIZED_DETAIL_MARKERS) ||
         hasAuctionHouseObtainSource(key) ||
         hasBazaarObtainSource(key)
+}
 
 private data class PetIngredientBounds(
     val bounds: Rect,
@@ -1024,7 +1081,7 @@ private data class ViewerLayout(
     val tierPage: Rect,
     val recipePageWithTiers: Rect,
 ) {
-    val recipeGrid = ViewerRecipeGrid.create(
+    val recipeGrid = ViewerCardGrid.create(
         Rect(
             content.x,
             content.y + ViewerTabDimensions.CATEGORY_AREA_HEIGHT,
@@ -1032,6 +1089,10 @@ private data class ViewerLayout(
             content.height - ViewerTabDimensions.CATEGORY_AREA_HEIGHT,
         ),
     )
+    val entityGrid = ViewerCardGrid.compact(content)
+
+    fun pageSize(key: ItemListEntryKey): Int =
+        if (key.kind == ItemListEntryKind.ENTITY) entityGrid.pageSize else recipeGrid.pageSize
 
     fun category(index: Int): Rect {
         val width = (content.width - ViewerTabDimensions.CATEGORY_GAP * (ViewerTabDimensions.CATEGORY_COLUMNS - 1)) /
