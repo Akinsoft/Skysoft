@@ -318,10 +318,11 @@ object SkysoftHudEditor {
                 val deltaX = targetX - element.absoluteX(width)
                 val deltaY = targetY - element.absoluteY(height)
                 if (element.applyEditorDrag(deltaX, deltaY) == InputHandlingResult.IGNORED && element.canMove) {
+                    val positionY = targetY - element.layoutOffsetY
                     if (element.keepsInsideScreen) {
-                        element.position.moveToAbsolute(targetX, targetY, width, height)
+                        element.position.moveToAbsolute(targetX, positionY, width, height)
                     } else {
-                        element.position.moveToAbsoluteAllowingOverflow(targetX, targetY, width, height)
+                        element.position.moveToAbsoluteAllowingOverflow(targetX, positionY, width, height)
                     }
                 }
             }
@@ -351,7 +352,7 @@ object SkysoftHudEditor {
                     val newWidth = (element.width() * element.position.scale).roundToInt()
                     val newHeight = (element.height() * element.position.scale).roundToInt()
                     val oldX = element.position.getAbsX0AllowingOverflow(oldWidth)
-                    val oldY = element.position.getAbsY0AllowingOverflow(oldHeight)
+                    val oldY = element.absoluteY(oldHeight) - element.layoutOffsetY
                     element.position.moveToAbsoluteAllowingOverflow(oldX, oldY, newWidth, newHeight)
                 }
                 return true

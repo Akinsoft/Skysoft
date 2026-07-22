@@ -3,6 +3,7 @@ package com.skysoft.features.misc.custombars
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockStatGlyph
+import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -20,6 +21,7 @@ import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import com.skysoft.utils.renderables.renderRenderable
+import com.skysoft.utils.renderables.withIsolatedPose
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -70,6 +72,7 @@ object CustomBars {
                 override val id: String = "custom_bars_${part.name.lowercase()}"
                 override val label: String = part.label
                 override val position get() = part.position()
+                override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
                 override val hasEditorBackground: Boolean = false
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
@@ -143,9 +146,14 @@ object CustomBars {
     }
 
     private fun renderParts(context: GuiGraphicsExtractor) {
-        for (part in CustomBarPart.entries) {
-            if (part.isEnabled() && (part != CustomBarPart.AIR || Minecraft.getInstance().player?.isUnderWater == true)) {
-                part.position().renderRenderable(context, renderable(part))
+        context.withIsolatedPose {
+            pose().translate(0f, -BottomHudLayout.reservedHeight().toFloat())
+            for (part in CustomBarPart.entries) {
+                if (part.isEnabled() &&
+                    (part != CustomBarPart.AIR || Minecraft.getInstance().player?.isUnderWater == true)
+                ) {
+                    part.position().renderRenderable(context, renderable(part))
+                }
             }
         }
     }

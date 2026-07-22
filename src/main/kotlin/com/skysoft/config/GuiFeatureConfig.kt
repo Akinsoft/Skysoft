@@ -41,6 +41,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Inventory HUD", desc = "Show your inventory, armor, and equipment in-game.")
+    val inventoryHud = InventoryHudConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Custom Bars", desc = "Replace SkyBlock status displays with custom bars.")
     val customBars = CustomBarsConfig()
 
@@ -104,6 +109,7 @@ class GuiFeatureConfig {
         heldItem.repairLoadedValues()
         selectedItemName.repairLoadedValues()
         actionBar.repairLoadedValues()
+        inventoryHud.repairLoadedValues()
         customBars.repairLoadedValues()
     }
 }
