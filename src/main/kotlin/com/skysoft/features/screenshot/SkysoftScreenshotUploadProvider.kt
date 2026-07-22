@@ -1,10 +1,9 @@
 package com.skysoft.features.screenshot
 
 import com.google.gson.JsonParser
+import com.skysoft.utils.net.SkysoftHttp
 import java.net.URI
-import java.net.http.HttpClient
 import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import java.time.Duration
@@ -12,17 +11,10 @@ import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
-internal interface ScreenshotUploadProvider {
-    fun upload(path: Path): CompletableFuture<ScreenshotUpload>
-}
-
-internal object SkysoftScreenshotUploadProvider : ScreenshotUploadProvider {
+internal object SkysoftScreenshotUploadProvider {
     private const val EXPIRATION_SECONDS = 30L * 24L * 60L * 60L
-    private val client = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
-        .build()
 
-    override fun upload(path: Path): CompletableFuture<ScreenshotUpload> {
+    fun upload(path: Path): CompletableFuture<ScreenshotUpload> {
         val boundary = "Skysoft-${UUID.randomUUID()}"
         val body = HttpRequest.BodyPublishers.concat(
             HttpRequest.BodyPublishers.ofByteArray(uploadHeader(boundary, path)),
@@ -35,7 +27,7 @@ internal object SkysoftScreenshotUploadProvider : ScreenshotUploadProvider {
             .header("Content-Type", "multipart/form-data; boundary=$boundary")
             .POST(body)
             .build()
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        return SkysoftHttp.sendString(request)
             .thenApply { response -> readUpload(response.statusCode(), response.body()) }
     }
 
@@ -82,7 +74,6 @@ internal object SkysoftScreenshotUploadProvider : ScreenshotUploadProvider {
     }
 
     private const val UPLOAD_URL = "https://api.findthesoft.com/screenshots"
-    private const val CONNECT_TIMEOUT_SECONDS = 10L
     private const val UPLOAD_TIMEOUT_SECONDS = 70L
 }
 
