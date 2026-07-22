@@ -249,7 +249,7 @@ object ProfitTracker {
     internal fun unitValue(preset: ProfitTrackerPreset, itemId: String): Double? {
         val sourcePrice = profitTrackerSourcePrice(
             SkyBlockPriceData.getBazaarPrice(itemId),
-            SkyBlockPriceData.getNpcSellPrice(itemId),
+            SkyBlockPriceData.getNpcSellPrices(itemId).coins,
             ProfitTrackerItemCustomizations.priceSource(preset, itemId),
         )
         return sourcePrice?.takeIf { it > 0.0 }

@@ -123,7 +123,7 @@ object PriceTooltips {
             bazaar = if (hasBazaarLine) SkyBlockPriceData.getBazaarPrice(itemId) else null,
             lowestBin = if (hasLowestBinLine) SkyBlockPriceData.getLowestBin(itemId)?.toDouble() else null,
             npcSellPrice = if (PriceTooltipLine.NPC_SELL_PRICE in selectedLines) {
-                SkyBlockPriceData.getNpcSellPrice(itemId)
+                SkyBlockPriceData.getNpcSellPrices(itemId).coins
             } else {
                 null
             },

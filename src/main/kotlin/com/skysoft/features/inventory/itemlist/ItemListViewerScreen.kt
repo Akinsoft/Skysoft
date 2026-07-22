@@ -573,14 +573,21 @@ internal class ItemListViewerScreen(
             when {
                 petLevelKey != null ->
                     petBounds += PetIngredientBounds(bounds, displayedIngredient.id, petLevelKey)
-                currencyStack != null -> drawCurrencyAmount(context, font, bounds, requireNotNull(currencyAmount))
+                currencyStack != null -> drawCurrencyAmount(
+                    context,
+                    font,
+                    bounds,
+                    requireNotNull(currencyAmount),
+                    requireNotNull(SkyBlockCurrencyStacks.supportedTextColor(displayedIngredient.id)),
+                )
             }
             if (bounds.contains(mouseX, mouseY)) {
                 if (currencyStack != null) {
                     val amount = requireNotNull(currencyAmount)
+                    val color = requireNotNull(SkyBlockCurrencyStacks.supportedTextColor(displayedIngredient.id))
                     SkysoftNativeTooltip.setForNextFrame(
                         context,
-                        listOf("§6${requireNotNull(SkyBlockCurrencyStacks.supportedName(ingredient.id, amount))}"),
+                        listOf("$color${requireNotNull(SkyBlockCurrencyStacks.supportedName(ingredient.id, amount))}"),
                         mouseX,
                         mouseY,
                     )
@@ -828,13 +835,14 @@ private fun drawCurrencyAmount(
     font: net.minecraft.client.gui.Font,
     bounds: Rect,
     amount: Long,
+    color: String,
 ) {
     val text = ItemListFormatting.compactNumber(amount)
     LegacyTextRenderer.draw(
         context,
-        "§6$text",
-        bounds.x + bounds.width - font.width(text) - COIN_COUNT_RIGHT_INSET,
-        bounds.y + bounds.height - COIN_COUNT_BOTTOM_INSET,
+        "$color$text",
+        bounds.x + bounds.width - font.width(text) - CURRENCY_COUNT_RIGHT_INSET,
+        bounds.y + bounds.height - CURRENCY_COUNT_BOTTOM_INSET,
     )
 }
 
@@ -894,8 +902,8 @@ private const val PROCESS_DETAIL_LINE_HEIGHT = 12
 private const val PROGRESSION_ICON_SIZE = 16
 private const val PROGRESSION_ICON_GAP = 3
 private const val PROGRESSION_TEXT_Y = 5
-private const val COIN_COUNT_RIGHT_INSET = 1
-private const val COIN_COUNT_BOTTOM_INSET = 8
+private const val CURRENCY_COUNT_RIGHT_INSET = 1
+private const val CURRENCY_COUNT_BOTTOM_INSET = 8
 private val HEART_CONTAINER = Identifier.withDefaultNamespace("hud/heart/container")
 private val HEART_FULL = Identifier.withDefaultNamespace("hud/heart/full")
 private val VIEWER_TEXT_COLOR = 0xFFE0E4E8.toInt()
