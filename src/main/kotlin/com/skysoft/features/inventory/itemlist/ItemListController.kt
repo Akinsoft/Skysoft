@@ -269,7 +269,7 @@ object ItemListController {
         drawSlots(context, layout, entries, favorites, calculation != null, mouseX, mouseY)
         tierDropdown.render(context, layout, entries) { bounds, entry ->
             val scale = bounds.width.toFloat() / ItemListLayout.DEFAULT_SLOT_SIZE
-            drawEntry(context, bounds, entry, null, scale, mouseX, mouseY)
+            drawEntry(context, bounds, entry, null, scale, mouseX, mouseY, true)
         }
         if (navigationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
             PixelButtonRenderer.draw(
@@ -346,6 +346,17 @@ object ItemListController {
         val layout = lastLayout ?: return InputHandlingResult.IGNORED
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
+        val tierKey = tierDropdown.keyAt(mouseX, mouseY)
+        if (tierDropdown.isOpen) {
+            tierDropdown.clear()
+            searchField.focused = false
+            if (tierKey != null) {
+                when (click.button()) {
+                    GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT -> openViewer(tierKey, screen)
+                }
+            }
+            return InputHandlingResult.CONSUMED
+        }
         if (!layout.containsInteractive(mouseX, mouseY)) {
             searchField.focused = false
             return InputHandlingResult.IGNORED
@@ -363,12 +374,6 @@ object ItemListController {
         mouseY: Int,
     ): InputHandlingResult {
         when {
-            tierDropdown.keyAt(mouseX, mouseY) != null -> {
-                val key = requireNotNull(tierDropdown.keyAt(mouseX, mouseY))
-                when (click.button()) {
-                    GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT -> openViewer(key, screen)
-                }
-            }
             layout.search.contains(mouseX, mouseY) -> {
                 searchField.focused = true
                 if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
@@ -545,9 +550,10 @@ object ItemListController {
         mouseX: Int,
         mouseY: Int,
     ) {
+        val canHover = !tierDropdown.isOpen
         favorites.take(layout.columns).forEachIndexed { index, entry ->
             val bounds = requireNotNull(layout.favoriteBounds(index))
-            drawEntry(context, bounds, entry, null, layout.itemScale, mouseX, mouseY)
+            drawEntry(context, bounds, entry, null, layout.itemScale, mouseX, mouseY, canHover)
         }
         if (hasCalculation) return
         val start = ItemListState.page * layout.pageSize
@@ -560,6 +566,7 @@ object ItemListController {
                 layout.itemScale,
                 mouseX,
                 mouseY,
+                canHover,
             )
         }
         if (
@@ -589,8 +596,9 @@ object ItemListController {
         itemScale: Float,
         mouseX: Int,
         mouseY: Int,
+        canHover: Boolean,
     ) {
-        val hovered = bounds.contains(mouseX, mouseY)
+        val hovered = canHover && bounds.contains(mouseX, mouseY)
         if (SkysoftConfigGui.config().inventory.itemList.sources.showItemBackgrounds) {
             context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, SLOT_BORDER)
             context.fill(
@@ -651,6 +659,7 @@ object ItemListController {
         val count = pageCount(lastEntries.size, layout.pageSize)
         val nextPage = (ItemListState.page + delta).coerceIn(0, count - 1)
         if (nextPage == ItemListState.page) return
+        tierDropdown.clear()
         ItemListState.page = nextPage
         SoundUtilities.playNavigationSound(delta)
     }
