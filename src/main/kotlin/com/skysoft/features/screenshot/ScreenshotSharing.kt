@@ -15,11 +15,10 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 
 internal object ScreenshotSharing {
-    private val uploadProvider: ScreenshotUploadProvider = SkysoftScreenshotUploadProvider
     private val statuses = ConcurrentHashMap<String, ScreenshotShareStatus>()
 
     fun status(path: Path): ScreenshotShareStatus {
-        val key = normalizedPath(path)
+        val key = path.normalizedScreenshotPath()
         statuses[key]?.let { return it }
         val stored = ScreenshotUploadMetadataStore.uploadFor(path)
         return if (stored == null) {
@@ -62,9 +61,9 @@ internal object ScreenshotSharing {
         }
         if (current.state == ScreenshotShareState.UPLOADING) return
 
-        val key = normalizedPath(path)
+        val key = path.normalizedScreenshotPath()
         statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADING)
-        uploadProvider.upload(path).whenComplete { upload, failure ->
+        SkysoftScreenshotUploadProvider.upload(path).whenComplete { upload, failure ->
             Minecraft.getInstance().execute {
                 if (failure != null || upload == null) {
                     statuses[key] = ScreenshotShareStatus(ScreenshotShareState.FAILED)
@@ -103,7 +102,6 @@ internal object ScreenshotSharing {
         SkysoftChat.chat(Component.literal("Screenshot uploaded: ").append(link))
     }
 
-    private fun normalizedPath(path: Path): String = path.toAbsolutePath().normalize().toString()
 }
 
 internal data class ScreenshotShareStatus(

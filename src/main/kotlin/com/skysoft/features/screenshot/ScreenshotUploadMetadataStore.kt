@@ -18,14 +18,14 @@ internal object ScreenshotUploadMetadataStore {
 
     @Synchronized
     fun uploadFor(path: Path): ScreenshotUpload? {
-        val record = records().get(normalizedPath(path)) ?: return null
+        val record = records().get(path.normalizedScreenshotPath()) ?: return null
         if (record.expiresAtEpochSecond <= Instant.now().epochSecond) return null
         return record.upload()
     }
 
     @Synchronized
     fun remember(path: Path, upload: ScreenshotUpload) {
-        records()[normalizedPath(path)] = StoredScreenshotUpload.from(path, upload)
+        records()[path.normalizedScreenshotPath()] = StoredScreenshotUpload.from(path, upload)
         save()
     }
 
@@ -64,7 +64,6 @@ internal object ScreenshotUploadMetadataStore {
         )
     }
 
-    private fun normalizedPath(path: Path): String = path.toAbsolutePath().normalize().toString()
 }
 
 private data class StoredScreenshotUpload(
@@ -87,7 +86,7 @@ private data class StoredScreenshotUpload(
 
     companion object {
         fun from(path: Path, upload: ScreenshotUpload): StoredScreenshotUpload = StoredScreenshotUpload(
-            screenshotPath = path.toAbsolutePath().normalize().toString(),
+            screenshotPath = path.normalizedScreenshotPath(),
             imageUrl = upload.imageUrl,
             pageUrl = upload.pageUrl,
             deleteUrl = upload.deleteUrl,
@@ -97,3 +96,5 @@ private data class StoredScreenshotUpload(
         )
     }
 }
+
+internal fun Path.normalizedScreenshotPath(): String = toAbsolutePath().normalize().toString()
