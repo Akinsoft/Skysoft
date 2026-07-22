@@ -1,7 +1,7 @@
 package com.skysoft.features.chat
 
 import com.mojang.blaze3d.platform.NativeImage
-import java.io.ByteArrayInputStream
+import com.skysoft.utils.image.ScaledImageDecoder
 import java.io.InputStream
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -12,9 +12,6 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.Locale
 import java.util.concurrent.CompletableFuture
-import javax.imageio.ImageIO
-import kotlin.math.min
-import kotlin.math.roundToInt
 import net.minecraft.util.Util
 
 internal object RemoteImageLoader {
@@ -145,50 +142,8 @@ internal object RemoteImageLoader {
         return pageUri.resolve(value.replace("&amp;", "&"))
     }
 
-    private fun decode(bytes: ByteArray): NativeImage {
-        ImageIO.createImageInputStream(ByteArrayInputStream(bytes)).use { input ->
-            requireNotNull(input) { "Could not read image data" }
-            val readers = ImageIO.getImageReaders(input)
-            require(readers.hasNext()) { "Unsupported image format" }
-            val reader = readers.next()
-            try {
-                reader.input = input
-                val sourceWidth = reader.getWidth(0)
-                val sourceHeight = reader.getHeight(0)
-                require(sourceWidth in 1..MAXIMUM_SOURCE_DIMENSION && sourceHeight in 1..MAXIMUM_SOURCE_DIMENSION) {
-                    "Image dimensions are too large"
-                }
-                require(sourceWidth.toLong() * sourceHeight <= MAXIMUM_SOURCE_PIXELS) {
-                    "Image dimensions are too large"
-                }
-                val bufferedImage = reader.read(0)
-                val scale = min(
-                    min(
-                        MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH.toDouble() / sourceWidth,
-                        MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT.toDouble() / sourceHeight,
-                    ),
-                    1.0,
-                )
-                val width = (sourceWidth * scale).roundToInt().coerceAtLeast(1)
-                val height = (sourceHeight * scale).roundToInt().coerceAtLeast(1)
-                val image = NativeImage(width, height, false)
-                try {
-                    for (y in 0 until height) {
-                        val sourceY = y * sourceHeight / height
-                        for (x in 0 until width) {
-                            image.setPixel(x, y, bufferedImage.getRGB(x * sourceWidth / width, sourceY))
-                        }
-                    }
-                    return image
-                } catch (failure: Throwable) {
-                    image.close()
-                    throw failure
-                }
-            } finally {
-                reader.dispose()
-            }
-        }
-    }
+    private fun decode(bytes: ByteArray): NativeImage =
+        ScaledImageDecoder.decode(bytes, MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH, MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT)
 
     private fun requirePublicAddress(host: String) {
         val addresses = InetAddress.getAllByName(host)
@@ -217,8 +172,6 @@ internal object RemoteImageLoader {
     private const val MAXIMUM_HTML_BYTES = 1024 * 1024
     private const val HTML_CONTENT_TYPE = "text/html"
     private const val MAXIMUM_DOWNLOAD_BYTES = 8 * 1024 * 1024
-    private const val MAXIMUM_SOURCE_DIMENSION = 8192
-    private const val MAXIMUM_SOURCE_PIXELS = 16_000_000L
     private const val IPV6_UNIQUE_LOCAL_MASK = 0xFE
     private const val IPV6_UNIQUE_LOCAL_PREFIX = 0xFC
 }

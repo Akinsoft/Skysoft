@@ -56,6 +56,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Spotify Display", desc = "Show your current Spotify playback.")
+    val spotifyDisplay = SpotifyDisplayConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Real Time Display", desc = "Show your local time.")
     val realTimeDisplay = RealTimeDisplayConfig()
 

@@ -17,6 +17,7 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import java.net.URI
@@ -31,16 +32,14 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.ActiveTextCollector
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.ChatComponent
-import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.network.chat.ClickEvent
-import net.minecraft.resources.Identifier
 import org.lwjgl.glfw.GLFW
 
 internal const val MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH = 1024
 internal const val MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT = 576
 
 object ImageLinkPreview {
-    private val textures = LinkedHashMap<String, RemoteImageTexture>(CACHE_SIZE, 0.75f, true)
+    private val textures = LinkedHashMap<String, RegisteredImageTexture>(CACHE_SIZE, 0.75f, true)
     private val failures = mutableSetOf<String>()
     private var pendingUrl: String? = null
     private var pendingRequest: CompletableFuture<*>? = null
@@ -160,19 +159,7 @@ object ImageLinkPreview {
     private fun installTexture(url: String, image: NativeImage) {
         textures.remove(url)?.let(::release)
         val id = SkysoftMod.id("image_preview/remote_${nextTextureId++}")
-        val texture = try {
-            DynamicTexture({ "Skysoft Image Preview" }, image)
-        } catch (failure: Throwable) {
-            image.close()
-            throw failure
-        }
-        try {
-            Minecraft.getInstance().textureManager.register(id, texture)
-        } catch (failure: Throwable) {
-            texture.close()
-            throw failure
-        }
-        textures[url] = RemoteImageTexture(id, texture, image.width, image.height)
+        textures[url] = RegisteredImageTexture.register(id, "Skysoft Image Preview", image)
         while (textures.size > CACHE_SIZE) {
             val eldest = textures.entries.iterator().next()
             textures.remove(eldest.key)
@@ -230,7 +217,7 @@ object ImageLinkPreview {
         context.text(font, instruction, panel.x + PANEL_PADDING, contentY + CONTENT_GAP, INSTRUCTION_COLOR, false)
     }
 
-    private fun previewImageBounds(texture: RemoteImageTexture): Rect {
+    private fun previewImageBounds(texture: RegisteredImageTexture): Rect {
         val scale = min(
             min(MAXIMUM_RENDER_WIDTH.toDouble() / texture.width, MAXIMUM_RENDER_HEIGHT.toDouble() / texture.height),
             1.0,
@@ -300,9 +287,7 @@ object ImageLinkPreview {
         failures.clear()
     }
 
-    private fun release(texture: RemoteImageTexture) {
-        Minecraft.getInstance().textureManager.release(texture.id)
-    }
+    private fun release(texture: RegisteredImageTexture) = texture.release()
 
     private const val CACHE_SIZE = 8
     private const val MAXIMUM_RENDER_WIDTH = 420
@@ -449,11 +434,4 @@ private data class ImageLinkCandidate(
     val isTrusted: Boolean,
     val mouseX: Int,
     val mouseY: Int,
-)
-
-private data class RemoteImageTexture(
-    val id: Identifier,
-    val texture: DynamicTexture,
-    val width: Int,
-    val height: Int,
 )

@@ -26,7 +26,12 @@ object LegacyTextRenderer {
     fun formattedSequence(text: String): FormattedCharSequence =
         FormattedCharSequence { sink -> StringDecomposer.iterateFormatted(text, Style.EMPTY, sink) }
 
-    fun wrap(font: Font, text: String, maximumWidth: Int): List<String> {
+    fun wrap(
+        font: Font,
+        text: String,
+        maximumWidth: Int,
+        continuationPrefix: String = "§7",
+    ): List<String> {
         val words = text.split(' ')
         val lines = mutableListOf<String>()
         var current = ""
@@ -34,7 +39,7 @@ object LegacyTextRenderer {
             val candidate = if (current.isEmpty()) word else "$current $word"
             if (current.isNotEmpty() && font.width(candidate) > maximumWidth) {
                 lines += current
-                current = "§7$word"
+                current = continuationPrefix + word
             } else {
                 current = candidate
             }
