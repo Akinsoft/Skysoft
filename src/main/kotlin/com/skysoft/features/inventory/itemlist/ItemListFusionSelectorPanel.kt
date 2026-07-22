@@ -158,9 +158,15 @@ internal class ItemListFusionSelectorPanel {
             bounds.y,
             bounds.x + bounds.width,
             bounds.y + bounds.height,
-            if (isSelected) SELECTED_BORDER else SLOT_BORDER,
+            if (isSelected) SELECTED_BORDER else ItemListSlotStyle.BORDER,
         )
-        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, SLOT_FILL)
+        context.fill(
+            bounds.x + 1,
+            bounds.y + 1,
+            bounds.x + bounds.width - 1,
+            bounds.y + bounds.height - 1,
+            ItemListSlotStyle.FILL,
+        )
         val key = SkyBlockDataRepository.itemKey(ingredient.id)
         val stack = SkyBlockDataRepository.displayStack(key)?.withActionHint("SELECT") ?: return
         context.item(stack, bounds.x + 1, bounds.y + 1)
@@ -193,8 +199,6 @@ internal class ItemListFusionSelectorPanel {
         const val PAGE_LABEL_START_CELL = 1
         const val NEXT_CELL = 8
         const val PAGE_LABEL_Y = 5
-        val SLOT_BORDER = 0xFF111315.toInt()
-        val SLOT_FILL = 0xD0202428.toInt()
         val SELECTED_BORDER = 0xFF55FFFF.toInt()
     }
 }
@@ -225,7 +229,7 @@ internal data class FusionDropdownPage(
         ): FusionDropdownPage {
             require(optionCount > 0)
             require(optionsPerPage > 0)
-            val pageCount = (optionCount + optionsPerPage - 1) / optionsPerPage
+            val pageCount = Math.ceilDiv(optionCount, optionsPerPage)
             val page = requestedPage.coerceIn(0, pageCount - 1)
             val firstOption = page * optionsPerPage
             val lastOption = minOf(optionCount, firstOption + optionsPerPage) - 1

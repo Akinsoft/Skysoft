@@ -98,8 +98,8 @@ internal class ItemListObtainSourcesPanel {
         val visibleSources = sources.drop(layout.page * layout.pageSize).take(layout.pageSize)
         val clickable = mutableListOf<Pair<Rect, String>>()
         layout.cards.zip(visibleSources).forEach { (card, source) ->
-            context.fill(card.x, card.y, card.x + card.width, card.y + card.height, SLOT_BORDER)
-            context.fill(card.x + 1, card.y + 1, card.x + card.width - 1, card.y + card.height - 1, SLOT_FILL)
+            context.fill(card.x, card.y, card.x + card.width, card.y + card.height, ItemListSlotStyle.BORDER)
+            context.fill(card.x + 1, card.y + 1, card.x + card.width - 1, card.y + card.height - 1, ItemListSlotStyle.FILL)
             val entityId = source.entityId
             if (source.kind == SkyBlockInfoSourceKind.ENTITY && entityId != null) {
                 renderHuntingEntity(context, font, card, key, entityId, mouseX, mouseY)
@@ -211,8 +211,8 @@ internal class ItemListObtainSourcesPanel {
         mouseX: Int,
         mouseY: Int,
     ) {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, SLOT_BORDER)
-        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, SLOT_FILL)
+        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
+        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
         context.item(sourceStack(source), bounds.x + 1, bounds.y + 1)
         if (bounds.contains(mouseX, mouseY)) {
             SkysoftNativeTooltip.setForNextFrame(context, sourceTooltip(font, source), mouseX, mouseY)
@@ -230,8 +230,6 @@ internal class ItemListObtainSourcesPanel {
         const val HUNTING_NAME_Y = 4
         const val HUNTING_LOCATION_Y = 15
         const val HUNTING_PAGE_Y = 5
-        val SLOT_BORDER = 0xFF111315.toInt()
-        val SLOT_FILL = 0xD0202428.toInt()
     }
 }
 

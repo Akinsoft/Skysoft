@@ -101,7 +101,7 @@ internal object BetterTabLayoutBuilder {
         var rows = entryCount
         while (rows > SOURCE_COLUMN_ROWS) {
             columns++
-            rows = (entryCount + columns - 1) / columns
+            rows = Math.ceilDiv(entryCount, columns)
         }
         return rows.coerceAtLeast(1)
     }

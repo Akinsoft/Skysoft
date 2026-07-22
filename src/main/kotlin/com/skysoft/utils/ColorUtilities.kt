@@ -25,16 +25,19 @@ object ColorUtilities {
 
     fun Color.toPackedArgb(alphaScale: Double): Int {
         val scaledAlpha = (alpha * alphaScale).roundToInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
-        return (scaledAlpha shl ARGB_ALPHA_SHIFT) or (rgb and RGB_MASK)
+        return rgb.withAlpha(scaledAlpha)
     }
 
     fun Int.hasVisibleAlpha(): Boolean =
         (this ushr ARGB_ALPHA_SHIFT) != COLOR_CHANNEL_MIN
 
+    fun Int.withAlpha(alpha: Int): Int =
+        (alpha.coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX) shl ARGB_ALPHA_SHIFT) or (this and RGB_MASK)
+
     fun Int.withScaledAlpha(alphaScale: Double): Int {
         val scaledAlpha = ((this ushr ARGB_ALPHA_SHIFT) * alphaScale.coerceIn(0.0, 1.0))
             .roundToInt()
             .coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
-        return (scaledAlpha shl ARGB_ALPHA_SHIFT) or (this and RGB_MASK)
+        return withAlpha(scaledAlpha)
     }
 }

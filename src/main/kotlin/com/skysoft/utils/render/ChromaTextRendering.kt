@@ -1,5 +1,6 @@
 package com.skysoft.utils.render
 
+import com.skysoft.utils.ColorUtilities.RGB_MASK
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import net.minecraft.network.chat.Style
 
@@ -28,7 +29,6 @@ object ChromaTextRendering {
         ?: fallbackRgb
 
     private const val CHROMA_SIZE = 0.3f
-    private const val RGB_MASK = 0xFFFFFF
 }
 
 interface ChromaTextColor {

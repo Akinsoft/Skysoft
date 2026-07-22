@@ -2,10 +2,10 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.itemWithDecorations
 import com.skysoft.utils.render.LegacyTextRenderer
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
@@ -113,8 +113,7 @@ internal fun drawPages(
 }
 
 private fun focusBackdropColor(progress: Float): Int {
-    val alpha = ((StorageColors.FOCUS_BACKDROP ushr COLOR_ALPHA_SHIFT) * progress.coerceIn(0f, 1f)).roundToInt()
-    return alpha shl COLOR_ALPHA_SHIFT or (StorageColors.FOCUS_BACKDROP and COLOR_RGB_MASK)
+    return StorageColors.FOCUS_BACKDROP.withScaledAlpha(progress.toDouble())
 }
 
 internal fun drawPage(
@@ -429,6 +428,4 @@ internal fun drawMiniItem(context: GuiGraphicsExtractor, stack: ItemStack, x: In
 }
 
 private const val PLAYER_INVENTORY_ROWS = 3
-private const val COLOR_ALPHA_SHIFT = 24
-private const val COLOR_RGB_MASK = 0x00FFFFFF
 

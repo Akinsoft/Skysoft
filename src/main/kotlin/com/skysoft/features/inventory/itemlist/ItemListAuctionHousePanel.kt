@@ -144,8 +144,8 @@ internal class ItemListAuctionHousePanel {
     ) {
         val grid = AuctionHouseGridLayout.create(bounds)
         grid.slots.forEach { slot ->
-            context.fill(slot.x, slot.y, slot.x + slot.width, slot.y + slot.height, SLOT_BORDER)
-            context.fill(slot.x + 1, slot.y + 1, slot.x + slot.width - 1, slot.y + slot.height - 1, SLOT_FILL)
+            context.fill(slot.x, slot.y, slot.x + slot.width, slot.y + slot.height, ItemListSlotStyle.BORDER)
+            context.fill(slot.x + 1, slot.y + 1, slot.x + slot.width - 1, slot.y + slot.height - 1, ItemListSlotStyle.FILL)
         }
         grid.slots.zip(listings).forEach { (slot, listing) ->
             val stack = listing.stack ?: FAILED_STACK
@@ -190,8 +190,6 @@ internal class ItemListAuctionHousePanel {
         const val STATUS_Y = 8
         const val ERROR_Y = 22
         const val ERROR_LIMIT = 72
-        val SLOT_BORDER = 0xFF111315.toInt()
-        val SLOT_FILL = 0xD0202428.toInt()
         val FAILED_STACK = ItemStack(Items.BARRIER)
     }
 }
@@ -235,7 +233,7 @@ internal fun auctionHouseCategoryAvailable(
 ): Boolean = isSkyBlockItem && availability != BazaarProductAvailability.UNAVAILABLE
 
 internal fun auctionRemainingTime(endMillis: Long, nowMillis: Long): String {
-    val seconds = ((endMillis - nowMillis).coerceAtLeast(0L) + MILLIS_PER_SECOND - 1) / MILLIS_PER_SECOND
+    val seconds = Math.ceilDiv((endMillis - nowMillis).coerceAtLeast(0L), MILLIS_PER_SECOND)
     return when {
         seconds >= SECONDS_PER_DAY -> "${seconds / SECONDS_PER_DAY}d"
         seconds >= SECONDS_PER_HOUR -> "${seconds / SECONDS_PER_HOUR}h"

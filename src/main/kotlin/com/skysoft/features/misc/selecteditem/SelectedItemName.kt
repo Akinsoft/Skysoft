@@ -4,8 +4,8 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
-import com.skysoft.utils.ColorUtilities.ARGB_ALPHA_SHIFT
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.renderRenderable
@@ -79,7 +79,7 @@ object SelectedItemName {
                     0,
                     width,
                     height,
-                    (backgroundAlpha shl ARGB_ALPHA_SHIFT) or BACKGROUND_RGB,
+                    BACKGROUND_RGB.withAlpha(backgroundAlpha),
                     config.details.roundedCorners,
                 )
                 context.nextStratum()

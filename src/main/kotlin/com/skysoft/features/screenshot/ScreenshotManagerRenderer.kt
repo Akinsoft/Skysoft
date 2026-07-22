@@ -7,6 +7,7 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.elide
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -305,7 +306,7 @@ internal object ScreenshotManagerRenderer {
             tile.footer.y + tile.footer.height,
             if (isHovered) TILE_HOVER_FOOTER else TILE_FOOTER,
         )
-        val label = fitText(font, entry.fileName.substringBeforeLast('.'), tile.footer.width - TILE_TEXT_INSET * 2)
+        val label = font.elide(entry.fileName.substringBeforeLast('.'), tile.footer.width - TILE_TEXT_INSET * 2)
         context.text(
             font,
             label,
@@ -372,7 +373,7 @@ internal object ScreenshotManagerRenderer {
         val maximumTextWidth = close.x - HEADER_GAP - titleX
         context.text(
             font,
-            fitText(font, title, maximumTextWidth),
+            font.elide(title, maximumTextWidth),
             titleX,
             panel.y + TITLE_Y,
             WHITE_TEXT.withScaledAlpha(alpha),
@@ -380,7 +381,7 @@ internal object ScreenshotManagerRenderer {
         )
         context.text(
             font,
-            fitText(font, subtitle, maximumTextWidth),
+            font.elide(subtitle, maximumTextWidth),
             titleX,
             panel.y + SUBTITLE_Y,
             MUTED_TEXT.withScaledAlpha(alpha),
@@ -490,12 +491,6 @@ internal object ScreenshotManagerRenderer {
         ScreenshotLoadStatus.LOADING -> "Minecraft screenshots"
         ScreenshotLoadStatus.FAILED -> "Screenshot folder unavailable"
         ScreenshotLoadStatus.READY -> if (entryCount == 1) "1 screenshot" else "$entryCount screenshots"
-    }
-
-    private fun fitText(font: Font, text: String, maximumWidth: Int): String {
-        if (font.width(text) <= maximumWidth) return text
-        val suffix = "..."
-        return font.plainSubstrByWidth(text, (maximumWidth - font.width(suffix)).coerceAtLeast(0)) + suffix
     }
 
     private const val HEADER_INSET = 12

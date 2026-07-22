@@ -6,9 +6,9 @@ package com.skysoft.utils.render.item
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.mixin.PictureInPictureRendererAccessor
-import com.skysoft.utils.ColorUtilities.ARGB_ALPHA_SHIFT
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.RGB_MASK
+import com.skysoft.utils.ColorUtilities.withAlpha
 import net.minecraft.client.gui.render.TextureSetup
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer
 import net.minecraft.client.renderer.RenderPipelines
@@ -46,6 +46,6 @@ internal object ItemPictureBlitter {
 
     private fun opacityColor(opacity: Float): Int {
         val alpha = (opacity.coerceIn(0f, 1f) * COLOR_CHANNEL_MAX).roundToInt()
-        return (alpha shl ARGB_ALPHA_SHIFT) or RGB_MASK
+        return RGB_MASK.withAlpha(alpha)
     }
 }

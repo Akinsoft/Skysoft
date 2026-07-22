@@ -7,6 +7,7 @@ import com.skysoft.config.DianaDetailsConfig
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
 import com.skysoft.utils.ColorUtilities.toColor
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.BlockHighlightRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -200,13 +201,7 @@ internal object DianaBurrowRenderer {
         copy(textColor = WHITE_RGB.withAlpha(textAlpha(visualAlphaScale)))
 
     private fun ChatFormatting.withAlpha(alpha: Int): Int =
-        (
-            (alpha.coerceIn(0, FULL_TEXT_ALPHA) shl ALPHA_SHIFT) or
-                ((TextColor.fromLegacyFormat(this)?.value ?: WHITE_RGB) and RGB_MASK)
-            )
-
-    private fun Int.withAlpha(alpha: Int): Int =
-        ((alpha.coerceIn(0, FULL_TEXT_ALPHA) shl ALPHA_SHIFT) or (this and RGB_MASK))
+        (TextColor.fromLegacyFormat(this)?.value ?: WHITE_RGB).withAlpha(alpha)
 
     private fun textAlpha(visualAlphaScale: Double): Int =
         (FULL_TEXT_ALPHA * visualAlphaScale).roundToInt().coerceIn(0, FULL_TEXT_ALPHA)
@@ -215,8 +210,6 @@ internal object DianaBurrowRenderer {
     private val LABEL_STYLE = WorldLabelStyle(maxRenderDistance = 80.0, maxScale = 7.0)
     private const val PROGRESS_GAP = 3f
     private const val FULL_TEXT_ALPHA = 255
-    private const val ALPHA_SHIFT = 24
-    private const val RGB_MASK = 0xFFFFFF
     private const val WHITE_RGB = 0xFFFFFF
     private val LABEL_CACHE = mutableMapOf<LabelKey, Component>()
     private val PROGRESS_CACHE = mutableMapOf<ProgressKey, Component>()

@@ -6,6 +6,7 @@ import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelControlColors
+import com.skysoft.utils.gui.elide
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
@@ -64,9 +65,9 @@ internal class SpotifyHudRenderable(
         val font = Minecraft.getInstance().font
         val contentRight = DISPLAY_WIDTH - PLAYER_PADDING
         val titleWidth = contentRight - x - STATUS_WIDTH
-        context.text(font, truncate(playback.title, titleWidth), x, TITLE_Y, TEXT_COLOR.withScaledAlpha(alpha), true)
-        context.text(font, truncate(playback.subtitle, contentRight - x), x, ARTIST_Y, MUTED_COLOR.withScaledAlpha(alpha), false)
-        context.text(font, truncate(playback.collection, contentRight - x), x, COLLECTION_Y, DIM_COLOR.withScaledAlpha(alpha), false)
+        context.text(font, font.elide(playback.title, titleWidth), x, TITLE_Y, TEXT_COLOR.withScaledAlpha(alpha), true)
+        context.text(font, font.elide(playback.subtitle, contentRight - x), x, ARTIST_Y, MUTED_COLOR.withScaledAlpha(alpha), false)
+        context.text(font, font.elide(playback.collection, contentRight - x), x, COLLECTION_Y, DIM_COLOR.withScaledAlpha(alpha), false)
         drawPlaybackState(context, contentRight - STATUS_WIDTH + STATUS_INSET, TITLE_Y + 1)
 
         val progress = playback.positionAt(nowMillis).toDouble() / playback.durationMillis
@@ -161,9 +162,10 @@ internal class SpotifyHudRenderable(
     ) {
         val color = if (row.active) PixelControlColors.ACCENT else MUTED_COLOR
         val emphasisAlpha = if (row.active) 1.0 else ADJACENT_LYRIC_ALPHA
+        val font = Minecraft.getInstance().font
         context.text(
-            Minecraft.getInstance().font,
-            truncate(row.text, DISPLAY_WIDTH - LYRICS_PADDING * 2),
+            font,
+            font.elide(row.text, DISPLAY_WIDTH - LYRICS_PADDING * 2),
             LYRICS_PADDING,
             panelY + LYRICS_PADDING + row.index * LYRICS_LINE_HEIGHT,
             color.withScaledAlpha(alpha * blockAlpha * emphasisAlpha),
@@ -191,13 +193,6 @@ internal class SpotifyHudRenderable(
     }
 
     private fun hasLyrics(): Boolean = showLyrics && lyrics.isNotEmpty()
-
-    private fun truncate(text: String, maximumWidth: Int): String {
-        val font = Minecraft.getInstance().font
-        if (font.width(text) <= maximumWidth) return text
-        val availableWidth = (maximumWidth - font.width(ELLIPSIS)).coerceAtLeast(0)
-        return font.plainSubstrByWidth(text, availableWidth) + ELLIPSIS
-    }
 
     private fun formatTime(milliseconds: Long): String {
         val totalSeconds = milliseconds / MILLIS_PER_SECOND
@@ -242,7 +237,6 @@ internal class SpotifyHudRenderable(
         const val MINUTES_PER_HOUR = 60L
         const val ADJACENT_LYRIC_ALPHA = 0.5
         const val ARTWORK_ALPHA_THRESHOLD = 0.95
-        const val ELLIPSIS = "…"
         const val TEXT_COLOR = 0xFFFFFFFF.toInt()
         const val MUTED_COLOR = 0xFFABB5BF.toInt()
         const val DIM_COLOR = 0xFF737D87.toInt()

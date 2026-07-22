@@ -18,6 +18,7 @@ import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import java.nio.charset.StandardCharsets
@@ -56,9 +57,8 @@ object InventoryButtonManager {
     private const val BUTTON_HIGHLIGHT_BOTTOM_Y_OFFSET = 7
     private const val SELECTED_OUTLINE_INSET = 1
     private const val SELECTED_OUTLINE_EXTRA_SIZE = 2
-    private const val ACTIVE_BUTTON_ALPHA_MASK = 0xFF000000.toInt()
-    private const val INACTIVE_BUTTON_ALPHA_MASK = 0xAA000000.toInt()
-    private const val BUTTON_RGB_MASK = 0x00FFFFFF
+    private const val ACTIVE_BUTTON_ALPHA = 0xFF
+    private const val INACTIVE_BUTTON_ALPHA = 0xAA
     private const val BUTTON_HOVER_COLOR = 0x35FFFFFF
     private const val BUTTON_SELECTED_COLOR = 0xFF55FFFF.toInt()
 
@@ -226,21 +226,21 @@ object InventoryButtonManager {
         selected: Boolean = false,
     ) {
         val style = buttonStyles[backgroundIndex.coerceIn(buttonStyles.indices)]
-        val alphaMask = if (active) ACTIVE_BUTTON_ALPHA_MASK else INACTIVE_BUTTON_ALPHA_MASK
-        context.fill(x, y, x + BUTTON_SIZE, y + BUTTON_SIZE, style.border and BUTTON_RGB_MASK or alphaMask)
+        val alpha = if (active) ACTIVE_BUTTON_ALPHA else INACTIVE_BUTTON_ALPHA
+        context.fill(x, y, x + BUTTON_SIZE, y + BUTTON_SIZE, style.border.withAlpha(alpha))
         context.fill(
             x + BUTTON_INNER_INSET,
             y + BUTTON_INNER_INSET,
             x + BUTTON_SIZE - BUTTON_INNER_INSET,
             y + BUTTON_SIZE - BUTTON_INNER_INSET,
-            style.fill and BUTTON_RGB_MASK or alphaMask,
+            style.fill.withAlpha(alpha),
         )
         context.fill(
             x + BUTTON_HIGHLIGHT_INSET,
             y + BUTTON_HIGHLIGHT_INSET,
             x + BUTTON_SIZE - BUTTON_HIGHLIGHT_INSET,
             y + BUTTON_HIGHLIGHT_BOTTOM_Y_OFFSET,
-            style.highlight and BUTTON_RGB_MASK or alphaMask,
+            style.highlight.withAlpha(alpha),
         )
         if (hovered) {
             context.fill(

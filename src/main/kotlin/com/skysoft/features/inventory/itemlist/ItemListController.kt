@@ -600,7 +600,7 @@ object ItemListController {
     ) {
         val hovered = canHover && bounds.contains(mouseX, mouseY)
         if (SkysoftConfigGui.config().inventory.itemList.sources.showItemBackgrounds) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, SLOT_BORDER)
+            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
             context.fill(
                 bounds.x + 1,
                 bounds.y + 1,
@@ -694,7 +694,6 @@ object ItemListController {
     private const val EDITOR_RESIZE_ARROW_GAP = 4
     private const val EDITOR_RESIZE_ARROW_HEIGHT = 9
     private const val EDITOR_RESIZE_ARROW_HIT_RADIUS = 8
-    private val SLOT_BORDER = 0xFF111315.toInt()
     private val SLOT_FILL = 0xB0181B1E.toInt()
     private val SLOT_HOVER = 0xD03B5567.toInt()
     private val FAVORITE_HEART = net.minecraft.resources.Identifier.withDefaultNamespace("hud/heart/full")
@@ -907,7 +906,7 @@ private fun drawSettingsButton(
 private fun favoriteEntries(): List<ItemListEntry> =
     ItemListState.favorites().mapNotNull(SkyBlockDataRepository::entry)
 
-private fun pageCount(size: Int, pageSize: Int): Int = ((size + pageSize - 1) / pageSize).coerceAtLeast(1)
+private fun pageCount(size: Int, pageSize: Int): Int = Math.ceilDiv(size, pageSize).coerceAtLeast(1)
 
 private fun consume(action: () -> Unit): InputHandlingResult {
     action()

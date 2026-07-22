@@ -4,6 +4,7 @@ import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FormattedText
 import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.TextColor
 import net.minecraft.ChatFormatting
 import java.util.Optional
 
@@ -72,7 +73,9 @@ object ChatSenderParser {
         var index = 0
         while (index < lastIndex) {
             if (this[index] == '§') {
-                legacyColors[this[index + 1].lowercaseChar()]?.let { color = it }
+                ChatFormatting.getByCode(this[index + 1])
+                    ?.let(TextColor::fromLegacyFormat)
+                    ?.let { color = it.value }
                 index += LEGACY_FORMATTING_CODE_LENGTH
             } else {
                 index++
@@ -88,22 +91,4 @@ object ChatSenderParser {
 
     private val senderPattern = Regex("""(?<name>(?:§.)*[A-Za-z0-9_]{1,16})(?:§.)*$""")
     private const val LEGACY_FORMATTING_CODE_LENGTH = 2
-    private val legacyColors = mapOf(
-        '0' to 0x000000,
-        '1' to 0x0000AA,
-        '2' to 0x00AA00,
-        '3' to 0x00AAAA,
-        '4' to 0xAA0000,
-        '5' to 0xAA00AA,
-        '6' to 0xFFAA00,
-        '7' to 0xAAAAAA,
-        '8' to 0x555555,
-        '9' to 0x5555FF,
-        'a' to 0x55FF55,
-        'b' to 0x55FFFF,
-        'c' to 0xFF5555,
-        'd' to 0xFF55FF,
-        'e' to 0xFFFF55,
-        'f' to 0xFFFFFF,
-    )
 }

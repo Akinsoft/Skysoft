@@ -196,7 +196,7 @@ internal class ItemListInfoPanel {
         val iconStartX = bounds.x + CONTENT_INSET + font.width(label) + LABEL_ICON_GAP
         val availableWidth = bounds.x + bounds.width - SCROLLBAR_RESERVED_WIDTH - iconStartX
         val columns = (availableWidth / INFO_ICON_SIZE).coerceAtLeast(1)
-        return (count + columns - 1) / columns * INFO_ICON_SIZE + SECTION_GAP
+        return Math.ceilDiv(count, columns) * INFO_ICON_SIZE + SECTION_GAP
     }
 
     private companion object {
@@ -226,8 +226,8 @@ private fun renderInfoIcon(
     mouseX: Int,
     mouseY: Int,
 ) {
-    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ENTITY_SLOT_BORDER)
-    context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ENTITY_SLOT_FILL)
+    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
+    context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
     context.item(stack, bounds.x + 1, bounds.y + 1)
     if (bounds.contains(mouseX, mouseY)) SkysoftNativeTooltip.setForNextFrame(context, tooltip, mouseX, mouseY)
 }
@@ -270,8 +270,8 @@ internal fun renderEntityIcon(
     mouseX: Int,
     mouseY: Int,
 ) {
-    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ENTITY_SLOT_BORDER)
-    context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ENTITY_SLOT_FILL)
+    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
+    context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
     val entity = SkyBlockDataRepository.entity(entityId)
     val stack = com.skysoft.data.skyblock.SkyBlockEntityStacks.stack(entityId)
     if (stack != null) {
@@ -400,8 +400,6 @@ internal fun SkyBlockEntityInfo.canNavigateToEntity(): Boolean =
     SkyBlockDataRepository.ViewerData.bestWarpFor(id) != null &&
         (position != null || island != com.skysoft.data.hypixel.HypixelLocationState.currentIsland)
 
-private val ENTITY_SLOT_BORDER = 0xFF111315.toInt()
-private val ENTITY_SLOT_FILL = 0xD0202428.toInt()
 private val ENTITY_MISSING_COLOR = 0xFFFF5555.toInt()
 private const val MISSING_TEXT_Y_OFFSET = 5
 private const val PERCENT_MULTIPLIER = 100.0

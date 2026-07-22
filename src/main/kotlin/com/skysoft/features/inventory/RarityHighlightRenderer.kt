@@ -12,6 +12,7 @@ import com.skysoft.config.RarityHighlightType
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.render.SkysoftDrawMode
 import com.skysoft.utils.render.SkysoftPipelineBuilder
 import com.skysoft.utils.render.shader.SkysoftCircleShaderRenderer
@@ -154,15 +155,13 @@ object RarityHighlightRenderer {
             RarityHighlightDetailsConfig.MAX_OPACITY,
         )
         val alpha = (clampedOpacity * MAX_ALPHA + HALF_PERCENT) / RarityHighlightDetailsConfig.MAX_OPACITY
-        return alpha shl ALPHA_SHIFT or (rarity.color.rgb and RGB_MASK)
+        return rarity.color.rgb.withAlpha(alpha)
     }
 
     private const val SLOT_SIZE = 16
     private const val ROUND_RADIUS = 7
     private const val MAX_ALPHA = 255
     private const val HALF_PERCENT = 50
-    private const val ALPHA_SHIFT = 24
-    private const val RGB_MASK = 0xFFFFFF
 }
 
 private class RarityContourRenderState(
