@@ -272,7 +272,6 @@ object ProfitTracker {
             else -> craftingReconciliation.reconcile(preset, batch.source, unsuppressedChanges, allowedItems)
                 .withReplenishCosts(preset)
         }
-        ProfitTrackerDebug.record(batch, unsuppressedChanges, preset, changes)
         if (preset == null || changes.isEmpty()) return
         markActivity(preset)
         update(preset) { stats -> applyTrackedItemChanges(stats, changes) }
