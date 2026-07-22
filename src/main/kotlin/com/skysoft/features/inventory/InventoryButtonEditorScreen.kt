@@ -6,6 +6,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.inventory.InventoryButtonManager.BUTTON_SIZE
 import com.skysoft.features.inventory.InventoryButtonManager.IconCandidate
 import com.skysoft.gui.scale.InventoryScaledScreen
+import com.skysoft.gui.scale.shouldUseConfiguredInventoryScale
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.gui.tooltip.TooltipScrollExcludedScreen
 import com.skysoft.utils.MinecraftClient
@@ -902,7 +903,12 @@ object InventoryButtonEditorScreen {
         private fun inventoryPreviewScale(): Float {
             val minecraft = Minecraft.getInstance()
             val inventoryConfig = SkysoftConfigGui.config().gui.inventoryScreen
-            if (!inventoryConfig.separateInventoryGuiScale) return 1f
+            if (!shouldUseConfiguredInventoryScale(
+                    inventoryConfig.separateInventoryGuiScale,
+                    inventoryConfig.settings.isInventoryGuiScaleStorageOnly,
+                    isStorageOverlayActive = false,
+                )
+            ) return 1f
             val inventoryScale = minecraft.window.calculateScale(
                 inventoryConfig.settings.inventoryGuiScale.coerceAtLeast(0),
                 minecraft.isEnforceUnicode,

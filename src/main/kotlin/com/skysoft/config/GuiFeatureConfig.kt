@@ -236,6 +236,12 @@ class InventoryScreenSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Only in Storage Overlay", desc = "Only use the Inventory GUI Scale while the Storage Overlay is open.")
+    @field:ConfigEditorBoolean
+    var isInventoryGuiScaleStorageOnly = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Tooltip GUI Scale", desc = "Inventory tooltip GUI scale. 0 uses Minecraft's automatic scale.")
     @field:ConfigEditorSlider(minValue = 0f, maxValue = 8f, minStep = 1f)
     var tooltipGuiScale = 0

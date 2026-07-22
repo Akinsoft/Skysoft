@@ -61,7 +61,7 @@ class GuiScaleController private constructor() {
         @JvmStatic
         fun usesSeparateInventoryScale(screen: Screen?): Boolean =
             supportsInventoryScale(screen) &&
-                (config().separateInventoryGuiScale || shouldCapStorageOverlayScale(screen))
+                (usesConfiguredInventoryScale(screen) || shouldCapStorageOverlayScale(screen))
 
         @JvmStatic
         fun usesSeparateTooltipScale(screen: Screen?): Boolean =
@@ -79,7 +79,7 @@ class GuiScaleController private constructor() {
             val config = config()
             val normal = resolve(window, minecraft.options.guiScale().get())
             val tooltip = resolve(window, config.settings.tooltipGuiScale)
-            val configuredInventory = if (config.separateInventoryGuiScale) {
+            val configuredInventory = if (usesConfiguredInventoryScale(screen)) {
                 resolve(window, config.settings.inventoryGuiScale)
             } else {
                 normal
@@ -162,9 +162,24 @@ class GuiScaleController private constructor() {
             ) != normalScale
         }
 
+        private fun usesConfiguredInventoryScale(screen: Screen?): Boolean {
+            val config = config()
+            return shouldUseConfiguredInventoryScale(
+                config.separateInventoryGuiScale,
+                config.settings.isInventoryGuiScaleStorageOnly,
+                StorageOverlayController.isActive(screen as? AbstractContainerScreen<*>),
+            )
+        }
+
         private fun config(): InventoryScreenConfig = SkysoftConfigGui.config().gui.inventoryScreen
     }
 }
+
+internal fun shouldUseConfiguredInventoryScale(
+    isEnabled: Boolean,
+    isStorageOnly: Boolean,
+    isStorageOverlayActive: Boolean,
+): Boolean = isEnabled && (!isStorageOnly || isStorageOverlayActive)
 
 internal fun capStorageOverlayScale(scale: Int, isStorageOverlayActive: Boolean): Int =
     if (isStorageOverlayActive) minOf(scale, STORAGE_OVERLAY_MAX_GUI_SCALE) else scale

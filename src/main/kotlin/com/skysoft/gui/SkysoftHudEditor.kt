@@ -5,6 +5,7 @@ import com.skysoft.features.inventory.InventoryButtonEditorActions
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryButtonResetShortcutResult
 import com.skysoft.gui.scale.InventoryScaledScreen
+import com.skysoft.gui.scale.shouldUseConfiguredInventoryScale
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.gui.tooltip.TooltipScrollExcludedScreen
 import com.skysoft.utils.MinecraftClient
@@ -452,7 +453,12 @@ private class EditorGuiScale(private val hasInventoryScreen: Boolean) {
     private fun activeInventoryGuiScale(): Int {
         val minecraft = Minecraft.getInstance()
         val inventoryConfig = SkysoftConfigGui.config().gui.inventoryScreen
-        if (!hasInventoryScreen || !inventoryConfig.separateInventoryGuiScale) return normalGuiScale()
+        if (!hasInventoryScreen || !shouldUseConfiguredInventoryScale(
+                inventoryConfig.separateInventoryGuiScale,
+                inventoryConfig.settings.isInventoryGuiScaleStorageOnly,
+                isStorageOverlayActive = false,
+            )
+        ) return normalGuiScale()
         return minecraft.window.calculateScale(
             inventoryConfig.settings.inventoryGuiScale.coerceAtLeast(0),
             minecraft.isEnforceUnicode,
