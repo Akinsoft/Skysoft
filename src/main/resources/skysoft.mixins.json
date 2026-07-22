@@ -59,6 +59,7 @@
     "PictureInPictureRendererAccessor",
     "RecipeBookComponentAccessor",
     "ScreenOverlayCursorMixin",
+    "SelectedItemNameMixin",
     "ScoreboardHudAccessor",
     "ScoreboardHudMixin",
     "ScreenshotCaptureMixin",
