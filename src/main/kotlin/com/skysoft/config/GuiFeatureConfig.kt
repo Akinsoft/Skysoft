@@ -71,6 +71,11 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Vanilla UI", desc = "Choose which parts of Minecraft's interface to hide.")
+    val vanillaUi = VanillaUiConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(
         name = "Merge Absorption Hearts",
         desc = "Show absorption within the normal heart grid instead of extending the health bar.",
@@ -86,15 +91,6 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(
-        name = "Hide Vanilla Status Effects",
-        desc = "Hide Minecraft's status effects beside inventories and in the top-right HUD.",
-    )
-    @field:ConfigEditorBoolean
-    var areVanillaStatusEffectsHidden = false
-
-    @JvmField
-    @field:Expose
     @field:ConfigOption(name = "Render Titles In Front", desc = "Render Skysoft titles in front of open screens.")
     @field:ConfigEditorBoolean
     var areTitlesRenderedInFront = false
@@ -105,6 +101,23 @@ class GuiFeatureConfig {
         actionBar.repairLoadedValues()
         customBars.repairLoadedValues()
     }
+}
+
+class VanillaUiConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Recipe Book", desc = "Hide the recipe book in your inventory on SkyBlock.")
+    @field:ConfigEditorBoolean
+    var isVanillaRecipeBookHidden = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Hide Status Effects",
+        desc = "Hide status effects beside inventories and in the top-right HUD.",
+    )
+    @field:ConfigEditorBoolean
+    var areVanillaStatusEffectsHidden = false
 }
 
 class ScreenshotManagerConfig {

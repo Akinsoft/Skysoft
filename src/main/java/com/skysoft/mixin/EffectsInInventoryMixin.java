@@ -13,7 +13,7 @@ public abstract class EffectsInInventoryMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
     protected void skysoftHideVanillaStatusEffects(CallbackInfo ci) {
         boolean hide = MixinErrorBoundary.value("Inventory status effect visibility", false,
-            () -> SkysoftConfigGui.INSTANCE.config().gui.areVanillaStatusEffectsHidden);
+            () -> SkysoftConfigGui.INSTANCE.config().gui.vanillaUi.areVanillaStatusEffectsHidden);
         if (hide) ci.cancel();
     }
 }

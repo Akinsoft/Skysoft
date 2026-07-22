@@ -6,5 +6,5 @@ import com.skysoft.data.hypixel.HypixelLocationState
 object VanillaRecipeBookHider {
     @JvmStatic
     fun shouldHideInInventory(): Boolean =
-        SkysoftConfigGui.config().inventory.isVanillaRecipeBookHidden && HypixelLocationState.inSkyBlock
+        SkysoftConfigGui.config().gui.vanillaUi.isVanillaRecipeBookHidden && HypixelLocationState.inSkyBlock
 }
