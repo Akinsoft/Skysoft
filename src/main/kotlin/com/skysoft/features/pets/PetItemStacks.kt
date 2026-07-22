@@ -1,5 +1,6 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.skyblock.SkyBlockItemJson
 import com.skysoft.data.skyblock.SkyBlockStackFactory
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
@@ -38,7 +39,7 @@ internal object PetItemStacks {
         return stack
     }
 
-    fun fromLocalItem(item: SkyblockRepoItemJson): ItemStack {
+    fun fromLocalItem(item: SkyBlockItemJson): ItemStack {
         val internalName = item.internalName
         val name = Component.literal(item.displayName ?: internalName ?: item.id)
         val texture = item.components.profile?.properties?.firstOrNull {

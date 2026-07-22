@@ -10,6 +10,7 @@ import com.skysoft.features.misc.MouseLock;
 import com.skysoft.features.screenshot.ScreenshotCapturePreview;
 import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.gui.scale.InventoryCursorMemory;
+import com.skysoft.gui.tooltip.TooltipScrollPriorityScreen;
 import com.skysoft.gui.tooltip.TooltipViewport;
 import com.skysoft.utils.MinecraftClient;
 import com.skysoft.utils.input.InputHandlingResult;
@@ -69,8 +70,17 @@ public class MouseHandlerMixin {
     @WrapOperation(method = "onScroll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;mouseScrolled(DDDD)Z"))
     protected boolean doesSkysoftHandleTooltipScroll(Screen screen, double mouseX, double mouseY, double horizontalAmount, double verticalAmount, Operation<Boolean> original) {
         boolean handled = MixinErrorBoundary.value("Tooltip mouse scrolling", false, () -> {
-            boolean overStorage = screen instanceof AbstractContainerScreen<?> container && StorageOverlayController.shouldPreferMouseScroll(container, mouseX, mouseY, verticalAmount);
-            return overStorage ? TooltipViewport.isStorageOverlayScrollKeyDown() && TooltipViewport.didHandleStorageMouseScroll(horizontalAmount, verticalAmount) : TooltipViewport.didHandleMouseScroll(horizontalAmount, verticalAmount);
+            boolean overStorage = screen instanceof AbstractContainerScreen<?> container
+                && StorageOverlayController.shouldPreferMouseScroll(container, mouseX, mouseY, verticalAmount);
+            boolean screenPrioritizesScroll = verticalAmount != 0.0
+                && screen instanceof TooltipScrollPriorityScreen prioritized
+                && prioritized.getMouseScrollPriorityAreas().stream()
+                    .anyMatch(area -> area.contains((int) mouseX, (int) mouseY));
+            if (!overStorage && !screenPrioritizesScroll) {
+                return TooltipViewport.didHandleMouseScroll(horizontalAmount, verticalAmount);
+            }
+            return TooltipViewport.isCompetingScrollKeyDown()
+                && TooltipViewport.didHandleCompetingMouseScroll(horizontalAmount, verticalAmount);
         });
         return handled || original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount);
     }

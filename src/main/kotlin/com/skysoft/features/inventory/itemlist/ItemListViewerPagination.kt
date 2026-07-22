@@ -235,7 +235,6 @@ internal fun favoriteTooltip(isFavorite: Boolean): String =
 internal fun itemInfoLines(key: ItemListEntryKey, info: SkyBlockItemInfo?): List<String> = buildList {
     add("§7ID: §f${key.id}")
     info?.category?.let { add("§7Category: §f$it") }
-    if (info?.flags?.isNotEmpty() == true) add("§7Flags: §f${info.flags.joinToString()}")
     if (info?.lore?.isNotEmpty() == true) {
         addAll(cleanInfoLore(info))
     }

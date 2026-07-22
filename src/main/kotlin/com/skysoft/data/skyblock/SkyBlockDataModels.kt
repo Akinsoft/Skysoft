@@ -4,6 +4,14 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.utils.WorldVec
 import net.minecraft.world.item.ItemStack
 
+internal const val SKYBLOCK_WIKI_URL = "https://hypixelskyblock.minecraft.wiki/"
+internal const val SKYBLOCK_WIKI_PAGE_URL = "${SKYBLOCK_WIKI_URL}w/"
+
+internal object CatalogSources {
+    const val SKYBLOCK = "skyblock"
+    const val MINECRAFT = "minecraft"
+}
+
 enum class SkyBlockDataLoadState {
     NOT_LOADED,
     LOADING,
@@ -67,7 +75,6 @@ data class SkyBlockItemInfo(
     val category: String? = null,
     val rarity: String? = null,
     val lore: List<String> = emptyList(),
-    val flags: Set<String> = emptySet(),
     val enchantment: SkyBlockEnchantmentInfo? = null,
     val droppedBy: List<String> = emptyList(),
     val dropSources: List<SkyBlockDropSource> = emptyList(),
@@ -101,8 +108,6 @@ enum class SkyBlockObtainStatus {
 
 enum class SkyBlockObtainSource {
     INDEPENDENT_WIKI,
-    OFFICIAL_WIKI,
-    SKYBLOCK_REPO,
     NEU_REPO,
     STRUCTURED_CATALOG,
     UNKNOWN,
@@ -161,7 +166,7 @@ data class SkyBlockNpcAvailability(
 )
 
 enum class SkyBlockNpcAvailabilitySource {
-    OFFICIAL_WIKI,
+    INDEPENDENT_WIKI,
     NEU_REPO,
 }
 
@@ -228,11 +233,6 @@ internal data class SkyBlockPetTierInfo(
     val lore: List<String> = emptyList(),
     val variables: Map<String, List<Double>> = emptyMap(),
     val variablesOffset: Int = 0,
-)
-
-data class SkyBlockWikiLinks(
-    val official: String? = null,
-    val independent: String? = null,
 )
 
 enum class SkyBlockRecipeType(val displayName: String) {
@@ -305,7 +305,7 @@ internal data class SkyBlockDataSnapshot(
     val itemInfo: Map<ItemListEntryKey, SkyBlockItemInfo>,
     val recipesByResult: Map<ItemListEntryKey, List<SkyBlockRecipe>>,
     val recipesByIngredient: Map<ItemListEntryKey, List<SkyBlockRecipe>>,
-    val wikiLinks: Map<ItemListEntryKey, SkyBlockWikiLinks>,
+    val wikiLinks: Map<ItemListEntryKey, String>,
     val stackProviders: Map<ItemListEntryKey, () -> ItemStack>,
     val unresolvedReferenceCount: Int,
     val entities: Map<String, SkyBlockEntityInfo> = emptyMap(),

@@ -2,7 +2,8 @@ package com.skysoft.features.pets
 
 import com.google.gson.reflect.TypeToken
 import com.skysoft.SkysoftMod
-import com.skysoft.data.skyblock.SkyBlockRepoCacheFiles
+import com.skysoft.data.skyblock.SkyBlockItemJson
+import com.skysoft.data.skyblock.SkyBlockCatalogCacheFiles
 import com.skysoft.data.skyblock.SkyBlockPetInfo
 import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.utils.ElapsedTimeMark
@@ -21,7 +22,7 @@ internal object PetRepoConstants {
     fun load() {
         if (PetRepoCache.constantsLastFailure.passedSince() < PET_CONSTANTS_RETRY_DELAY) return
         if (!PetRepoCache.loadingConstants.compareAndSet(false, true)) return
-        RemoteSkyBlockRepo.request(PetRepoCache.PETS_URL).thenApply {
+        RemoteSkyBlockCatalog.request(PetRepoCache.PETS_URL).thenApply {
             PetRepoCache.gson.fromJson(it, SkysoftPetsRepoJson::class.java)
         }.whenComplete { pets, error ->
             SkysoftErrorBoundary.run("Pet Repository constants async completion") {
@@ -42,15 +43,15 @@ internal object PetRepoConstants {
 
 private val PET_CONSTANTS_RETRY_DELAY = 30.seconds
 
-internal object LocalSkyBlockRepo {
+internal object LocalSkyBlockCatalog {
     fun load() {
         if (PetRepoCache.localRepoCacheLoaded) return
         if (PetRepoCache.localRepoCacheLastFailure.passedSince() < LOCAL_REPO_CACHE_RETRY_DELAY) return
         if (!PetRepoCache.loadingLocalRepoCache.compareAndSet(false, true)) return
         val request = CompletableFuture.supplyAsync {
-            val items = readLocalItems(SkyBlockRepoCacheFiles.resolve("items.min.json"))
+            val items = readLocalItems(SkyBlockCatalogCacheFiles.resolve("items.min.json"))
             val itemNameResolution = buildItemNameResolution(items)
-            val pets = readLocalPets(SkyBlockRepoCacheFiles.resolve("pets.min.json"))
+            val pets = readLocalPets(SkyBlockCatalogCacheFiles.resolve("pets.min.json"))
             LocalRepoSnapshot(items, itemNameResolution, pets)
         }
         PetRepoCache.localRepoLoadFuture = request
@@ -101,10 +102,10 @@ internal object LocalSkyBlockRepo {
             ?: PetRepoCache.localItemNameResolution[itemName.removeColor()]
             ?: PetRepoCache.localItemNameResolution[itemName.removeColor().lowercase()]
 
-    private fun readLocalItems(path: Path): Map<String, SkyblockRepoItemJson> {
+    private fun readLocalItems(path: Path): Map<String, SkyBlockItemJson> {
         if (!Files.isRegularFile(path)) return emptyMap()
         return Files.newBufferedReader(path).use { reader ->
-            PetRepoCache.gson.fromJson(reader, Array<SkyblockRepoItemJson>::class.java)
+            PetRepoCache.gson.fromJson(reader, Array<SkyBlockItemJson>::class.java)
                 .mapNotNull { item -> item.internalName?.let { it to item } }
                 .toMap()
         }
@@ -117,7 +118,7 @@ internal object LocalSkyBlockRepo {
         }
     }
 
-    private fun buildItemNameResolution(items: Map<String, SkyblockRepoItemJson>): Map<String, String> {
+    private fun buildItemNameResolution(items: Map<String, SkyBlockItemJson>): Map<String, String> {
         val result = mutableMapOf<String, String>()
         items.forEach { (internalName, item) ->
             val displayName = item.displayName ?: return@forEach
@@ -138,13 +139,13 @@ internal object LocalSkyBlockRepo {
     private val localPetsMapType = object : TypeToken<Map<String, SkyBlockPetInfo>>() {}.type
 
     private data class LocalRepoSnapshot(
-        val items: Map<String, SkyblockRepoItemJson>,
+        val items: Map<String, SkyBlockItemJson>,
         val itemNameResolution: Map<String, String>,
         val pets: Map<String, SkyBlockPetInfo>,
     )
 }
 
-internal object RemoteSkyBlockRepo {
+internal object RemoteSkyBlockCatalog {
     fun requestItem(internalName: String) {
         if (!PetRepoCache.requestedItems.add(internalName)) return
         val encoded = internalName.replace(";", "%3B")

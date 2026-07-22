@@ -161,7 +161,7 @@ object SkyBlockDataRepository {
         }
     }
 
-    fun wikiLinks(key: ItemListEntryKey): SkyBlockWikiLinks? = snapshot?.wikiLinks?.get(key)
+    fun wikiLink(key: ItemListEntryKey): String? = snapshot?.wikiLinks?.get(key)
 
     fun recipesFor(key: ItemListEntryKey): List<SkyBlockRecipe> =
         (snapshot?.recipesByResult?.get(key).orEmpty() + MinecraftRecipeAdapter.recipesFor(key)).distinct()

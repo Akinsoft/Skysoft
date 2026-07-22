@@ -35,7 +35,7 @@ internal class ItemListInfoPanel {
         panelBounds = bounds
         val info = SkyBlockDataRepository.info(key)
         val lines = itemInfoLines(key, info)
-        val headerLineCount = 1 + (if (info?.category != null) 1 else 0) + (if (info?.flags?.isNotEmpty() == true) 1 else 0)
+        val headerLineCount = 1 + (if (info?.category != null) 1 else 0)
         val headerLines = lines.take(headerLineCount)
         val loreLines = lines.drop(headerLineCount)
         val enchantmentTargets = info?.enchantment?.applicableOn?.let(::enchantmentTargets).orEmpty()

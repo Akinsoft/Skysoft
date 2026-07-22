@@ -92,7 +92,7 @@ internal object SkyBlockAuxiliaryDataLoader {
                 revision = value.get("revision")?.asLong ?: -1L,
                 source = source,
             )
-            val isWikiSource = source == SkyBlockNpcAvailabilitySource.OFFICIAL_WIKI
+            val isWikiSource = source == SkyBlockNpcAvailabilitySource.INDEPENDENT_WIKI
             val hasWikiProvenance = availability.page.isNotBlank() && availability.revision > 0L
             require(
                 availability.startsBeforeMinutes in NpcAvailabilitySchema.MINUTE_RANGE &&
@@ -274,7 +274,7 @@ internal object SkyBlockAuxiliaryDataLoader {
     private object ObtainSchema {
         const val VERSION = 2
         const val MINIMUM_COUNT = 5_000
-        const val MINIMUM_SOURCE_COUNT = 4
+        const val MINIMUM_SOURCE_COUNT = 3
         const val MAXIMUM_SUMMARY_LENGTH = 600
         val SIZE_RANGE = 500_000..4_000_000
         val RAW_WIKI_MARKUP = Regex(
@@ -291,7 +291,7 @@ internal object SkyBlockAuxiliaryDataLoader {
     }
     private val entityIdPattern = Regex("[A-Z0-9_;.\\-]+")
     private val commandPattern = Regex("[a-z0-9_]+")
-    private val contextSources = setOf(SkyBlockObtainSource.INDEPENDENT_WIKI, SkyBlockObtainSource.OFFICIAL_WIKI)
+    private val contextSources = setOf(SkyBlockObtainSource.INDEPENDENT_WIKI)
     private val petMapType = object : TypeToken<Map<String, SkyBlockPetInfo>>() {}.type
 }
 
@@ -302,7 +302,6 @@ internal data class SupplementalCatalog(
 )
 
 private fun SkyBlockObtainSource.wikiBaseUrl(): String = when (this) {
-    SkyBlockObtainSource.INDEPENDENT_WIKI -> "https://hypixelskyblock.minecraft.wiki/w/"
-    SkyBlockObtainSource.OFFICIAL_WIKI -> "https://wiki.hypixel.net/"
+    SkyBlockObtainSource.INDEPENDENT_WIKI -> SKYBLOCK_WIKI_PAGE_URL
     else -> ""
 }

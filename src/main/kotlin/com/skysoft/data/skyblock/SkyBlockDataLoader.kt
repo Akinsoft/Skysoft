@@ -5,10 +5,11 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.pets.PetItemStacks
-import com.skysoft.features.pets.SkyblockRepoItemJson
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.WorldVec
 import java.io.StringReader
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.Identifier
@@ -110,10 +111,10 @@ internal object SkyBlockDataLoader {
     }
 
     private fun buildSnapshot(
-        items: List<SkyblockRepoItemJson>,
+        items: List<SkyBlockItemJson>,
         enchantments: List<BundledEnchantment>,
         recipes: List<SkyBlockRecipe>,
-        wiki: Map<ItemListEntryKey, SkyBlockWikiLinks>,
+        wiki: Map<ItemListEntryKey, String>,
         entityCatalog: EntityCatalog,
         pets: Map<String, SkyBlockPetInfo>,
         supplemental: SupplementalCatalog,
@@ -123,30 +124,10 @@ internal object SkyBlockDataLoader {
         val entries = mutableListOf<ItemListEntry>()
         val info = mutableMapOf<ItemListEntryKey, SkyBlockItemInfo>()
         val providers = mutableMapOf<ItemListEntryKey, () -> ItemStack>()
-        items.forEach { item ->
-            val internalName = item.internalName ?: return@forEach
-            val key = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, internalName)
-            val formattedDisplayName = item.displayName ?: internalName
-            val displayName = formattedDisplayName.removeColor()
-            val lore = item.components.lore.map { it.text }
-            entries += ItemListEntry(
-                key = key,
-                displayName = displayName,
-                source = CatalogSources.SKYBLOCK,
-                searchableText = searchableText(displayName, internalName, lore),
-                formattedDisplayName = formattedDisplayName,
-            )
-            info[key] = SkyBlockItemInfo(
-                key = key,
-                displayName = displayName,
-                source = CatalogSources.SKYBLOCK,
-                rarity = lore.lastOrNull { it.isNotBlank() }?.removeColor(),
-                lore = lore,
-            )
-            providers[key] = { PetItemStacks.fromLocalItem(item) }
-        }
+        SkyBlockItemCatalog.addTo(items, entries, info, providers)
 
         val resolvedWiki = wiki.toMutableMap()
+        SkyBlockPetCatalog.addTo(pets, supplemental.petMaxLevels, entries, info, providers)
         val attributeShardObtainSources = addAttributeShards(attributeShards, entries, info, providers, resolvedWiki)
         SkyBlockEnchantments.addTo(
             enchantments,
@@ -158,18 +139,21 @@ internal object SkyBlockDataLoader {
 
         RegistryItemCatalog.addTo(entries, info, providers)
 
-        val bundledItemIds = items.mapNotNullTo(mutableSetOf(), SkyblockRepoItemJson::internalName).apply {
+        val bundledItemIds = items.mapNotNullTo(mutableSetOf(), SkyBlockItemJson::internalName).apply {
             addAll(attributeShards.map { it.item.internalName })
         }
-        val catalogItemIds = bundledItemIds + enchantments.map(BundledEnchantment::id)
-        val resolvedObtainSources = obtainSources + attributeShardObtainSources
-        validateObtainSources(resolvedObtainSources, bundledItemIds, catalogItemIds)
+        val resolvedObtainSources = resolveObtainSources(
+            obtainSources + attributeShardObtainSources,
+            bundledItemIds,
+            enchantments,
+            pets,
+        )
         validateProgressionRequirements(
             supplemental.progressionRequirements,
             providers.keys,
             entityCatalog.entities,
         )
-        addObtainContextWikiLinks(resolvedWiki, resolvedObtainSources)
+        addObtainWikiLinks(resolvedWiki, resolvedObtainSources)
 
         val soldByItem = soldByItem(recipes, entityCatalog.entities)
         info.replaceAll { key, value ->
@@ -224,8 +208,8 @@ internal object SkyBlockDataLoader {
         )
     }
 
-    private fun readItems(json: String): List<SkyblockRepoItemJson> = StringReader(json).use { reader ->
-        gson.fromJson(reader, Array<SkyblockRepoItemJson>::class.java).orEmpty().toList()
+    private fun readItems(json: String): List<SkyBlockItemJson> = StringReader(json).use { reader ->
+        gson.fromJson(reader, Array<SkyBlockItemJson>::class.java).orEmpty().toList()
     }
 
     private fun soldByItem(
@@ -406,16 +390,18 @@ internal object SkyBlockDataLoader {
         return "$island (${coordinates.joinToString()})"
     }
 
-    private fun readWikiLinks(json: String): Map<ItemListEntryKey, SkyBlockWikiLinks> = StringReader(json).use { reader ->
+    private fun readWikiLinks(json: String): Map<ItemListEntryKey, String> = StringReader(json).use { reader ->
         JsonParser.parseReader(reader).asJsonArray.mapNotNull { element ->
             val json = element.asJsonObject
-            if (json.string("type") != "item") return@mapNotNull null
             val id = json.string("id").takeIf(String::isNotBlank) ?: return@mapNotNull null
-            val links = json.obj("wiki") ?: return@mapNotNull null
-            ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id) to SkyBlockWikiLinks(
-                official = links.string("official").takeIf(String::isNotBlank),
-                independent = links.string("independent").takeIf(String::isNotBlank),
-            )
+            val key = when (json.string("type")) {
+                "item" -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id)
+                "pet" -> petItemKey("$id;${json.string("tier")}")
+                else -> null
+            } ?: return@mapNotNull null
+            val url = json.obj("wiki")?.string("independent")?.takeIf(String::isNotBlank)
+                ?: return@mapNotNull null
+            key to url
         }.toMap()
     }
 
@@ -473,7 +459,7 @@ internal object SkyBlockDataLoader {
         when (ingredient.kind) {
             RecipeIngredientKind.ITEM -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, ingredient.id)
             RecipeIngredientKind.REGISTRY_ITEM -> ItemListEntryKey(ItemListEntryKind.REGISTRY, ingredient.id)
-            RecipeIngredientKind.PET,
+            RecipeIngredientKind.PET -> petItemKey(ingredient.id)
             RecipeIngredientKind.CURRENCY,
             RecipeIngredientKind.ESSENCE,
             RecipeIngredientKind.SPECIAL,
@@ -513,7 +499,7 @@ private object RegistryItemCatalog {
                 key = key,
                 displayName = displayName,
                 source = namespace,
-                searchableText = searchableText(displayName, id, emptyList()),
+                searchableText = itemListSearchableText(displayName, id, emptyList()),
                 tags = tags,
             )
             info[key] = SkyBlockItemInfo(key, displayName, CatalogSources.MINECRAFT)
@@ -537,17 +523,12 @@ private object CatalogResources {
     const val ATTRIBUTE_SHARDS = "/assets/skysoft/data/item_list/attribute_shards.json"
 }
 
-private object CatalogSources {
-    const val SKYBLOCK = "skyblock"
-    const val MINECRAFT = "minecraft"
-}
-
 private fun addAttributeShards(
     attributeShards: List<BundledAttributeShard>,
     entries: MutableList<ItemListEntry>,
     info: MutableMap<ItemListEntryKey, SkyBlockItemInfo>,
     providers: MutableMap<ItemListEntryKey, () -> ItemStack>,
-    wiki: MutableMap<ItemListEntryKey, SkyBlockWikiLinks>,
+    wiki: MutableMap<ItemListEntryKey, String>,
 ): Map<String, SkyBlockObtainInfo> = attributeShards.associate { shard ->
     val item = shard.item
     val key = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, item.internalName)
@@ -566,7 +547,7 @@ private fun addAttributeShards(
             key = key,
             displayName = displayName,
             source = CatalogSources.SKYBLOCK,
-            searchableText = searchableText(displayName, item.internalName, searchTerms),
+            searchableText = itemListSearchableText(displayName, item.internalName, searchTerms),
             formattedDisplayName = formattedDisplayName,
         )
         info[key] = SkyBlockItemInfo(
@@ -579,12 +560,10 @@ private fun addAttributeShards(
         )
         providers[key] = { PetItemStacks.fromNeuItem(item) }
     }
-    val currentWiki = wiki[key]
-    if (currentWiki?.independent == null) {
-        wiki[key] = (currentWiki ?: SkyBlockWikiLinks()).copy(
-            independent = "https://hypixelskyblock.minecraft.wiki/w/${shard.wikiPage.replace(' ', '_')}",
-        )
-    }
+    wiki.putIfAbsent(
+        key,
+        "$SKYBLOCK_WIKI_PAGE_URL${shard.wikiPage.replace(' ', '_')}",
+    )
     item.internalName to SkyBlockObtainInfo(
         status = SkyBlockObtainStatus.OBTAINABLE,
         summary = shard.hunting.joinToString("; "),
@@ -594,7 +573,7 @@ private fun addAttributeShards(
     )
 }
 
-private fun searchableText(displayName: String, id: String, lore: List<String>): String =
+internal fun itemListSearchableText(displayName: String, id: String, lore: List<String>): String =
     buildString {
         append(displayName).append(' ').append(id).append(' ')
         lore.forEach { append(it.removeColor()).append(' ') }
@@ -604,6 +583,18 @@ internal fun enchantmentItemId(id: String, level: Int): String {
     require(id.isNotBlank()) { "Item List enchantment recipe is missing an ID" }
     require(level > 0) { "Item List enchantment recipe has an invalid level" }
     return "ENCHANTMENT_${id.uppercase(Locale.ROOT)}_$level"
+}
+
+private fun resolveObtainSources(
+    obtainSources: Map<String, SkyBlockObtainInfo>,
+    bundledItemIds: Set<String>,
+    enchantments: List<BundledEnchantment>,
+    pets: Map<String, SkyBlockPetInfo>,
+): Map<String, SkyBlockObtainInfo> {
+    val catalogItemIds = bundledItemIds + enchantments.map(BundledEnchantment::id) +
+        pets.flatMap { (id, pet) -> pet.tiers.keys.mapNotNull { tier -> petItemKey("$id;$tier")?.id } }
+    validateObtainSources(obtainSources, bundledItemIds, catalogItemIds)
+    return obtainSources
 }
 
 private fun validateObtainSources(
@@ -656,19 +647,27 @@ private fun validateProgressionRequirements(
     }
 }
 
-private fun addObtainContextWikiLinks(
-    wiki: MutableMap<ItemListEntryKey, SkyBlockWikiLinks>,
+private fun addObtainWikiLinks(
+    wiki: MutableMap<ItemListEntryKey, String>,
     obtainSources: Map<String, SkyBlockObtainInfo>,
 ) {
     obtainSources.forEach { (id, obtain) ->
-        val context = obtain.context ?: return@forEach
-        val key = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id)
-        val current = wiki[key] ?: SkyBlockWikiLinks()
-        wiki[key] = when (context.source) {
-            SkyBlockObtainSource.INDEPENDENT_WIKI -> current.copy(independent = current.independent ?: context.url)
-            SkyBlockObtainSource.OFFICIAL_WIKI -> current.copy(official = current.official ?: context.url)
-            else -> error("Unsupported Item List obtain context source ${context.source}")
+        obtain.context?.let { context ->
+            require(context.source == SkyBlockObtainSource.INDEPENDENT_WIKI) {
+                "Unsupported Item List obtain context source ${context.source}"
+            }
+            wiki.putIfAbsent(ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id), context.url)
         }
+    }
+    obtainSources.forEach { (id, obtain) ->
+        if (obtain.source != SkyBlockObtainSource.INDEPENDENT_WIKI || obtain.page.isBlank()) return@forEach
+        val page = obtain.page.split('/').joinToString("/") { segment ->
+            URLEncoder.encode(segment.replace(' ', '_'), StandardCharsets.UTF_8).replace("+", "%20")
+        }
+        wiki.putIfAbsent(
+            ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id),
+            "$SKYBLOCK_WIKI_PAGE_URL$page",
+        )
     }
 }
 

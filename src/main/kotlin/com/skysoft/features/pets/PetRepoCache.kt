@@ -1,6 +1,7 @@
 package com.skysoft.features.pets
 
 import com.google.gson.Gson
+import com.skysoft.data.skyblock.SkyBlockItemJson
 import com.skysoft.data.skyblock.SkyBlockPetInfo
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
@@ -38,7 +39,7 @@ internal object PetRepoCache {
     var constantsLastFailure = ElapsedTimeMark.farPast()
 
     @Volatile
-    var localItemsByInternalName: Map<String, SkyblockRepoItemJson> = emptyMap()
+    var localItemsByInternalName: Map<String, SkyBlockItemJson> = emptyMap()
 
     @Volatile
     var localItemNameResolution: Map<String, String> = emptyMap()
