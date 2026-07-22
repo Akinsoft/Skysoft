@@ -3,6 +3,7 @@ package com.skysoft.data.skyblock
 import com.google.gson.Gson
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
 import com.skysoft.utils.SkysoftClientEvents
@@ -26,7 +27,6 @@ object MayorPerkApi {
     private val loading = AtomicBoolean(false)
     private var lastUpdate = ElapsedTimeMark.farPast()
     private var ticks = 0
-    private var wasActive = false
 
     @Volatile
     var currentMinister: CurrentMinister? = null
@@ -63,17 +63,19 @@ object MayorPerkApi {
     fun register() {
         SkysoftClientEvents.onEndTick(
             "Mayor Perk refresh",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) tick@{
-            if (!consumers.hasActiveConsumers) {
-                if (wasActive) reset()
-                wasActive = false
-                return@tick
-            }
-            if (!wasActive) {
-                wasActive = true
-                refresh()
-                return@tick
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@tick
+                ConsumerActivity.DEACTIVATED -> {
+                    reset()
+                    return@tick
+                }
+                ConsumerActivity.ACTIVATED -> {
+                    refresh()
+                    return@tick
+                }
+                ConsumerActivity.ACTIVE -> Unit
             }
             if (++ticks % REFRESH_CHECK_INTERVAL_TICKS != 0) return@tick
             if (lastUpdate.passedSince() < 20.minutes) return@tick

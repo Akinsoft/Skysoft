@@ -4,6 +4,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
@@ -12,7 +13,6 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 
 internal object StorageCache {
     private val consumers = ActiveConsumerRegistry()
-    private var wasActive = false
 
     fun register() {
         ProfileStorageApi.registerConsumer("Storage Cache") { consumers.hasActiveConsumers }
@@ -24,15 +24,18 @@ internal object StorageCache {
         SkysoftClientEvents.onDisconnect("Storage Cache disconnect reset", ::resetCacheTransientState)
         SkysoftClientEvents.onEndTick(
             "Storage Cache tick",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) {
-            val isActive = consumers.hasActiveConsumers
-            if (!isActive) {
-                if (wasActive) resetCacheTransientState()
-                wasActive = false
-                return@onEndTick
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@onEndTick
+                ConsumerActivity.DEACTIVATED -> {
+                    resetCacheTransientState()
+                    return@onEndTick
+                }
+                ConsumerActivity.ACTIVATED,
+                ConsumerActivity.ACTIVE,
+                -> Unit
             }
-            wasActive = true
             updateCurrentScreen()
         }
     }

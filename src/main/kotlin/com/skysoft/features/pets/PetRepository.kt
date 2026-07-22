@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
@@ -14,24 +15,25 @@ import kotlin.math.roundToInt
 
 object PetRepository {
     private val consumers = ActiveConsumerRegistry()
-    private var wasActive = false
 
     fun register() {
         SkysoftClientEvents.onEndTick(
             "Pet Repository loading",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) {
-            if (!consumers.hasActiveConsumers) {
-                if (wasActive) {
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@onEndTick
+                ConsumerActivity.DEACTIVATED -> {
                     PetRepoCache.requests.cancelAll()
                     PetRepoCache.localRepoLoadFuture?.cancel(true)
                     PetRepoCache.localRepoLoadFuture = null
                     PetRepoCache.loadingLocalRepoCache.set(false)
+                    return@onEndTick
                 }
-                wasActive = false
-                return@onEndTick
+                ConsumerActivity.ACTIVATED,
+                ConsumerActivity.ACTIVE,
+                -> Unit
             }
-            wasActive = true
             ensureLoaded()
         }
         SkysoftClientEvents.onClientStopping("Pet Repository request cancellation") {

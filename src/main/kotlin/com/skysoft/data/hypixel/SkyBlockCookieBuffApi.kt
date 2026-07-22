@@ -2,6 +2,7 @@ package com.skysoft.data.hypixel
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
@@ -15,7 +16,6 @@ object SkyBlockCookieBuffApi {
     private val consumers = ActiveConsumerRegistry()
     private var ticks = 0
     private var lastTabContentVersion = Long.MIN_VALUE
-    private var wasActive = false
 
     @Volatile
     var status = CookieBuffStatus(CookieBuffState.LOADING)
@@ -35,16 +35,19 @@ object SkyBlockCookieBuffApi {
         }
         SkysoftClientEvents.onEndTick(
             "Cookie Buff update",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) {
-            if (!consumers.hasActiveConsumers) {
-                reset()
-                return@onEndTick
-            }
-            if (!wasActive) {
-                wasActive = true
-                updateStatus()
-                return@onEndTick
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@onEndTick
+                ConsumerActivity.DEACTIVATED -> {
+                    reset()
+                    return@onEndTick
+                }
+                ConsumerActivity.ACTIVATED -> {
+                    updateStatus()
+                    return@onEndTick
+                }
+                ConsumerActivity.ACTIVE -> Unit
             }
             if (++ticks % STATUS_INTERVAL_TICKS == 0) updateStatus()
         }
@@ -131,7 +134,7 @@ object SkyBlockCookieBuffApi {
         ticks = 0
         lastTabContentVersion = Long.MIN_VALUE
         status = CookieBuffStatus(CookieBuffState.LOADING)
-        wasActive = false
+        consumers.resetActivity()
     }
 
     private const val STATUS_INTERVAL_TICKS = 20

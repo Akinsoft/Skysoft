@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.skysoft.SkysoftMod
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.net.PendingHttpRequests
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -18,19 +19,22 @@ object SkyBlockEventScheduleApi {
     @Volatile
     private var schedule = SkyBlockEventSchedule()
     private var ticksUntilRefresh = 0
-    private var wasActive = false
 
     fun register() {
         SkysoftClientEvents.onEndTick(
             "SkyBlock Event Schedule refresh",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) tick@{
-            if (!consumers.hasActiveConsumers) {
-                if (wasActive) reset()
-                wasActive = false
-                return@tick
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@tick
+                ConsumerActivity.DEACTIVATED -> {
+                    reset()
+                    return@tick
+                }
+                ConsumerActivity.ACTIVATED,
+                ConsumerActivity.ACTIVE,
+                -> Unit
             }
-            wasActive = true
             if (!HypixelLocationState.inSkyBlock) {
                 ticksUntilRefresh = 0
                 return@tick

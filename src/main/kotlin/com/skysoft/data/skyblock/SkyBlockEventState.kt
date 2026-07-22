@@ -3,6 +3,7 @@ package com.skysoft.data.skyblock
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 
@@ -29,7 +30,6 @@ object SkyBlockEventState {
     @Volatile
     private var snapshot = SkyBlockEventSnapshot()
     private var ticks = 0
-    private var wasActive = false
 
     @Volatile
     var version: Long = 0
@@ -41,19 +41,20 @@ object SkyBlockEventState {
         SkyBlockEventScheduleApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
         SkysoftClientEvents.onEndTick(
             "SkyBlock Event state refresh",
-            isActive = { consumers.hasActiveConsumers || wasActive },
+            isActive = { consumers.isActiveOrDeactivating },
         ) {
-            val isActive = consumers.hasActiveConsumers
-            if (!isActive) {
-                if (wasActive) clear()
-                wasActive = false
-                ticks = 0
-                return@onEndTick
-            }
-            if (!wasActive) {
-                wasActive = true
-                refresh()
-                return@onEndTick
+            when (consumers.activity()) {
+                ConsumerActivity.INACTIVE -> return@onEndTick
+                ConsumerActivity.DEACTIVATED -> {
+                    clear()
+                    ticks = 0
+                    return@onEndTick
+                }
+                ConsumerActivity.ACTIVATED -> {
+                    refresh()
+                    return@onEndTick
+                }
+                ConsumerActivity.ACTIVE -> Unit
             }
             if (++ticks % REFRESH_INTERVAL_TICKS != 0) return@onEndTick
             refresh()
