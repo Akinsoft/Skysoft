@@ -6,8 +6,10 @@ import com.skysoft.config.FeatureConditionCombination
 import com.skysoft.config.FeatureConditionKind
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockEvent
+import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.features.pets.CanonicalItemNames
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
@@ -63,6 +65,60 @@ object FeatureConditions {
     }
 
     private fun String.normalizedValue(): String = trim().uppercase(Locale.US)
+}
+
+internal class FeatureConditionState {
+    private val activationCache = FeatureConditionActivationCache()
+    private val itemCatalogue = FeatureItemConditionCatalogue()
+    @Volatile
+    private var version = 0L
+
+    fun startSession(combinations: List<FeatureConditionCombination>) {
+        itemCatalogue.startSession(combinations)
+    }
+
+    fun isActivationAllowed(
+        combinations: List<FeatureConditionCombination>,
+        heldItemId: String?,
+        isConditionActivationReversed: Boolean,
+    ): Boolean = activationCache.isActivationAllowed(
+        FeatureConditionActivationKey(
+            locationVersion = HypixelLocationState.locationVersion,
+            eventVersion = SkyBlockEventState.version,
+            rulesVersion = version,
+            heldItemId = heldItemId,
+            isConditionActivationReversed = isConditionActivationReversed,
+        ),
+    ) {
+        FeatureConditions.isActivationAllowed(
+            combinations,
+            FeatureConditionContext(
+                isInSkyBlock = HypixelLocationState.inSkyBlock,
+                island = HypixelLocationState.currentIsland,
+                activeEvents = SkyBlockEventState.activeEvents(),
+                heldItemId = heldItemId,
+            ),
+            isConditionActivationReversed,
+        )
+    }
+
+    fun addHeldItem(
+        source: FabricClientCommandSource,
+        featureName: String,
+        combinations: MutableList<FeatureConditionCombination>,
+    ): Int = FeatureItemConditionCommand.addHeldItem(
+        source = source,
+        featureName = featureName,
+        combinations = combinations,
+        catalogue = itemCatalogue,
+        onChanged = ::markChanged,
+    )
+
+    fun itemConditions(): List<FeatureCondition> = itemCatalogue.conditions()
+
+    fun markChanged() {
+        version++
+    }
 }
 
 class FeatureItemConditionCatalogue {
@@ -173,16 +229,6 @@ object FeatureItemConditionCommand {
         }
         SkysoftChat.error(source, message)
         return 0
-    }
-}
-
-class FeatureConditionVersion {
-    @Volatile
-    var version: Long = 0
-        private set
-
-    fun markChanged() {
-        version++
     }
 }
 
