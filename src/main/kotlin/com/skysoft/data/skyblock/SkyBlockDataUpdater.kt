@@ -8,7 +8,6 @@ import com.skysoft.utils.net.SkysoftHttp
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
-import java.util.Base64
 import java.util.concurrent.CompletableFuture
 
 internal object SkyBlockDataUpdater {
@@ -29,9 +28,8 @@ internal object SkyBlockDataUpdater {
             val wiki = Files.readString(directory.resolve(CatalogFiles.WIKI))
             val mobs = Files.readString(directory.resolve(CatalogFiles.MOBS))
             val pets = Files.readString(directory.resolve(CatalogFiles.PETS))
-            val archive = Base64.getDecoder().decode(Files.readString(directory.resolve(REPO_ARCHIVE_FILE)))
             val snapshot = SkyBlockDataLoader.loadJson(items, recipes, wiki, mobs, pets)
-            CachedCatalog(revision, SkyBlockRepoArchive.apply(snapshot, archive))
+            CachedCatalog(revision, snapshot)
         }.onFailure { error ->
             SkysoftMod.LOGGER.warn("Skysoft Item List cached data is invalid", error)
         }.getOrNull()
@@ -42,11 +40,7 @@ internal object SkyBlockDataUpdater {
         if (!force && !isCheckDue()) return
         recordCheckAttempt()
         SkyBlockDataRepository.markUpdateChecking()
-        val compactRevision = SkysoftHttp.getString(SHAS_URL, REQUEST_TIMEOUT)
-        val repoRevision = SkysoftHttp.getString(REPO_COMMIT_URL, REQUEST_TIMEOUT)
-        activeRequest = compactRevision.thenCombine(repoRevision) { shas, commit ->
-            "${parseRevision(shas)}-${parseRepoRevision(commit)}"
-        }.thenCompose { revision ->
+        activeRequest = SkysoftHttp.getString(SHAS_URL, REQUEST_TIMEOUT).thenApply(::parseRevision).thenCompose { revision ->
             if (revision == activeRevision()) {
                 return@thenCompose CompletableFuture.completedFuture<DownloadedCatalog?>(null)
             }
@@ -55,11 +49,7 @@ internal object SkyBlockDataUpdater {
             val wiki = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.WIKI}", DOWNLOAD_TIMEOUT)
             val mobs = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.MOBS}", DOWNLOAD_TIMEOUT)
             val pets = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.PETS}", DOWNLOAD_TIMEOUT)
-            val archive = SkysoftHttp.getBytes(
-                skyBlockRepoArchiveUrl(revision.takeLast(REVISION_PART_LENGTH)),
-                DOWNLOAD_TIMEOUT,
-            )
-            CompletableFuture.allOf(items, recipes, wiki, mobs, pets, archive).thenApply {
+            CompletableFuture.allOf(items, recipes, wiki, mobs, pets).thenApply {
                 DownloadedCatalog(
                     revision,
                     items.join(),
@@ -67,7 +57,6 @@ internal object SkyBlockDataUpdater {
                     wiki.join(),
                     mobs.join(),
                     pets.join(),
-                    archive.join(),
                 )
             }
         }.thenApply { downloaded ->
@@ -94,19 +83,14 @@ internal object SkyBlockDataUpdater {
             downloaded.mobs,
             downloaded.pets,
         )
-        val snapshot = SkyBlockRepoArchive.apply(compactSnapshot, downloaded.repoArchive)
         val directory = cacheDirectory.resolve(downloaded.revision)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.ITEMS), downloaded.items)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.RECIPES), downloaded.recipes)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.WIKI), downloaded.wiki)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.MOBS), downloaded.mobs)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.PETS), downloaded.pets)
-        SkysoftConfigFiles.writeStringSafely(
-            directory.resolve(REPO_ARCHIVE_FILE),
-            Base64.getEncoder().encodeToString(downloaded.repoArchive),
-        )
         SkysoftConfigFiles.writeStringSafely(activeRevisionFile, downloaded.revision)
-        return CachedCatalog(downloaded.revision, snapshot)
+        return CachedCatalog(downloaded.revision, compactSnapshot)
     }
 
     private fun parseRevision(json: String): String {
@@ -117,12 +101,6 @@ internal object SkyBlockDataUpdater {
             require(sha.matches(shaPattern)) { "Item List update has an invalid $name revision" }
             sha.take(REVISION_PART_LENGTH)
         }
-    }
-
-    private fun parseRepoRevision(json: String): String {
-        val sha = JsonParser.parseString(json).asJsonObject.get("sha")?.asString.orEmpty()
-        require(sha.matches(shaPattern)) { "SkyblockRepo update has an invalid revision" }
-        return sha.take(REVISION_PART_LENGTH)
     }
 
     private fun activeRevision(): String =
@@ -148,21 +126,18 @@ internal object SkyBlockDataUpdater {
         val wiki: String,
         val mobs: String,
         val pets: String,
-        val repoArchive: ByteArray,
     )
 
     private const val DATA_VERSION = "1_21_5"
     private const val DATA_BASE = "https://raw.githubusercontent.com/SkyblockAPI/Repo/main/cloudflare/$DATA_VERSION"
     private const val SHAS_URL = "https://raw.githubusercontent.com/SkyblockAPI/Repo/main/cloudflare/shas.json"
-    private const val REPO_ARCHIVE_FILE = "skyblock-repo.zip.b64"
     private const val ACTIVE_REVISION_FILE = "active-revision.txt"
-    private const val REPO_COMMIT_URL = "https://api.github.com/repos/SkyblockRepo/Repo/commits/main"
     private const val REVISION_PART_LENGTH = 12
     private val UPDATE_INTERVAL = Duration.ofHours(24)
     private val REQUEST_TIMEOUT = Duration.ofSeconds(15)
     private val DOWNLOAD_TIMEOUT = Duration.ofSeconds(90)
     private val shaPattern = Regex("[a-f0-9]{40}")
-    private val revisionPattern = Regex("[a-f0-9]{12}(?:-[a-f0-9]{12}){5}")
+    private val revisionPattern = Regex("[a-f0-9]{12}(?:-[a-f0-9]{12}){4}")
 }
 
 private object CatalogFiles {
@@ -172,6 +147,3 @@ private object CatalogFiles {
     const val MOBS = "mobs.min.json"
     const val PETS = "pets.min.json"
 }
-
-internal fun skyBlockRepoArchiveUrl(revision: String): String =
-    "https://codeload.github.com/SkyblockRepo/Repo/zip/$revision"

@@ -9,7 +9,7 @@ internal object PetIconSearch {
     fun search(query: String, limit: Int): List<ItemIconCandidate> {
         val words = words(query)
         if (words.isEmpty()) return emptyList()
-        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockRepo.load()
+        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockCatalog.load()
         return sequence {
             yieldLocalItems(words)
             yieldLocalPets(words)
@@ -53,7 +53,7 @@ internal object PetIconSearch {
                     ?: PetRepository.getDisplayName(properName)
                 val displayName = "${rarity.chatColorCode}$petName"
                 if (matches(internalName, displayName, words)) {
-                    yield(ItemIconMatch(internalName, displayName) { LocalSkyBlockRepo.petStackOrNull(internalName) })
+                    yield(ItemIconMatch(internalName, displayName) { LocalSkyBlockCatalog.petStackOrNull(internalName) })
                 }
             }
         }
@@ -61,7 +61,7 @@ internal object PetIconSearch {
 
     private suspend fun SequenceScope<ItemIconMatch>.yieldRemoteItems(words: List<String>, limit: Int) {
         val remoteNames = PetRepoCache.itemInternalNames ?: run {
-            RemoteSkyBlockRepo.loadItemIndexes()
+            RemoteSkyBlockCatalog.loadItemIndexes()
             emptySet()
         }
         remoteNames.asSequence()

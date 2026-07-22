@@ -11,12 +11,6 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 - License: GNU Lesser General Public License v3.0 or later
 - Usage: modified fork included in release jars
 
-### SkyblockRepo Data
-
-- Project: https://github.com/SkyblockRepo/Repo
-- License: MIT License
-- Usage: updateable SkyBlock item metadata
-
 ### SkyBlock API Repo Data
 
 - Project: https://github.com/SkyblockAPI/Repo
@@ -33,14 +27,8 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 ### Hypixel SkyBlock Wiki
 
 - Project: https://hypixelskyblock.minecraft.wiki/
-- License: Creative Commons Attribution-ShareAlike 3.0
-- Usage: item and enchantment metadata reference
-
-### Official Hypixel SkyBlock Wiki
-
-- Project: https://wiki.hypixel.net/
-- Terms: https://hypixel.net/terms
-- Usage: build-time fallback item facts and event NPC availability provenance
+- License: Creative Commons Attribution-NonCommercial-ShareAlike 3.0
+- Usage: item facts, enchantment metadata, links, and event NPC availability
 
 ### SkyHanni Repository Data
 

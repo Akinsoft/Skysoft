@@ -18,7 +18,7 @@ internal object SkyBlockEnchantments {
         entries: MutableList<ItemListEntry>,
         info: MutableMap<ItemListEntryKey, SkyBlockItemInfo>,
         providers: MutableMap<ItemListEntryKey, () -> ItemStack>,
-        wiki: MutableMap<ItemListEntryKey, SkyBlockWikiLinks>,
+        wiki: MutableMap<ItemListEntryKey, String>,
     ) {
         enchantments.forEach { enchantment ->
             val key = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, enchantment.id)
@@ -61,13 +61,10 @@ internal object SkyBlockEnchantments {
 
     private fun enchantmentTier(id: String): Int = id.substringAfterLast('_').toInt()
 
-    private fun enchantmentWikiLinks(name: String): SkyBlockWikiLinks {
+    private fun enchantmentWikiLinks(name: String): String {
         val romanTier = name.substringAfterLast(' ')
         val page = name.removeSuffix(" $romanTier").replace(' ', '_')
-        return SkyBlockWikiLinks(
-            official = "https://wiki.hypixel.net/${page}_Enchantment",
-            independent = "https://hypixelskyblock.minecraft.wiki/w/$page#${page}_$romanTier",
-        )
+        return "$SKYBLOCK_WIKI_PAGE_URL$page#${page}_$romanTier"
     }
 
     private const val SKYBLOCK_SOURCE = "skyblock"

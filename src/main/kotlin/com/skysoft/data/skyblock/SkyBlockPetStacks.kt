@@ -114,6 +114,57 @@ internal object SkyBlockPetStacks {
     private val variablePattern = Regex("\\{([^{}]+)}")
 }
 
+internal object SkyBlockPetCatalog {
+    fun addTo(
+        pets: Map<String, SkyBlockPetInfo>,
+        maxLevels: Map<String, Int>,
+        entries: MutableList<ItemListEntry>,
+        info: MutableMap<ItemListEntryKey, SkyBlockItemInfo>,
+        providers: MutableMap<ItemListEntryKey, () -> ItemStack>,
+    ) {
+        pets.forEach { (id, pet) ->
+            pet.tiers.keys.forEach { tier ->
+                val ingredientId = "$id;$tier"
+                val key = requireNotNull(petItemKey(ingredientId)) {
+                    "Item List pet $ingredientId has an invalid rarity"
+                }
+                val rarity = requireNotNull(SkyBlockRarity.getByName(tier))
+                val tooltip = requireNotNull(SkyBlockPetStacks.tooltip(ingredientId, 1, pets, maxLevels)) {
+                    "Item List pet $ingredientId has no tooltip"
+                }
+                val displayName = "${pet.name} Pet"
+                entries += ItemListEntry(
+                    key = key,
+                    displayName = displayName,
+                    source = CatalogSources.SKYBLOCK,
+                    searchableText = itemListSearchableText(displayName, key.id, tooltip.lore + tier + "pet"),
+                    formattedDisplayName = "${rarity.chatColorCode}$displayName",
+                )
+                info[key] = SkyBlockItemInfo(
+                    key = key,
+                    displayName = displayName,
+                    source = CatalogSources.SKYBLOCK,
+                    category = "PET",
+                    rarity = tier,
+                    lore = tooltip.lore,
+                )
+                providers[key] = {
+                    requireNotNull(SkyBlockPetStacks.stack(ingredientId, 1, pets, maxLevels)) {
+                        "Item List pet $ingredientId has no display stack"
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun petItemKey(ingredientId: String): ItemListEntryKey? {
+    val separator = ingredientId.lastIndexOf(';')
+    if (separator <= 0 || separator == ingredientId.lastIndex) return null
+    val rarity = SkyBlockRarity.getByName(ingredientId.substring(separator + 1)) ?: return null
+    return ItemListEntryKey(ItemListEntryKind.SKYBLOCK, "${ingredientId.substring(0, separator)};${rarity.id}")
+}
+
 internal data class SkyBlockPetTooltip(
     val name: String,
     val lore: List<String>,

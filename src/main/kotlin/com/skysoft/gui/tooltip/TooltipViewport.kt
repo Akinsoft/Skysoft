@@ -4,6 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.TooltipScrollConfig
 import com.skysoft.mixin.ClientTextTooltipAccessor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -20,6 +21,10 @@ import kotlin.math.max
 import kotlin.math.min
 
 interface TooltipScrollExcludedScreen
+
+interface TooltipScrollPriorityScreen {
+    val mouseScrollPriorityAreas: List<Rect>
+}
 
 object TooltipViewport {
     private val minecraft = Minecraft.getInstance()
@@ -49,12 +54,12 @@ object TooltipViewport {
         didHandleMouseScroll(horizontal, vertical, GLFW.GLFW_KEY_UNKNOWN)
 
     @JvmStatic
-    fun didHandleStorageMouseScroll(horizontal: Double, vertical: Double): Boolean =
-        didHandleMouseScroll(horizontal, vertical, config().settings.storageOverlayTooltipKey)
+    fun didHandleCompetingMouseScroll(horizontal: Double, vertical: Double): Boolean =
+        didHandleMouseScroll(horizontal, vertical, config().settings.interfaceScrollTooltipKey)
 
     @JvmStatic
-    fun isStorageOverlayScrollKeyDown(): Boolean =
-        isKeyDown(config().settings.storageOverlayTooltipKey)
+    fun isCompetingScrollKeyDown(): Boolean =
+        isKeyDown(config().settings.interfaceScrollTooltipKey)
 
     @JvmStatic
     fun updateKeyboardPan() {

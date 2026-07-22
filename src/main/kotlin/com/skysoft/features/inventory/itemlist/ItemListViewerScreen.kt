@@ -13,9 +13,11 @@ import com.skysoft.data.skyblock.SkyBlockProgressionIconKind
 import com.skysoft.data.skyblock.SkyBlockProgressionRequirement
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockRecipeType
+import com.skysoft.data.skyblock.petItemKey
 import com.skysoft.data.skyblock.recipeIngredientStack
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.gui.tooltip.TooltipScrollPriorityScreen
 import com.skysoft.utils.BrowserUtilities
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -39,7 +41,7 @@ internal class ItemListViewerScreen(
     private val parent: Screen?,
     initialKey: ItemListEntryKey,
     initialMode: ItemListViewMode = ItemListViewMode.INFO,
-) : Screen(Component.literal("Skysoft Item List")) {
+) : Screen(Component.literal("Skysoft Item List")), TooltipScrollPriorityScreen {
     private val selection = ViewerSelection(initialKey, initialMode)
     private var currentKey by selection::currentKey
     private var mode by selection::mode
@@ -121,6 +123,9 @@ internal class ItemListViewerScreen(
         return true
     }
 
+    override val mouseScrollPriorityAreas: List<Rect>
+        get() = petBounds.map(PetIngredientBounds::bounds)
+
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
         val currentLayout = layout ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
         val pet = petBounds.firstOrNull { it.bounds.contains(mouseX.toInt(), mouseY.toInt()) }
@@ -196,10 +201,7 @@ internal class ItemListViewerScreen(
         layout.usageTab.contains(mouseX, mouseY) -> selection.changeMode(ItemListViewMode.USAGES)
         layout.previous.contains(mouseX, mouseY) -> selection.changePage(-1, layout.recipeGrid.pageSize, auctionHousePanel)
         layout.next.contains(mouseX, mouseY) -> selection.changePage(1, layout.recipeGrid.pageSize, auctionHousePanel)
-        layout.wikiLinks(minionFamily(currentKey) != null).first.contains(mouseX, mouseY) ->
-            openWiki(currentKey, official = true, isVisible = mode == ItemListViewMode.INFO)
-        layout.wikiLinks(minionFamily(currentKey) != null).second.contains(mouseX, mouseY) ->
-            openWiki(currentKey, official = false, isVisible = mode == ItemListViewMode.INFO)
+        layout.wiki.contains(mouseX, mouseY) -> openWiki(currentKey, isVisible = mode == ItemListViewMode.INFO)
         else -> run {
             val categories = selection.currentCategories().take(MAX_CATEGORY_BUTTONS)
             categories.withIndex().firstOrNull { (index, _) -> layout.category(index).contains(mouseX, mouseY) }
@@ -801,26 +803,15 @@ private fun renderInfoLinks(
     mouseX: Int,
     mouseY: Int,
 ) {
-    val links = SkyBlockDataRepository.wikiLinks(key)
-    val hasTierNavigation = SkyBlockDataRepository.ItemListData.tierFamily(key)?.kind == ItemListTierFamilyKind.MINION
-    val (officialWiki, independentWiki) = layout.wikiLinks(hasTierNavigation)
+    val link = SkyBlockDataRepository.wikiLink(key)
     PixelButtonRenderer.draw(
         context,
         font,
-        officialWiki,
-        if (hasTierNavigation) "Official" else "Official Wiki",
+        layout.wiki,
+        "SkyBlock Wiki",
         false,
-        officialWiki.contains(mouseX, mouseY),
-        links?.official != null,
-    )
-    PixelButtonRenderer.draw(
-        context,
-        font,
-        independentWiki,
-        if (hasTierNavigation) "Independent" else "Independent Wiki",
-        false,
-        independentWiki.contains(mouseX, mouseY),
-        links?.independent != null,
+        layout.wiki.contains(mouseX, mouseY),
+        link != null,
     )
 }
 
@@ -831,7 +822,7 @@ private fun RecipeIngredient.itemKey(): ItemListEntryKey? = when (kind) {
         com.skysoft.data.skyblock.ItemListEntryKind.REGISTRY,
         id.substringBefore('|'),
     )
-    RecipeIngredientKind.PET,
+    RecipeIngredientKind.PET -> petItemKey(id)
     RecipeIngredientKind.CURRENCY,
     RecipeIngredientKind.ESSENCE,
     RecipeIngredientKind.SPECIAL,
@@ -1005,11 +996,9 @@ private data class PetIngredientBounds(
     val levelKey: RecipePetLevelKey,
 )
 
-private fun openWiki(key: ItemListEntryKey, official: Boolean, isVisible: Boolean): ViewerInputResult {
+private fun openWiki(key: ItemListEntryKey, isVisible: Boolean): ViewerInputResult {
     if (!isVisible) return ViewerInputResult.IGNORED
-    val links = SkyBlockDataRepository.wikiLinks(key) ?: return ViewerInputResult.IGNORED
-    val url = if (official) links.official else links.independent
-    url ?: return ViewerInputResult.IGNORED
+    val url = SkyBlockDataRepository.wikiLink(key) ?: return ViewerInputResult.IGNORED
     BrowserUtilities.open(url)
     return ViewerInputResult.HANDLED
 }
@@ -1029,10 +1018,7 @@ private data class ViewerLayout(
     val previous: Rect,
     val next: Rect,
     val recipePage: Rect,
-    val officialWiki: Rect,
-    val independentWiki: Rect,
-    val officialWikiWithTiers: Rect,
-    val independentWikiWithTiers: Rect,
+    val wiki: Rect,
     val tierPrevious: Rect,
     val tierNext: Rect,
     val tierPage: Rect,
@@ -1057,12 +1043,6 @@ private data class ViewerLayout(
             width,
             ViewerTabDimensions.CATEGORY_HEIGHT,
         )
-    }
-
-    fun wikiLinks(hasTierNavigation: Boolean): Pair<Rect, Rect> = if (hasTierNavigation) {
-        officialWikiWithTiers to independentWikiWithTiers
-    } else {
-        officialWiki to independentWiki
     }
 
     fun renderPageFooter(
@@ -1161,10 +1141,7 @@ private data class ViewerLayout(
                 footer.previous,
                 footer.next,
                 footer.recipePage,
-                footer.officialWiki,
-                footer.independentWiki,
-                footer.officialWikiWithTiers,
-                footer.independentWikiWithTiers,
+                footer.wiki,
                 footer.tierPrevious,
                 footer.tierNext,
                 footer.tierPage,
@@ -1192,10 +1169,7 @@ private data class ViewerFooterLayout(
     val previous: Rect,
     val next: Rect,
     val recipePage: Rect,
-    val officialWiki: Rect,
-    val independentWiki: Rect,
-    val officialWikiWithTiers: Rect,
-    val independentWikiWithTiers: Rect,
+    val wiki: Rect,
     val tierPrevious: Rect,
     val tierNext: Rect,
     val tierPage: Rect,
@@ -1227,8 +1201,8 @@ private data class ViewerFooterLayout(
                 ViewerFooterDimensions.TIER_BUTTON_WIDTH,
                 ViewerPanelDimensions.SLOT_SIZE,
             )
-            val officialWiki = Rect(
-                panel.x + ViewerFooterDimensions.WIKI_X_OFFSET,
+            val wiki = Rect(
+                panel.x + ViewerPanelDimensions.PADDING,
                 footerY,
                 ViewerFooterDimensions.WIKI_WIDTH,
                 ViewerPanelDimensions.SLOT_SIZE,
@@ -1242,25 +1216,7 @@ private data class ViewerFooterLayout(
                     panel.width - ViewerFooterDimensions.PAGE_LABEL_RESERVED_WIDTH,
                     ViewerPanelDimensions.SLOT_SIZE,
                 ),
-                officialWiki = officialWiki,
-                independentWiki = Rect(
-                    officialWiki.x + ViewerFooterDimensions.WIKI_WIDTH + ViewerFooterDimensions.WIKI_GAP,
-                    footerY,
-                    ViewerFooterDimensions.WIKI_WIDTH + ViewerFooterDimensions.INDEPENDENT_WIKI_EXTRA_WIDTH,
-                    ViewerPanelDimensions.SLOT_SIZE,
-                ),
-                officialWikiWithTiers = Rect(
-                    panel.x + ViewerPanelDimensions.PADDING,
-                    footerY,
-                    ViewerFooterDimensions.TIER_WIKI_WIDTH,
-                    ViewerPanelDimensions.SLOT_SIZE,
-                ),
-                independentWikiWithTiers = Rect(
-                    panel.x + panel.width - ViewerPanelDimensions.PADDING - ViewerFooterDimensions.TIER_WIKI_WIDTH,
-                    footerY,
-                    ViewerFooterDimensions.TIER_WIKI_WIDTH,
-                    ViewerPanelDimensions.SLOT_SIZE,
-                ),
+                wiki = wiki,
                 tierPrevious = tierPrevious,
                 tierNext = Rect(
                     tierPage.x + tierPage.width + ViewerFooterDimensions.TIER_GAP,
@@ -1321,12 +1277,8 @@ private object ViewerFooterDimensions {
     const val NEXT_RIGHT = 38
     const val PAGE_LABEL_X_OFFSET = 32
     const val PAGE_LABEL_RESERVED_WIDTH = 84
-    const val WIKI_X_OFFSET = 18
-    const val WIKI_WIDTH = 112
-    const val WIKI_GAP = 6
-    const val INDEPENDENT_WIKI_EXTRA_WIDTH = 12
+    const val WIKI_WIDTH = 82
     const val TIER_PAGE_WIDTH = 52
     const val TIER_BUTTON_WIDTH = 22
     const val TIER_GAP = 4
-    const val TIER_WIKI_WIDTH = 82
 }

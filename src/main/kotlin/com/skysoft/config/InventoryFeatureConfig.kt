@@ -846,12 +846,13 @@ class TooltipScrollSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:SerializedName(value = "interfaceScrollTooltipKey", alternate = ["storageOverlayTooltipKey"])
     @field:ConfigOption(
-        name = "Storage Overlay Tooltip Key",
-        desc = "Hold this key to scroll a tooltip instead of the Storage Overlay.",
+        name = "Interface Scroll Tooltip Key",
+        desc = "Hold this key to scroll a tooltip instead of the hovered interface.",
     )
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
-    var storageOverlayTooltipKey = GLFW.GLFW_KEY_LEFT_SHIFT
+    var interfaceScrollTooltipKey = GLFW.GLFW_KEY_LEFT_SHIFT
 
     @JvmField
     @field:Expose

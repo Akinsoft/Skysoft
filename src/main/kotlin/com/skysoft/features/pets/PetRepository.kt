@@ -48,11 +48,11 @@ object PetRepository {
         ensureLoaded()
         SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(internalName))?.let { return it }
         PetRepoCache.itemStacks[internalName]?.let { return it.copy() }
-        LocalSkyBlockRepo.itemStackOrNull(internalName)?.let { stack ->
+        LocalSkyBlockCatalog.itemStackOrNull(internalName)?.let { stack ->
             PetRepoCache.itemStacks[internalName] = stack
             return stack.copy()
         }
-        RemoteSkyBlockRepo.requestItem(internalName)
+        RemoteSkyBlockCatalog.requestItem(internalName)
         return null
     }
 
@@ -61,11 +61,11 @@ object PetRepository {
         ensureLoaded()
         SkyBlockDataRepository.entry(SkyBlockDataRepository.itemKey(internalName))?.let { return it.formattedDisplayName }
         PetRepoCache.itemNames[internalName]?.let { return it }
-        LocalSkyBlockRepo.itemNameOrNull(internalName)?.let { itemName ->
+        LocalSkyBlockCatalog.itemNameOrNull(internalName)?.let { itemName ->
             PetRepoCache.itemNames[internalName] = itemName
             return itemName
         }
-        RemoteSkyBlockRepo.requestItem(internalName)
+        RemoteSkyBlockCatalog.requestItem(internalName)
         return internalName.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
     }
 
@@ -88,9 +88,9 @@ object PetRepository {
         if (skinInternalName == null) return null
         ensureLoaded()
         val itemName = PetRepoCache.itemNames[skinInternalName]
-            ?: LocalSkyBlockRepo.itemNameOrNull(skinInternalName)?.also { PetRepoCache.itemNames[skinInternalName] = it }
+            ?: LocalSkyBlockCatalog.itemNameOrNull(skinInternalName)?.also { PetRepoCache.itemNames[skinInternalName] = it }
             ?: run {
-                RemoteSkyBlockRepo.requestItem(skinInternalName)
+                RemoteSkyBlockCatalog.requestItem(skinInternalName)
                 return null
             }
         return colorCodePattern.find(itemName)?.value
@@ -101,12 +101,12 @@ object PetRepository {
         val marker = skinMarker?.takeIf { it.contains('✦') } ?: return null
         val properName = PetInternalNames.properName(petInternalName) ?: return null
         val skinInternalNames = PetRepoCache.petSkinInternalNames ?: run {
-            RemoteSkyBlockRepo.loadItemIndexes()
+            RemoteSkyBlockCatalog.loadItemIndexes()
             return null
         }
         val candidates = skinInternalNames.filter { PetSkins.isSkinForPet(it, properName) }
         if (candidates.isEmpty()) return null
-        candidates.forEach(RemoteSkyBlockRepo::requestItem)
+        candidates.forEach(RemoteSkyBlockCatalog::requestItem)
         val colorCode = colorCodePattern.find(marker)?.value
         return candidates.mapNotNull { internalName ->
             PetRepoCache.itemNames[internalName]?.let { displayName -> internalName to displayName }
@@ -165,8 +165,8 @@ object PetRepository {
             ?: map.entries.firstOrNull { (displayName, internalName) ->
                 displayName.removeColor() == clean || internalName.replace('_', ' ').equals(clean, ignoreCase = true)
             }?.value
-            ?: LocalSkyBlockRepo.resolveItemByDisplayNameOrNull(itemName)
-            ?: LocalSkyBlockRepo.resolveItemByDisplayNameOrNull(clean)
+            ?: LocalSkyBlockCatalog.resolveItemByDisplayNameOrNull(itemName)
+            ?: LocalSkyBlockCatalog.resolveItemByDisplayNameOrNull(clean)
     }
 
     fun getDisplayName(properPetName: String): String =
@@ -232,7 +232,7 @@ object PetRepository {
 
     private fun ensureLoaded() {
         PetSkins.load()
-        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockRepo.load()
+        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockCatalog.load()
         if (PetRepoCache.petsJson == null) PetRepoConstants.load()
     }
 

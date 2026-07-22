@@ -3,42 +3,6 @@ package com.skysoft.features.pets
 import com.google.gson.annotations.SerializedName
 import com.skysoft.data.skyblock.SkyBlockRarity
 
-internal data class SkyblockRepoItemJson(
-    val id: String = "minecraft:stone",
-    val components: SkyblockRepoComponentsJson = SkyblockRepoComponentsJson(),
-) {
-    val internalName: String? get() = components.customData?.id
-    val displayName: String? get() = components.customName?.text
-}
-
-internal data class SkyblockRepoComponentsJson(
-    @SerializedName("minecraft:custom_data") val customData: SkyblockRepoCustomDataJson? = null,
-    @SerializedName("minecraft:custom_name") val customName: SkyblockRepoTextJson? = null,
-    @SerializedName("minecraft:dyed_color") val dyedColor: Int? = null,
-    @SerializedName("minecraft:enchantment_glint_override") val hasEnchantmentGlint: Boolean? = null,
-    @SerializedName("minecraft:item_model") val itemModel: String? = null,
-    @SerializedName("minecraft:lore") val lore: List<SkyblockRepoTextJson> = emptyList(),
-    @SerializedName("minecraft:profile") val profile: SkyblockRepoProfileJson? = null,
-)
-
-internal data class SkyblockRepoCustomDataJson(
-    val id: String? = null,
-)
-
-internal data class SkyblockRepoTextJson(
-    val text: String = "",
-)
-
-internal data class SkyblockRepoProfileJson(
-    val properties: List<SkyblockRepoProfilePropertyJson> = emptyList(),
-)
-
-internal data class SkyblockRepoProfilePropertyJson(
-    val name: String = "",
-    val value: String = "",
-    val signature: String? = null,
-)
-
 internal data class SkysoftPetsRepoJson(
     @SerializedName("pet_levels") val basePetLeveling: List<Int> = emptyList(),
     @SerializedName("custom_pet_leveling") val customPetLeveling: Map<String, NeuPetData> = emptyMap(),

@@ -1,5 +1,6 @@
 package com.skysoft.config
 
+import com.skysoft.data.skyblock.SKYBLOCK_WIKI_URL
 import com.skysoft.features.misc.update.ModUpdateChecker
 import com.skysoft.utils.BrowserUtilities
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -51,12 +52,7 @@ class CreditsConfig {
 
 class LicensesConfig {
     @JvmField
-    @field:ConfigOption(name = "SkyblockRepo", desc = "Item List metadata uses SkyblockRepo under the MIT license.")
-    @field:ConfigEditorButton(buttonText = "Source")
-    val skyblockRepo = Runnable { BrowserUtilities.open("https://github.com/SkyblockRepo/Repo") }
-
-    @JvmField
-    @field:ConfigOption(name = "SkyBlock API Repo", desc = "Item List data is derived from the NEU item repository under the MIT license.")
+    @field:ConfigOption(name = "SkyBlock API Repo", desc = "Item List catalogs use SkyBlock API Repo data under the MIT license.")
     @field:ConfigEditorButton(buttonText = "Source")
     val skyBlockApiRepo = Runnable { BrowserUtilities.open("https://github.com/SkyblockAPI/Repo") }
 
@@ -71,18 +67,10 @@ class LicensesConfig {
     @JvmField
     @field:ConfigOption(
         name = "SkyBlock Wiki",
-        desc = "Item List obtain data uses the independent Wiki under CC BY-SA 3.0.",
+        desc = "Item List data uses the SkyBlock Wiki under CC BY-NC-SA 3.0.",
     )
     @field:ConfigEditorButton(buttonText = "Source")
-    val skyBlockWiki = Runnable { BrowserUtilities.open("https://hypixelskyblock.minecraft.wiki/") }
-
-    @JvmField
-    @field:ConfigOption(
-        name = "Official Wiki",
-        desc = "Item List event availability uses facts from the official Hypixel Wiki.",
-    )
-    @field:ConfigEditorButton(buttonText = "Source")
-    val officialWiki = Runnable { BrowserUtilities.open("https://wiki.hypixel.net/") }
+    val skyBlockWiki = Runnable { BrowserUtilities.open(SKYBLOCK_WIKI_URL) }
 
     @JvmField
     @field:ConfigOption(name = "MoulConfig", desc = "Skysoft uses a modified MoulConfig fork under the LGPL 3.0 license or later.")
