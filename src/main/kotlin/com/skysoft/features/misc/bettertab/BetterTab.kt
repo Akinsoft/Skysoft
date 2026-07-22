@@ -54,7 +54,7 @@ object BetterTab {
         val minecraft = Minecraft.getInstance()
         val isVisible = minecraft.options.keyPlayerList.isDown
         TabListOverlay.setVisible(minecraft, isVisible)
-        if (!isVisible || !TabListApi.isSkyBlockDataLoaded) return
+        if (!isVisible || !TabListApi.isLoaded) return
         val layout = currentLayout(minecraft) ?: return
         context.nextStratum()
         drawLayout(context, minecraft, layout)
