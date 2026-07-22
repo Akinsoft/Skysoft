@@ -8,4 +8,6 @@ object MinecraftItems {
     fun stainedGlassPanes(): List<Item> = Blocks.STAINED_GLASS_PANE.asList().map { it.asItem() }
 
     fun grayDye(): Item = Items.DYE.gray()
+
+    fun pinkDye(): Item = Items.DYE.pink()
 }

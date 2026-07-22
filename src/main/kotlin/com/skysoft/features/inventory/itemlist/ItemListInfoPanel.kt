@@ -3,13 +3,15 @@ package com.skysoft.features.inventory.itemlist
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockDropSource
 import com.skysoft.data.skyblock.SkyBlockEntityInfo
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.isMob
-import com.skysoft.data.skyblock.SkyBlockDropSource
+import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
+import kotlin.math.roundToLong
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.item.ItemStack
@@ -37,8 +39,13 @@ internal class ItemListInfoPanel {
         panelBounds = bounds
         val info = SkyBlockDataRepository.info(key)
         val entity = key.takeIf { it.kind == ItemListEntryKind.ENTITY }?.let { SkyBlockDataRepository.entity(it.id) }
-        val lines = entity?.let(::entityInfoLines) ?: itemInfoLines(key, info)
-        val headerLineCount = if (entity == null) 1 + (if (info?.category != null) 1 else 0) else 2
+        val motesSellPrice = SkyBlockPriceData.getNpcSellPrices(key.id).motes?.roundToLong()
+        val lines = entity?.let(::entityInfoLines) ?: itemInfoLines(key, info, motesSellPrice)
+        val headerLineCount = if (entity == null) {
+            1 + (if (info?.category != null) 1 else 0) + (if (motesSellPrice != null) 1 else 0)
+        } else {
+            2
+        }
         val headerLines = lines.take(headerLineCount)
         val loreLines = lines.drop(headerLineCount)
         val enchantmentTargets = info?.enchantment?.applicableOn?.let(::enchantmentTargets).orEmpty()

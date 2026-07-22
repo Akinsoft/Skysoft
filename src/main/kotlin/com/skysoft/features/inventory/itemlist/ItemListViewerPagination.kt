@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.data.skyblock.ItemListEntryKey
+import com.skysoft.data.skyblock.SkyBlockCurrencyStacks
 import com.skysoft.data.skyblock.SkyBlockItemInfo
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.Rect
@@ -246,9 +247,16 @@ internal fun availableViewerMode(
 internal fun favoriteTooltip(isFavorite: Boolean): String =
     if (isFavorite) "Remove from favorites" else "Add to favorites"
 
-internal fun itemInfoLines(key: ItemListEntryKey, info: SkyBlockItemInfo?): List<String> = buildList {
+internal fun itemInfoLines(
+    key: ItemListEntryKey,
+    info: SkyBlockItemInfo?,
+    motesSellPrice: Long? = null,
+): List<String> = buildList {
     add("§7ID: §f${key.id}")
     info?.category?.let { add("§7Category: §f$it") }
+    motesSellPrice?.let {
+        add("§7Motes Grubber base value: §d${SkyBlockCurrencyStacks.moteName(it)}")
+    }
     if (info?.lore?.isNotEmpty() == true) {
         addAll(cleanInfoLore(info))
     }

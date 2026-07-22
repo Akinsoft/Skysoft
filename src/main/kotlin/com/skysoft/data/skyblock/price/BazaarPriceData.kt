@@ -9,6 +9,11 @@ data class BazaarPriceData(
     val sellOrderPrice: Double,
 )
 
+data class SkyBlockNpcSellPrices(
+    val coins: Double?,
+    val motes: Double?,
+)
+
 data class SkysoftBazaarResponse(
     val success: Boolean = false,
     val cause: String? = null,
@@ -56,6 +61,8 @@ data class HypixelSkyBlockItem(
     val id: String = "",
     @SerializedName("npc_sell_price")
     val npcSellPrice: Double? = null,
+    @SerializedName("motes_sell_price")
+    val motesSellPrice: Double? = null,
 )
 
 data class SkysoftBazaarDepthProduct(

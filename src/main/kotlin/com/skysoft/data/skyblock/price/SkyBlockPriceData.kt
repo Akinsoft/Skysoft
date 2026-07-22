@@ -68,6 +68,9 @@ object SkyBlockPriceData {
     private var npcSellPrices: Map<String, Double> = emptyMap()
 
     @Volatile
+    private var motesSellPrices: Map<String, Double> = emptyMap()
+
+    @Volatile
     var npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED)
         private set
 
@@ -174,7 +177,8 @@ object SkyBlockPriceData {
 
     fun getLowestBin(itemId: String): Long? = lowestBins[itemId]
 
-    fun getNpcSellPrice(itemId: String): Double? = npcSellPrices[itemId]
+    fun getNpcSellPrices(itemId: String): SkyBlockNpcSellPrices =
+        SkyBlockNpcSellPrices(npcSellPrices[itemId], motesSellPrices[itemId])
 
     internal fun marketSnapshotForRawCraft(): RawCraftMarketSnapshot? {
         if (bazaarStatus.state != BazaarDataLoadState.READY) return null
@@ -210,6 +214,9 @@ object SkyBlockPriceData {
         ticksUntilLowestBinsRefresh = LOWEST_BINS_REFRESH_INTERVAL_TICKS
         refreshBazaar()
         refreshLowestBins()
+        if (shouldRequestNpcSellPrices(System.currentTimeMillis(), lastNpcSellPricesRequestAtMillis)) {
+            refreshNpcSellPrices()
+        }
     }
 
     fun refreshBazaarDepth(
@@ -343,6 +350,7 @@ object SkyBlockPriceData {
                     try {
                         if (error == null && response != null) {
                             npcSellPrices = npcSellPrices(response)
+                            motesSellPrices = motesSellPrices(response)
                             npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.lastUpdated)
                             marketSnapshotVersion.incrementAndGet()
                         } else {
@@ -400,6 +408,7 @@ object SkyBlockPriceData {
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Sharing", ::isRareLootSharingActive)
         lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
+        npcSellPriceConsumers.register("Item List") { hasItemListMarketInterest.get() }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
         }
@@ -509,10 +518,18 @@ internal fun shouldRequestNpcSellPrices(nowMillis: Long, lastRequestAtMillis: Lo
     lastRequestAtMillis <= 0L || nowMillis - lastRequestAtMillis >= NPC_SELL_PRICES_REFRESH_INTERVAL_MILLIS
 
 internal fun npcSellPrices(response: HypixelSkyBlockItemsResponse): Map<String, Double> =
-    response.items.mapNotNull { item ->
-        val price = item.npcSellPrice
-        if (item.id.isBlank() || price == null || !price.isFinite() || price <= 0.0) null else item.id to price
-    }.toMap()
+    itemSellPrices(response, HypixelSkyBlockItem::npcSellPrice)
+
+internal fun motesSellPrices(response: HypixelSkyBlockItemsResponse): Map<String, Double> =
+    itemSellPrices(response, HypixelSkyBlockItem::motesSellPrice)
+
+private fun itemSellPrices(
+    response: HypixelSkyBlockItemsResponse,
+    priceFor: (HypixelSkyBlockItem) -> Double?,
+): Map<String, Double> = response.items.mapNotNull { item ->
+    val price = priceFor(item)
+    if (item.id.isBlank() || price == null || !price.isFinite() || price <= 0.0) null else item.id to price
+}.toMap()
 
 private data class BazaarProducts(
     val products: Map<String, SkysoftBazaarProduct> = emptyMap(),
