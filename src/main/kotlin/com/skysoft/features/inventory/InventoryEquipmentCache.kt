@@ -2,15 +2,60 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
+import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ChangeResult
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftItems
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.nonPlayerInventoryKey
 import com.skysoft.utils.gui.nonPlayerSlots
 import java.util.Locale
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
+
+internal object InventoryEquipmentCache {
+    private val consumers = ActiveConsumerRegistry()
+
+    fun register() {
+        ProfileStorageApi.registerConsumer("Inventory Equipment Cache") { consumers.hasActiveConsumers }
+        SkysoftClientEvents.onEndTick(
+            "Inventory Equipment Cache tick",
+            isActive = { consumers.hasActiveConsumers || lastEquipmentInventoryKey != null },
+        ) { tick() }
+        SkysoftClientEvents.onDisconnect("Inventory Equipment Cache reset", ::reset)
+        SkyBlockProfileApi.onProfileChange(
+            "Inventory Equipment Cache profile reset",
+            { consumers.hasActiveConsumers },
+        ) { reset() }
+    }
+
+    fun registerConsumer(id: String, isActive: () -> Boolean) = consumers.register(id, isActive)
+
+    fun stacks(): List<ItemStack> = inventoryEquipmentStorage.map(::stackFor)
+
+    private fun tick() {
+        if (!consumers.hasActiveConsumers || !HypixelLocationState.inSkyBlock) {
+            reset()
+            return
+        }
+        val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
+            reset()
+            return
+        }
+        readInventoryEquipmentScreen(screen)
+    }
+
+    private fun reset() {
+        lastEquipmentInventoryKey = null
+    }
+}
+
+private val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStorageItemData>
+    get() = ProfileStorageApi.storage.inventoryEquipment.also(::repairInventoryEquipmentItems)
 
 internal var lastEquipmentInventoryKey: String? = null
 

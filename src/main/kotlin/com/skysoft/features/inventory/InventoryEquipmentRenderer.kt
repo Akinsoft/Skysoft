@@ -30,7 +30,7 @@ internal fun renderInventoryEquipment(
     if (!shouldShowInventoryEquipment(screen)) return
 
     val slots = equipmentSlotLayouts.getOrPut(screen, ::InventoryEquipmentSlotLayout)
-    slots.setItems(cachedInventoryEquipmentStacks())
+    slots.setItems(InventoryEquipmentCache.stacks())
     for ((index, geometry) in inventoryEquipmentSlotGeometry(screen).withIndex()) {
         val hovered = geometry.screenBounds.contains(mouseX, mouseY)
         val renderBounds = geometry.localBounds

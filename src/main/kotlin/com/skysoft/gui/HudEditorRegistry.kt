@@ -25,6 +25,7 @@ interface HudEditorElement {
     val canScale: Boolean get() = true
     val hasEditorBackground: Boolean get() = true
     val keepsInsideScreen: Boolean get() = false
+    val layoutOffsetY: Int get() = 0
     val editorLeftPadding: Int get() = 0
     val usesInventoryScale: Boolean get() = false
     val requiresInventoryScreen: Boolean get() = false
@@ -39,7 +40,7 @@ interface HudEditorElement {
     } else {
         position.getAbsX0AllowingOverflow(width)
     }
-    fun absoluteY(height: Int): Int = if (keepsInsideScreen) {
+    fun absoluteY(height: Int): Int = layoutOffsetY + if (keepsInsideScreen) {
         position.getAbsY0(height)
     } else {
         position.getAbsY0AllowingOverflow(height)

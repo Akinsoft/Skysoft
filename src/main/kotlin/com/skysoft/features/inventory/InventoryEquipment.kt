@@ -1,33 +1,25 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.ProfileStorage
-import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.Slot
-import net.minecraft.world.item.ItemStack
 
 object InventoryEquipment {
     @JvmStatic
     fun register() {
-        ProfileStorageApi.registerConsumer("Inventory Equipment") { inventoryEquipmentConfig.enabled }
-        SkysoftClientEvents.onEndTick(
-            "Inventory Equipment tick",
-            isActive = { inventoryEquipmentConfig.enabled || lastEquipmentInventoryKey != null },
-        ) { tickInventoryEquipment() }
+        InventoryEquipmentCache.registerConsumer("Inventory screen") { inventoryEquipmentConfig.enabled }
         SkysoftClientEvents.onDisconnect(
-            "Inventory Equipment disconnect reset",
-            ::resetInventoryEquipmentRuntimeState,
+            "Inventory Equipment screen reset",
+            ::restoreAllInventoryEquipmentSlotLayouts,
         )
-        SkyBlockProfileApi.onProfileChange("Inventory Equipment profile reset", { inventoryEquipmentConfig.enabled }) {
-            resetInventoryEquipmentRuntimeState()
+        SkyBlockProfileApi.onProfileChange("Inventory Equipment screen profile reset", { inventoryEquipmentConfig.enabled }) {
+            restoreAllInventoryEquipmentSlotLayouts()
         }
     }
 
@@ -53,31 +45,8 @@ object InventoryEquipment {
     fun isEquipmentSlot(slot: Slot?): Boolean = isInventoryEquipmentSlot(slot)
 }
 
-internal val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStorageItemData>
-    get() = ProfileStorageApi.storage.inventoryEquipment.also(::repairInventoryEquipmentItems)
-
-internal fun cachedInventoryEquipmentStacks(): List<ItemStack> =
-    inventoryEquipmentStorage.map { stackFor(it) }
-
 internal val inventoryEquipmentConfig
     get() = SkysoftConfigGui.config().inventory.inventoryEquipment
 
 internal fun isInventoryEquipmentAvailable(): Boolean =
     inventoryEquipmentConfig.enabled && HypixelLocationState.inSkyBlock
-
-internal fun resetInventoryEquipmentRuntimeState() {
-    lastEquipmentInventoryKey = null
-    restoreAllInventoryEquipmentSlotLayouts()
-}
-
-private fun tickInventoryEquipment() {
-    if (!isInventoryEquipmentAvailable()) {
-        lastEquipmentInventoryKey = null
-        return
-    }
-    val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
-        lastEquipmentInventoryKey = null
-        return
-    }
-    readInventoryEquipmentScreen(screen)
-}

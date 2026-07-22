@@ -1,6 +1,7 @@
 package com.skysoft.features.misc.selecteditem
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.ColorUtilities.ARGB_ALPHA_SHIFT
@@ -26,6 +27,7 @@ object SelectedItemName {
             override val id: String = "selected_item_name"
             override val label: String = "Selected Item Name"
             override val position get() = config.position
+            override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
             override val hasEditorBackground: Boolean get() = !config.details.background
             override fun width(): Int = currentRenderable()?.width ?: 0
             override fun height(): Int = currentRenderable()?.height ?: 0

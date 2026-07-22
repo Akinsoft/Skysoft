@@ -46,6 +46,8 @@ import com.skysoft.features.inventory.InventoryButtonEditorScreen
 import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.InventoryEquipmentCache
+import com.skysoft.features.inventory.InventoryHud
 import com.skysoft.features.inventory.ItemChangeLog
 import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.MaxEnchantChroma
@@ -145,27 +147,14 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Chat Image Preview", ImageLinkPreview::register)
         registerFeature("Screen Alert Renderer", ScreenAlertRenderer::register)
         registerFeature("Lotum Helper", LotumHelper::register)
-        registerFeature("Price Tooltips", PriceTooltips::register)
-        registerFeature("Item Change Log", ItemChangeLog::register)
+        registerInventoryFeatures()
         registerFeature("Profit Tracker", ProfitTracker::register)
-        registerFeature("Max Enchant Chroma", MaxEnchantChroma::register)
-        registerFeature("Minister in Calendar", MinisterCalendarTooltip::register)
-        registerFeature("Storage Previews", StoragePreviews::register)
-        registerFeature("Full Inventory Warning", FullInventoryWarning::register)
-        registerFeature("Inventory Buttons", InventoryButtonManager::register)
-        registerFeature("Inventory Equipment", InventoryEquipment::register)
-        registerFeature("Slot Bindings", ::registerSlotBindingStorage)
-        registerFeature("Slot Locking", SlotLockManager::register)
-        registerFeature("Protect Item", ItemProtectionManager::register)
-        registerFeature("Item List", ItemListController::register)
-        registerFeature("Item List Waypoints", ItemListNpcWaypoint::register)
-        registerFeature("Storage Overlay", StorageOverlayController::register)
-        registerFeature("Smooth Swapping", SmoothSwapping::register)
         registerFeature("Chat History", ChatHistoryPersistence::register)
         registerFeature("Chat Tabs", ChatTabs::register)
         registerFeature("Selected Item Name", SelectedItemName::register)
         registerFeature("Action Bar Background", ActionBarBackground::register)
         registerFeature("Custom Bars", CustomBars::register)
+        registerFeature("Inventory HUD", InventoryHud::register)
         registerFeature("Better TAB", BetterTab::register)
         registerFeature("Day Display", DayDisplay::register)
         registerFeature("Real Time Display", RealTimeDisplay::register)
@@ -217,6 +206,25 @@ class SkysoftMod : ClientModInitializer {
         SkysoftClientEvents.onEndTick("Item List search opening", ItemListSearchCommand::hasPendingScreen) {
             ItemListSearchCommand.openPending()
         }
+    }
+
+    private fun registerInventoryFeatures() {
+        registerFeature("Price Tooltips", PriceTooltips::register)
+        registerFeature("Item Change Log", ItemChangeLog::register)
+        registerFeature("Max Enchant Chroma", MaxEnchantChroma::register)
+        registerFeature("Minister in Calendar", MinisterCalendarTooltip::register)
+        registerFeature("Storage Previews", StoragePreviews::register)
+        registerFeature("Full Inventory Warning", FullInventoryWarning::register)
+        registerFeature("Inventory Buttons", InventoryButtonManager::register)
+        registerFeature("Inventory Equipment Cache", InventoryEquipmentCache::register)
+        registerFeature("Inventory Equipment", InventoryEquipment::register)
+        registerFeature("Slot Bindings", ::registerSlotBindingStorage)
+        registerFeature("Slot Locking", SlotLockManager::register)
+        registerFeature("Protect Item", ItemProtectionManager::register)
+        registerFeature("Item List", ItemListController::register)
+        registerFeature("Item List Waypoints", ItemListNpcWaypoint::register)
+        registerFeature("Storage Overlay", StorageOverlayController::register)
+        registerFeature("Smooth Swapping", SmoothSwapping::register)
     }
 
     private fun registerSkyBlockTrackingApis() {
