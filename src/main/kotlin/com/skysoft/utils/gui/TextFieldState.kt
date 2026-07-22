@@ -105,7 +105,14 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     }
 
     fun keyPressed(event: KeyEvent): InputHandlingResult {
-        val control = event.modifiers() and GLFW.GLFW_MOD_CONTROL != 0
+        val control = event.hasControlDownWithQuirk()
+        if (event.isCopy()) {
+            val selection = selection()
+            Minecraft.getInstance().keyboardHandler.setClipboard(
+                selection?.let { text.substring(it.start, it.endExclusive) }.orEmpty(),
+            )
+            return InputHandlingResult.CONSUMED
+        }
         return when (event.key()) {
             GLFW.GLFW_KEY_BACKSPACE -> {
                 deleteBeforeCursor(control)
@@ -121,9 +128,9 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
                 focused = false
                 InputHandlingResult.CONSUMED
             }
-            GLFW.GLFW_KEY_V -> if (control) pasteClipboard() else InputHandlingResult.IGNORED
+            GLFW.GLFW_KEY_V -> if (event.isPaste()) pasteClipboard() else InputHandlingResult.IGNORED
             GLFW.GLFW_KEY_A -> {
-                if (control) {
+                if (event.isSelectAll()) {
                     selectAll()
                     InputHandlingResult.CONSUMED
                 } else {
