@@ -15,12 +15,14 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemChangeBatch
 import com.skysoft.data.skyblock.SkyBlockItemChangeSource
 import com.skysoft.data.skyblock.SkyBlockItemNames
-import com.skysoft.data.skyblock.SkyBlockPurseChanges
+import com.skysoft.data.skyblock.SKYBLOCK_COINS
+import com.skysoft.data.skyblock.SkyBlockCurrencyChanges
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockSlayerType
+import com.skysoft.data.skyblock.SlayerMessageParser
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.BazaarPriceData
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
@@ -30,6 +32,7 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import java.time.LocalDate
+import kotlin.math.roundToLong
 import net.fabricmc.fabric.api.event.client.player.ClientPlayerBlockBreakEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -39,7 +42,7 @@ import net.minecraft.world.level.block.Blocks
 object ProfitTracker {
     private val configs get() = SkysoftConfigGui.config().profitTrackers
     private val sessionStats = mutableMapOf<String, ProfileStorage.ProfitTrackerStats>()
-    private var pendingQuestStart = false
+    private val questCostCapture = SlayerQuestCostCapture()
     private var attributionPreset: ProfitTrackerPreset? = null
     private var inactiveAttributionTicks = 0
     private var durationPreset: ProfitTrackerPreset? = null
@@ -60,7 +63,9 @@ object ProfitTracker {
         PetRepository.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         itemTracking.register({ configs.isAnyEnabled() }, ::recordItemChanges)
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, state -> recordFarmingBlock(state.block) }
-        SkyBlockPurseChanges.onChange("Profit Tracker coins", { configs.isAnyEnabled() }) { change ->
+        SkyBlockCurrencyChanges.onChange("Profit Tracker currency changes", { configs.isAnyEnabled() }) { change ->
+            questCostCapture.recordChange(change.currency, change.amount)
+            if (change.currency != SKYBLOCK_COINS) return@onChange
             val preset = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset ?: return@onChange
             if (!shouldTrackCoinGain(preset, change.amount, lastActivityAtMillis[preset])) return@onChange
             markActivity(preset)
@@ -73,11 +78,22 @@ object ProfitTracker {
             recordFarmingMessage(message.cleanText)
             ChatMessageVisibility.SHOW
         }
+        ChatEvents.onVisibleMessage(
+            "Profit Tracker auto-slayer bank costs",
+            { configs.isAnyEnabled() },
+        ) { message ->
+            if (message.isSystemLike) {
+                SlayerMessageParser.parseAutoSlayerBankCost(message.cleanText)?.let { cost ->
+                    questCostCapture.recordCost(SKYBLOCK_COINS, cost)
+                }
+            }
+            ChatMessageVisibility.SHOW
+        }
         SlayerQuestState.onQuestStarted {
-            if (configs.isAnyEnabled()) pendingQuestStart = true
+            if (configs.isAnyEnabled()) questCostCapture.questStarted()
         }
         SlayerQuestState.onQuestComplete { quest ->
-            pendingQuestStart = false
+            questCostCapture.clear()
             if (!configs.isAnyEnabled()) return@onQuestComplete
             val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
                 ?: return@onQuestComplete
@@ -121,15 +137,12 @@ object ProfitTracker {
                 attributionPreset = null
                 inactiveAttributionTicks = 0
             }
-            if (!pendingQuestStart) return@onEndTick
+            questCostCapture.clearExpired()
             val preset = questPreset ?: return@onEndTick
-            val type = preset.slayerType ?: return@onEndTick
-            val tier = SlayerQuestState.tier ?: return@onEndTick
-            pendingQuestStart = false
-            val cost = type.questCost(tier) ?: return@onEndTick
+            val cost = questCostCapture.take() ?: return@onEndTick
             markActivity(preset)
             update(preset) { stats ->
-                stats.costs[type.costCurrency] = stats.costs.getOrDefault(type.costCurrency, 0L) + cost
+                stats.costs[cost.currency] = stats.costs.getOrDefault(cost.currency, 0L) + cost.amount
             }
         }
         SkysoftClientEvents.onDisconnect("Profit Tracker session reset", ::resetSession)
@@ -336,7 +349,7 @@ object ProfitTracker {
 
     private fun resetSession() {
         sessionStats.clear()
-        pendingQuestStart = false
+        questCostCapture.clear()
         attributionPreset = null
         inactiveAttributionTicks = 0
         durationPreset = null
@@ -347,6 +360,45 @@ object ProfitTracker {
         itemTracking.clear()
         craftingReconciliation.clear()
         pendingReplenishCosts.clear()
+    }
+}
+
+internal data class SlayerQuestCost(val currency: String, val amount: Long)
+
+internal class SlayerQuestCostCapture(
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
+) {
+    private var questStartedAtMillis: Long? = null
+    private var cost: SlayerQuestCost? = null
+
+    fun questStarted() {
+        val now = currentTimeMillis()
+        if (questStartedAtMillis?.let { now - it in 0..QUEST_COST_CAPTURE_MILLIS } != true) cost = null
+        questStartedAtMillis = now
+    }
+
+    fun recordChange(currency: String, change: Double) {
+        val startedAt = questStartedAtMillis ?: return
+        if (cost != null || change >= 0.0 || currentTimeMillis() - startedAt !in 0..QUEST_COST_CAPTURE_MILLIS) return
+        recordCost(currency, (-change).roundToLong())
+    }
+
+    fun recordCost(currency: String, amount: Long) {
+        if (amount <= 0L) return
+        questStartedAtMillis = currentTimeMillis()
+        cost = SlayerQuestCost(currency, amount)
+    }
+
+    fun take(): SlayerQuestCost? = cost?.also { clear() }
+
+    fun clearExpired() {
+        val startedAt = questStartedAtMillis ?: return
+        if (cost == null && currentTimeMillis() - startedAt > QUEST_COST_CAPTURE_MILLIS) clear()
+    }
+
+    fun clear() {
+        questStartedAtMillis = null
+        cost = null
     }
 }
 
@@ -401,6 +453,7 @@ internal fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, c
     }
 }
 
+private const val QUEST_COST_CAPTURE_MILLIS = 1_500L
 private const val ATTRIBUTION_GRACE_TICKS = 2
 private const val DURATION_UPDATE_TICKS = 20
 private const val DURATION_UPDATE_MILLIS = 1_000L
