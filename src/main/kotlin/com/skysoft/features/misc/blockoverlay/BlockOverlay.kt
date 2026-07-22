@@ -1,16 +1,9 @@
 package com.skysoft.features.misc.blockoverlay
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
-import com.skysoft.features.misc.conditions.FeatureConditionActivationCache
-import com.skysoft.features.misc.conditions.FeatureConditionActivationKey
-import com.skysoft.features.misc.conditions.FeatureConditionContext
-import com.skysoft.features.misc.conditions.FeatureConditionVersion
-import com.skysoft.features.misc.conditions.FeatureConditions
-import com.skysoft.features.misc.conditions.FeatureItemConditionCatalogue
-import com.skysoft.features.misc.conditions.FeatureItemConditionCommand
+import com.skysoft.features.misc.conditions.FeatureConditionState
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.render.BlockHighlightRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -28,12 +21,10 @@ import kotlin.math.roundToInt
 
 object BlockOverlay {
     private var pendingTarget: BlockOverlayTarget? = null
-    private val activationCache = FeatureConditionActivationCache()
-    private val conditionVersion = FeatureConditionVersion()
-    private val itemCatalogue = FeatureItemConditionCatalogue()
+    private val conditions = FeatureConditionState()
 
     fun register() {
-        itemCatalogue.startSession(config.settings.combinations)
+        conditions.startSession(config.settings.combinations)
         SkyBlockEventState.registerConsumer("Block Overlay") { config.enabled }
         WorldRenderDispatcher.registerHandler(
             "Block Overlay world rendering",
@@ -83,41 +74,21 @@ object BlockOverlay {
     }
 
     fun addHeldItem(source: FabricClientCommandSource): Int {
-        return FeatureItemConditionCommand.addHeldItem(
-            source = source,
-            featureName = "Block Overlay",
-            combinations = config.settings.combinations,
-            catalogue = itemCatalogue,
-            onChanged = conditionVersion::markChanged,
-        )
+        return conditions.addHeldItem(source, "Block Overlay", config.settings.combinations)
     }
 
     private fun isFeatureActivationAllowed(heldItemId: String?): Boolean {
         val settings = config.settings
-        val key = FeatureConditionActivationKey(
-            locationVersion = HypixelLocationState.locationVersion,
-            eventVersion = SkyBlockEventState.version,
-            rulesVersion = conditionVersion.version,
-            heldItemId = heldItemId,
-            isConditionActivationReversed = settings.isConditionActivationReversed,
+        return conditions.isActivationAllowed(
+            settings.combinations,
+            heldItemId,
+            settings.isConditionActivationReversed,
         )
-        return activationCache.isActivationAllowed(key) {
-            FeatureConditions.isActivationAllowed(
-                settings.combinations,
-                FeatureConditionContext(
-                    isInSkyBlock = HypixelLocationState.inSkyBlock,
-                    island = HypixelLocationState.currentIsland,
-                    activeEvents = SkyBlockEventState.activeEvents(),
-                    heldItemId = heldItemId,
-                ),
-                isConditionActivationReversed = settings.isConditionActivationReversed,
-            )
-        }
     }
 
-    internal fun itemConditions() = itemCatalogue.conditions()
+    internal fun itemConditions() = conditions.itemConditions()
 
-    internal fun markConditionsChanged() = conditionVersion.markChanged()
+    internal fun markConditionsChanged() = conditions.markChanged()
 
     private fun renderWorld(context: SkysoftRenderContext) {
         val target = pendingTarget ?: return
