@@ -23,7 +23,7 @@ import com.skysoft.data.skyblock.SkyBlockDroppedItems
 import com.skysoft.data.skyblock.SkyBlockInventoryChanges
 import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
-import com.skysoft.data.skyblock.SkyBlockPurseChanges
+import com.skysoft.data.skyblock.SkyBlockCurrencyChanges
 import com.skysoft.data.skyblock.SkyBlockSackChanges
 import com.skysoft.data.skyblock.SkyBlockSackTransfers
 import com.skysoft.data.skyblock.SkyBlockSackContents
@@ -223,7 +223,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("SkyBlock Dropped Items", SkyBlockDroppedItems::register)
         registerFeature("SkyBlock Sack Transfers", SkyBlockSackTransfers::register)
         registerFeature("SkyBlock Open Inventory API", SkyBlockOpenInventoryApi::register)
-        registerFeature("SkyBlock Purse Changes", SkyBlockPurseChanges::register)
+        registerFeature("SkyBlock Currency Changes", SkyBlockCurrencyChanges::register)
         registerFeature("SkyBlock Sacks Changes", SkyBlockSackChanges::register)
         registerFeature("SkyBlock Item Changes", SkyBlockItemChanges::register)
     }

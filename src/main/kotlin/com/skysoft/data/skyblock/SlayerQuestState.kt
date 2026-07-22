@@ -1,10 +1,12 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.SidebarScoreboard
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import kotlin.math.roundToLong
 
 object SlayerQuestState {
     private var snapshot = SlayerQuestSnapshot.NONE
@@ -103,7 +105,18 @@ object SlayerMessageParser {
 
     fun isQuestComplete(message: String): Boolean = message.trim() == SLAYER_QUEST_COMPLETE_MESSAGE
 
+    fun parseAutoSlayerBankCost(message: String): Long? =
+        autoSlayerBankPattern.matchEntire(message)
+            ?.groups
+            ?.get("coins")
+            ?.value
+            ?.formatDoubleOrNull()
+            ?.roundToLong()
+
     private val slayerMinibossSpawnPattern = Regex("""^SLAYER MINI-BOSS (?<name>.+?) has spawned!$""")
+    private val autoSlayerBankPattern = Regex(
+        """^Took (?<coins>[\d,.]+[kKmMbB]?) coins from your bank for auto-slayer\.\.\.$""",
+    )
     private const val SLAYER_BOSS_COCOONED_MESSAGE = "YOU COCOONED YOUR SLAYER BOSS"
     private const val SLAYER_QUEST_STARTED_MESSAGE = "SLAYER QUEST STARTED!"
     private const val SLAYER_QUEST_COMPLETE_MESSAGE = "SLAYER QUEST COMPLETE!"
@@ -112,18 +125,14 @@ object SlayerMessageParser {
 enum class SkyBlockSlayerType(
     val displayName: String,
     val bossEntityPrefix: String,
-    val questCosts: List<Long>,
-    val costCurrency: String = "Coins",
 ) {
-    ZOMBIE("Zombie", "REVENANT_HORROR", listOf(2_000, 7_500, 20_000, 50_000, 100_000)),
-    SPIDER("Spider", "TARANTULA_BROODFATHER", listOf(2_000, 7_500, 20_000, 50_000, 100_000)),
-    WOLF("Wolf", "SVEN_PACKMASTER", listOf(2_000, 7_500, 20_000, 50_000)),
-    ENDERMAN("Enderman", "VOIDGLOOM_SERAPH", listOf(2_000, 7_500, 20_000, 50_000)),
-    BLAZE("Blaze", "INFERNO_DEMONLORD", listOf(10_000, 25_000, 60_000, 150_000)),
-    VAMPIRE("Vampire", "RIFTSTALKER_BLOODFIEND", listOf(2_000, 4_000, 5_000, 7_000, 10_000), "Motes"),
+    ZOMBIE("Zombie", "REVENANT_HORROR"),
+    SPIDER("Spider", "TARANTULA_BROODFATHER"),
+    WOLF("Wolf", "SVEN_PACKMASTER"),
+    ENDERMAN("Enderman", "VOIDGLOOM_SERAPH"),
+    BLAZE("Blaze", "INFERNO_DEMONLORD"),
+    VAMPIRE("Vampire", "RIFTSTALKER_BLOODFIEND"),
     ;
-
-    fun questCost(tier: Int): Long? = questCosts.getOrNull(tier - 1)
 
     fun bossEntityId(tier: Int): String = "${bossEntityPrefix}_${tier}_BOSS"
 
