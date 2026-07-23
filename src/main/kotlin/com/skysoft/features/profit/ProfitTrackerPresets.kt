@@ -23,9 +23,7 @@ internal object ProfitTrackerPresets {
         }
         val resource = stream.bufferedReader().use { reader -> Gson().fromJson(reader, PresetResource::class.java) }
         return ProfitTrackerPreset.entries.associateWith { type ->
-            val data = requireNotNull(
-                type.slayerType?.let { resource.slayer[it.name] } ?: resource.farming,
-            ) { "Profit Tracker is missing the ${type.name} preset" }
+            val data = requireNotNull(resource.data(type)) { "Profit Tracker is missing the ${type.name} preset" }
             ProfitPreset(
                 islands = data.islands.filter(String::isNotBlank).toSet().also { require(it.isNotEmpty()) },
                 areas = data.areas.filter(String::isNotBlank).toSet(),
@@ -37,7 +35,14 @@ internal object ProfitTrackerPresets {
     private data class PresetResource(
         val slayer: Map<String, PresetData> = emptyMap(),
         val farming: PresetData? = null,
-    )
+        val mining: PresetData? = null,
+    ) {
+        fun data(type: ProfitTrackerPreset): PresetData? = when (type) {
+            ProfitTrackerPreset.FARMING -> farming
+            ProfitTrackerPreset.MINING -> mining
+            else -> type.slayerType?.let { slayer[it.name] }
+        }
+    }
 
     private data class PresetData(
         val islands: List<String> = emptyList(),
@@ -59,6 +64,7 @@ internal enum class ProfitTrackerPreset(
     BLAZE("Blaze Slayer", SkyBlockSlayerType.BLAZE),
     VAMPIRE("Vampire Slayer", SkyBlockSlayerType.VAMPIRE),
     FARMING("Farming", coinLabel = "Bountiful Coins", actionLabel = "Pests Vacuumed"),
+    MINING("Mining"),
     ;
 
     companion object {
