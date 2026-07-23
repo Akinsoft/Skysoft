@@ -73,9 +73,16 @@ object ProfitTracker {
         }
         ChatEvents.onVisibleMessage(
             "Profit Tracker pest kills",
-            { presetConfig(ProfitTrackerPreset.FARMING).enabled && currentPreset == ProfitTrackerPreset.FARMING },
+            { isInPresetArea(ProfitTrackerPreset.FARMING) },
         ) { message ->
-            recordFarmingMessage(message.cleanText)
+            recordImmediateMessage(ProfitTrackerPreset.FARMING, message.cleanText)
+            ChatMessageVisibility.SHOW
+        }
+        ChatEvents.onVisibleMessage(
+            "Profit Tracker Pristine drops",
+            { isInPresetArea(ProfitTrackerPreset.MINING) },
+        ) { message ->
+            recordImmediateMessage(ProfitTrackerPreset.MINING, message.cleanText)
             ChatMessageVisibility.SHOW
         }
         ChatEvents.onVisibleMessage(
@@ -231,16 +238,19 @@ object ProfitTracker {
         }
     }
 
-    private fun recordFarmingMessage(message: String) {
-        parseFarmingChatDrop(message)?.let { drop ->
-            markActivity(ProfitTrackerPreset.FARMING)
-            val itemId = SkyBlockItemNames.itemId(drop.displayName) ?: return@let
-            itemTracking.suppressGain(itemId, drop.amount)
-            update(ProfitTrackerPreset.FARMING) { stats ->
-                applyTrackedItemChanges(stats, mapOf(itemId to drop.amount))
-            }
+    private fun recordImmediateMessage(preset: ProfitTrackerPreset, message: String) {
+        val drop = when (preset) {
+            ProfitTrackerPreset.FARMING -> parseFarmingChatDrop(message)
+            ProfitTrackerPreset.MINING -> parseMiningChatDrop(message)
+            else -> null
         }
-        if (isCountedPestKillMessage(message)) {
+        drop?.let {
+            val itemId = SkyBlockItemNames.itemId(it.displayName) ?: return@let
+            markActivity(preset)
+            itemTracking.suppressGain(itemId, it.amount)
+            update(preset) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
+        }
+        if (preset == ProfitTrackerPreset.FARMING && isCountedPestKillMessage(message)) {
             markActivity(ProfitTrackerPreset.FARMING)
             update(ProfitTrackerPreset.FARMING) { stats -> stats.actions++ }
         }
@@ -416,6 +426,7 @@ internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
     with(SkysoftConfigGui.config().profitTrackers) {
         when (preset) {
             ProfitTrackerPreset.FARMING -> farming
+            ProfitTrackerPreset.MINING -> mining
             ProfitTrackerPreset.ZOMBIE -> zombie
             ProfitTrackerPreset.SPIDER -> spider
             ProfitTrackerPreset.WOLF -> wolf
@@ -481,16 +492,23 @@ private fun shouldTrackCoinGain(
     return HypixelLocationState.currentIsland == SkyBlockIsland.GARDEN && recentlyFarmed && modifier == "bountiful"
 }
 
-internal data class FarmingChatDrop(val displayName: String, val amount: Int)
-
-internal fun parseFarmingChatDrop(message: String): FarmingChatDrop? {
+internal fun parseFarmingChatDrop(message: String): ParsedItemAmount? {
     val match = FARMING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
-    val itemName = match.groups["item"]?.value ?: return null
-    val amount = runCatching { match.groups["amount"]?.value }.getOrNull()
+    return match.parsedItemAmount()
+}
+
+internal fun parseMiningChatDrop(message: String): ParsedItemAmount? {
+    val match = MINING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
+    return match.parsedItemAmount()
+}
+
+private fun MatchResult.parsedItemAmount(): ParsedItemAmount? {
+    val itemName = groups["item"]?.value ?: return null
+    val amount = runCatching { groups["amount"]?.value }.getOrNull()
         ?.replace(",", "")
         ?.toIntOrNull()
         ?: 1
-    return FarmingChatDrop(itemName, amount)
+    return ParsedItemAmount(itemName, amount)
 }
 
 internal data class ReplenishCrop(val harvestItemId: String, val costItemId: String)
@@ -552,6 +570,10 @@ private val FARMING_DROP_PATTERNS = listOf(
     Regex("^ABOUT TIME! You find an? (?<item>.+?) \\(.*\\)!$"),
     Regex("^OVERFLOW! Your .+ has just dropped an? (?<item>Tool Exp Capsule)!$"),
     Regex("^(?:RARE|PET) DROP! (?<item>.+?)(?: x(?<amount>\\d+))? \\(.*\\)!?$"),
+)
+private val MINING_DROP_PATTERNS = listOf(
+    Regex("^PRISTINE! You found (?<item>\\S Flawed [\\w ]+ Gemstone) x(?<amount>[\\d,]+)!$"),
+    Regex("^COMPACT! You found an? (?<item>.+)!$"),
 )
 
 enum class ProfitTrackingPeriod(val displayName: String) {

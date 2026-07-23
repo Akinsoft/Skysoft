@@ -21,6 +21,17 @@ class ProfitTrackersConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Mining", desc = "Track Mining profit.")
+    val mining = ProfitTrackerConfig(
+        listOf(
+            ProfitTrackerSummaryLine.TOTAL_PROFIT,
+            ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
+            ProfitTrackerSummaryLine.UPTIME,
+        ),
+    )
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Zombie Slayer", desc = "Track Zombie Slayer profit.")
     val zombie = ProfitTrackerConfig()
 
@@ -49,11 +60,11 @@ class ProfitTrackersConfig {
     @field:Category(name = "Vampire Slayer", desc = "Track Vampire Slayer profit.")
     val vampire = ProfitTrackerConfig()
 
-    fun isAnyEnabled(): Boolean = farming.enabled || zombie.enabled || spider.enabled || wolf.enabled ||
+    fun isAnyEnabled(): Boolean = farming.enabled || mining.enabled || zombie.enabled || spider.enabled || wolf.enabled ||
         enderman.enabled || blaze.enabled || vampire.enabled
 }
 
-class ProfitTrackerConfig {
+class ProfitTrackerConfig(summaryLines: List<ProfitTrackerSummaryLine> = ProfitTrackerSummaryLine.entries) {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Track profit for this activity.")
@@ -72,7 +83,7 @@ class ProfitTrackerConfig {
     @field:ConfigOption(name = "Details", desc = "Profit Tracker appearance.")
     @field:Accordion
     @field:ConfigVisibleIf("enabled")
-    val details = ProfitTrackerDetailsConfig()
+    val details = ProfitTrackerDetailsConfig(summaryLines)
 
     @JvmField
     @field:Expose
@@ -99,7 +110,7 @@ class ProfitTrackerSettingsConfig {
     var maximumItems = 8
 }
 
-class ProfitTrackerDetailsConfig {
+class ProfitTrackerDetailsConfig(defaultSummaryLines: List<ProfitTrackerSummaryLine> = ProfitTrackerSummaryLine.entries) {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Show Item Icons", desc = "Show item icons beside tracked drops.")
@@ -116,16 +127,8 @@ class ProfitTrackerDetailsConfig {
     @field:Expose
     @field:ConfigOption(name = "Summary Lines", desc = "Choose and reorder the summary lines shown by the tracker.")
     @field:ConfigEditorDraggableList
-    val summaryLines: Property<MutableList<ProfitTrackerSummaryLine>> = Property.of(
-        mutableListOf(
-            ProfitTrackerSummaryLine.COINS,
-            ProfitTrackerSummaryLine.QUEST_COSTS,
-            ProfitTrackerSummaryLine.TOTAL_PROFIT,
-            ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
-            ProfitTrackerSummaryLine.ACTIONS,
-            ProfitTrackerSummaryLine.UPTIME,
-        ),
-    )
+    val summaryLines: Property<MutableList<ProfitTrackerSummaryLine>> =
+        Property.of(defaultSummaryLines.toMutableList())
 
     @JvmField
     @field:Expose
