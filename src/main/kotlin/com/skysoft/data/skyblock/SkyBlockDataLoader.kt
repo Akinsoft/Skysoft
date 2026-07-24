@@ -30,6 +30,7 @@ internal object SkyBlockDataLoader {
             supplementalJson = resourceText(CatalogResources.SUPPLEMENTAL),
             enchantmentsJson = resourceText(CatalogResources.ENCHANTMENTS),
             attributeShardsJson = resourceText(CatalogResources.ATTRIBUTE_SHARDS),
+            mergeBundledItems = false,
         )
     }
 
@@ -42,6 +43,7 @@ internal object SkyBlockDataLoader {
         supplementalJson: String = resourceText(CatalogResources.SUPPLEMENTAL),
         enchantmentsJson: String = resourceText(CatalogResources.ENCHANTMENTS),
         attributeShardsJson: String = resourceText(CatalogResources.ATTRIBUTE_SHARDS),
+        mergeBundledItems: Boolean = true,
     ): SkyBlockDataSnapshot {
         require(itemsJson.length in CatalogLimits.MINIMUM_ITEMS_BYTES..CatalogLimits.MAXIMUM_ITEMS_BYTES) {
             "Item List item data has an invalid size"
@@ -64,7 +66,8 @@ internal object SkyBlockDataLoader {
         require(enchantmentsJson.length in CatalogLimits.MINIMUM_ENCHANTMENTS_BYTES..CatalogLimits.MAXIMUM_ENCHANTMENTS_BYTES) {
             "Item List enchantment data has an invalid size"
         }
-        val items = readItems(itemsJson)
+        val loadedItems = readItems(itemsJson)
+        val items = if (mergeBundledItems) mergeMissingBundledItems(loadedItems) else loadedItems
         require(items.size >= CatalogLimits.MINIMUM_ITEM_COUNT) { "Bundled Item List contains only ${items.size} items" }
         val supplemental = SkyBlockAuxiliaryDataLoader.readSupplemental(supplementalJson)
         val recipes = readRecipes(recipesJson, supplemental.progressionRequirements)
@@ -211,6 +214,12 @@ internal object SkyBlockDataLoader {
 
     private fun readItems(json: String): List<SkyBlockItemJson> = StringReader(json).use { reader ->
         gson.fromJson(reader, Array<SkyBlockItemJson>::class.java).orEmpty().toList()
+    }
+
+    private fun mergeMissingBundledItems(items: List<SkyBlockItemJson>): List<SkyBlockItemJson> {
+        val itemIds = items.mapNotNullTo(mutableSetOf(), SkyBlockItemJson::internalName)
+        val bundledItems = readItems(resourceText(CatalogResources.ITEMS))
+        return items + bundledItems.filter { item -> item.internalName?.let(itemIds::add) == true }
     }
 
     private fun soldByItem(

@@ -23,6 +23,7 @@ object SkyBlockItemId {
             "RUNE" -> extraAttributes.runeId() ?: itemId
             "PET" -> extraAttributes.petId() ?: itemId
             "ATTRIBUTE_SHARD" -> extraAttributes.attributeShardId() ?: itemId
+            "POTION" -> potionInternalName(extraAttributes)
             else -> itemId
         }
     }
@@ -61,3 +62,15 @@ object SkyBlockItemId {
 
 internal fun attributeShardInternalName(attributeName: String): String =
     "ATTRIBUTE_SHARD_${attributeName.uppercase(Locale.US)};1"
+
+internal fun potionInternalName(extraAttributes: CompoundTag): String {
+    val level = extraAttributes.getIntOrNull("potion_level") ?: 0
+    val potionName = extraAttributes.getStringOrNull("potion_name")?.replace(' ', '_')
+        ?: extraAttributes.getStringOrNull("potion")
+    val potionType = extraAttributes.getStringOrNull("potion_type")
+    return when {
+        potionName != null -> "POTION_${potionName.uppercase(Locale.US)};$level"
+        potionType != null -> "POTION_${potionType.uppercase(Locale.US)}"
+        else -> "WATER_BOTTLE"
+    }
+}

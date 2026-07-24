@@ -77,6 +77,8 @@ internal object SkyBlockEntityCatalog {
         )
         "attribute" -> string("id").takeIf(String::isNotBlank)?.let { "ATTRIBUTE_SHARD_$it;1" }
         "pet" -> petItemKey("${string("pet")};${string("tier")}")?.id
+        "potion" -> string("id").takeIf(String::isNotBlank)?.let { "$it;${get("level")?.asInt ?: 1}" }
+        "rune" -> string("id").takeIf(String::isNotBlank)?.let { "${it}_RUNE;${get("tier")?.asInt ?: 1}" }
         else -> string("id").takeIf(String::isNotBlank)
     }
 
