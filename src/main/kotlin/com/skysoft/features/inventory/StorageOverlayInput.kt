@@ -1,45 +1,28 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
-import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.gui.Rect
-import com.skysoft.utils.input.InputHandlingResult
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
-import org.lwjgl.glfw.GLFW
 
 internal fun isSlotHovered(mouseX: Int, mouseY: Int, x: Int, y: Int): Boolean =
     mouseX in x until x + StorageSlots.INNER_SIZE && mouseY in y until y + StorageSlots.INNER_SIZE
 
-internal fun routeActivePageSlotClick(
+internal fun isActivePageSlotClick(
     screen: AbstractContainerScreen<*>,
     handle: StorageHandle,
-    click: MouseButtonEvent,
-): InputHandlingResult? {
+    mouseX: Int,
+    mouseY: Int,
+): Boolean {
     val activePage = handle.entryIndex()
     val rows = handle.gridRows()
-    if (activePage == null || rows == null || isModernStorageOverlay && !isModernPageExpanded(activePage)) return null
-    val mouseX = click.x().toInt()
-    val mouseY = click.y().toInt()
+    if (activePage == null || rows == null || isModernStorageOverlay && !isModernPageExpanded(activePage)) return false
     val measurements = measurements(screen.width, screen.height, handle.isSelectorVisible())
-    val slot = pageLayouts(measurements, activePage).pages[activePage]?.let { activeLayout ->
+    return pageLayouts(measurements, activePage).pages[activePage]?.let { activeLayout ->
         activePageSlotAt(screen, measurements, handle, rows, activeLayout, mouseX, mouseY)
-    } ?: return null
-    if (!outsideVanillaContainer(screen, mouseX, mouseY)) return InputHandlingResult.IGNORED
-    val action = slotClickAction(screen, click, slot) ?: return null
-    (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
-        slot,
-        slot.index,
-        action.button,
-        action.input,
-    )
-    screen.skysoftSetSkipNextRelease(true)
-    storageOverlayLayoutScreen(screen)
-    return InputHandlingResult.CONSUMED
+    } != null
 }
 
 internal fun activePageSlotAt(
@@ -63,39 +46,6 @@ internal fun activePageSlotAt(
         }
     }
     return null
-}
-
-internal fun slotClickAction(
-    screen: AbstractContainerScreen<*>,
-    click: MouseButtonEvent,
-    slot: Slot,
-): SlotClickAction? {
-    val minecraft = Minecraft.getInstance()
-    val options = minecraft.options
-    if (options.keyPickItem.matchesMouse(click) && minecraft.player?.hasInfiniteMaterials() == true) {
-        return SlotClickAction(click.button(), ContainerInput.CLONE)
-    }
-    if (screen.menu.carried.isEmpty && options.keySwapOffhand.matchesMouse(click)) {
-        return SlotClickAction(StoragePlayerInventory.OFFHAND_SWAP_BUTTON, ContainerInput.SWAP)
-    }
-    if (screen.menu.carried.isEmpty) {
-        options.keyHotbarSlots.forEachIndexed { index, key ->
-            if (key.matchesMouse(click)) return SlotClickAction(index, ContainerInput.SWAP)
-        }
-    }
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT && click.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-        return null
-    }
-    val input = if (click.hasShiftDown() && slot.hasItem()) ContainerInput.QUICK_MOVE else ContainerInput.PICKUP
-    return SlotClickAction(click.button(), input)
-}
-
-internal fun outsideVanillaContainer(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int): Boolean {
-    val accessor = screen as AbstractContainerScreenAccessor
-    val left = accessor.skysoftGetLeftPos()
-    val top = accessor.skysoftGetTopPos()
-    return mouseX !in left until left + accessor.skysoftGetImageWidth() ||
-        mouseY !in top until top + accessor.skysoftGetImageHeight()
 }
 
 internal fun scrollbarKnobBounds(measurements: Measurements, contentHeight: Int): Rect {
