@@ -195,7 +195,7 @@ internal fun handleStorageOverlayMouseClick(
         return InputHandlingResult.CONSUMED
     }
     updateSearchFocusFromClick(measurements, mouseX, mouseY)
-    routeActivePageSlotClick(screen, handle, click)?.let { return it }
+    if (isActivePageSlotClick(screen, handle, mouseX, mouseY)) return InputHandlingResult.IGNORED
 
     if (
         processModernFocusCollapse(click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY) ==

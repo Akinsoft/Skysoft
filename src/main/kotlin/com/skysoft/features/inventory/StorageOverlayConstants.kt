@@ -48,7 +48,6 @@ internal object StoragePlayerInventory {
     const val SLOT_X_OFFSET = 7
     const val INVENTORY_Y_OFFSET = 9
     const val HOTBAR_SLOT_COUNT = 9
-    const val OFFHAND_SWAP_BUTTON = 40
 }
 
 internal object StorageSearch {

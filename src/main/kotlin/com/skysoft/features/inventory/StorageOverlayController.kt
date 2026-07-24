@@ -15,7 +15,6 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 
@@ -213,8 +212,6 @@ internal data class PageLayout(
             y < rect.y + rect.height &&
             y + height > rect.y
 }
-
-internal data class SlotClickAction(val button: Int, val input: ContainerInput)
 
 internal data class PendingOverviewShortcutClick(
     val pageIndex: Int,
