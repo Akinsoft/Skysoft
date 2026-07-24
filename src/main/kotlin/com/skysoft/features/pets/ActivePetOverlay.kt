@@ -393,6 +393,7 @@ object ActivePetOverlay {
             yRotationDegrees = staticY + spinY,
             zRotationDegrees = staticZ + spinZ,
             alpha = opacity,
+            highQualityScaling = true,
         )
     }
 
@@ -556,7 +557,12 @@ private fun GuiRenderable.wrapInPetItemOrSelf(
     val placement = petItemConfig.placement.get()
     return PetItemOverlayRenderable(
         root = this,
-        item = ItemIconRenderable(item, scale = petItemConfig.scale.get().toDouble(), alpha = opacity),
+        item = ItemIconRenderable(
+            item,
+            scale = petItemConfig.scale.get().toDouble(),
+            alpha = opacity,
+            highQualityScaling = true,
+        ),
         horizontal = placement.horizontal,
         vertical = placement.vertical,
     )

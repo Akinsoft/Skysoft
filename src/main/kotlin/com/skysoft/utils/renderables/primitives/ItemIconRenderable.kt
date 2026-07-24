@@ -15,6 +15,7 @@ data class ItemIconRenderable(
     private val yRotationDegrees: Float = 0f,
     private val zRotationDegrees: Float = 0f,
     private val alpha: Float = 1f,
+    private val highQualityScaling: Boolean = false,
     override val horizontalAlign: GuiAlignment.HorizontalAlignment = GuiAlignment.HorizontalAlignment.LEFT,
     override val verticalAlign: GuiAlignment.VerticalAlignment = GuiAlignment.VerticalAlignment.TOP,
 ) : GuiRenderable {
@@ -27,7 +28,11 @@ data class ItemIconRenderable(
         if (stack.isEmpty || renderScale <= 0.0 || alpha <= 0f) return
 
         val rotationVector = Vec3(xRotationDegrees.toDouble(), yRotationDegrees.toDouble(), zRotationDegrees.toDouble())
-        if (rotationVector != Vec3.ZERO || alpha < OPAQUE_ALPHA_THRESHOLD) {
+        if (
+            rotationVector != Vec3.ZERO ||
+            alpha < OPAQUE_ALPHA_THRESHOLD ||
+            highQualityScaling && renderScale != 1.0
+        ) {
             SkysoftItemRenderSupport.submit(context, stack, renderScale, rotationVector, alpha)
             return
         }
