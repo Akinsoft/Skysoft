@@ -13,7 +13,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.network.chat.Component
-import java.util.UUID
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -98,7 +97,7 @@ object BetterTab {
         val font = minecraft.font
         val columnWidths = layout.columns.map { column ->
             column.rows.maxOfOrNull { row ->
-                font.width(row.component) + if (arePlayerHeadsShown && row.playerId != null) HEAD_SIZE + HEAD_GAP else 0
+                font.width(row.component) + if (arePlayerHeadsShown && row.playerName != null) HEAD_SIZE + HEAD_GAP else 0
             } ?: 0
         }
         val columnsWidth = columnWidths.sum() + COLUMN_GAP * (columnWidths.size - 1)
@@ -218,8 +217,8 @@ object BetterTab {
         var textX = x
         if (
             arePlayerHeadsShown &&
-            row.playerId != null &&
-            drawPlayerHead(context, minecraft, row.playerId, x, y) == PlayerHeadRenderResult.DRAWN
+            row.playerName != null &&
+            drawPlayerHead(context, minecraft, row.playerName, x, y) == PlayerHeadRenderResult.DRAWN
         ) {
             textX += HEAD_SIZE + HEAD_GAP
         }
@@ -229,11 +228,11 @@ object BetterTab {
     private fun drawPlayerHead(
         context: GuiGraphicsExtractor,
         minecraft: Minecraft,
-        playerId: UUID,
+        playerName: String,
         x: Int,
         y: Int,
     ): PlayerHeadRenderResult {
-        val playerInfo = minecraft.connection?.getPlayerInfo(playerId) ?: return PlayerHeadRenderResult.UNAVAILABLE
+        val playerInfo = minecraft.connection?.getPlayerInfo(playerName) ?: return PlayerHeadRenderResult.UNAVAILABLE
         PlayerFaceExtractor.extractRenderState(
             context,
             playerInfo.skin.body().texturePath(),

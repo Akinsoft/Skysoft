@@ -8,11 +8,10 @@ import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Style
 import java.util.Locale
 import java.util.Optional
-import java.util.UUID
 
 internal data class BetterTabRow(
     val component: Component,
-    val playerId: UUID? = null,
+    val playerName: String? = null,
     val isTitle: Boolean = false,
 )
 
@@ -30,6 +29,8 @@ internal object BetterTabLayoutBuilder {
     private const val HYPIXEL_ADVERTISING_TEXT = "HYPIXEL.NET"
     private val profileLinePattern = Regex("^(?<prefix>\\s*Profile:\\s*)(?<name>.+)$")
     private val playerColumnPattern = Regex("Players \\((?<count>\\d+)\\)")
+    private val playerNamePattern =
+        Regex("""^\[\d+] (?:\[[^]]+] )?(?<name>[A-Za-z0-9_]{1,16})(?:\s|$)""")
     private val otherPlayersPattern = Regex("and \\d+ other players?\\.\\.\\.", RegexOption.IGNORE_CASE)
 
     fun build(
@@ -82,7 +83,7 @@ internal object BetterTabLayoutBuilder {
                 val rows = section.mapTo(mutableListOf()) { entry ->
                     BetterTabRow(
                         component = entry.displayName.withCompactProfileName(),
-                        playerId = entry.uuid.takeIf { entry.isPlayerEntry() },
+                        playerName = entry.displayName.playerName(),
                     )
                 }
                 if (index == sections.lastIndex && group.otherPlayerCount > 0) {
@@ -199,15 +200,8 @@ internal object BetterTabLayoutBuilder {
 
     private fun Component.isVisuallyBlank(): Boolean = string.isBlank()
 
-    private fun TabListEntry.isPlayerEntry(): Boolean {
-        val start = displayName.string.indexOf(profileName, ignoreCase = true)
-        if (start < 0) return false
-        val before = displayName.string.getOrNull(start - 1)
-        val after = displayName.string.getOrNull(start + profileName.length)
-        return before?.isUsernameCharacter() != true && after?.isUsernameCharacter() != true
-    }
-
-    private fun Char.isUsernameCharacter(): Boolean = isLetterOrDigit() || this == '_'
+    private fun Component.playerName(): String? =
+        playerNamePattern.find(string)?.groups?.get("name")?.value
 
     private fun Component.withCompactProfileName(): Component {
         val match = profileLinePattern.matchEntire(string) ?: return this
