@@ -21,14 +21,13 @@ class ProfitTrackersConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Foraging", desc = "Track Foraging profit.")
+    val foraging = ProfitTrackerConfig(RESOURCE_TRACKER_SUMMARY_LINES)
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Mining", desc = "Track Mining profit.")
-    val mining = ProfitTrackerConfig(
-        listOf(
-            ProfitTrackerSummaryLine.TOTAL_PROFIT,
-            ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
-            ProfitTrackerSummaryLine.UPTIME,
-        ),
-    )
+    val mining = ProfitTrackerConfig(RESOURCE_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
@@ -60,8 +59,8 @@ class ProfitTrackersConfig {
     @field:Category(name = "Vampire Slayer", desc = "Track Vampire Slayer profit.")
     val vampire = ProfitTrackerConfig()
 
-    fun isAnyEnabled(): Boolean = farming.enabled || mining.enabled || zombie.enabled || spider.enabled || wolf.enabled ||
-        enderman.enabled || blaze.enabled || vampire.enabled
+    fun isAnyEnabled(): Boolean = farming.enabled || foraging.enabled || mining.enabled || zombie.enabled ||
+        spider.enabled || wolf.enabled || enderman.enabled || blaze.enabled || vampire.enabled
 }
 
 class ProfitTrackerConfig(summaryLines: List<ProfitTrackerSummaryLine> = ProfitTrackerSummaryLine.entries) {
@@ -168,3 +167,9 @@ enum class ProfitTrackerSummaryLine(private val displayName: String) {
 
     override fun toString(): String = displayName
 }
+
+private val RESOURCE_TRACKER_SUMMARY_LINES = listOf(
+    ProfitTrackerSummaryLine.TOTAL_PROFIT,
+    ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
+    ProfitTrackerSummaryLine.UPTIME,
+)

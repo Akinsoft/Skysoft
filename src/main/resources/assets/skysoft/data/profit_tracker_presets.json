@@ -34,7 +34,7 @@
       ]
     },
     "WOLF": {
-      "islands": ["The Park"],
+      "islands": ["Hub", "The Park"],
       "areas": ["Ruins", "Howling Cave", "Soul Cave", "Spirit Cave"],
       "items": [
         "BONE",
@@ -139,6 +139,7 @@
       "WARTY",
       "DYE_WILD_STRAWBERRY",
       "DYE_DUNG",
+      "DYE_COPPER",
       "TOOL_EXP_CAPSULE",
       "SQUEAKY_TOY",
       "SQUEAKY_MOUSEMAT",
@@ -178,6 +179,35 @@
       "ATTRIBUTE_SHARD_PEST_LUCK;1",
       "ENCHANTMENT_PESTERMINATOR_1",
       "ENCHANTMENT_ULTIMATE_SUNSET_1"
+    ]
+  },
+  "foraging": {
+    "islands": ["Hub", "The Park", "Galatea"],
+    "islandAreas": {"Hub": ["Forest"]},
+    "items": [
+      "LOG",
+      "LOG-2",
+      "LOG-1",
+      "LOG_2-1",
+      "LOG_2",
+      "LOG-3",
+      "FIG_LOG",
+      "MANGROVE_LOG",
+      "DYE_MANGO",
+      "TENDER_WOOD",
+      "VINESAP",
+      "LUSHLILAC",
+      "SEA_LUMIES",
+      "STRETCHING_STICKS",
+      "DEEP_ROOT",
+      "SWEEP_BOOSTER",
+      "FORAGING_WISDOM_BOOSTER",
+      "ENCHANTMENT_ULTIMATE_FIRST_IMPRESSION_1",
+      "ENCHANTMENT_ULTIMATE_MISSILE_1",
+      "ATTRIBUTE_SHARD_CHOP;1",
+      "ATTRIBUTE_SHARD_REPTILOID;1",
+      "TREE_THE_FISH",
+      "SIGNAL_ENHANCER"
     ]
   },
   "mining": {
@@ -285,6 +315,10 @@
       "MITHRIL_GOURMAND",
       "RARE_DIAMOND",
       "DYE_EMERALD",
+      "DYE_FOSSIL",
+      "DYE_FROSTBITTEN",
+      "DYE_JADE",
+      "DYE_NYANZA",
       "PET_ITEM_PURE_MITHRIL_GEM",
       "ATTRIBUTE_SHARD_ATOMIZED_CRYSTALS;1",
       "SLUDGE_JUICE",

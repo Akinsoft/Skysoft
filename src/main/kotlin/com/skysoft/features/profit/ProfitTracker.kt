@@ -55,6 +55,7 @@ object ProfitTracker {
     private var dropCatalogVersion = -1L
     private var trackedItems = emptyMap<ProfitTrackerPreset, Set<String>>()
     private val pendingReplenishCosts = mutableMapOf<ReplenishCrop, Int>()
+    private val foragingTreeGiftParser = ForagingTreeGiftParser()
 
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
@@ -71,19 +72,14 @@ object ProfitTracker {
             markActivity(preset)
             update(preset) { stats -> stats.coins += change.amount }
         }
-        ChatEvents.onVisibleMessage(
-            "Profit Tracker pest kills",
-            { isInPresetArea(ProfitTrackerPreset.FARMING) },
-        ) { message ->
-            recordImmediateMessage(ProfitTrackerPreset.FARMING, message.cleanText)
-            ChatMessageVisibility.SHOW
-        }
-        ChatEvents.onVisibleMessage(
-            "Profit Tracker Pristine drops",
-            { isInPresetArea(ProfitTrackerPreset.MINING) },
-        ) { message ->
-            recordImmediateMessage(ProfitTrackerPreset.MINING, message.cleanText)
-            ChatMessageVisibility.SHOW
+        IMMEDIATE_DROP_PRESETS.forEach { preset ->
+            ChatEvents.onVisibleMessage(
+                "${preset.displayName} Profit Tracker chat drops",
+                { isInPresetArea(preset) },
+            ) { message ->
+                recordImmediateMessage(preset, message.cleanText)
+                ChatMessageVisibility.SHOW
+            }
         }
         ChatEvents.onVisibleMessage(
             "Profit Tracker auto-slayer bank costs",
@@ -167,6 +163,7 @@ object ProfitTracker {
         get() = ProfitTrackerPresets.forLocation(
             TabListApi.skyBlockAreaName ?: HypixelLocationState.currentIsland?.displayName,
             SkyBlockAreaState.currentArea,
+            SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer),
         )
 
     internal fun selectedPreset(): ProfitTrackerPreset? =
@@ -239,13 +236,18 @@ object ProfitTracker {
     }
 
     private fun recordImmediateMessage(preset: ProfitTrackerPreset, message: String) {
-        val drop = when (preset) {
+        val activityDrop = when (preset) {
             ProfitTrackerPreset.FARMING -> parseFarmingChatDrop(message)
+            ProfitTrackerPreset.FORAGING -> foragingTreeGiftParser.parse(message)
             ProfitTrackerPreset.MINING -> parseMiningChatDrop(message)
             else -> null
         }
+        val playerName = Minecraft.getInstance().player?.gameProfile?.name
+        val dyeDrop = playerName?.let { parseDyeChatDrop(message, it) }
+        val drop = activityDrop ?: dyeDrop
         drop?.let {
             val itemId = SkyBlockItemNames.itemId(it.displayName) ?: return@let
+            if (dyeDrop != null && itemId !in trackedItemIds(preset)) return@let
             markActivity(preset)
             itemTracking.suppressGain(itemId, it.amount)
             update(preset) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
@@ -369,6 +371,26 @@ object ProfitTracker {
         itemTracking.clear()
         craftingReconciliation.clear()
         pendingReplenishCosts.clear()
+        foragingTreeGiftParser.clear()
+    }
+}
+
+private class ForagingTreeGiftParser {
+    private var isBonusGiftPending = false
+
+    fun parse(message: String): ParsedItemAmount? {
+        val cleanMessage = message.trim()
+        if (FORAGING_BONUS_GIFT_HEADER.matches(cleanMessage)) {
+            isBonusGiftPending = true
+            return null
+        }
+        if (!isBonusGiftPending) return null
+        isBonusGiftPending = false
+        return parseForagingChatDrop(cleanMessage)
+    }
+
+    fun clear() {
+        isBonusGiftPending = false
     }
 }
 
@@ -426,6 +448,7 @@ internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
     with(SkysoftConfigGui.config().profitTrackers) {
         when (preset) {
             ProfitTrackerPreset.FARMING -> farming
+            ProfitTrackerPreset.FORAGING -> foraging
             ProfitTrackerPreset.MINING -> mining
             ProfitTrackerPreset.ZOMBIE -> zombie
             ProfitTrackerPreset.SPIDER -> spider
@@ -502,6 +525,9 @@ internal fun parseMiningChatDrop(message: String): ParsedItemAmount? {
     return match.parsedItemAmount()
 }
 
+internal fun parseForagingChatDrop(message: String): ParsedItemAmount? =
+    FORAGING_BONUS_GIFT_PATTERN.matchEntire(message.trim())?.parsedItemAmount()
+
 private fun MatchResult.parsedItemAmount(): ParsedItemAmount? {
     val itemName = groups["item"]?.value ?: return null
     val amount = runCatching { groups["amount"]?.value }.getOrNull()
@@ -575,6 +601,11 @@ private val MINING_DROP_PATTERNS = listOf(
     Regex("^PRISTINE! You found (?<item>\\S Flawed [\\w ]+ Gemstone) x(?<amount>[\\d,]+)!$"),
     Regex("^COMPACT! You found an? (?<item>.+)!$"),
 )
+private val FORAGING_BONUS_GIFT_HEADER = Regex("^BONUS GIFT(?: \\(\\d+\\))?$")
+private val FORAGING_BONUS_GIFT_PATTERN = Regex(
+    "^(?<item>.+?) \\(\\d+(?:\\.\\d+)?%(?: - \\d+(?:\\.\\d+)?%)?\\)(?: \\(\\d+\\))?$",
+)
+private val IMMEDIATE_DROP_PRESETS = ProfitTrackerPreset.entries
 
 enum class ProfitTrackingPeriod(val displayName: String) {
     SESSION("Session"),
