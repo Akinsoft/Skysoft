@@ -100,7 +100,7 @@ object SkyBlockPriceData {
                 return@onEndTick
             }
             wasDemanded = true
-            val needsBazaar = shouldRefreshBazaarData(
+            val needsBazaar = shouldRefreshPriceData(
                 isInSkyBlock = HypixelLocationState.inSkyBlock,
                 hasActiveConsumers = bazaarConsumers.hasActiveConsumers,
             )
@@ -114,7 +114,7 @@ object SkyBlockPriceData {
                 ticksUntilBazaarRefresh = 0
             }
             wasBazaarDemanded = needsBazaar
-            val needsLowestBins = shouldRefreshLowestBinData(
+            val needsLowestBins = shouldRefreshPriceData(
                 isInSkyBlock = HypixelLocationState.inSkyBlock,
                 hasActiveConsumers = lowestBinConsumers.hasActiveConsumers,
             )
@@ -128,7 +128,7 @@ object SkyBlockPriceData {
                 ticksUntilLowestBinsRefresh = 0
             }
             wasLowestBinDemanded = needsLowestBins
-            val needsNpcSellPrices = shouldRefreshNpcSellPriceData(
+            val needsNpcSellPrices = shouldRefreshPriceData(
                 isInSkyBlock = HypixelLocationState.inSkyBlock,
                 hasActiveConsumers = npcSellPriceConsumers.hasActiveConsumers,
             )
@@ -499,17 +499,7 @@ internal fun bazaarProductAvailability(
     -> BazaarProductAvailability.UNKNOWN
 }
 
-internal fun shouldRefreshBazaarData(
-    isInSkyBlock: Boolean,
-    hasActiveConsumers: Boolean,
-): Boolean = isInSkyBlock && hasActiveConsumers
-
-internal fun shouldRefreshLowestBinData(
-    isInSkyBlock: Boolean,
-    hasActiveConsumers: Boolean,
-): Boolean = isInSkyBlock && hasActiveConsumers
-
-internal fun shouldRefreshNpcSellPriceData(
+private fun shouldRefreshPriceData(
     isInSkyBlock: Boolean,
     hasActiveConsumers: Boolean,
 ): Boolean = isInSkyBlock && hasActiveConsumers
