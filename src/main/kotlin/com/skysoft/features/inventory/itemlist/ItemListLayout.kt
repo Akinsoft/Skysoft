@@ -44,8 +44,16 @@ internal data class ItemListLayout(
         } else {
             pageLabel
         }
-    fun containsInteractive(mouseX: Int, mouseY: Int): Boolean =
-        panel.contains(mouseX, mouseY) || footer.contains(mouseX, mouseY)
+    fun containsInteractive(
+        mouseX: Int,
+        mouseY: Int,
+        navigationActive: Boolean,
+        hasEntry: Boolean,
+    ): Boolean =
+        hasEntry ||
+            search.contains(mouseX, mouseY) ||
+            config?.contains(mouseX, mouseY) == true ||
+            (navigationActive && (previous.contains(mouseX, mouseY) || next.contains(mouseX, mouseY)))
 
     fun slotBounds(index: Int): Rect = Rect(
         grid.x + index % columns * slotSize,
