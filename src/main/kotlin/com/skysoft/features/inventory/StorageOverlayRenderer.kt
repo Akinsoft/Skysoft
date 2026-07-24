@@ -238,6 +238,7 @@ private fun drawPageSlots(
                     StorageOverlayItemRenderer.drawStoredItem(context, stack, slotX, slotY, itemScissor)
                 }
             }
+            ItemProtectionManager.renderProtectedMarker(context, stack, slotX, slotY)
         }
         if (hovered) {
             drawSlotHover(context, slotX, slotY)
@@ -317,6 +318,7 @@ internal fun drawPlayerSlot(
         RarityHighlightRenderer.renderSlot(context, stack, pos.x, pos.y) {
             context.itemWithDecorations(stack, pos.x, pos.y)
         }
+        ItemProtectionManager.renderProtectedMarker(context, stack, pos.x, pos.y)
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
         drawSlotHover(context, pos.x, pos.y)
