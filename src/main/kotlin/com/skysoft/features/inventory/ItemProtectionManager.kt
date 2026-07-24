@@ -51,6 +51,10 @@ object ItemProtectionManager {
         if (activeProtectKey == event.key()) return InputHandlingResult.CONSUMED
         activeProtectKey = event.key()
 
+        if (StorageOverlayController.isActive(screen) && !hoveredStorageItem.isEmpty) {
+            reportChange(changeProtection(hoveredStorageItem))
+            return InputHandlingResult.CONSUMED
+        }
         val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
         if (!isPlayerInventorySlot(slot)) {
             SkysoftChat.error("Hover an item in your inventory to protect it.")
@@ -98,11 +102,15 @@ object ItemProtectionManager {
 
     @JvmStatic
     fun renderProtectedMarker(context: GuiGraphicsExtractor, slot: Slot) {
-        if (!isFeatureAvailable() || !config.details.showProtectedItemStar || !isProtected(slot.item)) return
+        renderProtectedMarker(context, slot.item, slot.x, slot.y)
+    }
+
+    fun renderProtectedMarker(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
+        if (!isFeatureAvailable() || !config.details.showProtectedItemStar || !isProtected(stack)) return
         val font = Minecraft.getInstance().font
         val scale = config.details.protectedItemStarScale
         context.withIsolatedPose {
-            pose().translate((slot.x + SLOT_SIZE).toFloat(), (slot.y + SLOT_SIZE).toFloat())
+            pose().translate((x + SLOT_SIZE).toFloat(), (y + SLOT_SIZE).toFloat())
             pose().scale(scale, scale)
             text(
                 font,
