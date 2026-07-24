@@ -8,6 +8,9 @@ import java.nio.file.Files
 import java.util.Base64
 
 internal object PetSkins {
+    @Volatile
+    private var learnedLoaded = false
+
     fun load() {
         if (PetRepoCache.petAnimations == null) {
             val stream = requireNotNull(PetSkins::class.java.getResourceAsStream(ANIMATIONS_RESOURCE)) {
@@ -19,7 +22,7 @@ internal object PetSkins {
             require(animations.skins.isNotEmpty()) { "Bundled pet animations are empty" }
             PetRepoCache.petAnimations = animations
         }
-        loadLearned()
+        loadLearnedOnce()
     }
 
     fun animatedTexture(skinInternalName: String): String? =
@@ -140,6 +143,15 @@ internal object PetSkins {
             PetRepoCache.learnedPetAnimations = learned
         }.onFailure { error ->
             SkysoftMod.LOGGER.error("Failed to load learned pet animations from $path", error)
+        }
+    }
+
+    private fun loadLearnedOnce() {
+        if (learnedLoaded) return
+        synchronized(this) {
+            if (learnedLoaded) return
+            loadLearned()
+            learnedLoaded = true
         }
     }
 

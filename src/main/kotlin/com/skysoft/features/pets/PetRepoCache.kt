@@ -28,6 +28,8 @@ internal object PetRepoCache {
     val skinStacks = ConcurrentHashMap<String, ItemStack>()
     val animatedSkinMatches = ConcurrentHashMap<String, AnimatedSkinJson>()
     val missingAnimatedSkinMatches = ConcurrentHashMap.newKeySet<String>()
+    private val animationCacheLock = Any()
+    private val animatedSkinFrames = HashMap<PetAnimationFramesKey, List<PetItemFrame>>()
 
     @Volatile
     var localRepoCacheLoaded = false
@@ -53,17 +55,19 @@ internal object PetRepoCache {
     @Volatile
     var petAnimations: PetAnimationsJson? = null
         set(value) {
-            animatedSkinMatches.clear()
-            missingAnimatedSkinMatches.clear()
-            field = value
+            synchronized(animationCacheLock) {
+                field = value
+                clearAnimationCaches()
+            }
         }
 
     @Volatile
     var learnedPetAnimations: PetAnimationsJson = PetAnimationsJson()
         set(value) {
-            animatedSkinMatches.clear()
-            missingAnimatedSkinMatches.clear()
-            field = value
+            synchronized(animationCacheLock) {
+                field = value
+                clearAnimationCaches()
+            }
         }
 
     @Volatile
@@ -71,4 +75,44 @@ internal object PetRepoCache {
 
     @Volatile
     var itemInternalNames: Set<String>? = null
+
+    fun animatedSkinFrames(
+        key: () -> PetAnimationFramesKey,
+        create: (PetAnimationFramesKey) -> List<PetItemFrame>?,
+    ): List<PetItemFrame>? = synchronized(animationCacheLock) {
+        val resolvedKey = key()
+        animatedSkinFrames[resolvedKey] ?: create(resolvedKey)?.also {
+            animatedSkinFrames[resolvedKey] = it
+        }
+    }
+
+    private fun clearAnimationCaches() {
+        animatedSkinFrames.clear()
+        animatedSkinMatches.clear()
+        missingAnimatedSkinMatches.clear()
+    }
+}
+
+internal class PetAnimationFramesKey(
+    val animation: AnimatedSkinJson?,
+    val staticSkinInternalName: String?,
+    val staticDisplayIconTexture: String?,
+    val firstFrameOnly: Boolean,
+    val animationSpeed: Float,
+) {
+    override fun equals(other: Any?): Boolean =
+        other is PetAnimationFramesKey &&
+            animation === other.animation &&
+            staticSkinInternalName == other.staticSkinInternalName &&
+            staticDisplayIconTexture == other.staticDisplayIconTexture &&
+            firstFrameOnly == other.firstFrameOnly &&
+            animationSpeed == other.animationSpeed
+
+    override fun hashCode(): Int {
+        var result = System.identityHashCode(animation)
+        result = 31 * result + staticSkinInternalName.hashCode()
+        result = 31 * result + staticDisplayIconTexture.hashCode()
+        result = 31 * result + firstFrameOnly.hashCode()
+        return 31 * result + animationSpeed.hashCode()
+    }
 }

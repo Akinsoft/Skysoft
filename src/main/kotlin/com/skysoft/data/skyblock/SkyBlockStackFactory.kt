@@ -17,7 +17,7 @@ import net.minecraft.world.item.component.ItemLore
 internal object SkyBlockStackFactory {
     fun texturedHead(textureValue: String, name: Component, signature: String? = null): ItemStack {
         val split = textureValue.split(":", limit = 2)
-        val uuid = split.getOrNull(0)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+        val uuid = split.getOrNull(0)?.takeIf(uuidPattern::matches)?.let(UUID::fromString)
             ?: UUID.nameUUIDFromBytes(textureValue.toByteArray())
         val texture = texturePropertyValue(split.getOrNull(1) ?: textureValue)
         val property = if (signature == null) Property("textures", texture) else Property("textures", texture, signature)
@@ -43,6 +43,9 @@ internal object SkyBlockStackFactory {
         }
 
     private const val PROFILE_NAME = "SkysoftPet"
+    private val uuidPattern = Regex(
+        "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+    )
     private val textureHashPattern = Regex("[0-9a-f]{32,64}")
 
     private fun texturePropertyValue(value: String): String {

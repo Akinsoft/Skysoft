@@ -143,20 +143,43 @@ object PetRepository {
     ): List<PetItemFrame>? {
         if (skinInternalName == null) return null
         ensureLoaded()
-        val animation = PetSkins.animated(skinInternalName, displayIconTexture)
-            ?: return getSkinStackOrNull(skinInternalName, displayIconTexture)
-                ?.let { listOf(PetItemFrame(it)) }
-        return animation.textures
-            .take(if (firstFrameOnly) 1 else animation.textures.size)
-            .mapIndexed { index, texture ->
-                val sourceTicks = animation.ticksPerTexture.getOrNull(index) ?: animation.ticks
-                val ticks = if (firstFrameOnly || animationSpeed <= 0f) {
-                    1
+        val effectiveSpeed = animationSpeed.takeIf { !firstFrameOnly && it > 0f } ?: 0f
+        return PetRepoCache.animatedSkinFrames(
+            key = {
+                val animation = PetSkins.animated(skinInternalName, displayIconTexture)
+                PetAnimationFramesKey(
+                    animation = animation,
+                    staticSkinInternalName = skinInternalName.takeIf { animation == null },
+                    staticDisplayIconTexture = displayIconTexture.takeIf { animation == null },
+                    firstFrameOnly = firstFrameOnly.takeIf { animation != null } ?: true,
+                    animationSpeed = effectiveSpeed.takeIf { animation != null } ?: 0f,
+                )
+            },
+            create = { key ->
+                val animation = key.animation
+                if (animation == null) {
+                    getSkinStackOrNull(
+                        key.staticSkinInternalName,
+                        key.staticDisplayIconTexture,
+                    )?.let { listOf(PetItemFrame(it)) }
                 } else {
-                    (sourceTicks / animationSpeed).roundToInt().coerceAtLeast(1)
+                    animation.textures
+                        .take(if (key.firstFrameOnly) 1 else animation.textures.size)
+                        .mapIndexed { index, texture ->
+                            val sourceTicks = animation.ticksPerTexture.getOrNull(index) ?: animation.ticks
+                            val ticks = if (key.animationSpeed == 0f) {
+                                1
+                            } else {
+                                (sourceTicks / key.animationSpeed).roundToInt().coerceAtLeast(1)
+                            }
+                            PetItemFrame(
+                                SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin")),
+                                ticks,
+                            )
+                        }
                 }
-                PetItemFrame(SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin")), ticks)
-            }
+            },
+        )
     }
 
     fun resolvePetItemOrNull(itemName: String): String? {
@@ -210,15 +233,22 @@ object PetRepository {
         if (level <= 1) return 0.0
         val levelTree = PetLevels.fullTree(petInternalName)
         val levelsToSum = level - 1
-        if (rarityOffset + levelsToSum > levelTree.size) return null
-        return levelTree.drop(rarityOffset).take(levelsToSum).sumOf { it.toDouble() }
+        val endIndex = rarityOffset + levelsToSum
+        if (endIndex > levelTree.size) return null
+        var totalXp = 0.0
+        for (index in rarityOffset until endIndex) {
+            totalXp += levelTree[index]
+        }
+        return totalXp
     }
 
     fun xpToLevel(totalXp: Double, petInternalName: String, coerceToMax: Boolean = true): Int {
         var xp = totalXp.takeIf { it > 0 } ?: return 1
         val rarityOffset = PetLevels.rarityOffset(petInternalName) ?: return 1
         var level = 1
-        for (xpReq in PetLevels.fullTree(petInternalName).drop(rarityOffset)) {
+        val levelTree = PetLevels.fullTree(petInternalName)
+        for (index in rarityOffset until levelTree.size) {
+            val xpReq = levelTree[index]
             if (xp < xpReq) break
             xp -= xpReq
             level++
