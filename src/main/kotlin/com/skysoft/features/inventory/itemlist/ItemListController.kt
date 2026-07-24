@@ -254,11 +254,11 @@ object ItemListController {
         }
         lastLayout = layout
         val entries = filteredEntries()
-        lastEntries = entries
         val pageCount = pageCount(entries.size, layout.pageSize)
         ItemListState.page = ItemListState.page.coerceIn(0, pageCount - 1)
         hoveredKey = null
         val calculation = itemListCalculation(ItemListState.search)
+        lastEntries = if (calculation == null) entries else emptyList()
         val isSearchActive = searchField.focused || ItemListState.search.isNotBlank()
         val footerOpacity = footerAlpha.value(
             if (isSearchActive) 1f else FooterPresentation.IDLE_ALPHA.toFloat(),
@@ -357,7 +357,14 @@ object ItemListController {
             }
             return InputHandlingResult.CONSUMED
         }
-        if (!layout.containsInteractive(mouseX, mouseY)) {
+        if (
+            !layout.containsInteractive(
+                mouseX,
+                mouseY,
+                searchField.focused || ItemListState.search.isNotBlank(),
+                entryAt(layout, mouseX, mouseY) != null,
+            )
+        ) {
             searchField.focused = false
             return InputHandlingResult.IGNORED
         }
@@ -501,7 +508,16 @@ object ItemListController {
 
     @JvmStatic
     fun isClickInside(screen: AbstractContainerScreen<*>, mouseX: Double, mouseY: Double): Boolean =
-        isVisible(screen) && lastLayout?.containsInteractive(mouseX.toInt(), mouseY.toInt()) == true
+        isVisible(screen) && lastLayout?.let {
+            val pointX = mouseX.toInt()
+            val pointY = mouseY.toInt()
+            it.containsInteractive(
+                pointX,
+                pointY,
+                searchField.focused || ItemListState.search.isNotBlank(),
+                entryAt(it, pointX, pointY) != null,
+            )
+        } == true
 
     @JvmStatic
     fun reservedBounds(screen: AbstractContainerScreen<*>): Rect? =
