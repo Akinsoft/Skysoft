@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.data.skyblock.SkyBlockSlayerType
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -91,11 +92,13 @@ enum class BetterShurikenReminderMob(
     MINOS_CHAMPION("Minos Champion"),
     SPHINX("Sphinx"),
     MANTICORE("Manticore"),
-    REVENANT_HORRORS("Revenant Horror / Atoned Horror", "Revenant Horror", "Atoned Horror"),
+    REVENANT_HORRORS(
+        "Revenant Horror / Atoned Horror",
+        *SkyBlockSlayerType.ZOMBIE.bossNames(5).toTypedArray(),
+    ),
     TARANTULA_BROODFATHERS(
-        "Tarantula Broodfather / Primordial Broodfather",
-        "Tarantula Broodfather",
-        "Primordial Broodfather",
+        "Tarantula Broodfather / Conjoined Brood",
+        *SkyBlockSlayerType.SPIDER.bossNames(5).toTypedArray(),
     ),
     SVEN_PACKMASTER("Sven Packmaster"),
     VOIDGLOOM_SERAPH("Voidgloom Seraph"),
