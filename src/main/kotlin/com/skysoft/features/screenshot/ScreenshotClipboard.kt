@@ -27,8 +27,15 @@ internal object ScreenshotClipboard {
     fun copyAsync(path: Path): CompletableFuture<Void> =
         CompletableFuture.runAsync({ copy(path) }, Util.ioPool())
 
+    fun copyAsync(image: BufferedImage): CompletableFuture<Void> =
+        CompletableFuture.runAsync({ copy(image) }, Util.ioPool())
+
     private fun copy(path: Path) {
         val image = requireNotNull(ImageIO.read(path.toFile())) { "Unsupported screenshot image: $path" }
+        copy(image)
+    }
+
+    private fun copy(image: BufferedImage) {
         if (Platform.isWindows()) {
             WindowsImageClipboard.copy(image)
         } else {
