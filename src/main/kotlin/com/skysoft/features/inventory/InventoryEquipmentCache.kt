@@ -5,6 +5,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
+import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.MinecraftClient
@@ -71,12 +72,14 @@ internal fun readInventoryEquipmentScreen(screen: AbstractContainerScreen<*>): C
     lastEquipmentInventoryKey = key
 
     val items = selectEquipmentMenuItems(
+        inventoryName,
         screen.nonPlayerSlots().map { slot ->
             EquipmentMenuCell(
                 index = slot.containerSlot,
                 item = slot.item.copy(),
                 cleanName = slot.item.formattedHoverName().cleanSkyBlockText(),
                 isFiller = slot.item.item in MinecraftItems.stainedGlassPanes(),
+                isEquippedSelector = slot.item.item == MinecraftItems.limeDye(),
             )
         },
         emptyItem = ItemStack.EMPTY,
@@ -94,18 +97,18 @@ internal fun repairInventoryEquipmentItems(items: MutableList<ProfileStorage.Sky
 }
 
 internal fun <T> selectEquipmentMenuItems(
+    inventoryName: String,
     cells: List<EquipmentMenuCell<T>>,
     emptyItem: T,
-): List<T> {
-    val result = ArrayList<T>(ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT)
-    for (cell in cells.sortedBy(EquipmentMenuCell<T>::index)) {
-        if (cell.index % InventoryEquipmentMenu.COLUMNS != InventoryEquipmentMenu.EQUIPMENT_COLUMN) continue
-        val isEmptyPlaceholder = cell.cleanName.isEmptyEquipmentPlaceholder()
-        if (cell.isFiller && !isEmptyPlaceholder) continue
-        result += if (isEmptyPlaceholder) emptyItem else cell.item
-        if (result.size == ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) break
-    }
-    return result
+): List<T> = when (inventoryEquipmentMenuType(inventoryName)) {
+    InventoryEquipmentMenuType.FIXED_COLUMN -> selectEquipmentItems(
+        cells,
+        InventoryEquipmentMenu.FIXED_EQUIPMENT_SLOTS,
+        emptyItem,
+    )
+
+    InventoryEquipmentMenuType.EQUIPMENT_SETS -> selectEquipmentSetItems(cells, emptyItem)
+    null -> emptyList()
 }
 
 internal data class EquipmentMenuCell<T>(
@@ -113,10 +116,46 @@ internal data class EquipmentMenuCell<T>(
     val item: T,
     val cleanName: String,
     val isFiller: Boolean,
+    val isEquippedSelector: Boolean = false,
 )
 
 internal fun isInventoryEquipmentMenuName(name: String): Boolean =
-    name == InventoryEquipmentMenu.STATS_TITLE || loadoutMenuPattern.matches(name)
+    inventoryEquipmentMenuType(name) != null
+
+private fun <T> selectEquipmentSetItems(
+    cells: List<EquipmentMenuCell<T>>,
+    emptyItem: T,
+): List<T> {
+    val equippedSelector = cells.singleOrNull { cell ->
+        cell.index in InventoryEquipmentMenu.SELECTOR_SLOTS &&
+            cell.isEquippedSelector &&
+            equippedSetSelectorPattern.matches(cell.cleanName)
+    } ?: return emptyList()
+    val column = equippedSelector.index - InventoryEquipmentMenu.SELECTOR_ROW_START
+    val equipmentSlots = InventoryEquipmentMenu.EQUIPMENT_SET_ROW_STARTS.map { it + column }
+    return selectEquipmentItems(cells, equipmentSlots, emptyItem)
+}
+
+private fun <T> selectEquipmentItems(
+    cells: List<EquipmentMenuCell<T>>,
+    equipmentSlots: List<Int>,
+    emptyItem: T,
+): List<T> {
+    val cellsByIndex = cells.associateBy(EquipmentMenuCell<T>::index)
+    return equipmentSlots.map { index ->
+        val cell = cellsByIndex[index] ?: return emptyList()
+        val isEmptyPlaceholder = cell.cleanName.isEmptyEquipmentPlaceholder()
+        if (cell.isFiller && !isEmptyPlaceholder) return emptyList()
+        if (isEmptyPlaceholder) emptyItem else cell.item
+    }
+}
+
+private fun inventoryEquipmentMenuType(name: String): InventoryEquipmentMenuType? = when {
+    StatsEquipmentMenu.isTitle(name) -> InventoryEquipmentMenuType.FIXED_COLUMN
+    legacyLoadoutMenuPattern.matches(name) -> InventoryEquipmentMenuType.FIXED_COLUMN
+    equipmentSetsMenuPattern.matches(name) -> InventoryEquipmentMenuType.EQUIPMENT_SETS
+    else -> null
+}
 
 private fun updateInventoryEquipmentStorage(items: List<ProfileStorage.SkyBlockStorageItemData>): ChangeResult {
     val storageItems = inventoryEquipmentStorage
@@ -133,9 +172,22 @@ private fun String.isEmptyEquipmentPlaceholder(): Boolean {
 }
 
 private object InventoryEquipmentMenu {
-    const val STATS_TITLE = "Your Equipment and Stats"
     const val COLUMNS = 9
     const val EQUIPMENT_COLUMN = 1
+    const val SELECTOR_ROW_START = 36
+
+    val FIXED_EQUIPMENT_SLOTS =
+        (1..ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT).map { it * COLUMNS + EQUIPMENT_COLUMN }
+    val EQUIPMENT_SET_ROW_STARTS =
+        (0 until ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT).map { it * COLUMNS }
+    val SELECTOR_SLOTS = SELECTOR_ROW_START until SELECTOR_ROW_START + COLUMNS
 }
 
-private val loadoutMenuPattern = Regex("""^\([0-9]+/[0-9]+\) Loadouts$""")
+private enum class InventoryEquipmentMenuType {
+    FIXED_COLUMN,
+    EQUIPMENT_SETS,
+}
+
+private val legacyLoadoutMenuPattern = Regex("""^\([0-9]+/[0-9]+\) Loadouts$""")
+private val equipmentSetsMenuPattern = Regex("""^\([0-9]+/[0-9]+\) Equipment Sets$""")
+private val equippedSetSelectorPattern = Regex("""^Slot [0-9]+: Equipped$""")

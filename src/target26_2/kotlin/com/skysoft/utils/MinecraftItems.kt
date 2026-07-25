@@ -9,5 +9,7 @@ object MinecraftItems {
 
     fun grayDye(): Item = Items.DYE.gray()
 
+    fun limeDye(): Item = Items.DYE.lime()
+
     fun pinkDye(): Item = Items.DYE.pink()
 }
