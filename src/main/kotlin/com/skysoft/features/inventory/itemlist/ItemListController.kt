@@ -73,7 +73,6 @@ object ItemListController {
     fun register() {
         SkyBlockDataRepository.Demand.register("Item List", ::isItemListActive)
         SkyBlockCookieBuffApi.registerConsumer("Item List", ::isItemListViewerOpen)
-        ItemListState.register()
         HudEditorRegistry.register(object : HudEditorElement {
             override val id: String = "item_list"
             override val label: String = "Item List"
