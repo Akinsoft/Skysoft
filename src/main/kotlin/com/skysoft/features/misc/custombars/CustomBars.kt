@@ -52,6 +52,7 @@ object CustomBars {
     private var mana: BarValue? = null
     private var vitality: BarValue? = null
     private var defense: Int? = null
+    private val hiddenActionBarStatuses = CustomBarStatus.entries.toSet()
     private val textElements by lazy {
         CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextEditorElement)
     }
@@ -62,14 +63,9 @@ object CustomBars {
             ChatMessageVisibility.SHOW
         }
         ChatEvents.onActionBarModify("Custom Bars action bar", ::isActive) { message ->
-            val settings = config.settings
-            val hidden = buildSet {
-                if (settings.health) add(CustomBarStatus.HEALTH)
-                if (settings.mana) add(CustomBarStatus.MANA)
-                if (settings.vitality) add(CustomBarStatus.VITALITY)
-                if (settings.defense) add(CustomBarStatus.DEFENSE)
-            }
-            message.component.withoutRanges(CustomBarsActionBarParser.parse(message.plainText).ranges(hidden))
+            message.component.withoutRanges(
+                CustomBarsActionBarParser.parse(message.plainText).ranges(hiddenActionBarStatuses),
+            )
         }
         SkysoftClientEvents.onDisconnect("Custom Bars reset", ::reset)
         registerVanillaReplacements()
@@ -96,7 +92,7 @@ object CustomBars {
                 override val canResizeHeight: Boolean get() = part.dimensions != null
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
-                override fun isVisible(): Boolean = config.enabled && part.isEnabled()
+                override fun isVisible(): Boolean = config.enabled && part.isVisible()
                 override fun renderDummy(context: GuiGraphicsExtractor) {
                     renderable(part, previewAir = part == CustomBarPart.AIR).render(context)
                 }
@@ -114,19 +110,19 @@ object CustomBars {
     }
 
     private fun registerVanillaReplacements() {
-        replaceVanilla(VanillaHudElements.HEALTH_BAR) { config.settings.health }
-        replaceVanilla(VanillaHudElements.ARMOR_BAR) { config.settings.defense }
-        replaceVanilla(VanillaHudElements.FOOD_BAR) { config.settings.health || config.settings.mana }
-        replaceVanilla(VanillaHudElements.MOUNT_HEALTH) { config.settings.health }
-        replaceVanilla(VanillaHudElements.EXPERIENCE_LEVEL) { config.settings.experience }
-        replaceVanilla(VanillaHudElements.INFO_BAR) { config.settings.experience }
-        replaceVanilla(VanillaHudElements.AIR_BAR) { config.settings.air }
+        replaceVanilla(VanillaHudElements.HEALTH_BAR)
+        replaceVanilla(VanillaHudElements.ARMOR_BAR)
+        replaceVanilla(VanillaHudElements.FOOD_BAR)
+        replaceVanilla(VanillaHudElements.MOUNT_HEALTH)
+        replaceVanilla(VanillaHudElements.EXPERIENCE_LEVEL)
+        replaceVanilla(VanillaHudElements.INFO_BAR)
+        replaceVanilla(VanillaHudElements.AIR_BAR)
     }
 
-    private fun replaceVanilla(id: Identifier, shouldHide: () -> Boolean) {
+    private fun replaceVanilla(id: Identifier) {
         HudElementRegistry.replaceElement(id) { vanilla ->
             HudElement { context, tick ->
-                if (!isActive() || !shouldHide()) vanilla.extractRenderState(context, tick)
+                if (!isActive()) vanilla.extractRenderState(context, tick)
             }
         }
     }
@@ -193,14 +189,22 @@ object CustomBars {
                 AIR -> config.details.air
             }
 
-        fun isEnabled(): Boolean = when (this) {
-            HEALTH -> config.settings.health
-            MANA -> config.settings.mana
-            VITALITY -> config.settings.vitality
-            EXPERIENCE -> config.settings.experience
-            DEFENSE -> config.settings.defense
-            SPEED -> config.settings.speed
-            AIR -> config.settings.air
+        fun isVisible(): Boolean = when (this) {
+            HEALTH -> config.settings.bars.health
+            MANA -> config.settings.bars.mana
+            VITALITY -> config.settings.bars.vitality
+            EXPERIENCE -> config.settings.bars.experience
+            DEFENSE -> config.settings.numbers.defense
+            SPEED -> config.settings.numbers.speed
+            AIR -> config.settings.numbers.air
+        }
+
+        fun isNumberVisible(): Boolean = when (this) {
+            HEALTH -> config.settings.numbers.health
+            MANA -> config.settings.numbers.mana
+            VITALITY -> config.settings.numbers.vitality
+            EXPERIENCE -> config.settings.numbers.experience
+            DEFENSE, SPEED, AIR -> error("$label does not have separate number text")
         }
 
         fun position(): HudPosition = when (this) {
@@ -247,7 +251,7 @@ object CustomBars {
         context.withIsolatedPose {
             pose().translate(0f, -BottomHudLayout.reservedHeight().toFloat())
             for (part in CustomBarPart.entries) {
-                if (part.isEnabled() &&
+                if (part.isVisible() &&
                     (part != CustomBarPart.AIR || Minecraft.getInstance().player?.isUnderWater == true)
                 ) {
                     context.withIsolatedPose {
@@ -518,7 +522,7 @@ object CustomBars {
 
         override fun width(): Int = Minecraft.getInstance().font.width(text())
         override fun height(): Int = Minecraft.getInstance().font.lineHeight
-        override fun isVisible(): Boolean = config.enabled && part.isEnabled()
+        override fun isVisible(): Boolean = config.enabled && part.isNumberVisible()
 
         override fun absoluteX(width: Int): Int {
             val barScale = part.position().effectiveScale

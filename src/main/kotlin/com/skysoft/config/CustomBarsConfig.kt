@@ -23,7 +23,7 @@ class CustomBarsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Choose which bars and readouts are shown.")
+    @field:ConfigOption(name = "Settings", desc = "Choose which bars and numbers are shown.")
     @field:Accordion
     val settings = CustomBarsSettingsConfig()
 
@@ -111,6 +111,20 @@ class CustomBarsConfig {
 class CustomBarsSettingsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Bars", desc = "Choose which bars are shown.")
+    @field:Accordion
+    val bars = CustomBarsBarVisibilityConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Numbers", desc = "Choose which numbers are shown.")
+    @field:Accordion
+    val numbers = CustomBarsNumberVisibilityConfig()
+}
+
+class CustomBarsBarVisibilityConfig {
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Health", desc = "Show the Health bar.")
     @field:ConfigEditorBoolean
     var health = true
@@ -132,22 +146,48 @@ class CustomBarsSettingsConfig {
     @field:ConfigOption(name = "Experience", desc = "Show the Experience bar.")
     @field:ConfigEditorBoolean
     var experience = true
+}
+
+class CustomBarsNumberVisibilityConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Health", desc = "Show the Health number.")
+    @field:ConfigEditorBoolean
+    var health = true
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Defense", desc = "Show the Defense readout.")
+    @field:ConfigOption(name = "Mana", desc = "Show the Mana number.")
+    @field:ConfigEditorBoolean
+    var mana = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Vitality", desc = "Show the Vitality number.")
+    @field:ConfigEditorBoolean
+    var vitality = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Experience", desc = "Show the Experience number.")
+    @field:ConfigEditorBoolean
+    var experience = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Defense", desc = "Show the Defense number.")
     @field:ConfigEditorBoolean
     var defense = true
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Speed", desc = "Show the Speed readout.")
+    @field:ConfigOption(name = "Speed", desc = "Show the Speed number.")
     @field:ConfigEditorBoolean
     var speed = true
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Air", desc = "Show remaining air while underwater.")
+    @field:ConfigOption(name = "Air", desc = "Show the Air number.")
     @field:ConfigEditorBoolean
     var air = true
 }
