@@ -27,6 +27,11 @@ internal object ScreenshotUploadMetadataStore {
     }
 
     @Synchronized
+    fun forget(path: Path) {
+        if (records().remove(path.normalizedScreenshotPath()) != null) save()
+    }
+
+    @Synchronized
     fun screenshotForUrl(url: String): Path? {
         val now = Instant.now().epochSecond
         val record = records().values.firstOrNull {
@@ -55,7 +60,6 @@ internal object ScreenshotUploadMetadataStore {
             gson.toJson(records().values.toList(), uploadListType),
         )
     }
-
 }
 
 private data class StoredScreenshotUpload(

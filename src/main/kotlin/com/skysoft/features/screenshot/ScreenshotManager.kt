@@ -25,9 +25,17 @@ object ScreenshotManager {
     }
 
     fun open() {
+        show(null)
+    }
+
+    internal fun open(selectedPath: Path) {
+        show(selectedPath)
+    }
+
+    private fun show(selectedPath: Path?) {
         val currentScreen = MinecraftClient.screen()
         if (currentScreen is ScreenshotManagerScreen) return
-        MinecraftClient.setScreen(ScreenshotManagerScreen(currentScreen))
+        MinecraftClient.setScreen(ScreenshotManagerScreen(currentScreen, selectedPath))
     }
 
     internal fun decorateCaptureCallback(callback: Consumer<Component>): Consumer<Component> {

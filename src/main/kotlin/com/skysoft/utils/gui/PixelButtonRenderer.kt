@@ -63,6 +63,33 @@ object PixelButtonRenderer {
         y = bounds.y + (bounds.height - lineHeight + 2) / 2,
     )
 
+    fun drawIcon(
+        context: GuiGraphicsExtractor,
+        bounds: Rect,
+        icon: List<String>,
+        scale: Int,
+        enabled: Boolean,
+    ) {
+        val iconWidth = icon.maxOf(String::length) * scale
+        val iconHeight = icon.size * scale
+        val startX = bounds.x + (bounds.width - iconWidth) / 2
+        val startY = bounds.y + (bounds.height - iconHeight) / 2
+        for ((row, pixels) in icon.withIndex()) {
+            for ((column, pixel) in pixels.withIndex()) {
+                if (pixel != ICON_PIXEL) continue
+                val x = startX + column * scale
+                val y = startY + row * scale
+                context.fill(
+                    x,
+                    y,
+                    x + scale,
+                    y + scale,
+                    if (enabled) PixelButtonColors.TEXT else PixelButtonColors.DISABLED_TEXT,
+                )
+            }
+        }
+    }
+
     private fun drawChamferedLayer(context: GuiGraphicsExtractor, bounds: Rect, color: Int) {
         context.fill(bounds.x + 1, bounds.y, bounds.x + bounds.width - 1, bounds.y + bounds.height, color)
         context.fill(bounds.x, bounds.y + 1, bounds.x + bounds.width, bounds.y + bounds.height - 1, color)
@@ -95,6 +122,8 @@ object PixelButtonRenderer {
             bottomRight.withScaledAlpha(alpha),
         )
     }
+
+    private const val ICON_PIXEL = 'X'
 }
 
 private data class PixelButtonPalette(
