@@ -20,6 +20,7 @@ import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.gui.Rect
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -164,10 +165,7 @@ private fun renderPositioned(
         panelControl?.let { control ->
             LocalControlArea(
                 control.action,
-                control.x,
-                control.y,
-                control.width,
-                control.height,
+                control.bounds,
                 control.tooltipLines,
             )
         } ?: trackerControl
@@ -176,10 +174,12 @@ private fun renderPositioned(
     hoveredControl = localControl?.let { area ->
         OverlayControlArea(
             action = area.action,
-            x = x + (area.x * scale).roundToInt(),
-            y = y + (area.y * scale).roundToInt(),
-            width = (area.width * scale).roundToInt().coerceAtLeast(1),
-            height = (area.height * scale).roundToInt().coerceAtLeast(1),
+            bounds = Rect(
+                x = x + (area.bounds.x * scale).roundToInt(),
+                y = y + (area.bounds.y * scale).roundToInt(),
+                width = (area.bounds.width * scale).roundToInt().coerceAtLeast(1),
+                height = (area.bounds.height * scale).roundToInt().coerceAtLeast(1),
+            ),
             tooltipLines = area.tooltipLines,
         )
     }
@@ -308,16 +308,28 @@ private class ProfitTrackerRenderable(
         val rightWidth = line.right?.let(LegacyTextRenderer::width) ?: 0
         val secondaryX = width - padding - rightWidth
         val primaryArea = line.control?.let { action ->
-            LocalControlArea(action, padding, y, primaryWidth, line.height, emptyList())
+            LocalControlArea(action, Rect(padding, y, primaryWidth, line.height), emptyList())
         }
         val secondaryArea = line.secondaryControl?.let { action ->
-            LocalControlArea(action, secondaryX, y, rightWidth, line.height, emptyList())
+            LocalControlArea(action, Rect(secondaryX, y, rightWidth, line.height), emptyList())
         }
         primaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
-            context.fill(area.x, y, area.x + area.width, y + line.height, CONTROL_HOVER_COLOR)
+            context.fill(
+                area.bounds.x,
+                area.bounds.y,
+                area.bounds.x + area.bounds.width,
+                area.bounds.y + area.bounds.height,
+                CONTROL_HOVER_COLOR,
+            )
         }
         secondaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
-            context.fill(area.x, y, area.x + area.width, y + line.height, CONTROL_HOVER_COLOR)
+            context.fill(
+                area.bounds.x,
+                area.bounds.y,
+                area.bounds.x + area.bounds.width,
+                area.bounds.y + area.bounds.height,
+                CONTROL_HOVER_COLOR,
+            )
         }
         line.leading?.let { LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset) }
         line.icon?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, padding + line.contentOffset, y) }
@@ -502,15 +514,12 @@ private data class ProfitDisplayItem(
 
 private data class LocalControlArea(
     val action: ProfitTrackerControl,
-    val x: Int,
-    val y: Int,
-    val width: Int,
-    val height: Int,
+    val bounds: Rect,
     val tooltipLines: List<String>,
 )
 
 private fun LocalControlArea.contains(mouseX: Int?, mouseY: Int?): Boolean =
-    mouseX != null && mouseY != null && mouseX in x..(x + width) && mouseY in y..(y + height)
+    mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
 
 private fun profitColor(value: Double): String = if (value >= 0.0) "§a" else "§c"
 

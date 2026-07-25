@@ -7,13 +7,10 @@ import net.minecraft.client.Minecraft
 
 data class OverlayControlArea<T>(
     val action: T,
-    val x: Int,
-    val y: Int,
-    val width: Int,
-    val height: Int,
+    val bounds: Rect,
     val tooltipLines: List<String> = emptyList(),
 ) {
-    fun contains(mouseX: Int, mouseY: Int): Boolean = Rect(x, y, width, height).contains(mouseX, mouseY)
+    fun contains(mouseX: Int, mouseY: Int): Boolean = bounds.contains(mouseX, mouseY)
 }
 
 object OverlayControlTooltips {

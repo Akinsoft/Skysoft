@@ -37,7 +37,7 @@ internal class ScreenshotFocusTransition {
         return when (kind) {
             ScreenshotFocusTransitionKind.NONE -> ScreenshotFocusVisuals(target, 1.0, true, false)
             ScreenshotFocusTransitionKind.EXPANSION -> ScreenshotFocusVisuals(
-                imageBounds = interpolate(requireNotNull(sourceBounds), target, eased),
+                imageBounds = requireNotNull(sourceBounds).interpolateTo(target, eased),
                 chromeAlpha = EasingUtilities.smoothStep(
                     ((progress - CHROME_DELAY) / (1.0 - CHROME_DELAY)).coerceIn(0.0, 1.0),
                 ),
@@ -77,16 +77,6 @@ internal class ScreenshotFocusTransition {
         }
         return ((System.nanoTime() - startedAtNanos) / duration.toDouble()).coerceIn(0.0, 1.0)
     }
-
-    private fun interpolate(from: Rect, to: Rect, progress: Double): Rect = Rect(
-        x = interpolate(from.x, to.x, progress),
-        y = interpolate(from.y, to.y, progress),
-        width = interpolate(from.width, to.width, progress),
-        height = interpolate(from.height, to.height, progress),
-    )
-
-    private fun interpolate(from: Int, to: Int, progress: Double): Int =
-        (from + (to - from) * progress).roundToInt()
 
     private companion object {
         const val EXPANSION_DURATION_NANOS = 260_000_000L

@@ -142,12 +142,7 @@ internal data class StorageSettingsPanelLayout(
     fun settingAt(mouseX: Int, mouseY: Int): StorageVisualSetting? =
         settings.firstOrNull { row(it).contains(mouseX, mouseY) }
 
-    fun animatedPanel(progress: Float): Rect = Rect(
-        lerp(button.x, panel.x, progress),
-        lerp(button.y, panel.y, progress),
-        lerp(button.width, panel.width, progress),
-        lerp(button.height, panel.height, progress),
-    )
+    fun animatedPanel(progress: Float): Rect = button.interpolateTo(panel, progress.toDouble())
 
     companion object {
         fun create(
@@ -226,9 +221,6 @@ internal fun maximumStorageHeight(screenHeight: Int, stackedSelectorHeight: Int)
         ).coerceIn(StorageOverlayConfigBounds.MIN_HEIGHT, StorageOverlayConfigBounds.MAX_HEIGHT)
         .let { maximum -> maximum - maximum % StorageOverlayConfigBounds.HEIGHT_STEP }
         .coerceAtLeast(StorageOverlayConfigBounds.MIN_HEIGHT)
-
-private fun lerp(start: Int, end: Int, progress: Float): Int =
-    (start + (end - start) * progress.coerceIn(0f, 1f)).roundToInt()
 
 internal object StorageSettingsPanel {
     const val BUTTON_SIZE = StorageSlots.SIZE

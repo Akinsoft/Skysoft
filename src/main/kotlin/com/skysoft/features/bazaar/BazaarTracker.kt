@@ -169,20 +169,19 @@ internal data class DisplayLine(val tag: String?, val tagColor: Int, val segment
 
 internal data class RelativeControlArea(
     val action: TrackerControl,
-    val x: Int,
-    val y: Int,
-    val width: Int,
-    val height: Int,
+    val bounds: Rect,
     val tooltipLines: List<String>,
 ) {
-    fun contains(mouseX: Int, mouseY: Int): Boolean = Rect(x, y, width, height).contains(mouseX, mouseY)
+    fun contains(mouseX: Int, mouseY: Int): Boolean = bounds.contains(mouseX, mouseY)
 
     fun toOverlayArea(baseX: Int, baseY: Int, scale: Float): OverlayControlArea<TrackerControl> = OverlayControlArea(
         action = action,
-        x = baseX + (x * scale).roundToInt(),
-        y = baseY + (y * scale).roundToInt(),
-        width = (width * scale).roundToInt().coerceAtLeast(1),
-        height = (height * scale).roundToInt().coerceAtLeast(1),
+        bounds = Rect(
+            x = baseX + (bounds.x * scale).roundToInt(),
+            y = baseY + (bounds.y * scale).roundToInt(),
+            width = (bounds.width * scale).roundToInt().coerceAtLeast(1),
+            height = (bounds.height * scale).roundToInt().coerceAtLeast(1),
+        ),
         tooltipLines = tooltipLines,
     )
 }
@@ -278,10 +277,12 @@ internal class BazaarTrackerRenderable(
 
     private fun controlArea(action: TrackerControl, x: Int, y: Int, width: Int) = RelativeControlArea(
         action = action,
-        x = x - CONTROL_HIT_PADDING_X,
-        y = y - CONTROL_HIT_PADDING_Y,
-        width = width + CONTROL_HIT_PADDING_X * 2,
-        height = font.lineHeight + CONTROL_HIT_PADDING_Y * 2,
+        bounds = Rect(
+            x = x - CONTROL_HIT_PADDING_X,
+            y = y - CONTROL_HIT_PADDING_Y,
+            width = width + CONTROL_HIT_PADDING_X * 2,
+            height = font.lineHeight + CONTROL_HIT_PADDING_Y * 2,
+        ),
         tooltipLines = trackerControlTooltip(action),
     )
 
