@@ -374,14 +374,14 @@ object CustomBars {
         ) {
             val font = Minecraft.getInstance().font
             val contentWidth = font.width(icon) + READOUT_CONTENT_GAP + font.width(value)
-            val contentX = (READOUT_WIDTH - contentWidth) / 2
+            val contentX = centeredReadoutX(contentWidth)
             context.fillRoundedRect(0, READOUT_BACKGROUND_Y, READOUT_WIDTH, READOUT_HEIGHT, TRACK_COLOR)
-            drawIcon(context, icon, contentX, READOUT_BACKGROUND_Y, iconColor)
+            drawIcon(context, icon, contentX, READOUT_CONTENT_Y, iconColor)
             drawText(
                 context,
                 value,
                 contentX + font.width(icon) + READOUT_CONTENT_GAP,
-                READOUT_BACKGROUND_Y,
+                READOUT_CONTENT_Y,
                 TEXT_COLOR,
             )
         }
@@ -390,13 +390,13 @@ object CustomBars {
             val text = "${seconds}s"
             val font = Minecraft.getInstance().font
             val contentWidth = ICON_SIZE + READOUT_CONTENT_GAP + font.width(text)
-            val contentX = (READOUT_WIDTH - contentWidth) / 2
+            val contentX = centeredReadoutX(contentWidth)
             context.fillRoundedRect(0, READOUT_BACKGROUND_Y, READOUT_WIDTH, READOUT_HEIGHT, TRACK_COLOR)
             context.blitSprite(
                 RenderPipelines.GUI_TEXTURED,
                 AIR_SPRITE,
                 contentX,
-                READOUT_BACKGROUND_Y,
+                READOUT_CONTENT_Y,
                 ICON_SIZE,
                 ICON_SIZE,
             )
@@ -404,10 +404,13 @@ object CustomBars {
                 context,
                 text,
                 contentX + ICON_SIZE + READOUT_CONTENT_GAP,
-                READOUT_BACKGROUND_Y,
+                READOUT_CONTENT_Y,
                 TEXT_COLOR,
             )
         }
+
+        private fun centeredReadoutX(contentWidth: Int): Int =
+            ((READOUT_WIDTH - contentWidth) / 2f).roundToInt()
     }
 }
 
@@ -616,6 +619,7 @@ private const val READOUT_WIDTH = 44
 private const val READOUT_HEIGHT = 9
 private const val READOUT_ELEMENT_HEIGHT = 11
 private const val READOUT_BACKGROUND_Y = 1
+private const val READOUT_CONTENT_Y = 2
 private const val READOUT_CONTENT_GAP = 1
 private const val BAR_TEXT_Y_OFFSET = -4
 private const val ICON_Y_OFFSET = -1
