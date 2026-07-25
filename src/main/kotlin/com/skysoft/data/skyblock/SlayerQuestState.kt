@@ -18,6 +18,10 @@ object SlayerQuestState {
     val isActive: Boolean get() = snapshot.bossName != null
     val isBossActive: Boolean get() = snapshot.isBossActive
     val bossName: String? get() = snapshot.bossName
+    val bossNames: Set<String>
+        get() = snapshot.slayerType
+            ?.let { slayerType -> snapshot.tier?.let(slayerType::bossNames) }
+            .orEmpty()
     val slayerType: SkyBlockSlayerType? get() = snapshot.slayerType
     val tier: Int? get() = snapshot.tier
 
@@ -62,11 +66,11 @@ object SlayerQuestState {
     }
 
     fun isSlayerTarget(mobName: String): Boolean =
-        snapshot.bossName?.endsWith(mobName, ignoreCase = true) == true ||
+        bossNames.any { bossName -> bossName.endsWith(mobName, ignoreCase = true) } ||
             minibossNames.any { it.equals(mobName, ignoreCase = true) }
 
     fun targetNames(): Set<String> = buildSet {
-        snapshot.bossName?.let(::add)
+        addAll(bossNames)
         addAll(minibossNames)
     }
 
@@ -124,17 +128,27 @@ object SlayerMessageParser {
 
 enum class SkyBlockSlayerType(
     val displayName: String,
+    private val bossName: String,
     val bossEntityPrefix: String,
+    private val tierFiveBossNames: Set<String> = emptySet(),
 ) {
-    ZOMBIE("Zombie", "REVENANT_HORROR"),
-    SPIDER("Spider", "TARANTULA_BROODFATHER"),
-    WOLF("Wolf", "SVEN_PACKMASTER"),
-    ENDERMAN("Enderman", "VOIDGLOOM_SERAPH"),
-    BLAZE("Blaze", "INFERNO_DEMONLORD"),
-    VAMPIRE("Vampire", "RIFTSTALKER_BLOODFIEND"),
+    ZOMBIE("Zombie", "Revenant Horror", "REVENANT_HORROR", setOf("Atoned Horror")),
+    SPIDER(
+        "Spider",
+        "Tarantula Broodfather",
+        "TARANTULA_BROODFATHER",
+        setOf("Tarantula Broodfather", "Conjoined Brood"),
+    ),
+    WOLF("Wolf", "Sven Packmaster", "SVEN_PACKMASTER"),
+    ENDERMAN("Enderman", "Voidgloom Seraph", "VOIDGLOOM_SERAPH"),
+    BLAZE("Blaze", "Inferno Demonlord", "INFERNO_DEMONLORD"),
+    VAMPIRE("Vampire", "Riftstalker Bloodfiend", "RIFTSTALKER_BLOODFIEND"),
     ;
 
     fun bossEntityId(tier: Int): String = "${bossEntityPrefix}_${tier}_BOSS"
+
+    fun bossNames(tier: Int): Set<String> =
+        tierFiveBossNames.takeIf { tier == TIER_FIVE && it.isNotEmpty() } ?: setOf(bossName)
 
     companion object {
         fun fromBossEntityId(entityId: String): Pair<SkyBlockSlayerType, Int>? {
@@ -144,14 +158,9 @@ enum class SkyBlockSlayerType(
             return type to tier
         }
 
-        fun fromBossName(name: String): SkyBlockSlayerType? = when {
-            name.startsWith("Revenant Horror", ignoreCase = true) || name.equals("Atoned Horror", true) -> ZOMBIE
-            name.startsWith("Tarantula Broodfather", ignoreCase = true) -> SPIDER
-            name.startsWith("Sven Packmaster", ignoreCase = true) -> WOLF
-            name.startsWith("Voidgloom Seraph", ignoreCase = true) -> ENDERMAN
-            name.startsWith("Inferno Demonlord", ignoreCase = true) -> BLAZE
-            name.startsWith("Riftstalker Bloodfiend", ignoreCase = true) -> VAMPIRE
-            else -> null
+        fun fromBossName(name: String): SkyBlockSlayerType? = entries.firstOrNull { slayerType ->
+            name.startsWith(slayerType.bossName, ignoreCase = true) ||
+                slayerType.tierFiveBossNames.any { bossName -> name.startsWith(bossName, ignoreCase = true) }
         }
 
         private val SLAYER_BOSS_ENTITY_PATTERN = Regex(
@@ -180,8 +189,8 @@ internal fun parseSlayerQuestSnapshot(scoreboardLines: List<String>): SlayerQues
     val questName = scoreboardLines.getOrNull(headerIndex + 1)?.trim().orEmpty()
     val tier = SLAYER_TIER_SUFFIX.find(questName)?.groupValues?.get(1)?.let(::slayerTier)
         ?: return SlayerQuestSnapshot.NONE
-    val bossName = slayerBossEntityName(questName).takeIf(String::isNotEmpty) ?: return SlayerQuestSnapshot.NONE
     val slayerType = SkyBlockSlayerType.fromBossName(questName) ?: return SlayerQuestSnapshot.NONE
+    val bossName = slayerType.bossNames(tier).firstOrNull() ?: return SlayerQuestSnapshot.NONE
     return SlayerQuestSnapshot(
         bossName = bossName,
         isBossActive = scoreboardLines.any { it.equals(SLAYER_BOSS_ACTIVE_LINE, ignoreCase = true) },
@@ -190,19 +199,9 @@ internal fun parseSlayerQuestSnapshot(scoreboardLines: List<String>): SlayerQues
     )
 }
 
-internal fun slayerBossEntityName(scoreboardBossName: String): String {
-    val trimmedName = scoreboardBossName.trim()
-    return if (trimmedName.equals(ATONED_HORROR_QUEST_NAME, ignoreCase = true)) {
-        ATONED_HORROR_ENTITY_NAME
-    } else {
-        trimmedName.replace(SLAYER_TIER_SUFFIX, "")
-    }
-}
-
 private const val SLAYER_QUEST_HEADER = "Slayer Quest"
 private const val SLAYER_BOSS_ACTIVE_LINE = "Slay the boss!"
-private const val ATONED_HORROR_QUEST_NAME = "Revenant Horror V"
-private const val ATONED_HORROR_ENTITY_NAME = "Atoned Horror"
+private const val TIER_FIVE = 5
 private fun slayerTier(romanNumeral: String): Int? =
     SLAYER_TIER_NUMERALS.indexOf(romanNumeral.uppercase()).takeIf { it >= 0 }?.inc()
 
