@@ -55,24 +55,37 @@ object InventoryButtonEditorScreen {
         internal var lastPreviewScale = 1f
         internal var lastPanelBounds: Rect? = null
         internal var lastResultsBounds: Rect? = null
-        internal var lastPresetBounds: Rect? = null
-        internal var lastResetBounds: Rect? = null
         internal var lastClearBounds: Rect? = null
         internal var lastDoneBounds: Rect? = null
         internal var hoveredIndex: Int? = null
         private var grabbedIndex: Int? = null
         private var grabbedOffsetX = 0
         private var grabbedOffsetY = 0
+        private val actionsMenu = InventoryButtonEditorMenu(
+            config = { config },
+            onLayoutChanged = {
+                selectedIndex = null
+                syncFieldsFromSelection()
+            },
+        )
+
+        init {
+            config.repairLoadedValues()
+        }
 
         override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
             context.fill(0, 0, width, height, EditorColors.SCREEN_OVERLAY)
             EditorRenderer.renderInventoryPreview(this, context, mouseX, mouseY)
             EditorRenderer.renderSidePanel(this, context, mouseX, mouseY)
+            lastPanelBounds?.let { panel ->
+                actionsMenu.render(context, panel, width, height, mouseX, mouseY)
+            }
         }
 
         override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
             val mouseX = click.x().toInt()
             val mouseY = click.y().toInt()
+            if (lastPanelBounds?.let { actionsMenu.wasMouseClickHandled(click, it) } == true) return true
             if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
             grabbedIndex = null
 
@@ -91,22 +104,6 @@ object InventoryButtonEditorScreen {
                 lastPanelBounds?.contains(mouseX, mouseY) == true
             }
             return when {
-                lastPresetBounds?.contains(mouseX, mouseY) == true -> {
-                    SoundUtilities.playClickSound()
-                    InventoryButtonManager.applySkyBlockPreset()
-                    InventoryButtonManager.clearIconCache()
-                    selectedIndex = null
-                    syncFieldsFromSelection()
-                    true
-                }
-                lastResetBounds?.contains(mouseX, mouseY) == true -> {
-                    SoundUtilities.playClickSound()
-                    config.buttons = InventoryButtonDefaults.create()
-                    InventoryButtonManager.clearIconCache()
-                    selectedIndex = null
-                    syncFieldsFromSelection()
-                    true
-                }
                 addButtonClicked -> {
                     SoundUtilities.playClickSound()
                     selectedIndex = InventoryButtonEditorActions.addButtonSlot()
@@ -176,6 +173,7 @@ object InventoryButtonEditorScreen {
         }
 
         override fun keyPressed(event: KeyEvent): Boolean {
+            if (actionsMenu.handleKeyPress(event) == InputHandlingResult.CONSUMED) return true
             return when {
                 event.key() == GLFW.GLFW_KEY_ESCAPE && (commandField.focused || iconField.focused) -> {
                     commandField.focused = false
@@ -245,6 +243,7 @@ object InventoryButtonEditorScreen {
 
         override fun charTyped(event: CharacterEvent): Boolean {
             if (!event.isAllowedChatCharacter) return false
+            if (actionsMenu.handleCharTyped(event) == InputHandlingResult.CONSUMED) return true
             if (commandField.focused) {
                 commandField.charTyped(event)
                 updateSelectedCommandFromField()
@@ -259,6 +258,7 @@ object InventoryButtonEditorScreen {
         }
 
         override fun onClose() {
+            actionsMenu.saveActivePreset()
             SkysoftConfigGui.config().saveNow()
             MinecraftClient.setScreen(parent)
         }
@@ -451,35 +451,10 @@ object InventoryButtonEditorScreen {
             context.text(
                 font,
                 "Inventory Buttons",
-                bounds.x + EditorPanel.INSET,
+                bounds.x + (bounds.width - font.width("Inventory Buttons")) / 2,
                 bounds.y + EditorPanel.TITLE_Y,
                 EditorColors.WHITE_TEXT,
                 false,
-            )
-
-            val fieldWidth = bounds.width - EditorPanel.INSET * 2
-            val preset = Rect(
-                bounds.x + EditorPanel.INSET,
-                bounds.y + EditorPanel.PRESET_BUTTON_Y,
-                fieldWidth,
-                EditorPanel.FIELD_HEIGHT,
-            )
-            val reset = Rect(
-                bounds.x + EditorPanel.INSET,
-                bounds.y + EditorPanel.RESET_BUTTON_Y,
-                fieldWidth,
-                EditorPanel.FIELD_HEIGHT,
-            )
-            screen.lastPresetBounds = preset
-            screen.lastResetBounds = reset
-            drawEditorButton(context, preset, "Load Defaults", mouseX, mouseY)
-            drawEditorButton(
-                context,
-                reset,
-                "Reset Slots",
-                mouseX,
-                mouseY,
-                tone = PixelButtonTone.DANGER,
             )
 
             if (selectedButton == null) {
@@ -999,23 +974,21 @@ object InventoryButtonEditorScreen {
 
     private object EditorPanel {
         const val WIDTH = 196
-        const val HEIGHT = 316
+        const val HEIGHT = 282
         const val MARGIN = 8
         const val INSET = 10
         const val FIELD_HEIGHT = 18
         const val TITLE_Y = 9
-        const val PRESET_BUTTON_Y = 25
-        const val RESET_BUTTON_Y = 47
-        const val COMMAND_FIELD_Y = 87
-        const val BACKGROUND_PICKER_Y = 123
-        const val ICON_FIELD_Y = 186
+        const val COMMAND_FIELD_Y = 47
+        const val BACKGROUND_PICKER_Y = 83
+        const val ICON_FIELD_Y = 146
         const val BACKGROUND_PICKER_COUNT = 7
         const val EMPTY_HELP_X_OFFSET = 12
-        const val EMPTY_HELP_Y_OFFSET = 80
+        const val EMPTY_HELP_Y_OFFSET = 42
     }
 
     private object SelectedEditor {
-        const val TOP = 76
+        const val TOP = 36
         const val LABEL_TO_FIELD_GAP = 11
         const val FIELD_SECTION_GAP = 25
         const val BACKGROUND_SECTION_GAP = 26

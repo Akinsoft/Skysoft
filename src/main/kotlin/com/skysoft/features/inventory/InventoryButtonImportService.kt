@@ -56,7 +56,7 @@ internal object InventoryButtonImportService {
     fun undoImport(): InventoryButtonImportSnapshot? {
         val snapshot = undoSnapshot ?: return null
         val config = config()
-        config.buttons = snapshot.buttons.map(InventoryButtonConfig::copyForImport).toMutableList()
+        config.replaceActiveButtons(snapshot.buttons)
         config.enabled = snapshot.isEnabled
         config.settings.clickType = snapshot.clickType
         config.details.tooltipDelay = snapshot.tooltipDelay
@@ -84,7 +84,7 @@ internal object InventoryButtonImportService {
     }
 
     private fun snapshot(config: com.skysoft.config.InventoryButtonsConfig) = InventoryButtonImportSnapshot(
-        config.buttons.map(InventoryButtonConfig::copyForImport).toMutableList(),
+        config.buttons.map(InventoryButtonConfig::copy).toMutableList(),
         config.enabled,
         config.settings.clickType,
         config.details.tooltipDelay,
@@ -93,11 +93,10 @@ internal object InventoryButtonImportService {
     private fun applyPlan(plan: InventoryButtonImportPlan, buttons: List<InventoryButtonConfig>) {
         val config = config()
         undoSnapshot = snapshot(config)
-        config.buttons = buttons.map(InventoryButtonConfig::copyForImport).toMutableList()
+        config.replaceActiveButtons(buttons)
         plan.read.settings.isEnabled?.let { config.enabled = it }
         plan.read.settings.clickType?.let { config.settings.clickType = it }
         plan.read.settings.tooltipDelay?.let { config.details.tooltipDelay = it }
-        config.repairLoadedValues()
         SkysoftConfigGui.config().saveNow()
         InventoryButtonManager.clearIconCache()
         pendingPlan = null
@@ -111,7 +110,7 @@ internal fun planInventoryButtonImport(
     read: InventoryButtonImportReadResult,
     existingButtons: List<InventoryButtonConfig>,
 ): InventoryButtonImportPlan {
-    val merged = existingButtons.map(InventoryButtonConfig::copyForImport).toMutableList()
+    val merged = existingButtons.map(InventoryButtonConfig::copy).toMutableList()
     val commands = merged.filter(InventoryButtonConfig::isActive).mapTo(mutableSetOf()) { normalizedCommand(it.command) }
     var imported = 0
     var duplicates = 0
@@ -129,7 +128,7 @@ internal fun planInventoryButtonImport(
             return@forEach
         }
         val inactiveSlot = merged.indexOfFirst { !it.isActive() && importBounds(it) == importedBounds }
-        if (inactiveSlot >= 0) merged[inactiveSlot] = importedButton.copyForImport() else merged += importedButton.copyForImport()
+        if (inactiveSlot >= 0) merged[inactiveSlot] = importedButton.copy() else merged += importedButton.copy()
         imported++
     }
     return InventoryButtonImportPlan(read, merged, imported, duplicates, conflicts)

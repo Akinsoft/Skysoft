@@ -293,7 +293,7 @@ object InventoryButtonManager {
             button.icon = preset.icon
             button.backgroundIndex = preset.index % buttonStyles.size
         }
-        config.buttons = defaults
+        config.replaceActiveButtons(defaults)
     }
 
     fun clearIconCache() {
