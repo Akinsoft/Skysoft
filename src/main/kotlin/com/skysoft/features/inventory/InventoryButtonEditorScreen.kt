@@ -16,6 +16,7 @@ import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import java.util.Locale
 import kotlin.math.ceil
@@ -55,9 +56,12 @@ object InventoryButtonEditorScreen {
         internal var lastPreviewScale = 1f
         internal var lastPanelBounds: Rect? = null
         internal var lastResultsBounds: Rect? = null
+        internal var lastRequiredKeyBounds: Rect? = null
         internal var lastClearBounds: Rect? = null
         internal var lastDoneBounds: Rect? = null
         internal var hoveredIndex: Int? = null
+        internal var waitingForRequiredKey = false
+        private val isTextFieldFocused get() = commandField.focused || iconField.focused
         private var grabbedIndex: Int? = null
         private var grabbedOffsetX = 0
         private var grabbedOffsetY = 0
@@ -85,7 +89,12 @@ object InventoryButtonEditorScreen {
         override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
             val mouseX = click.x().toInt()
             val mouseY = click.y().toInt()
-            if (lastPanelBounds?.let { actionsMenu.wasMouseClickHandled(click, it) } == true) return true
+            if (lastPanelBounds?.let { actionsMenu.wasMouseClickHandled(click, it) } == true) {
+                waitingForRequiredKey = false
+                return true
+            }
+            if (handleRequiredKeyMouseClick(click) == InputHandlingResult.CONSUMED) return true
+            waitingForRequiredKey = false
             if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
             grabbedIndex = null
 
@@ -173,9 +182,10 @@ object InventoryButtonEditorScreen {
         }
 
         override fun keyPressed(event: KeyEvent): Boolean {
+            if (handleRequiredKeyPress(event) == InputHandlingResult.CONSUMED) return true
             if (actionsMenu.handleKeyPress(event) == InputHandlingResult.CONSUMED) return true
             return when {
-                event.key() == GLFW.GLFW_KEY_ESCAPE && (commandField.focused || iconField.focused) -> {
+                event.key() == GLFW.GLFW_KEY_ESCAPE && isTextFieldFocused -> {
                     commandField.focused = false
                     iconField.focused = false
                     true
@@ -185,7 +195,8 @@ object InventoryButtonEditorScreen {
                     true
                 }
                 iconField.focused && handleIconFieldKey(event) == InputHandlingResult.CONSUMED -> true
-                event.key() == GLFW.GLFW_KEY_R && !commandField.focused && !iconField.focused -> {
+                !isTextFieldFocused && nudgeActiveButton(event.key()) == InputHandlingResult.CONSUMED -> true
+                event.key() == GLFW.GLFW_KEY_R && !isTextFieldFocused -> {
                     val index = hoveredIndex ?: selectedIndex
                     when (index?.let(InventoryButtonEditorActions::resetOrRemoveButton)) {
                         InventoryButtonResetShortcutResult.RESET -> true
@@ -237,6 +248,7 @@ object InventoryButtonEditorScreen {
             button.command = ""
             button.icon = null
             button.backgroundIndex = 0
+            button.requiredKey = GLFW.GLFW_KEY_UNKNOWN
             syncFieldsFromSelection()
             return InputHandlingResult.CONSUMED
         }
@@ -296,6 +308,7 @@ object InventoryButtonEditorScreen {
                     button.command = ""
                     button.icon = null
                     button.backgroundIndex = 0
+                    button.requiredKey = GLFW.GLFW_KEY_UNKNOWN
                     syncFieldsFromSelection()
                 }
                 lastDoneBounds?.contains(mouseX, mouseY) == true -> {
@@ -353,6 +366,7 @@ object InventoryButtonEditorScreen {
             iconField.text = ""
             commandField.focused = false
             iconField.focused = false
+            waitingForRequiredKey = false
             resultScrollRow = 0
             lastIconSearch = null
             cachedIconCandidates = emptyList()
@@ -385,6 +399,60 @@ object InventoryButtonEditorScreen {
                 lastIconSearch = search
             }
             return cachedIconCandidates.size
+        }
+    }
+
+    private fun EditorScreen.handleRequiredKeyPress(event: KeyEvent): InputHandlingResult {
+        if (!waitingForRequiredKey) return InputHandlingResult.IGNORED
+        when (event.key()) {
+            GLFW.GLFW_KEY_ESCAPE -> waitingForRequiredKey = false
+            GLFW.GLFW_KEY_DELETE, GLFW.GLFW_KEY_BACKSPACE -> {
+                selectedButton()?.requiredKey = GLFW.GLFW_KEY_UNKNOWN
+                waitingForRequiredKey = false
+            }
+            in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST -> {
+                selectedButton()?.requiredKey = event.key()
+                waitingForRequiredKey = false
+            }
+        }
+        return InputHandlingResult.CONSUMED
+    }
+
+    private fun EditorScreen.nudgeActiveButton(key: Int): InputHandlingResult {
+        val delta = inventoryButtonNudge(key) ?: return InputHandlingResult.IGNORED
+        val button = (hoveredIndex ?: selectedIndex)?.let(config.buttons::getOrNull)
+            ?: return InputHandlingResult.IGNORED
+        InventoryButtonLayout.nudgeButton(
+            InventoryButtonCanvas(
+                Rect(0, 0, InventoryPreview.WIDTH, InventoryPreview.HEIGHT),
+                playerInventory = true,
+            ),
+            button,
+            delta.x,
+            delta.y,
+        )
+        return InputHandlingResult.CONSUMED
+    }
+
+    private fun EditorScreen.handleRequiredKeyMouseClick(click: MouseButtonEvent): InputHandlingResult {
+        val bounds = lastRequiredKeyBounds ?: return InputHandlingResult.IGNORED
+        if (!bounds.contains(click.x().toInt(), click.y().toInt())) return InputHandlingResult.IGNORED
+        val button = selectedButton() ?: return InputHandlingResult.IGNORED
+        return when (click.button()) {
+            GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+                SoundUtilities.playClickSound()
+                commandField.focused = false
+                iconField.focused = false
+                waitingForRequiredKey = true
+                InputHandlingResult.CONSUMED
+            }
+            GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
+                SoundUtilities.playClickSound()
+                button.requiredKey = GLFW.GLFW_KEY_UNKNOWN
+                waitingForRequiredKey = false
+                InputHandlingResult.CONSUMED
+            }
+            else -> InputHandlingResult.IGNORED
         }
     }
 
@@ -466,6 +534,7 @@ object InventoryButtonEditorScreen {
                     shadow = false,
                 )
                 screen.lastResultsBounds = null
+                screen.lastRequiredKeyBounds = null
                 screen.lastClearBounds = null
                 screen.lastDoneBounds = null
                 return
@@ -577,8 +646,14 @@ object InventoryButtonEditorScreen {
                                 "§7Empty button slot"
                             },
                             "§7Scale: §e${"%.2f".format(Locale.US, placement.button.scale)}",
+                            if (placement.button.requiredKey != GLFW.GLFW_KEY_UNKNOWN) {
+                                "§7Hold Key: §e${InputUtilities.bindingName(placement.button.requiredKey)}"
+                            } else {
+                                "§7Hold Key: §eNone"
+                            },
                             "§eLeft-click §7to $action",
                             "§eLeft-click drag §7to move",
+                            "§eArrow Keys §7to move one pixel",
                             "§eScroll-Wheel §7to resize",
                             if (placement.button.isUserCreated == true) {
                                 "§eR §7to remove"
@@ -633,6 +708,38 @@ object InventoryButtonEditorScreen {
             y += SelectedEditor.LABEL_TO_FIELD_GAP
             val fieldWidth = panel.width - EditorPanel.INSET * 2
             screen.commandField.render(context, x, y, fieldWidth, EditorPanel.FIELD_HEIGHT, "storage", prefix = "/")
+            y += SelectedEditor.FIELD_SECTION_GAP
+
+            context.text(font, "Hold Key", x, y, EditorColors.MUTED_TEXT, false)
+            y += SelectedEditor.LABEL_TO_FIELD_GAP
+            val requiredKeyBounds = Rect(x, y, fieldWidth, EditorPanel.FIELD_HEIGHT)
+            screen.lastRequiredKeyBounds = requiredKeyBounds
+            PixelButtonRenderer.draw(
+                context,
+                font,
+                requiredKeyBounds,
+                if (screen.waitingForRequiredKey) {
+                    "Press a key..."
+                } else {
+                    InputUtilities.bindingName(button.requiredKey)
+                },
+                selected = screen.waitingForRequiredKey,
+                hovered = requiredKeyBounds.contains(mouseX, mouseY),
+                enabled = true,
+                tone = PixelButtonTone.NORMAL,
+            )
+            if (requiredKeyBounds.contains(mouseX, mouseY)) {
+                SkysoftNativeTooltip.setForNextFrame(
+                    context,
+                    listOf(
+                        "§7Only activate this button while the chosen key is held.",
+                        "§eLeft-click §7to choose a key",
+                        "§eRight-click §7to clear",
+                    ),
+                    mouseX,
+                    mouseY,
+                )
+            }
             y += SelectedEditor.FIELD_SECTION_GAP
 
             context.text(font, "Background", x, y, EditorColors.MUTED_TEXT, false)
@@ -974,14 +1081,14 @@ object InventoryButtonEditorScreen {
 
     private object EditorPanel {
         const val WIDTH = 196
-        const val HEIGHT = 282
+        const val HEIGHT = 318
         const val MARGIN = 8
         const val INSET = 10
         const val FIELD_HEIGHT = 18
         const val TITLE_Y = 9
         const val COMMAND_FIELD_Y = 47
-        const val BACKGROUND_PICKER_Y = 83
-        const val ICON_FIELD_Y = 146
+        const val BACKGROUND_PICKER_Y = 119
+        const val ICON_FIELD_Y = 182
         const val BACKGROUND_PICKER_COUNT = 7
         const val EMPTY_HELP_X_OFFSET = 12
         const val EMPTY_HELP_Y_OFFSET = 42

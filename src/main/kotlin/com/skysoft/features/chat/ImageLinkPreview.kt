@@ -2,7 +2,6 @@ package com.skysoft.features.chat
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
@@ -268,7 +267,7 @@ object ImageLinkPreview {
 
     private fun previewKeyName(): String {
         val key = SkysoftConfigGui.config().chat.previewImage.settings.previewKey
-        return InputConstants.Type.KEYSYM.getOrCreate(key).displayName.string
+        return InputUtilities.bindingName(key)
     }
 
     private fun cancelPendingRequest() {
