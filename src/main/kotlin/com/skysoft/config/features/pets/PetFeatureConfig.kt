@@ -1,6 +1,7 @@
 package com.skysoft.config.features.pets
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.repairFiniteFloat
 import com.skysoft.config.features.pets.display.PetOverlayConfig
@@ -15,7 +16,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOrder
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class PetFeatureConfig {
+class PetFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:Category(name = "Pet Display", desc = "Pet display settings.")
@@ -50,7 +51,7 @@ class PetFeatureConfig {
 
     val display: PetOverlayConfig get() = petDisplay.display
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         petDisplay.display.repairLoadedValues()
         petDisplay.enabled = petDisplay.display.general.enabled
         visiblePetPosition.repairLoadedValues()

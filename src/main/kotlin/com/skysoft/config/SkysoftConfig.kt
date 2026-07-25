@@ -6,6 +6,7 @@ import com.google.gson.JsonParser
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.SkysoftMod
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
 import com.skysoft.data.ProfileStorageApi
@@ -170,14 +171,20 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     }
 
     fun repairLoadedValues() {
-        ProfileStorageApi.importLegacyStorage(pets.petDisplay.legacyStorage)
-        gui.repairLoadedValues()
-        inventory.repairLoadedValues()
-        combat.repairLoadedValues()
-        chat.repairLoadedValues()
-        events.repairLoadedValues()
-        misc.repairLoadedValues()
+        migrateLoadedValues()
+        repairLoadedConfigs(
+            gui,
+            inventory,
+            combat,
+            chat,
+            events,
+            misc,
+        )
         ProfileStorageApi.allStorage.repairLoadedValues()
-        pets.repairLoadedValues()
+        repairLoadedConfigs(pets)
+    }
+
+    private fun migrateLoadedValues() {
+        ProfileStorageApi.importLegacyStorage(pets.petDisplay.legacyStorage)
     }
 }
