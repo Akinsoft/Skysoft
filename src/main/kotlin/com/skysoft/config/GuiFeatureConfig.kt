@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.gui.SkysoftHudEditor
@@ -13,7 +14,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import org.lwjgl.glfw.GLFW
 
-class GuiFeatureConfig {
+class GuiFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:Category(name = "Position Editor", desc = "Move and scale HUD elements.")
@@ -105,7 +106,7 @@ class GuiFeatureConfig {
     @field:ConfigEditorBoolean
     var areTitlesRenderedInFront = false
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         heldItem.repairLoadedValues()
         selectedItemName.repairLoadedValues()
         actionBar.repairLoadedValues()

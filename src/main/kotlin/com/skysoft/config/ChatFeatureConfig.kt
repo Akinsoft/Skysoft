@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.utils.SoundUtilities
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -16,7 +17,7 @@ import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 
-class ChatFeatureConfig {
+class ChatFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:Category(name = "Smooth Chat", desc = "Chat animation and visual settings.")
@@ -67,7 +68,7 @@ class ChatFeatureConfig {
     @field:Category(name = "Preview Image", desc = "Preview image links hovered in chat.")
     val previewImage = ImagePreviewConfig()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         smoothChat.repairLoadedValues()
         history.repairLoadedValues()
         compacting.repairLoadedValues()

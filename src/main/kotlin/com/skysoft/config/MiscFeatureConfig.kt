@@ -1,13 +1,14 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 
-class MiscFeatureConfig {
+class MiscFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:Category(name = "Block Overlay", desc = "Customize the targeted block highlight.")
@@ -60,7 +61,7 @@ class MiscFeatureConfig {
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         droppedItemScaling.repairLoadedValues()
     }
 }

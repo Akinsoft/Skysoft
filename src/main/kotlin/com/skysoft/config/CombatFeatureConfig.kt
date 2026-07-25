@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -9,7 +10,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableLi
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class CombatFeatureConfig {
+class CombatFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:Category(name = "Cocoon Display", desc = "Show cocooned mob names and hatch timers in the world.")
@@ -20,7 +21,7 @@ class CombatFeatureConfig {
     @field:Category(name = "Better Shurikens", desc = "Show shuriken status at mobs' feet.")
     val betterShurikens = BetterShurikensConfig()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         betterShurikens.settings.repairLoadedValues()
     }
 }

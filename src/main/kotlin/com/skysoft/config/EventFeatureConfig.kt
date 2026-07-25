@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -16,13 +17,13 @@ import io.github.notenoughupdates.moulconfig.observer.GetSetter
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 
-class EventFeatureConfig {
+class EventFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:Category(name = "Diana", desc = "Diana event helpers.")
     val diana = SkysoftDianaConfig()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         diana.repairLoadedValues()
     }
 }
