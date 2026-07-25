@@ -11,6 +11,7 @@ import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import net.minecraft.client.Minecraft
@@ -39,10 +40,7 @@ internal sealed interface ProfitTrackerControl {
 
 internal data class ProfitTrackerPanelControl(
     val action: ProfitTrackerControl,
-    val x: Int,
-    val y: Int,
-    val width: Int,
-    val height: Int,
+    val bounds: Rect,
     val tooltipLines: List<String> = emptyList(),
 )
 
@@ -119,7 +117,11 @@ internal class ProfitTrackerItemPanel(
                 false,
             )
             if (isHovered) {
-                hovered = ProfitTrackerPanelControl(row.action, x, rowY, width, row.height, row.tooltipLines)
+                hovered = ProfitTrackerPanelControl(
+                    row.action,
+                    Rect(x, rowY, width, row.height),
+                    row.tooltipLines,
+                )
             }
             rowY += row.height
         }

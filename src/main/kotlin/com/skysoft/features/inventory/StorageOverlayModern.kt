@@ -4,7 +4,7 @@ import com.skysoft.config.StorageOverlayConfigBounds
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.SmoothFloatTransition
 import com.skysoft.utils.gui.Rect
-import kotlin.math.roundToInt
+import com.skysoft.utils.gui.interpolateInt
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
 private var modernScreenId: Int? = null
@@ -42,7 +42,7 @@ internal fun modernMeasurements(width: Int, height: Int): Measurements {
         ?: StoragePages.EMPTY_HEIGHT
     val focusedPageY = modernFocusedPageY(height, focusedPageHeight)
     val playerTargetY = focusedPageY + focusedPageHeight + ModernStoragePanel.FOCUS_GAP
-    val playerY = interpolate(
+    val playerY = interpolateInt(
         height + ModernStoragePanel.FOCUS_GAP,
         playerTargetY,
         focus.progress,
@@ -92,8 +92,8 @@ internal fun modernStoragePageX(measurements: Measurements, column: Int): Int {
 
 internal fun modernFocusedPageLayout(measurements: Measurements, layout: PageLayout): PageLayout = PageLayout(
     pageIndex = layout.pageIndex,
-    x = interpolate(layout.x, (measurements.totalBounds.width - layout.width) / 2, measurements.focusProgress),
-    y = interpolate(
+    x = interpolateInt(layout.x, (measurements.totalBounds.width - layout.width) / 2, measurements.focusProgress),
+    y = interpolateInt(
         layout.y,
         modernFocusedPageY(measurements.totalBounds.height, layout.height),
         measurements.focusProgress,
@@ -189,6 +189,3 @@ internal fun resetModernTransientState() {
 private fun modernFocusedPageY(screenHeight: Int, pageHeight: Int): Int =
     ((screenHeight - pageHeight - ModernStoragePanel.FOCUS_GAP - StoragePlayerInventory.HEIGHT) / 2)
         .coerceAtLeast(StoragePanel.TOP_MIN)
-
-private fun interpolate(start: Int, end: Int, progress: Float): Int =
-    (start + (end - start) * progress.coerceIn(0f, 1f)).roundToInt()

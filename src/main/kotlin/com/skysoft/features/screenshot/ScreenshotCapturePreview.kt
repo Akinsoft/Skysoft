@@ -183,16 +183,14 @@ internal object ScreenshotCapturePreview {
         )
         return when {
             elapsedMillis < FULL_SCREEN_HOLD_MILLIS -> Rect(0, 0, screenWidth, screenHeight)
-            elapsedMillis < SHRINK_END_MILLIS -> interpolate(
-                Rect(0, 0, screenWidth, screenHeight),
+            elapsedMillis < SHRINK_END_MILLIS -> Rect(0, 0, screenWidth, screenHeight).interpolateTo(
                 center,
                 EasingUtilities.easeOutCubic(
                     (elapsedMillis - FULL_SCREEN_HOLD_MILLIS).toDouble() /
                         (SHRINK_END_MILLIS - FULL_SCREEN_HOLD_MILLIS),
                 ),
             )
-            elapsedMillis < TRAVEL_END_MILLIS -> interpolate(
-                center,
+            elapsedMillis < TRAVEL_END_MILLIS -> center.interpolateTo(
                 settled,
                 EasingUtilities.smoothStep(
                     (elapsedMillis - SHRINK_END_MILLIS).toDouble() / (TRAVEL_END_MILLIS - SHRINK_END_MILLIS),
@@ -201,16 +199,6 @@ internal object ScreenshotCapturePreview {
             else -> settled
         }
     }
-
-    private fun interpolate(from: Rect, to: Rect, progress: Double): Rect = Rect(
-        interpolate(from.x, to.x, progress),
-        interpolate(from.y, to.y, progress),
-        interpolate(from.width, to.width, progress),
-        interpolate(from.height, to.height, progress),
-    )
-
-    private fun interpolate(from: Int, to: Int, progress: Double): Int =
-        (from + (to - from) * progress).roundToInt()
 
     private fun replacePresentation(path: Path, image: NativeImage) {
         clear()
