@@ -19,8 +19,10 @@ import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.ColorUtilities.withAlpha
+import com.skysoft.utils.gui.Point
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import java.util.Locale
@@ -48,6 +50,14 @@ import org.lwjgl.glfw.GLFW
 
 private const val ADD_ICON_X_OFFSET = 6
 private const val ADD_ICON_Y_OFFSET = 5
+
+internal fun inventoryButtonNudge(key: Int): Point? = when (key) {
+    GLFW.GLFW_KEY_LEFT -> Point(-1, 0)
+    GLFW.GLFW_KEY_RIGHT -> Point(1, 0)
+    GLFW.GLFW_KEY_UP -> Point(0, -1)
+    GLFW.GLFW_KEY_DOWN -> Point(0, 1)
+    else -> null
+}
 
 object InventoryButtonManager {
     const val BUTTON_SIZE = 18
@@ -115,9 +125,18 @@ object InventoryButtonManager {
         }
         if (now - hoveredMillis >= config.details.tooltipDelay) {
             val command = displayCommand(hovered.command)
-            context.setTooltipForNextFrame(
+            val tooltip = buildList {
+                add(Component.literal(command).withStyle(ChatFormatting.GRAY))
+                if (hovered.requiredKey != GLFW.GLFW_KEY_UNKNOWN) {
+                    add(
+                        Component.literal("Hold ${InputUtilities.bindingName(hovered.requiredKey)} to use")
+                            .withStyle(ChatFormatting.YELLOW),
+                    )
+                }
+            }
+            context.setComponentTooltipForNextFrame(
                 Minecraft.getInstance().font,
-                Component.literal(command).withStyle(ChatFormatting.GRAY),
+                tooltip,
                 mouseX,
                 mouseY,
             )
@@ -315,6 +334,11 @@ object InventoryButtonManager {
         val placement = placements(screen, includeInactive = false).firstOrNull { it.bounds.contains(mouseX, mouseY) }
             ?: return InputHandlingResult.IGNORED
 
+        if (placement.button.requiredKey != GLFW.GLFW_KEY_UNKNOWN &&
+            !InputUtilities.isBindingDown(placement.button.requiredKey)
+        ) {
+            return InputHandlingResult.IGNORED
+        }
         if (screen.menu.carried.isEmpty) executeCommand(placement.button.command)
         return InputHandlingResult.CONSUMED
     }
@@ -482,6 +506,16 @@ internal object InventoryButtonLayout {
         val baseX = if (screenX + size <= canvas.container.x) screenX + growth else screenX
         val baseY = if (screenY + size <= canvas.container.y) screenY + growth else screenY
         canvas.move(button, baseX, baseY)
+    }
+
+    fun nudgeButton(
+        canvas: InventoryButtonCanvas,
+        button: InventoryButtonConfig,
+        deltaX: Int,
+        deltaY: Int,
+    ) {
+        val bounds = buttonBounds(canvas, button)
+        moveButton(canvas, button, bounds.x + deltaX, bounds.y + deltaY)
     }
 
     fun nextEditorButtonSlot(buttons: List<InventoryButtonConfig>): InventoryButtonConfig {

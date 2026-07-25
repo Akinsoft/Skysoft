@@ -995,6 +995,7 @@ class InventoryButtonConfig(
     @JvmField @field:Expose var anchorBottom: Boolean = false,
     @JvmField @field:Expose var backgroundIndex: Int = 0,
     @JvmField @field:Expose var command: String = "",
+    @JvmField @field:Expose var requiredKey: Int = GLFW.GLFW_KEY_UNKNOWN,
     @JvmField @field:Expose var scale: Float = DEFAULT_INVENTORY_BUTTON_SCALE,
     @JvmField @field:Expose var isUserCreated: Boolean? = null,
 ) {
@@ -1009,6 +1010,7 @@ class InventoryButtonConfig(
         anchorBottom = anchorBottom,
         backgroundIndex = backgroundIndex,
         command = command,
+        requiredKey = requiredKey,
         scale = scale,
         isUserCreated = isUserCreated,
     )
@@ -1017,6 +1019,8 @@ class InventoryButtonConfig(
         backgroundIndex = backgroundIndex.coerceIn(MIN_BUTTON_BACKGROUND_INDEX, MAX_BUTTON_BACKGROUND_INDEX)
         command = command.trimStart()
         icon = icon?.trim()?.takeIf { it.isNotEmpty() }
+        requiredKey = requiredKey.takeIf { it in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST }
+            ?: GLFW.GLFW_KEY_UNKNOWN
         scale = scale
             .takeIf(Float::isFinite)
             ?.takeIf { it > 0f }

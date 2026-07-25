@@ -1,5 +1,6 @@
 package com.skysoft.utils.input
 
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
@@ -16,6 +17,13 @@ object InputUtilities {
 
     fun isShiftDown(): Boolean =
         isBindingDown(GLFW.GLFW_KEY_LEFT_SHIFT) || isBindingDown(GLFW.GLFW_KEY_RIGHT_SHIFT)
+
+    fun bindingName(binding: Int): String =
+        if (binding == GLFW.GLFW_KEY_UNKNOWN) {
+            "None"
+        } else {
+            InputConstants.Type.KEYSYM.getOrCreate(binding).displayName.string
+        }
 
     fun clipboardAscii(): String = Minecraft.getInstance().keyboardHandler.clipboard.filter { it.code in 32..126 }
 }
