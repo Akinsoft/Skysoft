@@ -23,10 +23,13 @@ interface HudEditorElement {
     val position: HudPosition
     val canMove: Boolean get() = true
     val canScale: Boolean get() = true
+    val canResizeWidth: Boolean get() = false
+    val canResizeHeight: Boolean get() = false
     val hasEditorBackground: Boolean get() = true
     val keepsInsideScreen: Boolean get() = false
     val layoutOffsetX: Int get() = 0
     val layoutOffsetY: Int get() = 0
+    val snapGroup: String? get() = null
     val editorLeftPadding: Int get() = 0
     val usesInventoryScale: Boolean get() = false
     val requiresInventoryScreen: Boolean get() = false
@@ -49,6 +52,9 @@ interface HudEditorElement {
     fun beginEditorDrag(localX: Int, localY: Int, width: Int, height: Int) = Unit
     fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult = InputHandlingResult.IGNORED
     fun applyEditorScroll(scrollY: Double): InputHandlingResult = InputHandlingResult.IGNORED
+    fun resizeEditor(width: Int, height: Int) = Unit
+    fun minEditorWidth(): Int = 1
+    fun minEditorHeight(): Int = 1
     fun resetEditorState() = position.resetToDefault()
     fun editorTooltipLines(): List<String>? = null
     fun openConfig() = Unit

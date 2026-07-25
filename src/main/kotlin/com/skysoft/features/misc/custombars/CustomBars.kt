@@ -1,6 +1,12 @@
 package com.skysoft.features.misc.custombars
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.CustomBarIconPosition
+import com.skysoft.config.CustomElementDetailsConfig
+import com.skysoft.config.CustomReadoutDetailsConfig
+import com.skysoft.config.CustomResourceBarDetailsConfig
+import com.skysoft.config.core.HudDimensions
+import com.skysoft.config.core.HudPosition
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockStatGlyph
 import com.skysoft.gui.BottomHudLayout
@@ -10,19 +16,22 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
-import com.skysoft.config.core.HudPosition
 import com.skysoft.features.inventory.InventoryHudLayout
+import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.shortFormat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import com.skysoft.utils.renderables.renderRenderable
 import com.skysoft.utils.renderables.withIsolatedPose
+import io.github.notenoughupdates.moulconfig.ChromaColour
+import io.github.notenoughupdates.moulconfig.observer.Property
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -43,6 +52,9 @@ object CustomBars {
     private var mana: BarValue? = null
     private var vitality: BarValue? = null
     private var defense: Int? = null
+    private val textElements by lazy {
+        CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextEditorElement)
+    }
 
     fun register() {
         ChatEvents.onActionBar("Custom Bars tracking", ::isActive) { message ->
@@ -75,18 +87,30 @@ object CustomBars {
                 override val id: String = "custom_bars_${part.name.lowercase()}"
                 override val label: String = part.label
                 override val position get() = part.position()
+                override val snapGroup: String = id
                 override val layoutOffsetX: Int get() = part.layoutOffsetX()
                 override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
                 override val hasEditorBackground: Boolean = false
+                override val canScale: Boolean = part.dimensions == null
+                override val canResizeWidth: Boolean get() = part.dimensions != null
+                override val canResizeHeight: Boolean get() = part.dimensions != null
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
                 override fun isVisible(): Boolean = config.enabled && part.isEnabled()
                 override fun renderDummy(context: GuiGraphicsExtractor) {
                     renderable(part, previewAir = part == CustomBarPart.AIR).render(context)
                 }
+                override fun resizeEditor(width: Int, height: Int) = part.resize(width, height)
+                override fun minEditorWidth(): Int = MIN_RESOURCE_WIDTH
+                override fun minEditorHeight(): Int = MIN_RESOURCE_HEIGHT
+                override fun resetEditorState() {
+                    super.resetEditorState()
+                    part.dimensions?.resetToDefault()
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Custom Bars")
             })
         }
+        textElements.forEach(HudEditorRegistry::register)
     }
 
     private fun registerVanillaReplacements() {
@@ -123,22 +147,50 @@ object CustomBars {
         defense = null
     }
 
-    private enum class CustomBarPart(val label: String, val height: Int) {
-        HEALTH("Health Bar", RESOURCE_HEIGHT),
-        MANA("Mana Bar", RESOURCE_HEIGHT),
-        VITALITY("Vitality Bar", RESOURCE_HEIGHT),
-        EXPERIENCE("Experience Bar", RESOURCE_HEIGHT),
-        DEFENSE("Defense", READOUT_ELEMENT_HEIGHT),
-        SPEED("Speed", READOUT_ELEMENT_HEIGHT),
-        AIR("Air", READOUT_ELEMENT_HEIGHT),
+    private enum class CustomBarPart(val label: String) {
+        HEALTH("Health Bar"),
+        MANA("Mana Bar"),
+        VITALITY("Vitality Bar"),
+        EXPERIENCE("Experience Bar"),
+        DEFENSE("Defense"),
+        SPEED("Speed"),
+        AIR("Air"),
         ;
 
-        val width: Int
+        val defaultWidth: Int
             get() = when (this) {
                 HEALTH, MANA -> (resourceRowWidth() - BAR_GAP) / 2
                 VITALITY -> vitalityResourceWidth()
                 EXPERIENCE -> resourceRowWidth() - BAR_GAP - vitalityResourceWidth()
                 DEFENSE, SPEED, AIR -> READOUT_WIDTH
+            }
+
+        val dimensions: HudDimensions?
+            get() = when (this) {
+                HEALTH -> config.healthDimensions
+                MANA -> config.manaDimensions
+                VITALITY -> config.vitalityDimensions
+                EXPERIENCE -> config.experienceDimensions
+                DEFENSE, SPEED, AIR -> null
+            }
+
+        val width: Int get() = dimensions?.width(defaultWidth, MIN_RESOURCE_WIDTH) ?: defaultWidth
+        val height: Int get() = dimensions?.height(RESOURCE_HEIGHT, MIN_RESOURCE_HEIGHT) ?: READOUT_ELEMENT_HEIGHT
+        val isResource: Boolean get() = dimensions != null
+        val iconSlotWidth: Int get() = if (config.details.icons == CustomBarIconPosition.NONE) 0 else ICON_SLOT_WIDTH
+        val trackX: Int get() = if (config.details.icons == CustomBarIconPosition.LEFT) iconSlotWidth else 0
+        val trackWidth: Int get() = width - iconSlotWidth
+        val iconX: Int
+            get() = if (config.details.icons == CustomBarIconPosition.RIGHT) width - ICON_SLOT_WIDTH else 0
+        val visualDetails: CustomElementDetailsConfig
+            get() = when (this) {
+                HEALTH -> config.details.health
+                MANA -> config.details.mana
+                VITALITY -> config.details.vitality
+                EXPERIENCE -> config.details.experience
+                DEFENSE -> config.details.defense
+                SPEED -> config.details.speed
+                AIR -> config.details.air
             }
 
         fun isEnabled(): Boolean = when (this) {
@@ -159,6 +211,18 @@ object CustomBars {
             DEFENSE -> config.defensePosition
             SPEED -> config.speedPosition
             AIR -> config.airPosition
+        }
+
+        fun textPosition(): HudPosition = when (this) {
+            HEALTH -> config.healthTextPosition
+            MANA -> config.manaTextPosition
+            VITALITY -> config.vitalityTextPosition
+            EXPERIENCE -> config.experienceTextPosition
+            DEFENSE, SPEED, AIR -> error("$label does not have movable bar text")
+        }
+
+        fun resize(width: Int, height: Int) {
+            dimensions?.resize(width, height, defaultWidth, RESOURCE_HEIGHT)
         }
 
         fun layoutOffsetX(): Int {
@@ -192,6 +256,7 @@ object CustomBars {
                     }
                 }
             }
+            textElements.filter(CustomBarTextEditorElement::isVisible).forEach { it.renderLive(context) }
         }
     }
 
@@ -215,54 +280,46 @@ object CustomBars {
                 CustomBarPart.HEALTH -> drawBar(
                     context,
                     health,
-                    HEALTH_COLOR,
-                    HEALTH_OVERFLOW_COLOR,
+                    config.details.health,
                     SkyBlockStatGlyph.HEALTH.toString(),
                 )
                 CustomBarPart.MANA -> drawBar(
                     context,
                     mana,
-                    MANA_COLOR,
-                    MANA_OVERFLOW_COLOR,
+                    config.details.mana,
                     SkyBlockStatGlyph.INTELLIGENCE.toString(),
                 )
                 CustomBarPart.VITALITY -> drawBar(
                     context,
                     vitality,
-                    VITALITY_COLOR,
-                    VITALITY_COLOR,
+                    config.details.vitality,
                     SkyBlockStatGlyph.VITALITY.toString(),
                 )
                 CustomBarPart.EXPERIENCE -> {
-                    drawExperienceIcon(context)
+                    val details = config.details.experience
+                    drawExperienceIcon(context, part.iconX, resourceBarHeight())
                     drawProgressBar(
                         context,
-                        BAR_X,
+                        part.trackX,
                         RESOURCE_BAR_Y,
-                        width - ICON_SLOT_WIDTH,
+                        part.trackWidth,
+                        resourceBarHeight(),
                         player?.experienceProgress ?: 0f,
-                        XP_COLOR,
-                    )
-                    drawCenteredText(
-                        context,
-                        (player?.experienceLevel ?: 0).toString(),
-                        BAR_X,
-                        RESOURCE_BAR_Y + BAR_TEXT_Y_OFFSET,
-                        width - ICON_SLOT_WIDTH,
-                        XP_COLOR,
+                        details.barColor.rgb(),
+                        details.backgroundColor.rgb(),
                     )
                 }
                 CustomBarPart.DEFENSE -> drawReadout(
                     context,
                     SkyBlockStatGlyph.DEFENSE.toString(),
                     defense?.addSeparators() ?: "---",
-                    DEFENSE_ICON_COLOR,
+                    config.details.defense,
                 )
                 CustomBarPart.SPEED -> drawReadout(
                     context,
                     SkyBlockStatGlyph.SPEED.toString(),
                     player?.skyBlockSpeed()?.addSeparators() ?: "---",
-                    SPEED_ICON_COLOR,
+                    config.details.speed,
                 )
                 CustomBarPart.AIR -> {
                     val remainingTicks = if (previewAir && player?.isUnderWater != true) {
@@ -270,7 +327,11 @@ object CustomBars {
                     } else {
                         player?.airSupply ?: 0
                     }
-                    drawAirReadout(context, remainingTicks.coerceAtLeast(0) / TICKS_PER_SECOND)
+                    drawAirReadout(
+                        context,
+                        remainingTicks.coerceAtLeast(0) / TICKS_PER_SECOND,
+                        config.details.air,
+                    )
                 }
             }
         }
@@ -278,20 +339,23 @@ object CustomBars {
         private fun drawBar(
             context: GuiGraphicsExtractor,
             value: BarValue?,
-            color: Int,
-            overflowColor: Int,
+            details: CustomResourceBarDetailsConfig,
             icon: String,
         ) {
-            drawIcon(context, icon, 0, RESOURCE_BAR_Y + ICON_Y_OFFSET, color)
-            val barWidth = width - ICON_SLOT_WIDTH
-            drawResourceBar(context, BAR_X, RESOURCE_BAR_Y, barWidth, value, color, overflowColor)
-            drawCenteredText(
+            if (part.iconSlotWidth > 0) {
+                val iconY = RESOURCE_BAR_Y + (resourceBarHeight() - Minecraft.getInstance().font.lineHeight) / 2
+                drawIcon(context, icon, part.iconX, iconY, details.iconColor.rgb())
+            }
+            drawResourceBar(
                 context,
-                resourceText(value, barWidth),
-                BAR_X,
-                RESOURCE_BAR_Y + BAR_TEXT_Y_OFFSET,
-                barWidth,
-                color,
+                part.trackX,
+                RESOURCE_BAR_Y,
+                part.trackWidth,
+                resourceBarHeight(),
+                value,
+                details.barColor.rgb(),
+                details.overflowColor.rgb(),
+                details.backgroundColor.rgb(),
             )
         }
 
@@ -300,11 +364,13 @@ object CustomBars {
             x: Int,
             y: Int,
             width: Int,
+            height: Int,
             value: BarValue?,
             color: Int,
             overflowColor: Int,
+            backgroundColor: Int,
         ) {
-            context.fillRoundedRect(x, y, width, BAR_HEIGHT, TRACK_COLOR)
+            context.fillRoundedRect(x, y, width, height, backgroundColor)
             if (value == null) return
             val innerWidth = width - INNER_PADDING * 2
             val capacity = value.maximum + value.displayOverflow
@@ -318,7 +384,7 @@ object CustomBars {
             val overflowWidth = totalWidth - baseWidth
             val fillX = x + INNER_PADDING
             val fillY = y + INNER_PADDING
-            val fillHeight = BAR_HEIGHT - INNER_PADDING * 2
+            val fillHeight = height - INNER_PADDING * 2
             if (baseWidth > 0) context.fillGlossyRoundedRect(fillX, fillY, baseWidth, fillHeight, color)
             if (overflowWidth > 0) {
                 context.fillGlossyRoundedRect(fillX + baseWidth, fillY, overflowWidth, fillHeight, overflowColor)
@@ -331,29 +397,24 @@ object CustomBars {
             }
         }
 
-        private fun resourceText(value: BarValue?, width: Int): String {
-            if (value == null) return "---/---"
-            val exact = "${value.displayedCurrent.addSeparators()}/${value.maximum.addSeparators()}"
-            if (Minecraft.getInstance().font.width(exact) <= width - TEXT_PADDING * 2) return exact
-            return "${value.displayedCurrent.toLong().shortFormat()}/${value.maximum.toLong().shortFormat()}"
-        }
-
         private fun drawProgressBar(
             context: GuiGraphicsExtractor,
             x: Int,
             y: Int,
             width: Int,
+            height: Int,
             fill: Float,
             color: Int,
+            backgroundColor: Int,
         ) {
-            context.fillRoundedRect(x, y, width, BAR_HEIGHT, TRACK_COLOR)
+            context.fillRoundedRect(x, y, width, height, backgroundColor)
             val innerWidth = ((width - INNER_PADDING * 2) * fill.coerceIn(0f, 1f)).roundToInt()
             if (innerWidth > 0) {
                 context.fillGlossyRoundedRect(
                     x + INNER_PADDING,
                     y + INNER_PADDING,
                     innerWidth,
-                    BAR_HEIGHT - INNER_PADDING * 2,
+                    height - INNER_PADDING * 2,
                     color,
                 )
             }
@@ -369,59 +430,61 @@ object CustomBars {
             drawText(context, icon, x, y, color)
         }
 
-        private fun drawExperienceIcon(context: GuiGraphicsExtractor) {
-            EXPERIENCE_ICON.renderAt(context, EXPERIENCE_ICON_X, RESOURCE_BAR_Y + EXPERIENCE_ICON_Y_OFFSET)
-        }
-
-        private fun drawCenteredText(
-            context: GuiGraphicsExtractor,
-            text: String,
-            x: Int,
-            y: Int,
-            width: Int,
-            color: Int,
-        ) {
-            val font = Minecraft.getInstance().font
-            drawText(context, text, x + (width - font.width(text)) / 2, y, color)
+        private fun drawExperienceIcon(context: GuiGraphicsExtractor, x: Int, barHeight: Int) {
+            if (part.iconSlotWidth == 0) return
+            val y = RESOURCE_BAR_Y + (barHeight - EXPERIENCE_ICON_SIZE) / 2
+            EXPERIENCE_ICON.renderAt(context, x + EXPERIENCE_ICON_X, y)
         }
 
         private fun drawText(context: GuiGraphicsExtractor, text: String, x: Int, y: Int, color: Int) {
-            val font = Minecraft.getInstance().font
-            if (config.details.textOutline) {
-                context.text(font, text, x + 1, y, TEXT_OUTLINE_COLOR, false)
-                context.text(font, text, x - 1, y, TEXT_OUTLINE_COLOR, false)
-                context.text(font, text, x, y + 1, TEXT_OUTLINE_COLOR, false)
-                context.text(font, text, x, y - 1, TEXT_OUTLINE_COLOR, false)
-            }
-            context.text(font, text, x, y, color, false)
+            drawCustomBarText(context, text, x, y, color)
         }
+
+        private fun resourceBarHeight(): Int =
+            (height - RESOURCE_BAR_Y - RESOURCE_BOTTOM_PADDING).coerceAtLeast(MIN_TRACK_HEIGHT)
 
         private fun drawReadout(
             context: GuiGraphicsExtractor,
             icon: String,
             value: String,
-            iconColor: Int,
+            details: CustomReadoutDetailsConfig,
         ) {
             val font = Minecraft.getInstance().font
             val contentWidth = font.width(icon) + READOUT_CONTENT_GAP + font.width(value)
             val contentX = centeredReadoutX(contentWidth)
-            context.fillRoundedRect(0, READOUT_BACKGROUND_Y, READOUT_WIDTH, READOUT_HEIGHT, TRACK_COLOR)
-            drawIcon(context, icon, contentX, READOUT_CONTENT_Y, iconColor)
+            context.fillRoundedRect(
+                0,
+                READOUT_BACKGROUND_Y,
+                READOUT_WIDTH,
+                READOUT_HEIGHT,
+                details.backgroundColor.rgb(),
+            )
+            drawIcon(context, icon, contentX, READOUT_CONTENT_Y, details.iconColor.rgb())
             drawText(
                 context,
                 value,
                 contentX + font.width(icon) + READOUT_CONTENT_GAP,
                 READOUT_CONTENT_Y,
-                TEXT_COLOR,
+                details.textColor.rgb(),
             )
         }
 
-        private fun drawAirReadout(context: GuiGraphicsExtractor, seconds: Int) {
+        private fun drawAirReadout(
+            context: GuiGraphicsExtractor,
+            seconds: Int,
+            details: CustomReadoutDetailsConfig,
+        ) {
             val text = "${seconds}s"
             val font = Minecraft.getInstance().font
             val contentWidth = ICON_SIZE + READOUT_CONTENT_GAP + font.width(text)
             val contentX = centeredReadoutX(contentWidth)
-            context.fillRoundedRect(0, READOUT_BACKGROUND_Y, READOUT_WIDTH, READOUT_HEIGHT, TRACK_COLOR)
+            context.fillRoundedRect(
+                0,
+                READOUT_BACKGROUND_Y,
+                READOUT_WIDTH,
+                READOUT_HEIGHT,
+                details.backgroundColor.rgb(),
+            )
             context.blitSprite(
                 RenderPipelines.GUI_TEXTURED,
                 AIR_SPRITE,
@@ -429,20 +492,122 @@ object CustomBars {
                 READOUT_CONTENT_Y,
                 ICON_SIZE,
                 ICON_SIZE,
+                details.iconColor.rgb(),
             )
             drawText(
                 context,
                 text,
                 contentX + ICON_SIZE + READOUT_CONTENT_GAP,
                 READOUT_CONTENT_Y,
-                TEXT_COLOR,
+                details.textColor.rgb(),
             )
         }
 
         private fun centeredReadoutX(contentWidth: Int): Int =
             ((READOUT_WIDTH - contentWidth) / 2f).roundToInt()
     }
+
+    private class CustomBarTextEditorElement(private val part: CustomBarPart) : HudEditorElement {
+        override val id: String = "custom_bars_${part.name.lowercase()}_text"
+        override val label: String = "${part.label} Text"
+        override val position: HudPosition get() = part.textPosition()
+        override val snapGroup: String = "custom_bars_${part.name.lowercase()}"
+        override val canMove: Boolean = false
+        override val canScale: Boolean = false
+        override val hasEditorBackground: Boolean = false
+
+        override fun width(): Int = Minecraft.getInstance().font.width(text())
+        override fun height(): Int = Minecraft.getInstance().font.lineHeight
+        override fun isVisible(): Boolean = config.enabled && part.isEnabled()
+
+        override fun absoluteX(width: Int): Int {
+            val barScale = part.position().effectiveScale
+            val barWidth = (part.width * barScale).roundToInt()
+            val barX = part.layoutOffsetX() + part.position().getAbsX0AllowingOverflow(barWidth)
+            val trackCenter = ((part.trackX + part.trackWidth / 2f) * barScale).roundToInt()
+            return barX + trackCenter - width / 2 + position.x
+        }
+
+        override fun absoluteY(height: Int): Int =
+            barY(includeBottomLayout = true) + (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() + position.y
+
+        override fun renderDummy(context: GuiGraphicsExtractor) {
+            drawCustomBarText(context, text(), 0, 0, part.visualDetails.textColor.rgb())
+        }
+
+        override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
+            position.moveBy(deltaX, deltaY)
+            return InputHandlingResult.CONSUMED
+        }
+
+        override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
+            position.scale += if (scrollY > 0.0) TEXT_SCALE_STEP else -TEXT_SCALE_STEP
+            return InputHandlingResult.CONSUMED
+        }
+
+        override fun editorTooltipLines(): List<String> = listOf(
+            "§7Offset x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
+                "%.2f".format(java.util.Locale.US, position.scale)
+            }",
+            "§eLeft-click drag §7to move",
+            "§eScroll-Wheel §7to resize",
+            "§eHold Shift §7to snap",
+            "§eRight-click §7to open settings",
+            "§eR §7to reset",
+        )
+
+        override fun openConfig() = SkysoftConfigGui.open("Custom Bars")
+
+        fun renderLive(context: GuiGraphicsExtractor) {
+            val scaledWidth = (width() * position.effectiveScale).roundToInt()
+            val x = absoluteX(scaledWidth)
+            val y = barY(includeBottomLayout = false) +
+                (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() +
+                position.y
+            context.withIsolatedPose {
+                pose().translate(x.toFloat(), y.toFloat())
+                pose().scale(position.effectiveScale, position.effectiveScale)
+                renderDummy(context)
+            }
+        }
+
+        private fun barY(includeBottomLayout: Boolean): Int {
+            val barHeight = (part.height * part.position().effectiveScale).roundToInt()
+            val y = part.position().getAbsY0AllowingOverflow(barHeight)
+            return if (includeBottomLayout) y - BottomHudLayout.reservedHeight() else y
+        }
+
+        private fun text(): String = when (part) {
+            CustomBarPart.HEALTH -> resourceText(health, part.trackWidth)
+            CustomBarPart.MANA -> resourceText(mana, part.trackWidth)
+            CustomBarPart.VITALITY -> resourceText(vitality, part.trackWidth)
+            CustomBarPart.EXPERIENCE -> (Minecraft.getInstance().player?.experienceLevel ?: 0).toString()
+            CustomBarPart.DEFENSE, CustomBarPart.SPEED, CustomBarPart.AIR -> error("${part.label} has no bar text")
+        }
+
+    }
+
+    private fun resourceText(value: BarValue?, width: Int): String {
+        if (value == null) return "---/---"
+        val exact = "${value.displayedCurrent.addSeparators()}/${value.maximum.addSeparators()}"
+        if (Minecraft.getInstance().font.width(exact) <= width - TEXT_PADDING * 2) return exact
+        return "${value.displayedCurrent.toLong().shortFormat()}/${value.maximum.toLong().shortFormat()}"
+    }
+
+    private fun drawCustomBarText(context: GuiGraphicsExtractor, text: String, x: Int, y: Int, color: Int) {
+        val font = Minecraft.getInstance().font
+        if (config.details.textOutline) {
+            val outlineColor = config.details.textOutlineColor.rgb()
+            context.text(font, text, x + 1, y, outlineColor, false)
+            context.text(font, text, x - 1, y, outlineColor, false)
+            context.text(font, text, x, y + 1, outlineColor, false)
+            context.text(font, text, x, y - 1, outlineColor, false)
+        }
+        context.text(font, text, x, y, color, false)
+    }
 }
+
+private fun Property<ChromaColour>.rgb(): Int = get().toColor().rgb
 
 internal object CustomBarsActionBarParser {
     private val healthPattern =
@@ -640,24 +805,24 @@ private const val HALF_BAR_WIDTH = (HOTBAR_WIDTH - BAR_GAP - ICON_SLOT_WIDTH * 2
 private const val HALF_RESOURCE_WIDTH = ICON_SLOT_WIDTH + HALF_BAR_WIDTH
 private const val VITALITY_RESOURCE_WIDTH = 54
 private const val EXPERIENCE_RESOURCE_WIDTH = HOTBAR_WIDTH - BAR_GAP - VITALITY_RESOURCE_WIDTH
-private const val BAR_X = ICON_SLOT_WIDTH
 private const val RESOURCE_HEIGHT = 14
 private const val RESOURCE_BAR_Y = 5
-private const val BAR_HEIGHT = 7
+private const val RESOURCE_BOTTOM_PADDING = 2
+private const val RESOURCE_TEXT_Y = 1
+private const val MIN_TRACK_HEIGHT = 3
+private const val MIN_RESOURCE_WIDTH = 24
+private const val MIN_RESOURCE_HEIGHT = RESOURCE_BAR_Y + RESOURCE_BOTTOM_PADDING + MIN_TRACK_HEIGHT
 private const val READOUT_WIDTH = 44
 private const val READOUT_HEIGHT = 9
 private const val READOUT_ELEMENT_HEIGHT = 11
 private const val READOUT_BACKGROUND_Y = 1
 private const val READOUT_CONTENT_Y = 2
 private const val READOUT_CONTENT_GAP = 1
-private const val BAR_TEXT_Y_OFFSET = -4
-private const val ICON_Y_OFFSET = -1
 private const val INNER_PADDING = 1
 private const val TEXT_PADDING = 2
 private const val ICON_SIZE = 9
 private const val EXPERIENCE_ICON_SIZE = 11
 private const val EXPERIENCE_ICON_X = -2
-private const val EXPERIENCE_ICON_Y_OFFSET = -2
 private const val CORNER_RADIUS = 2
 private const val GLOSS_HIGHLIGHT = 42
 private const val GLOSS_SHADE = -48
@@ -671,17 +836,7 @@ private const val LEGACY_FORMAT_LENGTH = 2
 private const val TICKS_PER_SECOND = 20
 private const val SPEED_SCALE = 1_000f
 private const val SPRINT_SPEED_MULTIPLIER = 1.3f
-private const val TRACK_COLOR = 0xC0101010.toInt()
-private const val HEALTH_COLOR = 0xFFFF5555.toInt()
-private const val HEALTH_OVERFLOW_COLOR = 0xFFFFB42B.toInt()
-private const val MANA_COLOR = 0xFF55FFFF.toInt()
-private const val MANA_OVERFLOW_COLOR = 0xFFAA00FF.toInt()
-private const val VITALITY_COLOR = 0xFFAA0000.toInt()
-private const val XP_COLOR = 0xFF80FF20.toInt()
-private const val DEFENSE_ICON_COLOR = 0xFF55FF55.toInt()
-private const val SPEED_ICON_COLOR = 0xFFFFFFFF.toInt()
-private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
-private const val TEXT_OUTLINE_COLOR = 0xFF000000.toInt()
+private const val TEXT_SCALE_STEP = 0.1f
 private val AIR_SPRITE = Identifier.withDefaultNamespace("hud/air")
 private val EXPERIENCE_ICON = ItemIconRenderable(ItemStack(Items.EXPERIENCE_BOTTLE), EXPERIENCE_ICON_SIZE / 16.0)
 

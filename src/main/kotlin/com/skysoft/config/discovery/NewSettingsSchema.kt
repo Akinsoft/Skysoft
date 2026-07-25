@@ -10,6 +10,8 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor
+import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory
+import io.github.notenoughupdates.moulconfig.processor.ProcessedCategoryImpl
 import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 import java.lang.reflect.GenericArrayType
 import java.lang.reflect.ParameterizedType
@@ -37,9 +39,21 @@ internal data class NewSettingsSchema(
     companion object {
         fun from(processor: MoulConfigProcessor<*>): NewSettingsSchema {
             val serializedPaths = serializedOptionPaths(processor.configObject)
-            val descriptors = processor.allCategories.values
+            val persistentOptions = processor.allCategories.values
                 .flatMap { it.options }
-                .mapNotNull { descriptorFor(it, serializedPaths) }
+                .mapNotNull { option ->
+                    persistentField(option)?.let { field ->
+                        PersistentOption(option, field, fullOptionPath(option, processor.allCategories))
+                    }
+                }
+            val repeatedIdentities = persistentOptions
+                .groupingBy { persistentFieldIdentity(it.field) }
+                .eachCount()
+                .filterValues { it > 1 }
+                .keys
+            val descriptors = persistentOptions.map { persistentOption ->
+                descriptorFor(persistentOption, serializedPaths, repeatedIdentities)
+            }
             require(descriptors.map(NewSettingDescriptor::id).distinct().size == descriptors.size) {
                 "SoftConfig contains duplicate persistent setting identities"
             }
@@ -47,23 +61,25 @@ internal data class NewSettingsSchema(
         }
 
         private fun descriptorFor(
-            option: ProcessedOption,
+            persistentOption: PersistentOption,
             serializedPaths: Map<String, Set<String>>,
-        ): NewSettingDescriptor? {
-            val field = (option as? ProcessedOption.HasField)?.field ?: return null
-            val expose = field.getAnnotation(Expose::class.java) ?: return null
-            if (!expose.serialize || field.isAnnotationPresent(Accordion::class.java)) return null
-            val editorNames = editorNames(field)
-            if (editorNames.isEmpty() || editorNames.any(EXCLUDED_EDITOR_NAMES::contains)) return null
-
-            val identity = "${field.declaringClass.name}#${field.name}"
+            repeatedIdentities: Set<String>,
+        ): NewSettingDescriptor {
+            val option = persistentOption.option
+            val field = persistentOption.field
+            val fieldIdentity = persistentFieldIdentity(field)
+            val identity = if (fieldIdentity in repeatedIdentities) {
+                "$fieldIdentity@${persistentOption.fullPath}"
+            } else {
+                fieldIdentity
+            }
             return NewSettingDescriptor(
                 id = identity,
                 path = option.path,
                 signature = discoverySignature(field),
                 option = option,
-                serializedPaths = requireNotNull(serializedPaths[identity]) {
-                    "Persistent SoftConfig option is missing a serialized config path: $identity"
+                serializedPaths = requireNotNull(serializedPaths[persistentOption.fullPath]) {
+                    "Persistent SoftConfig option is missing a serialized config path: ${persistentOption.fullPath}"
                 },
             )
         }
@@ -72,35 +88,77 @@ internal data class NewSettingsSchema(
 
 internal fun serializedOptionPaths(config: Config): Map<String, Set<String>> {
     val paths = linkedMapOf<String, MutableSet<String>>()
-    val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
-    collectSerializedOptionPaths(config, setOf(""), paths, visited)
+    val activeContainers = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+    collectSerializedOptionPaths(config, "", setOf(""), paths, activeContainers)
     return paths
 }
 
 private fun collectSerializedOptionPaths(
     container: Any,
-    prefixes: Set<String>,
+    optionPrefix: String,
+    serializedPrefixes: Set<String>,
     paths: MutableMap<String, MutableSet<String>>,
-    visited: MutableSet<Any>,
+    activeContainers: MutableSet<Any>,
 ) {
-    if (!visited.add(container)) return
-    allFields(container.javaClass).forEach { field ->
-        val expose = field.getAnnotation(Expose::class.java) ?: return@forEach
-        if (!expose.serialize) return@forEach
-        val fieldPaths = prefixes.flatMapTo(linkedSetOf()) { prefix ->
-            serializedNames(field).map { name -> if (prefix.isEmpty()) name else "$prefix.$name" }
+    if (!activeContainers.add(container)) return
+    try {
+        allFields(container.javaClass).forEach { field ->
+            val expose = field.getAnnotation(Expose::class.java) ?: return@forEach
+            if (!expose.serialize) return@forEach
+            val optionPath = if (optionPrefix.isEmpty()) field.name else "$optionPrefix.${field.name}"
+            val fieldPaths = serializedPrefixes.flatMapTo(linkedSetOf()) { prefix ->
+                serializedNames(field).map { name -> if (prefix.isEmpty()) name else "$prefix.$name" }
+            }
+            if (field.isAnnotationPresent(ConfigOption::class.java)) {
+                paths.getOrPut(optionPath, ::linkedSetOf).addAll(fieldPaths)
+            }
+            if (!field.isAnnotationPresent(Category::class.java) && !field.isAnnotationPresent(Accordion::class.java)) {
+                return@forEach
+            }
+            require(field.trySetAccessible()) { "Cannot read serialized config structure field: $field" }
+            val child = requireNotNull(field.get(container)) { "Serialized config structure field is null: $field" }
+            collectSerializedOptionPaths(child, optionPath, fieldPaths, paths, activeContainers)
         }
-        if (field.isAnnotationPresent(ConfigOption::class.java)) {
-            val identity = "${field.declaringClass.name}#${field.name}"
-            paths.getOrPut(identity, ::linkedSetOf).addAll(fieldPaths)
-        }
-        if (!field.isAnnotationPresent(Category::class.java) && !field.isAnnotationPresent(Accordion::class.java)) {
-            return@forEach
-        }
-        require(field.trySetAccessible()) { "Cannot read serialized config structure field: $field" }
-        val child = requireNotNull(field.get(container)) { "Serialized config structure field is null: $field" }
-        collectSerializedOptionPaths(child, fieldPaths, paths, visited)
+    } finally {
+        activeContainers.remove(container)
     }
+}
+
+private data class PersistentOption(
+    val option: ProcessedOption,
+    val field: java.lang.reflect.Field,
+    val fullPath: String,
+)
+
+private fun persistentField(option: ProcessedOption): java.lang.reflect.Field? {
+    val field = (option as? ProcessedOption.HasField)?.field ?: return null
+    val expose = field.getAnnotation(Expose::class.java) ?: return null
+    if (!expose.serialize || field.isAnnotationPresent(Accordion::class.java)) return null
+    val editorNames = editorNames(field)
+    if (editorNames.isEmpty() || editorNames.any(EXCLUDED_EDITOR_NAMES::contains)) return null
+    return field
+}
+
+private fun persistentFieldIdentity(field: java.lang.reflect.Field): String =
+    "${field.declaringClass.name}#${field.name}"
+
+private fun fullOptionPath(
+    option: ProcessedOption,
+    categories: Map<String, ProcessedCategory>,
+): String {
+    val parentSegments = mutableListOf<String>()
+    var parentId = option.category.parentCategoryId
+    while (parentId != null) {
+        val parent = requireNotNull(categories[parentId]) {
+            "SoftConfig option references an unknown parent category: $parentId"
+        }
+        require(parent is ProcessedCategoryImpl) {
+            "SoftConfig returned an unsupported category implementation: ${parent.javaClass.name}"
+        }
+        parentSegments += parent.reflectField.name
+        parentId = parent.parentCategoryId
+    }
+    return (parentSegments.asReversed() + option.path).joinToString(separator = ".")
 }
 
 private fun allFields(type: Class<*>): List<java.lang.reflect.Field> {

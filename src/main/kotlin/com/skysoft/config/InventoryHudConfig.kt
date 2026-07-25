@@ -33,8 +33,23 @@ class InventoryHudConfig {
     @field:Expose
     val position = defaultInventoryHudPosition().rememberDefault()
 
+    @JvmField
+    @field:Expose
+    val inventoryPosition = defaultInventoryPanelPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
+    val armorPosition = defaultArmorPanelPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
+    val equipmentPosition = defaultEquipmentPanelPosition().rememberDefault()
+
     fun repairLoadedValues() {
         position.rememberDefault(defaultInventoryHudPosition())
+        inventoryPosition.rememberDefault(defaultInventoryPanelPosition())
+        armorPosition.rememberDefault(defaultArmorPanelPosition())
+        equipmentPosition.rememberDefault(defaultEquipmentPanelPosition())
     }
 }
 
@@ -44,6 +59,12 @@ class InventoryHudSettingsConfig {
     @field:ConfigOption(name = "Show in Screens", desc = "Keep the Inventory HUD visible while a screen is open.")
     @field:ConfigEditorBoolean
     var showInScreens = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Inventory", desc = "Show your main inventory above the hotbar.")
+    @field:ConfigEditorBoolean
+    var inventory = true
 
     @JvmField
     @field:Expose
@@ -122,6 +143,18 @@ class InventoryHudDetailsConfig {
 }
 
 private fun defaultInventoryHudPosition() =
-    HudPosition(0, DEFAULT_INVENTORY_HUD_BOTTOM_MARGIN, centerX = true, centerY = false)
+    HudPosition(0, INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN, centerX = true, centerY = false)
 
-private const val DEFAULT_INVENTORY_HUD_BOTTOM_MARGIN = -4
+private fun defaultInventoryPanelPosition() =
+    HudPosition(0, INVENTORY_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false)
+
+private fun defaultArmorPanelPosition() =
+    HudPosition(-SIDE_PANEL_CENTER_OFFSET, SIDE_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false)
+
+private fun defaultEquipmentPanelPosition() =
+    HudPosition(SIDE_PANEL_CENTER_OFFSET, SIDE_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false)
+
+internal const val INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN = -4
+private const val INVENTORY_PANEL_BOTTOM_MARGIN = -30
+private const val SIDE_PANEL_BOTTOM_MARGIN = -8
+private const val SIDE_PANEL_CENTER_OFFSET = 98
