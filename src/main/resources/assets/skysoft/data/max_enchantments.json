@@ -173,7 +173,7 @@
     },
     {
       "id": "ferocious_mana",
-      "name": "Ferocious Mana",
+      "name": "Vivacious Vitality",
       "maxLevel": 10
     },
     {
@@ -238,7 +238,7 @@
     },
     {
       "id": "hardened_mana",
-      "name": "Hardened Mana",
+      "name": "Hardened Vitality",
       "maxLevel": 10
     },
     {
@@ -284,7 +284,7 @@
     {
       "id": "life_steal",
       "name": "Life Steal",
-      "maxLevel": 5
+      "maxLevel": 6
     },
     {
       "id": "looting",
@@ -323,7 +323,7 @@
     },
     {
       "id": "mana_vampire",
-      "name": "Mana Vampire",
+      "name": "Vampiric Vitality",
       "maxLevel": 10
     },
     {
@@ -488,7 +488,7 @@
     },
     {
       "id": "strong_mana",
-      "name": "Strong Mana",
+      "name": "Strong Vitality",
       "maxLevel": 10
     },
     {
@@ -504,7 +504,7 @@
     {
       "id": "syphon",
       "name": "Drain",
-      "maxLevel": 5
+      "maxLevel": 6
     },
     {
       "id": "tabasco",
@@ -754,7 +754,7 @@
     {
       "id": "vampirism",
       "name": "Vampirism",
-      "maxLevel": 6
+      "maxLevel": 7
     },
     {
       "id": "venomous",

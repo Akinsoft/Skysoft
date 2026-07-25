@@ -105,4 +105,7 @@ internal object SkyBlockEntityCatalog {
 
 internal fun entityItemKey(id: String): ItemListEntryKey = ItemListEntryKey(ItemListEntryKind.ENTITY, id)
 
-internal fun SkyBlockEntityInfo.isMob(): Boolean = !type.contains("NPC") && !type.contains("Mayor")
+internal fun String.isNpcEntityType(): Boolean =
+    contains("NPC", ignoreCase = true) || contains("Mayor", ignoreCase = true)
+
+internal fun SkyBlockEntityInfo.isMob(): Boolean = !type.isNpcEntityType()

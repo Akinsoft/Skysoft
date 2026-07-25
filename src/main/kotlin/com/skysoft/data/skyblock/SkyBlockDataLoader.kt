@@ -26,6 +26,7 @@ internal object SkyBlockDataLoader {
             recipesJson = resourceText(CatalogResources.RECIPES),
             wikiJson = resourceText(CatalogResources.WIKI),
             mobsJson = resourceText(CatalogResources.MOBS),
+            npcsJson = resourceText(CatalogResources.NPCS),
             petsJson = resourceText(CatalogResources.PETS),
             supplementalJson = resourceText(CatalogResources.SUPPLEMENTAL),
             enchantmentsJson = resourceText(CatalogResources.ENCHANTMENTS),
@@ -39,6 +40,7 @@ internal object SkyBlockDataLoader {
         recipesJson: String,
         wikiJson: String,
         mobsJson: String,
+        npcsJson: String = resourceText(CatalogResources.NPCS),
         petsJson: String = resourceText(CatalogResources.PETS),
         supplementalJson: String = resourceText(CatalogResources.SUPPLEMENTAL),
         enchantmentsJson: String = resourceText(CatalogResources.ENCHANTMENTS),
@@ -55,7 +57,10 @@ internal object SkyBlockDataLoader {
             "Item List wiki data has an invalid size"
         }
         require(mobsJson.length in CatalogLimits.MINIMUM_MOBS_BYTES..CatalogLimits.MAXIMUM_MOBS_BYTES) {
-            "Item List entity data has an invalid size"
+            "Item List mob data has an invalid size"
+        }
+        require(npcsJson.length in CatalogLimits.MINIMUM_NPCS_BYTES..CatalogLimits.MAXIMUM_NPCS_BYTES) {
+            "Item List NPC data has an invalid size"
         }
         require(petsJson.length in CatalogLimits.MINIMUM_PETS_BYTES..CatalogLimits.MAXIMUM_PETS_BYTES) {
             "Item List pet data has an invalid size"
@@ -87,7 +92,12 @@ internal object SkyBlockDataLoader {
         require(generatedEntityContexts.keys.intersect(entityContextExceptions.keys).isEmpty()) {
             "Item List generated and exceptional entity contexts overlap"
         }
-        val entities = readEntities(mobsJson, entityContextExceptions + generatedEntityContexts, npcAvailability)
+        val entities = readEntities(
+            mobsJson,
+            npcsJson,
+            entityContextExceptions + generatedEntityContexts,
+            npcAvailability,
+        )
         val pets = SkyBlockAuxiliaryDataLoader.readPets(petsJson)
         val enchantments = SkyBlockEnchantments.read(enchantmentsJson)
         val attributeShards = AttributeShardItemCatalog.read(attributeShardsJson)
@@ -317,20 +327,48 @@ internal object SkyBlockDataLoader {
     }
 
     private fun readEntities(
-        json: String,
+        mobsJson: String,
+        npcsJson: String,
         entityContexts: Map<String, List<String>>,
         npcAvailability: Map<String, SkyBlockNpcAvailability>,
     ): EntityCatalog {
         val entities = mutableMapOf<String, SkyBlockEntityInfo>()
         val droppedByItem = mutableMapOf<String, MutableList<String>>()
         val dropSourcesByItem = mutableMapOf<String, MutableList<SkyBlockDropSource>>()
-        JsonParser.parseString(json).asJsonObject.entrySet().forEach { (id, element) ->
+        val mobs = JsonParser.parseString(mobsJson).asJsonObject
+        val npcs = JsonParser.parseString(npcsJson).asJsonObject
+        require(mobs.keySet().intersect(npcs.keySet()).isEmpty()) {
+            "Item List mob and NPC data contain duplicate entities"
+        }
+        require(
+            mobs.entrySet().none { (_, element) ->
+                element.isJsonObject && element.asJsonObject.string("type").isNpcEntityType()
+            },
+        ) {
+            "Item List mob data contains NPCs"
+        }
+        require(
+            npcs.entrySet().all { (_, element) ->
+                element.isJsonObject && element.asJsonObject.string("type").isNpcEntityType()
+            },
+        ) {
+            "Item List NPC data contains non-NPC entities"
+        }
+        require(mobs.size() >= CatalogLimits.MINIMUM_MOB_COUNT) {
+            "Item List mob data contains only ${mobs.size()} mobs"
+        }
+        require(npcs.size() >= CatalogLimits.MINIMUM_NPC_COUNT) {
+            "Item List NPC data contains only ${npcs.size()} NPCs"
+        }
+        (mobs.entrySet() + npcs.entrySet()).forEach { (id, element) ->
             if (!element.isJsonObject) return@forEach
             val value = element.asJsonObject
             val name = value.string("name").takeIf(String::isNotBlank) ?: return@forEach
             val contexts = entityContexts[id].orEmpty()
+            val wikiLocation = value.string("location").takeIf(String::isNotBlank)
             val island = value.string("island").takeIf(String::isNotBlank)
                 ?.let { SkyBlockIsland.getByLocation(it, null) }
+                ?: wikiLocation?.let { SkyBlockIsland.getByLocation(it, it) }
                 ?: contexts.firstNotNullOfOrNull(::entityContextIsland)
             val position = value.obj("position")?.let { position ->
                 WorldVec(position.coordinateValue("x"), position.coordinateValue("y"), position.coordinateValue("z"))
@@ -385,12 +423,16 @@ internal object SkyBlockDataLoader {
     }
 
     private fun entityLocation(json: JsonObject): String? {
-        val islandId = json.string("island").takeIf(String::isNotBlank) ?: return null
-        val island = SkyBlockIsland.getByLocation(islandId, null)?.displayName
-            ?: islandId.replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase)
-        val position = json.obj("position") ?: return island
+        val islandId = json.string("island").takeIf(String::isNotBlank)
+        val location = json.string("location").takeIf(String::isNotBlank)
+            ?: islandId?.let { id ->
+                SkyBlockIsland.getByLocation(id, null)?.displayName
+                    ?: id.replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase)
+            }
+            ?: return null
+        val position = json.obj("position") ?: return location
         val coordinates = listOf("x", "y", "z").map { position.coordinate(it) }
-        return "$island (${coordinates.joinToString()})"
+        return "$location (${coordinates.joinToString()})"
     }
 
     private fun readWikiLinks(json: String): Map<ItemListEntryKey, String> = StringReader(json).use { reader ->
@@ -506,6 +548,7 @@ private object CatalogResources {
     const val RECIPES = "/assets/skysoft/data/item_list/recipes.json"
     const val WIKI = "/assets/skysoft/data/item_list/wiki.json"
     const val MOBS = "/assets/skysoft/data/item_list/mobs.json"
+    const val NPCS = "/assets/skysoft/data/item_list/npcs.json"
     const val PETS = "/assets/skysoft/data/item_list/pets.json"
     const val SUPPLEMENTAL = "/assets/skysoft/data/item_list/supplemental.json"
     const val ENCHANTMENTS = "/assets/skysoft/data/item_list/enchantments.json"
@@ -688,6 +731,10 @@ private object CatalogLimits {
     const val MAXIMUM_WIKI_BYTES = 8_000_000
     const val MINIMUM_MOBS_BYTES = 100_000
     const val MAXIMUM_MOBS_BYTES = 4_000_000
+    const val MINIMUM_NPCS_BYTES = 100_000
+    const val MAXIMUM_NPCS_BYTES = 2_000_000
+    const val MINIMUM_MOB_COUNT = 300
+    const val MINIMUM_NPC_COUNT = 400
     const val MINIMUM_ENTITY_COUNT = 500
     const val MINIMUM_DROPPED_ITEM_COUNT = 500
     const val MINIMUM_PET_COUNT = 50

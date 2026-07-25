@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
@@ -27,8 +28,9 @@ internal object SkyBlockDataUpdater {
             val recipes = Files.readString(directory.resolve(CatalogFiles.RECIPES))
             val wiki = Files.readString(directory.resolve(CatalogFiles.WIKI))
             val mobs = Files.readString(directory.resolve(CatalogFiles.MOBS))
+            val npcs = Files.readString(directory.resolve(CatalogFiles.NPCS))
             val pets = Files.readString(directory.resolve(CatalogFiles.PETS))
-            val snapshot = SkyBlockDataLoader.loadJson(items, recipes, wiki, mobs, pets)
+            val snapshot = SkyBlockDataLoader.loadJson(items, recipes, wiki, mobs, npcs, pets)
             CachedCatalog(revision, snapshot)
         }.onFailure { error ->
             SkysoftMod.LOGGER.warn("Skysoft Item List cached data is invalid", error)
@@ -47,15 +49,17 @@ internal object SkyBlockDataUpdater {
             val items = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.ITEMS}", DOWNLOAD_TIMEOUT)
             val recipes = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.RECIPES}", DOWNLOAD_TIMEOUT)
             val wiki = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.WIKI}", DOWNLOAD_TIMEOUT)
-            val mobs = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.MOBS}", DOWNLOAD_TIMEOUT)
+            val entities = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.MOBS}", DOWNLOAD_TIMEOUT)
             val pets = SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.PETS}", DOWNLOAD_TIMEOUT)
-            CompletableFuture.allOf(items, recipes, wiki, mobs, pets).thenApply {
+            CompletableFuture.allOf(items, recipes, wiki, entities, pets).thenApply {
+                val (mobs, npcs) = splitEntities(entities.join())
                 DownloadedCatalog(
                     revision,
                     items.join(),
                     recipes.join(),
                     wiki.join(),
-                    mobs.join(),
+                    mobs,
+                    npcs,
                     pets.join(),
                 )
             }
@@ -81,6 +85,7 @@ internal object SkyBlockDataUpdater {
             downloaded.recipes,
             downloaded.wiki,
             downloaded.mobs,
+            downloaded.npcs,
             downloaded.pets,
         )
         val directory = cacheDirectory.resolve(downloaded.revision)
@@ -88,6 +93,7 @@ internal object SkyBlockDataUpdater {
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.RECIPES), downloaded.recipes)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.WIKI), downloaded.wiki)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.MOBS), downloaded.mobs)
+        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.NPCS), downloaded.npcs)
         SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.PETS), downloaded.pets)
         SkysoftConfigFiles.writeStringSafely(activeRevisionFile, downloaded.revision)
         return CachedCatalog(downloaded.revision, compactSnapshot)
@@ -104,7 +110,26 @@ internal object SkyBlockDataUpdater {
     }
 
     private fun activeRevision(): String =
-        if (Files.isRegularFile(activeRevisionFile)) Files.readString(activeRevisionFile).trim() else ""
+        if (!Files.isRegularFile(activeRevisionFile)) {
+            ""
+        } else {
+            val revision = Files.readString(activeRevisionFile).trim()
+            revision.takeIf { value ->
+                value.matches(revisionPattern) &&
+                    CatalogFiles.required.all { Files.isRegularFile(cacheDirectory.resolve(value).resolve(it)) }
+            }.orEmpty()
+        }
+
+    private fun splitEntities(json: String): Pair<String, String> {
+        val entities = JsonParser.parseString(json).asJsonObject
+        val mobs = JsonObject()
+        val npcs = JsonObject()
+        entities.entrySet().forEach { (id, entity) ->
+            val type = entity.asJsonObject.get("type")?.asString.orEmpty()
+            (if (type.isNpcEntityType()) npcs else mobs).add(id, entity)
+        }
+        return mobs.toString() to npcs.toString()
+    }
 
     private fun isCheckDue(): Boolean {
         if (!Files.isRegularFile(lastCheckFile)) return true
@@ -125,6 +150,7 @@ internal object SkyBlockDataUpdater {
         val recipes: String,
         val wiki: String,
         val mobs: String,
+        val npcs: String,
         val pets: String,
     )
 
@@ -141,9 +167,11 @@ internal object SkyBlockDataUpdater {
 }
 
 private object CatalogFiles {
+    val required = listOf(ITEMS, RECIPES, WIKI, MOBS, NPCS, PETS)
     const val ITEMS = "items.min.json"
     const val RECIPES = "recipes.min.json"
     const val WIKI = "id_overlays.min.json"
     const val MOBS = "mobs.min.json"
+    const val NPCS = "npcs.json"
     const val PETS = "pets.min.json"
 }
