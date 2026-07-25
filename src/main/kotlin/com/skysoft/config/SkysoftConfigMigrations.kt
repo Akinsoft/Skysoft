@@ -141,6 +141,17 @@ internal object SkysoftConfigMigrations {
         guiJson.getObjectOrNull("inventoryScreen")
             ?.moveFieldsInto("settings", listOf("inventoryGuiScale", "tooltipGuiScale"))
         guiJson.getObjectOrNull("heldItem")?.migrateHeldItemTextureModes()
+        guiJson.getObjectOrNull("customBars")?.getObjectOrNull("settings")?.let { settingsJson ->
+            val barsJson = settingsJson.getOrCreateObject("bars")
+            val numbersJson = settingsJson.getOrCreateObject("numbers")
+            CUSTOM_BAR_FIELDS.forEach { fieldName ->
+                val legacyValue = settingsJson.remove(fieldName) ?: return@forEach
+                if (fieldName in CUSTOM_BAR_RESOURCE_FIELDS && !barsJson.has(fieldName)) {
+                    barsJson.add(fieldName, legacyValue.deepCopy())
+                }
+                if (!numbersJson.has(fieldName)) numbersJson.add(fieldName, legacyValue.deepCopy())
+            }
+        }
     }
 
     private fun migrateInventoryLayout(json: JsonObject) {
@@ -370,6 +381,8 @@ internal object SkysoftConfigMigrations {
     private val HOTSPOT_SHARING_DETAILS_FIELDS = listOf("crosshairLine")
     private val BLOCK_OVERLAY_SETTINGS_FIELDS = listOf("color", "combinations")
     private val MISC_FIX_FIELDS = listOf("hideGlitchMobs", "hideBuggedNameplates", "playerHeadSkinFix")
+    private val CUSTOM_BAR_RESOURCE_FIELDS = setOf("health", "mana", "vitality", "experience")
+    private val CUSTOM_BAR_FIELDS = CUSTOM_BAR_RESOURCE_FIELDS + setOf("defense", "speed", "air")
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
     private const val CONFIG_MENU_ORGANIZATION_VERSION = 3
