@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.features.inventory.RarityHighlightRenderer;
 import com.skysoft.features.inventory.SlotBindingManager;
+import com.skysoft.features.misc.ShortbowCooldownHider;
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer;
 import java.util.List;
 import net.minecraft.client.gui.Font;
@@ -14,6 +15,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositione
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState;
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,6 +32,12 @@ public abstract class GuiGraphicsExtractorMixin {
     @Inject(method = "extractDeferredElements", at = @At("HEAD"))
     protected void skysoftQueueSlotBindingTooltipBeforeDeferredTooltips(int mouseX, int mouseY, float delta, CallbackInfo ci) {
         MixinErrorBoundary.run("Slot Binding tooltip rendering", () -> SlotBindingManager.renderTopLayer((GuiGraphicsExtractor) (Object) this));
+    }
+
+    @Inject(method = "itemCooldown", at = @At("HEAD"), cancellable = true)
+    protected void skysoftHideShortbowCooldown(ItemStack stack, int x, int y, CallbackInfo ci) {
+        boolean hide = MixinErrorBoundary.value("Shortbow cooldown overlay visibility", false, () -> ShortbowCooldownHider.shouldHide(stack));
+        if (hide) ci.cancel();
     }
 
     @Inject(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V", at = @At("TAIL"))
