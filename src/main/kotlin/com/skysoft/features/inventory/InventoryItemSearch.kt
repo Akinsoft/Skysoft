@@ -3,9 +3,7 @@ package com.skysoft.features.inventory
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
-import java.lang.ref.WeakReference
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
@@ -77,47 +75,43 @@ internal object InventoryItemSearchHighlight {
 }
 
 object ContainerSearchHighlighter {
-    private var activeScreen: WeakReference<AbstractContainerScreen<*>>? = null
+    private var active = false
     private var query = InventoryItemSearchQuery.EMPTY
 
     @JvmStatic
-    fun toggle(screen: AbstractContainerScreen<*>, text: String) {
-        if (isActive(screen)) {
-            activeScreen = null
+    fun toggle(text: String) {
+        if (active) {
+            active = false
             query = InventoryItemSearchQuery.EMPTY
             return
         }
-        val nextQuery = InventoryItemSearchQuery.from(text)
-        if (!nextQuery.hasTerms) return
-        activeScreen = WeakReference(screen)
-        query = nextQuery
-    }
-
-    @JvmStatic
-    fun update(screen: AbstractContainerScreen<*>, text: String) {
-        if (!isActive(screen)) return
+        active = true
         query = InventoryItemSearchQuery.from(text)
     }
 
     @JvmStatic
-    fun clear(screen: AbstractContainerScreen<*>) {
-        if (!isActive(screen)) return
-        activeScreen = null
+    fun update(text: String) {
+        if (!active) return
+        query = InventoryItemSearchQuery.from(text)
+    }
+
+    @JvmStatic
+    fun clear() {
+        if (!active) return
+        active = false
         query = InventoryItemSearchQuery.EMPTY
     }
 
     @JvmStatic
-    fun isActive(screen: AbstractContainerScreen<*>): Boolean = activeScreen?.get() === screen
+    fun isActive(): Boolean = active
 
-    internal fun activeQuery(screen: AbstractContainerScreen<*>): String? =
-        query.terms.joinToString(" ").takeIf { isActive(screen) }
+    internal fun activeQuery(): String? = query.terms.joinToString(" ").takeIf { active }
 
-    internal fun matches(screen: AbstractContainerScreen<*>, slot: Slot): Boolean =
-        isActive(screen) && slot.isActive && query.matches(slot.item)
+    internal fun matches(slot: Slot): Boolean = active && slot.isActive && query.matches(slot.item)
 
     @JvmStatic
-    fun renderBackground(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) {
-        if (!matches(screen, slot)) return
+    fun renderBackground(context: GuiGraphicsExtractor, slot: Slot) {
+        if (!matches(slot)) return
         InventoryItemSearchHighlight.render(context, slot.x, slot.y)
     }
 }
