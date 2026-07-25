@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.AccessoryBagData
 import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
@@ -78,7 +79,7 @@ internal object PetStorageInventoryReader {
     }
 
     private fun readEquipmentPetData(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
-        if (inventoryName != "Your Equipment and Stats") return
+        if (!StatsEquipmentMenu.isTitle(inventoryName)) return
         val currentPetItem = inventoryItems[EQUIP_MENU_CURRENT_PET_SLOT]?.takeIf {
             it.hoverName.string != "Empty Pet Slot"
         } ?: return
