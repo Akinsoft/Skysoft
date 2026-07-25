@@ -24,7 +24,6 @@ object PriceTooltips {
     private var catalogIdsByDisplayName: Map<String, Set<String>> = emptyMap()
 
     fun register() {
-        PriceTooltipRawCraftCosts.register()
         SkyBlockDataRepository.Demand.register("Price Tooltips") {
             config.enabled && config.settings.priceLines.get().isNotEmpty()
         }

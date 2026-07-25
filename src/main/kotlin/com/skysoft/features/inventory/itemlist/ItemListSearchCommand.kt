@@ -8,9 +8,9 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import com.skysoft.data.skyblock.ItemListEntry
-import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.gui.DeferredScreenRequests
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import java.util.Locale
@@ -18,8 +18,6 @@ import java.util.concurrent.CompletableFuture
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 
 object ItemListSearchCommand {
-    private var pendingKey: ItemListEntryKey? = null
-
     fun register(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
         dispatcher.register(
             LiteralArgumentBuilder.literal<FabricClientCommandSource>("ssearch")
@@ -39,14 +37,6 @@ object ItemListSearchCommand {
         )
     }
 
-    fun openPending() {
-        val key = pendingKey ?: return
-        pendingKey = null
-        MinecraftClient.setScreen(ItemListViewerScreen(null, key))
-    }
-
-    fun hasPendingScreen(): Boolean = pendingKey != null
-
     private fun queueItem(source: FabricClientCommandSource, rawQuery: String): Int {
         SkyBlockDataRepository.ensureLoaded()
         if (SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY) {
@@ -59,7 +49,9 @@ object ItemListSearchCommand {
             SkysoftChat.error(source, "No Item List entry found for '$query'.")
             return 0
         }
-        pendingKey = entry.key
+        DeferredScreenRequests.request("Item List search") {
+            MinecraftClient.setScreen(ItemListViewerScreen(null, entry.key))
+        }
         return Command.SINGLE_SUCCESS
     }
 

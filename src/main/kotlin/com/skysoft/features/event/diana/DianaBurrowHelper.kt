@@ -34,7 +34,6 @@ object DianaBurrowHelper {
         ProfileStorageApi.registerConsumer("Diana Burrow Helper") { config.enabled }
         MayorPerkApi.registerConsumer("Diana Burrow Helper") { config.enabled }
         HypixelPartyApi.registerConsumer("Diana Burrow Helper") { config.enabled }
-        DianaBurrowStorage.register()
         SkysoftClientEvents.onEndTick(
             "Diana Burrow Helper tick",
             isActive = { isEnabled() || hasRuntimeState() },
@@ -72,10 +71,6 @@ object DianaBurrowHelper {
             handler = ::onRenderWorld,
         )
         DianaWarpTitleRenderer.register(::activeWarpSuggestion)
-        DianaBurrowInteractions.register()
-        DianaLobbyCompromisedWatcher.register()
-        DianaRareMobSharing.register()
-        MythologicalRitualTracker.register()
     }
 
     private fun isEnabled(): Boolean = config.enabled

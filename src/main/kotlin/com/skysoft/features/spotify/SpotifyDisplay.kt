@@ -52,7 +52,6 @@ object SpotifyDisplay {
     }
 
     fun register() {
-        SpotifyAuthentication.register()
         SkysoftClientEvents.onEndTick(
             "Spotify Display tick",
             { config().enabled || playback != null || pollRequest != null },
