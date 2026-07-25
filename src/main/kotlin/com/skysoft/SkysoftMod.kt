@@ -73,7 +73,7 @@ import com.skysoft.features.misc.ServerTpsProvider
 import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
-import com.skysoft.features.misc.actionbar.ActionBarBackground
+import com.skysoft.features.misc.actionbar.ActionBarCustomizer
 import com.skysoft.features.misc.custombars.CustomBars
 import com.skysoft.features.misc.selecteditem.SelectedItemName
 import com.skysoft.features.misc.update.DownloadOpenResult
@@ -152,7 +152,7 @@ class SkysoftMod : ClientModInitializer {
         registerFeature("Chat History", ChatHistoryPersistence::register)
         registerFeature("Chat Tabs", ChatTabs::register)
         registerFeature("Selected Item Name", SelectedItemName::register)
-        registerFeature("Action Bar Background", ActionBarBackground::register)
+        registerFeature("Action Bar Customizer", ActionBarCustomizer::register)
         registerFeature("Custom Bars", CustomBars::register)
         registerFeature("Inventory HUD", InventoryHud::register)
         registerFeature("Better TAB", BetterTab::register)
