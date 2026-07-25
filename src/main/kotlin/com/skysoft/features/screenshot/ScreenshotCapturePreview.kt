@@ -12,23 +12,29 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelButtonRenderer
+import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.Identifier
+import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 
 internal object ScreenshotCapturePreview {
     private val contexts = GuiOverlayContextType.entries.toSet()
     private var presentation: CapturePresentation? = null
+    private var imageBounds: Rect? = null
     private var shareBounds: Rect? = null
+    private var deleteBounds: Rect? = null
     private var closeBounds: Rect? = null
     private var nextTextureId = 0
 
@@ -59,25 +65,44 @@ internal object ScreenshotCapturePreview {
 
     fun processMouseButtonPress(button: Int): InputHandlingResult {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
-        val current = presentation ?: return InputHandlingResult.IGNORED
-        if (current.elapsedMillis() < TRAVEL_END_MILLIS) return InputHandlingResult.IGNORED
+        val current = presentation?.takeIf { it.elapsedMillis() >= TRAVEL_END_MILLIS }
+            ?: return InputHandlingResult.IGNORED
         val minecraft = Minecraft.getInstance()
-        val screen = MinecraftClient.screen(minecraft) ?: return InputHandlingResult.IGNORED
-        if (screen is ScreenshotManagerScreen) return InputHandlingResult.IGNORED
+        val screen = MinecraftClient.screen(minecraft)?.takeUnless { it is ScreenshotManagerScreen }
+            ?: return InputHandlingResult.IGNORED
         val window = minecraft.window
         val mouseX = (minecraft.mouseHandler.xpos() * window.guiScaledWidth / window.screenWidth).toInt()
         val mouseY = (minecraft.mouseHandler.ypos() * window.guiScaledHeight / window.screenHeight).toInt()
-        if (closeBounds?.contains(mouseX, mouseY) == true) {
-            clear()
-            return InputHandlingResult.CONSUMED
+        return when {
+            closeBounds?.contains(mouseX, mouseY) == true -> {
+                clear()
+                InputHandlingResult.CONSUMED
+            }
+            deleteBounds?.contains(mouseX, mouseY) == true -> {
+                val path = current.path
+                clear()
+                CompletableFuture.runAsync({ ScreenshotRepository.delete(path) }, Util.ioPool()).whenComplete { _, failure ->
+                    if (failure == null) return@whenComplete
+                    minecraft.execute {
+                        SkysoftChat.error("Couldn't delete screenshot.")
+                    }
+                }
+                InputHandlingResult.CONSUMED
+            }
+            shareBounds?.contains(mouseX, mouseY) == true -> {
+                val path = current.path
+                clear()
+                ScreenshotSharing.request(path, screen)
+                InputHandlingResult.CONSUMED
+            }
+            imageBounds?.contains(mouseX, mouseY) == true -> {
+                val path = current.path
+                clear()
+                ScreenshotManager.open(path)
+                InputHandlingResult.CONSUMED
+            }
+            else -> InputHandlingResult.IGNORED
         }
-        if (shareBounds?.contains(mouseX, mouseY) == true) {
-            val path = current.path
-            clear()
-            ScreenshotSharing.request(path, screen)
-            return InputHandlingResult.CONSUMED
-        }
-        return InputHandlingResult.IGNORED
     }
 
     private fun render(context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
@@ -86,45 +111,39 @@ internal object ScreenshotCapturePreview {
             clear()
             return
         }
-        val imageBounds = imageBounds(
+        val bounds = imageBounds(
             context.guiWidth(),
             context.guiHeight(),
             current.imageWidth.toDouble() / current.imageHeight,
             current.elapsedMillis(),
         )
         val isSettled = current.elapsedMillis() >= TRAVEL_END_MILLIS
-        if (isSettled) drawSettledPanel(context, imageBounds, current.path, overlayContext)
-        drawTexture(context, current, imageBounds)
+        if (!isSettled) {
+            drawTexture(context, current, bounds)
+            return
+        }
+        val layout = CapturePreviewLayout.create(bounds)
+        OverlayPanelStyle.draw(
+            context,
+            layout.panel.x,
+            layout.panel.y,
+            layout.panel.width,
+            layout.panel.height,
+        )
+        drawTexture(context, current, bounds)
+        drawSettledControls(context, layout, current.path, overlayContext)
     }
 
-    private fun drawSettledPanel(
+    private fun drawSettledControls(
         context: GuiGraphicsExtractor,
-        imageBounds: Rect,
+        layout: CapturePreviewLayout,
         path: Path,
         overlayContext: GuiOverlayContext,
     ) {
-        val panel = Rect(
-            imageBounds.x - PANEL_PADDING,
-            imageBounds.y - PANEL_PADDING,
-            imageBounds.width + PANEL_PADDING * 2,
-            imageBounds.height + PANEL_PADDING * 2 + ACTION_HEIGHT + ACTION_GAP,
-        )
-        OverlayPanelStyle.draw(context, panel.x, panel.y, panel.width, panel.height)
-        val actionY = imageBounds.y + imageBounds.height + ACTION_GAP
-        val close = Rect(
-            panel.x + panel.width - PANEL_PADDING - CLOSE_SIZE,
-            actionY + (ACTION_HEIGHT - CLOSE_SIZE) / 2,
-            CLOSE_SIZE,
-            CLOSE_SIZE,
-        )
-        val share = Rect(
-            panel.x + PANEL_PADDING,
-            actionY,
-            panel.width - PANEL_PADDING * 2 - CLOSE_SIZE - ACTION_GAP,
-            ACTION_HEIGHT,
-        )
-        closeBounds = close
-        shareBounds = share
+        imageBounds = layout.image
+        closeBounds = layout.close
+        deleteBounds = layout.delete
+        shareBounds = layout.share
         val minecraft = Minecraft.getInstance()
         val window = minecraft.window
         val mouseX = (minecraft.mouseHandler.xpos() * window.guiScaledWidth / window.screenWidth).toInt()
@@ -133,19 +152,30 @@ internal object ScreenshotCapturePreview {
         PixelButtonRenderer.draw(
             context,
             minecraft.font,
-            share,
+            layout.share,
             ScreenshotSharing.buttonLabel(path),
             selected = false,
-            hovered = canInteract && share.contains(mouseX, mouseY),
+            hovered = canInteract && layout.share.contains(mouseX, mouseY),
             enabled = canInteract && ScreenshotSharing.status(path).state != ScreenshotShareState.UPLOADING,
         )
         PixelButtonRenderer.draw(
             context,
             minecraft.font,
-            close,
+            layout.delete,
+            "",
+            selected = false,
+            hovered = canInteract && layout.delete.contains(mouseX, mouseY),
+            enabled = canInteract,
+            tone = PixelButtonTone.DANGER,
+        )
+        PixelButtonRenderer.drawIcon(context, layout.delete, TRASH_ICON, TRASH_ICON_SCALE, canInteract)
+        PixelButtonRenderer.draw(
+            context,
+            minecraft.font,
+            layout.close,
             "x",
             selected = false,
-            hovered = canInteract && close.contains(mouseX, mouseY),
+            hovered = canInteract && layout.close.contains(mouseX, mouseY),
             enabled = canInteract,
         )
     }
@@ -221,9 +251,54 @@ internal object ScreenshotCapturePreview {
     private fun clear() {
         val current = presentation
         presentation = null
+        imageBounds = null
         shareBounds = null
+        deleteBounds = null
         closeBounds = null
         current?.let { Minecraft.getInstance().textureManager.release(it.id) }
+    }
+
+    private data class CapturePreviewLayout(
+        val panel: Rect,
+        val image: Rect,
+        val share: Rect,
+        val delete: Rect,
+        val close: Rect,
+    ) {
+        companion object {
+            fun create(image: Rect): CapturePreviewLayout {
+                val panel = Rect(
+                    image.x - PANEL_PADDING,
+                    image.y - PANEL_PADDING,
+                    image.width + PANEL_PADDING * 2,
+                    image.height + PANEL_PADDING * 2 + ACTION_HEIGHT + ACTION_GAP,
+                )
+                val actionY = image.y + image.height + ACTION_GAP
+                val delete = Rect(
+                    panel.x + panel.width - PANEL_PADDING - CLOSE_SIZE,
+                    actionY + (ACTION_HEIGHT - CLOSE_SIZE) / 2,
+                    CLOSE_SIZE,
+                    CLOSE_SIZE,
+                )
+                return CapturePreviewLayout(
+                    panel = panel,
+                    image = image,
+                    share = Rect(
+                        panel.x + PANEL_PADDING,
+                        actionY,
+                        panel.width - PANEL_PADDING * 2 - CLOSE_SIZE - ACTION_GAP,
+                        ACTION_HEIGHT,
+                    ),
+                    delete = delete,
+                    close = Rect(
+                        image.x + image.width - CLOSE_SIZE,
+                        image.y,
+                        CLOSE_SIZE,
+                        CLOSE_SIZE,
+                    ),
+                )
+            }
+        }
     }
 
     private const val MAXIMUM_TEXTURE_WIDTH = 1920
@@ -245,6 +320,8 @@ internal object ScreenshotCapturePreview {
     private const val SHRINK_END_MILLIS = 520L
     private const val TRAVEL_END_MILLIS = 980L
     private const val DISPLAY_MILLIS = 10_000L
+    private const val TRASH_ICON_SCALE = 1
+    private val TRASH_ICON = listOf(".XXX.", "XXXXX", ".X.X.", ".X.X.", ".XXX.")
 }
 
 private data class CapturePresentation(

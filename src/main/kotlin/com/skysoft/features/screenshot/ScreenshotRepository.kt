@@ -58,6 +58,7 @@ internal object ScreenshotRepository {
 
     fun delete(path: Path) {
         Files.delete(path)
+        ScreenshotSharing.invalidate(path)
     }
 
     private fun isScreenshot(path: Path): Boolean =

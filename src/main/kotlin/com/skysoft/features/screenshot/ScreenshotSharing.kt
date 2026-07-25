@@ -87,6 +87,11 @@ internal object ScreenshotSharing {
             ScreenshotShareState.FAILED -> "Retry Share"
         }
 
+    fun invalidate(path: Path) {
+        statuses.remove(path.normalizedScreenshotPath())
+        ScreenshotUploadMetadataStore.forget(path)
+    }
+
     private fun copyLink(upload: ScreenshotUpload) {
         Minecraft.getInstance().keyboardHandler.clipboard = upload.pageUrl
         SkysoftChat.success("Copied the screenshot link to your clipboard.")
@@ -101,7 +106,6 @@ internal object ScreenshotSharing {
         }
         SkysoftChat.chat(Component.literal("Screenshot uploaded: ").append(link))
     }
-
 }
 
 internal data class ScreenshotShareStatus(

@@ -903,7 +903,7 @@ private object HeldItemEditorRenderer {
         mouseY: Int,
     ) {
         PixelButtonRenderer.draw(context, font, bounds, "", false, bounds.contains(mouseX, mouseY), true)
-        drawPixelIcon(context, bounds, PREVIEW_ICON, EditorHeader.PREVIEW_ICON_SCALE, true)
+        PixelButtonRenderer.drawIcon(context, bounds, PREVIEW_ICON, EditorHeader.PREVIEW_ICON_SCALE, true)
         if (bounds.contains(mouseX, mouseY)) {
             SkysoftNativeTooltip.setForNextFrame(context, listOf("Preview swing"), mouseX, mouseY)
         }
@@ -926,7 +926,7 @@ private object HeldItemEditorRenderer {
             bounds.contains(mouseX, mouseY),
             true,
         )
-        drawPixelIcon(
+        PixelButtonRenderer.drawIcon(
             context,
             bounds,
             if (layout.isAdvancedExpanded) COLLAPSE_ICON else EXPAND_ICON,
@@ -990,7 +990,7 @@ private object HeldItemEditorRenderer {
             if (usesVanillaTexture) PixelButtonTone.CONFIRM else PixelButtonTone.DANGER,
         )
         val icon = if (usesVanillaTexture) TEXTURE_RESTORE_ICON else TEXTURE_REMOVE_ICON
-        drawPixelIcon(context, bounds, icon, EditorActions.TEXTURE_ICON_SCALE, enabled)
+        PixelButtonRenderer.drawIcon(context, bounds, icon, EditorActions.TEXTURE_ICON_SCALE, enabled)
     }
 
     private fun drawHistoryButton(
@@ -1011,37 +1011,9 @@ private object HeldItemEditorRenderer {
             enabled && bounds.contains(mouseX, mouseY),
             enabled,
         )
-        drawPixelIcon(context, bounds, icon, EditorActions.HISTORY_ICON_SCALE, enabled)
+        PixelButtonRenderer.drawIcon(context, bounds, icon, EditorActions.HISTORY_ICON_SCALE, enabled)
     }
 
-    private fun drawPixelIcon(
-        context: GuiGraphicsExtractor,
-        bounds: Rect,
-        icon: List<String>,
-        scale: Int,
-        enabled: Boolean,
-    ) {
-        val iconWidth = icon.maxOf(String::length) * scale
-        val iconHeight = icon.size * scale
-        val startX = bounds.x + (bounds.width - iconWidth) / 2
-        val startY = bounds.y + (bounds.height - iconHeight) / 2
-        for ((row, pixels) in icon.withIndex()) {
-            for ((column, pixel) in pixels.withIndex()) {
-                if (pixel != ICON_PIXEL) continue
-                val x = startX + column * scale
-                val y = startY + row * scale
-                context.fill(
-                    x,
-                    y,
-                    x + scale,
-                    y + scale,
-                    if (enabled) EditorColors.WHITE_TEXT else EditorColors.DISABLED_TEXT,
-                )
-            }
-        }
-    }
-
-    private const val ICON_PIXEL = 'X'
     private val TEXTURE_REMOVE_ICON = listOf("X...X", ".X.X.", "..X..", ".X.X.", "X...X")
     private val TEXTURE_RESTORE_ICON = listOf("..X....", ".XX....", "XXXXXXX", ".XX....", "..X....")
     private val UNDO_ICON = listOf("..X..", ".XX..", "XXXXX", ".XX..", "..X..")

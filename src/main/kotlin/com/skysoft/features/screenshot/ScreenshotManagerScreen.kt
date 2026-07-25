@@ -15,10 +15,14 @@ import net.minecraft.network.chat.Component
 import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 
-internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Component.literal("Skysoft Screenshots")) {
+internal class ScreenshotManagerScreen(
+    private val parent: Screen?,
+    initialSelectedPath: Path? = null,
+) : Screen(Component.literal("Skysoft Screenshots")) {
     private val minecraftClient = Minecraft.getInstance()
     private val textures = ScreenshotTextureStore(minecraftClient)
     private val focusTransition = ScreenshotFocusTransition()
+    private val initialSelectedPath = initialSelectedPath?.toAbsolutePath()?.normalize()
     private var entries: List<ScreenshotEntry> = emptyList()
     private var loadStatus = ScreenshotLoadStatus.LOADING
     private var selectedPath: Path? = null
@@ -165,6 +169,9 @@ internal class ScreenshotManagerScreen(private val parent: Screen?) : Screen(Com
                 if (isDisposed) return@execute
                 if (failure == null) {
                     entries = loadedEntries
+                    selectedPath = entries.firstOrNull {
+                        it.path.toAbsolutePath().normalize() == initialSelectedPath
+                    }?.path
                     loadStatus = ScreenshotLoadStatus.READY
                 } else {
                     loadStatus = ScreenshotLoadStatus.FAILED
