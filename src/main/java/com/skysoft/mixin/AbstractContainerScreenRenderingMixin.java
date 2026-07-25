@@ -70,7 +70,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
     @Inject(method = "extractSlot", at = @At("HEAD"))
     protected void skysoftRenderSlotBackgrounds(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        MixinErrorBoundary.run("Container Search highlighting", () -> ContainerSearchHighlighter.INSTANCE.renderBackground(screen, context, slot));
+        MixinErrorBoundary.run("Container Search highlighting", () -> ContainerSearchHighlighter.renderBackground(context, slot));
         MixinErrorBoundary.run("Active Pet highlighting", () -> ActivePetHighlighter.INSTANCE.renderBackground(screen, context, slot));
         MixinErrorBoundary.run("Bazaar Tracker slot background", () -> BazaarTracker.INSTANCE.renderSlotIndicatorBackground(screen, context, slot));
     }

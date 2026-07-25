@@ -323,7 +323,7 @@ object ItemListController {
             "Search items and mobs...",
             alpha = footerOpacity,
             outlineColor = InventoryItemSearchHighlight.OUTLINE_COLOR.takeIf {
-                ContainerSearchHighlighter.isActive(screen)
+                ContainerSearchHighlighter.isActive()
             },
         )
         if (layout.config?.contains(mouseX, mouseY) == true) {
@@ -390,12 +390,11 @@ object ItemListController {
                     click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT &&
                         SkysoftConfigGui.config().inventory.itemList.settings.isRightClickClearEnabled -> {
                         searchField.text = ""
-                        updateSearch(screen, "")
-                        ContainerSearchHighlighter.clear(screen)
+                        updateSearch("")
+                        ContainerSearchHighlighter.clear()
                     }
-                    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && doubled &&
-                        (ContainerSearchHighlighter.isActive(screen) || searchField.text.isNotBlank()) -> {
-                        ContainerSearchHighlighter.toggle(screen, searchField.text)
+                    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && doubled -> {
+                        ContainerSearchHighlighter.toggle(searchField.text)
                         SoundUtilities.playClickSound()
                     }
                 }
@@ -460,7 +459,7 @@ object ItemListController {
                     searchField.text = result
                     searchField.moveCursorToEnd()
                     Minecraft.getInstance().keyboardHandler.setClipboard(result)
-                    updateSearch(screen, result)
+                    updateSearch(result)
                     return InputHandlingResult.CONSUMED
                 }
             }
@@ -470,7 +469,7 @@ object ItemListController {
             } else {
                 val before = searchField.text
                 searchField.keyPressed(event)
-                if (before != searchField.text) updateSearch(screen, searchField.text)
+                if (before != searchField.text) updateSearch(searchField.text)
                 InputHandlingResult.CONSUMED
             }
         }
@@ -502,7 +501,7 @@ object ItemListController {
     fun handleCharTyped(screen: AbstractContainerScreen<*>, event: CharacterEvent): InputHandlingResult {
         if (!isVisible(screen) || !searchField.focused || !event.isAllowedChatCharacter) return InputHandlingResult.IGNORED
         searchField.charTyped(event)
-        updateSearch(screen, searchField.text)
+        updateSearch(searchField.text)
         return InputHandlingResult.CONSUMED
     }
 
@@ -689,11 +688,11 @@ object ItemListController {
         MinecraftClient.setScreen(ItemListViewerScreen(parent, key, mode))
     }
 
-    private fun updateSearch(screen: AbstractContainerScreen<*>, value: String) {
+    private fun updateSearch(value: String) {
         ItemListState.search = value
         ItemListState.page = 0
         tierDropdown.clear()
-        ContainerSearchHighlighter.update(screen, value)
+        ContainerSearchHighlighter.update(value)
     }
 
     private fun clearFrameState() {
