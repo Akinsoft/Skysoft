@@ -22,6 +22,7 @@ internal class ScreenshotManagerScreen(
     private val minecraftClient = Minecraft.getInstance()
     private val textures = ScreenshotTextureStore(minecraftClient)
     private val focusTransition = ScreenshotFocusTransition()
+    private val editor = ScreenshotEditorController()
     private val initialSelectedPath = initialSelectedPath?.toAbsolutePath()?.normalize()
     private var entries: List<ScreenshotEntry> = emptyList()
     private var loadStatus = ScreenshotLoadStatus.LOADING
@@ -32,6 +33,8 @@ internal class ScreenshotManagerScreen(
     private var pendingAction: ScreenshotAction? = null
     private var notice: ScreenshotNotice? = null
     private var confirmation: ScreenshotConfirmation? = null
+    private var isEditing = false
+    private var shouldCloseAfterDiscard = false
     private var hasStartedLoading = false
     private var isDisposed = false
 
@@ -51,6 +54,7 @@ internal class ScreenshotManagerScreen(
             scrollOffset = layout.scrollOffset
             galleryLayout = layout
             focusLayout = null
+            editor.clearPresentation()
             ScreenshotManagerRenderer.renderGallery(
                 context,
                 font,
@@ -62,11 +66,18 @@ internal class ScreenshotManagerScreen(
                 mouseY,
             )
         } else {
-            val layout = ScreenshotFocusLayout.create(width, height)
+            val layout = ScreenshotFocusLayout.create(width, height, isEditing)
             val visuals = focusTransition.visuals(layout.preview)
             val selectedIndex = entries.indexOf(selectedEntry)
             entries.getOrNull(selectedIndex - 1)?.let { textures.thumbnail(it.path) }
             entries.getOrNull(selectedIndex + 1)?.let { textures.thumbnail(it.path) }
+            val texture = textures.preview(selectedEntry.path) ?: textures.thumbnail(selectedEntry.path)
+            val editorPresentation = if (isEditing) {
+                editor.prepare(selectedEntry.path, layout.editorViewport(), texture)
+            } else {
+                editor.clearPresentation()
+                ScreenshotEditorPresentation(editor.session(selectedEntry.path), null)
+            }
             focusLayout = layout
             galleryLayout = null
             ScreenshotManagerRenderer.renderFocus(
@@ -74,7 +85,11 @@ internal class ScreenshotManagerScreen(
                 font,
                 layout,
                 selectedEntry,
-                textures,
+                texture,
+                textures.isSelectedPreviewFailed(selectedEntry.path) && textures.isThumbnailFailed(selectedEntry.path),
+                editorPresentation.session,
+                editorPresentation.geometry,
+                isEditing,
                 visuals,
                 notice?.takeIf { System.currentTimeMillis() <= it.expiresAtMillis },
                 confirmation,
@@ -110,18 +125,62 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
-        val layout = galleryLayout ?: return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-        if (scrollY == 0.0 || layout.maximumScroll == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-        scrollOffset = (scrollOffset - scrollY * layout.rowStep).roundToInt().coerceIn(0, layout.maximumScroll)
-        return true
+        if (scrollY == 0.0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+        val handled = galleryLayout?.let { gallery ->
+            if (gallery.maximumScroll == 0) {
+                false
+            } else {
+                scrollOffset = (scrollOffset - scrollY * gallery.rowStep)
+                    .roundToInt()
+                    .coerceIn(0, gallery.maximumScroll)
+                true
+            }
+        } ?: focusLayout?.let { focus ->
+            val path = selectedPath
+            path != null &&
+                isEditing &&
+                pendingAction == null &&
+                confirmation == null &&
+                focusTransition.isComplete() &&
+                focus.preview.contains(mouseX.toInt(), mouseY.toInt()) &&
+                editor.processScroll(path, mouseX, mouseY, scrollY) == InputHandlingResult.CONSUMED
+        } ?: false
+        return if (handled) true else super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+    }
+
+    override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
+        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
+        if (!isEditing) return super.mouseDragged(click, dragX, dragY)
+        val path = selectedPath ?: return super.mouseDragged(click, dragX, dragY)
+        return if (editor.processDrag(path, click.x(), click.y()) == InputHandlingResult.CONSUMED) {
+            true
+        } else {
+            super.mouseDragged(click, dragX, dragY)
+        }
+    }
+
+    override fun mouseReleased(click: MouseButtonEvent): Boolean {
+        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
+        if (!isEditing) return super.mouseReleased(click)
+        val path = selectedPath ?: return super.mouseReleased(click)
+        return if (editor.processRelease(path) == InputHandlingResult.CONSUMED) true else super.mouseReleased(click)
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (pendingAction != null && event.key() == GLFW.GLFW_KEY_ESCAPE) {
-            onClose()
+        if (pendingAction != null && event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE)) {
             return true
         }
-        if (pendingAction != null && event.key() == GLFW.GLFW_KEY_BACKSPACE) return true
+        if (
+            selectedPath != null &&
+            isEditing &&
+            confirmation == null &&
+            event.hasControlDownWithQuirk() &&
+            event.key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
+        ) {
+            val session = selectedPath?.let(editor::session) ?: return true
+            if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) session.redo() else session.undo()
+            return true
+        }
         if (
             selectedPath != null &&
             pendingAction == null &&
@@ -137,6 +196,7 @@ internal class ScreenshotManagerScreen(
         }
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && confirmation != null) {
             confirmation = null
+            shouldCloseAfterDiscard = false
             SoundUtilities.playRandomNavigationSound()
             return true
         }
@@ -149,6 +209,14 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun onClose() {
+        val unsavedPath = editor.firstUnsavedPath()
+        if (unsavedPath != null) {
+            selectedPath = unsavedPath
+            isEditing = true
+            confirmation = ScreenshotConfirmation.DISCARD
+            shouldCloseAfterDiscard = true
+            return
+        }
         MinecraftClient.setScreen(parent)
     }
 
@@ -190,6 +258,7 @@ internal class ScreenshotManagerScreen(
         val tile = layout.tiles.firstOrNull { it.bounds.contains(mouseX, mouseY) }
             ?: return InputHandlingResult.IGNORED
         selectedPath = entries.getOrNull(tile.index)?.path ?: return InputHandlingResult.IGNORED
+        isEditing = false
         focusTransition.startExpansion(tile.image)
         confirmation = null
         notice = null
@@ -209,6 +278,10 @@ internal class ScreenshotManagerScreen(
             return InputHandlingResult.CONSUMED
         }
         if (confirmation != null) return activateConfirmationAt(layout, mouseX, mouseY)
+        val path = selectedPath ?: return InputHandlingResult.IGNORED
+        if (isEditing && editor.processClick(layout, path, mouseX, mouseY) == InputHandlingResult.CONSUMED) {
+            return InputHandlingResult.CONSUMED
+        }
         return when {
             layout.previous.contains(mouseX, mouseY) -> navigateSelection(-1)
             layout.next.contains(mouseX, mouseY) -> navigateSelection(1)
@@ -222,8 +295,19 @@ internal class ScreenshotManagerScreen(
                 }
                 InputHandlingResult.CONSUMED
             }
-            layout.copy.contains(mouseX, mouseY) -> startClipboardCopy()
-            layout.saveAs.contains(mouseX, mouseY) -> startSaveAs()
+            layout.copy.contains(mouseX, mouseY) -> startAction(ScreenshotAction.COPY)
+            layout.edit.contains(mouseX, mouseY) -> {
+                isEditing = !isEditing
+                editor.clearPresentation()
+                notice = null
+                InputHandlingResult.CONSUMED
+            }
+            layout.save.contains(mouseX, mouseY) -> {
+                if (!isEditing || !editor.session(path).hasEdits) return InputHandlingResult.CONSUMED
+                confirmation = ScreenshotConfirmation.SAVE
+                notice = null
+                InputHandlingResult.CONSUMED
+            }
             layout.delete.contains(mouseX, mouseY) -> {
                 confirmation = ScreenshotConfirmation.DELETE
                 notice = null
@@ -239,11 +323,15 @@ internal class ScreenshotManagerScreen(
         mouseY: Int,
     ): InputHandlingResult {
         if (pendingAction != null) return InputHandlingResult.IGNORED
-        if (layout.cancelDelete.contains(mouseX, mouseY)) {
+        if (confirmation == ScreenshotConfirmation.SAVE) {
+            return activateSaveChoiceAt(layout, mouseX, mouseY)
+        }
+        if (layout.confirmationButtons.cancel.contains(mouseX, mouseY)) {
             confirmation = null
+            shouldCloseAfterDiscard = false
             return InputHandlingResult.CONSUMED
         }
-        if (!layout.confirmDelete.contains(mouseX, mouseY)) return InputHandlingResult.IGNORED
+        if (!layout.confirmationButtons.confirm.contains(mouseX, mouseY)) return InputHandlingResult.IGNORED
         return when (confirmation) {
             ScreenshotConfirmation.SHARE -> {
                 val path = selectedPath ?: return InputHandlingResult.IGNORED
@@ -251,72 +339,103 @@ internal class ScreenshotManagerScreen(
                 ScreenshotSharing.share(path)
                 InputHandlingResult.CONSUMED
             }
-            ScreenshotConfirmation.DELETE -> deleteSelectedScreenshot()
-            null -> InputHandlingResult.IGNORED
+            ScreenshotConfirmation.DELETE -> startAction(ScreenshotAction.DELETE)
+            ScreenshotConfirmation.DISCARD -> {
+                editor.clear()
+                isEditing = false
+                confirmation = null
+                if (shouldCloseAfterDiscard) MinecraftClient.setScreen(parent)
+                shouldCloseAfterDiscard = false
+                InputHandlingResult.CONSUMED
+            }
+            ScreenshotConfirmation.SAVE, null -> InputHandlingResult.IGNORED
         }
     }
 
-    private fun startClipboardCopy(): InputHandlingResult {
-        val path = selectedPath ?: return InputHandlingResult.IGNORED
-        pendingAction = ScreenshotAction.COPY
-        notice = ScreenshotNotice("Copying...", false, Long.MAX_VALUE)
-        ScreenshotClipboard.copyAsync(path)
-            .whenComplete { _, failure ->
-                completeAction(
-                    ScreenshotAction.COPY,
-                    failure,
-                    "Copied to clipboard.",
-                    "Couldn't copy screenshot.",
-                )
-            }
-        return InputHandlingResult.CONSUMED
+    private fun activateSaveChoiceAt(
+        layout: ScreenshotFocusLayout,
+        mouseX: Int,
+        mouseY: Int,
+    ): InputHandlingResult = when {
+        layout.saveButtons.saveNew.contains(mouseX, mouseY) -> startAction(ScreenshotAction.SAVE_NEW)
+        layout.saveButtons.replace.contains(mouseX, mouseY) -> startAction(ScreenshotAction.REPLACE)
+        layout.saveButtons.cancel.contains(mouseX, mouseY) -> {
+            confirmation = null
+            InputHandlingResult.CONSUMED
+        }
+        else -> InputHandlingResult.IGNORED
     }
 
-    private fun startSaveAs(): InputHandlingResult {
+    private fun startAction(action: ScreenshotAction): InputHandlingResult {
         val entry = selectedPath?.let { path -> entries.firstOrNull { it.path == path } }
             ?: return InputHandlingResult.IGNORED
-        val destination = ScreenshotRepository.chooseSaveDestination(entry) ?: return InputHandlingResult.CONSUMED
-        pendingAction = ScreenshotAction.SAVE
-        notice = ScreenshotNotice("Saving...", false, Long.MAX_VALUE)
-        CompletableFuture.runAsync({ ScreenshotRepository.saveAs(entry.path, destination) }, Util.ioPool())
-            .whenComplete { _, failure ->
-                completeAction(
-                    ScreenshotAction.SAVE,
-                    failure,
-                    "Saved as ${destination.fileName}.",
-                    "Couldn't save screenshot.",
-                )
-            }
+        val snapshot = if (isEditing) editor.session(entry.path).snapshot else ScreenshotEditSnapshot()
+        val request = ScreenshotManagerFileActions.prepare(action, entry, snapshot)
+        if (request == null) {
+            confirmation = null
+            return InputHandlingResult.CONSUMED
+        }
+        confirmation = null
+        if (request.validationError != null) {
+            notice = screenshotTimedNotice(request.validationError, true)
+            return InputHandlingResult.CONSUMED
+        }
+        pendingAction = action
+        notice = ScreenshotNotice(action.progressMessage, false, Long.MAX_VALUE)
+        request.execute().whenComplete { _, failure -> finishAction(request, failure) }
         return InputHandlingResult.CONSUMED
     }
 
-    private fun deleteSelectedScreenshot(): InputHandlingResult {
-        val path = selectedPath ?: return InputHandlingResult.IGNORED
-        pendingAction = ScreenshotAction.DELETE
-        CompletableFuture.runAsync({ ScreenshotRepository.delete(path) }, Util.ioPool())
-            .whenComplete { _, failure ->
-                minecraftClient.execute {
-                    if (isDisposed || pendingAction != ScreenshotAction.DELETE) return@execute
-                    pendingAction = null
-                    confirmation = null
-                    if (failure == null) {
-                        textures.discard(path)
-                        entries = entries.filterNot { it.path == path }
-                        selectedPath = null
-                        focusTransition.reset()
-                        notice = null
-                    } else {
-                        notice = timedNotice("Couldn't delete screenshot.", true)
+    private fun finishAction(request: ScreenshotActionRequest, failure: Throwable?) {
+        minecraftClient.execute {
+            if (isDisposed || pendingAction != request.action) return@execute
+            pendingAction = null
+            if (failure != null) {
+                notice = screenshotTimedNotice(request.action.failureMessage, true)
+                return@execute
+            }
+            when (request.action) {
+                ScreenshotAction.COPY -> notice = screenshotTimedNotice(request.action.successMessage, false)
+                ScreenshotAction.SAVE_NEW -> {
+                    editor.remove(request.source)
+                    isEditing = false
+                    val savedPath = requireNotNull(request.destination).toAbsolutePath().normalize()
+                    val screenshotsDirectory = ScreenshotManager.screenshotsDirectory().toAbsolutePath().normalize()
+                    if (savedPath.parent == screenshotsDirectory) {
+                        editor.remove(savedPath)
+                        entries = ScreenshotRepository.upsert(entries, savedPath)
+                        textures.refresh(savedPath)
+                        ScreenshotSharing.invalidate(savedPath)
                     }
+                    notice = screenshotTimedNotice("Saved as ${savedPath.fileName}.", false)
+                }
+                ScreenshotAction.REPLACE -> {
+                    editor.remove(request.source)
+                    isEditing = false
+                    textures.refresh(request.source)
+                    ScreenshotSharing.invalidate(request.source)
+                    entries = ScreenshotRepository.upsert(entries, request.source)
+                    notice = screenshotTimedNotice(request.action.successMessage, false)
+                }
+                ScreenshotAction.DELETE -> {
+                    textures.discard(request.source)
+                    editor.remove(request.source)
+                    isEditing = false
+                    entries = entries.filterNot { it.path == request.source }
+                    selectedPath = null
+                    focusTransition.reset()
+                    notice = null
                 }
             }
-        return InputHandlingResult.CONSUMED
+        }
     }
 
     private fun navigateSelection(direction: Int): InputHandlingResult {
         val currentIndex = entries.indexOfFirst { it.path == selectedPath }
         val nextEntry = entries.getOrNull(currentIndex + direction) ?: return InputHandlingResult.IGNORED
         selectedPath = nextEntry.path
+        isEditing = false
+        editor.clearPresentation()
         confirmation = null
         notice = null
         textures.thumbnail(nextEntry.path)
@@ -324,21 +443,10 @@ internal class ScreenshotManagerScreen(
         return InputHandlingResult.CONSUMED
     }
 
-    private fun completeAction(
-        action: ScreenshotAction,
-        failure: Throwable?,
-        successMessage: String,
-        failureMessage: String,
-    ) {
-        minecraftClient.execute {
-            if (isDisposed || pendingAction != action) return@execute
-            pendingAction = null
-            notice = if (failure == null) timedNotice(successMessage, false) else timedNotice(failureMessage, true)
-        }
-    }
-
     private fun returnToGallery() {
         selectedPath = null
+        isEditing = false
+        editor.clearPresentation()
         confirmation = null
         notice = null
         pendingAction = null
@@ -346,25 +454,20 @@ internal class ScreenshotManagerScreen(
         focusTransition.reset()
     }
 
-    private fun timedNotice(text: String, isError: Boolean): ScreenshotNotice = ScreenshotNotice(
-        text,
-        isError,
-        System.currentTimeMillis() + if (isError) ERROR_NOTICE_MILLIS else SUCCESS_NOTICE_MILLIS,
-    )
-
-    private enum class ScreenshotAction {
-        COPY,
-        SAVE,
-        DELETE,
-    }
-
-    private companion object {
-        const val SUCCESS_NOTICE_MILLIS = 2500L
-        const val ERROR_NOTICE_MILLIS = 3500L
-    }
 }
 
-internal enum class ScreenshotConfirmation {
-    SHARE,
-    DELETE,
+internal enum class ScreenshotConfirmation(val confirmLabel: String) {
+    SHARE("Upload"),
+    DELETE("Delete"),
+    SAVE("Save"),
+    DISCARD("Discard"),
 }
+
+private fun screenshotTimedNotice(text: String, isError: Boolean): ScreenshotNotice = ScreenshotNotice(
+    text,
+    isError,
+    System.currentTimeMillis() + if (isError) ERROR_NOTICE_MILLIS else SUCCESS_NOTICE_MILLIS,
+)
+
+private const val SUCCESS_NOTICE_MILLIS = 2500L
+private const val ERROR_NOTICE_MILLIS = 3500L

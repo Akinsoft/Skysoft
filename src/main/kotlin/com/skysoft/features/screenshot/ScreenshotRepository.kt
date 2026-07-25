@@ -2,7 +2,6 @@ package com.skysoft.features.screenshot
 
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.util.tinyfd.TinyFileDialogs
 
@@ -17,23 +16,27 @@ internal object ScreenshotRepository {
         Files.createDirectories(directory)
         return Files.list(directory).use { paths ->
             paths.filter(::isScreenshot)
-                .map { path ->
-                    ScreenshotEntry(
-                        path = path,
-                        fileName = path.fileName.toString(),
-                        modifiedAtMillis = Files.getLastModifiedTime(path).toMillis(),
-                    )
-                }
-                .sorted(
-                    compareByDescending<ScreenshotEntry> { it.modifiedAtMillis }
-                        .thenByDescending { it.fileName },
-                )
+                .map(::entry)
+                .sorted(ENTRY_ORDER)
                 .toList()
         }
     }
 
+    fun entry(path: Path): ScreenshotEntry = ScreenshotEntry(
+        path = path,
+        fileName = path.fileName.toString(),
+        modifiedAtMillis = Files.getLastModifiedTime(path).toMillis(),
+    )
+
+    fun upsert(entries: List<ScreenshotEntry>, path: Path): List<ScreenshotEntry> {
+        val normalizedPath = path.normalizedScreenshotPath()
+        return (entries.filterNot { it.path.normalizedScreenshotPath() == normalizedPath } + entry(path))
+            .sortedWith(ENTRY_ORDER)
+    }
+
     fun chooseSaveDestination(entry: ScreenshotEntry): Path? {
-        val defaultPath = Path.of(System.getProperty("user.home"), entry.fileName).toString()
+        val baseName = entry.fileName.substringBeforeLast('.')
+        val defaultPath = entry.path.resolveSibling("$baseName-edited$PNG_EXTENSION").toString()
         val selection = MemoryStack.stackPush().use { stack ->
             val filters = stack.mallocPointer(1)
             filters.put(stack.UTF8("*.png"))
@@ -48,14 +51,6 @@ internal object ScreenshotRepository {
         }
     }
 
-    fun saveAs(source: Path, destination: Path) {
-        require(source.toAbsolutePath().normalize() != destination.toAbsolutePath().normalize()) {
-            "Screenshot source and destination are the same"
-        }
-        destination.parent?.let(Files::createDirectories)
-        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING)
-    }
-
     fun delete(path: Path) {
         Files.delete(path)
         ScreenshotSharing.invalidate(path)
@@ -65,4 +60,6 @@ internal object ScreenshotRepository {
         Files.isRegularFile(path) && path.fileName.toString().endsWith(PNG_EXTENSION, ignoreCase = true)
 
     private const val PNG_EXTENSION = ".png"
+    private val ENTRY_ORDER = compareByDescending<ScreenshotEntry> { it.modifiedAtMillis }
+        .thenByDescending { it.fileName }
 }

@@ -25,6 +25,7 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
     private val pendingThumbnails = mutableSetOf<Path>()
     private val failedThumbnails = mutableSetOf<Path>()
     private val discardedPaths = mutableSetOf<Path>()
+    private val pathRevisions = mutableMapOf<Path, Int>()
     private var previewPath: Path? = null
     private var previewTexture: ScreenshotTexture? = null
     private var pendingPreviewPath: Path? = null
@@ -53,7 +54,17 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
     }
 
     fun discard(path: Path) {
+        advanceRevision(path)
         discardedPaths.add(path)
+        failedThumbnails.remove(path)
+        pendingThumbnails.remove(path)
+        thumbnails.remove(path)?.let(::release)
+        if (previewPath == path) clearPreview()
+    }
+
+    fun refresh(path: Path) {
+        advanceRevision(path)
+        discardedPaths.remove(path)
         failedThumbnails.remove(path)
         pendingThumbnails.remove(path)
         thumbnails.remove(path)?.let(::release)
@@ -79,13 +90,16 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
             return
         }
         pendingThumbnails.add(path)
+        val requestedRevision = revision(path)
         loadScaledScreenshotImage(path, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT).whenComplete { image, failure ->
             minecraft.execute {
                 pendingThumbnails.remove(path)
                 when {
-                    image != null && !isClosed && path !in discardedPaths -> installThumbnail(path, image)
+                    image != null && !isClosed && path !in discardedPaths && revision(path) == requestedRevision ->
+                        installThumbnail(path, image)
                     image != null -> image.close()
-                    failure != null && !isClosed && path !in discardedPaths -> failedThumbnails.add(path)
+                    failure != null && !isClosed && path !in discardedPaths && revision(path) == requestedRevision ->
+                        failedThumbnails.add(path)
                 }
             }
         }
@@ -107,15 +121,17 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
 
     private fun requestPreview(path: Path) {
         pendingPreviewPath = path
+        val requestedRevision = revision(path)
         loadScaledScreenshotImage(path, PREVIEW_MAX_WIDTH, PREVIEW_MAX_HEIGHT).whenComplete { image, failure ->
             minecraft.execute {
                 if (pendingPreviewPath == path) pendingPreviewPath = null
                 when {
-                    image != null && !isClosed && previewPath == path -> {
+                    image != null && !isClosed && previewPath == path && revision(path) == requestedRevision -> {
                         previewTexture = registerTexture(image, "preview")
                     }
                     image != null -> image.close()
-                    failure != null && !isClosed && previewPath == path -> isPreviewFailed = true
+                    failure != null && !isClosed && previewPath == path && revision(path) == requestedRevision ->
+                        isPreviewFailed = true
                 }
             }
         }
@@ -148,6 +164,12 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
 
     private fun release(texture: ScreenshotTexture) {
         minecraft.textureManager.release(texture.id)
+    }
+
+    private fun revision(path: Path): Int = pathRevisions[path] ?: 0
+
+    private fun advanceRevision(path: Path) {
+        pathRevisions[path] = revision(path) + 1
     }
 
     private companion object {

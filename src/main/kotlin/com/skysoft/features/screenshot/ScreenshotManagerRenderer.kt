@@ -68,7 +68,11 @@ internal object ScreenshotManagerRenderer {
         font: Font,
         layout: ScreenshotFocusLayout,
         entry: ScreenshotEntry,
-        textures: ScreenshotTextureStore,
+        texture: ScreenshotTexture?,
+        didLoadFail: Boolean,
+        editSession: ScreenshotEditSession,
+        editorGeometry: ScreenshotEditorGeometry?,
+        isEditing: Boolean,
         visuals: ScreenshotFocusVisuals,
         notice: ScreenshotNotice?,
         confirmation: ScreenshotConfirmation?,
@@ -91,7 +95,33 @@ internal object ScreenshotManagerRenderer {
             mouseY,
             visuals.chromeAlpha,
         )
-        drawAnimatedFocusedScreenshot(context, font, layout, visuals, entry.path, textures)
+        if (isEditing) {
+            ScreenshotEditorRenderer.drawToolbar(
+                context,
+                font,
+                layout,
+                editSession,
+                areActionsEnabled,
+                mouseX,
+                mouseY,
+                visuals.chromeAlpha,
+            )
+        }
+        if (isEditing && visuals.isInteractive) {
+            ScreenshotEditorRenderer.drawCanvas(
+                context,
+                font,
+                layout,
+                texture,
+                didLoadFail,
+                editSession,
+                editorGeometry,
+                mouseX,
+                mouseY,
+            )
+        } else {
+            drawAnimatedFocusedScreenshot(context, font, layout, visuals, texture, didLoadFail)
+        }
         drawButton(
             context,
             font,
@@ -121,6 +151,8 @@ internal object ScreenshotManagerRenderer {
             confirmation,
             areActionsEnabled,
             entry.path,
+            editSession.hasEdits,
+            isEditing,
             mouseX,
             mouseY,
         )
@@ -135,12 +167,16 @@ internal object ScreenshotManagerRenderer {
         confirmation: ScreenshotConfirmation?,
         areActionsEnabled: Boolean,
         screenshotPath: java.nio.file.Path,
+        hasEdits: Boolean,
+        isEditing: Boolean,
         mouseX: Int,
         mouseY: Int,
     ) {
         val confirmationNotice = when (confirmation) {
             ScreenshotConfirmation.SHARE -> "Upload publicly for 30 days?"
             ScreenshotConfirmation.DELETE -> "Delete this screenshot?"
+            ScreenshotConfirmation.SAVE -> "How would you like to save your changes?"
+            ScreenshotConfirmation.DISCARD -> "Discard unsaved screenshot edits?"
             null -> null
         }
         val visibleNotice = confirmationNotice?.let { ScreenshotNotice(it, false, Long.MAX_VALUE) } ?: notice
@@ -154,28 +190,12 @@ internal object ScreenshotManagerRenderer {
                 (if (it.isError) ERROR_TEXT else MUTED_TEXT).withScaledAlpha(visuals.chromeAlpha),
             )
         }
+        if (confirmation == ScreenshotConfirmation.SAVE) {
+            drawSaveChoices(context, font, layout, visuals, areActionsEnabled, mouseX, mouseY)
+            return
+        }
         if (confirmation != null) {
-            drawButton(
-                context,
-                font,
-                layout.cancelDelete,
-                "Cancel",
-                areActionsEnabled,
-                mouseX,
-                mouseY,
-                alpha = visuals.chromeAlpha,
-            )
-            drawButton(
-                context,
-                font,
-                layout.confirmDelete,
-                if (confirmation == ScreenshotConfirmation.SHARE) "Upload" else "Delete",
-                areActionsEnabled,
-                mouseX,
-                mouseY,
-                if (confirmation == ScreenshotConfirmation.SHARE) PixelButtonTone.NORMAL else PixelButtonTone.DANGER,
-                visuals.chromeAlpha,
-            )
+            drawConfirmationButtons(context, font, layout, visuals, confirmation, areActionsEnabled, mouseX, mouseY)
             return
         }
         drawButton(
@@ -201,13 +221,26 @@ internal object ScreenshotManagerRenderer {
         drawButton(
             context,
             font,
-            layout.saveAs,
-            "Save As",
+            layout.edit,
+            "Edit",
             areActionsEnabled,
             mouseX,
             mouseY,
+            isSelected = isEditing,
             alpha = visuals.chromeAlpha,
         )
+        if (isEditing) {
+            drawButton(
+                context,
+                font,
+                layout.save,
+                "Save",
+                areActionsEnabled && hasEdits,
+                mouseX,
+                mouseY,
+                alpha = visuals.chromeAlpha,
+            )
+        }
         drawButton(
             context,
             font,
@@ -221,16 +254,91 @@ internal object ScreenshotManagerRenderer {
         )
     }
 
+    private fun drawConfirmationButtons(
+        context: GuiGraphicsExtractor,
+        font: Font,
+        layout: ScreenshotFocusLayout,
+        visuals: ScreenshotFocusVisuals,
+        confirmation: ScreenshotConfirmation,
+        areActionsEnabled: Boolean,
+        mouseX: Int,
+        mouseY: Int,
+    ) {
+        drawButton(
+            context,
+            font,
+            layout.confirmationButtons.cancel,
+            if (confirmation == ScreenshotConfirmation.DISCARD) "Keep Editing" else "Cancel",
+            areActionsEnabled,
+            mouseX,
+            mouseY,
+            alpha = visuals.chromeAlpha,
+        )
+        drawButton(
+            context,
+            font,
+            layout.confirmationButtons.confirm,
+            confirmation.confirmLabel,
+            areActionsEnabled,
+            mouseX,
+            mouseY,
+            if (confirmation == ScreenshotConfirmation.SHARE) PixelButtonTone.NORMAL else PixelButtonTone.DANGER,
+            visuals.chromeAlpha,
+        )
+    }
+
+    private fun drawSaveChoices(
+        context: GuiGraphicsExtractor,
+        font: Font,
+        layout: ScreenshotFocusLayout,
+        visuals: ScreenshotFocusVisuals,
+        areActionsEnabled: Boolean,
+        mouseX: Int,
+        mouseY: Int,
+    ) {
+        drawButton(
+            context,
+            font,
+            layout.saveButtons.saveNew,
+            "Save New",
+            areActionsEnabled,
+            mouseX,
+            mouseY,
+            alpha = visuals.chromeAlpha,
+        )
+        drawButton(
+            context,
+            font,
+            layout.saveButtons.replace,
+            "Replace",
+            areActionsEnabled,
+            mouseX,
+            mouseY,
+            PixelButtonTone.DANGER,
+            visuals.chromeAlpha,
+        )
+        drawButton(
+            context,
+            font,
+            layout.saveButtons.cancel,
+            "Cancel",
+            areActionsEnabled,
+            mouseX,
+            mouseY,
+            alpha = visuals.chromeAlpha,
+        )
+    }
+
     private fun drawAnimatedFocusedScreenshot(
         context: GuiGraphicsExtractor,
         font: Font,
         layout: ScreenshotFocusLayout,
         visuals: ScreenshotFocusVisuals,
-        path: java.nio.file.Path,
-        textures: ScreenshotTextureStore,
+        texture: ScreenshotTexture?,
+        didLoadFail: Boolean,
     ) {
         if (!visuals.shouldClipImage) {
-            drawFocusedScreenshot(context, font, visuals.imageBounds, path, textures)
+            drawFocusedScreenshot(context, font, visuals.imageBounds, texture, didLoadFail)
             return
         }
         context.enableScissor(
@@ -240,7 +348,7 @@ internal object ScreenshotManagerRenderer {
             layout.preview.y + layout.preview.height,
         )
         try {
-            drawFocusedScreenshot(context, font, visuals.imageBounds, path, textures)
+            drawFocusedScreenshot(context, font, visuals.imageBounds, texture, didLoadFail)
         } finally {
             context.disableScissor()
         }
@@ -321,18 +429,15 @@ internal object ScreenshotManagerRenderer {
         context: GuiGraphicsExtractor,
         font: Font,
         bounds: Rect,
-        path: java.nio.file.Path,
-        textures: ScreenshotTextureStore,
+        texture: ScreenshotTexture?,
+        didLoadFail: Boolean,
     ) {
         context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, TILE_BORDER)
         val inner = Rect(bounds.x + 1, bounds.y + 1, bounds.width - 2, bounds.height - 2)
         context.fill(inner.x, inner.y, inner.x + inner.width, inner.y + inner.height, IMAGE_BACKGROUND)
-        val texture = textures.preview(path) ?: textures.thumbnail(path)
         when {
             texture != null -> drawTextureContained(context, texture, inner)
-            textures.isSelectedPreviewFailed(path) && textures.isThumbnailFailed(path) -> {
-                drawCentered(context, font, inner, "Couldn't load screenshot.", ERROR_TEXT)
-            }
+            didLoadFail -> drawCentered(context, font, inner, "Couldn't load screenshot.", ERROR_TEXT)
             else -> drawCentered(context, font, inner, "Loading...", MUTED_TEXT)
         }
     }
@@ -419,13 +524,14 @@ internal object ScreenshotManagerRenderer {
         mouseY: Int,
         tone: PixelButtonTone = PixelButtonTone.NORMAL,
         alpha: Double = 1.0,
+        isSelected: Boolean = false,
     ) {
         PixelButtonRenderer.draw(
             context,
             font,
             bounds,
             label,
-            false,
+            isSelected,
             isEnabled && bounds.contains(mouseX, mouseY),
             isEnabled,
             tone,
