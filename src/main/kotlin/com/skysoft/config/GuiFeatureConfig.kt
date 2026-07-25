@@ -124,6 +124,15 @@ class VanillaUiConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Hide Shortbow Cooldowns",
+        desc = "Hide the shaded cooldown animation over Shortbows.",
+    )
+    @field:ConfigEditorBoolean
+    var areShortbowCooldownsHidden = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Hide Status Effects",
         desc = "Hide status effects beside inventories and in the top-right HUD.",
     )
