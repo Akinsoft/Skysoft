@@ -471,13 +471,73 @@ class InventoryButtonsConfig {
     @field:Expose
     var buttons: MutableList<InventoryButtonConfig> = InventoryButtonDefaults.create()
 
+    @JvmField
+    @field:Expose
+    var activePreset = 0
+
+    @JvmField
+    @field:Expose
+    var presets: MutableList<InventoryButtonPresetConfig> = mutableListOf()
+
     fun repairLoadedValues() {
-        buttons = InventoryButtonDefaults.resettableButtons(buttons)
-        buttons.forEachIndexed { index, button ->
+        buttons = repairedButtons(buttons)
+        presets = presets.take(PRESET_COUNT).toMutableList()
+        if (presets.isEmpty()) {
+            presets += InventoryButtonPresetConfig(defaultPresetName(0), buttons.mapTo(mutableListOf()) { it.copy() })
+        }
+        while (presets.size < PRESET_COUNT) {
+            presets += InventoryButtonPresetConfig(defaultPresetName(presets.size))
+        }
+        presets.forEachIndexed { index, preset ->
+            preset.name = preset.name.trim().take(PRESET_NAME_MAX_LENGTH).ifBlank { defaultPresetName(index) }
+            preset.buttons = repairedButtons(preset.buttons)
+        }
+        activePreset = activePreset.coerceIn(presets.indices)
+        storeActivePreset()
+    }
+
+    fun storeActivePreset() {
+        presets.getOrNull(activePreset)?.buttons = buttons.mapTo(mutableListOf()) { it.copy() }
+    }
+
+    fun switchPreset(index: Int) {
+        if (index !in presets.indices || index == activePreset) return
+        storeActivePreset()
+        activePreset = index
+        buttons = presets[index].buttons.mapTo(mutableListOf()) { it.copy() }
+    }
+
+    fun replaceActiveButtons(replacement: List<InventoryButtonConfig>) {
+        buttons = replacement.mapTo(mutableListOf()) { it.copy() }
+        buttons = repairedButtons(buttons)
+        storeActivePreset()
+    }
+
+    fun renamePreset(index: Int, name: String) {
+        val preset = presets.getOrNull(index) ?: return
+        preset.name = name.trim().take(PRESET_NAME_MAX_LENGTH).ifBlank { defaultPresetName(index) }
+    }
+
+    private fun repairedButtons(loadedButtons: MutableList<InventoryButtonConfig>): MutableList<InventoryButtonConfig> {
+        val repaired = InventoryButtonDefaults.resettableButtons(loadedButtons)
+        repaired.forEachIndexed { index, button ->
             button.repairLoadedValues(isLegacyExtraButton = index >= InventoryButtonDefaults.DEFAULT_BUTTON_COUNT)
         }
+        return repaired
+    }
+
+    companion object {
+        const val PRESET_COUNT = 3
+        const val PRESET_NAME_MAX_LENGTH = 24
+
+        fun defaultPresetName(index: Int): String = "Preset ${index + 1}"
     }
 }
+
+class InventoryButtonPresetConfig(
+    @JvmField @field:Expose var name: String = "",
+    @JvmField @field:Expose var buttons: MutableList<InventoryButtonConfig> = InventoryButtonDefaults.create(),
+)
 
 class InventoryButtonsSettingsConfig {
     @JvmField
@@ -939,6 +999,19 @@ class InventoryButtonConfig(
     @JvmField @field:Expose var isUserCreated: Boolean? = null,
 ) {
     fun isActive(): Boolean = command.trim().isNotEmpty()
+
+    fun copy(): InventoryButtonConfig = InventoryButtonConfig(
+        x = x,
+        y = y,
+        icon = icon,
+        playerInvOnly = playerInvOnly,
+        anchorRight = anchorRight,
+        anchorBottom = anchorBottom,
+        backgroundIndex = backgroundIndex,
+        command = command,
+        scale = scale,
+        isUserCreated = isUserCreated,
+    )
 
     fun repairLoadedValues(isLegacyExtraButton: Boolean = false) {
         backgroundIndex = backgroundIndex.coerceIn(MIN_BUTTON_BACKGROUND_INDEX, MAX_BUTTON_BACKGROUND_INDEX)

@@ -9,6 +9,7 @@ import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.TextUtilities.removeColor
+import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
@@ -46,14 +47,13 @@ internal data class ProfitTrackerPanelControl(
 )
 
 internal class ProfitTrackerItemPanel(
-    private val nanoTime: () -> Long = System::nanoTime,
+    nanoTime: () -> Long = System::nanoTime,
 ) {
     private var content: Content? = null
-    private var transitionStartedAt = 0L
-    private var closing = false
+    private val transition = PanelFadeTransition(nanoTime)
 
     fun toggleOverview() {
-        if (content != null && !closing) close() else open(Content.Overview)
+        if (content != null && !transition.isClosing) close() else open(Content.Overview)
     }
 
     fun showOverview() = open(Content.Overview)
@@ -61,23 +61,21 @@ internal class ProfitTrackerItemPanel(
     fun openItem(itemId: String) = open(Content.Item(itemId))
 
     fun toggleItem(itemId: String) {
-        if (content == Content.Item(itemId) && !closing) close() else openItem(itemId)
+        if (content == Content.Item(itemId) && !transition.isClosing) close() else openItem(itemId)
     }
 
     fun beginAddingItem() = open(Content.AddItem)
 
-    fun isAddingItem(): Boolean = content == Content.AddItem && !closing
+    fun isAddingItem(): Boolean = content == Content.AddItem && !transition.isClosing
 
     fun close() {
-        if (content == null || closing) return
-        closing = true
-        transitionStartedAt = nanoTime()
+        if (content == null) return
+        transition.hide()
     }
 
     fun clear() {
         content = null
-        closing = false
-        transitionStartedAt = 0L
+        transition.reset()
     }
 
     fun render(
@@ -89,12 +87,11 @@ internal class ProfitTrackerItemPanel(
         mouseY: Int,
     ): ProfitTrackerPanelControl? {
         val current = content ?: return null
-        val progress = ((nanoTime() - transitionStartedAt).toFloat() / PANEL_FADE_NANOS).coerceIn(0f, 1f)
-        if (closing && progress >= 1f) {
+        val opacity = transition.opacity()
+        if (!transition.isVisible) {
             clear()
             return null
         }
-        val opacity = smoothStep(if (closing) 1f - progress else progress)
         val rows = rows(current, preset)
         val width = maxOf(
             PANEL_MINIMUM_WIDTH,
@@ -102,15 +99,14 @@ internal class ProfitTrackerItemPanel(
         ) + OverlayPanelStyle.PADDING * 2
         val height = rows.sumOf(PanelRow::height) + OverlayPanelStyle.PADDING * 2
         val x = if (placeRight) trackerWidth + PANEL_GAP else -width - PANEL_GAP
-        val alpha = opacity.toDouble()
-        context.fill(x, 0, x + width, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(alpha))
-        context.outline(x, 0, width, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(alpha))
+        context.fill(x, 0, x + width, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
+        context.outline(x, 0, width, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))
         var hovered: ProfitTrackerPanelControl? = null
         var rowY = OverlayPanelStyle.PADDING
         rows.forEach { row ->
-            val isHovered = !closing && progress >= 1f && row.action != null &&
+            val isHovered = transition.isInteractive && row.action != null &&
                 mouseX in x until x + width && mouseY in rowY until rowY + row.height
-            if (isHovered) context.fill(x, rowY, x + width, rowY + row.height, PANEL_HOVER.withScaledAlpha(alpha))
+            if (isHovered) context.fill(x, rowY, x + width, rowY + row.height, PANEL_HOVER.withScaledAlpha(opacity))
             if (opacity > ICON_VISIBILITY_THRESHOLD) {
                 row.icon?.let { ItemIconRenderable(it, PANEL_ICON_SCALE).renderAt(context, x + OverlayPanelStyle.PADDING, rowY) }
             }
@@ -119,7 +115,7 @@ internal class ProfitTrackerItemPanel(
                 row.text,
                 x + OverlayPanelStyle.PADDING + row.iconOffset,
                 rowY + (row.height - PANEL_TEXT_HEIGHT) / 2,
-                TEXT_BASE_COLOR.withScaledAlpha(alpha),
+                TEXT_BASE_COLOR.withScaledAlpha(opacity),
                 false,
             )
             if (isHovered) {
@@ -132,8 +128,7 @@ internal class ProfitTrackerItemPanel(
 
     private fun open(next: Content) {
         content = next
-        closing = false
-        transitionStartedAt = nanoTime()
+        transition.show()
     }
 
     private fun rows(content: Content, preset: ProfitTrackerPreset): List<PanelRow> = when (content) {
@@ -245,13 +240,8 @@ private data class ProfitTrackerItemPresentation(
 private fun styledText(text: String, color: Int, bold: Boolean = false): MutableComponent =
     Component.literal(text).withStyle { style -> style.withColor(color and RGB_MASK).withBold(bold) }
 
-private fun smoothStep(value: Float): Float = value * value * (SMOOTH_STEP_MAX - SMOOTH_STEP_FACTOR * value)
-
 private val LEGACY_COLOR_PATTERN = Regex("§([0-9a-f])", RegexOption.IGNORE_CASE)
 
-private const val PANEL_FADE_NANOS = 160_000_000f
-private const val SMOOTH_STEP_MAX = 3f
-private const val SMOOTH_STEP_FACTOR = 2f
 private const val PANEL_MINIMUM_WIDTH = 130
 private const val PANEL_ROW_HEIGHT = 11
 private const val PANEL_SECTION_GAP = 6
@@ -259,7 +249,7 @@ private const val PANEL_ICON_ROW_HEIGHT = 16
 private const val PANEL_TEXT_HEIGHT = 9
 private const val PANEL_ICON_TEXT_OFFSET = 16
 private const val PANEL_ICON_SCALE = 0.75
-private const val ICON_VISIBILITY_THRESHOLD = 0.35f
+private const val ICON_VISIBILITY_THRESHOLD = 0.35
 private const val PANEL_GAP = 4
 private const val TEXT_BASE_COLOR = 0xFFFFFFFF.toInt()
 private const val TITLE_COLOR = 0xFFFFFF55.toInt()

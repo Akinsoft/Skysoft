@@ -98,19 +98,6 @@ internal fun inventoryButtonTextureHash(icon: String): String? {
     return hash.takeIf(TEXTURE_HASH::matches)?.lowercase(Locale.ROOT)
 }
 
-internal fun InventoryButtonConfig.copyForImport(): InventoryButtonConfig = InventoryButtonConfig(
-    x = x,
-    y = y,
-    icon = icon,
-    playerInvOnly = playerInvOnly,
-    anchorRight = anchorRight,
-    anchorBottom = anchorBottom,
-    backgroundIndex = backgroundIndex,
-    command = command,
-    scale = scale,
-    isUserCreated = isUserCreated,
-)
-
 private val TEXTURE_HASH = Regex("^[0-9a-fA-F]{32,128}$")
 private val PLAYER_HEAD_PROFILE_NAME = Regex(
     """(?i)(?:minecraft:)?player_head\[[^]]*(?:minecraft:)?profile\s*=\s*\{[^}]*name\s*:\s*["']?([A-Za-z0-9_]{3,16})""",
