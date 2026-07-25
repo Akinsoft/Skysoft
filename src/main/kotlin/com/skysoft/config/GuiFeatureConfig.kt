@@ -36,7 +36,7 @@ class GuiFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Action Bar", desc = "Action bar visual settings.")
+    @field:Category(name = "Action Bar", desc = "Customize the action bar position and visuals.")
     val actionBar = SkysoftActionBarConfig()
 
     @JvmField
@@ -198,14 +198,38 @@ class SkysoftActionBarConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Action bar settings.")
+    @field:Accordion
+    val settings = SkysoftActionBarSettingsConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Details", desc = "Action bar visual details.")
     @field:Accordion
     val details = SkysoftActionBarDetailsConfig()
 
+    @JvmField
+    @field:Expose
+    val position = defaultActionBarPosition().rememberDefault()
+
     fun repairLoadedValues() {
+        position.rememberDefault(defaultActionBarPosition())
         details.repairLoadedValues()
     }
 }
+
+class SkysoftActionBarSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Custom Position", desc = "Move and scale the action bar with the Position Editor.")
+    @field:ConfigEditorBoolean
+    var customPosition = false
+}
+
+private fun defaultActionBarPosition() =
+    HudPosition(0, DEFAULT_ACTION_BAR_BOTTOM_MARGIN, centerX = true, centerY = false)
+
+private const val DEFAULT_ACTION_BAR_BOTTOM_MARGIN = -60
 
 class SkysoftActionBarDetailsConfig {
     @JvmField
