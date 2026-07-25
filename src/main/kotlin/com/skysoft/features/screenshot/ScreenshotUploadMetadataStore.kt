@@ -2,18 +2,15 @@ package com.skysoft.features.screenshot
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import com.skysoft.config.SkysoftConfigFiles
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.time.Instant
-import net.fabricmc.loader.api.FabricLoader
 
 internal object ScreenshotUploadMetadataStore {
     private val gson = GsonBuilder().setPrettyPrinting().create()
     private val uploadListType = object : TypeToken<List<StoredScreenshotUpload>>() {}.type
-    private val metadataPath = FabricLoader.getInstance().configDir
-        .resolve("skysoft")
-        .resolve("screenshot-uploads.json")
+    private val metadataPath = SkysoftConfigFiles.screenshotUploads
     private var records: MutableMap<String, StoredScreenshotUpload>? = null
 
     @Synchronized
@@ -40,9 +37,11 @@ internal object ScreenshotUploadMetadataStore {
 
     private fun records(): MutableMap<String, StoredScreenshotUpload> {
         records?.let { return it }
-        val loaded = if (Files.isRegularFile(metadataPath)) {
-            Files.newBufferedReader(metadataPath).use { reader ->
-                gson.fromJson<List<StoredScreenshotUpload>>(reader, uploadListType).orEmpty()
+        val loaded = if (SkysoftConfigFiles.hasFileOrBackup(metadataPath)) {
+            SkysoftConfigFiles.readWithBackup(metadataPath) { source ->
+                Files.newBufferedReader(source).use { reader ->
+                    gson.fromJson<List<StoredScreenshotUpload>>(reader, uploadListType).orEmpty()
+                }
             }
         } else {
             emptyList()
@@ -51,16 +50,9 @@ internal object ScreenshotUploadMetadataStore {
     }
 
     private fun save() {
-        Files.createDirectories(metadataPath.parent)
-        val temporaryPath = metadataPath.resolveSibling("${metadataPath.fileName}.tmp")
-        Files.newBufferedWriter(temporaryPath).use { writer ->
-            gson.toJson(records().values.toList(), uploadListType, writer)
-        }
-        Files.move(
-            temporaryPath,
+        SkysoftConfigFiles.writeStringSafely(
             metadataPath,
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.ATOMIC_MOVE,
+            gson.toJson(records().values.toList(), uploadListType),
         )
     }
 

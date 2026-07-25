@@ -23,6 +23,8 @@ object SkysoftConfigFiles {
     val spotifyAuthentication: Path = directory.resolve("spotify-auth.json")
     val learnedPetAnimations: Path = directory.resolve("pet-animations.json")
     val dianaHubSurfaceCache: Path = directory.resolve("diana-hub-surface-cache.json")
+    val screenshotUploads: Path = directory.resolve("screenshot-uploads.json")
+    val trustedImageHosts: Path = directory.resolve("trusted-image-hosts.json")
     val mythologicalRitualTracker: Path = directory
         .resolve("trackers")
         .resolve("mythological-ritual")
