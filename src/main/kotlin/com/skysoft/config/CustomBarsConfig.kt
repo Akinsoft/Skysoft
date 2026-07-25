@@ -57,8 +57,8 @@ class CustomBarsConfig {
     fun repairLoadedValues() {
         healthPosition.rememberDefault(defaultHealthPosition())
         manaPosition.rememberDefault(defaultManaPosition())
-        vitalityPosition.rememberDefault(defaultVitalityPosition())
-        experiencePosition.rememberDefault(defaultExperiencePosition())
+        vitalityPosition.updateDefault(oldVitalityPositionDefault, vitalityPositionDefault)
+        experiencePosition.updateDefault(oldExperiencePositionDefault, experiencePositionDefault)
         defensePosition.rememberDefault(defaultDefensePosition())
         speedPosition.rememberDefault(defaultSpeedPosition())
         airPosition.rememberDefault(defaultAirPosition())
@@ -120,11 +120,13 @@ class CustomBarsDetailsConfig {
 
 private val healthPositionDefault = HudPosition(-46, -35, centerX = true, centerY = false)
 private val manaPositionDefault = HudPosition(47, -35, centerX = true, centerY = false)
-private val vitalityPositionDefault = HudPosition(117, -45, centerX = true, centerY = false)
-private val experiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
+private val vitalityPositionDefault = HudPosition(-64, -24, centerX = true, centerY = false)
+private val experiencePositionDefault = HudPosition(29, -24, centerX = true, centerY = false)
 private val defensePositionDefault = HudPosition(117, -34, centerX = true, centerY = false)
 private val speedPositionDefault = HudPosition(117, -23, centerX = true, centerY = false)
 private val airPositionDefault = HudPosition(117, -12, centerX = true, centerY = false)
+private val oldVitalityPositionDefault = HudPosition(117, -45, centerX = true, centerY = false)
+private val oldExperiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
 
 private fun defaultHealthPosition() = healthPositionDefault.copy()
 private fun defaultManaPosition() = manaPositionDefault.copy()
@@ -135,3 +137,10 @@ private fun defaultSpeedPosition() = speedPositionDefault.copy()
 private fun defaultAirPosition() = airPositionDefault.copy()
 
 private fun HudPosition.copy() = HudPosition(x, y, scale, centerX, centerY)
+
+private fun HudPosition.updateDefault(oldDefault: HudPosition, newDefault: HudPosition) {
+    rememberDefault(oldDefault)
+    val wasAtOldDefault = isAtDefault()
+    rememberDefault(newDefault)
+    if (wasAtOldDefault) resetToDefault()
+}

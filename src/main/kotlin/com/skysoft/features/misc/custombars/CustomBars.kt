@@ -11,6 +11,7 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.config.core.HudPosition
+import com.skysoft.features.inventory.InventoryHudLayout
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.shortFormat
@@ -74,6 +75,7 @@ object CustomBars {
                 override val id: String = "custom_bars_${part.name.lowercase()}"
                 override val label: String = part.label
                 override val position get() = part.position()
+                override val layoutOffsetX: Int get() = part.layoutOffsetX()
                 override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
                 override val hasEditorBackground: Boolean = false
                 override fun width(): Int = part.width
@@ -121,15 +123,23 @@ object CustomBars {
         defense = null
     }
 
-    private enum class CustomBarPart(val label: String, val width: Int, val height: Int) {
-        HEALTH("Health Bar", HALF_RESOURCE_WIDTH, RESOURCE_HEIGHT),
-        MANA("Mana Bar", HALF_RESOURCE_WIDTH, RESOURCE_HEIGHT),
-        VITALITY("Vitality Bar", COMPACT_RESOURCE_WIDTH, RESOURCE_HEIGHT),
-        EXPERIENCE("Experience Bar", FULL_RESOURCE_WIDTH, RESOURCE_HEIGHT),
-        DEFENSE("Defense", READOUT_WIDTH, READOUT_ELEMENT_HEIGHT),
-        SPEED("Speed", READOUT_WIDTH, READOUT_ELEMENT_HEIGHT),
-        AIR("Air", READOUT_WIDTH, READOUT_ELEMENT_HEIGHT),
+    private enum class CustomBarPart(val label: String, val height: Int) {
+        HEALTH("Health Bar", RESOURCE_HEIGHT),
+        MANA("Mana Bar", RESOURCE_HEIGHT),
+        VITALITY("Vitality Bar", RESOURCE_HEIGHT),
+        EXPERIENCE("Experience Bar", RESOURCE_HEIGHT),
+        DEFENSE("Defense", READOUT_ELEMENT_HEIGHT),
+        SPEED("Speed", READOUT_ELEMENT_HEIGHT),
+        AIR("Air", READOUT_ELEMENT_HEIGHT),
         ;
+
+        val width: Int
+            get() = when (this) {
+                HEALTH, MANA -> (resourceRowWidth() - BAR_GAP) / 2
+                VITALITY -> vitalityResourceWidth()
+                EXPERIENCE -> resourceRowWidth() - BAR_GAP - vitalityResourceWidth()
+                DEFENSE, SPEED, AIR -> READOUT_WIDTH
+            }
 
         fun isEnabled(): Boolean = when (this) {
             HEALTH -> config.settings.health
@@ -150,6 +160,23 @@ object CustomBars {
             SPEED -> config.speedPosition
             AIR -> config.airPosition
         }
+
+        fun layoutOffsetX(): Int {
+            if (!usesInventoryHudWidth()) return 0
+            val oldWidth = when (this) {
+                HEALTH, MANA -> HALF_RESOURCE_WIDTH
+                VITALITY -> VITALITY_RESOURCE_WIDTH
+                EXPERIENCE -> EXPERIENCE_RESOURCE_WIDTH
+                DEFENSE, SPEED, AIR -> return 0
+            }
+            val widthChange = halfRoundedUp(width) - halfRoundedUp(oldWidth)
+            val rowInset = (HOTBAR_WIDTH - resourceRowWidth()) / 2
+            return when (this) {
+                HEALTH, VITALITY -> rowInset + widthChange
+                MANA, EXPERIENCE -> -rowInset - widthChange
+                DEFENSE, SPEED, AIR -> 0
+            }
+        }
     }
 
     private fun renderParts(context: GuiGraphicsExtractor) {
@@ -159,7 +186,10 @@ object CustomBars {
                 if (part.isEnabled() &&
                     (part != CustomBarPart.AIR || Minecraft.getInstance().player?.isUnderWater == true)
                 ) {
-                    part.position().renderRenderable(context, renderable(part))
+                    context.withIsolatedPose {
+                        pose().translate(part.layoutOffsetX().toFloat(), 0f)
+                        part.position().renderRenderable(context, renderable(part))
+                    }
                 }
             }
         }
@@ -209,7 +239,7 @@ object CustomBars {
                         context,
                         BAR_X,
                         RESOURCE_BAR_Y,
-                        FULL_BAR_WIDTH,
+                        width - ICON_SLOT_WIDTH,
                         player?.experienceProgress ?: 0f,
                         XP_COLOR,
                     )
@@ -218,7 +248,7 @@ object CustomBars {
                         (player?.experienceLevel ?: 0).toString(),
                         BAR_X,
                         RESOURCE_BAR_Y + BAR_TEXT_Y_OFFSET,
-                        FULL_BAR_WIDTH,
+                        width - ICON_SLOT_WIDTH,
                         XP_COLOR,
                     )
                 }
@@ -608,9 +638,8 @@ private const val BAR_GAP = 4
 private const val ICON_SLOT_WIDTH = 10
 private const val HALF_BAR_WIDTH = (HOTBAR_WIDTH - BAR_GAP - ICON_SLOT_WIDTH * 2) / 2
 private const val HALF_RESOURCE_WIDTH = ICON_SLOT_WIDTH + HALF_BAR_WIDTH
-private const val COMPACT_RESOURCE_WIDTH = 54
-private const val FULL_RESOURCE_WIDTH = HOTBAR_WIDTH
-private const val FULL_BAR_WIDTH = HOTBAR_WIDTH - ICON_SLOT_WIDTH
+private const val VITALITY_RESOURCE_WIDTH = 54
+private const val EXPERIENCE_RESOURCE_WIDTH = HOTBAR_WIDTH - BAR_GAP - VITALITY_RESOURCE_WIDTH
 private const val BAR_X = ICON_SLOT_WIDTH
 private const val RESOURCE_HEIGHT = 14
 private const val RESOURCE_BAR_Y = 5
@@ -655,3 +684,13 @@ private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
 private const val TEXT_OUTLINE_COLOR = 0xFF000000.toInt()
 private val AIR_SPRITE = Identifier.withDefaultNamespace("hud/air")
 private val EXPERIENCE_ICON = ItemIconRenderable(ItemStack(Items.EXPERIENCE_BOTTLE), EXPERIENCE_ICON_SIZE / 16.0)
+
+private fun usesInventoryHudWidth(): Boolean = SkysoftConfigGui.config().gui.inventoryHud.enabled
+
+private fun resourceRowWidth(): Int =
+    if (usesInventoryHudWidth()) InventoryHudLayout.MAIN_PANEL_WIDTH else HOTBAR_WIDTH
+
+private fun vitalityResourceWidth(): Int =
+    (resourceRowWidth() * VITALITY_RESOURCE_WIDTH.toFloat() / HOTBAR_WIDTH).roundToInt()
+
+private fun halfRoundedUp(value: Int): Int = (value + 1) / 2
