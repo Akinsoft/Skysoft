@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.SkysoftMod
+import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.screenshot.ScreenshotUploadMetadataStore
 import com.skysoft.features.screenshot.loadScaledScreenshotImage
@@ -26,7 +27,6 @@ import java.util.Locale
 import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 import kotlin.math.roundToInt
-import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.ActiveTextCollector
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -395,7 +395,7 @@ internal object ImageUrlResolver {
 private object TrustedImageHosts {
     private val gson = GsonBuilder().setPrettyPrinting().create()
     private val hostListType = object : TypeToken<List<String>>() {}.type
-    private val path = FabricLoader.getInstance().configDir.resolve("skysoft").resolve("trusted-image-hosts.json")
+    private val path = SkysoftConfigFiles.trustedImageHosts
     private var hosts: MutableSet<String>? = null
 
     @Synchronized
@@ -404,14 +404,17 @@ private object TrustedImageHosts {
     @Synchronized
     fun trust(host: String) {
         if (!hosts().add(host)) return
-        Files.createDirectories(path.parent)
-        Files.newBufferedWriter(path).use { writer -> gson.toJson(hosts().sorted(), hostListType, writer) }
+        SkysoftConfigFiles.writeStringSafely(path, gson.toJson(hosts().sorted(), hostListType))
     }
 
     private fun hosts(): MutableSet<String> {
         hosts?.let { return it }
-        val loaded = if (Files.isRegularFile(path)) {
-            Files.newBufferedReader(path).use { reader -> gson.fromJson<List<String>>(reader, hostListType).orEmpty() }
+        val loaded = if (SkysoftConfigFiles.hasFileOrBackup(path)) {
+            SkysoftConfigFiles.readWithBackup(path) { source ->
+                Files.newBufferedReader(source).use { reader ->
+                    gson.fromJson<List<String>>(reader, hostListType).orEmpty()
+                }
+            }
         } else {
             emptyList()
         }
