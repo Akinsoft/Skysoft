@@ -26,11 +26,12 @@ private fun classicMeasurements(
     height: Int,
     isSelectorVisible: Boolean,
 ): Measurements {
+    val pageSpacing = config.details.pageSpacing
     val columns = config.details.columns.coerceIn(
         StorageOverlayConfigBounds.MIN_COLUMNS,
-        maximumStorageColumns(width),
+        maximumStorageColumns(width, isModern = false, pageSpacing = pageSpacing),
     )
-    val scrollPanelWidth = columns * StoragePages.WIDTH + (columns - 1) * StoragePages.PADDING
+    val scrollPanelWidth = columns * StoragePages.WIDTH + (columns - 1) * pageSpacing
     val storageWidth = scrollPanelWidth + StorageScrollbar.GAP + StorageScrollbar.WIDTH + StoragePanel.PADDING * 2
     val storageX = (width - storageWidth) / 2
     val playerX = width / 2 - StoragePlayerInventory.WIDTH / 2
@@ -92,6 +93,7 @@ private fun classicMeasurements(
         selectorBounds = selectorBounds,
         totalBounds = totalBounds,
         columns = columns,
+        pageSpacing = pageSpacing,
         isSelectorVisible = isSelectorVisible,
     )
 }
@@ -132,14 +134,14 @@ internal fun pageLayouts(measurements: Measurements, activePage: Int?): PageLayo
         val x = if (measurements.isModern) {
             modernStoragePageX(measurements, xIndex)
         } else {
-            measurements.scrollPanel.x + xIndex * (StoragePages.WIDTH + StoragePages.PADDING)
+            measurements.scrollPanel.x + xIndex * (StoragePages.WIDTH + measurements.pageSpacing)
         }
         layouts[pageIndex] = PageLayout(pageIndex, x, y, pageWidth, pageHeight)
         rowHeight = maxOf(rowHeight, pageHeight)
         xIndex++
         if (xIndex >= measurements.columns) {
             completedRowHeight = rowHeight
-            y += rowHeight + StoragePages.PADDING
+            y += rowHeight + measurements.pageSpacing
             xIndex = 0
             rowHeight = 0
         }
