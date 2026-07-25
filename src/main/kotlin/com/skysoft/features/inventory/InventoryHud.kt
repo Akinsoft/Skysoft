@@ -120,8 +120,8 @@ object InventoryHud {
         val top = config.position.getAbsY0AllowingOverflow(scaledHeight)
         val screenHeight = Minecraft.getInstance().window.guiScaledHeight
         val bottom = top + scaledHeight
-        if (bottom < screenHeight - STANDARD_HOTBAR_HEIGHT) return 0
-        return (screenHeight - STANDARD_HOTBAR_HEIGHT - top).coerceAtLeast(0)
+        if (bottom < screenHeight - VANILLA_HOTBAR_TOP_OFFSET) return 0
+        return (screenHeight - VANILLA_HOTBAR_TOP_OFFSET - top).coerceAtLeast(0)
     }
 
     private fun currentLayout(): InventoryHudLayout = InventoryHudLayout(
@@ -314,7 +314,7 @@ private class InventoryHudRenderable(
 
 private const val MAIN_INVENTORY_START = 9
 private const val LAST_ARMOR_SLOT = 39
-private const val STANDARD_HOTBAR_HEIGHT = 26
+private const val VANILLA_HOTBAR_TOP_OFFSET = 22
 private const val ITEM_INSET = 1
 private const val ITEM_COUNT_RIGHT = 17
 private const val ITEM_COUNT_Y = 9
