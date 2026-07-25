@@ -14,6 +14,7 @@ object SlayerQuestState {
     private var completionListeners: List<(SlayerQuestSnapshot) -> Unit> = emptyList()
     private var startListeners: List<() -> Unit> = emptyList()
     private val minibossNames = mutableSetOf<String>()
+    private val recentlyClearedMinibossNames = mutableMapOf<String, Long>()
 
     val isActive: Boolean get() = snapshot.bossName != null
     val isBossActive: Boolean get() = snapshot.isBossActive
@@ -36,14 +37,14 @@ object SlayerQuestState {
                     SlayerMessageParser.isQuestStarted(message.cleanText) -> {
                         snapshot = SlayerQuestSnapshot.NONE
                         lastActiveSnapshot = SlayerQuestSnapshot.NONE
-                        minibossNames.clear()
+                        clearMinibossNames()
                         startListeners.forEach { it() }
                     }
                     SlayerMessageParser.isQuestComplete(message.cleanText) -> {
                         val completedQuest = snapshot.takeIf(SlayerQuestSnapshot::isActive) ?: lastActiveSnapshot
                         snapshot = SlayerQuestSnapshot.NONE
                         lastActiveSnapshot = SlayerQuestSnapshot.NONE
-                        minibossNames.clear()
+                        clearMinibossNames()
                         if (completedQuest.isActive) completionListeners.forEach { it(completedQuest) }
                     }
                 }
@@ -67,7 +68,11 @@ object SlayerQuestState {
 
     fun isSlayerTarget(mobName: String): Boolean =
         bossNames.any { bossName -> bossName.endsWith(mobName, ignoreCase = true) } ||
-            minibossNames.any { it.equals(mobName, ignoreCase = true) }
+            minibossNames.any { it.equals(mobName, ignoreCase = true) } ||
+            recentlyClearedMinibossNames.any { (name, clearedAtMillis) ->
+                name.equals(mobName, ignoreCase = true) &&
+                    isWithinMinibossCocoonWindow(clearedAtMillis, System.currentTimeMillis())
+            }
 
     fun targetNames(): Set<String> = buildSet {
         addAll(bossNames)
@@ -80,7 +85,12 @@ object SlayerQuestState {
             return
         }
         val next = parseSlayerQuestSnapshot(SidebarScoreboard.currentLines())
+        val now = System.currentTimeMillis()
+        recentlyClearedMinibossNames.entries.removeIf { (_, clearedAtMillis) ->
+            !isWithinMinibossCocoonWindow(clearedAtMillis, now)
+        }
         if (!next.isActive || (snapshot.bossName != null && snapshot.bossName != next.bossName)) {
+            minibossNames.forEach { name -> recentlyClearedMinibossNames[name] = now }
             minibossNames.clear()
         }
         snapshot = next
@@ -90,9 +100,17 @@ object SlayerQuestState {
     private fun clear() {
         snapshot = SlayerQuestSnapshot.NONE
         lastActiveSnapshot = SlayerQuestSnapshot.NONE
+        clearMinibossNames()
+    }
+
+    private fun clearMinibossNames() {
         minibossNames.clear()
+        recentlyClearedMinibossNames.clear()
     }
 }
+
+internal fun isWithinMinibossCocoonWindow(clearedAtMillis: Long, now: Long): Boolean =
+    now - clearedAtMillis in 0..MINIBOSS_COCOON_WINDOW_MILLIS
 
 object SlayerMessageParser {
     fun parseMinibossSpawn(message: String): String? =
@@ -202,6 +220,7 @@ internal fun parseSlayerQuestSnapshot(scoreboardLines: List<String>): SlayerQues
 private const val SLAYER_QUEST_HEADER = "Slayer Quest"
 private const val SLAYER_BOSS_ACTIVE_LINE = "Slay the boss!"
 private const val TIER_FIVE = 5
+private const val MINIBOSS_COCOON_WINDOW_MILLIS = 1_500L
 private fun slayerTier(romanNumeral: String): Int? =
     SLAYER_TIER_NUMERALS.indexOf(romanNumeral.uppercase()).takeIf { it >= 0 }?.inc()
 
