@@ -26,5 +26,7 @@ object MinecraftItems {
 
     fun grayDye(): Item = Items.GRAY_DYE
 
+    fun limeDye(): Item = Items.LIME_DYE
+
     fun pinkDye(): Item = Items.PINK_DYE
 }
