@@ -47,6 +47,9 @@ object SkysoftHudEditor {
         private var grabbedOffsetY = 0
         private var grabbedWidth = 0
         private var grabbedHeight = 0
+        private var grabbedResizeHandle: HudResizeHandle? = null
+        private var grabbedElementX = 0
+        private var grabbedElementY = 0
         private var hoveredElement: HudEditorElement? = null
         private var grabbedInventoryButtonIndex: Int? = null
         private var grabbedInventoryButtonOffsetX = 0
@@ -55,6 +58,7 @@ object SkysoftHudEditor {
         private var oldScreenWidth = -1
         private var oldScreenHeight = -1
         private val editorScale = EditorGuiScale(oldScreen != null)
+        private val snapper = HudEditorSnapper(oldScreen != null, editorScale)
 
         override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
             super.extractRenderState(context, mouseX, mouseY, delta)
@@ -71,13 +75,14 @@ object SkysoftHudEditor {
 
             val hoveredButton = renderInventoryButtons(context, mouseX, mouseY)
             val elements = HudEditorRegistry.visibleElements(oldScreen != null)
-            val hovered = elements.lastOrNull { isElementHovered(it, mouseX, mouseY) }
+            val hovered = elementAt(mouseX, mouseY, elements)
             val activeHoveredButton = hoveredButton?.takeIf { hovered == null }
             hoveredInventoryButtonIndex = activeHoveredButton?.index
             hoveredElement = hovered
             elements.filter(editorScale::usesInventoryCoordinates).forEach { element ->
                 renderElement(context, element, element == hovered || element == grabbedElement)
             }
+            renderSnapGuides(context, grabbedElement, snapper, editorScale, inventoryCoordinates = true)
             context.pose().pushMatrix()
             val tooltipLines = try {
                 context.pose().scale(editorScale.normalRenderScale(), editorScale.normalRenderScale())
@@ -85,6 +90,7 @@ object SkysoftHudEditor {
                     for (element in elements.filterNot(editorScale::usesInventoryCoordinates)) {
                         renderElement(context, element, element == hovered || element == grabbedElement)
                     }
+                    renderSnapGuides(context, grabbedElement, snapper, editorScale, inventoryCoordinates = false)
 
                     val active = grabbedElement ?: hovered
                     when {
@@ -126,6 +132,12 @@ object SkysoftHudEditor {
                                     },
                                 )
                                 if (active.canMove) add("§eLeft-click drag §7to move")
+                                if (active.canResizeWidth || active.canResizeHeight) {
+                                    add("§eDrag corner handles §7to resize")
+                                }
+                                if (active.canMove || active.canResizeWidth || active.canResizeHeight) {
+                                    add("§eHold Shift §7to snap")
+                                }
                                 add("§eRight-click §7to open settings")
                                 if (active.canScale) add("§eScroll-Wheel §7to resize")
                                 add("§eR §7to reset")
@@ -165,8 +177,22 @@ object SkysoftHudEditor {
                 )
             }
 
-        private fun elementAt(mouseX: Int, mouseY: Int): HudEditorElement? =
-            HudEditorRegistry.visibleElements(oldScreen != null).lastOrNull { isElementHovered(it, mouseX, mouseY) }
+        private fun elementAt(
+            mouseX: Int,
+            mouseY: Int,
+            elements: List<HudEditorElement> = HudEditorRegistry.visibleElements(oldScreen != null),
+        ): HudEditorElement? =
+            elements.lastOrNull { resizeHandleAt(it, mouseX, mouseY) != null }
+                ?: elements.lastOrNull { isElementHovered(it, mouseX, mouseY) }
+
+        private fun resizeHandleAt(element: HudEditorElement, mouseX: Int, mouseY: Int): HudResizeHandle? =
+            editorScale.withElementGuiScale(element) {
+                val width = (element.width() * element.position.effectiveScale).roundToInt()
+                val height = (element.height() * element.position.effectiveScale).roundToInt()
+                val x = editorScale.elementMouseX(element, mouseX) - element.absoluteX(width)
+                val y = editorScale.elementMouseY(element, mouseY) - element.absoluteY(height)
+                findResizeHandle(element, x, y, width, height)
+            }
 
         private fun renderInventoryButtons(
             context: GuiGraphicsExtractor,
@@ -222,6 +248,9 @@ object SkysoftHudEditor {
             context.pose().scale(position.scale, position.scale)
             element.renderEditorDummy(context)
             context.pose().popMatrix()
+            if (selected && (element.canResizeWidth || element.canResizeHeight)) {
+                drawResizeHandles(context, x, y, scaledWidth, scaledHeight)
+            }
         }
 
         private fun drawEditorOutline(
@@ -238,6 +267,43 @@ object SkysoftHudEditor {
             context.fill(x + width, y, x + width + BORDER, y + height, color)
         }
 
+        private fun drawResizeHandles(
+            context: GuiGraphicsExtractor,
+            x: Int,
+            y: Int,
+            width: Int,
+            height: Int,
+        ) {
+            drawResizeHandle(context, x, y, horizontalDirection = 1, verticalDirection = 1)
+            drawResizeHandle(context, x + width, y, horizontalDirection = -1, verticalDirection = 1)
+            drawResizeHandle(context, x, y + height, horizontalDirection = 1, verticalDirection = -1)
+            drawResizeHandle(context, x + width, y + height, horizontalDirection = -1, verticalDirection = -1)
+        }
+
+        private fun drawResizeHandle(
+            context: GuiGraphicsExtractor,
+            x: Int,
+            y: Int,
+            horizontalDirection: Int,
+            verticalDirection: Int,
+        ) {
+            for (inset in 0 until RESIZE_HANDLE_SIZE) {
+                val length = RESIZE_HANDLE_SIZE - inset
+                val startX = if (horizontalDirection > 0) x else x - length
+                val endX = if (horizontalDirection > 0) x + length else x
+                val edgeY = y + inset * verticalDirection
+                val startY = if (verticalDirection > 0) edgeY else edgeY - 1
+                val endY = if (verticalDirection > 0) edgeY + 1 else edgeY
+                context.fill(
+                    startX,
+                    startY,
+                    endX,
+                    endY,
+                    RESIZE_HANDLE_COLOR,
+                )
+            }
+        }
+
         override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
             val mouseX = click.x().toInt()
             val mouseY = click.y().toInt()
@@ -251,6 +317,7 @@ object SkysoftHudEditor {
                         null
                     }
                     if (inventoryButton != null) {
+                        snapper.clear()
                         grabbedInventoryButtonIndex = inventoryButton.index
                         grabbedInventoryButtonOffsetX = mouseX - inventoryButton.bounds.x
                         grabbedInventoryButtonOffsetY = mouseY - inventoryButton.bounds.y
@@ -259,13 +326,23 @@ object SkysoftHudEditor {
                     } else {
                         grabbedElement = element
                         if (element != null) {
+                            snapper.clear()
                             editorScale.withElementGuiScale(element) {
                                 grabbedWidth = (element.width() * element.position.scale).roundToInt()
                                 grabbedHeight = (element.height() * element.position.scale).roundToInt()
+                                grabbedElementX = element.absoluteX(grabbedWidth)
+                                grabbedElementY = element.absoluteY(grabbedHeight)
                                 grabbedOffsetX = editorScale.elementMouseX(element, mouseX) -
-                                    element.absoluteX(grabbedWidth)
+                                    grabbedElementX
                                 grabbedOffsetY = editorScale.elementMouseY(element, mouseY) -
-                                    element.absoluteY(grabbedHeight)
+                                    grabbedElementY
+                                grabbedResizeHandle = findResizeHandle(
+                                    element,
+                                    grabbedOffsetX,
+                                    grabbedOffsetY,
+                                    grabbedWidth,
+                                    grabbedHeight,
+                                )
                                 element.beginEditorDrag(
                                     grabbedOffsetX,
                                     grabbedOffsetY,
@@ -297,6 +374,7 @@ object SkysoftHudEditor {
         override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
             if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
             grabbedInventoryButtonIndex?.let { index ->
+                snapper.clear()
                 oldScreen?.let { screen ->
                     InventoryButtonManager.moveButton(
                         screen,
@@ -313,19 +391,25 @@ object SkysoftHudEditor {
             editorScale.withElementGuiScale(element) {
                 val width = grabbedWidth.takeIf { it > 0 } ?: (element.width() * element.position.scale).roundToInt()
                 val height = grabbedHeight.takeIf { it > 0 } ?: (element.height() * element.position.scale).roundToInt()
+                grabbedResizeHandle?.let { handle ->
+                    resizeElement(element, handle, elementMouseX, elementMouseY)
+                    return@withElementGuiScale
+                }
                 val targetX = elementMouseX - grabbedOffsetX
                 val targetY = elementMouseY - grabbedOffsetY
-                val deltaX = targetX - element.absoluteX(width)
-                val deltaY = targetY - element.absoluteY(height)
+                val snapped = snapper.snapPosition(element, targetX, targetY, width, height)
+                val deltaX = snapped.x - element.absoluteX(width)
+                val deltaY = snapped.y - element.absoluteY(height)
                 if (element.applyEditorDrag(deltaX, deltaY) == InputHandlingResult.IGNORED && element.canMove) {
-                    val positionX = targetX - element.layoutOffsetX
-                    val positionY = targetY - element.layoutOffsetY
+                    val positionX = snapped.x - element.layoutOffsetX
+                    val positionY = snapped.y - element.layoutOffsetY
                     if (element.keepsInsideScreen) {
                         element.position.moveToAbsolute(positionX, positionY, width, height)
                     } else {
                         element.position.moveToAbsoluteAllowingOverflow(positionX, positionY, width, height)
                     }
                 }
+                snapper.confirmPosition(element, width, height)
             }
             return true
         }
@@ -336,6 +420,8 @@ object SkysoftHudEditor {
                 grabbedInventoryButtonIndex = null
                 grabbedWidth = 0
                 grabbedHeight = 0
+                grabbedResizeHandle = null
+                snapper.clear()
             }
             return super.mouseReleased(click)
         }
@@ -394,6 +480,88 @@ object SkysoftHudEditor {
             return super.keyPressed(event)
         }
 
+        private fun resizeElement(
+            element: HudEditorElement,
+            handle: HudResizeHandle,
+            mouseX: Int,
+            mouseY: Int,
+        ) {
+            val mouseDeltaX = mouseX - grabbedElementX - grabbedOffsetX
+            val mouseDeltaY = mouseY - grabbedElementY - grabbedOffsetY
+            var left = grabbedElementX
+            var right = grabbedElementX + grabbedWidth
+            var top = grabbedElementY
+            var bottom = grabbedElementY + grabbedHeight
+            if (element.canResizeWidth) {
+                if (handle.isLeft) left += mouseDeltaX else right += mouseDeltaX
+            }
+            if (element.canResizeHeight) {
+                if (handle.isTop) top += mouseDeltaY else bottom += mouseDeltaY
+            }
+            if (element.canResizeWidth) {
+                if (handle.isLeft) {
+                    left = snapper.snapResizeCoordinate(
+                        element,
+                        left,
+                        HudSnapAxis.HORIZONTAL,
+                        HudSnapAnchor.START,
+                    )
+                } else {
+                    right = snapper.snapResizeCoordinate(
+                        element,
+                        right,
+                        HudSnapAxis.HORIZONTAL,
+                        HudSnapAnchor.END,
+                    )
+                }
+            } else {
+                snapper.clear(HudSnapAxis.HORIZONTAL)
+            }
+            if (element.canResizeHeight) {
+                if (handle.isTop) {
+                    top = snapper.snapResizeCoordinate(
+                        element,
+                        top,
+                        HudSnapAxis.VERTICAL,
+                        HudSnapAnchor.START,
+                    )
+                } else {
+                    bottom = snapper.snapResizeCoordinate(
+                        element,
+                        bottom,
+                        HudSnapAxis.VERTICAL,
+                        HudSnapAnchor.END,
+                    )
+                }
+            } else {
+                snapper.clear(HudSnapAxis.VERTICAL)
+            }
+            val scale = element.position.effectiveScale
+            val minimumWidth = (element.minEditorWidth() * scale).roundToInt()
+            val minimumHeight = (element.minEditorHeight() * scale).roundToInt()
+            if (right - left < minimumWidth) {
+                if (handle.isLeft) left = right - minimumWidth else right = left + minimumWidth
+            }
+            if (bottom - top < minimumHeight) {
+                if (handle.isTop) top = bottom - minimumHeight else bottom = top + minimumHeight
+            }
+            element.resizeEditor(
+                ((right - left) / scale).roundToInt(),
+                ((bottom - top) / scale).roundToInt(),
+            )
+            val actualWidth = (element.width() * scale).roundToInt()
+            val actualHeight = (element.height() * scale).roundToInt()
+            val actualLeft = if (handle.isLeft) right - actualWidth else left
+            val actualTop = if (handle.isTop) bottom - actualHeight else top
+            element.position.moveToAbsoluteAllowingOverflow(
+                actualLeft - element.layoutOffsetX,
+                actualTop - element.layoutOffsetY,
+                actualWidth,
+                actualHeight,
+            )
+            snapper.confirmPosition(element, actualWidth, actualHeight)
+        }
+
         override fun onClose() {
             ScreenTitleRenderer.endPositionEditing()
             SkysoftConfigGui.config().saveNow()
@@ -402,6 +570,389 @@ object SkysoftHudEditor {
             } else {
                 super.onClose()
             }
+        }
+    }
+}
+
+private fun renderSnapGuides(
+    context: GuiGraphicsExtractor,
+    element: HudEditorElement?,
+    snapper: HudEditorSnapper,
+    editorScale: EditorGuiScale,
+    inventoryCoordinates: Boolean,
+) {
+    element ?: return
+    if (editorScale.usesInventoryCoordinates(element) != inventoryCoordinates) return
+    if (!Minecraft.getInstance().hasShiftDown()) return
+    val guides = snapper.guides()
+    for (guide in guides) {
+        if (guide.axis == HudSnapAxis.HORIZONTAL) {
+            context.fill(
+                guide.coordinate - SNAP_GUIDE_OUTLINE_WIDTH,
+                guide.start,
+                guide.coordinate + SNAP_GUIDE_OUTLINE_WIDTH + 1,
+                guide.end + 1,
+                SNAP_GUIDE_OUTLINE_COLOR,
+            )
+            context.fill(
+                guide.coordinate,
+                guide.start,
+                guide.coordinate + 1,
+                guide.end + 1,
+                SNAP_GUIDE_COLOR,
+            )
+        } else {
+            context.fill(
+                guide.start,
+                guide.coordinate - SNAP_GUIDE_OUTLINE_WIDTH,
+                guide.end + 1,
+                guide.coordinate + SNAP_GUIDE_OUTLINE_WIDTH + 1,
+                SNAP_GUIDE_OUTLINE_COLOR,
+            )
+            context.fill(
+                guide.start,
+                guide.coordinate,
+                guide.end + 1,
+                guide.coordinate + 1,
+                SNAP_GUIDE_COLOR,
+            )
+        }
+    }
+    guides.map(HudSnapGuide::targetBounds).distinct().forEach { bounds ->
+        context.fill(bounds.left - 1, bounds.top - 1, bounds.right + 1, bounds.top, SNAP_TARGET_OUTLINE_COLOR)
+        context.fill(bounds.left - 1, bounds.bottom, bounds.right + 1, bounds.bottom + 1, SNAP_TARGET_OUTLINE_COLOR)
+        context.fill(bounds.left - 1, bounds.top, bounds.left, bounds.bottom, SNAP_TARGET_OUTLINE_COLOR)
+        context.fill(bounds.right, bounds.top, bounds.right + 1, bounds.bottom, SNAP_TARGET_OUTLINE_COLOR)
+    }
+}
+
+private class HudEditorSnapper(
+    private val hasInventoryScreen: Boolean,
+    private val editorScale: EditorGuiScale,
+) {
+    private var horizontalLock: HudSnapLock? = null
+    private var verticalLock: HudSnapLock? = null
+    private var movingBounds: HudSnapBounds? = null
+
+    fun snapPosition(
+        element: HudEditorElement,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+    ): HudSnappedPosition {
+        if (!Minecraft.getInstance().hasShiftDown()) {
+            clear()
+            return HudSnappedPosition(x, y)
+        }
+        val rawBounds = HudSnapBounds(x, y, x + width, y + height)
+        val horizontalOffset = snapAxis(
+            element,
+            HudSnapAxis.HORIZONTAL,
+            axisPoints(x, width),
+            rawBounds,
+            matchingAnchorsOnly = true,
+        )
+        val verticalOffset = snapAxis(
+            element,
+            HudSnapAxis.VERTICAL,
+            axisPoints(y, height),
+            rawBounds,
+            matchingAnchorsOnly = true,
+        )
+        return HudSnappedPosition(x + horizontalOffset, y + verticalOffset)
+    }
+
+    fun snapResizeCoordinate(
+        element: HudEditorElement,
+        value: Int,
+        axis: HudSnapAxis,
+        anchor: HudSnapAnchor,
+    ): Int {
+        if (!Minecraft.getInstance().hasShiftDown()) {
+            clear(axis)
+            return value
+        }
+        val offset = snapAxis(
+            element,
+            axis,
+            listOf(HudSnapPoint(anchor, value)),
+            bounds(element),
+            matchingAnchorsOnly = false,
+        )
+        return value + offset
+    }
+
+    fun guides(): List<HudSnapGuide> {
+        val currentBounds = movingBounds ?: return emptyList()
+        return buildList {
+            horizontalLock?.let { add(guide(HudSnapAxis.HORIZONTAL, it, currentBounds)) }
+            verticalLock?.let { add(guide(HudSnapAxis.VERTICAL, it, currentBounds)) }
+        }
+    }
+
+    fun confirmPosition(element: HudEditorElement, width: Int, height: Int) {
+        val left = element.absoluteX(width)
+        val top = element.absoluteY(height)
+        val confirmedBounds = HudSnapBounds(
+            left = left,
+            top = top,
+            right = left + width,
+            bottom = top + height,
+        )
+        movingBounds = confirmedBounds
+        confirmAxis(
+            HudSnapAxis.HORIZONTAL,
+            axisPoints(confirmedBounds.left, width),
+        )
+        confirmAxis(
+            HudSnapAxis.VERTICAL,
+            axisPoints(confirmedBounds.top, height),
+        )
+    }
+
+    fun clear() {
+        horizontalLock = null
+        verticalLock = null
+        movingBounds = null
+    }
+
+    fun clear(axis: HudSnapAxis) {
+        setLock(axis, null)
+    }
+
+    private fun snapAxis(
+        element: HudEditorElement,
+        axis: HudSnapAxis,
+        movingPoints: List<HudSnapPoint>,
+        movingBounds: HudSnapBounds,
+        matchingAnchorsOnly: Boolean,
+    ): Int {
+        val currentLock = lock(axis)
+        if (currentLock != null) {
+            val movingPoint = movingPoints.firstOrNull { it.anchor == currentLock.movingAnchor }
+            if (movingPoint != null) {
+                val offset = currentLock.targetCoordinate - movingPoint.coordinate
+                if (kotlin.math.abs(offset) <= SNAP_RELEASE_DISTANCE) return offset
+            }
+            setLock(axis, null)
+        }
+
+        val candidate = targets(element, axis)
+            .asSequence()
+            .flatMap { target ->
+                movingPoints.asSequence().mapNotNull { moving ->
+                    candidate(moving, target, axis, movingBounds, matchingAnchorsOnly)
+                }
+            }
+            .filter { it.distance <= SNAP_ACQUIRE_DISTANCE }
+            .minWithOrNull(
+                compareBy<HudSnapCandidate> { it.distance }
+                    .thenBy { it.perpendicularDistance }
+                    .thenBy { it.priority },
+            )
+            ?: return 0
+        setLock(
+            axis,
+            HudSnapLock(
+                movingAnchor = candidate.movingAnchor,
+                targetCoordinate = candidate.targetCoordinate,
+                targetBounds = candidate.targetBounds,
+                relation = candidate.relation,
+            ),
+        )
+        return candidate.targetCoordinate - candidate.movingCoordinate
+    }
+
+    private fun targets(element: HudEditorElement, axis: HudSnapAxis): List<HudSnapTargetPoint> {
+        val values = mutableListOf<HudSnapTargetPoint>()
+        HudEditorRegistry.visibleElements(hasInventoryScreen)
+            .filter {
+                it !== element &&
+                    !it.isInSnapGroupWith(element) &&
+                    editorScale.usesInventoryCoordinates(it) == editorScale.usesInventoryCoordinates(element)
+            }
+            .forEach { target ->
+                values += targetPoints(bounds(target), axis)
+            }
+        return values
+    }
+
+    private fun candidate(
+        moving: HudSnapPoint,
+        target: HudSnapTargetPoint,
+        axis: HudSnapAxis,
+        movingBounds: HudSnapBounds,
+        matchingAnchorsOnly: Boolean,
+    ): HudSnapCandidate? {
+        val isAdjacent = moving.anchor.isAdjacentTo(target.anchor)
+        val priority = when {
+            moving.anchor == HudSnapAnchor.CENTER && target.anchor == HudSnapAnchor.CENTER ->
+                CENTER_SNAP_PRIORITY
+            moving.anchor == target.anchor -> MATCHING_EDGE_SNAP_PRIORITY
+            isAdjacent -> ADJACENT_EDGE_SNAP_PRIORITY
+            matchingAnchorsOnly -> return null
+            else -> CROSS_ANCHOR_SNAP_PRIORITY
+        }
+        return HudSnapCandidate(
+            movingAnchor = moving.anchor,
+            movingCoordinate = moving.coordinate,
+            targetCoordinate = target.coordinate,
+            distance = kotlin.math.abs(target.coordinate - moving.coordinate),
+            priority = priority,
+            perpendicularDistance = movingBounds.perpendicularDistance(target.bounds, axis),
+            targetBounds = target.bounds,
+            relation = if (isAdjacent) HudSnapRelation.ADJACENCY else HudSnapRelation.ALIGNMENT,
+        )
+    }
+
+    private fun axisPoints(
+        start: Int,
+        length: Int,
+    ): List<HudSnapPoint> = listOf(
+        HudSnapPoint(HudSnapAnchor.START, start),
+        HudSnapPoint(HudSnapAnchor.CENTER, start + length / 2),
+        HudSnapPoint(HudSnapAnchor.END, start + length),
+    )
+
+    private fun targetPoints(bounds: HudSnapBounds, axis: HudSnapAxis): List<HudSnapTargetPoint> {
+        val start = if (axis == HudSnapAxis.HORIZONTAL) bounds.left else bounds.top
+        val end = if (axis == HudSnapAxis.HORIZONTAL) bounds.right else bounds.bottom
+        return listOf(
+            HudSnapTargetPoint(HudSnapAnchor.START, start, bounds),
+            HudSnapTargetPoint(HudSnapAnchor.CENTER, (start + end) / 2, bounds),
+            HudSnapTargetPoint(HudSnapAnchor.END, end, bounds),
+        )
+    }
+
+    private fun bounds(element: HudEditorElement): HudSnapBounds {
+        val scale = element.position.effectiveScale
+        val width = (element.width() * scale).roundToInt()
+        val height = (element.height() * scale).roundToInt()
+        val left = element.absoluteX(width)
+        val top = element.absoluteY(height)
+        return HudSnapBounds(left, top, left + width, top + height)
+    }
+
+    private fun guide(axis: HudSnapAxis, lock: HudSnapLock, moving: HudSnapBounds): HudSnapGuide {
+        val movingCenter = moving.perpendicularCenter(axis)
+        val targetCenter = lock.targetBounds.perpendicularCenter(axis)
+        val useFullBounds = lock.relation == HudSnapRelation.ADJACENCY || movingCenter == targetCenter
+        val start = if (useFullBounds) {
+            minOf(moving.perpendicularStart(axis), lock.targetBounds.perpendicularStart(axis))
+        } else {
+            minOf(movingCenter, targetCenter)
+        }
+        val end = if (useFullBounds) {
+            maxOf(moving.perpendicularEnd(axis), lock.targetBounds.perpendicularEnd(axis))
+        } else {
+            maxOf(movingCenter, targetCenter)
+        }
+        return HudSnapGuide(axis, lock.targetCoordinate, start, end, lock.targetBounds)
+    }
+
+    private fun confirmAxis(axis: HudSnapAxis, points: List<HudSnapPoint>) {
+        val currentLock = lock(axis) ?: return
+        val actualCoordinate = points.firstOrNull { it.anchor == currentLock.movingAnchor }?.coordinate
+        if (actualCoordinate != currentLock.targetCoordinate) clear(axis)
+    }
+
+    private fun lock(axis: HudSnapAxis): HudSnapLock? = when (axis) {
+        HudSnapAxis.HORIZONTAL -> horizontalLock
+        HudSnapAxis.VERTICAL -> verticalLock
+    }
+
+    private fun setLock(axis: HudSnapAxis, lock: HudSnapLock?) {
+        when (axis) {
+            HudSnapAxis.HORIZONTAL -> horizontalLock = lock
+            HudSnapAxis.VERTICAL -> verticalLock = lock
+        }
+    }
+}
+
+private fun HudEditorElement.isInSnapGroupWith(other: HudEditorElement): Boolean =
+    snapGroup != null && snapGroup == other.snapGroup
+
+private fun HudSnapAnchor.isAdjacentTo(other: HudSnapAnchor): Boolean =
+    this == HudSnapAnchor.START && other == HudSnapAnchor.END ||
+        this == HudSnapAnchor.END && other == HudSnapAnchor.START
+
+private enum class HudSnapAxis {
+    HORIZONTAL,
+    VERTICAL,
+}
+
+private enum class HudSnapAnchor {
+    START,
+    CENTER,
+    END,
+}
+
+private enum class HudSnapRelation {
+    ALIGNMENT,
+    ADJACENCY,
+}
+
+private data class HudSnapPoint(val anchor: HudSnapAnchor, val coordinate: Int)
+
+private data class HudSnapTargetPoint(
+    val anchor: HudSnapAnchor,
+    val coordinate: Int,
+    val bounds: HudSnapBounds,
+)
+
+private data class HudSnapCandidate(
+    val movingAnchor: HudSnapAnchor,
+    val movingCoordinate: Int,
+    val targetCoordinate: Int,
+    val distance: Int,
+    val priority: Int,
+    val perpendicularDistance: Int,
+    val targetBounds: HudSnapBounds,
+    val relation: HudSnapRelation,
+)
+
+private data class HudSnapLock(
+    val movingAnchor: HudSnapAnchor,
+    val targetCoordinate: Int,
+    val targetBounds: HudSnapBounds,
+    val relation: HudSnapRelation,
+)
+
+private data class HudSnapGuide(
+    val axis: HudSnapAxis,
+    val coordinate: Int,
+    val start: Int,
+    val end: Int,
+    val targetBounds: HudSnapBounds,
+)
+
+private data class HudSnappedPosition(val x: Int, val y: Int)
+
+private data class HudSnapBounds(
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int,
+) {
+    fun perpendicularStart(axis: HudSnapAxis): Int =
+        if (axis == HudSnapAxis.HORIZONTAL) top else left
+
+    fun perpendicularEnd(axis: HudSnapAxis): Int =
+        if (axis == HudSnapAxis.HORIZONTAL) bottom else right
+
+    fun perpendicularCenter(axis: HudSnapAxis): Int =
+        (perpendicularStart(axis) + perpendicularEnd(axis)) / 2
+
+    fun perpendicularDistance(other: HudSnapBounds, axis: HudSnapAxis): Int {
+        val start = perpendicularStart(axis)
+        val end = perpendicularEnd(axis)
+        val otherStart = other.perpendicularStart(axis)
+        val otherEnd = other.perpendicularEnd(axis)
+        return when {
+            end < otherStart -> otherStart - end
+            otherEnd < start -> start - otherEnd
+            else -> 0
         }
     }
 }
@@ -477,4 +1028,40 @@ private fun HudEditorElement.isHovered(mouseX: Int, mouseY: Int): Boolean {
         mouseY in (y - HUD_EDITOR_BORDER)..(y + scaledHeight + HUD_EDITOR_BORDER)
 }
 
+private fun findResizeHandle(
+    element: HudEditorElement,
+    localX: Int,
+    localY: Int,
+    width: Int,
+    height: Int,
+): HudResizeHandle? {
+    if (!element.canResizeWidth && !element.canResizeHeight) return null
+    val horizontal = when {
+        localX in -HUD_EDITOR_BORDER..RESIZE_HANDLE_HITBOX -> true
+        localX in (width - RESIZE_HANDLE_HITBOX)..(width + HUD_EDITOR_BORDER) -> false
+        else -> return null
+    }
+    val vertical = when {
+        localY in -HUD_EDITOR_BORDER..RESIZE_HANDLE_HITBOX -> true
+        localY in (height - RESIZE_HANDLE_HITBOX)..(height + HUD_EDITOR_BORDER) -> false
+        else -> return null
+    }
+    return HudResizeHandle(isLeft = horizontal, isTop = vertical)
+}
+
 private const val HUD_EDITOR_BORDER = 2
+private const val RESIZE_HANDLE_SIZE = 4
+private const val RESIZE_HANDLE_HITBOX = 5
+private const val RESIZE_HANDLE_COLOR = 0xFFF0F0F0.toInt()
+private const val SNAP_ACQUIRE_DISTANCE = 8
+private const val SNAP_RELEASE_DISTANCE = 12
+private const val SNAP_GUIDE_OUTLINE_WIDTH = 1
+private const val SNAP_GUIDE_COLOR = 0xFF55FFFF.toInt()
+private const val SNAP_GUIDE_OUTLINE_COLOR = 0xB0000000.toInt()
+private const val SNAP_TARGET_OUTLINE_COLOR = 0xD055FFFF.toInt()
+private const val CENTER_SNAP_PRIORITY = 0
+private const val MATCHING_EDGE_SNAP_PRIORITY = 1
+private const val ADJACENT_EDGE_SNAP_PRIORITY = 2
+private const val CROSS_ANCHOR_SNAP_PRIORITY = 3
+
+private data class HudResizeHandle(val isLeft: Boolean, val isTop: Boolean)

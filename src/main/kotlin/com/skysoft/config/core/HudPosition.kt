@@ -75,6 +75,11 @@ class HudPosition @JvmOverloads constructor(
         return moveToAbsolute(absX, absY, objWidth, objHeight, clampEnd = true)
     }
 
+    fun moveBy(deltaX: Int, deltaY: Int) {
+        x += deltaX
+        y += deltaY
+    }
+
     private fun moveToAbsolute(
         absX: Int,
         absY: Int,

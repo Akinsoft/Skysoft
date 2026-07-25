@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.config.INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.gui.BottomHudLayout
@@ -24,7 +25,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.resources.Identifier
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import kotlin.math.roundToInt
 
 object InventoryHud {
     private val config get() = SkysoftConfigGui.config().gui.inventoryHud
@@ -42,21 +42,24 @@ object InventoryHud {
                 contexts = GuiOverlayContextType.entries.toSet(),
                 screenForegroundContexts = GuiOverlayContextType.entries.filter { it != GuiOverlayContextType.WORLD }.toSet(),
                 visible = ::isVisible,
-                render = { context, _ -> config.position.renderRenderable(context, currentRenderable()) },
+                render = { context, _ -> renderParts(context) },
             ),
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "inventory_hud"
-            override val label: String = "Inventory HUD"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean
-                get() = !config.details.background && !config.details.outline && !config.details.slotBackgrounds
-            override fun width(): Int = currentLayout().width
-            override fun height(): Int = currentLayout().height
-            override fun isVisible(): Boolean = config.enabled
-            override fun renderDummy(context: GuiGraphicsExtractor) = currentRenderable().render(context)
-            override fun openConfig() = SkysoftConfigGui.open("Inventory HUD")
-        })
+        InventoryHudPart.entries.forEach { part ->
+            HudEditorRegistry.register(object : HudEditorElement {
+                override val id: String = "inventory_hud_${part.name.lowercase()}"
+                override val label: String = part.label
+                override val position get() = part.position()
+                override val canScale: Boolean = false
+                override val hasEditorBackground: Boolean
+                    get() = !config.details.background && !config.details.outline && !config.details.slotBackgrounds
+                override fun width(): Int = part.width
+                override fun height(): Int = part.height
+                override fun isVisible(): Boolean = config.enabled && part.isEnabled()
+                override fun renderDummy(context: GuiGraphicsExtractor) = currentRenderable(part).render(context)
+                override fun openConfig() = SkysoftConfigGui.open("Inventory HUD")
+            })
+        }
     }
 
     private fun registerVanillaHudElements() {
@@ -115,60 +118,80 @@ object InventoryHud {
 
     private fun bottomReservation(): Int {
         if (!isLiveVisible()) return 0
-        val layout = currentLayout()
-        val scaledHeight = (layout.height * config.position.effectiveScale).roundToInt()
-        val top = config.position.getAbsY0AllowingOverflow(scaledHeight)
-        val screenHeight = Minecraft.getInstance().window.guiScaledHeight
-        val bottom = top + scaledHeight
-        if (bottom < screenHeight - VANILLA_HOTBAR_TOP_OFFSET) return 0
-        return (screenHeight - VANILLA_HOTBAR_TOP_OFFSET - top).coerceAtLeast(0)
+        val inventoryOffset = if (config.settings.inventory) {
+            InventoryHudLayout.MAIN_PANEL_HEIGHT + InventoryHudLayout.GROUP_GAP
+        } else {
+            0
+        }
+        val sideOffset = if (config.settings.armor || config.settings.equipment) {
+            InventoryHudLayout.MAIN_PANEL_HEIGHT
+        } else {
+            0
+        }
+        val hotbarOffset = InventoryHudLayout.HOTBAR_PANEL_HEIGHT -
+            VANILLA_HOTBAR_TOP_OFFSET -
+            INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN
+        return hotbarOffset + maxOf(inventoryOffset, sideOffset)
     }
 
-    private fun currentLayout(): InventoryHudLayout = InventoryHudLayout(
-        showArmor = config.settings.armor,
-        showEquipment = config.settings.equipment,
-    )
-
-    private fun currentRenderable(): InventoryHudRenderable {
+    private fun currentRenderable(part: InventoryHudPart): InventoryHudRenderable {
         val player = Minecraft.getInstance().player
         val equipment = if (config.settings.equipment) InventoryEquipmentCache.stacks() else emptyList()
-        return InventoryHudRenderable(currentLayout(), player, equipment)
+        return InventoryHudRenderable(part, player, equipment)
+    }
+
+    private fun renderParts(context: GuiGraphicsExtractor) {
+        InventoryHudPart.entries.filter(InventoryHudPart::isEnabled).forEach { part ->
+            part.position().renderRenderable(context, currentRenderable(part))
+        }
     }
 }
 
-internal data class InventoryHudLayout(
-    val showArmor: Boolean,
-    val showEquipment: Boolean,
-) {
-    val armorX: Int? = 0.takeIf { showArmor }
-    val mainX: Int = if (showArmor) SIDE_PANEL_WIDTH + GROUP_GAP else 0
-    val equipmentX: Int? = (mainX + MAIN_PANEL_WIDTH + GROUP_GAP).takeIf { showEquipment }
-    val width: Int = mainX + MAIN_PANEL_WIDTH + if (showEquipment) GROUP_GAP + SIDE_PANEL_WIDTH else 0
-    val height: Int = MAIN_PANEL_HEIGHT + GROUP_GAP + HOTBAR_PANEL_HEIGHT
+internal object InventoryHudLayout {
+    const val SLOT_SIZE = 18
+    const val PANEL_PADDING = 2
+    const val GROUP_GAP = 4
+    const val MAIN_COLUMNS = 9
+    const val MAIN_ROWS = 3
+    const val SIDE_ROWS = 4
+    const val MAIN_PANEL_WIDTH = MAIN_COLUMNS * SLOT_SIZE + PANEL_PADDING * 2
+    const val MAIN_PANEL_HEIGHT = MAIN_ROWS * SLOT_SIZE + PANEL_PADDING * 2
+    const val HOTBAR_PANEL_HEIGHT = SLOT_SIZE + PANEL_PADDING * 2
+    const val SIDE_PANEL_WIDTH = SLOT_SIZE + PANEL_PADDING * 2
+    const val SIDE_PANEL_HEIGHT = SIDE_ROWS * SLOT_SIZE + PANEL_PADDING * 2
+}
 
-    companion object {
-        const val SLOT_SIZE = 18
-        const val PANEL_PADDING = 2
-        const val GROUP_GAP = 4
-        const val MAIN_COLUMNS = 9
-        const val MAIN_ROWS = 3
-        const val SIDE_ROWS = 4
-        const val MAIN_PANEL_WIDTH = MAIN_COLUMNS * SLOT_SIZE + PANEL_PADDING * 2
-        const val MAIN_PANEL_HEIGHT = MAIN_ROWS * SLOT_SIZE + PANEL_PADDING * 2
-        const val HOTBAR_PANEL_HEIGHT = SLOT_SIZE + PANEL_PADDING * 2
-        const val SIDE_PANEL_WIDTH = SLOT_SIZE + PANEL_PADDING * 2
-        const val SIDE_PANEL_HEIGHT = SIDE_ROWS * SLOT_SIZE + PANEL_PADDING * 2
-        const val SIDE_Y = (MAIN_PANEL_HEIGHT + GROUP_GAP + HOTBAR_PANEL_HEIGHT - SIDE_PANEL_HEIGHT) / 2
+private enum class InventoryHudPart(val label: String, val width: Int, val height: Int) {
+    HOTBAR("Inventory Hotbar", InventoryHudLayout.MAIN_PANEL_WIDTH, InventoryHudLayout.HOTBAR_PANEL_HEIGHT),
+    INVENTORY("Inventory", InventoryHudLayout.MAIN_PANEL_WIDTH, InventoryHudLayout.MAIN_PANEL_HEIGHT),
+    ARMOR("Armor", InventoryHudLayout.SIDE_PANEL_WIDTH, InventoryHudLayout.SIDE_PANEL_HEIGHT),
+    EQUIPMENT("Equipment", InventoryHudLayout.SIDE_PANEL_WIDTH, InventoryHudLayout.SIDE_PANEL_HEIGHT),
+    ;
+
+    fun isEnabled(): Boolean = when (this) {
+        HOTBAR -> true
+        INVENTORY -> inventoryHudConfig().settings.inventory
+        ARMOR -> inventoryHudConfig().settings.armor
+        EQUIPMENT -> inventoryHudConfig().settings.equipment
+    }
+
+    fun position() = when (this) {
+        HOTBAR -> inventoryHudConfig().position
+        INVENTORY -> inventoryHudConfig().inventoryPosition
+        ARMOR -> inventoryHudConfig().armorPosition
+        EQUIPMENT -> inventoryHudConfig().equipmentPosition
     }
 }
+
+private fun inventoryHudConfig() = SkysoftConfigGui.config().gui.inventoryHud
 
 private class InventoryHudRenderable(
-    private val layout: InventoryHudLayout,
+    private val part: InventoryHudPart,
     private val player: Player?,
     private val equipment: List<ItemStack>,
 ) : GuiRenderable {
-    override val width: Int = layout.width
-    override val height: Int = layout.height
+    override val width: Int = part.width
+    override val height: Int = part.height
 
     private val details = SkysoftConfigGui.config().gui.inventoryHud.details
     private val backgroundColor = details.backgroundColor.get().toColor().rgb
@@ -177,51 +200,45 @@ private class InventoryHudRenderable(
     private val itemCountColor = details.itemCountColor.get().toColor().rgb
 
     override fun render(context: GuiGraphicsExtractor) {
-        drawGridPanel(
-            context,
-            layout.mainX,
-            0,
-            InventoryHudLayout.MAIN_COLUMNS,
-            InventoryHudLayout.MAIN_ROWS,
-        ) { row, column -> player?.inventory?.getItem(MAIN_INVENTORY_START + row * InventoryHudLayout.MAIN_COLUMNS + column) }
-        drawGridPanel(
-            context,
-            layout.mainX,
-            InventoryHudLayout.MAIN_PANEL_HEIGHT + InventoryHudLayout.GROUP_GAP,
-            InventoryHudLayout.MAIN_COLUMNS,
-            1,
-        ) { _, column -> player?.inventory?.getItem(column) }
-        layout.armorX?.let { x ->
-            drawGridPanel(context, x, InventoryHudLayout.SIDE_Y, 1, InventoryHudLayout.SIDE_ROWS) { row, _ ->
-                player?.inventory?.getItem(LAST_ARMOR_SLOT - row)
-            }
-        }
-        layout.equipmentX?.let { x ->
-            drawGridPanel(context, x, InventoryHudLayout.SIDE_Y, 1, InventoryHudLayout.SIDE_ROWS) { row, _ ->
-                equipment.getOrNull(row)
-            }
+        when (part) {
+            InventoryHudPart.HOTBAR ->
+                drawGridPanel(context, InventoryHudLayout.MAIN_COLUMNS, 1) { _, column ->
+                    player?.inventory?.getItem(column)
+                }
+            InventoryHudPart.INVENTORY ->
+                drawGridPanel(
+                    context,
+                    InventoryHudLayout.MAIN_COLUMNS,
+                    InventoryHudLayout.MAIN_ROWS,
+                ) { row, column ->
+                    player?.inventory?.getItem(
+                        MAIN_INVENTORY_START + row * InventoryHudLayout.MAIN_COLUMNS + column,
+                    )
+                }
+            InventoryHudPart.ARMOR ->
+                drawGridPanel(context, 1, InventoryHudLayout.SIDE_ROWS) { row, _ ->
+                    player?.inventory?.getItem(LAST_ARMOR_SLOT - row)
+                }
+            InventoryHudPart.EQUIPMENT ->
+                drawGridPanel(context, 1, InventoryHudLayout.SIDE_ROWS) { row, _ -> equipment.getOrNull(row) }
         }
     }
 
     private fun drawGridPanel(
         context: GuiGraphicsExtractor,
-        x: Int,
-        y: Int,
         columns: Int,
         rows: Int,
         stack: (row: Int, column: Int) -> ItemStack?,
     ) {
         val panelWidth = columns * InventoryHudLayout.SLOT_SIZE + InventoryHudLayout.PANEL_PADDING * 2
         val panelHeight = rows * InventoryHudLayout.SLOT_SIZE + InventoryHudLayout.PANEL_PADDING * 2
-        drawPanel(context, x, y, panelWidth, panelHeight)
+        drawPanel(context, 0, 0, panelWidth, panelHeight)
         for (row in 0 until rows) {
             for (column in 0 until columns) {
-                val slotX = x + InventoryHudLayout.PANEL_PADDING + column * InventoryHudLayout.SLOT_SIZE
-                val slotY = y + InventoryHudLayout.PANEL_PADDING + row * InventoryHudLayout.SLOT_SIZE
+                val slotX = InventoryHudLayout.PANEL_PADDING + column * InventoryHudLayout.SLOT_SIZE
+                val slotY = InventoryHudLayout.PANEL_PADDING + row * InventoryHudLayout.SLOT_SIZE
                 drawSlot(context, slotX, slotY, stack(row, column) ?: ItemStack.EMPTY)
-                if (rows == 1 && columns == InventoryHudLayout.MAIN_COLUMNS &&
-                    column == player?.inventory?.selectedSlot
-                ) {
+                if (part == InventoryHudPart.HOTBAR && column == player?.inventory?.selectedSlot) {
                     drawOutline(
                         context,
                         slotX,
