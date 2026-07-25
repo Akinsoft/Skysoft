@@ -11,7 +11,6 @@ internal object StorageSlots {
 internal object StoragePages {
     const val COLUMNS = ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES
     const val WIDTH = COLUMNS * StorageSlots.SIZE + 4
-    const val PADDING = 8
     const val EMPTY_HEIGHT = 48
     const val TITLE_SLOT_GAP = 7
     const val SLOT_X_OFFSET = 3
@@ -32,7 +31,6 @@ internal object ModernStoragePanel {
     const val FOCUS_ANIMATION_NANOS = 160_000_000L
     const val MIN_VISIBLE_PROGRESS = 0.001f
     const val PAGE_WIDTH = StoragePlayerInventory.WIDTH
-    const val MAX_COLUMN_GAP = 12
 }
 
 internal object StorageScrollbar {

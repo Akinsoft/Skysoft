@@ -177,6 +177,7 @@ internal data class Measurements(
     val selectorBounds: Rect,
     val totalBounds: Rect,
     val columns: Int,
+    val pageSpacing: Int,
     val isSelectorVisible: Boolean = false,
     val isModern: Boolean = false,
     val focusedPageIndex: Int? = null,

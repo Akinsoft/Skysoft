@@ -30,19 +30,10 @@ private data class ModernFocusRequest(
 )
 
 internal fun modernMeasurements(width: Int, height: Int): Measurements {
-    val maximumGridWidth = (
-        width -
-            ModernStoragePanel.EDGE_MARGIN * 2 -
-            StorageScrollbar.GAP -
-            StorageScrollbar.WIDTH
-        ).coerceAtLeast(1)
-    val maximumColumns = (maximumGridWidth / ModernStoragePanel.PAGE_WIDTH).coerceIn(
-        StorageOverlayConfigBounds.MIN_COLUMNS,
-        StorageOverlayConfigBounds.MAX_COLUMNS,
-    )
+    val pageSpacing = config.details.pageSpacing
     val columns = config.details.columns.coerceIn(
         StorageOverlayConfigBounds.MIN_COLUMNS,
-        maximumColumns,
+        maximumStorageColumns(width, isModern = true, pageSpacing = pageSpacing),
     )
     val focus = modernFocusPresentation()
     val focusedPageHeight = focus.pageIndex
@@ -60,8 +51,7 @@ internal fun modernMeasurements(width: Int, height: Int): Measurements {
     val searchY = height - ModernStoragePanel.EDGE_MARGIN - StoragePanel.PADDING - StorageSearch.HEIGHT
     val scrollPanelY = ModernStoragePanel.EDGE_MARGIN
     val scrollPanelBottom = searchY - StorageSearch.GAP - StoragePanel.PADDING
-    val columnGap = modernColumnGap(maximumGridWidth, columns)
-    val scrollPanelWidth = (columns * ModernStoragePanel.PAGE_WIDTH + (columns - 1) * columnGap).roundToInt()
+    val scrollPanelWidth = columns * ModernStoragePanel.PAGE_WIDTH + (columns - 1) * pageSpacing
     val contentWidth = scrollPanelWidth + StorageScrollbar.GAP + StorageScrollbar.WIDTH
     val scrollPanelX = (width - contentWidth) / 2
     val scrollbarX = scrollPanelX + scrollPanelWidth + StorageScrollbar.GAP
@@ -88,6 +78,7 @@ internal fun modernMeasurements(width: Int, height: Int): Measurements {
         selectorBounds = Rect(StorageRuntime.OFFSCREEN, StorageRuntime.OFFSCREEN, 0, 0),
         totalBounds = Rect(0, 0, width, height),
         columns = columns,
+        pageSpacing = pageSpacing,
         isModern = true,
         focusedPageIndex = focus.pageIndex,
         focusProgress = focus.progress,
@@ -96,11 +87,7 @@ internal fun modernMeasurements(width: Int, height: Int): Measurements {
 }
 
 internal fun modernStoragePageX(measurements: Measurements, column: Int): Int {
-    if (measurements.columns <= 1) {
-        return measurements.scrollPanel.x + (measurements.scrollPanel.width - ModernStoragePanel.PAGE_WIDTH) / 2
-    }
-    val gap = modernColumnGap(measurements.scrollPanel.width, measurements.columns)
-    return (measurements.scrollPanel.x + column * (ModernStoragePanel.PAGE_WIDTH + gap)).roundToInt()
+    return measurements.scrollPanel.x + column * (ModernStoragePanel.PAGE_WIDTH + measurements.pageSpacing)
 }
 
 internal fun modernFocusedPageLayout(measurements: Measurements, layout: PageLayout): PageLayout = PageLayout(
@@ -205,10 +192,3 @@ private fun modernFocusedPageY(screenHeight: Int, pageHeight: Int): Int =
 
 private fun interpolate(start: Int, end: Int, progress: Float): Int =
     (start + (end - start) * progress.coerceIn(0f, 1f)).roundToInt()
-
-private fun modernColumnGap(availableWidth: Int, columns: Int): Double {
-    if (columns <= 1) return 0.0
-    val remainingWidth = availableWidth - columns * ModernStoragePanel.PAGE_WIDTH
-    return (remainingWidth.toDouble() / (columns - 1))
-        .coerceIn(0.0, ModernStoragePanel.MAX_COLUMN_GAP.toDouble())
-}

@@ -9,6 +9,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     MODE("Mode", true),
     COLUMNS("Columns"),
     HEIGHT("Height"),
+    PAGE_SPACING("Page Spacing"),
     SCROLL_SPEED("Scroll Speed"),
     AUTO_OPEN_PREVIOUS("Reopen Previous", true),
     AUTOFOCUS("Autofocus", true),
@@ -20,6 +21,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
         MODE -> if (config.settings.mode == StorageOverlayMode.MODERN) 1 else 0
         COLUMNS -> config.details.columns
         HEIGHT -> config.details.height
+        PAGE_SPACING -> config.details.pageSpacing
         SCROLL_SPEED -> config.details.scrollSpeed
         AUTO_OPEN_PREVIOUS -> if (config.settings.autoOpenPrevious) 1 else 0
         AUTOFOCUS -> if (config.settings.isAutofocusEnabled) 1 else 0
@@ -28,13 +30,18 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     }
 
     fun range(screenWidth: Int, screenHeight: Int, measurements: Measurements): IntRange = when (this) {
-        COLUMNS -> StorageOverlayConfigBounds.MIN_COLUMNS..maximumStorageColumns(screenWidth)
+        COLUMNS -> StorageOverlayConfigBounds.MIN_COLUMNS..maximumStorageColumns(
+            screenWidth,
+            measurements.isModern,
+            config.details.pageSpacing,
+        )
         HEIGHT -> {
             val isSelectorStacked = measurements.isSelectorVisible &&
                 StorageSelectorLayout.sideX(measurements.playerBounds.x) == null
             val stackedHeight = if (isSelectorStacked) StorageSelector.HEIGHT + StorageSelector.STACKED_GAP else 0
             StorageOverlayConfigBounds.MIN_HEIGHT..maximumStorageHeight(screenHeight, stackedHeight)
         }
+        PAGE_SPACING -> StorageOverlayConfigBounds.MIN_PAGE_SPACING..StorageOverlayConfigBounds.MAX_PAGE_SPACING
         SCROLL_SPEED -> StorageOverlayConfigBounds.MIN_SCROLL_SPEED..StorageOverlayConfigBounds.MAX_SCROLL_SPEED
         MODE, AUTO_OPEN_PREVIOUS, AUTOFOCUS, SHORTCUT, DIM_BACKGROUND -> 0..1
     }
@@ -50,6 +57,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
             }
             COLUMNS -> config.details.columns = value
             HEIGHT -> config.details.height = value
+            PAGE_SPACING -> config.details.pageSpacing = value
             SCROLL_SPEED -> config.details.scrollSpeed = value
             AUTO_OPEN_PREVIOUS -> config.settings.autoOpenPrevious = value != 0
             AUTOFOCUS -> config.settings.isAutofocusEnabled = value != 0
@@ -193,9 +201,20 @@ internal fun storageSettingValueAt(pointerX: Int, track: Rect, range: IntRange, 
     return (raw / step).roundToInt().times(step).coerceIn(range)
 }
 
-internal fun maximumStorageColumns(screenWidth: Int): Int =
-    ((screenWidth - StoragePanel.PADDING * 2) / (StoragePages.WIDTH + StoragePages.PADDING))
+internal fun maximumStorageColumns(screenWidth: Int, isModern: Boolean, pageSpacing: Int): Int {
+    val pageWidth: Int
+    val reservedWidth: Int
+    if (isModern) {
+        pageWidth = ModernStoragePanel.PAGE_WIDTH
+        reservedWidth = ModernStoragePanel.EDGE_MARGIN * 2 + StorageScrollbar.GAP + StorageScrollbar.WIDTH
+    } else {
+        pageWidth = StoragePages.WIDTH
+        reservedWidth = StoragePanel.PADDING * 2 + StorageScrollbar.GAP + StorageScrollbar.WIDTH
+    }
+    val availableWidth = screenWidth - reservedWidth
+    return ((availableWidth + pageSpacing) / (pageWidth + pageSpacing))
         .coerceIn(StorageOverlayConfigBounds.MIN_COLUMNS, StorageOverlayConfigBounds.MAX_COLUMNS)
+}
 
 internal fun maximumStorageHeight(screenHeight: Int, stackedSelectorHeight: Int): Int =
     (
