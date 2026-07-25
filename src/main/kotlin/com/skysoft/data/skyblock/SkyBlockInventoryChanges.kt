@@ -4,6 +4,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.data.skyblock.SkyBlockMenuItem.SKYBLOCK_MENU_SLOT
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
@@ -57,7 +58,8 @@ object SkyBlockInventoryChanges {
             SkyBlockProfileApi.currentProfileKey,
             minecraft.level,
         )
-        val inventory = player.inventory.getNonEquipmentItems() +
+        val inventory = player.inventory.getNonEquipmentItems()
+            .filterIndexed { slot, _ -> slot != SKYBLOCK_MENU_SLOT } +
             listOfNotNull(player.containerMenu.carried.takeUnless { it.isEmpty })
         val signature = inventory.map { stack ->
             ItemStack.hashItemAndComponents(stack) * HASH_MULTIPLIER + stack.count
