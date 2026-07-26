@@ -401,14 +401,14 @@ object SkyBlockPriceData {
     private fun registerConsumers() {
         bazaarConsumers.register("Item List") { hasItemListMarketInterest.get() }
         bazaarConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsBazaarData } }
-        bazaarConsumers.register("Rare Loot Sharing", ::isRareLootSharingActive)
+        bazaarConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
         bazaarConsumers.register("Bazaar Tracker") {
             SkysoftConfigGui.config().inventory.bazaar.enabled && hasCurrentBazaarTrackerOrders()
         }
         bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
-        lowestBinConsumers.register("Rare Loot Sharing", ::isRareLootSharingActive)
+        lowestBinConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
         lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
         npcSellPriceConsumers.register("Item List") { hasItemListMarketInterest.get() }
         npcSellPriceConsumers.register("Price Tooltips") {
@@ -449,8 +449,8 @@ private fun arePriceTooltipLinesActive(predicate: (PriceTooltipLine) -> Boolean)
     return config.enabled && config.settings.priceLines.get().any(predicate)
 }
 
-private fun isRareLootSharingActive(): Boolean =
-    SkysoftConfigGui.config().misc.rareLootSharing.enabled
+private fun isRareLootPricingActive(): Boolean =
+    SkysoftConfigGui.config().misc.isAnyRareLootFeatureEnabled()
 
 private fun hasCurrentBazaarTrackerOrders(): Boolean {
     if (SkyBlockProfileApi.currentProfileId == null) return false

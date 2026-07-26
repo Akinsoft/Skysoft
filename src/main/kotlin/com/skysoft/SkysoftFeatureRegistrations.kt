@@ -59,7 +59,7 @@ import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.itemlist.ItemListNpcWaypoint
 import com.skysoft.features.inventory.itemlist.ItemListState
 import com.skysoft.features.inventory.registerSlotBindingStorage
-import com.skysoft.features.loot.RareLootSharing
+import com.skysoft.features.loot.RareLootChatFeatures
 import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.PlayerHeadSkinFix
@@ -215,7 +215,7 @@ internal object SkysoftFeatureRegistrations {
         register("Slayer Target Highlighting", SlayerTargetHighlighting::register)
         register("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         register("Fishing Hotspot Radar", FishingHotspotRadar::register)
-        register("Rare Loot Sharing", RareLootSharing::register)
+        register("Rare Loot Features", RareLootChatFeatures::register)
         register("Diana Burrow Storage", DianaBurrowStorage::register)
         register("Diana Burrow Helper", DianaBurrowHelper::register)
         register("Diana Burrow Interactions", DianaBurrowInteractions::register)

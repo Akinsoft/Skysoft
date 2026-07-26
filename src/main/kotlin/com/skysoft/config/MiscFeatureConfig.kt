@@ -26,6 +26,11 @@ class MiscFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Rare Drop Titles", desc = "Show valuable rare drops as titles.")
+    val rareDropTitles = RareDropTitlesConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in party chat.")
     val rareLootSharing = RareLootSharingConfig()
 
@@ -61,9 +66,33 @@ class MiscFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
+    fun isAnyRareLootFeatureEnabled(): Boolean = rareDropTitles.enabled || rareLootSharing.enabled
+
     override fun repairLoadedValues() {
         droppedItemScaling.repairLoadedValues()
     }
+}
+
+class RareDropTitlesConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Show valuable rare drops as titles.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Rare drop title settings.")
+    @field:Accordion
+    val settings = RareDropTitlesSettingsConfig()
+}
+
+class RareDropTitlesSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Minimum Value", desc = "Minimum coin value needed to show a title.")
+    @field:ConfigEditorText
+    var minimumValue = "2,000,000"
 }
 
 class RareLootSharingConfig {
