@@ -55,14 +55,32 @@ internal object ScreenshotEditorRenderer {
             layout.preview.y,
             layout.preview.x + layout.preview.width,
             layout.preview.y + layout.preview.height,
-            CANVAS_BORDER,
+            ScreenshotRenderStyle.BORDER,
         )
         val viewport = layout.editorViewport()
-        context.fill(viewport.x, viewport.y, viewport.x + viewport.width, viewport.y + viewport.height, CANVAS_BACKGROUND)
+        context.fill(
+            viewport.x,
+            viewport.y,
+            viewport.x + viewport.width,
+            viewport.y + viewport.height,
+            ScreenshotRenderStyle.IMAGE_BACKGROUND,
+        )
         when {
             texture != null && geometry != null -> drawEditableImage(context, texture, session, geometry, mouseX, mouseY)
-            didLoadFail -> drawCentered(context, font, viewport, "Couldn't load screenshot.", ERROR_TEXT)
-            else -> drawCentered(context, font, viewport, "Loading...", MUTED_TEXT)
+            didLoadFail -> ScreenshotRenderStyle.drawCentered(
+                context,
+                font,
+                viewport,
+                "Couldn't load screenshot.",
+                ScreenshotRenderStyle.ERROR_TEXT,
+            )
+            else -> ScreenshotRenderStyle.drawCentered(
+                context,
+                font,
+                viewport,
+                "Loading...",
+                ScreenshotRenderStyle.MUTED_TEXT,
+            )
         }
     }
 
@@ -156,7 +174,7 @@ internal object ScreenshotEditorRenderer {
         val border = when {
             isSelected -> SELECTED_SWATCH
             isHovered -> HOVERED_SWATCH
-            else -> SWATCH_BORDER
+            else -> ScreenshotRenderStyle.BORDER
         }
         context.fill(
             bounds.x,
@@ -349,7 +367,7 @@ internal object ScreenshotEditorRenderer {
             label,
             bounds.x + (bounds.width - font.width(label)) / 2,
             bounds.y + (bounds.height - font.lineHeight) / 2,
-            MUTED_TEXT.withScaledAlpha(alpha),
+            ScreenshotRenderStyle.MUTED_TEXT.withScaledAlpha(alpha),
             false,
         )
     }
@@ -367,7 +385,7 @@ internal object ScreenshotEditorRenderer {
             label,
             x,
             y + (ScreenshotLayoutDimensions.ACTION_HEIGHT - font.lineHeight) / 2,
-            MUTED_TEXT.withScaledAlpha(alpha),
+            ScreenshotRenderStyle.MUTED_TEXT.withScaledAlpha(alpha),
             false,
         )
     }
@@ -412,23 +430,7 @@ internal object ScreenshotEditorRenderer {
         context.fill(bounds.x + bounds.width - 1, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, color)
     }
 
-    private fun drawCentered(context: GuiGraphicsExtractor, font: Font, bounds: Rect, text: String, color: Int) {
-        context.text(
-            font,
-            text,
-            bounds.x + (bounds.width - font.width(text)) / 2,
-            bounds.y + (bounds.height - font.lineHeight) / 2,
-            color,
-            false,
-        )
-    }
-
     private const val CROP_HANDLE_SIZE = 7
-    private val CANVAS_BORDER = 0xFF30373C.toInt()
-    private val CANVAS_BACKGROUND = 0xFF090B0C.toInt()
-    private val MUTED_TEXT = 0xFF8D99A1.toInt()
-    private val ERROR_TEXT = 0xFFFF777D.toInt()
-    private val SWATCH_BORDER = 0xFF30373C.toInt()
     private val HOVERED_SWATCH = 0xFF8D99A1.toInt()
     private val SELECTED_SWATCH = 0xFF58B8EA.toInt()
     private val CROP_SHIELD = 0xA0000000.toInt()

@@ -1,10 +1,11 @@
 package com.skysoft.features.screenshot
 
-import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.textures.FilterMode
+import com.skysoft.features.screenshot.ScreenshotRenderStyle.drawButton
+import com.skysoft.features.screenshot.ScreenshotRenderStyle.drawCenteredAtY
+import com.skysoft.features.screenshot.ScreenshotRenderStyle.drawTextureContained
+import com.skysoft.features.screenshot.ScreenshotRenderStyle.drawTextureCover
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.OverlayPanelStyle
-import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.elide
@@ -12,8 +13,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.min
-import kotlin.math.roundToInt
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -54,9 +53,21 @@ internal object ScreenshotManagerRenderer {
         )
         when {
             loadStatus == ScreenshotLoadStatus.LOADING ->
-                drawCentered(context, font, layout.content, "Loading screenshots...", MUTED_TEXT)
+                ScreenshotRenderStyle.drawCentered(
+                    context,
+                    font,
+                    layout.content,
+                    "Loading screenshots...",
+                    ScreenshotRenderStyle.MUTED_TEXT,
+                )
             loadStatus == ScreenshotLoadStatus.FAILED ->
-                drawCentered(context, font, layout.content, "Couldn't open screenshots.", ERROR_TEXT)
+                ScreenshotRenderStyle.drawCentered(
+                    context,
+                    font,
+                    layout.content,
+                    "Couldn't open screenshots.",
+                    ScreenshotRenderStyle.ERROR_TEXT,
+                )
             entries.isEmpty() -> drawEmptyGallery(context, font, layout.content)
             else -> drawGalleryTiles(context, font, layout, entries, textures, mouseX, mouseY)
         }
@@ -181,13 +192,14 @@ internal object ScreenshotManagerRenderer {
         }
         val visibleNotice = confirmationNotice?.let { ScreenshotNotice(it, false, Long.MAX_VALUE) } ?: notice
         visibleNotice?.let {
-            drawCenteredText(
+            drawCenteredAtY(
                 context,
                 font,
                 layout.panel,
                 layout.noticeY,
                 it.text,
-                (if (it.isError) ERROR_TEXT else MUTED_TEXT).withScaledAlpha(visuals.chromeAlpha),
+                (if (it.isError) ScreenshotRenderStyle.ERROR_TEXT else ScreenshotRenderStyle.MUTED_TEXT)
+                    .withScaledAlpha(visuals.chromeAlpha),
             )
         }
         if (confirmation == ScreenshotConfirmation.SAVE) {
@@ -393,19 +405,25 @@ internal object ScreenshotManagerRenderer {
             tile.bounds.y,
             tile.bounds.x + tile.bounds.width,
             tile.bounds.y + tile.bounds.height,
-            if (isHovered) TILE_HOVER_BORDER else TILE_BORDER,
+            if (isHovered) TILE_HOVER_BORDER else ScreenshotRenderStyle.BORDER,
         )
         context.fill(
             tile.image.x,
             tile.image.y,
             tile.image.x + tile.image.width,
             tile.image.y + tile.image.height,
-            IMAGE_BACKGROUND,
+            ScreenshotRenderStyle.IMAGE_BACKGROUND,
         )
         val texture = textures.thumbnail(entry.path)
         when {
             texture != null -> drawTextureCover(context, texture, tile.image)
-            textures.isThumbnailFailed(entry.path) -> drawCentered(context, font, tile.image, "Unavailable", ERROR_TEXT)
+            textures.isThumbnailFailed(entry.path) -> ScreenshotRenderStyle.drawCentered(
+                context,
+                font,
+                tile.image,
+                "Unavailable",
+                ScreenshotRenderStyle.ERROR_TEXT,
+            )
         }
         context.fill(
             tile.footer.x,
@@ -432,13 +450,37 @@ internal object ScreenshotManagerRenderer {
         texture: ScreenshotTexture?,
         didLoadFail: Boolean,
     ) {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, TILE_BORDER)
+        context.fill(
+            bounds.x,
+            bounds.y,
+            bounds.x + bounds.width,
+            bounds.y + bounds.height,
+            ScreenshotRenderStyle.BORDER,
+        )
         val inner = Rect(bounds.x + 1, bounds.y + 1, bounds.width - 2, bounds.height - 2)
-        context.fill(inner.x, inner.y, inner.x + inner.width, inner.y + inner.height, IMAGE_BACKGROUND)
+        context.fill(
+            inner.x,
+            inner.y,
+            inner.x + inner.width,
+            inner.y + inner.height,
+            ScreenshotRenderStyle.IMAGE_BACKGROUND,
+        )
         when {
             texture != null -> drawTextureContained(context, texture, inner)
-            didLoadFail -> drawCentered(context, font, inner, "Couldn't load screenshot.", ERROR_TEXT)
-            else -> drawCentered(context, font, inner, "Loading...", MUTED_TEXT)
+            didLoadFail -> ScreenshotRenderStyle.drawCentered(
+                context,
+                font,
+                inner,
+                "Couldn't load screenshot.",
+                ScreenshotRenderStyle.ERROR_TEXT,
+            )
+            else -> ScreenshotRenderStyle.drawCentered(
+                context,
+                font,
+                inner,
+                "Loading...",
+                ScreenshotRenderStyle.MUTED_TEXT,
+            )
         }
     }
 
@@ -489,7 +531,7 @@ internal object ScreenshotManagerRenderer {
             font.elide(subtitle, maximumTextWidth),
             titleX,
             panel.y + SUBTITLE_Y,
-            MUTED_TEXT.withScaledAlpha(alpha),
+            ScreenshotRenderStyle.MUTED_TEXT.withScaledAlpha(alpha),
             false,
         )
         drawButton(context, font, close, "X", true, mouseX, mouseY, PixelButtonTone.DANGER, alpha)
@@ -498,8 +540,14 @@ internal object ScreenshotManagerRenderer {
     private fun drawEmptyGallery(context: GuiGraphicsExtractor, font: Font, bounds: Rect) {
         val upperBounds = Rect(bounds.x, bounds.y - EMPTY_TEXT_GAP, bounds.width, bounds.height)
         val lowerBounds = Rect(bounds.x, bounds.y + EMPTY_TEXT_GAP, bounds.width, bounds.height)
-        drawCentered(context, font, upperBounds, "No screenshots yet", PRIMARY_TEXT)
-        drawCentered(context, font, lowerBounds, "Press F2 to take one.", MUTED_TEXT)
+        ScreenshotRenderStyle.drawCentered(context, font, upperBounds, "No screenshots yet", PRIMARY_TEXT)
+        ScreenshotRenderStyle.drawCentered(
+            context,
+            font,
+            lowerBounds,
+            "Press F2 to take one.",
+            ScreenshotRenderStyle.MUTED_TEXT,
+        )
     }
 
     private fun drawScrollbar(context: GuiGraphicsExtractor, layout: ScreenshotGalleryLayout) {
@@ -512,85 +560,6 @@ internal object ScreenshotManagerRenderer {
             SCROLL_TRACK,
         )
         context.fill(thumb.x, thumb.y, thumb.x + thumb.width, thumb.y + thumb.height, SCROLL_THUMB)
-    }
-
-    private fun drawButton(
-        context: GuiGraphicsExtractor,
-        font: Font,
-        bounds: Rect,
-        label: String,
-        isEnabled: Boolean,
-        mouseX: Int,
-        mouseY: Int,
-        tone: PixelButtonTone = PixelButtonTone.NORMAL,
-        alpha: Double = 1.0,
-        isSelected: Boolean = false,
-    ) {
-        PixelButtonRenderer.draw(
-            context,
-            font,
-            bounds,
-            label,
-            isSelected,
-            isEnabled && bounds.contains(mouseX, mouseY),
-            isEnabled,
-            tone,
-            alpha,
-        )
-    }
-
-    private fun drawCentered(context: GuiGraphicsExtractor, font: Font, bounds: Rect, text: String, color: Int) {
-        context.text(
-            font,
-            text,
-            bounds.x + (bounds.width - font.width(text)) / 2,
-            bounds.y + (bounds.height - font.lineHeight) / 2,
-            color,
-            false,
-        )
-    }
-
-    private fun drawCenteredText(context: GuiGraphicsExtractor, font: Font, panel: Rect, y: Int, text: String, color: Int) {
-        context.text(font, text, panel.x + (panel.width - font.width(text)) / 2, y, color, false)
-    }
-
-    private fun drawTextureCover(context: GuiGraphicsExtractor, texture: ScreenshotTexture, bounds: Rect) {
-        val sourceAspect = texture.width.toFloat() / texture.height
-        val boundsAspect = bounds.width.toFloat() / bounds.height
-        val uInset = if (sourceAspect > boundsAspect) (1f - boundsAspect / sourceAspect) / 2f else 0f
-        val vInset = if (sourceAspect < boundsAspect) (1f - sourceAspect / boundsAspect) / 2f else 0f
-        context.blit(
-            texture.texture.textureView,
-            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            uInset,
-            1f - uInset,
-            vInset,
-            1f - vInset,
-        )
-    }
-
-    private fun drawTextureContained(context: GuiGraphicsExtractor, texture: ScreenshotTexture, bounds: Rect) {
-        val scale = min(bounds.width.toDouble() / texture.width, bounds.height.toDouble() / texture.height)
-        val width = (texture.width * scale).roundToInt().coerceAtLeast(1)
-        val height = (texture.height * scale).roundToInt().coerceAtLeast(1)
-        val x = bounds.x + (bounds.width - width) / 2
-        val y = bounds.y + (bounds.height - height) / 2
-        context.blit(
-            texture.texture.textureView,
-            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            x,
-            y,
-            x + width,
-            y + height,
-            0f,
-            1f,
-            0f,
-            1f,
-        )
     }
 
     private fun gallerySubtitle(entryCount: Int, loadStatus: ScreenshotLoadStatus): String = when (loadStatus) {
@@ -608,17 +577,13 @@ internal object ScreenshotManagerRenderer {
     private val SCREEN_OVERLAY = 0xD8000000.toInt()
     private val HEADER_BACKGROUND = 0xE0181B1E.toInt()
     private val HEADER_LINE = 0xFF2B91C9.toInt()
-    private val TILE_BORDER = 0xFF30373C.toInt()
     private val TILE_HOVER_BORDER = 0xFF58B8EA.toInt()
     private val TILE_FOOTER = 0xF0202529.toInt()
     private val TILE_HOVER_FOOTER = 0xFF2C3941.toInt()
-    private val IMAGE_BACKGROUND = 0xFF090B0C.toInt()
     private const val SCROLL_TRACK = 0x60343A3F
     private val SCROLL_THUMB = 0xFF5A6870.toInt()
     private val WHITE_TEXT = 0xFFFFFFFF.toInt()
     private val PRIMARY_TEXT = 0xFFE1E6EA.toInt()
-    private val MUTED_TEXT = 0xFF8D99A1.toInt()
-    private val ERROR_TEXT = 0xFFFF777D.toInt()
     private val SCREENSHOT_DATE_FORMAT = DateTimeFormatter.ofPattern("MMM d, yyyy 'at' h:mm a", Locale.ENGLISH)
         .withZone(ZoneId.systemDefault())
 }
