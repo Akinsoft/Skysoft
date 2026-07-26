@@ -10,14 +10,22 @@ import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
+import kotlin.math.max
 import kotlin.time.Duration.Companion.seconds
+import net.minecraft.util.Util
 
 object ProfileStorageApi {
     private val consumers = ActiveConsumerRegistry()
     private val storagePath: Path = SkysoftConfigFiles.profileStorage
     private val state: StorageState by lazy(::initializeStorage)
-    private var jsonNeedsSave = false
-    private var lastSaved = ElapsedTimeMark.farPast()
+    private val saveLock = Any()
+    private var changeVersion = 0L
+    private var savedVersion = 0L
+    private var pendingSave: CompletableFuture<Void>? = null
+    private var saveBlocked = false
+    private var saveDisabledWarningShown = false
+    private var lastSaveAttempt = ElapsedTimeMark.farPast()
 
     val storage: ProfileStorage.ProfileSpecific
         get() = state.storageData.activeProfile()
@@ -32,11 +40,9 @@ object ProfileStorageApi {
         SkyBlockProfileApi.registerConsumer("Profile Storage") { consumers.hasActiveConsumers }
         SkysoftClientEvents.onEndTick(
             "Profile Storage autosave",
-            isActive = { consumers.hasActiveConsumers || jsonNeedsSave },
+            isActive = { consumers.hasActiveConsumers || hasSchedulableChanges() },
         ) {
-            if (jsonNeedsSave && lastSaved.passedSince() >= 30.seconds) {
-                saveNow()
-            }
+            if (hasSchedulableChanges() && lastSaveAttempt.passedSince() >= 30.seconds) saveInBackground()
         }
         SkysoftClientEvents.onDisconnect("Profile Storage disconnect save", ::saveNow)
     }
@@ -55,27 +61,96 @@ object ProfileStorageApi {
     }
 
     fun markDirty() {
-        jsonNeedsSave = true
+        synchronized(saveLock) {
+            changeVersion++
+        }
     }
 
     fun saveNow() {
-        if (!jsonNeedsSave) return
-
-        lastSaved = ElapsedTimeMark.now()
-        if (state.saveDisabledReason != null) {
-            SkysoftMod.LOGGER.warn("Skipping Skysoft profile storage save because ${state.saveDisabledReason}")
-            return
-        }
+        if (pendingSave() == null && !hasUnsavedChanges()) return
+        lastSaveAttempt = ElapsedTimeMark.now()
+        waitForPendingSave()
+        if (!hasUnsavedChanges() || !ensureSaveEnabled()) return
 
         try {
-            state.storageData.repairLoadedValues()
-            val json = profileStorageGson.toJson(state.storageData)
-            SkysoftConfigFiles.writeStringSafely(storagePath, json)
-            state.loadedFromDisk = true
-            jsonNeedsSave = false
+            val save = prepareSave()
+            SkysoftConfigFiles.writeStringSafely(storagePath, save.json)
+            recordSaved(save.version)
         } catch (e: Exception) {
             SkysoftMod.LOGGER.error("Failed to save Skysoft profile storage", e)
         }
+    }
+
+    private fun saveInBackground() {
+        if (pendingSave() != null || !hasUnsavedChanges()) return
+        lastSaveAttempt = ElapsedTimeMark.now()
+        if (!ensureSaveEnabled()) return
+
+        val save = try {
+            prepareSave()
+        } catch (e: Exception) {
+            SkysoftMod.LOGGER.error("Failed to prepare Skysoft profile storage save", e)
+            return
+        }
+        val request = CompletableFuture.runAsync(
+            { SkysoftConfigFiles.writeStringSafely(storagePath, save.json) },
+            Util.ioPool(),
+        )
+        synchronized(saveLock) {
+            pendingSave = request
+        }
+        request.whenComplete { _, failure ->
+            synchronized(saveLock) {
+                if (pendingSave === request) pendingSave = null
+                if (failure == null) savedVersion = max(savedVersion, save.version)
+            }
+            if (failure == null) {
+                state.loadedFromDisk = true
+            } else {
+                SkysoftMod.LOGGER.error("Failed to save Skysoft profile storage", failure)
+            }
+        }
+    }
+
+    private fun prepareSave(): PreparedStorageSave {
+        state.storageData.repairLoadedValues()
+        val version = synchronized(saveLock) { changeVersion }
+        return PreparedStorageSave(version, profileStorageGson.toJson(state.storageData))
+    }
+
+    private fun recordSaved(version: Long) {
+        synchronized(saveLock) {
+            savedVersion = max(savedVersion, version)
+        }
+        state.loadedFromDisk = true
+    }
+
+    private fun waitForPendingSave() {
+        val request = pendingSave() ?: return
+        runCatching(request::join)
+    }
+
+    private fun pendingSave(): CompletableFuture<Void>? = synchronized(saveLock) { pendingSave }
+
+    private fun hasUnsavedChanges(): Boolean = synchronized(saveLock) { changeVersion > savedVersion }
+
+    private fun hasSchedulableChanges(): Boolean = synchronized(saveLock) {
+        changeVersion > savedVersion && !saveBlocked
+    }
+
+    private fun ensureSaveEnabled(): Boolean {
+        val reason = state.saveDisabledReason ?: return true
+        val shouldLog = synchronized(saveLock) {
+            saveBlocked = true
+            if (saveDisabledWarningShown) {
+                false
+            } else {
+                saveDisabledWarningShown = true
+                true
+            }
+        }
+        if (shouldLog) SkysoftMod.LOGGER.warn("Skipping Skysoft profile storage save because $reason")
+        return false
     }
 
     private fun initializeStorage(): StorageState {
@@ -136,10 +211,12 @@ object ProfileStorageApi {
 
     private class StorageState(
         var saveDisabledReason: String?,
-        var loadedFromDisk: Boolean,
+        @Volatile var loadedFromDisk: Boolean,
     ) {
         lateinit var storageData: ProfileStorage
     }
+
+    private data class PreparedStorageSave(val version: Long, val json: String)
 }
 
 private val profileStorageGson = GsonBuilder()

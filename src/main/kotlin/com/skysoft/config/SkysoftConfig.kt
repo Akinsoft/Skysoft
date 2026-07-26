@@ -22,6 +22,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 open class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
+    private var saveDisabledWarningShown = false
+
     @JvmField
     @field:Expose
     var configMigrationVersion = SkysoftConfigMigrations.CURRENT_CONFIG_MIGRATION_VERSION
@@ -103,7 +105,10 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     override fun saveNow() {
         try {
             if (saveDisabledReason != null) {
-                SkysoftMod.LOGGER.warn("Skipping Skysoft config save because $saveDisabledReason")
+                if (!saveDisabledWarningShown) {
+                    saveDisabledWarningShown = true
+                    SkysoftMod.LOGGER.warn("Skipping Skysoft config save because $saveDisabledReason")
+                }
             } else {
                 repairLoadedValues()
                 val json = GSON.toJson(this)
@@ -111,8 +116,6 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
             }
         } catch (e: Exception) {
             SkysoftMod.LOGGER.error("Failed to save Skysoft config", e)
-        } finally {
-            ProfileStorageApi.saveNow()
         }
     }
 
@@ -180,7 +183,6 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
             events,
             misc,
         )
-        ProfileStorageApi.allStorage.repairLoadedValues()
         repairLoadedConfigs(pets)
     }
 
