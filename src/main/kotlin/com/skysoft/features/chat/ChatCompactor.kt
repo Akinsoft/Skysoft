@@ -12,10 +12,12 @@ object ChatCompactor {
     fun prepare(
         content: Component,
         messages: MutableList<GuiMessage>,
+        trimmedMessages: MutableList<GuiMessage.Line>,
         nowMillis: Long = System.currentTimeMillis(),
     ): PreparedChatMessage = prepare(
         content,
         messages,
+        trimmedMessages,
         nowMillis,
         ChatFeatureSettings.isCompactingEnabled(),
         ChatFeatureSettings.compactDurationMillis(),
@@ -24,6 +26,7 @@ object ChatCompactor {
     internal fun prepare(
         content: Component,
         messages: MutableList<GuiMessage>,
+        trimmedMessages: MutableList<GuiMessage.Line>,
         nowMillis: Long,
         isEnabled: Boolean,
         durationMillis: Long,
@@ -46,8 +49,7 @@ object ChatCompactor {
         trackDividerBlock(entry, nowMillis)
         entry.count++
         entry.lastSeenMillis = nowMillis
-        val removedPrevious = entry.count > 1 &&
-            removeEntry(entry, messages, mutableSetOf()) == EntryRemovalResult.REMOVED
+        if (entry.count > 1) removeEntry(entry, messages, trimmedMessages)
         val displayContent = if (entry.count > 1) {
             content.copy().append(
                 Component.literal(" (${entry.count})").withStyle(ChatFormatting.GRAY),
@@ -55,7 +57,7 @@ object ChatCompactor {
         } else {
             content
         }
-        return PreparedChatMessage(displayContent, entry, removedPrevious)
+        return PreparedChatMessage(displayContent, entry)
     }
 
     fun associate(prepared: PreparedChatMessage, message: GuiMessage) {
@@ -94,22 +96,35 @@ object ChatCompactor {
     private fun removeEntry(
         entry: Entry,
         messages: MutableList<GuiMessage>,
+        trimmedMessages: MutableList<GuiMessage.Line>,
+    ) {
+        val removedMessages = mutableListOf<GuiMessage>()
+        removeEntryMessages(entry, messages, mutableSetOf(), removedMessages)
+        if (removedMessages.isEmpty()) return
+        trimmedMessages.removeAll { line ->
+            removedMessages.any { message -> line.parent() === message }
+        }
+    }
+
+    private fun removeEntryMessages(
+        entry: Entry,
+        messages: MutableList<GuiMessage>,
         visited: MutableSet<Entry>,
-    ): EntryRemovalResult {
-        if (!visited.add(entry)) return EntryRemovalResult.UNCHANGED
-        var result = if (entry.lastMessage?.let(messages::remove) == true) {
-            EntryRemovalResult.REMOVED
-        } else {
-            EntryRemovalResult.UNCHANGED
+        removedMessages: MutableList<GuiMessage>,
+    ) {
+        if (!visited.add(entry)) return
+        entry.lastMessage?.let { message ->
+            val index = messages.indexOfFirst { it === message }
+            if (index >= 0) {
+                messages.removeAt(index)
+                removedMessages.add(message)
+            }
         }
         entry.lastMessage = null
         entry.dividers.forEach { divider ->
-            if (removeEntry(divider, messages, visited) == EntryRemovalResult.REMOVED) {
-                result = EntryRemovalResult.REMOVED
-            }
+            removeEntryMessages(divider, messages, visited, removedMessages)
         }
         entry.dividers.clear()
-        return result
     }
 
     private fun isDivider(content: Component): Boolean {
@@ -125,11 +140,6 @@ object ChatCompactor {
         val dividers: MutableList<Entry> = mutableListOf(),
     )
 
-    private enum class EntryRemovalResult {
-        REMOVED,
-        UNCHANGED,
-    }
-
     private const val PRUNE_INTERVAL_MESSAGES = 100
     private const val DIVIDER_TIMEOUT_MILLIS = 5_000L
     private const val MIN_DIVIDER_LENGTH = 5
@@ -139,8 +149,6 @@ object ChatCompactor {
 class PreparedChatMessage internal constructor(
     val content: Component,
     internal val entry: ChatCompactor.Entry? = null,
-    val removedPrevious: Boolean = false,
 ) {
-    internal fun withContent(content: Component): PreparedChatMessage =
-        PreparedChatMessage(content, entry, removedPrevious)
+    internal fun withContent(content: Component): PreparedChatMessage = PreparedChatMessage(content, entry)
 }

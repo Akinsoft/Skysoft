@@ -26,10 +26,15 @@ object MixinFeatureAdapters {
     fun isBlankChatMessage(contents: Component): Boolean = ChatCompactor.isBlank(contents)
 
     @JvmStatic
-    fun prepareChatMessage(contents: Component, messages: MutableList<GuiMessage>): PreparedChatMessage {
+    fun prepareChatMessage(
+        contents: Component,
+        messages: MutableList<GuiMessage>,
+        trimmedMessages: MutableList<GuiMessage.Line>,
+    ): PreparedChatMessage {
         val prepared = ChatCompactor.prepare(
             ChatNotifier.decorate(DianaSphinxAnswerHighlighter.highlight(contents)),
             messages,
+            trimmedMessages,
         )
         return prepared.withContent(ChatTimestamps.decorate(prepared.content))
     }
