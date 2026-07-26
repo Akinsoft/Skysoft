@@ -67,6 +67,15 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Experimentation Helper",
+        desc = "Show Chronomatron notes, reveal Ultrasequencer numbers, and keep seen Superpairs rewards visible.",
+    )
+    @field:ConfigEditorBoolean
+    var isExperimentationTableHelperEnabled = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Storage Overlay", desc = "Replace SkyBlock storage screens with a searchable overlay.")
     @field:ConfigEditorBoolean
     var isStorageOverlayEnabled = false
