@@ -25,6 +25,7 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.features.pets.PetFeatureDemand
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.isCancellationFailure
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
@@ -475,7 +476,7 @@ private object AttributeShardConstants {
                     try {
                         if (error == null && data != null) {
                             applyConstants(data)
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
                             constantsLastFailure = ElapsedTimeMark.now()
                             SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
                         }

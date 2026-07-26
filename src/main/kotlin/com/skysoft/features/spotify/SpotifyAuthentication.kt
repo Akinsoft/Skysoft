@@ -98,27 +98,30 @@ object SpotifyAuthentication {
         if (current != null && current.expiresAtMillis > System.currentTimeMillis() + EXPIRY_MARGIN_MILLIS) {
             return@synchronized CompletableFuture.completedFuture(current.value)
         }
-        refreshFuture?.let { return@synchronized it }
+        refreshFuture?.let { return@synchronized it.consumerView() }
         val stored = loadStoredAuthorization()
         if (stored == null || stored.clientId != settings().clientId.trim()) {
             return@synchronized CompletableFuture.completedFuture(null)
         }
         val version = sessionVersion
-        refresh(stored).thenApply { response ->
+        val request = refresh(stored).thenApply { response ->
             synchronized(lock) {
                 if (version != sessionVersion) return@synchronized null
                 installToken(stored.clientId, stored.refreshToken, response)
             }
-        }.whenComplete { _, failure ->
+        }
+        refreshFuture = request
+        request.whenComplete { _, failure ->
             synchronized(lock) {
-                refreshFuture = null
+                if (refreshFuture === request) refreshFuture = null
             }
             val cause = failure?.unwrap() as? SpotifyAuthenticationException ?: return@whenComplete
             if (cause.statusCode in CLIENT_AUTHENTICATION_FAILURES) {
                 clearStoredAuthorization()
                 Minecraft.getInstance().execute { SkysoftChat.error("Spotify needs to be connected again.") }
             }
-        }.also { refreshFuture = it }
+        }
+        request.consumerView()
     }
 
     internal fun invalidateAccessToken() {
@@ -245,6 +248,13 @@ object SpotifyAuthentication {
     }
 
     private fun settings() = SkysoftConfigGui.config().gui.spotifyDisplay.settings
+
+    private fun <T> CompletableFuture<T>.consumerView(): CompletableFuture<T> = CompletableFuture<T>().also { view ->
+        whenComplete { value, failure ->
+            if (failure == null) view.complete(value) else view.completeExceptionally(failure)
+        }
+    }
+
     private fun Throwable.unwrap(): Throwable = (this as? java.util.concurrent.CompletionException)?.cause ?: this
 
     private const val SPOTIFY_DASHBOARD = "https://developer.spotify.com/dashboard"

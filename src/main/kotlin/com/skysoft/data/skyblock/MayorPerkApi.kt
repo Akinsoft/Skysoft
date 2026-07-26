@@ -6,6 +6,7 @@ import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.concurrent.atomic.AtomicBoolean
@@ -103,7 +104,7 @@ object MayorPerkApi {
                             fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
                             miningFiestaActive = response.hasPerk(MINING_FIESTA)
                             mythologicalRitualEventKey = response.mythologicalRitualEventKey()
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
                             SkysoftMod.LOGGER.warn("Failed to refresh mayor perks", error)
                         }
                     } finally {

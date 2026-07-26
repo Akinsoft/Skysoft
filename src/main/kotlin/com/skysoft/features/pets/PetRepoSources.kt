@@ -8,6 +8,7 @@ import com.skysoft.data.skyblock.SkyBlockPetInfo
 import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
@@ -29,7 +30,7 @@ internal object PetRepoConstants {
                 try {
                     if (error == null) {
                         PetRepoCache.petsJson = pets
-                    } else {
+                    } else if (!error.isCancellationFailure()) {
                         PetRepoCache.constantsLastFailure = ElapsedTimeMark.now()
                         SkysoftMod.LOGGER.warn("Failed to load pet data", error)
                     }
@@ -158,7 +159,9 @@ internal object RemoteSkyBlockCatalog {
                         PetRepoCache.itemStacks[internalName] = PetItemStacks.fromNeuItem(item)
                     } else {
                         PetRepoCache.requestedItems.remove(internalName)
-                        SkysoftMod.LOGGER.warn("Failed to request SkyBlock repo item $internalName", error)
+                        if (error?.isCancellationFailure() != true) {
+                            SkysoftMod.LOGGER.warn("Failed to request SkyBlock repo item $internalName", error)
+                        }
                     }
                 }
             }
@@ -176,7 +179,7 @@ internal object RemoteSkyBlockCatalog {
                                 tree.tree.mapNotNull { it.petSkinInternalNameOrNull() }.toSet()
                             PetRepoCache.itemInternalNames =
                                 tree.tree.mapNotNull { it.itemInternalNameOrNull() }.toSet()
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
                             SkysoftMod.LOGGER.warn("Failed to load SkyBlock item indexes", error)
                         }
                     } finally {
