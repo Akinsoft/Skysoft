@@ -3,6 +3,7 @@ package com.skysoft.mixin;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.features.bazaar.BazaarTracker;
 import com.skysoft.features.inventory.ContainerSearchHighlighter;
+import com.skysoft.features.inventory.ExperimentationTableHelper;
 import com.skysoft.features.inventory.InventoryButtonManager;
 import com.skysoft.features.inventory.InventoryEquipment;
 import com.skysoft.features.inventory.ItemProtectionManager;
@@ -34,6 +35,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
     protected void skysoftBeginSmoothSwappingFrame(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
         MixinErrorBoundary.run("Rarity Highlight frame", RarityHighlightRenderer::beginFrame);
+        MixinErrorBoundary.run("Experimentation Table helper frame", () -> ExperimentationTableHelper.INSTANCE.beginFrame(screen));
         MixinErrorBoundary.run("Smooth Swapping render frame", () -> SmoothSwapping.INSTANCE.beginFrame(screen));
         MixinErrorBoundary.run("Inventory Equipment background rendering", () -> InventoryEquipment.INSTANCE.renderBackground(screen, context));
     }
@@ -80,6 +82,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
         MixinErrorBoundary.run("Active Pet highlight outline", () -> ActivePetHighlighter.INSTANCE.renderOutline(screen, context, slot));
         MixinErrorBoundary.run("Bazaar Tracker slot overlay", () -> BazaarTracker.INSTANCE.renderSlotIndicatorOverlay(screen, context, slot));
+        MixinErrorBoundary.run("Experimentation Table helper slot", () -> ExperimentationTableHelper.INSTANCE.renderSlot(screen, context, slot));
         MixinErrorBoundary.run("Slot Lock overlay", () -> SlotLockManager.INSTANCE.renderSlotOverlay(context, slot));
         MixinErrorBoundary.run("Item Protection marker", () -> ItemProtectionManager.INSTANCE.renderProtectedMarker(context, slot));
     }
@@ -95,8 +98,8 @@ public abstract class AbstractContainerScreenRenderingMixin {
         boolean render = MixinErrorBoundary.value("Smooth Swapping item suppression", true,
             () -> InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot));
         if (!render) return;
-        ItemStack renderStack = MixinErrorBoundary.value("Player Head Skin inventory item", stack, () -> PlayerHeadSkinFix.INSTANCE.inventoryStack(skysoftSmoothSwappingSlot, stack));
-        if (renderStack != null) renderItemWithRarity("Rarity Highlight item rendering", stack, () -> context.item(renderStack, x, y, seed));
+        ItemStack renderStack = skysoftContainerRenderStack(stack);
+        if (renderStack != null) renderItemWithRarity("Rarity Highlight item rendering", renderStack, () -> context.item(renderStack, x, y, seed));
     }
 
     @Redirect(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;III)V"))
@@ -104,15 +107,32 @@ public abstract class AbstractContainerScreenRenderingMixin {
         boolean render = MixinErrorBoundary.value("Smooth Swapping fake item suppression", true,
             () -> InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot));
         if (!render) return;
-        ItemStack renderStack = MixinErrorBoundary.value("Player Head Skin inventory item", stack, () -> PlayerHeadSkinFix.INSTANCE.inventoryStack(skysoftSmoothSwappingSlot, stack));
-        if (renderStack != null) renderItemWithRarity("Rarity Highlight fake item rendering", stack, () -> context.fakeItem(renderStack, x, y, seed));
+        ItemStack renderStack = skysoftContainerRenderStack(stack);
+        if (renderStack != null) renderItemWithRarity("Rarity Highlight fake item rendering", renderStack, () -> context.fakeItem(renderStack, x, y, seed));
     }
 
     @Redirect(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"))
     protected void skysoftSuppressSmoothSwappingItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text) {
         boolean render = MixinErrorBoundary.value("Smooth Swapping item decoration suppression", true,
-            () -> (InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot)) && PlayerHeadSkinFix.INSTANCE.inventoryStack(skysoftSmoothSwappingSlot, stack) != null);
-        if (render) context.itemDecorations(font, stack, x, y, text);
+            () -> InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot));
+        if (!render) return;
+        ItemStack renderStack = skysoftContainerRenderStack(stack);
+        if (renderStack != null) context.itemDecorations(font, renderStack, x, y, text);
+    }
+
+    @Unique
+    private ItemStack skysoftContainerRenderStack(ItemStack stack) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        ItemStack experimentationStack = MixinErrorBoundary.value(
+            "Experimentation Table remembered item",
+            stack,
+            () -> ExperimentationTableHelper.INSTANCE.displayStack(screen, skysoftSmoothSwappingSlot, stack)
+        );
+        return MixinErrorBoundary.value(
+            "Player Head Skin inventory item",
+            experimentationStack,
+            () -> PlayerHeadSkinFix.INSTANCE.inventoryStack(skysoftSmoothSwappingSlot, experimentationStack)
+        );
     }
 
     @Unique

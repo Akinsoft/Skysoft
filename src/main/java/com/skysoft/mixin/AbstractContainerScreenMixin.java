@@ -4,6 +4,7 @@ import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.features.bazaar.BazaarTracker;
+import com.skysoft.features.inventory.ExperimentationTableHelper;
 import com.skysoft.features.inventory.InventoryButtonManager;
 import com.skysoft.features.inventory.InventoryEquipment;
 import com.skysoft.features.inventory.InventoryDropSelectionGuard;
@@ -50,6 +51,7 @@ public class AbstractContainerScreenMixin {
         MixinErrorBoundary.run("Inventory Equipment screen cleanup", () -> InventoryEquipment.restoreScreen(screen));
         MixinErrorBoundary.run("Slot Lock screen cleanup", SlotLockManager::clearInputState);
         MixinErrorBoundary.run("Item Protection screen cleanup", ItemProtectionManager::clearInputState);
+        MixinErrorBoundary.run("Experimentation Table helper cleanup", () -> ExperimentationTableHelper.INSTANCE.onScreenRemoved(screen));
     }
 
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
@@ -62,6 +64,17 @@ public class AbstractContainerScreenMixin {
             return;
         }
         MixinErrorBoundary.run("Minister in Calendar tooltip preparation", () -> MinisterCalendarTooltip.INSTANCE.prepare(screen, context));
+    }
+
+    @WrapOperation(method = "extractTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;getItem()Lnet/minecraft/world/item/ItemStack;"))
+    private ItemStack skysoftShowRememberedExperimentationTooltip(Slot slot, Operation<ItemStack> original) {
+        ItemStack stack = original.call(slot);
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        return MixinErrorBoundary.value(
+            "Experimentation Table remembered tooltip",
+            stack,
+            () -> ExperimentationTableHelper.INSTANCE.displayStack(screen, slot, stack)
+        );
     }
 
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
@@ -290,6 +303,7 @@ public class AbstractContainerScreenMixin {
         }
         InputHandlingResult lock = MixinErrorBoundary.value("Slot Lock slot click", InputHandlingResult.IGNORED, () -> SlotLockManager.handleSlotClick(screen, slot, button, action));
         if (lock == InputHandlingResult.CONSUMED) { ci.cancel(); return; }
+        MixinErrorBoundary.run("Experimentation Table helper slot click", () -> ExperimentationTableHelper.INSTANCE.onSlotClick(screen, slot, action));
         MixinErrorBoundary.run("Pet Storage slot click", () -> PetStorageService.INSTANCE.onSlotClick(slot, slotId, button));
     }
 }
