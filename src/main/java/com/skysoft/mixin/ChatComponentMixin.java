@@ -83,9 +83,8 @@ public abstract class ChatComponentMixin {
     protected Component skysoftTransformMessage(Component contents) {
         return MixinErrorBoundary.value("Chat message transformation", contents, () -> {
             ChatComponentAccessor accessor = (ChatComponentAccessor) this;
-            PreparedChatMessage prepared = MixinFeatureAdapters.prepareChatMessage(contents, accessor.skysoftAllMessages());
+            PreparedChatMessage prepared = MixinFeatureAdapters.prepareChatMessage(contents, accessor.skysoftAllMessages(), accessor.skysoftTrimmedMessages());
             skysoftPendingCompaction = prepared;
-            if (prepared.getRemovedPrevious()) accessor.skysoftRefreshTrimmedMessages();
             return prepared.getContent();
         });
     }
