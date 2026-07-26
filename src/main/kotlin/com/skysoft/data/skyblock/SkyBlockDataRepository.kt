@@ -35,6 +35,11 @@ object SkyBlockDataRepository {
 
     fun register() {
         MinecraftRecipeAdapter.register()
+        SkysoftClientEvents.onClientStopping("SkyBlock data request cancellation") {
+            loadingFuture?.cancel(true)
+            loadingFuture = null
+            SkyBlockDataUpdater.cancel()
+        }
         SkysoftClientEvents.onEndTick(
             "SkyBlock data demand load",
             isActive = { Demand.hasActiveConsumers || wasDemanded },
