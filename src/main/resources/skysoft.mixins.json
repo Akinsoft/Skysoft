@@ -55,6 +55,7 @@
     "MinecraftSlotLockMixin",
     "MouseHandlerMixin",
     "MultiPlayerGameModeMixin",
+    "PackSelectionScreenMixin",
     "ParticleEngineMixin",
     "PlayerTabOverlayAccessor",
     "PictureInPictureRendererAccessor",
