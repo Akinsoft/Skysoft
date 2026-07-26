@@ -11,6 +11,13 @@ import net.minecraft.world.item.ItemStack
 object SkyBlockItemRarity {
     private val rarityByHash = mutableMapOf<Int, MutableList<CachedRarity>>()
 
+    fun fromInternalName(internalName: String?): SkyBlockRarity? {
+        val cleanInternalName = internalName?.trim()?.takeIf(String::isNotEmpty) ?: return null
+        val rarityName = SkyBlockDataRepository.info(SkyBlockDataRepository.itemKey(cleanInternalName))?.rarity
+            ?: return null
+        return SkyBlockRarity.getByName(rarityName.replace(' ', '_'))
+    }
+
     fun from(stack: ItemStack): SkyBlockRarity? {
         if (stack.isEmpty) return null
         val hash = ItemStack.hashItemAndComponents(stack)

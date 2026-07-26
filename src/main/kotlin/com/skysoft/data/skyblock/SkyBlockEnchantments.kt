@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.TextUtilities.removeColor
 import java.io.StringReader
 import java.util.Locale
 import net.minecraft.world.item.ItemStack
@@ -40,6 +41,7 @@ internal object SkyBlockEnchantments {
                 key = key,
                 displayName = displayName,
                 source = SKYBLOCK_SOURCE,
+                rarity = enchantmentRarity(enchantment.lore),
                 lore = enchantment.lore,
                 enchantment = enchantment.applicableOn.takeIf(String::isNotBlank)?.let {
                     SkyBlockEnchantmentInfo(it, enchantment.applyCost, sources)
@@ -55,6 +57,11 @@ internal object SkyBlockEnchantments {
             }
             wiki[key] = enchantmentWikiLinks(enchantment.name)
         }
+    }
+
+    private fun enchantmentRarity(lore: List<String>): String? {
+        val name = lore.lastOrNull { it.isNotBlank() }?.removeColor()?.trim()?.replace(' ', '_') ?: return null
+        return SkyBlockRarity.getByName(name)?.name?.replace('_', ' ')
     }
 
     private fun arabicDisplayName(romanName: String, tier: Int): String = romanName.replace(TIER_SUFFIX, " $tier")

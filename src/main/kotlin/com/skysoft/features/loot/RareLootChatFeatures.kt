@@ -5,32 +5,34 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.pets.PetRepository
-import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.chat.SkysoftPartyShare
-import com.skysoft.utils.SkysoftClientEvents
 
-internal object RareLootSharing {
-    private val config get() = SkysoftConfigGui.config().misc.rareLootSharing
+internal object RareLootChatFeatures {
+    private val miscConfig get() = SkysoftConfigGui.config().misc
+    private val sharingConfig get() = miscConfig.rareLootSharing
+    private val sharingThreshold = RareLootThresholdReader("rare loot value")
     private var lastLootShareAtMillis = 0L
-    private var lastInvalidThreshold: String? = null
 
     fun register() {
-        HypixelPartyApi.registerConsumer("Rare Loot Sharing") { config.enabled }
-        SkyBlockDataRepository.Demand.register("Rare Loot Sharing") { config.enabled }
-        PetRepository.registerConsumer("Rare Loot Sharing") { config.enabled }
-        SkysoftClientEvents.onDisconnect("Rare Loot Sharing disconnect reset", ::clear)
+        HypixelPartyApi.registerConsumer("Rare Loot Sharing") { sharingConfig.enabled }
+        SkyBlockDataRepository.Demand.register("Rare Loot Features") { miscConfig.isAnyRareLootFeatureEnabled() }
+        PetRepository.registerConsumer("Rare Loot Features") { miscConfig.isAnyRareLootFeatureEnabled() }
+        SkysoftClientEvents.onDisconnect("Rare Loot Features disconnect reset", ::clear)
         ChatEvents.onVisibleGameMessageModify(
             "Rare Loot party glyph rendering",
-            isActive = { config.enabled },
+            isActive = { sharingConfig.enabled },
             modifier = RareLootPartyGlyphRenderer::render,
         )
         ChatEvents.onVisibleMessage(
             "Rare Loot chat",
-            isActive = { config.enabled || RareLootContextRegistry.hasActiveContributors() },
+            isActive = {
+                miscConfig.isAnyRareLootFeatureEnabled() || RareLootContextRegistry.hasActiveContributors()
+            },
         ) { message ->
             onMessage(message)
             ChatMessageVisibility.SHOW
@@ -39,66 +41,47 @@ internal object RareLootSharing {
 
     private fun onMessage(message: ChatMessage) {
         if (!HypixelLocationState.inSkyBlock) return
-        val sharingEnabled = config.enabled
+        val sharingEnabled = sharingConfig.enabled
         val cleanText = message.cleanText
         val now = System.currentTimeMillis()
         if (sharingEnabled && message.isSystemLike && RareLootShareReceipt.isReceipt(cleanText)) {
             lastLootShareAtMillis = now
         }
-        if (!shouldConsiderRareLootMessage(message.type, cleanText)) {
-            return
-        }
+        if (!shouldConsiderRareLootMessage(message.type, cleanText)) return
 
         val chatDrop = RareLootChatParser.parse(cleanText) ?: return
         val lootshare = isLootShareDrop(now)
         val dropCount = RareLootContextRegistry.recordDrop(chatDrop, lootshare, now)
-        if (!shouldProcessRareLootMessages(sharingEnabled, HypixelLocationState.inSkyBlock)) return
-        shareIfEligible(chatDrop, lootshare, dropCount)
+        val titlesEnabled = miscConfig.rareDropTitles.enabled
+        if (!sharingEnabled && !titlesEnabled) return
+
+        val drop = chatDrop.toRareLootDrop()
+        val value = RareLootValueResolver.resolve(drop)
+        if (titlesEnabled) RareDropTitles.show(drop, value)
+        if (sharingEnabled) shareIfEligible(drop, value, lootshare, dropCount)
     }
 
     private fun shareIfEligible(
-        chatDrop: RareLootChatDrop,
+        drop: RareLootDrop,
+        value: RareLootValue?,
         lootshare: Boolean,
         dropCount: RareLootDropCount?,
     ) {
-        val drop = chatDrop.toRareLootDrop()
-        val threshold = currentThreshold() ?: return
-        val value = RareLootValueResolver.resolve(drop)
+        val threshold = sharingThreshold.read(sharingConfig.settings.rareLootValue) ?: return
         if (!RareLootEligibility.shouldShare(threshold, value)) return
         SkysoftPartyShare.sendParty(RareLootPartyMessageFormatter.format(drop, value, lootshare, dropCount = dropCount))
     }
 
-    private fun currentThreshold(): RareLootThreshold? =
-        when (val result = RareLootThreshold.parse(config.settings.rareLootValue)) {
-            is RareLootThresholdParseResult.Valid -> {
-                lastInvalidThreshold = null
-                result.threshold
-            }
-            is RareLootThresholdParseResult.Invalid -> {
-                warnInvalidThreshold(result)
-                null
-            }
-        }
-
-    private fun warnInvalidThreshold(result: RareLootThresholdParseResult.Invalid) {
-        if (lastInvalidThreshold == result.raw) return
-        lastInvalidThreshold = result.raw
-        SkysoftChat.error("Invalid rare loot value: ${result.raw} (${result.reason})")
-    }
-
     private fun clear() {
         lastLootShareAtMillis = 0L
-        lastInvalidThreshold = null
+        sharingThreshold.clear()
+        RareDropTitles.clear()
     }
 
     private fun isLootShareDrop(now: Long): Boolean =
         RareLootContextRegistry.hasLootShareEvidence(now) ||
             RareLootShareReceipt.isWithinWindow(lastLootShareAtMillis, now)
-
 }
-
-internal fun shouldProcessRareLootMessages(enabled: Boolean, inSkyBlock: Boolean): Boolean =
-    enabled && inSkyBlock
 
 internal fun shouldConsiderRareLootMessage(
     messageType: ChatMessageType,
