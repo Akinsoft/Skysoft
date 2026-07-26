@@ -9,6 +9,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -18,7 +19,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
-private const val NPC_SELL_PRICES_REFRESH_INTERVAL_MILLIS = 24L * 60 * 60 * 1_000
+private const val NPC_SELL_PRICES_REFRESH_INTERVAL_NANOS = 24L * 60L * 60L * 1_000_000_000L
+private const val NPC_SELL_PRICES_FAILURE_RETRY_NANOS = 60L * 1_000_000_000L
 
 object SkyBlockPriceData {
     private const val BAZAAR_URL = "https://api.findthesoft.com/bazaar"
@@ -79,7 +81,7 @@ object SkyBlockPriceData {
 
     private var ticksUntilBazaarRefresh = 0
     private var ticksUntilLowestBinsRefresh = 0
-    private var lastNpcSellPricesRequestAtMillis = 0L
+    private val npcSellPriceRequestSchedule = NpcSellPriceRequestSchedule()
     private var wasDemanded = false
     private var wasBazaarDemanded = false
     private var wasLowestBinDemanded = false
@@ -133,14 +135,12 @@ object SkyBlockPriceData {
                 hasActiveConsumers = npcSellPriceConsumers.hasActiveConsumers,
             )
             if (needsNpcSellPrices) {
-                if (shouldRequestNpcSellPrices(System.currentTimeMillis(), lastNpcSellPricesRequestAtMillis)) {
-                    refreshNpcSellPrices()
-                }
+                if (npcSellPriceRequestSchedule.shouldRequest(System.nanoTime())) refreshNpcSellPrices()
             } else if (
                 wasNpcSellPriceDemanded &&
                 cancelPriceSourceRequests(npcSellPriceRequests, fetchingNpcSellPrices)
             ) {
-                lastNpcSellPricesRequestAtMillis = 0L
+                npcSellPriceRequestSchedule.recordCancellation()
             }
             wasNpcSellPriceDemanded = needsNpcSellPrices
         }
@@ -214,9 +214,7 @@ object SkyBlockPriceData {
         ticksUntilLowestBinsRefresh = LOWEST_BINS_REFRESH_INTERVAL_TICKS
         refreshBazaar()
         refreshLowestBins()
-        if (shouldRequestNpcSellPrices(System.currentTimeMillis(), lastNpcSellPricesRequestAtMillis)) {
-            refreshNpcSellPrices()
-        }
+        refreshNpcSellPrices()
     }
 
     fun refreshBazaarDepth(
@@ -242,7 +240,9 @@ object SkyBlockPriceData {
             .whenComplete { _, error ->
                 SkysoftErrorBoundary.run("Bazaar depth async completion") {
                     try {
-                        if (error != null) SkysoftMod.LOGGER.warn("Failed to refresh bazaar depth", error)
+                        if (error != null && !error.isCancellationFailure()) {
+                            SkysoftMod.LOGGER.warn("Failed to refresh bazaar depth", error)
+                        }
                     } finally {
                         fetchingBazaarDepth.set(false)
                     }
@@ -270,7 +270,7 @@ object SkyBlockPriceData {
                             bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis())
                             updateRawCraftMarketSnapshot()
                             marketSnapshotVersion.incrementAndGet()
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
                             SkysoftMod.LOGGER.warn("Failed to refresh bazaar prices", error)
                             bazaarStatus = if (bazaar.products.isEmpty()) {
                                 BazaarDataStatus(
@@ -312,7 +312,7 @@ object SkyBlockPriceData {
                             lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt)
                             updateRawCraftMarketSnapshot()
                             marketSnapshotVersion.incrementAndGet()
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
                             SkysoftMod.LOGGER.warn("Failed to refresh lowest BIN prices", error)
                             lowestBinsStatus = if (lowestBins.isEmpty()) {
                                 BazaarDataStatus(
@@ -336,7 +336,7 @@ object SkyBlockPriceData {
 
     private fun refreshNpcSellPrices() {
         if (!fetchingNpcSellPrices.compareAndSet(false, true)) return
-        lastNpcSellPricesRequestAtMillis = System.currentTimeMillis()
+        npcSellPriceRequestSchedule.recordAttempt(System.nanoTime())
         if (npcSellPrices.isEmpty()) npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
 
         npcSellPriceRequests.getString(NPC_SELL_PRICES_URL)
@@ -352,8 +352,10 @@ object SkyBlockPriceData {
                             npcSellPrices = npcSellPrices(response)
                             motesSellPrices = motesSellPrices(response)
                             npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.lastUpdated)
+                            npcSellPriceRequestSchedule.recordSuccess(System.nanoTime())
                             marketSnapshotVersion.incrementAndGet()
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
+                            npcSellPriceRequestSchedule.recordFailure(System.nanoTime())
                             SkysoftMod.LOGGER.warn("Failed to refresh NPC sell prices", error)
                             npcSellPricesStatus = if (npcSellPrices.isEmpty()) {
                                 BazaarDataStatus(
@@ -390,7 +392,7 @@ object SkyBlockPriceData {
         fetchingBazaarDepth.set(false)
         ticksUntilBazaarRefresh = 0
         ticksUntilLowestBinsRefresh = 0
-        if (wasFetchingNpcSellPrices) lastNpcSellPricesRequestAtMillis = 0L
+        if (wasFetchingNpcSellPrices) npcSellPriceRequestSchedule.recordCancellation()
         wasBazaarDemanded = false
         wasLowestBinDemanded = false
         wasNpcSellPriceDemanded = false
@@ -504,8 +506,32 @@ private fun shouldRefreshPriceData(
     hasActiveConsumers: Boolean,
 ): Boolean = isInSkyBlock && hasActiveConsumers
 
-internal fun shouldRequestNpcSellPrices(nowMillis: Long, lastRequestAtMillis: Long): Boolean =
-    lastRequestAtMillis <= 0L || nowMillis - lastRequestAtMillis >= NPC_SELL_PRICES_REFRESH_INTERVAL_MILLIS
+internal class NpcSellPriceRequestSchedule(
+    private val successIntervalNanos: Long = NPC_SELL_PRICES_REFRESH_INTERVAL_NANOS,
+    private val failureRetryNanos: Long = NPC_SELL_PRICES_FAILURE_RETRY_NANOS,
+) {
+    @Volatile
+    private var nextRequestAtNanos: Long? = null
+
+    fun shouldRequest(nowNanos: Long): Boolean =
+        nextRequestAtNanos?.let { nextRequest -> nowNanos - nextRequest >= 0L } ?: true
+
+    fun recordAttempt(nowNanos: Long) {
+        nextRequestAtNanos = nowNanos + failureRetryNanos
+    }
+
+    fun recordSuccess(nowNanos: Long) {
+        nextRequestAtNanos = nowNanos + successIntervalNanos
+    }
+
+    fun recordFailure(nowNanos: Long) {
+        nextRequestAtNanos = nowNanos + failureRetryNanos
+    }
+
+    fun recordCancellation() {
+        nextRequestAtNanos = null
+    }
+}
 
 internal fun npcSellPrices(response: HypixelSkyBlockItemsResponse): Map<String, Double> =
     itemSellPrices(response, HypixelSkyBlockItem::npcSellPrice)
