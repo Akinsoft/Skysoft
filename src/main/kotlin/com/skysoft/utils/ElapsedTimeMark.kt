@@ -1,14 +1,17 @@
 package com.skysoft.utils
 
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
 
 @JvmInline
-value class ElapsedTimeMark(private val millis: Long) {
-    fun passedSince(): Duration = (System.currentTimeMillis() - millis).milliseconds
+value class ElapsedTimeMark(private val nanos: Long) {
+    fun passedSince(): Duration =
+        if (nanos == FAR_PAST_NANOS) Duration.INFINITE else (System.nanoTime() - nanos).nanoseconds
 
     companion object {
-        fun now(): ElapsedTimeMark = ElapsedTimeMark(System.currentTimeMillis())
-        fun farPast(): ElapsedTimeMark = ElapsedTimeMark(0L)
+        private const val FAR_PAST_NANOS = Long.MIN_VALUE
+
+        fun now(): ElapsedTimeMark = ElapsedTimeMark(System.nanoTime())
+        fun farPast(): ElapsedTimeMark = ElapsedTimeMark(FAR_PAST_NANOS)
     }
 }
