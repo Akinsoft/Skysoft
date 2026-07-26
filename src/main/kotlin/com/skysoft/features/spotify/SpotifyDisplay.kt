@@ -22,7 +22,6 @@ import java.net.URI
 import java.util.EnumMap
 import java.util.LinkedHashMap
 import java.util.concurrent.CompletableFuture
-import kotlin.math.max
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Util
@@ -32,7 +31,8 @@ object SpotifyDisplay {
     private var playback: SpotifyPlayback? = null
     private var hiddenAtMillis: Long? = null
     private var shownAtMillis = 0L
-    private var nextPollMillis = 0L
+    private val pollSchedule = SpotifyPollSchedule()
+    private var nextPollAtNanos: Long? = null
     private var pollRequest: CompletableFuture<*>? = null
     private var artwork: SpotifyArtwork? = null
     private var artworkRequestUrl: String? = null
@@ -90,6 +90,8 @@ object SpotifyDisplay {
     fun clear() {
         playback = null
         hiddenAtMillis = null
+        nextPollAtNanos = null
+        pollSchedule.reset()
         pollRequest?.cancel(true)
         pollRequest = null
         artworkRequest?.cancel(true)
@@ -106,7 +108,7 @@ object SpotifyDisplay {
     }
 
     internal fun requestRefresh() {
-        nextPollMillis = 0L
+        nextPollAtNanos = pollSchedule.requestedAt(System.nanoTime())
     }
 
     private fun tick() {
@@ -114,34 +116,65 @@ object SpotifyDisplay {
             if (playback != null || pollRequest != null) clear()
             return
         }
-        val now = System.currentTimeMillis()
-        if (hiddenAtMillis?.let { now - it >= FADE_DURATION_MILLIS } == true) clearPlayback()
-        if (now >= nextPollMillis && pollRequest == null) pollPlayback(now)
+        if (Minecraft.getInstance().player == null) {
+            clear()
+            return
+        }
+        val nowMillis = System.currentTimeMillis()
+        if (hiddenAtMillis?.let { nowMillis - it >= FADE_DURATION_MILLIS } == true) clearPlayback()
+        val nowNanos = System.nanoTime()
+        if (pollSchedule.isDue(nowNanos, nextPollAtNanos) && pollRequest == null) pollPlayback()
         processPlaybackKeys()
         ensureArtwork()
-        ensureLyrics(now)
-        updateActiveLyric(now)
+        ensureLyrics(nowMillis)
+        updateActiveLyric(nowMillis)
     }
 
-    private fun pollPlayback(now: Long) {
-        nextPollMillis = now + POLL_INTERVAL_MILLIS
+    private fun pollPlayback() {
         val request = SpotifyWebApi.currentPlayback()
         pollRequest = request
         request.whenComplete { result, failure ->
             Minecraft.getInstance().execute {
                 if (pollRequest !== request) return@execute
                 pollRequest = null
+                val completedAtNanos = System.nanoTime()
                 val apiFailure = failure?.unwrap() as? SpotifyApiException
-                if (apiFailure != null) {
-                    val retryDelay = apiFailure.retryAfterMillis
-                    if (retryDelay != null) nextPollMillis = max(nextPollMillis, System.currentTimeMillis() + retryDelay)
-                    return@execute
+                when {
+                    apiFailure?.reason == SPOTIFY_QUOTA_EXCEEDED_REASON -> {
+                        nextPollAtNanos = pollSchedule.nextAfterQuotaLimit(
+                            completedAtNanos,
+                            apiFailure.retryAfterMillis,
+                        )
+                        SkysoftMod.LOGGER.debug("Spotify playback polling reached the API quota", apiFailure)
+                    }
+                    apiFailure?.statusCode == HTTP_TOO_MANY_REQUESTS -> {
+                        nextPollAtNanos = pollSchedule.nextAfterRateLimit(
+                            completedAtNanos,
+                            apiFailure.retryAfterMillis,
+                        )
+                        SkysoftMod.LOGGER.debug("Spotify playback polling was rate limited", apiFailure)
+                    }
+                    apiFailure != null -> {
+                        nextPollAtNanos = pollSchedule.nextAfterFailure(completedAtNanos)
+                    }
+                    failure != null -> {
+                        nextPollAtNanos = pollSchedule.nextAfterFailure(completedAtNanos)
+                        SkysoftMod.LOGGER.debug("Could not refresh Spotify playback", failure.unwrap())
+                    }
+                    result == null -> {
+                        nextPollAtNanos = pollSchedule.nextAfterNoPlayback(completedAtNanos)
+                        hidePlayback()
+                    }
+                    else -> {
+                        val completedAtMillis = System.currentTimeMillis()
+                        nextPollAtNanos = pollSchedule.nextAfterPlayback(
+                            completedAtNanos,
+                            result.durationMillis - result.positionAt(completedAtMillis),
+                            result.playing,
+                        )
+                        applyPlayback(result)
+                    }
                 }
-                if (failure != null) {
-                    SkysoftMod.LOGGER.debug("Could not refresh Spotify playback", failure.unwrap())
-                    return@execute
-                }
-                if (result == null) hidePlayback() else applyPlayback(result)
             }
         }
     }
@@ -194,11 +227,11 @@ object SpotifyDisplay {
         val uri = URI.create(url)
         if (uri.scheme != "https" || uri.host != SPOTIFY_ARTWORK_HOST || uri.userInfo != null) return
         artworkRequestUrl = url
-        val request = SkysoftHttp.getBytes(url).thenApplyAsync(
-            { bytes ->
-                require(bytes.size <= MAXIMUM_ARTWORK_BYTES) { "Spotify artwork is too large" }
-                ScaledImageDecoder.decode(bytes, MAXIMUM_ARTWORK_SIZE, MAXIMUM_ARTWORK_SIZE)
-            },
+        val request = SkysoftHttp.getBytes(
+            url,
+            maximumResponseBytes = MAXIMUM_ARTWORK_BYTES.toLong(),
+        ).thenApplyAsync(
+            { bytes -> ScaledImageDecoder.decode(bytes, MAXIMUM_ARTWORK_SIZE, MAXIMUM_ARTWORK_SIZE) },
             Util.ioPool(),
         )
         artworkRequest = request
@@ -317,10 +350,28 @@ object SpotifyDisplay {
                     requestRefresh()
                     return@execute
                 }
-                when ((failure.unwrap() as? SpotifyApiException)?.statusCode) {
-                    HTTP_FORBIDDEN -> SkysoftChat.error("Spotify Premium is required for playback controls.")
-                    HTTP_NOT_FOUND -> SkysoftChat.error("Open Spotify on a device before using playback controls.")
-                    HTTP_UNAUTHORIZED -> SkysoftChat.error("Connect Spotify again to use playback controls.")
+                val apiFailure = failure.unwrap() as? SpotifyApiException
+                when {
+                    apiFailure?.reason == SPOTIFY_QUOTA_EXCEEDED_REASON -> {
+                        nextPollAtNanos = pollSchedule.nextAfterQuotaLimit(
+                            System.nanoTime(),
+                            apiFailure.retryAfterMillis,
+                        )
+                        SkysoftChat.error("Spotify's API quota was reached. Spotify Display will retry later.")
+                    }
+                    apiFailure?.statusCode == HTTP_TOO_MANY_REQUESTS -> {
+                        nextPollAtNanos = pollSchedule.nextAfterRateLimit(
+                            System.nanoTime(),
+                            apiFailure.retryAfterMillis,
+                        )
+                        SkysoftChat.error("Spotify is temporarily rate limited. Try again shortly.")
+                    }
+                    apiFailure?.statusCode == HTTP_FORBIDDEN ->
+                        SkysoftChat.error("Spotify Premium is required for playback controls.")
+                    apiFailure?.statusCode == HTTP_NOT_FOUND ->
+                        SkysoftChat.error("Open Spotify on a device before using playback controls.")
+                    apiFailure?.statusCode == HTTP_UNAUTHORIZED ->
+                        SkysoftChat.error("Connect Spotify again to use playback controls.")
                     else -> SkysoftChat.error("Spotify could not complete that playback control.")
                 }
             }
@@ -395,7 +446,6 @@ object SpotifyDisplay {
 
     private fun config() = SkysoftConfigGui.config().gui.spotifyDisplay
 
-    private const val POLL_INTERVAL_MILLIS = 2_500L
     private const val FADE_DURATION_MILLIS = 400L
     private const val LYRIC_FADE_DURATION_MILLIS = 260L
     private const val LYRICS_RETRY_DELAY_MILLIS = 30_000L
@@ -409,6 +459,7 @@ object SpotifyDisplay {
     private const val PREVIEW_PROGRESS_MILLIS = 68_000L
     private const val HTTP_UNAUTHORIZED = 401
     private const val HTTP_FORBIDDEN = 403
+    private const val HTTP_TOO_MANY_REQUESTS = 429
     private const val HTTP_NOT_FOUND = 404
     private val CONTROL_BINDINGS = listOf(
         SpotifyPlaybackAction.PLAY,

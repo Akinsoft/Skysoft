@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.net.CancellableRequestGroup
 import com.skysoft.utils.net.SkysoftHttp
 import java.net.URI
 import java.net.http.HttpRequest
@@ -13,33 +14,41 @@ import java.util.concurrent.CompletableFuture
 import kotlin.math.abs
 
 internal object SpotifyWebApi {
-    fun currentPlayback(): CompletableFuture<SpotifyPlayback?> = SpotifyAuthentication.accessToken().thenCompose { token ->
-        if (token == null) return@thenCompose CompletableFuture.completedFuture(null)
-        val request = request(PLAYER_ENDPOINT, token).GET().build()
-        SkysoftHttp.sendString(request).thenApply { response ->
-            when (response.statusCode()) {
-                HTTP_OK -> parsePlayback(response.body())
-                HTTP_NO_CONTENT -> null
-                HTTP_UNAUTHORIZED -> {
-                    SpotifyAuthentication.invalidateAccessToken()
-                    throw SpotifyApiException(response.statusCode())
+    fun currentPlayback(): CompletableFuture<SpotifyPlayback?> {
+        val requests = CancellableRequestGroup()
+        val operation = SpotifyAuthentication.accessToken().thenCompose { token ->
+            if (token == null) return@thenCompose CompletableFuture.completedFuture(null)
+            val request = request(PLAYER_ENDPOINT, token).GET().build()
+            requests.track(SkysoftHttp.sendString(request, MAXIMUM_API_RESPONSE_BYTES)).thenApply { response ->
+                when (response.statusCode()) {
+                    HTTP_OK -> parsePlayback(response.body())
+                    HTTP_NO_CONTENT -> null
+                    HTTP_UNAUTHORIZED -> {
+                        SpotifyAuthentication.invalidateAccessToken()
+                        throw SpotifyApiException(response.statusCode())
+                    }
+                    else -> throw spotifyApiException(response)
                 }
-                else -> throw SpotifyApiException(response.statusCode(), retryAfterMillis(response))
             }
         }
+        return requests.result(operation)
     }
 
-    fun control(action: SpotifyPlaybackAction): CompletableFuture<Unit> = SpotifyAuthentication.accessToken().thenCompose { token ->
-        if (token == null) return@thenCompose CompletableFuture.failedFuture(SpotifyApiException(HTTP_UNAUTHORIZED))
-        val request = request("$PLAYER_ENDPOINT/${action.path}", token)
-            .method(action.method, HttpRequest.BodyPublishers.noBody())
-            .build()
-        SkysoftHttp.sendString(request).thenApply { response ->
-            if (response.statusCode() !in HTTP_SUCCESS) {
-                if (response.statusCode() == HTTP_UNAUTHORIZED) SpotifyAuthentication.invalidateAccessToken()
-                throw SpotifyApiException(response.statusCode(), retryAfterMillis(response))
+    fun control(action: SpotifyPlaybackAction): CompletableFuture<Unit> {
+        val requests = CancellableRequestGroup()
+        val operation = SpotifyAuthentication.accessToken().thenCompose { token ->
+            if (token == null) return@thenCompose CompletableFuture.failedFuture(SpotifyApiException(HTTP_UNAUTHORIZED))
+            val request = request("$PLAYER_ENDPOINT/${action.path}", token)
+                .method(action.method, HttpRequest.BodyPublishers.noBody())
+                .build()
+            requests.track(SkysoftHttp.sendString(request, MAXIMUM_API_RESPONSE_BYTES)).thenApply { response ->
+                if (response.statusCode() !in HTTP_SUCCESS) {
+                    if (response.statusCode() == HTTP_UNAUTHORIZED) SpotifyAuthentication.invalidateAccessToken()
+                    throw spotifyApiException(response)
+                }
             }
         }
+        return requests.result(operation)
     }
 
     private fun request(url: String, token: String): HttpRequest.Builder = HttpRequest.newBuilder(URI.create(url))
@@ -105,15 +114,26 @@ internal object SpotifyWebApi {
     private fun JsonObject.objectValue(name: String): JsonObject? = get(name)?.takeIf { it.isJsonObject }?.asJsonObject
     private fun JsonObject.arrayValue(name: String): JsonArray? = get(name)?.takeIf { it.isJsonArray }?.asJsonArray
 
-    private fun retryAfterMillis(response: HttpResponse<*>): Long? = response.headers()
-        .firstValue("Retry-After")
-        .orElse(null)
-        ?.toLongOrNull()
-        ?.times(MILLIS_PER_SECOND)
+    private fun spotifyApiException(response: HttpResponse<String>): SpotifyApiException = SpotifyApiException(
+        response.statusCode(),
+        retryAfterMillis(response),
+        spotifyApiFailureReason(response.body()),
+    )
+
+    private fun retryAfterMillis(response: HttpResponse<*>): Long? {
+        val seconds = response.headers()
+            .firstValue("Retry-After")
+            .orElse(null)
+            ?.toLongOrNull()
+            ?.takeIf { it >= 0L }
+            ?: return null
+        return runCatching { Math.multiplyExact(seconds, MILLIS_PER_SECOND) }.getOrNull()
+    }
 
     private const val PLAYER_ENDPOINT = "https://api.spotify.com/v1/me/player"
     private const val TRACK_TYPE = "track"
     private const val REQUEST_TIMEOUT_SECONDS = 15L
+    private const val MAXIMUM_API_RESPONSE_BYTES = 1024L * 1024L
     private const val TARGET_ARTWORK_SIZE = 300
     private const val MILLIS_PER_SECOND = 1_000L
     private const val HTTP_OK = 200
@@ -145,9 +165,18 @@ internal enum class SpotifyPlaybackAction(val path: String, val method: String) 
     NEXT("next", "POST"),
 }
 
+internal const val SPOTIFY_QUOTA_EXCEEDED_REASON = "QUOTA_EXCEEDED"
+
+internal fun spotifyApiFailureReason(responseBody: String): String? = runCatching {
+    val response = JsonParser.parseString(responseBody).asJsonObject
+    response.get("reason")?.takeUnless { it.isJsonNull }?.asString
+        ?: response.getAsJsonObject("error")?.get("reason")?.takeUnless { it.isJsonNull }?.asString
+}.getOrNull()
+
 internal class SpotifyApiException(
     val statusCode: Int,
     val retryAfterMillis: Long? = null,
+    val reason: String? = null,
 ) : IllegalStateException("Spotify API returned HTTP $statusCode")
 
 private data class PlaybackDetails(val subtitle: String, val collection: String, val artworkUrl: String?)
