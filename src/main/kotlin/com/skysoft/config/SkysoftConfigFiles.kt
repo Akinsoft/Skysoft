@@ -11,6 +11,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.ConcurrentHashMap
 
 object SkysoftConfigFiles {
     private const val CONFIG_DIRECTORY_PROPERTY = "skysoft.configDirectory"
@@ -74,7 +75,7 @@ internal object SkysoftConfigFileIo {
     private const val MAX_WRITE_ATTEMPTS = 5
     private const val WRITE_RETRY_DELAY_MS = 50L
     private const val BACKUP_COUNT = 3
-    private val nonAtomicMoveWarnings = mutableSetOf<Path>()
+    private val nonAtomicMoveWarnings = ConcurrentHashMap.newKeySet<Path>()
 
     fun hasFileOrBackup(path: Path): Boolean =
         Files.isRegularFile(path) || backupPaths(path).any(Files::isRegularFile)
