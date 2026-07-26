@@ -6,6 +6,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.concurrent.atomic.AtomicBoolean
@@ -87,7 +88,7 @@ object SkyBlockEventScheduleApi {
                     try {
                         if (error == null && response != null) {
                             schedule = response
-                        } else {
+                        } else if (error?.isCancellationFailure() != true) {
                             SkysoftMod.LOGGER.warn("Failed to refresh SkyBlock event schedule", error)
                         }
                     } finally {

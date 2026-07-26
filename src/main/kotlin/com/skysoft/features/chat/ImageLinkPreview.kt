@@ -42,7 +42,7 @@ object ImageLinkPreview {
     private val failures = mutableSetOf<String>()
     private var pendingUrl: String? = null
     private var pendingRequest: CompletableFuture<*>? = null
-    private var isPendingRequestRemote = false
+    private var pendingRemoteRequest: RemoteImageRequest? = null
     private var candidate: ImageLinkCandidate? = null
     private var nextTextureId = 0
 
@@ -124,24 +124,21 @@ object ImageLinkPreview {
         }
         pendingUrl = current.url
         val localScreenshot = ScreenshotUploadMetadataStore.screenshotForUrl(current.url)
-        val request = if (localScreenshot != null) {
-            loadScaledScreenshotImage(
-                localScreenshot,
-                MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH,
-                MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT,
-            )
-        } else {
-            RemoteImageLoader.load(current.requestUri)
-        }
+        val remoteRequest = if (localScreenshot == null) RemoteImageLoader.load(current.requestUri) else null
+        val request = remoteRequest?.future ?: loadScaledScreenshotImage(
+            requireNotNull(localScreenshot),
+            MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH,
+            MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT,
+        )
         pendingRequest = request
-        isPendingRequestRemote = localScreenshot == null
+        pendingRemoteRequest = remoteRequest
         request.whenComplete { image, failure ->
             Minecraft.getInstance().execute {
                 val isCurrentRequest = pendingRequest === request
                 if (isCurrentRequest) {
                     pendingUrl = null
                     pendingRequest = null
-                    isPendingRequestRemote = false
+                    pendingRemoteRequest = null
                 }
                 when {
                     image != null && isCurrentRequest && SkysoftConfigGui.config().chat.previewImage.enabled -> {
@@ -271,11 +268,11 @@ object ImageLinkPreview {
     }
 
     private fun cancelPendingRequest() {
-        if (isPendingRequestRemote) pendingRequest?.cancel(true)
-        RemoteImageLoader.cancel()
+        pendingRemoteRequest?.cancel()
+        pendingRequest?.cancel(true)
         pendingRequest = null
+        pendingRemoteRequest = null
         pendingUrl = null
-        isPendingRequestRemote = false
     }
 
     private fun clear() {
