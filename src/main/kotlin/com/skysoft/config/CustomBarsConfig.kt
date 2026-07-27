@@ -64,6 +64,18 @@ class CustomBarsConfig {
 
     @JvmField
     @field:Expose
+    val vanillaHealthPosition = defaultVanillaHealthPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
+    val vanillaExperiencePosition = defaultVanillaExperiencePosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
+    val vanillaAirPosition = defaultVanillaAirPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
     val healthDimensions = HudDimensions()
 
     @JvmField
@@ -102,6 +114,9 @@ class CustomBarsConfig {
         defensePosition.rememberDefault(defaultDefensePosition())
         speedPosition.rememberDefault(defaultSpeedPosition())
         airPosition.rememberDefault(defaultAirPosition())
+        vanillaHealthPosition.rememberDefault(defaultVanillaHealthPosition())
+        vanillaExperiencePosition.rememberDefault(defaultVanillaExperiencePosition())
+        vanillaAirPosition.rememberDefault(defaultVanillaAirPosition())
         healthTextPosition.rememberDefault(defaultTextPosition())
         manaTextPosition.rememberDefault(defaultTextPosition())
         vitalityTextPosition.rememberDefault(defaultTextPosition())
@@ -427,6 +442,9 @@ private val speedPositionDefault = HudPosition(117, -23, centerX = true, centerY
 private val airPositionDefault = HudPosition(117, -12, centerX = true, centerY = false)
 private val oldVitalityPositionDefault = HudPosition(117, -45, centerX = true, centerY = false)
 private val oldExperiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
+private val vanillaHealthPositionDefault = HudPosition(-50, -30, centerX = true, centerY = false)
+private val vanillaExperiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
+private val vanillaAirPositionDefault = HudPosition(51, -40, centerX = true, centerY = false)
 
 private fun defaultHealthPosition() = healthPositionDefault.copy()
 private fun defaultManaPosition() = manaPositionDefault.copy()
@@ -435,6 +453,9 @@ private fun defaultExperiencePosition() = experiencePositionDefault.copy()
 private fun defaultDefensePosition() = defensePositionDefault.copy()
 private fun defaultSpeedPosition() = speedPositionDefault.copy()
 private fun defaultAirPosition() = airPositionDefault.copy()
+private fun defaultVanillaHealthPosition() = vanillaHealthPositionDefault.copy()
+private fun defaultVanillaExperiencePosition() = vanillaExperiencePositionDefault.copy()
+private fun defaultVanillaAirPosition() = vanillaAirPositionDefault.copy()
 private fun defaultTextPosition() = HudPosition(centerY = false)
 
 private fun HudPosition.copy() = HudPosition(x, y, scale, centerX, centerY)

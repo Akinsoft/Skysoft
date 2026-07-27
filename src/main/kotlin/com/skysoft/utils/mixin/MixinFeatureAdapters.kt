@@ -16,6 +16,7 @@ import com.skysoft.features.misc.WarpAliases
 import com.skysoft.features.misc.custombars.CustomBars
 import com.skysoft.features.screenshot.ScreenshotManager
 import java.util.function.Consumer
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.network.chat.Component
@@ -73,7 +74,8 @@ object MixinFeatureAdapters {
     fun isPingMeasurementActive(): Boolean = ServerInfoDisplay.isPingMeasurementActive
 
     @JvmStatic
-    fun shouldHideVanillaExperienceBar(): Boolean = CustomBars.shouldHideVanillaExperienceBar()
+    fun renderVanillaExperienceBar(context: GuiGraphicsExtractor, render: Runnable) =
+        CustomBars.renderVanillaExperienceBar(context, render::run)
 
     @JvmStatic
     fun recordPong(sentAtMillis: Long, receivedAtNanos: Long) {
