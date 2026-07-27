@@ -7,6 +7,7 @@ import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
@@ -195,7 +196,7 @@ class CustomBarsNumberVisibilityConfig {
 class CustomBarsDetailsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Icons", desc = "Choose where resource bar icons are shown.")
+    @field:ConfigOption(name = "Resource Icon Position", desc = "Choose which side resource bar icons use.")
     @field:ConfigEditorDropdown
     var icons = CustomBarIconPosition.LEFT
 
@@ -268,12 +269,41 @@ class CustomBarsDetailsConfig {
     @field:ConfigOption(name = "Air", desc = "Customize Air colors.")
     @field:Accordion
     val air = CustomReadoutDetailsConfig()
+
+    @JvmField
+    @field:ConfigOption(name = "Reset Colors", desc = "Restore all Custom Bars colors.")
+    @field:ConfigEditorButton(buttonText = "Reset")
+    @field:ConfigOrder(1000)
+    val resetColors = Runnable {
+        val defaults = CustomBarsDetailsConfig()
+        colorProperties().zip(defaults.colorProperties()).forEach { (current, default) ->
+            current.set(default.get())
+        }
+    }
+
+    private fun colorProperties(): List<Property<ChromaColour>> = buildList {
+        add(textOutlineColor)
+        addAll(health.colorProperties())
+        addAll(mana.colorProperties())
+        addAll(vitality.colorProperties())
+        addAll(experience.colorProperties())
+        addAll(defense.colorProperties())
+        addAll(speed.colorProperties())
+        addAll(air.colorProperties())
+    }
 }
 
 open class CustomElementDetailsConfig(
     backgroundDefault: ChromaColour = configColor(TRACK_COLOR),
     textDefault: ChromaColour = configColor(TEXT_COLOR),
 ) {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Icon", desc = "Show this element's icon.")
+    @field:ConfigEditorBoolean
+    @field:ConfigOrder(0)
+    var showIcon = true
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Background Color", desc = "Color used behind this element.")
@@ -287,6 +317,8 @@ open class CustomElementDetailsConfig(
     @field:ConfigEditorColour
     @field:ConfigOrder(40)
     val textColor: Property<ChromaColour> = Property.of(textDefault)
+
+    internal open fun colorProperties(): List<Property<ChromaColour>> = listOf(backgroundColor, textColor)
 }
 
 class CustomResourceBarDetailsConfig(
@@ -316,6 +348,9 @@ class CustomResourceBarDetailsConfig(
     @field:ConfigEditorColour
     @field:ConfigOrder(50)
     val iconColor: Property<ChromaColour> = Property.of(iconDefault)
+
+    internal override fun colorProperties(): List<Property<ChromaColour>> =
+        listOf(barColor, overflowColor, iconColor) + super.colorProperties()
 }
 
 class CustomProgressBarDetailsConfig(
@@ -329,6 +364,9 @@ class CustomProgressBarDetailsConfig(
     @field:ConfigEditorColour
     @field:ConfigOrder(10)
     val barColor: Property<ChromaColour> = Property.of(barDefault)
+
+    internal override fun colorProperties(): List<Property<ChromaColour>> =
+        listOf(barColor) + super.colorProperties()
 }
 
 class CustomReadoutDetailsConfig(
@@ -342,12 +380,14 @@ class CustomReadoutDetailsConfig(
     @field:ConfigEditorColour
     @field:ConfigOrder(50)
     val iconColor: Property<ChromaColour> = Property.of(iconDefault)
+
+    internal override fun colorProperties(): List<Property<ChromaColour>> =
+        listOf(iconColor) + super.colorProperties()
 }
 
 enum class CustomBarIconPosition(private val displayName: String) {
     LEFT("Left"),
     RIGHT("Right"),
-    NONE("None"),
     ;
 
     override fun toString(): String = displayName

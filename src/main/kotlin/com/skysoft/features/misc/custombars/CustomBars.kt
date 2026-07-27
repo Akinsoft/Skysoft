@@ -173,7 +173,7 @@ object CustomBars {
         val width: Int get() = dimensions?.width(defaultWidth, MIN_RESOURCE_WIDTH) ?: defaultWidth
         val height: Int get() = dimensions?.height(RESOURCE_HEIGHT, MIN_RESOURCE_HEIGHT) ?: READOUT_ELEMENT_HEIGHT
         val isResource: Boolean get() = dimensions != null
-        val iconSlotWidth: Int get() = if (config.details.icons == CustomBarIconPosition.NONE) 0 else ICON_SLOT_WIDTH
+        val iconSlotWidth: Int get() = if (visualDetails.showIcon) ICON_SLOT_WIDTH else 0
         val trackX: Int get() = if (config.details.icons == CustomBarIconPosition.LEFT) iconSlotWidth else 0
         val trackWidth: Int get() = width - iconSlotWidth
         val iconX: Int
@@ -454,7 +454,8 @@ object CustomBars {
             details: CustomReadoutDetailsConfig,
         ) {
             val font = Minecraft.getInstance().font
-            val contentWidth = font.width(icon) + READOUT_CONTENT_GAP + font.width(value)
+            val iconWidth = if (details.showIcon) font.width(icon) + READOUT_CONTENT_GAP else 0
+            val contentWidth = iconWidth + font.width(value)
             val contentX = centeredReadoutX(contentWidth)
             context.fillRoundedRect(
                 0,
@@ -463,11 +464,11 @@ object CustomBars {
                 READOUT_HEIGHT,
                 details.backgroundColor.rgb(),
             )
-            drawIcon(context, icon, contentX, READOUT_CONTENT_Y, details.iconColor.rgb())
+            if (details.showIcon) drawIcon(context, icon, contentX, READOUT_CONTENT_Y, details.iconColor.rgb())
             drawText(
                 context,
                 value,
-                contentX + font.width(icon) + READOUT_CONTENT_GAP,
+                contentX + iconWidth,
                 READOUT_CONTENT_Y,
                 details.textColor.rgb(),
             )
@@ -480,7 +481,8 @@ object CustomBars {
         ) {
             val text = "${seconds}s"
             val font = Minecraft.getInstance().font
-            val contentWidth = ICON_SIZE + READOUT_CONTENT_GAP + font.width(text)
+            val iconWidth = if (details.showIcon) ICON_SIZE + READOUT_CONTENT_GAP else 0
+            val contentWidth = iconWidth + font.width(text)
             val contentX = centeredReadoutX(contentWidth)
             context.fillRoundedRect(
                 0,
@@ -489,19 +491,21 @@ object CustomBars {
                 READOUT_HEIGHT,
                 details.backgroundColor.rgb(),
             )
-            context.blitSprite(
-                RenderPipelines.GUI_TEXTURED,
-                AIR_SPRITE,
-                contentX,
-                READOUT_CONTENT_Y,
-                ICON_SIZE,
-                ICON_SIZE,
-                details.iconColor.rgb(),
-            )
+            if (details.showIcon) {
+                context.blitSprite(
+                    RenderPipelines.GUI_TEXTURED,
+                    AIR_SPRITE,
+                    contentX,
+                    READOUT_CONTENT_Y,
+                    ICON_SIZE,
+                    ICON_SIZE,
+                    details.iconColor.rgb(),
+                )
+            }
             drawText(
                 context,
                 text,
-                contentX + ICON_SIZE + READOUT_CONTENT_GAP,
+                contentX + iconWidth,
                 READOUT_CONTENT_Y,
                 details.textColor.rgb(),
             )

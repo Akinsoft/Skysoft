@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 8
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 9
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -55,6 +55,7 @@ internal object SkysoftConfigMigrations {
                 ?.takeIf { it.has(SKYBLOCK_MENU_DROP_FIX_FIELD) }
                 ?.addProperty(SKYBLOCK_MENU_DROP_FIX_FIELD, false)
         }
+        if (migrationVersion < SELECTIVE_CUSTOM_BAR_ICONS_VERSION) migrateCustomBarIcons(json)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -381,7 +382,6 @@ internal object SkysoftConfigMigrations {
     private val HOTSPOT_SHARING_DETAILS_FIELDS = listOf("crosshairLine")
     private val BLOCK_OVERLAY_SETTINGS_FIELDS = listOf("color", "combinations")
     private val MISC_FIX_FIELDS = listOf("hideGlitchMobs", "hideBuggedNameplates", "playerHeadSkinFix")
-    private val CUSTOM_BAR_RESOURCE_FIELDS = setOf("health", "mana", "vitality", "experience")
     private val CUSTOM_BAR_FIELDS = CUSTOM_BAR_RESOURCE_FIELDS + setOf("defense", "speed", "air")
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
@@ -391,7 +391,24 @@ internal object SkysoftConfigMigrations {
     private const val MODERN_STORAGE_OVERLAY_VERSION = 6
     private const val BETTER_SHURIKENS_CATEGORY_VERSION = 7
     private const val VANILLA_UI_CATEGORY_VERSION = 8
+    private const val SELECTIVE_CUSTOM_BAR_ICONS_VERSION = 9
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
+}
+
+private val CUSTOM_BAR_RESOURCE_FIELDS = setOf("health", "mana", "vitality", "experience")
+
+private fun migrateCustomBarIcons(json: JsonObject) {
+    val details = json.getObjectOrNull("gui")
+        ?.getObjectOrNull("customBars")
+        ?.getObjectOrNull("details")
+        ?: return
+    val icons = details.get("icons")?.takeIf { it.isJsonPrimitive }?.asString ?: return
+    if (icons != "NONE") return
+    details.addProperty("icons", CustomBarIconPosition.LEFT.name)
+    CUSTOM_BAR_RESOURCE_FIELDS.forEach { fieldName ->
+        val elementDetails = details.getOrCreateObject(fieldName)
+        if (!elementDetails.has("showIcon")) elementDetails.addProperty("showIcon", false)
+    }
 }
 
 private fun JsonObject.getObjectOrNull(name: String): JsonObject? =
