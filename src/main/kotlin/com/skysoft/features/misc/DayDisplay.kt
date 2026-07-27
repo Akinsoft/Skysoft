@@ -45,16 +45,6 @@ object DayDisplay {
         })
     }
 
-    internal fun diagnosticSnapshot(): String {
-        val minecraft = Minecraft.getInstance()
-        val level = minecraft.level
-        val island = HypixelLocationState.currentIsland
-        return "enabled=${config.enabled}, inSkyBlock=${HypixelLocationState.inSkyBlock}, " +
-            "island=${island?.displayName}, islandEnabled=${island in config.settings.islands.get()}, " +
-            "levelLoaded=${level != null}, day=${currentDay()}, " +
-            "guiHidden=${MinecraftClient.isGuiHidden(minecraft)}"
-    }
-
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
         val island = HypixelLocationState.currentIsland

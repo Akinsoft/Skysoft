@@ -1,5 +1,8 @@
 package com.skysoft.features.misc
 
+import com.skysoft.config.DisplayLabelStyle
+import com.skysoft.config.ServerInfoDisplayStyle
+import com.skysoft.config.ServerInfoLayout
 import com.skysoft.config.ServerInfoMetric
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.GuiOverlay
@@ -12,6 +15,7 @@ import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.renderables.GuiRenderable
+import com.skysoft.utils.renderables.container.horizontalLayout
 import com.skysoft.utils.renderables.container.verticalLayout
 import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
@@ -50,14 +54,33 @@ object ServerInfoDisplay {
             override val label: String = "Server Info Display"
             override val position get() = config.position
             override val hasEditorBackground: Boolean get() = !config.details.background
-            override fun width(): Int = currentRenderable()?.width ?: 0
-            override fun height(): Int = currentRenderable()?.height ?: 0
-            override fun isVisible(): Boolean = config.enabled && configuredMetrics().isNotEmpty()
+            override fun width(): Int = currentSimpleRenderable()?.width ?: 0
+            override fun height(): Int = currentSimpleRenderable()?.height ?: 0
+            override fun isVisible(): Boolean =
+                config.enabled &&
+                    config.details.style == ServerInfoDisplayStyle.SIMPLE &&
+                    configuredMetrics().isNotEmpty()
             override fun renderDummy(context: GuiGraphicsExtractor) {
-                currentRenderable()?.render(context)
+                currentSimpleRenderable()?.render(context)
             }
             override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
         })
+        ServerInfoMetric.entries.forEach { metric ->
+            HudEditorRegistry.register(object : HudEditorElement {
+                override val id: String = "server_info_display_${metric.name.lowercase(Locale.ROOT)}"
+                override val label: String = "Server Info: $metric"
+                override val position get() = config.splitPosition(metric)
+                override val hasEditorBackground: Boolean get() = !config.details.background
+                override fun width(): Int = currentSplitRenderable(metric).width
+                override fun height(): Int = currentSplitRenderable(metric).height
+                override fun isVisible(): Boolean =
+                    config.enabled &&
+                        config.details.style == ServerInfoDisplayStyle.SPLIT &&
+                        metric in configuredMetrics()
+                override fun renderDummy(context: GuiGraphicsExtractor) = currentSplitRenderable(metric).render(context)
+                override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
+            })
+        }
     }
 
     internal fun recordPong(requestId: Long, timestampNanos: Long): PingSampleResult {
@@ -68,38 +91,19 @@ object ServerInfoDisplay {
     internal val isPingMeasurementActive: Boolean
         get() = isPingTrackingActive
 
-    internal fun diagnosticSnapshot(): ServerInfoDiagnosticSnapshot {
-        val minecraft = Minecraft.getInstance()
-        val renderable = currentRenderable()
-        val values = currentValues(minecraft)
-        return ServerInfoDiagnosticSnapshot(
-            enabled = config.enabled,
-            metrics = configuredMetrics(),
-            background = config.details.background,
-            positionX = config.position.x,
-            positionY = config.position.y,
-            positionScale = config.position.scale,
-            connectionLoaded = minecraft.connection != null,
-            levelLoaded = minecraft.level != null,
-            playerLoaded = minecraft.player != null,
-            isLocalServer = minecraft.isLocalServer,
-            isRemoteServer = isRemoteServer(minecraft),
-            isGuiHidden = MinecraftClient.isGuiHidden(minecraft),
-            canRenderLive = canRenderLive(minecraft),
-            values = values,
-            renderedLines = serverInfoLines(configuredMetrics(), values),
-            renderedWidth = renderable?.width,
-            renderedHeight = renderable?.height,
-            tps = ServerTpsProvider.snapshot(),
-            isPingTrackingActive = isPingTrackingActive,
-            ping = pingTracker.snapshot(),
-        )
-    }
-
     private fun renderHud(context: GuiGraphicsExtractor) {
         if (!canRenderLive()) return
-        val renderable = currentRenderable() ?: return
-        config.position.renderRenderable(context, renderable)
+        val metrics = configuredMetrics()
+        val values = currentValues()
+        when (config.details.style) {
+            ServerInfoDisplayStyle.SIMPLE -> {
+                val renderable = simpleRenderable(metrics, values) ?: return
+                config.position.renderRenderable(context, renderable)
+            }
+            ServerInfoDisplayStyle.SPLIT -> metrics.forEach { metric ->
+                config.splitPosition(metric).renderRenderable(context, splitRenderable(metric, values))
+            }
+        }
     }
 
     private fun canRenderLive(minecraft: Minecraft = Minecraft.getInstance()): Boolean =
@@ -146,12 +150,43 @@ object ServerInfoDisplay {
 
     private fun isConfigured(): Boolean = config.enabled && configuredMetrics().isNotEmpty()
 
-    private fun currentRenderable(): GuiRenderable? {
-        val metrics = configuredMetrics()
+    private fun currentSimpleRenderable(): GuiRenderable? =
+        simpleRenderable(configuredMetrics(), currentValues())
+
+    private fun currentSplitRenderable(metric: ServerInfoMetric): GuiRenderable =
+        splitRenderable(metric, currentValues())
+
+    private fun simpleRenderable(metrics: List<ServerInfoMetric>, values: ServerInfoValues): GuiRenderable? {
         if (metrics.isEmpty()) return null
-        val color = config.details.color.get().toColor().rgb
-        return verticalLayout(serverInfoLines(metrics, currentValues()).map { StringRenderable(it, color = color) })
-            .withOverlayPanel(config.details.background)
+        val renderables = metrics.map { metric -> metricRenderable(metric, values) }
+        val content = when (config.details.layout) {
+            ServerInfoLayout.VERTICAL -> verticalLayout(renderables)
+            ServerInfoLayout.HORIZONTAL -> horizontalLayout(renderables, spacing = 4)
+        }
+        return content.withOverlayPanel(config.details.background)
+    }
+
+    private fun splitRenderable(metric: ServerInfoMetric, values: ServerInfoValues): GuiRenderable =
+        metricRenderable(metric, values).withOverlayPanel(config.details.background)
+
+    private fun metricRenderable(metric: ServerInfoMetric, values: ServerInfoValues): GuiRenderable {
+        val labelStyle = config.details.labelStyle
+        val color = config.details.color(metric).get().toColor().rgb
+        val text = StringRenderable(
+            serverInfoText(
+                metric,
+                values,
+                if (labelStyle == DisplayLabelStyle.SYMBOLS) DisplayLabelStyle.VALUES_ONLY else labelStyle,
+            ),
+            color = color,
+        )
+        if (labelStyle != DisplayLabelStyle.SYMBOLS) return text
+        val icon = if (metric == ServerInfoMetric.PING) {
+            SignalBarsRenderable(color)
+        } else {
+            StringRenderable(metric.symbol, color = color)
+        }
+        return horizontalLayout(listOf(icon, text), spacing = 2)
     }
 
     private fun currentValues(minecraft: Minecraft = Minecraft.getInstance()): ServerInfoValues = ServerInfoValues(
@@ -161,42 +196,55 @@ object ServerInfoDisplay {
     )
 }
 
+private class SignalBarsRenderable(private val color: Int) : GuiRenderable {
+    override val width: Int = SIGNAL_ICON_WIDTH
+    override val height: Int get() = Minecraft.getInstance().font.lineHeight
+
+    override fun render(context: GuiGraphicsExtractor) {
+        val top = (height - SIGNAL_ICON_HEIGHT) / 2
+        for (index in 0 until SIGNAL_BAR_COUNT) {
+            val barHeight = (index + 1) * 2
+            val x = index * 2
+            context.fill(x, top + SIGNAL_ICON_HEIGHT - barHeight, x + 1, top + SIGNAL_ICON_HEIGHT, color)
+        }
+    }
+}
+
 internal data class ServerInfoValues(
     val fps: Int,
     val tps: Double?,
     val ping: Int?,
 )
 
-internal fun serverInfoLines(metrics: List<ServerInfoMetric>, values: ServerInfoValues): List<String> =
-    metrics.map { metric ->
+internal fun serverInfoLines(
+    metrics: List<ServerInfoMetric>,
+    values: ServerInfoValues,
+    labelStyle: DisplayLabelStyle = DisplayLabelStyle.TEXT,
+): List<String> = metrics.map { metric -> serverInfoText(metric, values, labelStyle) }
+
+internal fun serverInfoText(
+    metric: ServerInfoMetric,
+    values: ServerInfoValues,
+    labelStyle: DisplayLabelStyle,
+): String {
+    val value = when (metric) {
+        ServerInfoMetric.FPS -> values.fps.toString()
+        ServerInfoMetric.TPS -> values.tps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "--"
+        ServerInfoMetric.PING -> values.ping?.let { "$it ms" } ?: "--"
+    }
+    val suffix = if (labelStyle == DisplayLabelStyle.TEXT) {
+        ""
+    } else {
         when (metric) {
-            ServerInfoMetric.FPS -> "FPS: ${values.fps}"
-            ServerInfoMetric.TPS -> "TPS: ${values.tps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "--"}"
-            ServerInfoMetric.PING -> "Ping: ${values.ping?.let { "$it ms" } ?: "--"}"
+            ServerInfoMetric.FPS -> " FPS"
+            ServerInfoMetric.TPS -> " TPS"
+            ServerInfoMetric.PING -> ""
         }
     }
+    return labelStyle.prefix(metric.toString(), metric.symbol) + value + suffix
+}
 
-internal data class ServerInfoDiagnosticSnapshot(
-    val enabled: Boolean,
-    val metrics: List<ServerInfoMetric>,
-    val background: Boolean,
-    val positionX: Int,
-    val positionY: Int,
-    val positionScale: Float,
-    val connectionLoaded: Boolean,
-    val levelLoaded: Boolean,
-    val playerLoaded: Boolean,
-    val isLocalServer: Boolean,
-    val isRemoteServer: Boolean,
-    val isGuiHidden: Boolean,
-    val canRenderLive: Boolean,
-    val values: ServerInfoValues,
-    val renderedLines: List<String>,
-    val renderedWidth: Int?,
-    val renderedHeight: Int?,
-    val tps: ServerTpsProviderSnapshot,
-    val isPingTrackingActive: Boolean,
-    val ping: ServerPingSnapshot,
-)
-
+private const val SIGNAL_ICON_WIDTH = 7
+private const val SIGNAL_ICON_HEIGHT = 8
+private const val SIGNAL_BAR_COUNT = 4
 private const val TPS_CONSUMER_ID = "Server Info Display"

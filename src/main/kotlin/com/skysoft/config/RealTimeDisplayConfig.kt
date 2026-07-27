@@ -45,6 +45,12 @@ class RealTimeDisplaySettingsConfig {
 class RealTimeDisplayDetailsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Label", desc = "Show a text label, clock symbol, or only the time.")
+    @field:ConfigEditorDropdown
+    var labelStyle = DisplayLabelStyle.VALUES_ONLY
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Background", desc = "Draw a background behind the time.")
     @field:ConfigEditorBoolean
     var background = false

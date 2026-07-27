@@ -1,6 +1,7 @@
 package com.skysoft.features.misc
 
 import com.skysoft.config.ChatTimestampFormat
+import com.skysoft.config.DisplayLabelStyle
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
@@ -16,7 +17,6 @@ import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderRenderable
 import java.time.LocalTime
-import java.time.ZoneId
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -46,20 +46,6 @@ object RealTimeDisplay {
         })
     }
 
-    internal fun diagnosticSnapshot(): String {
-        val minecraft = Minecraft.getInstance()
-        val zone = ZoneId.systemDefault()
-        val time = LocalTime.now(zone)
-        val text = realTimeText(time, config.settings.format)
-        val renderable = renderable(text)
-        return "enabled=${config.enabled}, worldLoaded=${minecraft.level != null}, playerLoaded=${minecraft.player != null}, " +
-            "guiHidden=${MinecraftClient.isGuiHidden(minecraft)}, canRender=${canRenderLive(minecraft)}, " +
-            "zone=${zone.id}, format=${config.settings.format.name}, time=$time, rendered='$text', " +
-            "background=${config.details.background}, color=${config.details.color.get()}, " +
-            "position=${config.position.x},${config.position.y}, scale=${config.position.scale}, " +
-            "dimensions=${renderable.width}x${renderable.height}"
-    }
-
     private fun renderHud(context: GuiGraphicsExtractor) {
         if (!canRenderLive()) return
         config.position.renderRenderable(context, currentRenderable())
@@ -74,15 +60,18 @@ object RealTimeDisplay {
         )
 
     private fun currentRenderable(): GuiRenderable =
-        renderable(realTimeText(LocalTime.now(), config.settings.format))
+        renderable(realTimeText(LocalTime.now(), config.settings.format, config.details.labelStyle))
 
     private fun renderable(text: String): GuiRenderable =
         StringRenderable(text, color = config.details.color.get().toColor().rgb)
             .withOverlayPanel(config.details.background)
 }
 
-internal fun realTimeText(time: LocalTime, format: ChatTimestampFormat): String =
-    formatLocalTime(time, format.pattern)
+internal fun realTimeText(
+    time: LocalTime,
+    format: ChatTimestampFormat,
+    labelStyle: DisplayLabelStyle = DisplayLabelStyle.VALUES_ONLY,
+): String = labelStyle.prefix("Time", "⌚") + formatLocalTime(time, format.pattern)
 
 internal fun shouldShowRealTimeDisplay(
     isEnabled: Boolean,
