@@ -16,6 +16,8 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.inventory.itemlist.ItemListController
+import com.skysoft.gui.HudEditorSnapshot
+import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.ColorUtilities.withAlpha
@@ -432,6 +434,41 @@ object InventoryButtonManager {
         "BOOK" to "minecraft:book",
     )
 }
+
+internal fun inventoryButtonEditorState(): HudEditorSnapshot {
+    val config = SkysoftConfigGui.config().inventory.inventoryButtons
+    val buttons = config.buttons.map(InventoryButtonConfig::copy)
+    val values = buttons.map(InventoryButtonConfig::editorValue)
+    return hudEditorSnapshot(values) { config.replaceActiveButtons(buttons) }
+}
+
+private data class InventoryButtonEditorValue(
+    val x: Int,
+    val y: Int,
+    val icon: String?,
+    val playerInvOnly: Boolean,
+    val anchorRight: Boolean,
+    val anchorBottom: Boolean,
+    val backgroundIndex: Int,
+    val command: String,
+    val requiredKey: Int,
+    val scale: Float,
+    val isUserCreated: Boolean?,
+)
+
+private fun InventoryButtonConfig.editorValue(): InventoryButtonEditorValue = InventoryButtonEditorValue(
+    x,
+    y,
+    icon,
+    playerInvOnly,
+    anchorRight,
+    anchorBottom,
+    backgroundIndex,
+    command,
+    requiredKey,
+    scale,
+    isUserCreated,
+)
 
 internal enum class InventoryButtonResetShortcutResult {
     IGNORED,

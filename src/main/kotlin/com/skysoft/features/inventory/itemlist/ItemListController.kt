@@ -18,6 +18,8 @@ import com.skysoft.features.inventory.InventoryItemSearchHighlight
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.HudEditorSnapshot
+import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SmoothFloatTransition
 import com.skysoft.utils.SoundUtilities
@@ -137,7 +139,19 @@ object ItemListController {
                 settings.rows = ItemListSettingsConfig.DEFAULT_ROWS
             }
 
-            override fun editorTooltipLines(): List<String> {
+            override fun captureEditorState(): HudEditorSnapshot {
+                val positionSnapshot = position.snapshot()
+                val settings = SkysoftConfigGui.config().inventory.itemList.settings
+                val settingsSnapshot = Triple(settings.itemScale, settings.columns, settings.rows)
+                return hudEditorSnapshot(positionSnapshot to settingsSnapshot) {
+                    position.restore(positionSnapshot)
+                    settings.itemScale = settingsSnapshot.first
+                    settings.columns = settingsSnapshot.second
+                    settings.rows = settingsSnapshot.third
+                }
+            }
+
+            override fun editorDetailsLines(): List<String> {
                 val settings = SkysoftConfigGui.config().inventory.itemList.settings
                 val visibleRows = lastLayout?.rows ?: settings.rows
                 val rows = if (settings.rows == ItemListSettingsConfig.DEFAULT_ROWS) {
@@ -150,12 +164,15 @@ object ItemListController {
                 return listOf(
                     "§7Width: §e$width§7, visible grid: §e${lastLayout?.columns ?: 0} x $rows",
                     "§7Item size: §e${"%.1f".format(Locale.US, itemScale)}x",
-                    "§eDrag the centered ↔ arrow §7to resize width",
-                    "§eScroll-Wheel §7to resize items",
-                    "§eRight-click §7to open settings",
-                    "§eR §7to reset",
                 )
             }
+
+            override fun editorActionLines(): List<String> = listOf(
+                "§eDrag the centered ↔ arrow §7to resize width",
+                "§eScroll-Wheel §7to resize items",
+                "§eRight-click §7to open settings",
+                "§eR §7to reset",
+            )
 
             override fun openConfig() = SkysoftConfigGui.open("Item List")
         })
@@ -217,13 +234,35 @@ object ItemListController {
                 sources.searchWidth = ItemListSourcesConfig.DEFAULT_SEARCH_WIDTH
             }
 
-            override fun editorTooltipLines(): List<String> {
+            override fun captureEditorState(): HudEditorSnapshot {
+                val itemList = SkysoftConfigGui.config().inventory.itemList
+                val sources = itemList.sources
+                val positionSnapshot = sources.searchPosition.snapshot()
+                val values = positionSnapshot to (sources.searchWidth to itemList.settings.itemScale)
+                return hudEditorSnapshot(values) {
+                    sources.searchPosition.restore(positionSnapshot)
+                    sources.searchWidth = values.second.first
+                    itemList.settings.itemScale = values.second.second
+                }
+            }
+
+            override fun editorDetailsLines(): List<String> {
                 val sources = SkysoftConfigGui.config().inventory.itemList.sources
-                val isAttached = sources.searchPosition.isAtDefault()
                 return listOf(
-                    if (isAttached) "§7Attached to Item List sizing" else "§7Independent width: §e${width()}px",
+                    if (sources.searchPosition.isAtDefault()) {
+                        "§7Attached to Item List sizing"
+                    } else {
+                        "§7Independent width: §e${width()}px"
+                    },
+                )
+            }
+
+            override fun editorActionLines(): List<String> {
+                val isAttached = SkysoftConfigGui.config().inventory.itemList.sources.searchPosition.isAtDefault()
+                return listOf(
                     if (isAttached) "§eDrag §7to detach and move" else "§eDrag §7to move",
                     if (isAttached) "§eScroll-Wheel §7to resize item slots" else "§eScroll-Wheel §7to resize width",
+                    "§eHold Shift §7to snap",
                     "§eRight-click §7to open settings",
                     if (isAttached) "§eR §7to reset" else "§eR §7to reconnect",
                 )
