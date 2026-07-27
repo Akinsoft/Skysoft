@@ -1,5 +1,6 @@
 package com.skysoft.utils.mixin
 
+import com.skysoft.config.ChatTabPosition
 import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.chat.ChatCompactor
 import com.skysoft.features.chat.ChatNotifier
@@ -12,8 +13,8 @@ import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.WarpAliases
+import com.skysoft.features.misc.custombars.CustomBars
 import com.skysoft.features.screenshot.ScreenshotManager
-import com.skysoft.config.ChatTabPosition
 import java.util.function.Consumer
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.multiplayer.chat.GuiMessage
@@ -70,6 +71,9 @@ object MixinFeatureAdapters {
 
     @JvmStatic
     fun isPingMeasurementActive(): Boolean = ServerInfoDisplay.isPingMeasurementActive
+
+    @JvmStatic
+    fun shouldHideVanillaExperienceBar(): Boolean = CustomBars.shouldHideVanillaExperienceBar()
 
     @JvmStatic
     fun recordPong(sentAtMillis: Long, receivedAtNanos: Long) {

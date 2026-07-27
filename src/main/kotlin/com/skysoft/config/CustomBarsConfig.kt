@@ -18,7 +18,7 @@ import java.awt.Color
 class CustomBarsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Replace SkyBlock status displays with custom bars.")
+    @field:ConfigOption(name = "Enabled", desc = "Customize SkyBlock status displays and numbers.")
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -112,41 +112,59 @@ class CustomBarsConfig {
 class CustomBarsSettingsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Bars", desc = "Choose which bars are shown.")
+    @field:ConfigOption(name = "Displays", desc = "Choose how each status is displayed.")
     @field:Accordion
-    val bars = CustomBarsBarVisibilityConfig()
+    val displays = CustomBarsDisplayConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Numbers", desc = "Choose which numbers are shown.")
+    @field:ConfigOption(name = "Numbers", desc = "Choose which separate numbers are shown.")
     @field:Accordion
     val numbers = CustomBarsNumberVisibilityConfig()
 }
 
-class CustomBarsBarVisibilityConfig {
+class CustomBarsDisplayConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Health", desc = "Show the Health bar.")
-    @field:ConfigEditorBoolean
-    var health = true
+    @field:ConfigOption(name = "Health", desc = "Choose the Health display.")
+    @field:ConfigEditorDropdown
+    var health = CustomBarDisplayMode.CUSTOM
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Mana", desc = "Show the Mana bar.")
-    @field:ConfigEditorBoolean
-    var mana = true
+    @field:ConfigOption(name = "Mana", desc = "Choose the Mana display.")
+    @field:ConfigEditorDropdown
+    var mana = CustomBarDisplayMode.CUSTOM
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Vitality", desc = "Show the Vitality bar.")
-    @field:ConfigEditorBoolean
-    var vitality = true
+    @field:ConfigOption(name = "Vitality", desc = "Choose the Vitality display.")
+    @field:ConfigEditorDropdown
+    var vitality = CustomBarDisplayMode.CUSTOM
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Experience", desc = "Show the Experience bar.")
+    @field:ConfigOption(name = "Experience", desc = "Choose the Experience display.")
+    @field:ConfigEditorDropdown
+    var experience = CustomBarDisplayMode.CUSTOM
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Defense", desc = "Choose the Defense display.")
+    @field:ConfigEditorDropdown
+    var defense = CustomBarDisplayMode.CUSTOM
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Speed", desc = "Show the Speed readout.")
     @field:ConfigEditorBoolean
-    var experience = true
+    var speed = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Air", desc = "Choose the Air display.")
+    @field:ConfigEditorDropdown
+    var air = CustomBarDisplayMode.CUSTOM
 }
 
 class CustomBarsNumberVisibilityConfig {
@@ -173,24 +191,15 @@ class CustomBarsNumberVisibilityConfig {
     @field:ConfigOption(name = "Experience", desc = "Show the Experience number.")
     @field:ConfigEditorBoolean
     var experience = true
+}
 
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Defense", desc = "Show the Defense number.")
-    @field:ConfigEditorBoolean
-    var defense = true
+enum class CustomBarDisplayMode(private val displayName: String) {
+    VANILLA("Vanilla"),
+    CUSTOM("Custom"),
+    HIDDEN("Hidden"),
+    ;
 
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Speed", desc = "Show the Speed number.")
-    @field:ConfigEditorBoolean
-    var speed = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Air", desc = "Show the Air number.")
-    @field:ConfigEditorBoolean
-    var air = true
+    override fun toString(): String = displayName
 }
 
 class CustomBarsDetailsConfig {

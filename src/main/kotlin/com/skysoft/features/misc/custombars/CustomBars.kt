@@ -1,7 +1,9 @@
 package com.skysoft.features.misc.custombars
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.CustomBarDisplayMode
 import com.skysoft.config.CustomBarIconPosition
+import com.skysoft.config.CustomBarsSettingsConfig
 import com.skysoft.config.CustomElementDetailsConfig
 import com.skysoft.config.CustomReadoutDetailsConfig
 import com.skysoft.config.CustomResourceBarDetailsConfig
@@ -54,7 +56,6 @@ object CustomBars {
     private var mana: BarValue? = null
     private var vitality: BarValue? = null
     private var defense: Int? = null
-    private val hiddenActionBarStatuses = CustomBarStatus.entries.toSet()
     private val textElements by lazy {
         CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextEditorElement)
     }
@@ -66,7 +67,7 @@ object CustomBars {
         }
         ChatEvents.onActionBarModify("Custom Bars action bar", ::isActive) { message ->
             message.component.withoutRanges(
-                CustomBarsActionBarParser.parse(message.plainText).ranges(hiddenActionBarStatuses),
+                CustomBarsActionBarParser.parse(message.plainText).ranges(CustomBarStatus.hiddenBy(config.settings)),
             )
         }
         SkysoftClientEvents.onDisconnect("Custom Bars reset", ::reset)
@@ -122,22 +123,31 @@ object CustomBars {
     }
 
     private fun registerVanillaReplacements() {
-        replaceVanilla(VanillaHudElements.HEALTH_BAR)
-        replaceVanilla(VanillaHudElements.ARMOR_BAR)
-        replaceVanilla(VanillaHudElements.FOOD_BAR)
-        replaceVanilla(VanillaHudElements.MOUNT_HEALTH)
-        replaceVanilla(VanillaHudElements.EXPERIENCE_LEVEL)
-        replaceVanilla(VanillaHudElements.INFO_BAR)
-        replaceVanilla(VanillaHudElements.AIR_BAR)
+        replaceVanilla(VanillaHudElements.HEALTH_BAR) {
+            shouldHideVanilla(config.settings.displays.health)
+        }
+        replaceVanilla(VanillaHudElements.EXPERIENCE_LEVEL, ::shouldHideVanillaExperienceLevel)
+        replaceVanilla(VanillaHudElements.AIR_BAR) {
+            shouldHideVanilla(config.settings.displays.air)
+        }
     }
 
-    private fun replaceVanilla(id: Identifier) {
+    private fun replaceVanilla(id: Identifier, shouldHide: () -> Boolean) {
         HudElementRegistry.replaceElement(id) { vanilla ->
             HudElement { context, tick ->
-                if (!isActive()) vanilla.extractRenderState(context, tick)
+                if (!shouldHide()) vanilla.extractRenderState(context, tick)
             }
         }
     }
+
+    internal fun shouldHideVanillaExperienceBar(): Boolean =
+        shouldHideVanilla(config.settings.displays.experience)
+
+    private fun shouldHideVanillaExperienceLevel(): Boolean =
+        shouldHideVanillaExperienceBar() || (isActive() && config.settings.numbers.experience)
+
+    private fun shouldHideVanilla(mode: CustomBarDisplayMode): Boolean =
+        isActive() && mode != CustomBarDisplayMode.VANILLA
 
     private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
@@ -202,13 +212,13 @@ object CustomBars {
             }
 
         fun isVisible(): Boolean = when (this) {
-            HEALTH -> config.settings.bars.health
-            MANA -> config.settings.bars.mana
-            VITALITY -> config.settings.bars.vitality
-            EXPERIENCE -> config.settings.bars.experience
-            DEFENSE -> config.settings.numbers.defense
-            SPEED -> config.settings.numbers.speed
-            AIR -> config.settings.numbers.air
+            HEALTH -> config.settings.displays.health == CustomBarDisplayMode.CUSTOM
+            MANA -> config.settings.displays.mana == CustomBarDisplayMode.CUSTOM
+            VITALITY -> config.settings.displays.vitality == CustomBarDisplayMode.CUSTOM
+            EXPERIENCE -> config.settings.displays.experience == CustomBarDisplayMode.CUSTOM
+            DEFENSE -> config.settings.displays.defense == CustomBarDisplayMode.CUSTOM
+            SPEED -> config.settings.displays.speed
+            AIR -> config.settings.displays.air == CustomBarDisplayMode.CUSTOM
         }
 
         fun isNumberVisible(): Boolean = when (this) {
@@ -744,6 +754,18 @@ internal enum class CustomBarStatus {
     MANA,
     VITALITY,
     DEFENSE,
+    ;
+
+    companion object {
+        fun hiddenBy(settings: CustomBarsSettingsConfig): Set<CustomBarStatus> = buildSet {
+            val displays = settings.displays
+            val numbers = settings.numbers
+            if (displays.health != CustomBarDisplayMode.VANILLA || numbers.health) add(HEALTH)
+            if (displays.mana != CustomBarDisplayMode.VANILLA || numbers.mana) add(MANA)
+            if (displays.vitality != CustomBarDisplayMode.VANILLA || numbers.vitality) add(VITALITY)
+            if (displays.defense != CustomBarDisplayMode.VANILLA) add(DEFENSE)
+        }
+    }
 }
 
 internal data class BarValue(val current: Int, val maximum: Int, val overflow: Int = 0) {
