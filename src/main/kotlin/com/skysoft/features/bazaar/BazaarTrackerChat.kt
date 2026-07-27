@@ -160,9 +160,9 @@ internal fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
     val productId = buyOrder?.productId
     val cleanItemName = buyOrder?.itemName ?: itemName.trim()
     val costPerUnit = buyOrder?.pricePerUnit ?: 0.0
-    if (buyOrder != null) addTrackedBuyLot(storage, buyOrder, amount, costPerUnit)
-
     if (buyOrder != null) {
+        ensureTrackedBuyOrder(storage, buyOrder, config.details.flippingInfo)
+        addTrackedBuyLot(storage, buyOrder, amount, costPerUnit)
         removeOrReduceOrderAfterClaim(buyOrder, amount)
     }
 
@@ -197,6 +197,8 @@ internal fun claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPr
         clearPendingOrderAction()
         return
     }
+    order.productId = order.productId ?: resolveProductId(itemName)
+    ensureTrackedBuyOrder(storage, order, config.details.flippingInfo)
     val cost = if (unitPrice > 0.0) unitPrice else coins / amount.coerceAtLeast(1)
     addTrackedBuyLot(storage, order, amount, cost)
     clearPendingOrderAction()
@@ -211,8 +213,9 @@ internal fun claimSellOrder(coins: Double, amount: Long, itemName: String, unitP
         clearPendingOrderAction()
         return
     }
-    prepareCraftedCostBasis(order.productId, itemName, amount)
-    val sale = consumeTrackedLotsForSale(storage, order.productId, itemName, amount, coins)
+    val productId = order.productId ?: resolveProductId(itemName)
+    prepareCraftedCostBasis(productId, itemName, amount)
+    val sale = consumeTrackedLotsForSale(storage, productId, itemName, amount, coins)
     val knownProfit = sale.profit
     storage.totalKnownProfit += knownProfit
     sessionKnownProfit += knownProfit

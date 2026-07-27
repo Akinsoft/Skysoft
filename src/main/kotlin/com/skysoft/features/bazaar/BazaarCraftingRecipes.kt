@@ -13,14 +13,16 @@ internal object BazaarCraftingRecipes {
     fun recipesFor(outputId: String): List<BazaarCraftingRecipe>? {
         val status = SkyBlockDataRepository.status.state
         if (status != SkyBlockDataLoadState.READY) return null
-        return SkyBlockDataRepository.recipesFor(SkyBlockDataRepository.itemKey(outputId))
+        return SkyBlockDataRepository.recipesFor(
+            SkyBlockDataRepository.itemKey(canonicalBazaarProductId(outputId)),
+        )
             .filterIsInstance<SkyBlockRecipe.Crafting>()
             .map { recipe ->
                 BazaarCraftingRecipe(
                     outputCount = recipe.result.count,
-                    ingredients = recipe.ingredients.groupingBy { it.id }.fold(0L) { total, ingredient ->
-                        total + ingredient.count
-                    },
+                    ingredients = recipe.ingredients
+                        .groupingBy { canonicalBazaarProductId(it.id) }
+                        .fold(0L) { total, ingredient -> total + ingredient.count },
                 )
             }
     }

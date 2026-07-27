@@ -11,6 +11,14 @@ internal fun activeFlipBatch(data: ProfileStorage.BazaarTrackerData): Long {
     return batchId
 }
 
+internal fun ensureTrackedBuyOrder(
+    data: ProfileStorage.BazaarTrackerData,
+    order: ProfileStorage.BazaarOrderData,
+    trackingEnabled: Boolean,
+) {
+    if (trackingEnabled && order.flipBatchId == null) order.flipBatchId = activeFlipBatch(data)
+}
+
 internal fun trackedInvestedValue(data: ProfileStorage.BazaarTrackerData): Double =
     data.activeOrders
         .asSequence()
@@ -126,7 +134,8 @@ private fun craftPlans(
         .filter { it.flipBatchId != null && it.productId != null }
         .groupBy { it.flipBatchId!! }
         .mapValues { (_, batchLots) ->
-            batchLots.groupBy { it.productId!! }.mapValues { (_, lots) -> lots.sumOf { it.amount } }
+            batchLots.groupBy { canonicalBazaarProductId(it.productId!!) }
+                .mapValues { (_, lots) -> lots.sumOf { it.amount } }
         }
     return availableByBatch.mapNotNull { (batchId, available) ->
         if (required.any { (id, amount) -> available.getOrDefault(id, 0L) < amount }) return@mapNotNull null
@@ -146,7 +155,7 @@ private fun applyCraftPlan(
         val iterator = data.itemLots.iterator()
         while (iterator.hasNext() && remaining > 0L) {
             val lot = iterator.next()
-            if (lot.flipBatchId != plan.batchId || lot.productId != ingredientId) continue
+            if (lot.flipBatchId != plan.batchId || !productMatches(lot.productId, ingredientId)) continue
             val used = minOf(remaining, lot.amount)
             totalCost += used * lot.unitCost
             lot.amount -= used
