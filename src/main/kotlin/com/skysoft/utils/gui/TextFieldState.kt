@@ -106,11 +106,12 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
 
     fun keyPressed(event: KeyEvent): InputHandlingResult {
         val control = event.hasControlDownWithQuirk()
-        if (event.isCopy()) {
+        if (event.isCopy() || event.isCut()) {
             val selection = selection()
             Minecraft.getInstance().keyboardHandler.setClipboard(
                 selection?.let { text.substring(it.start, it.endExclusive) }.orEmpty(),
             )
+            if (event.isCut()) removeSelection()
             return InputHandlingResult.CONSUMED
         }
         return when (event.key()) {
