@@ -2,6 +2,7 @@ package com.skysoft.features.spotify
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
+import com.skysoft.config.SpotifyLyricsMode
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -13,6 +14,7 @@ import com.skysoft.utils.renderables.GuiRenderable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.texture.DynamicTexture
+import kotlin.math.roundToInt
 
 internal class SpotifyHudRenderable(
     private val playback: SpotifyPlayback,
@@ -23,12 +25,15 @@ internal class SpotifyHudRenderable(
     private val activeLyricIndex: Int,
     private val previousLyricIndex: Int?,
     private val showArtwork: Boolean,
-    private val showLyrics: Boolean,
+    private val lyricsMode: SpotifyLyricsMode,
+    private val lyricLineCount: Int,
     private val roundedCorners: Boolean,
     private val nowMillis: Long,
 ) : GuiRenderable {
+    private val lyricsHeight = LYRICS_PADDING * 2 + lyricLineCount * LYRICS_LINE_HEIGHT + PANEL_BORDER
+
     override val width: Int = DISPLAY_WIDTH
-    override val height: Int = PLAYER_HEIGHT + if (hasLyrics()) LYRICS_GAP + LYRICS_HEIGHT else 0
+    override val height: Int = PLAYER_HEIGHT + if (hasLyrics()) LYRICS_GAP + lyricsHeight else 0
 
     override fun render(context: GuiGraphicsExtractor) {
         drawPanel(context, 0, PLAYER_HEIGHT)
@@ -106,24 +111,103 @@ internal class SpotifyHudRenderable(
     }
 
     private fun drawLyrics(context: GuiGraphicsExtractor, y: Int) {
-        drawPanel(context, y, LYRICS_HEIGHT)
+        drawPanel(context, y, lyricsHeight)
         val currentIndex = activeLyricIndex.takeIf { it in lyrics.indices } ?: PRELUDE_LYRIC_INDEX
         val previousIndex = previousLyricIndex?.takeIf {
             (it == PRELUDE_LYRIC_INDEX || it in lyrics.indices) && it != currentIndex
         }
         val transition = lyricTransition.coerceIn(0.0, 1.0)
+        when (lyricsMode) {
+            SpotifyLyricsMode.OFF -> Unit
+            SpotifyLyricsMode.FADE -> drawFadingLyrics(context, y, currentIndex, previousIndex, transition)
+            SpotifyLyricsMode.SCROLL -> drawScrollingLyrics(context, y, currentIndex, previousIndex, transition)
+        }
+    }
+
+    private fun drawFadingLyrics(
+        context: GuiGraphicsExtractor,
+        panelY: Int,
+        currentIndex: Int,
+        previousIndex: Int?,
+        transition: Double,
+    ) {
         if (previousIndex == null) {
             val blockAlpha = if (previousLyricIndex == null) EasingUtilities.smoothStep(transition) else 1.0
-            drawLyricLayout(context, y, currentIndex, blockAlpha)
+            drawLyricLayout(context, panelY, currentIndex, blockAlpha)
         } else if (transition < TRANSITION_MIDPOINT) {
             val fadeOut = EasingUtilities.smoothStep(transition / TRANSITION_MIDPOINT)
-            drawLyricLayout(context, y, previousIndex, 1.0 - fadeOut)
+            drawLyricLayout(context, panelY, previousIndex, 1.0 - fadeOut)
         } else {
             val fadeIn = EasingUtilities.smoothStep(
                 (transition - TRANSITION_MIDPOINT) / TRANSITION_MIDPOINT,
             )
-            drawLyricLayout(context, y, currentIndex, fadeIn)
+            drawLyricLayout(context, panelY, currentIndex, fadeIn)
         }
+    }
+
+    private fun drawScrollingLyrics(
+        context: GuiGraphicsExtractor,
+        panelY: Int,
+        currentIndex: Int,
+        previousIndex: Int?,
+        transition: Double,
+    ) {
+        if (previousIndex == null) {
+            drawLyricLayout(context, panelY, currentIndex, 1.0)
+            return
+        }
+        val previousRows = lyricLayout(previousIndex).associateBy { it.lyricIndex to it.segmentIndex }
+        val currentRows = lyricLayout(currentIndex).associateBy { it.lyricIndex to it.segmentIndex }
+        val movesUp = currentIndex > previousIndex
+        val progress = EasingUtilities.smoothStep(transition)
+        context.enableScissor(
+            PANEL_BORDER,
+            panelY + PANEL_BORDER,
+            DISPLAY_WIDTH - PANEL_BORDER,
+            panelY + lyricsHeight - PANEL_BORDER,
+        )
+        try {
+            (previousRows.keys + currentRows.keys).forEach { key ->
+                val previous = previousRows[key]
+                val current = currentRows[key]
+                val start = previous?.index?.toDouble() ?: if (movesUp) lyricLineCount.toDouble() else -1.0
+                val end = current?.index?.toDouble() ?: if (movesUp) -1.0 else lyricLineCount.toDouble()
+                val row = when {
+                    previous == null -> current
+                    current == null -> previous
+                    transition < TRANSITION_MIDPOINT -> previous
+                    else -> current
+                } ?: return@forEach
+                drawLyricRow(
+                    context,
+                    row,
+                    panelY,
+                    blockAlpha = 1.0,
+                    rowPosition = start + (end - start) * progress,
+                )
+            }
+        } finally {
+            context.disableScissor()
+        }
+    }
+
+    private fun lyricLayout(activeIndex: Int): List<DisplayedLyricRow> {
+        val activeLines = if (activeIndex in lyrics.indices) {
+            LegacyTextRenderer.wrap(
+                Minecraft.getInstance().font,
+                lyrics[activeIndex].text,
+                DISPLAY_WIDTH - LYRICS_PADDING * 2,
+                continuationPrefix = "",
+            ).take(lyricLineCount)
+        } else {
+            emptyList()
+        }
+        return lyricRows(
+            lyrics = lyrics.map(SyncedLyricLine::text),
+            activeIndex = activeIndex,
+            activeLines = activeLines,
+            maximumRows = lyricLineCount,
+        )
     }
 
     private fun drawLyricLayout(
@@ -132,26 +216,7 @@ internal class SpotifyHudRenderable(
         activeIndex: Int,
         blockAlpha: Double,
     ) {
-        val rows = if (activeIndex == PRELUDE_LYRIC_INDEX) {
-            lyrics.take(LYRICS_ROW_COUNT).mapIndexed { index, line ->
-                DisplayedLyricRow(index, line.text, active = false)
-            }
-        } else {
-            val font = Minecraft.getInstance().font
-            val activeLines = LegacyTextRenderer.wrap(
-                font,
-                lyrics[activeIndex].text,
-                DISPLAY_WIDTH - LYRICS_PADDING * 2,
-                continuationPrefix = "",
-            ).take(LYRICS_ROW_COUNT)
-            lyricRows(
-                previous = lyrics.getOrNull(activeIndex - 1)?.text,
-                active = activeLines,
-                next = lyrics.getOrNull(activeIndex + 1)?.text,
-                maximumRows = LYRICS_ROW_COUNT,
-            )
-        }
-        rows.forEach { row -> drawLyricRow(context, row, panelY, blockAlpha) }
+        lyricLayout(activeIndex).forEach { row -> drawLyricRow(context, row, panelY, blockAlpha) }
     }
 
     private fun drawLyricRow(
@@ -159,6 +224,7 @@ internal class SpotifyHudRenderable(
         row: DisplayedLyricRow,
         panelY: Int,
         blockAlpha: Double,
+        rowPosition: Double = row.index.toDouble(),
     ) {
         val color = if (row.active) PixelControlColors.ACCENT else MUTED_COLOR
         val emphasisAlpha = if (row.active) 1.0 else ADJACENT_LYRIC_ALPHA
@@ -167,7 +233,7 @@ internal class SpotifyHudRenderable(
             font,
             font.elide(row.text, DISPLAY_WIDTH - LYRICS_PADDING * 2),
             LYRICS_PADDING,
-            panelY + LYRICS_PADDING + row.index * LYRICS_LINE_HEIGHT,
+            panelY + LYRICS_PADDING + (rowPosition * LYRICS_LINE_HEIGHT).roundToInt(),
             color.withScaledAlpha(alpha * blockAlpha * emphasisAlpha),
             row.active,
         )
@@ -192,7 +258,7 @@ internal class SpotifyHudRenderable(
         )
     }
 
-    private fun hasLyrics(): Boolean = showLyrics && lyrics.isNotEmpty()
+    private fun hasLyrics(): Boolean = lyricsMode != SpotifyLyricsMode.OFF && lyrics.isNotEmpty()
 
     private fun formatTime(milliseconds: Long): String {
         val totalSeconds = milliseconds / MILLIS_PER_SECOND
@@ -225,10 +291,8 @@ internal class SpotifyHudRenderable(
         const val PLAY_TRIANGLE_WIDTH = 4
         const val PLAY_TRIANGLE_CENTER = 1
         const val LYRICS_GAP = 3
-        const val LYRICS_HEIGHT = 36
         const val LYRICS_PADDING = 4
         const val LYRICS_LINE_HEIGHT = 9
-        const val LYRICS_ROW_COUNT = 3
         const val TRANSITION_MIDPOINT = 0.5
         const val PRELUDE_LYRIC_INDEX = -1
         const val MILLIS_PER_SECOND = 1_000L
@@ -246,26 +310,53 @@ internal class SpotifyHudRenderable(
 }
 
 internal fun lyricRows(
-    previous: String?,
-    active: List<String>,
-    next: String?,
+    lyrics: List<String>,
+    activeIndex: Int,
+    activeLines: List<String>,
     maximumRows: Int,
 ): List<DisplayedLyricRow> {
-    if (active.size == 1) {
-        return listOfNotNull(
-            previous?.let { DisplayedLyricRow(0, it, active = false) },
-            DisplayedLyricRow(1, active.single(), active = true),
-            next?.let { DisplayedLyricRow(2, it, active = false) },
-        )
-    }
-    return buildList {
-        active.take(maximumRows).forEachIndexed { index, line ->
-            add(DisplayedLyricRow(index, line, active = true))
+    require(maximumRows > 0)
+    if (activeIndex !in lyrics.indices) {
+        val visibleLyrics = lyrics.take(maximumRows)
+        val offset = (maximumRows - visibleLyrics.size) / 2
+        return visibleLyrics.mapIndexed { index, text ->
+            DisplayedLyricRow(offset + index, text, active = false, lyricIndex = index)
         }
-        if (active.size < maximumRows && next != null) {
-            add(DisplayedLyricRow(active.size, next, active = false))
+    }
+    require(activeLines.isNotEmpty())
+    val visibleActiveLines = activeLines.take(maximumRows)
+    val surroundingRows = maximumRows - visibleActiveLines.size
+    var previousCount = minOf(activeIndex, surroundingRows / 2)
+    val nextCount = minOf(lyrics.lastIndex - activeIndex, surroundingRows - previousCount)
+    previousCount = minOf(activeIndex, surroundingRows - nextCount)
+    val visibleRowCount = previousCount + visibleActiveLines.size + nextCount
+    var rowIndex = (maximumRows - visibleRowCount) / 2
+    return buildList {
+        for (lyricIndex in activeIndex - previousCount until activeIndex) {
+            add(DisplayedLyricRow(rowIndex++, lyrics[lyricIndex], active = false, lyricIndex = lyricIndex))
+        }
+        visibleActiveLines.forEachIndexed { segmentIndex, text ->
+            add(
+                DisplayedLyricRow(
+                    rowIndex++,
+                    text,
+                    active = true,
+                    lyricIndex = activeIndex,
+                    segmentIndex = segmentIndex,
+                ),
+            )
+        }
+        repeat(nextCount) { offset ->
+            val lyricIndex = activeIndex + offset + 1
+            add(DisplayedLyricRow(rowIndex++, lyrics[lyricIndex], active = false, lyricIndex = lyricIndex))
         }
     }
 }
 
-internal data class DisplayedLyricRow(val index: Int, val text: String, val active: Boolean)
+internal data class DisplayedLyricRow(
+    val index: Int,
+    val text: String,
+    val active: Boolean,
+    val lyricIndex: Int,
+    val segmentIndex: Int = 0,
+)

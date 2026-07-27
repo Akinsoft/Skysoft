@@ -3,6 +3,7 @@ package com.skysoft.features.spotify
 import com.mojang.blaze3d.platform.NativeImage
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.SpotifyLyricsMode
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -265,7 +266,7 @@ object SpotifyDisplay {
 
     private fun ensureLyrics(now: Long) {
         val current = playback ?: return
-        if (!config().details.syncedLyrics || !current.supportsLyrics || now < lyricsRetryAtMillis) return
+        if (config().details.lyricsMode == SpotifyLyricsMode.OFF || !current.supportsLyrics || now < lyricsRetryAtMillis) return
         if (current.identity in lyricsCache) {
             lyrics = lyricsCache.getValue(current.identity)
             return
@@ -391,11 +392,12 @@ object SpotifyDisplay {
         artwork = artwork?.image?.texture,
         lyrics = lyrics,
         alpha = alpha,
-        lyricTransition = (now - lyricChangedAtMillis).toDouble() / LYRIC_FADE_DURATION_MILLIS,
+        lyricTransition = (now - lyricChangedAtMillis).toDouble() / LYRIC_TRANSITION_DURATION_MILLIS,
         activeLyricIndex = activeLyricIndex,
         previousLyricIndex = previousLyricIndex,
         showArtwork = config().details.albumArtwork,
-        showLyrics = config().details.syncedLyrics,
+        lyricsMode = config().details.lyricsMode,
+        lyricLineCount = config().details.lyricLineCount,
         roundedCorners = config().details.roundedCorners,
         nowMillis = now,
     )
@@ -429,7 +431,8 @@ object SpotifyDisplay {
             activeLyricIndex = 1,
             previousLyricIndex = 1,
             showArtwork = config().details.albumArtwork,
-            showLyrics = config().details.syncedLyrics,
+            lyricsMode = config().details.lyricsMode,
+            lyricLineCount = config().details.lyricLineCount,
             roundedCorners = config().details.roundedCorners,
             nowMillis = now,
         )
@@ -454,7 +457,7 @@ object SpotifyDisplay {
     private fun config() = SkysoftConfigGui.config().gui.spotifyDisplay
 
     private const val FADE_DURATION_MILLIS = 400L
-    private const val LYRIC_FADE_DURATION_MILLIS = 260L
+    private const val LYRIC_TRANSITION_DURATION_MILLIS = 260L
     private const val LYRICS_RETRY_DELAY_MILLIS = 30_000L
     private const val MILLIS_PER_SECOND = 1_000L
     private const val MAXIMUM_ARTWORK_BYTES = 4 * 1024 * 1024

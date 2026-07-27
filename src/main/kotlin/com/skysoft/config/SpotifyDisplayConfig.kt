@@ -6,11 +6,14 @@ import com.skysoft.features.spotify.SpotifyAuthentication
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
+import io.github.notenoughupdates.moulconfig.observer.GetSetter
+import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 
 class SpotifyDisplayConfig {
@@ -114,6 +117,12 @@ class SpotifyDisplaySettingsConfig {
 }
 
 class SpotifyDisplayDetailsConfig {
+    val lyricOptionsVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
+        override fun get(): Boolean = lyricsMode != SpotifyLyricsMode.OFF
+
+        override fun set(value: Boolean) = Unit
+    })
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Album Artwork", desc = "Show the current album artwork.")
@@ -122,13 +131,29 @@ class SpotifyDisplayDetailsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Synced Lyrics", desc = "Show synced lyrics when available.")
-    @field:ConfigEditorBoolean
-    var syncedLyrics = true
+    @field:ConfigOption(name = "Synced Lyrics", desc = "Choose how synced lyrics transition between lines.")
+    @field:ConfigEditorDropdown
+    var lyricsMode = SpotifyLyricsMode.FADE
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Lyric Lines", desc = "Number of lyric lines shown at once.")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 9f, minStep = 1f)
+    @field:ConfigVisibleIf("lyricOptionsVisible")
+    var lyricLineCount = 3
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Rounded Corners", desc = "Round the display corners.")
     @field:ConfigEditorBoolean
     var roundedCorners = true
+}
+
+enum class SpotifyLyricsMode(private val displayName: String) {
+    OFF("Off"),
+    FADE("Fade"),
+    SCROLL("Scroll"),
+    ;
+
+    override fun toString(): String = displayName
 }

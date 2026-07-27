@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 11
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 12
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -68,6 +68,7 @@ internal object SkysoftConfigMigrations {
                 }
             }
         }
+        if (migrationVersion < SPOTIFY_LYRICS_MODE_VERSION) migrateSpotifyLyricsMode(json)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -406,10 +407,25 @@ internal object SkysoftConfigMigrations {
     private const val SELECTIVE_CUSTOM_BAR_ICONS_VERSION = 9
     private const val CUSTOM_BAR_DISPLAY_MODES_VERSION = 10
     private const val MAX_ENCHANT_CHROMA_CATEGORY_VERSION = 11
+    private const val SPOTIFY_LYRICS_MODE_VERSION = 12
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
 private val CUSTOM_BAR_RESOURCE_FIELDS = setOf("health", "mana", "vitality", "experience")
+
+private fun migrateSpotifyLyricsMode(json: JsonObject) {
+    val details = json.getObjectOrNull("gui")
+        ?.getObjectOrNull("spotifyDisplay")
+        ?.getObjectOrNull("details")
+        ?: return
+    val enabled = details.remove("syncedLyrics")
+        ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
+        ?.asBoolean
+        ?: return
+    if (!details.has("lyricsMode")) {
+        details.addProperty("lyricsMode", if (enabled) SpotifyLyricsMode.FADE.name else SpotifyLyricsMode.OFF.name)
+    }
+}
 
 private fun migrateCustomBarIcons(json: JsonObject) {
     val details = json.getObjectOrNull("gui")
