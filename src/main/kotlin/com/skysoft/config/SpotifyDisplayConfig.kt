@@ -7,6 +7,7 @@ import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
@@ -21,7 +22,7 @@ class SpotifyDisplayConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Connect Spotify and configure playback controls.")
+    @field:ConfigOption(name = "Settings", desc = "Connect Spotify and configure display behavior and playback controls.")
     @field:Accordion
     @field:ConfigVisibleIf("enabled")
     val settings = SpotifyDisplaySettingsConfig()
@@ -70,6 +71,19 @@ class SpotifyDisplaySettingsConfig {
     @field:ConfigOption(name = "Disconnect", desc = "Disconnect the Spotify account from Skysoft.")
     @field:ConfigEditorButton(buttonText = "Disconnect")
     val disconnect = Runnable { SpotifyAuthentication.disconnect() }
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Auto Hide", desc = "Hide the player and lyrics shortly after a song begins.")
+    @field:ConfigEditorBoolean
+    var autoHide = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Delay", desc = "Seconds to show the player and lyrics after a song begins.")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 30f, minStep = 1f)
+    @field:ConfigVisibleIf("autoHide")
+    var autoHideDelaySeconds = 5
 
     @JvmField
     @field:Expose
