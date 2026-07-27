@@ -11,10 +11,12 @@ import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.nonPlayerInventoryKey
 import com.skysoft.utils.gui.nonPlayerSlots
 import java.util.Locale
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
 
@@ -32,6 +34,19 @@ internal object InventoryEquipmentCache {
             "Inventory Equipment Cache profile reset",
             { consumers.hasActiveConsumers },
         ) { reset() }
+        registerCloseFlush()
+    }
+
+    private fun registerCloseFlush() {
+        ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
+            if (consumers.hasActiveConsumers && screen is AbstractContainerScreen<*>) {
+                ScreenEvents.remove(screen).register {
+                    SkysoftErrorBoundary.run("Inventory Equipment Cache close flush") {
+                        readInventoryEquipmentScreen(screen)
+                    }
+                }
+            }
+        }
     }
 
     fun registerConsumer(id: String, isActive: () -> Boolean) = consumers.register(id, isActive)
