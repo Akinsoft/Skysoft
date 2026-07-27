@@ -16,16 +16,17 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 
 object MaxEnchantChroma {
-    private val config get() = SkysoftConfigGui.config().inventory
+    private val config get() = SkysoftConfigGui.config().inventory.maxEnchantChroma
     private val enchantments by lazy(::loadGeneratedMaxEnchantments)
 
     fun register() {
         ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
             SkysoftErrorBoundary.run("Max Enchant Chroma tooltip") {
-                if (!config.maxEnchantChroma || !HypixelLocationState.inSkyBlock) return@run
+                if (!config.enabled || !HypixelLocationState.inSkyBlock) return@run
                 val labels = maxedEnchantmentLabels(
                     stack.extraAttributes()?.skyBlockEnchantments().orEmpty(),
                     enchantments,
+                    config.settings.includeUltimateEnchantments,
                 )
                 if (labels.isEmpty()) return@run
                 tooltip.indices.forEach { index ->
@@ -74,9 +75,12 @@ private data class GeneratedMaxEnchantment(
 internal fun maxedEnchantmentLabels(
     appliedEnchantments: Map<String, Int>,
     maximums: Map<String, MaxEnchantment>,
+    includeUltimateEnchantments: Boolean,
 ): Set<String> = buildSet {
     appliedEnchantments.forEach { (key, level) ->
-        val enchantment = maximums[key.lowercase(Locale.ROOT)] ?: return@forEach
+        val id = key.lowercase(Locale.ROOT)
+        if (!includeUltimateEnchantments && id.startsWith(ULTIMATE_ENCHANTMENT_PREFIX)) return@forEach
+        val enchantment = maximums[id] ?: return@forEach
         if (level < enchantment.level) return@forEach
         add("${enchantment.displayName} ${level.romanNumeral()}")
         add("${enchantment.displayName} $level")
@@ -131,3 +135,4 @@ private val ENCHANTMENT_LINE_PATTERN = Regex(
 private const val MAX_ENCHANTMENT_RESOURCE = "/assets/skysoft/data/max_enchantments.json"
 private const val MAX_ENCHANTMENT_SCHEMA_VERSION = 1
 private const val MINIMUM_ENCHANTMENT_COUNT = 150
+private const val ULTIMATE_ENCHANTMENT_PREFIX = "ultimate_"
