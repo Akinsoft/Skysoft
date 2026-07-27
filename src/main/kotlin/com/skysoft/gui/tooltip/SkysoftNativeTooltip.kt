@@ -21,13 +21,14 @@ object SkysoftNativeTooltip {
         mouseX: Int,
         mouseY: Int,
         scrollable: Boolean = true,
+        positioner: ClientTooltipPositioner? = null,
     ) {
         if (lines.isEmpty()) return
         if (!scrollable) TooltipViewport.clear()
         context.setTooltipForNextFrame(
             Minecraft.getInstance().font,
             lines.map(LegacyTextRenderer::formattedSequence),
-            if (scrollable) DefaultTooltipPositioner.INSTANCE else NonScrollableTooltipPositioner,
+            positioner ?: if (scrollable) DefaultTooltipPositioner.INSTANCE else NonScrollableTooltipPositioner,
             mouseX,
             mouseY,
             true,

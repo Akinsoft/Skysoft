@@ -197,6 +197,20 @@ class PositionEditorConfig {
     @field:ConfigOption(name = "Keybind", desc = "Press this key to open the Position Editor.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
     var keybind: Int = GLFW.GLFW_KEY_UNKNOWN
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Position Editor appearance.")
+    @field:Accordion
+    val details = PositionEditorDetailsConfig()
+}
+
+class PositionEditorDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Tooltip Follows Mouse", desc = "Move the help tooltip with the cursor.")
+    @field:ConfigEditorBoolean
+    var doesTooltipFollowMouse = false
 }
 
 class SkysoftActionBarConfig {
