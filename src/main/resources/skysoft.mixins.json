@@ -26,6 +26,7 @@
     "EntityRenderDispatcherMixin",
     "EntityRendererMixin",
     "EffectsInInventoryMixin",
+    "ExperienceBarMixin",
     "FontPreparedTextBuilderMixin",
     "GameRendererMixin",
     "GuiMixin",

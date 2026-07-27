@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 9
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 10
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -56,6 +56,7 @@ internal object SkysoftConfigMigrations {
                 ?.addProperty(SKYBLOCK_MENU_DROP_FIX_FIELD, false)
         }
         if (migrationVersion < SELECTIVE_CUSTOM_BAR_ICONS_VERSION) migrateCustomBarIcons(json)
+        if (migrationVersion < CUSTOM_BAR_DISPLAY_MODES_VERSION) migrateCustomBarDisplayModes(json)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -143,13 +144,13 @@ internal object SkysoftConfigMigrations {
             ?.moveFieldsInto("settings", listOf("inventoryGuiScale", "tooltipGuiScale"))
         guiJson.getObjectOrNull("heldItem")?.migrateHeldItemTextureModes()
         guiJson.getObjectOrNull("customBars")?.getObjectOrNull("settings")?.let { settingsJson ->
-            val barsJson = settingsJson.getOrCreateObject("bars")
-            val numbersJson = settingsJson.getOrCreateObject("numbers")
             CUSTOM_BAR_FIELDS.forEach { fieldName ->
                 val legacyValue = settingsJson.remove(fieldName) ?: return@forEach
-                if (fieldName in CUSTOM_BAR_RESOURCE_FIELDS && !barsJson.has(fieldName)) {
-                    barsJson.add(fieldName, legacyValue.deepCopy())
+                if (fieldName in CUSTOM_BAR_RESOURCE_FIELDS) {
+                    val barsJson = settingsJson.getOrCreateObject("bars")
+                    if (!barsJson.has(fieldName)) barsJson.add(fieldName, legacyValue.deepCopy())
                 }
+                val numbersJson = settingsJson.getOrCreateObject("numbers")
                 if (!numbersJson.has(fieldName)) numbersJson.add(fieldName, legacyValue.deepCopy())
             }
         }
@@ -392,6 +393,7 @@ internal object SkysoftConfigMigrations {
     private const val BETTER_SHURIKENS_CATEGORY_VERSION = 7
     private const val VANILLA_UI_CATEGORY_VERSION = 8
     private const val SELECTIVE_CUSTOM_BAR_ICONS_VERSION = 9
+    private const val CUSTOM_BAR_DISPLAY_MODES_VERSION = 10
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
@@ -409,6 +411,38 @@ private fun migrateCustomBarIcons(json: JsonObject) {
         val elementDetails = details.getOrCreateObject(fieldName)
         if (!elementDetails.has("showIcon")) elementDetails.addProperty("showIcon", false)
     }
+}
+
+private fun migrateCustomBarDisplayModes(json: JsonObject) {
+    val settings = json.getObjectOrNull("gui")
+        ?.getObjectOrNull("customBars")
+        ?.getObjectOrNull("settings")
+        ?: return
+    val displays = settings.getOrCreateObject("displays")
+    val bars = settings.getObjectOrNull("bars")
+    CUSTOM_BAR_RESOURCE_FIELDS.forEach { fieldName ->
+        bars?.moveBooleanToDisplayMode(displays, fieldName)
+    }
+    settings.remove("bars")
+
+    val numbers = settings.getOrCreateObject("numbers")
+    listOf("defense", "air").forEach { fieldName ->
+        numbers.moveBooleanToDisplayMode(displays, fieldName)
+    }
+    numbers.remove("speed")?.let { speed ->
+        if (!displays.has("speed")) displays.add("speed", speed.deepCopy())
+    }
+}
+
+private fun JsonObject.moveBooleanToDisplayMode(target: JsonObject, fieldName: String) {
+    val value = get(fieldName)
+        ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
+        ?: return
+    if (!target.has(fieldName)) {
+        val mode = if (value.asBoolean) CustomBarDisplayMode.CUSTOM else CustomBarDisplayMode.VANILLA
+        target.addProperty(fieldName, mode.name)
+    }
+    remove(fieldName)
 }
 
 private fun JsonObject.getObjectOrNull(name: String): JsonObject? =
