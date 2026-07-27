@@ -27,7 +27,7 @@ internal fun readConfirmScreen(screen: AbstractContainerScreen<*>, expectedType:
 
 internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
     val key = buildInventoryKey(screen)
-    if (key == lastOrdersInventoryKey) return
+    if (key == lastOrdersInventoryKey && missingFromOrdersGuiScans.isEmpty()) return
     if (key != pendingOrdersInventoryKey) {
         pendingOrdersInventoryKey = key
         pendingOrdersInventoryStableTicks = 1
@@ -72,7 +72,7 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
     for (parsed in reconciliation.unmatchedRows) {
         if (parsed.guiSlot !in localOrderSlots) continue
         parsed.taxPercent?.let { updateTax(it) }
-        if (!parsed.canCreateOrderFromGui()) continue
+        if (!parsed.canCreateOrderFromGui() || recentlyResolved(parsed)) continue
         val added = parsed.toOrderData()
         addActiveOrder(added, requireFreshMarketProof = false)
         matchedOrderIds += added.id

@@ -12,18 +12,15 @@ internal fun applyCancel(cancel: PendingCancel) {
             return
         }
 
-    when (order.type) {
-        BazaarOrderType.BUY -> applyBuyCancel(order, cancel.amount ?: order.remainingAmount())
-        BazaarOrderType.SELL -> applySellCancel(order, cancel.amount ?: order.remainingAmount())
-    }
+    rememberResolvedOrder(order)
+    storage.activeOrders.remove(order)
     clearPendingOrderAction()
     markBazaarTrackerChanged()
 }
 
 internal fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
     cancel.orderId?.let { id ->
-        val order = storage.activeOrders.firstOrNull { it.id == id }
-        if (order != null && isPlausibleCancelOrder(order, cancel)) return order
+        storage.activeOrders.firstOrNull { it.id == id && it.type == cancel.type }?.let { return it }
     }
     return storage.activeOrders
         .asSequence()
@@ -55,34 +52,6 @@ internal fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: Pendi
     val amount = cancel.amount ?: return 0L
     val expectedUnfilled = (order.maximumAmount() - order.filledAmount).coerceAtLeast(0L)
     return amountDistance(expectedUnfilled, amount)
-}
-
-internal fun applyBuyCancel(order: ProfileStorage.BazaarOrderData, missingAmount: Long) {
-    val filledTotal = (order.maximumAmount() - missingAmount).coerceAtLeast(order.filledAmount).coerceAtLeast(0L)
-    if (filledTotal > order.claimedAmount) {
-        order.amountOrdered = filledTotal
-        order.filledAmount = filledTotal
-        order.totalCoins = order.pricePerUnit * filledTotal
-        order.updatedAtMillis = System.currentTimeMillis()
-    } else {
-        rememberResolvedOrder(order)
-        storage.activeOrders.remove(order)
-    }
-}
-
-internal fun applySellCancel(order: ProfileStorage.BazaarOrderData, unsoldAmount: Long) {
-    val soldTotal = (order.maximumAmount() - unsoldAmount).coerceAtLeast(order.filledAmount).coerceAtLeast(0L)
-    if (soldTotal > order.claimedAmount) {
-        order.amountOrdered = soldTotal
-        order.filledAmount = soldTotal
-        val taxMultiplier = (1.0 - storage.taxPercent / BAZAAR_PERCENT_SCALE)
-            .coerceAtLeast(MIN_BAZAAR_TAX_MULTIPLIER)
-        order.totalCoins = order.pricePerUnit * soldTotal * taxMultiplier
-        order.updatedAtMillis = System.currentTimeMillis()
-    } else {
-        rememberResolvedOrder(order)
-        storage.activeOrders.remove(order)
-    }
 }
 
 internal fun removeOrReduceOrderAfterClaim(order: ProfileStorage.BazaarOrderData, amount: Long) {
