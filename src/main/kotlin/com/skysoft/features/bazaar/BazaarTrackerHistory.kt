@@ -62,6 +62,30 @@ private fun clearTrackedOrderRuntimeState(orderId: String) {
     fillEstimateStates.remove(orderId)
 }
 
+internal fun recentlyResolved(parsed: PendingOrder): Boolean {
+    pruneRecentResolvedOrders()
+    return recentResolvedOrders.any { resolved ->
+        resolved.type == parsed.type &&
+            (productMatches(resolved.productId, parsed.productId) || namesMatch(resolved.itemName, parsed.itemName)) &&
+            haveOverlappingRanges(
+                resolved.amount.toDouble(),
+                0.0,
+                parsed.amount.toDouble(),
+                parsed.amountResolution,
+                EXACT_AMOUNT_EPSILON,
+            ) &&
+            (
+                parsed.totalCoins == null || haveOverlappingRanges(
+                    resolved.totalCoins,
+                    0.0,
+                    parsed.totalCoins,
+                    parsed.totalCoinsResolution,
+                    TOTAL_RECALCULATION_EPSILON,
+                )
+                )
+    }
+}
+
 internal fun pruneRecentResolvedOrders() {
     val cutoff = System.currentTimeMillis() - RECENT_RESOLVED_SUPPRESS_MILLIS
     while (recentResolvedOrders.firstOrNull()?.timestampMillis?.let { it < cutoff } == true) recentResolvedOrders.removeFirst()
