@@ -21,6 +21,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.features.inventory.InventoryHudLayout
+import com.skysoft.features.misc.AbsorptionHeartLayout
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -48,6 +49,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import java.util.Optional
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 object CustomBars {
@@ -90,26 +92,27 @@ object CustomBars {
                 override val layoutOffsetX: Int get() = part.layoutOffsetX()
                 override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
                 override val hasEditorBackground: Boolean = false
-                override val canScale: Boolean = part.dimensions == null
-                override val canResizeWidth: Boolean get() = part.dimensions != null
-                override val canResizeHeight: Boolean get() = part.dimensions != null
+                override val canScale: Boolean get() = !part.usesVanillaDisplay() && part.dimensions == null
+                override val canResizeWidth: Boolean get() = part.editorDimensions() != null
+                override val canResizeHeight: Boolean get() = part.editorDimensions() != null
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
-                override fun isVisible(): Boolean = config.enabled && part.isVisible()
+                override fun isVisible(): Boolean = config.enabled && part.isEditorVisible()
                 override fun renderDummy(context: GuiGraphicsExtractor) {
-                    renderable(part, previewAir = part == CustomBarPart.AIR).render(context)
+                    if (part.usesVanillaDisplay()) renderVanillaPreview(context, part)
+                    else renderable(part, previewAir = part == CustomBarPart.AIR).render(context)
                 }
                 override fun resizeEditor(width: Int, height: Int) = part.resize(width, height)
                 override fun minEditorWidth(): Int = MIN_RESOURCE_WIDTH
                 override fun minEditorHeight(): Int = MIN_RESOURCE_HEIGHT
                 override fun resetEditorState() {
                     super.resetEditorState()
-                    part.dimensions?.resetToDefault()
+                    part.editorDimensions()?.resetToDefault()
                 }
                 override fun captureEditorState(): HudEditorSnapshot {
                     val position = part.position()
                     val positionSnapshot = position.snapshot()
-                    val dimensions = part.dimensions
+                    val dimensions = part.editorDimensions()
                     val dimensionsSnapshot = dimensions?.snapshot()
                     return hudEditorSnapshot(positionSnapshot to dimensionsSnapshot) {
                         position.restore(positionSnapshot)
@@ -123,31 +126,167 @@ object CustomBars {
     }
 
     private fun registerVanillaReplacements() {
-        replaceVanilla(VanillaHudElements.HEALTH_BAR) {
-            shouldHideVanilla(config.settings.displays.health)
+        replaceVanilla(VanillaHudElements.HEALTH_BAR, CustomBarPart.HEALTH) {
+            config.settings.displays.health == CustomBarDisplayMode.VANILLA
         }
-        replaceVanilla(VanillaHudElements.EXPERIENCE_LEVEL, ::shouldHideVanillaExperienceLevel)
-        replaceVanilla(VanillaHudElements.AIR_BAR) {
-            shouldHideVanilla(config.settings.displays.air)
+        replaceVanilla(VanillaHudElements.EXPERIENCE_LEVEL, CustomBarPart.EXPERIENCE) {
+            config.settings.displays.experience == CustomBarDisplayMode.VANILLA &&
+                !config.settings.numbers.experience
+        }
+        replaceVanilla(VanillaHudElements.AIR_BAR, CustomBarPart.AIR) {
+            config.settings.displays.air == CustomBarDisplayMode.VANILLA
         }
     }
 
-    private fun replaceVanilla(id: Identifier, shouldHide: () -> Boolean) {
+    private fun replaceVanilla(id: Identifier, part: CustomBarPart, shouldRender: () -> Boolean) {
         HudElementRegistry.replaceElement(id) { vanilla ->
             HudElement { context, tick ->
-                if (!shouldHide()) vanilla.extractRenderState(context, tick)
+                renderVanillaDisplay(context, part, shouldRender) {
+                    vanilla.extractRenderState(context, tick)
+                }
             }
         }
     }
 
-    internal fun shouldHideVanillaExperienceBar(): Boolean =
-        shouldHideVanilla(config.settings.displays.experience)
+    internal fun renderVanillaExperienceBar(context: GuiGraphicsExtractor, render: () -> Unit) {
+        renderVanillaDisplay(context, CustomBarPart.EXPERIENCE, {
+            config.settings.displays.experience == CustomBarDisplayMode.VANILLA
+        }, render)
+    }
 
-    private fun shouldHideVanillaExperienceLevel(): Boolean =
-        shouldHideVanillaExperienceBar() || (isActive() && config.settings.numbers.experience)
+    private fun renderVanillaDisplay(
+        context: GuiGraphicsExtractor,
+        part: CustomBarPart,
+        shouldRender: () -> Boolean,
+        render: () -> Unit,
+    ) {
+        if (!isActive()) {
+            render()
+        } else if (shouldRender()) {
+            renderPositionedVanillaDisplay(context, part, render)
+        }
+    }
 
-    private fun shouldHideVanilla(mode: CustomBarDisplayMode): Boolean =
-        isActive() && mode != CustomBarDisplayMode.VANILLA
+    private fun renderPositionedVanillaDisplay(
+        context: GuiGraphicsExtractor,
+        part: CustomBarPart,
+        render: () -> Unit,
+    ) {
+        val width = part.vanillaWidth()
+        val height = part.vanillaHeight()
+        val position = part.position()
+        val scale = position.effectiveScale
+        val targetX = position.getAbsX0AllowingOverflow((width * scale).roundToInt())
+        val targetY = position.getAbsY0AllowingOverflow((height * scale).roundToInt())
+        val sourceX: Int
+        val sourceY: Int
+        when (part) {
+            CustomBarPart.HEALTH -> {
+                sourceX = context.guiWidth() / 2 - VANILLA_HUD_HALF_WIDTH
+                sourceY = context.guiHeight() - VANILLA_HEALTH_TOP_OFFSET - (height - ICON_SIZE)
+            }
+            CustomBarPart.EXPERIENCE -> {
+                sourceX = (context.guiWidth() - VANILLA_EXPERIENCE_WIDTH) / 2
+                sourceY = context.guiHeight() - VANILLA_EXPERIENCE_TOP_OFFSET
+            }
+            CustomBarPart.AIR -> {
+                sourceX = context.guiWidth() / 2 + VANILLA_AIR_LEFT_OFFSET
+                sourceY = context.guiHeight() - VANILLA_AIR_TOP_OFFSET
+            }
+            else -> error("${part.label} has no vanilla position")
+        }
+        context.withIsolatedPose {
+            pose().translate(targetX.toFloat(), targetY.toFloat())
+            pose().scale(scale, scale)
+            pose().translate(-sourceX.toFloat(), -sourceY.toFloat())
+            render()
+        }
+    }
+
+    private fun renderVanillaPreview(context: GuiGraphicsExtractor, part: CustomBarPart) {
+        when (part) {
+            CustomBarPart.HEALTH -> renderVanillaHealthPreview(context)
+            CustomBarPart.EXPERIENCE -> {
+                context.blitSprite(
+                    RenderPipelines.GUI_TEXTURED,
+                    VANILLA_EXPERIENCE_BACKGROUND_SPRITE,
+                    0,
+                    VANILLA_EXPERIENCE_BAR_Y,
+                    VANILLA_EXPERIENCE_WIDTH,
+                    VANILLA_EXPERIENCE_BAR_HEIGHT,
+                )
+                context.blitSprite(
+                    RenderPipelines.GUI_TEXTURED,
+                    VANILLA_EXPERIENCE_PROGRESS_SPRITE,
+                    VANILLA_EXPERIENCE_WIDTH,
+                    VANILLA_EXPERIENCE_BAR_HEIGHT,
+                    0,
+                    0,
+                    0,
+                    VANILLA_EXPERIENCE_BAR_Y,
+                    VANILLA_EXPERIENCE_PREVIEW_PROGRESS,
+                    VANILLA_EXPERIENCE_BAR_HEIGHT,
+                )
+                if (!config.settings.numbers.experience) drawVanillaExperienceLevelPreview(context)
+            }
+            CustomBarPart.AIR -> repeat(VANILLA_STATUS_ICON_COUNT) { index ->
+                context.blitSprite(
+                    RenderPipelines.GUI_TEXTURED,
+                    AIR_SPRITE,
+                    index * VANILLA_STATUS_ICON_SPACING,
+                    0,
+                    ICON_SIZE,
+                    ICON_SIZE,
+                )
+            }
+            else -> error("${part.label} has no vanilla preview")
+        }
+    }
+
+    private fun renderVanillaHealthPreview(context: GuiGraphicsExtractor) {
+        val layout = vanillaHealthLayout()
+        for (index in layout.totalContainers - 1 downTo 0) {
+            val x = index % VANILLA_STATUS_ICON_COUNT * VANILLA_STATUS_ICON_SPACING
+            val y = (layout.rowCount - 1 - index / VANILLA_STATUS_ICON_COUNT) * layout.rowHeight
+            context.blitSprite(RenderPipelines.GUI_TEXTURED, VANILLA_HEART_CONTAINER_SPRITE, x, y, ICON_SIZE, ICON_SIZE)
+            val halves = index * 2
+            val sprite = if (index >= layout.healthContainers) {
+                val absorptionHalves = halves - layout.healthContainers * 2
+                when {
+                    absorptionHalves + 1 == layout.absorption -> VANILLA_ABSORPTION_HALF_SPRITE
+                    absorptionHalves < layout.absorption -> VANILLA_ABSORPTION_FULL_SPRITE
+                    else -> null
+                }
+            } else {
+                when {
+                    halves + 1 == layout.currentHealth -> VANILLA_HEART_HALF_SPRITE
+                    halves < layout.currentHealth -> VANILLA_HEART_FULL_SPRITE
+                    else -> null
+                }
+            }
+            if (sprite != null) context.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, ICON_SIZE, ICON_SIZE)
+        }
+    }
+
+    private fun drawVanillaExperienceLevelPreview(context: GuiGraphicsExtractor) {
+        val font = Minecraft.getInstance().font
+        val x = (VANILLA_EXPERIENCE_WIDTH - font.width(VANILLA_EXPERIENCE_PREVIEW_LEVEL)) / 2
+        context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x + 1, 0, TEXT_OUTLINE_RGB, false)
+        context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x - 1, 0, TEXT_OUTLINE_RGB, false)
+        context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x, 1, TEXT_OUTLINE_RGB, false)
+        context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x, -1, TEXT_OUTLINE_RGB, false)
+        context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x, 0, VANILLA_EXPERIENCE_LEVEL_RGB, false)
+    }
+
+    private fun vanillaHealthLayout(): VanillaHealthLayout {
+        val player = Minecraft.getInstance().player
+        val absorption = ceil(player?.absorptionAmount?.toDouble() ?: 0.0).toInt()
+        val vanillaCurrentHealth = ceil(player?.health?.toDouble() ?: VANILLA_DEFAULT_HEALTH.toDouble()).toInt()
+        val vanillaMaximumHealth = maxOf(player?.maxHealth ?: VANILLA_DEFAULT_HEALTH, vanillaCurrentHealth.toFloat())
+        val currentHealth = AbsorptionHeartLayout.resolveVisibleHealth(vanillaCurrentHealth, player)
+        val maximumHealth = AbsorptionHeartLayout.resolveMaximumHealth(vanillaMaximumHealth, player)
+        return VanillaHealthLayout.create(currentHealth, maximumHealth, absorption)
+    }
 
     private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
@@ -192,10 +331,17 @@ object CustomBars {
                 DEFENSE, SPEED, AIR -> null
             }
 
-        val width: Int get() = dimensions?.width(defaultWidth, MIN_RESOURCE_WIDTH) ?: defaultWidth
-        val height: Int get() = dimensions?.height(RESOURCE_HEIGHT, MIN_RESOURCE_HEIGHT) ?: READOUT_ELEMENT_HEIGHT
+        val width: Int
+            get() = if (usesVanillaDisplay()) vanillaWidth() else dimensions?.width(defaultWidth, MIN_RESOURCE_WIDTH)
+                ?: defaultWidth
+        val height: Int
+            get() = if (usesVanillaDisplay()) vanillaHeight() else dimensions?.height(
+                RESOURCE_HEIGHT,
+                MIN_RESOURCE_HEIGHT,
+            ) ?: READOUT_ELEMENT_HEIGHT
         val isResource: Boolean get() = dimensions != null
-        val iconSlotWidth: Int get() = if (visualDetails.showIcon) ICON_SLOT_WIDTH else 0
+        val iconSlotWidth: Int
+            get() = if (!usesVanillaDisplay() && visualDetails.showIcon) ICON_SLOT_WIDTH else 0
         val trackX: Int get() = if (config.details.icons == CustomBarIconPosition.LEFT) iconSlotWidth else 0
         val trackWidth: Int get() = width - iconSlotWidth
         val iconX: Int
@@ -211,7 +357,7 @@ object CustomBars {
                 AIR -> config.details.air
             }
 
-        fun isVisible(): Boolean = when (this) {
+        fun isCustomVisible(): Boolean = when (this) {
             HEALTH -> config.settings.displays.health == CustomBarDisplayMode.CUSTOM
             MANA -> config.settings.displays.mana == CustomBarDisplayMode.CUSTOM
             VITALITY -> config.settings.displays.vitality == CustomBarDisplayMode.CUSTOM
@@ -219,6 +365,15 @@ object CustomBars {
             DEFENSE -> config.settings.displays.defense == CustomBarDisplayMode.CUSTOM
             SPEED -> config.settings.displays.speed
             AIR -> config.settings.displays.air == CustomBarDisplayMode.CUSTOM
+        }
+
+        fun isEditorVisible(): Boolean = isCustomVisible() || usesVanillaDisplay()
+
+        fun usesVanillaDisplay(): Boolean = when (this) {
+            HEALTH -> config.settings.displays.health == CustomBarDisplayMode.VANILLA
+            EXPERIENCE -> config.settings.displays.experience == CustomBarDisplayMode.VANILLA
+            AIR -> config.settings.displays.air == CustomBarDisplayMode.VANILLA
+            MANA, VITALITY, DEFENSE, SPEED -> false
         }
 
         fun isNumberVisible(): Boolean = when (this) {
@@ -229,14 +384,23 @@ object CustomBars {
             DEFENSE, SPEED, AIR -> error("$label does not have separate number text")
         }
 
-        fun position(): HudPosition = when (this) {
-            HEALTH -> config.healthPosition
-            MANA -> config.manaPosition
-            VITALITY -> config.vitalityPosition
-            EXPERIENCE -> config.experiencePosition
-            DEFENSE -> config.defensePosition
-            SPEED -> config.speedPosition
-            AIR -> config.airPosition
+        fun position(): HudPosition = if (usesVanillaDisplay()) {
+            when (this) {
+                HEALTH -> config.vanillaHealthPosition
+                EXPERIENCE -> config.vanillaExperiencePosition
+                AIR -> config.vanillaAirPosition
+                MANA, VITALITY, DEFENSE, SPEED -> error("$label has no vanilla position")
+            }
+        } else {
+            when (this) {
+                HEALTH -> config.healthPosition
+                MANA -> config.manaPosition
+                VITALITY -> config.vitalityPosition
+                EXPERIENCE -> config.experiencePosition
+                DEFENSE -> config.defensePosition
+                SPEED -> config.speedPosition
+                AIR -> config.airPosition
+            }
         }
 
         fun textPosition(): HudPosition = when (this) {
@@ -247,12 +411,27 @@ object CustomBars {
             DEFENSE, SPEED, AIR -> error("$label does not have movable bar text")
         }
 
+        fun editorDimensions(): HudDimensions? = dimensions.takeUnless { usesVanillaDisplay() }
+
+        fun vanillaWidth(): Int = when (this) {
+            HEALTH, AIR -> VANILLA_STATUS_WIDTH
+            EXPERIENCE -> VANILLA_EXPERIENCE_WIDTH
+            MANA, VITALITY, DEFENSE, SPEED -> error("$label has no vanilla width")
+        }
+
+        fun vanillaHeight(): Int = when (this) {
+            HEALTH -> vanillaHealthLayout().height
+            AIR -> ICON_SIZE
+            EXPERIENCE -> VANILLA_EXPERIENCE_HEIGHT
+            MANA, VITALITY, DEFENSE, SPEED -> error("$label has no vanilla height")
+        }
+
         fun resize(width: Int, height: Int) {
-            dimensions?.resize(width, height, defaultWidth, RESOURCE_HEIGHT)
+            editorDimensions()?.resize(width, height, defaultWidth, RESOURCE_HEIGHT)
         }
 
         fun layoutOffsetX(): Int {
-            if (!usesInventoryHudWidth()) return 0
+            if (usesVanillaDisplay() || !usesInventoryHudWidth()) return 0
             val oldWidth = when (this) {
                 HEALTH, MANA -> HALF_RESOURCE_WIDTH
                 VITALITY -> VITALITY_RESOURCE_WIDTH
@@ -273,7 +452,7 @@ object CustomBars {
         context.withIsolatedPose {
             pose().translate(0f, -BottomHudLayout.reservedHeight().toFloat())
             for (part in CustomBarPart.entries) {
-                if (part.isVisible() &&
+                if (part.isCustomVisible() &&
                     (part != CustomBarPart.AIR || Minecraft.getInstance().player?.isUnderWater == true)
                 ) {
                     context.withIsolatedPose {
@@ -642,6 +821,40 @@ object CustomBars {
 
 private fun Property<ChromaColour>.rgb(): Int = get().toColor().rgb
 
+internal data class VanillaHealthLayout(
+    val currentHealth: Int,
+    val absorption: Int,
+    val healthContainers: Int,
+    val totalContainers: Int,
+    val rowCount: Int,
+    val rowHeight: Int,
+) {
+    val height: Int = ICON_SIZE + (rowCount - 1) * rowHeight
+
+    companion object {
+        fun create(currentHealth: Int, maximumHealth: Float, absorption: Int): VanillaHealthLayout {
+            val healthContainers = ceil(maximumHealth / 2.0).toInt()
+            val absorptionContainers = (absorption + 1) / 2
+            val totalContainers = healthContainers + absorptionContainers
+            val vanillaRowCount = ceil((maximumHealth + absorption) / VANILLA_HEALTH_POINTS_PER_ROW)
+                .toInt()
+                .coerceAtLeast(1)
+            val rowHeight = maxOf(
+                VANILLA_HEART_ROW_HEIGHT - (vanillaRowCount - 2),
+                VANILLA_MIN_HEART_ROW_HEIGHT,
+            )
+            return VanillaHealthLayout(
+                currentHealth,
+                absorption,
+                healthContainers,
+                totalContainers,
+                ((totalContainers + VANILLA_STATUS_ICON_COUNT - 1) / VANILLA_STATUS_ICON_COUNT).coerceAtLeast(1),
+                rowHeight,
+            )
+        }
+    }
+}
+
 internal object CustomBarsActionBarParser {
     private val healthPattern =
         Regex("(?<current>[\\d,]+)/(?<maximum>[\\d,]+)\\s*[❤${SkyBlockStatGlyph.HEALTH}]")
@@ -844,6 +1057,24 @@ private fun net.minecraft.world.entity.player.Player.skyBlockSpeed(): Int =
 
 private const val PREVIEW_AIR_TICKS = 220
 private const val HOTBAR_WIDTH = 182
+private const val VANILLA_HUD_HALF_WIDTH = HOTBAR_WIDTH / 2
+private const val VANILLA_STATUS_ICON_COUNT = 10
+private const val VANILLA_STATUS_ICON_SPACING = 8
+private const val VANILLA_STATUS_WIDTH = 82
+private const val VANILLA_DEFAULT_HEALTH = 20f
+private const val VANILLA_HEALTH_POINTS_PER_ROW = 20f
+private const val VANILLA_HEART_ROW_HEIGHT = 10
+private const val VANILLA_MIN_HEART_ROW_HEIGHT = 3
+private const val VANILLA_HEALTH_TOP_OFFSET = 39
+private const val VANILLA_AIR_LEFT_OFFSET = 10
+private const val VANILLA_AIR_TOP_OFFSET = 49
+private const val VANILLA_EXPERIENCE_WIDTH = HOTBAR_WIDTH
+private const val VANILLA_EXPERIENCE_HEIGHT = 11
+private const val VANILLA_EXPERIENCE_TOP_OFFSET = 35
+private const val VANILLA_EXPERIENCE_BAR_Y = 6
+private const val VANILLA_EXPERIENCE_BAR_HEIGHT = 5
+private const val VANILLA_EXPERIENCE_PREVIEW_PROGRESS = 120
+private const val VANILLA_EXPERIENCE_PREVIEW_LEVEL = "10"
 private const val BAR_GAP = 4
 private const val ICON_SLOT_WIDTH = 10
 private const val HALF_BAR_WIDTH = (HOTBAR_WIDTH - BAR_GAP - ICON_SLOT_WIDTH * 2) / 2
@@ -875,6 +1106,8 @@ private const val RED_SHIFT = 16
 private const val GREEN_SHIFT = 8
 private const val COLOR_CHANNEL_MASK = 0xFF
 private const val ALPHA_MASK = 0xFF000000.toInt()
+private const val TEXT_OUTLINE_RGB = ALPHA_MASK
+private const val VANILLA_EXPERIENCE_LEVEL_RGB = 0xFF80FF20.toInt()
 private const val STATUS_SEPARATOR_LENGTH = 2
 private const val LEGACY_FORMAT_PREFIX = '§'
 private const val LEGACY_FORMAT_LENGTH = 2
@@ -883,6 +1116,13 @@ private const val SPEED_SCALE = 1_000f
 private const val SPRINT_SPEED_MULTIPLIER = 1.3f
 private const val TEXT_SCALE_STEP = 0.1f
 private val AIR_SPRITE = Identifier.withDefaultNamespace("hud/air")
+private val VANILLA_HEART_CONTAINER_SPRITE = Identifier.withDefaultNamespace("hud/heart/container")
+private val VANILLA_HEART_FULL_SPRITE = Identifier.withDefaultNamespace("hud/heart/full")
+private val VANILLA_HEART_HALF_SPRITE = Identifier.withDefaultNamespace("hud/heart/half")
+private val VANILLA_ABSORPTION_FULL_SPRITE = Identifier.withDefaultNamespace("hud/heart/absorbing_full")
+private val VANILLA_ABSORPTION_HALF_SPRITE = Identifier.withDefaultNamespace("hud/heart/absorbing_half")
+private val VANILLA_EXPERIENCE_BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/experience_bar_background")
+private val VANILLA_EXPERIENCE_PROGRESS_SPRITE = Identifier.withDefaultNamespace("hud/experience_bar_progress")
 private val EXPERIENCE_ICON = ItemIconRenderable(ItemStack(Items.EXPERIENCE_BOTTLE), EXPERIENCE_ICON_SIZE / 16.0)
 
 private fun usesInventoryHudWidth(): Boolean = SkysoftConfigGui.config().gui.inventoryHud.enabled
