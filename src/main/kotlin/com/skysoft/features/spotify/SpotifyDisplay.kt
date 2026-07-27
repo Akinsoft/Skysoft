@@ -437,11 +437,18 @@ object SpotifyDisplay {
 
     private fun displayAlpha(now: Long): Double {
         val hiddenAt = hiddenAtMillis
-        return if (hiddenAt != null) {
+        val alpha = if (hiddenAt != null) {
             1.0 - EasingUtilities.smoothStep((now - hiddenAt).toDouble() / FADE_DURATION_MILLIS)
         } else {
             EasingUtilities.easeOutCubic((now - shownAtMillis).toDouble() / FADE_DURATION_MILLIS)
         }
+        val settings = config().settings
+        if (!settings.autoHide) return alpha
+        val autoHideAt = shownAtMillis + settings.autoHideDelaySeconds * MILLIS_PER_SECOND
+        return minOf(
+            alpha,
+            1.0 - EasingUtilities.smoothStep((now - autoHideAt).toDouble() / FADE_DURATION_MILLIS),
+        )
     }
 
     private fun config() = SkysoftConfigGui.config().gui.spotifyDisplay
