@@ -3,9 +3,11 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.repairLoadedConfigs
+import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 
 class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
@@ -55,9 +57,8 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Max Enchant Chroma", desc = "Show maximum-level enchantments in animated chroma.")
-    @field:ConfigEditorBoolean
-    var maxEnchantChroma = false
+    @field:Category(name = "Max Enchant Chroma", desc = "Show maximum-level enchantments in animated chroma.")
+    val maxEnchantChroma = MaxEnchantChromaConfig()
 
     @JvmField
     @field:Expose
@@ -137,4 +138,27 @@ class InventoryFeatureConfig : ConfigRepairable {
         storageOverlay,
         rarityHighlight,
     )
+}
+
+class MaxEnchantChromaConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Show maximum-level enchantments in animated chroma.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Max Enchant Chroma settings.")
+    @field:Accordion
+    @field:ConfigVisibleIf("enabled")
+    val settings = MaxEnchantChromaSettingsConfig()
+}
+
+class MaxEnchantChromaSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Ultimate Enchantments", desc = "Apply chroma to maximum-level Ultimate Enchantments.")
+    @field:ConfigEditorBoolean
+    var includeUltimateEnchantments = false
 }

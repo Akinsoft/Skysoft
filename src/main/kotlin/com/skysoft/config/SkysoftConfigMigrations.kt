@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 10
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 11
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -57,6 +57,17 @@ internal object SkysoftConfigMigrations {
         }
         if (migrationVersion < SELECTIVE_CUSTOM_BAR_ICONS_VERSION) migrateCustomBarIcons(json)
         if (migrationVersion < CUSTOM_BAR_DISPLAY_MODES_VERSION) migrateCustomBarDisplayModes(json)
+        if (migrationVersion < MAX_ENCHANT_CHROMA_CATEGORY_VERSION) {
+            json.getObjectOrNull("inventory")?.let { inventoryJson ->
+                val legacyEnabled = inventoryJson.get("maxEnchantChroma")?.takeUnless { it.isJsonObject }
+                if (legacyEnabled != null) {
+                    inventoryJson.add(
+                        "maxEnchantChroma",
+                        JsonObject().also { it.add("enabled", legacyEnabled.deepCopy()) },
+                    )
+                }
+            }
+        }
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -394,6 +405,7 @@ internal object SkysoftConfigMigrations {
     private const val VANILLA_UI_CATEGORY_VERSION = 8
     private const val SELECTIVE_CUSTOM_BAR_ICONS_VERSION = 9
     private const val CUSTOM_BAR_DISPLAY_MODES_VERSION = 10
+    private const val MAX_ENCHANT_CHROMA_CATEGORY_VERSION = 11
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
