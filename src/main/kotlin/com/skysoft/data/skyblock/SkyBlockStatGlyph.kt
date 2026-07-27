@@ -46,6 +46,7 @@ internal enum class SkyBlockStatGlyph(val character: Char) {
     HUNTER_FORTUNE('\uE05B'),
     RIFT_TIME('\uE020'),
     RIFT_DAMAGE('\uE01E'),
+    HEARTS('\uE01F'),
     ;
 
     override fun toString(): String = character.toString()
