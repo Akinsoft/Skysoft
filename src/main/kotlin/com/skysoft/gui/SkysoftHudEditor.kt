@@ -125,7 +125,19 @@ object SkysoftHudEditor {
             } finally {
                 context.pose().popMatrix()
             }
-            SkysoftNativeTooltip.setForNextFrame(context, tooltipLines, mouseX, mouseY)
+            val tooltipFollowsMouse = SkysoftConfigGui.config().gui.positionEditor.details.doesTooltipFollowMouse
+            SkysoftNativeTooltip.setForNextFrame(
+                context,
+                tooltipLines,
+                mouseX,
+                mouseY,
+                scrollable = tooltipFollowsMouse,
+                positioner = if (tooltipFollowsMouse) {
+                    null
+                } else {
+                    HudEditorHelpPositioner(activeEditorBounds(active, activeHoveredButton))
+                },
+            )
         }
 
         private fun renderOldScreen(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
@@ -208,6 +220,22 @@ object SkysoftHudEditor {
             if (!InventoryButtonManager.isAvailableInCurrentLocation()) return null
             return oldScreen?.let { InventoryButtonManager.placements(it, includeInactive = true) }
                 ?.firstOrNull { it.index == buttonIndex }
+        }
+
+        private fun activeEditorBounds(
+            element: HudEditorElement?,
+            hoveredButton: InventoryButtonManager.ButtonPlacement?,
+        ): Rect? {
+            val button = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: hoveredButton
+            if (button != null) return button.bounds
+            val activeElement = element ?: return null
+            val bounds = editorScale.withElementGuiScale(activeElement) {
+                val scale = activeElement.position.effectiveScale
+                val width = (activeElement.width() * scale).roundToInt()
+                val height = (activeElement.height() * scale).roundToInt()
+                Rect(activeElement.absoluteX(width), activeElement.absoluteY(height), width, height)
+            }
+            return editorScale.elementScreenBounds(activeElement, bounds)
         }
 
         private fun renderElement(
@@ -1176,6 +1204,16 @@ private class EditorGuiScale(private val hasInventoryScreen: Boolean) {
 
     fun elementMouseY(element: HudEditorElement, mouseY: Int): Int =
         if (usesInventoryCoordinates(element)) mouseY else toNormalGuiY(mouseY)
+
+    fun elementScreenBounds(element: HudEditorElement, bounds: Rect): Rect {
+        if (usesInventoryCoordinates(element)) return bounds
+        val scale = normalRenderScale()
+        val left = (bounds.x * scale).roundToInt()
+        val top = (bounds.y * scale).roundToInt()
+        val right = ((bounds.x + bounds.width) * scale).roundToInt()
+        val bottom = ((bounds.y + bounds.height) * scale).roundToInt()
+        return Rect(left, top, right - left, bottom - top)
+    }
 
     fun <T> withElementGuiScale(element: HudEditorElement, block: () -> T): T =
         if (usesInventoryCoordinates(element)) withInventoryGuiScale(block) else withNormalGuiScale(block)
