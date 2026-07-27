@@ -16,6 +16,8 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.HudEditorSnapshot
+import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.features.inventory.InventoryHudLayout
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
@@ -102,6 +104,16 @@ object CustomBars {
                 override fun resetEditorState() {
                     super.resetEditorState()
                     part.dimensions?.resetToDefault()
+                }
+                override fun captureEditorState(): HudEditorSnapshot {
+                    val position = part.position()
+                    val positionSnapshot = position.snapshot()
+                    val dimensions = part.dimensions
+                    val dimensionsSnapshot = dimensions?.snapshot()
+                    return hudEditorSnapshot(positionSnapshot to dimensionsSnapshot) {
+                        position.restore(positionSnapshot)
+                        if (dimensions != null && dimensionsSnapshot != null) dimensions.restore(dimensionsSnapshot)
+                    }
                 }
                 override fun openConfig() = SkysoftConfigGui.open("Custom Bars")
             })
@@ -553,10 +565,13 @@ object CustomBars {
             return InputHandlingResult.CONSUMED
         }
 
-        override fun editorTooltipLines(): List<String> = listOf(
+        override fun editorDetailsLines(): List<String> = listOf(
             "§7Offset x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
                 "%.2f".format(java.util.Locale.US, position.scale)
             }",
+        )
+
+        override fun editorActionLines(): List<String> = listOf(
             "§eLeft-click drag §7to move",
             "§eScroll-Wheel §7to resize",
             "§eHold Shift §7to snap",

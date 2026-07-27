@@ -56,6 +56,24 @@ interface HudEditorElement {
     fun minEditorWidth(): Int = 1
     fun minEditorHeight(): Int = 1
     fun resetEditorState() = position.resetToDefault()
-    fun editorTooltipLines(): List<String>? = null
+    fun captureEditorState(): HudEditorSnapshot {
+        val target = position
+        val snapshot = target.snapshot()
+        return hudEditorSnapshot(snapshot) { target.restore(snapshot) }
+    }
+    fun editorDetailsLines(): List<String>? = null
+    fun editorActionLines(): List<String>? = null
     fun openConfig() = Unit
 }
+
+class HudEditorSnapshot internal constructor(
+    private val value: Any?,
+    private val restoreAction: () -> Unit,
+) {
+    internal fun hasSameValue(other: HudEditorSnapshot): Boolean = value == other.value
+
+    internal fun restore() = restoreAction()
+}
+
+internal fun hudEditorSnapshot(value: Any?, restore: () -> Unit): HudEditorSnapshot =
+    HudEditorSnapshot(value, restore)

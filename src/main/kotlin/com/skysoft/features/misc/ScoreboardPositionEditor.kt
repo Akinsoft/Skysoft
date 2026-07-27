@@ -3,7 +3,9 @@ package com.skysoft.features.misc
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.SkysoftHudEditor
+import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SidebarScoreboard
 import com.skysoft.utils.input.InputHandlingResult
@@ -78,21 +80,24 @@ object ScoreboardPositionEditor {
                 config.isScoreboardPositionCustomized = false
             }
 
-            override fun editorTooltipLines(): List<String> = buildList {
-                if (config.isScoreboardPositionCustomized) {
-                    add(
-                        "§7x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
-                            "%.2f".format(Locale.US, position.scale)
-                        }",
-                    )
-                } else {
-                    add("§7Position: §eVanilla§7, scale: §e1.00")
+            override fun captureEditorState(): HudEditorSnapshot {
+                val positionSnapshot = position.snapshot()
+                val isCustomized = config.isScoreboardPositionCustomized
+                return hudEditorSnapshot(positionSnapshot to isCustomized) {
+                    position.restore(positionSnapshot)
+                    config.isScoreboardPositionCustomized = isCustomized
                 }
-                add("§eLeft-click drag §7to move")
-                add("§eRight-click §7to open settings")
-                add("§eScroll-Wheel §7to resize")
-                add("§eR §7to reset")
             }
+
+            override fun editorDetailsLines(): List<String> = listOf(
+                if (config.isScoreboardPositionCustomized) {
+                    "§7x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
+                        "%.2f".format(Locale.US, position.scale)
+                    }"
+                } else {
+                    "§7Position: §eVanilla§7, scale: §e1.00"
+                },
+            )
 
             override fun openConfig() = SkysoftConfigGui.open("Position Editor")
         })

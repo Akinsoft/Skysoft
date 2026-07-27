@@ -4,6 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.inventory.InventoryButtonEditorActions
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryButtonResetShortcutResult
+import com.skysoft.features.inventory.inventoryButtonEditorState
 import com.skysoft.features.inventory.inventoryButtonNudge
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.scale.shouldUseConfiguredInventoryScale
@@ -26,7 +27,6 @@ import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 
 object SkysoftHudEditor {
-    private const val BORDER = 2
     private const val PANEL_BACKGROUND = 0x90000000.toInt()
     private const val PANEL_HOVER = 0x90F0F0F0.toInt()
     private const val EDITOR_BACKGROUND = 0x60000000
@@ -58,10 +58,12 @@ object SkysoftHudEditor {
         private var grabbedInventoryButtonOffsetX = 0
         private var grabbedInventoryButtonOffsetY = 0
         private var hoveredInventoryButtonIndex: Int? = null
+        private var grabbedState: HudEditorSnapshot? = null
         private var oldScreenWidth = -1
         private var oldScreenHeight = -1
         private val editorScale = EditorGuiScale(oldScreen != null)
         private val snapper = HudEditorSnapper(oldScreen != null, editorScale)
+        private val history = HudEditorHistory()
 
         override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
             super.extractRenderState(context, mouseX, mouseY, delta)
@@ -69,6 +71,7 @@ object SkysoftHudEditor {
         }
 
         private fun renderEditor(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+            history.flushIdleScroll()
             val minecraft = Minecraft.getInstance()
             if (oldScreen == null) {
                 context.fill(0, 0, minecraft.window.guiScaledWidth, minecraft.window.guiScaledHeight, EDITOR_BACKGROUND)
@@ -76,26 +79,40 @@ object SkysoftHudEditor {
                 renderOldScreen(context, mouseX, mouseY, delta)
             }
 
-            val hoveredButton = renderInventoryButtons(context, mouseX, mouseY)
+            val placements = inventoryButtonPlacements()
+            val hoveredButton = placements.lastOrNull { it.bounds.contains(mouseX, mouseY) }
             val elements = HudEditorRegistry.visibleElements(oldScreen != null)
             val hovered = elementAt(mouseX, mouseY, elements)
             val activeHoveredButton = hoveredButton?.takeIf { hovered == null }
+            val active = grabbedElement ?: hovered
+            val activeUsesInventoryCoordinates = when {
+                grabbedInventoryButtonIndex != null -> true
+                grabbedElement != null -> editorScale.usesInventoryCoordinates(checkNotNull(grabbedElement))
+                activeHoveredButton != null -> true
+                active != null -> editorScale.usesInventoryCoordinates(active)
+                else -> oldScreen != null
+            }
             hoveredInventoryButtonIndex = activeHoveredButton?.index
             hoveredElement = hovered
+            val editorPadding = if (snapper.gridEnabled) 0 else HUD_EDITOR_BORDER
+            if (snapper.gridEnabled && activeUsesInventoryCoordinates) renderEditorGrid(context)
+            renderInventoryButtons(context, placements, hoveredButton, editorPadding)
             elements.filter(editorScale::usesInventoryCoordinates).forEach { element ->
-                renderElement(context, element, element == hovered || element == grabbedElement)
+                renderElement(context, element, element == hovered || element == grabbedElement, editorPadding)
             }
             renderSnapGuides(
                 context,
                 snapper,
                 inventorySnapGuidesActive(grabbedInventoryButtonIndex, grabbedElement, editorScale),
             )
+            val activeButton = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: activeHoveredButton
             context.pose().pushMatrix()
             val tooltipLines = try {
                 context.pose().scale(editorScale.normalRenderScale(), editorScale.normalRenderScale())
                 editorScale.withNormalGuiScale {
+                    if (snapper.gridEnabled && !activeUsesInventoryCoordinates) renderEditorGrid(context)
                     for (element in elements.filterNot(editorScale::usesInventoryCoordinates)) {
-                        renderElement(context, element, element == hovered || element == grabbedElement)
+                        renderElement(context, element, element == hovered || element == grabbedElement, editorPadding)
                     }
                     renderSnapGuides(
                         context,
@@ -103,61 +120,7 @@ object SkysoftHudEditor {
                         grabbedElement?.let(editorScale::usesInventoryCoordinates) == false,
                     )
 
-                    val active = grabbedElement ?: hovered
-                    when {
-                        grabbedInventoryButtonIndex != null || activeHoveredButton != null -> {
-                            val placement = activeHoveredButton ?: inventoryButtonPlacement(grabbedInventoryButtonIndex)
-                            val button = placement?.button
-                            listOf(
-                                "§cSkysoft Position Editor",
-                                "§bInventory Button",
-                                "§7Command: §e${button?.command?.takeIf { it.isNotBlank() } ?: "empty"}",
-                                "§7Scale: §e${"%.2f".format(Locale.US, button?.scale ?: 1f)}",
-                                inventoryButtonHoldKeyLine(button?.requiredKey),
-                                "§eLeft-click drag §7to move",
-                                "§eArrow Keys §7to move one pixel",
-                                "§eHold Shift §7to snap to other buttons",
-                                "§eScroll-Wheel §7to resize",
-                                if (button?.isUserCreated == true) "§eR §7to remove" else "§eR §7to reset",
-                            )
-                        }
-
-                        active == null -> listOf(
-                            "§cSkysoft Position Editor",
-                            "§7Hover a HUD element or inventory button to move it.",
-                            "§eLeft-click drag §7to move",
-                            "§eScroll §7to resize",
-                        )
-
-                        else -> buildList {
-                            add("§cSkysoft Position Editor")
-                            add("§b${active.label}")
-                            val customLines = active.editorTooltipLines()
-                            if (customLines != null) {
-                                addAll(customLines)
-                            } else {
-                                add(
-                                    if (active.canScale) {
-                                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}§7, scale: §e${
-                                            "%.2f".format(Locale.US, active.position.scale)
-                                        }"
-                                    } else {
-                                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}"
-                                    },
-                                )
-                                if (active.canMove) add("§eLeft-click drag §7to move")
-                                if (active.canResizeWidth || active.canResizeHeight) {
-                                    add("§eDrag corner handles §7to resize")
-                                }
-                                if (active.canMove || active.canResizeWidth || active.canResizeHeight) {
-                                    add("§eHold Shift §7to snap")
-                                }
-                                add("§eRight-click §7to open settings")
-                                if (active.canScale) add("§eScroll-Wheel §7to resize")
-                                add("§eR §7to reset")
-                            }
-                        }
-                    }
+                    hudEditorTooltipLines(active, activeButton, snapper.gridEnabled)
                 }
             } finally {
                 context.pose().popMatrix()
@@ -208,21 +171,24 @@ object SkysoftHudEditor {
                 findResizeHandle(element, x, y, width, height)
             }
 
+        private fun inventoryButtonPlacements(): List<InventoryButtonManager.ButtonPlacement> {
+            if (!InventoryButtonManager.isAvailableInCurrentLocation()) return emptyList()
+            return oldScreen?.let { InventoryButtonManager.placements(it, includeInactive = true) }.orEmpty()
+        }
+
         private fun renderInventoryButtons(
             context: GuiGraphicsExtractor,
-            mouseX: Int,
-            mouseY: Int,
-        ): InventoryButtonManager.ButtonPlacement? {
-            if (!InventoryButtonManager.isAvailableInCurrentLocation()) return null
-            val placements = oldScreen?.let { InventoryButtonManager.placements(it, includeInactive = true) }.orEmpty()
-            val hovered = placements.lastOrNull { it.bounds.contains(mouseX, mouseY) }
+            placements: List<InventoryButtonManager.ButtonPlacement>,
+            hovered: InventoryButtonManager.ButtonPlacement?,
+            padding: Int,
+        ) {
             for (placement in placements) {
                 val selected = placement.index == grabbedInventoryButtonIndex || placement == hovered
                 context.fill(
-                    placement.bounds.x - BORDER,
-                    placement.bounds.y - BORDER,
-                    placement.bounds.x + placement.bounds.width + BORDER,
-                    placement.bounds.y + placement.bounds.height + BORDER,
+                    placement.bounds.x - padding,
+                    placement.bounds.y - padding,
+                    placement.bounds.x + placement.bounds.width + padding,
+                    placement.bounds.y + placement.bounds.height + padding,
                     if (selected) PANEL_HOVER else PANEL_BACKGROUND,
                 )
                 InventoryButtonManager.drawButton(
@@ -235,7 +201,6 @@ object SkysoftHudEditor {
                     selected = selected,
                 )
             }
-            return hovered
         }
 
         private fun inventoryButtonPlacement(index: Int?): InventoryButtonManager.ButtonPlacement? {
@@ -245,7 +210,12 @@ object SkysoftHudEditor {
                 ?.firstOrNull { it.index == buttonIndex }
         }
 
-        private fun renderElement(context: GuiGraphicsExtractor, element: HudEditorElement, selected: Boolean) {
+        private fun renderElement(
+            context: GuiGraphicsExtractor,
+            element: HudEditorElement,
+            selected: Boolean,
+            padding: Int,
+        ) {
             val position = element.position
             val scaledWidth = (element.width() * position.scale).roundToInt()
             val scaledHeight = (element.height() * position.scale).roundToInt()
@@ -253,9 +223,15 @@ object SkysoftHudEditor {
             val y = element.absoluteY(scaledHeight)
             val color = if (selected) PANEL_HOVER else PANEL_BACKGROUND
             if (element.hasEditorBackground) {
-                context.fill(x - BORDER, y - BORDER, x + scaledWidth + BORDER, y + scaledHeight + BORDER, color)
+                context.fill(
+                    x - padding,
+                    y - padding,
+                    x + scaledWidth + padding,
+                    y + scaledHeight + padding,
+                    color,
+                )
             } else if (selected) {
-                drawEditorOutline(context, x, y, scaledWidth, scaledHeight, color)
+                drawEditorOutline(context, x, y, scaledWidth, scaledHeight, color, padding)
             }
             context.pose().pushMatrix()
             context.pose().translate(x.toFloat(), y.toFloat())
@@ -274,48 +250,16 @@ object SkysoftHudEditor {
             width: Int,
             height: Int,
             color: Int,
+            padding: Int,
         ) {
-            context.fill(x - BORDER, y - BORDER, x + width + BORDER, y, color)
-            context.fill(x - BORDER, y + height, x + width + BORDER, y + height + BORDER, color)
-            context.fill(x - BORDER, y, x, y + height, color)
-            context.fill(x + width, y, x + width + BORDER, y + height, color)
-        }
-
-        private fun drawResizeHandles(
-            context: GuiGraphicsExtractor,
-            x: Int,
-            y: Int,
-            width: Int,
-            height: Int,
-        ) {
-            drawResizeHandle(context, x, y, horizontalDirection = 1, verticalDirection = 1)
-            drawResizeHandle(context, x + width, y, horizontalDirection = -1, verticalDirection = 1)
-            drawResizeHandle(context, x, y + height, horizontalDirection = 1, verticalDirection = -1)
-            drawResizeHandle(context, x + width, y + height, horizontalDirection = -1, verticalDirection = -1)
-        }
-
-        private fun drawResizeHandle(
-            context: GuiGraphicsExtractor,
-            x: Int,
-            y: Int,
-            horizontalDirection: Int,
-            verticalDirection: Int,
-        ) {
-            for (inset in 0 until RESIZE_HANDLE_SIZE) {
-                val length = RESIZE_HANDLE_SIZE - inset
-                val startX = if (horizontalDirection > 0) x else x - length
-                val endX = if (horizontalDirection > 0) x + length else x
-                val edgeY = y + inset * verticalDirection
-                val startY = if (verticalDirection > 0) edgeY else edgeY - 1
-                val endY = if (verticalDirection > 0) edgeY + 1 else edgeY
-                context.fill(
-                    startX,
-                    startY,
-                    endX,
-                    endY,
-                    RESIZE_HANDLE_COLOR,
-                )
-            }
+            val left = x - padding
+            val top = y - padding
+            val right = x + width + padding
+            val bottom = y + height + padding
+            context.fill(left, top, right, top + HUD_EDITOR_BORDER, color)
+            context.fill(left, bottom - HUD_EDITOR_BORDER, right, bottom, color)
+            context.fill(left, top + HUD_EDITOR_BORDER, left + HUD_EDITOR_BORDER, bottom - HUD_EDITOR_BORDER, color)
+            context.fill(right - HUD_EDITOR_BORDER, top + HUD_EDITOR_BORDER, right, bottom - HUD_EDITOR_BORDER, color)
         }
 
         override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
@@ -323,15 +267,16 @@ object SkysoftHudEditor {
             val mouseY = click.y().toInt()
             return when (click.button()) {
                 GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+                    history.flushPending()
                     val element = elementAt(mouseX, mouseY)
-                    val inventoryButton = if (element == null && InventoryButtonManager.isAvailableInCurrentLocation()) {
-                        oldScreen?.let { InventoryButtonManager.placements(it, includeInactive = true) }
-                            ?.lastOrNull { it.bounds.contains(mouseX, mouseY) }
+                    val inventoryButton = if (element == null) {
+                        inventoryButtonPlacements().lastOrNull { it.bounds.contains(mouseX, mouseY) }
                     } else {
                         null
                     }
                     if (inventoryButton != null) {
                         snapper.clear()
+                        grabbedState = inventoryButtonEditorState()
                         grabbedInventoryButtonIndex = inventoryButton.index
                         grabbedInventoryButtonOffsetX = mouseX - inventoryButton.bounds.x
                         grabbedInventoryButtonOffsetY = mouseY - inventoryButton.bounds.y
@@ -339,6 +284,8 @@ object SkysoftHudEditor {
                         true
                     } else {
                         grabbedElement = element
+                        grabbedInventoryButtonIndex = null
+                        grabbedState = element?.captureEditorState()
                         if (element != null) {
                             snapper.clear()
                             editorScale.withElementGuiScale(element) {
@@ -366,6 +313,7 @@ object SkysoftHudEditor {
                             }
                             true
                         } else {
+                            grabbedState = null
                             super.mouseClicked(click, doubled)
                         }
                     }
@@ -376,6 +324,7 @@ object SkysoftHudEditor {
                     if (element == null) {
                         super.mouseClicked(click, doubled)
                     } else {
+                        history.flushPending()
                         element.openConfig()
                         true
                     }
@@ -438,8 +387,16 @@ object SkysoftHudEditor {
 
         override fun mouseReleased(click: MouseButtonEvent): Boolean {
             if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                val before = grabbedState
+                val after = when {
+                    grabbedInventoryButtonIndex != null -> inventoryButtonEditorState()
+                    grabbedElement != null -> grabbedElement?.captureEditorState()
+                    else -> null
+                }
+                if (before != null && after != null) history.record(before, after)
                 grabbedElement = null
                 grabbedInventoryButtonIndex = null
+                grabbedState = null
                 grabbedWidth = 0
                 grabbedHeight = 0
                 grabbedResizeHandle = null
@@ -451,61 +408,86 @@ object SkysoftHudEditor {
         override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
             val element = grabbedElement ?: elementAt(mouseX.toInt(), mouseY.toInt())
             if (element != null) {
-                if (element.applyEditorScroll(scrollY) == InputHandlingResult.CONSUMED) return true
-                if (!element.canScale) return true
-                editorScale.withElementGuiScale(element) {
-                    val oldScale = element.position.scale
-                    element.position.scale += if (scrollY > 0.0) SCALE_STEP else -SCALE_STEP
-                    val oldWidth = (element.width() * oldScale).roundToInt()
-                    val oldHeight = (element.height() * oldScale).roundToInt()
-                    val newWidth = (element.width() * element.position.scale).roundToInt()
-                    val newHeight = (element.height() * element.position.scale).roundToInt()
-                    val oldX = element.absoluteX(oldWidth) - element.layoutOffsetX
-                    val oldY = element.absoluteY(oldHeight) - element.layoutOffsetY
-                    element.position.moveToAbsoluteAllowingOverflow(oldX, oldY, newWidth, newHeight)
+                val before = element.captureEditorState()
+                if (element.applyEditorScroll(scrollY) == InputHandlingResult.IGNORED && element.canScale && scrollY != 0.0) {
+                    editorScale.withElementGuiScale(element) {
+                        val oldScale = element.position.scale
+                        element.position.scale += if (scrollY > 0.0) SCALE_STEP else -SCALE_STEP
+                        val oldWidth = (element.width() * oldScale).roundToInt()
+                        val oldHeight = (element.height() * oldScale).roundToInt()
+                        val newWidth = (element.width() * element.position.scale).roundToInt()
+                        val newHeight = (element.height() * element.position.scale).roundToInt()
+                        val oldX = element.absoluteX(oldWidth) - element.layoutOffsetX
+                        val oldY = element.absoluteY(oldHeight) - element.layoutOffsetY
+                        element.position.moveToAbsoluteAllowingOverflow(oldX, oldY, newWidth, newHeight)
+                    }
+                }
+                if (grabbedElement == null) {
+                    history.recordScroll("element:${element.id}", before, element.captureEditorState())
                 }
                 return true
             }
 
-            val buttonIndex = grabbedInventoryButtonIndex ?: if (InventoryButtonManager.isAvailableInCurrentLocation()) {
-                oldScreen?.let { InventoryButtonManager.placements(it, includeInactive = true) }
-                    ?.lastOrNull { it.bounds.contains(mouseX.toInt(), mouseY.toInt()) }
-                    ?.index
-            } else {
-                null
+            val buttonIndex = grabbedInventoryButtonIndex ?: inventoryButtonPlacements()
+                .lastOrNull { it.bounds.contains(mouseX.toInt(), mouseY.toInt()) }
+                ?.index
+            if (buttonIndex != null) {
+                val before = inventoryButtonEditorState()
+                if (InventoryButtonEditorActions.changeButtonScale(buttonIndex, scrollY) == InputHandlingResult.CONSUMED) {
+                    if (grabbedInventoryButtonIndex == null) {
+                        history.recordScroll(
+                            "inventory_button:$buttonIndex",
+                            before,
+                            inventoryButtonEditorState(),
+                        )
+                    }
+                    return true
+                }
             }
-            return if (buttonIndex != null &&
-                InventoryButtonEditorActions.changeButtonScale(buttonIndex, scrollY) == InputHandlingResult.CONSUMED
-            ) {
-                true
-            } else {
-                super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-            }
+            return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
         }
 
         override fun keyPressed(event: KeyEvent): Boolean {
-            if (nudgeInventoryButton(
-                    event.key(),
-                    grabbedInventoryButtonIndex ?: hoveredInventoryButtonIndex,
-                    oldScreen,
-                    snapper,
-                ) == InputHandlingResult.CONSUMED
+            if (
+                event.hasControlDownWithQuirk() &&
+                event.key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
             ) {
+                if (grabbedElement == null && grabbedInventoryButtonIndex == null) {
+                    if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) history.redo()
+                    else history.undo()
+                    snapper.clear()
+                }
                 return true
             }
+            if (event.key() == GLFW.GLFW_KEY_G) {
+                snapper.gridEnabled = !snapper.gridEnabled
+                snapper.clear()
+                return true
+            }
+            val buttonIndex = grabbedInventoryButtonIndex ?: hoveredInventoryButtonIndex
+            if (inventoryButtonNudge(event.key()) != null && buttonIndex != null) {
+                val before = inventoryButtonEditorState()
+                if (nudgeInventoryButton(event.key(), buttonIndex, oldScreen, snapper) == InputHandlingResult.CONSUMED) {
+                    history.record(before, inventoryButtonEditorState())
+                    return true
+                }
+            }
             if (event.key() == GLFW.GLFW_KEY_R) {
-                val buttonIndex = grabbedInventoryButtonIndex ?: hoveredInventoryButtonIndex
                 if (buttonIndex != null) {
+                    val before = inventoryButtonEditorState()
                     if (InventoryButtonEditorActions.resetOrRemoveButton(buttonIndex) ==
                         InventoryButtonResetShortcutResult.REMOVED
                     ) {
                         grabbedInventoryButtonIndex = null
                         hoveredInventoryButtonIndex = null
                     }
+                    history.record(before, inventoryButtonEditorState())
                     return true
                 }
                 val element = grabbedElement ?: hoveredElement ?: return true
+                val before = element.captureEditorState()
                 element.resetEditorState()
+                history.record(before, element.captureEditorState())
                 return true
             }
             return super.keyPressed(event)
@@ -594,6 +576,7 @@ object SkysoftHudEditor {
         }
 
         override fun onClose() {
+            history.flushPending()
             ScreenTitleRenderer.endPositionEditing()
             SkysoftConfigGui.config().saveNow()
             if (oldScreen != null) {
@@ -604,6 +587,108 @@ object SkysoftHudEditor {
         }
     }
 }
+
+private fun drawResizeHandles(
+    context: GuiGraphicsExtractor,
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+) {
+    drawResizeHandle(context, x, y, horizontalDirection = -1, verticalDirection = -1)
+    drawResizeHandle(context, x + width, y, horizontalDirection = 1, verticalDirection = -1)
+    drawResizeHandle(context, x, y + height, horizontalDirection = -1, verticalDirection = 1)
+    drawResizeHandle(context, x + width, y + height, horizontalDirection = 1, verticalDirection = 1)
+}
+
+private fun drawResizeHandle(
+    context: GuiGraphicsExtractor,
+    x: Int,
+    y: Int,
+    horizontalDirection: Int,
+    verticalDirection: Int,
+) {
+    val left = if (horizontalDirection < 0) x - RESIZE_HANDLE_SIZE else x
+    val top = if (verticalDirection < 0) y - RESIZE_HANDLE_SIZE else y
+    context.fill(left, top, left + RESIZE_HANDLE_SIZE, top + RESIZE_HANDLE_SIZE, RESIZE_HANDLE_COLOR)
+}
+
+private fun hudEditorTooltipLines(
+    active: HudEditorElement?,
+    activeButton: InventoryButtonManager.ButtonPlacement?,
+    gridEnabled: Boolean,
+): List<String> = buildList {
+    when {
+        activeButton != null -> {
+            val button = activeButton.button
+            add("§cSkysoft Position Editor")
+            add("§bInventory Button")
+            add("§7Command: §e${button.command.takeIf { it.isNotBlank() } ?: "empty"}")
+            add("§7Scale: §e${"%.2f".format(Locale.US, button.scale)}")
+            add(inventoryButtonHoldKeyLine(button.requiredKey))
+            add("§eLeft-click drag §7to move")
+            add("§eArrow Keys §7to move one pixel")
+            add("§eHold Shift §7to snap to other buttons")
+            add("§eScroll-Wheel §7to resize")
+            add(if (button.isUserCreated == true) "§eR §7to remove" else "§eR §7to reset")
+        }
+
+        active == null -> {
+            add("§cSkysoft Position Editor")
+            add("§7Hover a HUD element or inventory button to move it.")
+            add("§eLeft-click drag §7to move")
+            add("§eScroll §7to resize")
+        }
+
+        else -> {
+            add("§cSkysoft Position Editor")
+            add("§b${active.label}")
+            val details = active.editorDetailsLines()
+            if (details != null) {
+                addAll(details)
+            } else {
+                add(
+                    if (active.canScale) {
+                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}§7, scale: §e${
+                            "%.2f".format(Locale.US, active.position.scale)
+                        }"
+                    } else {
+                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}"
+                    },
+                )
+            }
+            addAll(active.editorActionLines() ?: defaultHudEditorActionLines(active))
+        }
+    }
+    addAll(editorGlobalTooltipLines(gridEnabled))
+}
+
+private fun defaultHudEditorActionLines(element: HudEditorElement): List<String> = buildList {
+    if (element.canMove) add("§eLeft-click drag §7to move")
+    if (element.canResizeWidth || element.canResizeHeight) add("§eDrag outside corner handles §7to resize")
+    if (element.canMove || element.canResizeWidth || element.canResizeHeight) add("§eHold Shift §7to snap")
+    add("§eRight-click §7to open settings")
+    if (element.canScale) add("§eScroll-Wheel §7to resize")
+    add("§eR §7to reset")
+}
+
+private fun editorGlobalTooltipLines(gridEnabled: Boolean): List<String> = listOf(
+    if (gridEnabled) "§eG §7to hide the snapping grid" else "§eG §7to show the snapping grid",
+    "§eCtrl+Z / Ctrl+Y §7to undo or redo",
+)
+
+private fun renderEditorGrid(context: GuiGraphicsExtractor) {
+    val window = Minecraft.getInstance().window
+    for (x in 0..window.guiScaledWidth step HUD_GRID_SPACING) {
+        context.fill(x, 0, x + 1, window.guiScaledHeight, HUD_GRID_COLOR)
+    }
+    for (y in 0..window.guiScaledHeight step HUD_GRID_SPACING) {
+        context.fill(0, y, window.guiScaledWidth, y + 1, HUD_GRID_COLOR)
+    }
+}
+
+private fun hudGridCoordinate(value: Int, enabled: Boolean): Int =
+    if (enabled) (value.toFloat() / HUD_GRID_SPACING).roundToInt() * HUD_GRID_SPACING else value
 
 private fun inventorySnapGuidesActive(
     buttonIndex: Int?,
@@ -697,6 +782,8 @@ private class HudEditorSnapper(
     private var verticalLock: HudSnapLock? = null
     private var movingBounds: HudSnapBounds? = null
 
+    var gridEnabled = false
+
     fun snapPosition(
         element: HudEditorElement,
         x: Int,
@@ -739,7 +826,7 @@ private class HudEditorSnapper(
     ): HudSnappedPosition {
         if (!Minecraft.getInstance().hasShiftDown()) {
             clear()
-            return HudSnappedPosition(x, y)
+            return HudSnappedPosition(hudGridCoordinate(x, gridEnabled), hudGridCoordinate(y, gridEnabled))
         }
         val rawBounds = HudSnapBounds(x, y, x + width, y + height)
         val horizontalOffset = snapAxis(
@@ -756,7 +843,10 @@ private class HudEditorSnapper(
             matchingAnchorsOnly = true,
             targets = targetProvider(HudSnapAxis.VERTICAL),
         )
-        return HudSnappedPosition(x + horizontalOffset, y + verticalOffset)
+        return HudSnappedPosition(
+            if (horizontalLock != null) x + horizontalOffset else hudGridCoordinate(x, gridEnabled),
+            if (verticalLock != null) y + verticalOffset else hudGridCoordinate(y, gridEnabled),
+        )
     }
 
     fun snapResizeCoordinate(
@@ -767,7 +857,7 @@ private class HudEditorSnapper(
     ): Int {
         if (!Minecraft.getInstance().hasShiftDown()) {
             clear(axis)
-            return value
+            return hudGridCoordinate(value, gridEnabled)
         }
         val offset = snapAxis(
             axis,
@@ -776,7 +866,7 @@ private class HudEditorSnapper(
             matchingAnchorsOnly = false,
             targets = targets(element, axis),
         )
-        return value + offset
+        return if (lock(axis) != null) value + offset else hudGridCoordinate(value, gridEnabled)
     }
 
     fun guides(): List<HudSnapGuide> {
@@ -1149,13 +1239,13 @@ private fun findResizeHandle(
 ): HudResizeHandle? {
     if (!element.canResizeWidth && !element.canResizeHeight) return null
     val horizontal = when {
-        localX in -HUD_EDITOR_BORDER..RESIZE_HANDLE_HITBOX -> true
-        localX in (width - RESIZE_HANDLE_HITBOX)..(width + HUD_EDITOR_BORDER) -> false
+        localX in -RESIZE_HANDLE_HITBOX until 0 -> true
+        localX in width until width + RESIZE_HANDLE_HITBOX -> false
         else -> return null
     }
     val vertical = when {
-        localY in -HUD_EDITOR_BORDER..RESIZE_HANDLE_HITBOX -> true
-        localY in (height - RESIZE_HANDLE_HITBOX)..(height + HUD_EDITOR_BORDER) -> false
+        localY in -RESIZE_HANDLE_HITBOX until 0 -> true
+        localY in height until height + RESIZE_HANDLE_HITBOX -> false
         else -> return null
     }
     return HudResizeHandle(isLeft = horizontal, isTop = vertical)
@@ -1163,8 +1253,10 @@ private fun findResizeHandle(
 
 private const val HUD_EDITOR_BORDER = 2
 private const val RESIZE_HANDLE_SIZE = 4
-private const val RESIZE_HANDLE_HITBOX = 5
+private const val RESIZE_HANDLE_HITBOX = 6
 private const val RESIZE_HANDLE_COLOR = 0xFFF0F0F0.toInt()
+private const val HUD_GRID_SPACING = 5
+private const val HUD_GRID_COLOR = 0x2855FFFF
 private const val SNAP_ACQUIRE_DISTANCE = 8
 private const val SNAP_RELEASE_DISTANCE = 12
 private const val SNAP_GUIDE_OUTLINE_WIDTH = 1

@@ -26,4 +26,13 @@ class HudDimensions {
         widthOffset = 0
         heightOffset = 0
     }
+
+    internal fun snapshot(): Snapshot = Snapshot(widthOffset, heightOffset)
+
+    internal fun restore(snapshot: Snapshot) {
+        widthOffset = snapshot.widthOffset
+        heightOffset = snapshot.heightOffset
+    }
+
+    internal data class Snapshot(val widthOffset: Int, val heightOffset: Int)
 }
