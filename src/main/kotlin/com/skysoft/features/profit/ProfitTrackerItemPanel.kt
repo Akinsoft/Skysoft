@@ -24,6 +24,8 @@ internal sealed interface ProfitTrackerControl {
     data object Period : ProfitTrackerControl
     data object PriceSource : ProfitTrackerControl
     data object Reset : ProfitTrackerControl
+    data object CancelReset : ProfitTrackerControl
+    data object ConfirmReset : ProfitTrackerControl
     data object More : ProfitTrackerControl
     data class ManageItem(
         val itemId: String,
