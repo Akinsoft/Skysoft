@@ -15,12 +15,20 @@ object SkyBlockItemNames {
             .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
             .groupBy(ItemListEntry::displayName)
             .mapNotNull { (name, entries) ->
-                entries.map { entry -> entry.key.id }
-                    .distinct()
-                    .singleOrNull()
-                    ?.let { itemId -> name to itemId }
+                resolveDisplayNameItemId(entries) { key ->
+                    SkyBlockDataRepository.info(key)?.obtain?.status
+                }?.let { itemId -> name to itemId }
             }
             .toMap()
         repositoryVersion = SkyBlockDataRepository.snapshotVersion
     }
+}
+
+internal fun resolveDisplayNameItemId(
+    entries: List<ItemListEntry>,
+    obtainStatus: (ItemListEntryKey) -> SkyBlockObtainStatus?,
+): String? {
+    val candidates = entries.distinctBy { entry -> entry.key.id }
+    return candidates.singleOrNull()?.key?.id
+        ?: candidates.singleOrNull { entry -> obtainStatus(entry.key) == SkyBlockObtainStatus.OBTAINABLE }?.key?.id
 }
