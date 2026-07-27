@@ -34,12 +34,17 @@ import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import org.joml.Vector2i
 import org.lwjgl.glfw.GLFW
 import java.math.BigDecimal
 import java.math.MathContext
@@ -70,6 +75,10 @@ object ItemListController {
     )
     private val navigationAlpha = SmoothFloatTransition(0f, FooterPresentation.FADE_DURATION_NANOS)
     private val calculationBlend = SmoothFloatTransition(0f, FooterPresentation.LABEL_SWAP_DURATION_NANOS)
+    private val itemTooltipPositioner = ClientTooltipPositioner { screenWidth, screenHeight, x, y, width, height ->
+        val position = DefaultTooltipPositioner.INSTANCE.positionTooltip(screenWidth, screenHeight, x, y, width, height)
+        Vector2i(position.x(), position.y().coerceAtLeast(TOOLTIP_EDGE))
+    }
 
     @JvmStatic
     fun register() {
@@ -691,7 +700,17 @@ object ItemListController {
             }
             if (hovered) {
                 hoveredKey = entry.key
-                context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
+                val minecraft = Minecraft.getInstance()
+                context.setTooltipForNextFrame(
+                    minecraft.font,
+                    Screen.getTooltipFromItem(minecraft, stack).map { it.visualOrderText },
+                    stack.tooltipImage,
+                    itemTooltipPositioner,
+                    mouseX,
+                    mouseY,
+                    false,
+                    stack.get(DataComponents.TOOLTIP_STYLE),
+                )
             }
         }
     }
@@ -743,6 +762,7 @@ object ItemListController {
     private const val NO_ROOM_TEXT_BOTTOM = 14
     private const val EMPTY_TEXT_X_OFFSET = 4
     private const val EMPTY_TEXT_Y_OFFSET = 5
+    private const val TOOLTIP_EDGE = 4
     private const val EDITOR_RESIZE_ARROW = "↔"
     private const val EDITOR_RESIZE_ARROW_GAP = 4
     private const val EDITOR_RESIZE_ARROW_HEIGHT = 9
