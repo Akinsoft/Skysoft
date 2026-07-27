@@ -9,7 +9,9 @@ import com.skysoft.config.CustomReadoutDetailsConfig
 import com.skysoft.config.CustomResourceBarDetailsConfig
 import com.skysoft.config.core.HudDimensions
 import com.skysoft.config.core.HudPosition
+import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockStatGlyph
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.GuiOverlay
@@ -25,8 +27,10 @@ import com.skysoft.features.misc.AbsorptionHeartLayout
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.NumberUtilities.shortFormat
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.input.InputHandlingResult
@@ -54,10 +58,14 @@ import kotlin.math.roundToInt
 
 object CustomBars {
     private val config get() = SkysoftConfigGui.config().gui.customBars
+    private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
     private var health: BarValue? = null
     private var mana: BarValue? = null
     private var vitality: BarValue? = null
     private var defense: Int? = null
+    private var riftDamage: Int? = null
+    private var riftDamageVersion = Long.MIN_VALUE
+    private var trackedRiftState: Boolean? = null
     private val textElements by lazy {
         CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextEditorElement)
     }
@@ -69,10 +77,15 @@ object CustomBars {
         }
         ChatEvents.onActionBarModify("Custom Bars action bar", ::isActive) { message ->
             message.component.withoutRanges(
-                CustomBarsActionBarParser.parse(message.plainText).ranges(CustomBarStatus.hiddenBy(config.settings)),
+                CustomBarsActionBarParser.parse(message.plainText).ranges(
+                    CustomBarStatus.hiddenBy(config.settings, inRift),
+                ),
             )
         }
         SkysoftClientEvents.onDisconnect("Custom Bars reset", ::reset)
+        TabListApi.registerConsumer("Custom Bars") {
+            isActive() && inRift && config.settings.displays.defense == CustomBarDisplayMode.CUSTOM
+        }
         registerVanillaReplacements()
         GuiOverlayRegistry.register(
             GuiOverlay(
@@ -288,7 +301,15 @@ object CustomBars {
         return VanillaHealthLayout.create(currentHealth, maximumHealth, absorption)
     }
 
-    private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
+    private fun isActive(): Boolean {
+        if (!config.enabled || !HypixelLocationState.inSkyBlock) return false
+        val currentRiftState = inRift
+        if (trackedRiftState != currentRiftState) {
+            reset()
+            trackedRiftState = currentRiftState
+        }
+        return true
+    }
 
     private fun update(parsed: ParsedCustomBarActionBar) {
         parsed.health?.let { health = it }
@@ -302,6 +323,26 @@ object CustomBars {
         mana = null
         vitality = null
         defense = null
+        riftDamage = null
+        riftDamageVersion = Long.MIN_VALUE
+    }
+
+    private fun displayedHealth(): BarValue? {
+        if (!inRift) return health
+        val player = Minecraft.getInstance().player ?: return null
+        return BarValue(
+            ceil(player.health.toDouble()).toInt(),
+            ceil(player.maxHealth.toDouble()).toInt(),
+        )
+    }
+
+    private fun displayedDefense(): Int? {
+        if (!inRift) return defense
+        if (riftDamageVersion != TabListApi.contentVersion) {
+            riftDamageVersion = TabListApi.contentVersion
+            riftDamage = RiftCustomBarValues.parseDamage(TabListApi.lines.map { it.cleanSkyBlockText() })
+        }
+        return riftDamage
     }
 
     private enum class CustomBarPart(val label: String) {
@@ -357,7 +398,7 @@ object CustomBars {
                 AIR -> config.details.air
             }
 
-        fun isCustomVisible(): Boolean = when (this) {
+        fun isCustomVisible(): Boolean = isAvailable && when (this) {
             HEALTH -> config.settings.displays.health == CustomBarDisplayMode.CUSTOM
             MANA -> config.settings.displays.mana == CustomBarDisplayMode.CUSTOM
             VITALITY -> config.settings.displays.vitality == CustomBarDisplayMode.CUSTOM
@@ -376,13 +417,15 @@ object CustomBars {
             MANA, VITALITY, DEFENSE, SPEED -> false
         }
 
-        fun isNumberVisible(): Boolean = when (this) {
+        fun isNumberVisible(): Boolean = isAvailable && when (this) {
             HEALTH -> config.settings.numbers.health
             MANA -> config.settings.numbers.mana
             VITALITY -> config.settings.numbers.vitality
             EXPERIENCE -> config.settings.numbers.experience
             DEFENSE, SPEED, AIR -> error("$label does not have separate number text")
         }
+
+        private val isAvailable: Boolean get() = !inRift || this != VITALITY
 
         fun position(): HudPosition = if (usesVanillaDisplay()) {
             when (this) {
@@ -466,7 +509,7 @@ object CustomBars {
     }
 
     private fun renderable(part: CustomBarPart, previewAir: Boolean = false): GuiRenderable =
-        CustomBarsRenderable(part, health, mana, vitality, defense, previewAir)
+        CustomBarsRenderable(part, displayedHealth(), mana, vitality, displayedDefense(), previewAir)
 
     private class CustomBarsRenderable(
         private val part: CustomBarPart,
@@ -486,7 +529,7 @@ object CustomBars {
                     context,
                     health,
                     config.details.health,
-                    SkyBlockStatGlyph.HEALTH.toString(),
+                    if (inRift) SkyBlockStatGlyph.HEARTS.toString() else SkyBlockStatGlyph.HEALTH.toString(),
                 )
                 CustomBarPart.MANA -> drawBar(
                     context,
@@ -516,7 +559,7 @@ object CustomBars {
                 }
                 CustomBarPart.DEFENSE -> drawReadout(
                     context,
-                    SkyBlockStatGlyph.DEFENSE.toString(),
+                    if (inRift) SkyBlockStatGlyph.RIFT_DAMAGE.toString() else SkyBlockStatGlyph.DEFENSE.toString(),
                     defense?.addSeparators() ?: "---",
                     config.details.defense,
                 )
@@ -637,8 +680,19 @@ object CustomBars {
 
         private fun drawExperienceIcon(context: GuiGraphicsExtractor, x: Int, barHeight: Int) {
             if (part.iconSlotWidth == 0) return
-            val y = RESOURCE_BAR_Y + (barHeight - EXPERIENCE_ICON_SIZE) / 2
-            EXPERIENCE_ICON.renderAt(context, x + EXPERIENCE_ICON_X, y)
+            if (inRift) {
+                val y = RESOURCE_BAR_Y + (barHeight - Minecraft.getInstance().font.lineHeight) / 2
+                drawIcon(
+                    context,
+                    SkyBlockStatGlyph.RIFT_TIME.toString(),
+                    x,
+                    y,
+                    config.details.experience.barColor.rgb(),
+                )
+            } else {
+                val y = RESOURCE_BAR_Y + (barHeight - EXPERIENCE_ICON_SIZE) / 2
+                EXPERIENCE_ICON.renderAt(context, x + EXPERIENCE_ICON_X, y)
+            }
         }
 
         private fun drawText(context: GuiGraphicsExtractor, text: String, x: Int, y: Int, color: Int) {
@@ -790,10 +844,17 @@ object CustomBars {
         }
 
         private fun text(): String = when (part) {
-            CustomBarPart.HEALTH -> resourceText(health, part.trackWidth)
+            CustomBarPart.HEALTH -> if (inRift) RiftCustomBarValues.formatHearts(displayedHealth()) else resourceText(
+                health,
+                part.trackWidth,
+            )
             CustomBarPart.MANA -> resourceText(mana, part.trackWidth)
             CustomBarPart.VITALITY -> resourceText(vitality, part.trackWidth)
-            CustomBarPart.EXPERIENCE -> (Minecraft.getInstance().player?.experienceLevel ?: 0).toString()
+            CustomBarPart.EXPERIENCE -> if (inRift) {
+                RiftCustomBarValues.formatTime(Minecraft.getInstance().player?.experienceLevel ?: 0)
+            } else {
+                (Minecraft.getInstance().player?.experienceLevel ?: 0).toString()
+            }
             CustomBarPart.DEFENSE, CustomBarPart.SPEED, CustomBarPart.AIR -> error("${part.label} has no bar text")
         }
 
@@ -855,6 +916,35 @@ internal data class VanillaHealthLayout(
     }
 }
 
+internal object RiftCustomBarValues {
+    private const val HEALTH_POINTS_PER_HEART = 2
+    private const val SECONDS_PER_MINUTE = 60
+    private const val SECOND_DIGITS = 2
+    private val damagePattern =
+        Regex("^Rift Damage:\\s*${SkyBlockStatGlyph.RIFT_DAMAGE}(?<damage>[\\d,]+)$")
+
+    fun parseDamage(lines: Iterable<String>): Int? = lines.firstNotNullOfOrNull { line ->
+        damagePattern.matchEntire(line.trim())?.groups?.get("damage")?.value?.formatInt()
+    }
+
+    fun formatHearts(value: BarValue?): String = value?.let {
+        "${it.displayedCurrent.toHearts()}/${it.maximum.toHearts()}"
+    } ?: "---/---"
+
+    fun formatTime(seconds: Int): String = if (seconds < SECONDS_PER_MINUTE) {
+        "${seconds}s"
+    } else {
+        val remainder = (seconds % SECONDS_PER_MINUTE).toString().padStart(SECOND_DIGITS, '0')
+        "${seconds / SECONDS_PER_MINUTE}m${remainder}s"
+    }
+
+    private fun Int.toHearts(): String = if (this % HEALTH_POINTS_PER_HEART == 0) {
+        (this / HEALTH_POINTS_PER_HEART).toString()
+    } else {
+        "${this / HEALTH_POINTS_PER_HEART}.5"
+    }
+}
+
 internal object CustomBarsActionBarParser {
     private val healthPattern =
         Regex("(?<current>[\\d,]+)/(?<maximum>[\\d,]+)\\s*[❤${SkyBlockStatGlyph.HEALTH}]")
@@ -867,6 +957,8 @@ internal object CustomBarsActionBarParser {
         Regex("(?<defense>[\\d,]+)\\s*[❈${SkyBlockStatGlyph.DEFENSE}](?:\\s+Defense)?")
     private val vitalityPattern =
         Regex("(?<current>[\\d,]+)/(?<maximum>[\\d,]+)\\s*${SkyBlockStatGlyph.VITALITY}")
+    private val riftTimePattern =
+        Regex("(?:[\\d,]+m)?\\d{1,2}s\\s*${SkyBlockStatGlyph.RIFT_TIME}\\s+Left")
 
     fun parse(text: String): ParsedCustomBarActionBar {
         val normalized = NormalizedActionBar(text)
@@ -874,6 +966,7 @@ internal object CustomBarsActionBarParser {
         val manaMatch = manaPattern.find(normalized.text)
         val vitalityMatch = vitalityPattern.find(normalized.text)
         val defenseMatch = defensePattern.find(normalized.text)
+        val riftTimeMatch = riftTimePattern.find(normalized.text)
         return ParsedCustomBarActionBar(
             health = healthMatch?.let {
                 BarValue(it.value("current"), it.value("maximum"))
@@ -900,6 +993,9 @@ internal object CustomBarsActionBarParser {
                 defenseMatch?.let {
                     add(StatusRemoval(CustomBarStatus.DEFENSE, text.statusRange(normalized.rawRange(it.range))))
                 }
+                riftTimeMatch?.let {
+                    add(StatusRemoval(CustomBarStatus.RIFT_TIME, text.statusRange(normalized.rawRange(it.range))))
+                }
             },
         )
     }
@@ -923,7 +1019,7 @@ internal object CustomBarsActionBarParser {
         return if (trailingEnd - endExclusive >= STATUS_SEPARATOR_LENGTH) match.first until trailingEnd else match
     }
 
-    private fun String.skyBlockInt(): Int = replace(",", "").toInt()
+    private fun String.skyBlockInt(): Int = formatInt()
 }
 
 private class NormalizedActionBar(private val raw: String) {
@@ -967,16 +1063,18 @@ internal enum class CustomBarStatus {
     MANA,
     VITALITY,
     DEFENSE,
+    RIFT_TIME,
     ;
 
     companion object {
-        fun hiddenBy(settings: CustomBarsSettingsConfig): Set<CustomBarStatus> = buildSet {
+        fun hiddenBy(settings: CustomBarsSettingsConfig, inRift: Boolean): Set<CustomBarStatus> = buildSet {
             val displays = settings.displays
             val numbers = settings.numbers
             if (displays.health != CustomBarDisplayMode.VANILLA || numbers.health) add(HEALTH)
             if (displays.mana != CustomBarDisplayMode.VANILLA || numbers.mana) add(MANA)
             if (displays.vitality != CustomBarDisplayMode.VANILLA || numbers.vitality) add(VITALITY)
             if (displays.defense != CustomBarDisplayMode.VANILLA) add(DEFENSE)
+            if (inRift && (displays.experience != CustomBarDisplayMode.VANILLA || numbers.experience)) add(RIFT_TIME)
         }
     }
 }
