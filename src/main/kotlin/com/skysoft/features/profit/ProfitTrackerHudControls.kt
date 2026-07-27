@@ -5,6 +5,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SoundUtilities
+import com.skysoft.utils.animation.PanelFadeTransition
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import org.lwjgl.glfw.GLFW
@@ -12,6 +13,31 @@ import org.lwjgl.glfw.GLFW
 internal class ProfitTrackerHudControls(
     private val itemPanel: ProfitTrackerItemPanel,
 ) {
+    private val resetTransition = PanelFadeTransition()
+    private var pendingReset: ResetTarget? = null
+
+    fun resetConfirmationOpacity(preset: ProfitTrackerPreset, period: ProfitTrackingPeriod): Double {
+        if (pendingReset == null) return 0.0
+        if (pendingReset != ResetTarget(preset, period)) {
+            clearResetConfirmation()
+            return 0.0
+        }
+        val opacity = resetTransition.opacity()
+        if (!resetTransition.isVisible) pendingReset = null
+        return opacity
+    }
+
+    fun isResetConfirmationPending(preset: ProfitTrackerPreset, period: ProfitTrackingPeriod): Boolean =
+        pendingReset == ResetTarget(preset, period)
+
+    fun isResetConfirmationInteractive(preset: ProfitTrackerPreset, period: ProfitTrackingPeriod): Boolean =
+        isResetConfirmationPending(preset, period) && resetTransition.isInteractive
+
+    fun clearResetConfirmation() {
+        pendingReset = null
+        resetTransition.reset()
+    }
+
     fun wasClickHandled(
         screen: AbstractContainerScreen<*>,
         action: ProfitTrackerControl?,
@@ -48,7 +74,15 @@ internal class ProfitTrackerHudControls(
     ): Boolean = when (action) {
         ProfitTrackerControl.Period -> wasPeriodCycled(preset, button)
         ProfitTrackerControl.PriceSource -> wasTrackerPriceSourceCycled(preset, button)
-        ProfitTrackerControl.Reset -> wasLeftClickHandled(button) { ProfitTracker.resetDisplayed(preset) }
+        ProfitTrackerControl.Reset -> wasLeftClickHandled(button) {
+            pendingReset = ResetTarget(preset, ProfitTracker.displayPeriod(preset))
+            resetTransition.show()
+        }
+        ProfitTrackerControl.CancelReset -> wasLeftClickHandled(button, resetTransition::hide)
+        ProfitTrackerControl.ConfirmReset -> wasLeftClickHandled(button) {
+            ProfitTracker.resetDisplayed(preset)
+            resetTransition.hide()
+        }
         ProfitTrackerControl.More -> wasLeftClickHandled(button, itemPanel::toggleOverview)
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
         is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(preset, action.itemId, button)
@@ -103,4 +137,9 @@ internal class ProfitTrackerHudControls(
         action(button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
         return true
     }
+
+    private data class ResetTarget(
+        val preset: ProfitTrackerPreset,
+        val period: ProfitTrackingPeriod,
+    )
 }

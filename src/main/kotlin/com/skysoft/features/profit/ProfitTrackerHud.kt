@@ -22,6 +22,7 @@ import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
@@ -80,18 +81,16 @@ private fun registerProfitTrackerHudEditor(preset: ProfitTrackerPreset) {
 private fun renderProfitTracker(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
     if (!HypixelLocationState.inSkyBlock || MinecraftClient.isGuiHidden(minecraft)) {
-        hoveredControl = null
-        isTrackerHovered = false
+        clearProfitTrackerInteraction()
         return
     }
     val preset = ProfitTracker.selectedPreset()?.takeIf(ProfitTracker::isInPresetArea) ?: run {
-        hoveredControl = null
-        isTrackerHovered = false
+        clearProfitTrackerInteraction()
         return
     }
     val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
     val inventoryOpen = inventoryScreen != null
-    if (!inventoryOpen) itemPanel.clear()
+    if (!inventoryOpen) clearProfitTrackerInteraction()
     val renderable = buildProfitRenderable(preset, inventoryOpen)
     val window = minecraft.window
     val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
@@ -126,6 +125,13 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
             }
         }
     }
+}
+
+private fun clearProfitTrackerInteraction() {
+    hoveredControl = null
+    isTrackerHovered = false
+    itemPanel.clear()
+    hudControls.clearResetConfirmation()
 }
 
 private fun renderPositioned(
@@ -277,10 +283,28 @@ private class ProfitTrackerRenderable(
     private val period = ProfitTracker.displayPeriod(preset)
     private val renderItemIcons = config.details.showItemIcons
     private val padding = if (background) OverlayPanelStyle.PADDING else 0
+    private val resetLine = ProfitLine(
+        "§c[Reset ${period.displayName}]",
+        right = "§7...",
+        control = ProfitTrackerControl.Reset,
+        secondaryControl = ProfitTrackerControl.More,
+    )
+    private val resetConfirmationLine = ProfitLine(
+        "§c[Cancel]",
+        right = "§a[Confirm]",
+        control = ProfitTrackerControl.CancelReset,
+        secondaryControl = ProfitTrackerControl.ConfirmReset,
+    )
     private val lines = buildLines()
 
-    override val width: Int = maxOf(MINIMUM_WIDTH, lines.maxOfOrNull(ProfitLine::width) ?: 0) + padding * 2
-    override val height: Int = lines.sumOf(ProfitLine::height) + padding * 2
+    override val width: Int = maxOf(
+        MINIMUM_WIDTH,
+        lines.maxOfOrNull(ProfitLine::width) ?: 0,
+        resetLine.width.takeIf { inventoryOpen } ?: 0,
+        resetConfirmationLine.width.takeIf { inventoryOpen } ?: 0,
+    ) + padding * 2
+    override val height: Int = lines.sumOf(ProfitLine::height) +
+        (if (inventoryOpen) resetLine.height else 0) + padding * 2
 
     override fun render(context: GuiGraphicsExtractor) {
         renderInteractive(context, null, null)
@@ -294,7 +318,36 @@ private class ProfitTrackerRenderable(
             renderLine(context, line, y, mouseX, mouseY)?.let { hovered = it }
             y += line.height
         }
+        if (inventoryOpen) renderResetLine(context, y, mouseX, mouseY)?.let { hovered = it }
         return hovered
+    }
+
+    private fun renderResetLine(
+        context: GuiGraphicsExtractor,
+        y: Int,
+        mouseX: Int?,
+        mouseY: Int?,
+    ): LocalControlArea? {
+        val confirmationOpacity = hudControls.resetConfirmationOpacity(preset, period)
+        val confirmationPending = hudControls.isResetConfirmationPending(preset, period)
+        val confirmationInteractive = hudControls.isResetConfirmationInteractive(preset, period)
+        val resetArea = renderLine(
+            context,
+            resetLine,
+            y,
+            mouseX.takeUnless { confirmationPending },
+            mouseY.takeUnless { confirmationPending },
+            1.0 - confirmationOpacity,
+        )
+        val confirmationArea = renderLine(
+            context,
+            resetConfirmationLine,
+            y,
+            mouseX.takeIf { confirmationInteractive },
+            mouseY.takeIf { confirmationInteractive },
+            confirmationOpacity,
+        )
+        return confirmationArea ?: resetArea
     }
 
     private fun renderLine(
@@ -303,6 +356,7 @@ private class ProfitTrackerRenderable(
         y: Int,
         mouseX: Int?,
         mouseY: Int?,
+        opacity: Double = 1.0,
     ): LocalControlArea? {
         val primaryWidth = line.primaryControlWidth(width, padding)
         val rightWidth = line.right?.let(LegacyTextRenderer::width) ?: 0
@@ -319,7 +373,7 @@ private class ProfitTrackerRenderable(
                 area.bounds.y,
                 area.bounds.x + area.bounds.width,
                 area.bounds.y + area.bounds.height,
-                CONTROL_HOVER_COLOR,
+                CONTROL_HOVER_COLOR.withScaledAlpha(opacity),
             )
         }
         secondaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
@@ -328,22 +382,37 @@ private class ProfitTrackerRenderable(
                 area.bounds.y,
                 area.bounds.x + area.bounds.width,
                 area.bounds.y + area.bounds.height,
-                CONTROL_HOVER_COLOR,
+                CONTROL_HOVER_COLOR.withScaledAlpha(opacity),
             )
         }
-        line.leading?.let { LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset) }
+        val textColor = TEXT_COLOR.withScaledAlpha(opacity)
+        line.leading?.let {
+            LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset, defaultColor = textColor)
+        }
         line.icon?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, padding + line.contentOffset, y) }
         val textX = if (line.centered) {
             (width - LegacyTextRenderer.width(line.left)) / 2
         } else {
             padding + line.contentOffset + if (line.icon == null) 0 else ITEM_TEXT_OFFSET
         }
-        LegacyTextRenderer.draw(context, line.left, textX, y + line.textYOffset)
+        LegacyTextRenderer.draw(context, line.left, textX, y + line.textYOffset, defaultColor = textColor)
         line.middle?.let { middle ->
-            LegacyTextRenderer.draw(context, middle, textX + line.leftColumnWidth + ITEM_COLUMN_GAP, y + line.textYOffset)
+            LegacyTextRenderer.draw(
+                context,
+                middle,
+                textX + line.leftColumnWidth + ITEM_COLUMN_GAP,
+                y + line.textYOffset,
+                defaultColor = textColor,
+            )
         }
         line.right?.let { right ->
-            LegacyTextRenderer.draw(context, right, width - padding - LegacyTextRenderer.width(right), y + line.textYOffset)
+            LegacyTextRenderer.draw(
+                context,
+                right,
+                width - padding - LegacyTextRenderer.width(right),
+                y + line.textYOffset,
+                defaultColor = textColor,
+            )
         }
         val hoveredArea = secondaryArea?.takeIf { it.contains(mouseX, mouseY) }
             ?: primaryArea?.takeIf { it.contains(mouseX, mouseY) }
@@ -416,14 +485,6 @@ private class ProfitTrackerRenderable(
         if (inventoryOpen) {
             add(ProfitLine("§7Display Mode §a§l[${period.displayName}]", control = ProfitTrackerControl.Period))
             add(ProfitLine("§7Price Source §e§l[${config.settings.priceSource}]", control = ProfitTrackerControl.PriceSource))
-            add(
-                ProfitLine(
-                    "§c[Reset ${period.displayName}]",
-                    right = "§7...",
-                    control = ProfitTrackerControl.Reset,
-                    secondaryControl = ProfitTrackerControl.More,
-                ),
-            )
         }
     }
 
@@ -438,7 +499,10 @@ private class ProfitTrackerRenderable(
             ProfitTrackerPriceSource.entries.map(ProfitTrackerPriceSource::toString),
             config.settings.priceSource.ordinal,
         )
-        ProfitTrackerControl.Reset -> listOf("§7Reset ${period.displayName} ${preset.displayName} data.")
+        ProfitTrackerControl.Reset,
+        ProfitTrackerControl.ConfirmReset,
+        -> listOf("§7Reset ${period.displayName} ${preset.displayName} data.")
+        ProfitTrackerControl.CancelReset -> emptyList()
         ProfitTrackerControl.More -> listOf("§7Manage tracked items.")
         is ProfitTrackerControl.ManageItem -> emptyList()
         else -> emptyList()
@@ -539,4 +603,5 @@ private const val ITEM_TEXT_OFFSET = 14
 private const val COLUMN_GAP = 8
 private const val ITEM_COLUMN_GAP = 4
 private const val SIDE_PANEL_ESTIMATED_WIDTH = 220
+private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
 private const val CONTROL_HOVER_COLOR = 0x20FFFFFF
