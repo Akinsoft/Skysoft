@@ -46,10 +46,21 @@ object ProfitTracker {
     private var attributionPreset: ProfitTrackerPreset? = null
     private var inactiveAttributionTicks = 0
     private var durationPreset: ProfitTrackerPreset? = null
-    private var durationTicks = 0
     private var previousPreset: ProfitTrackerPreset? = null
     private var previousPresetLeftAtMillis = 0L
-    private val lastActivityAtMillis = mutableMapOf<ProfitTrackerPreset, Long>()
+    private val uptime = ProfitUptimeTracker(
+        pauseAfterMillis = { preset ->
+            presetConfig(preset).settings.pauseAfterSeconds.coerceIn(
+                MINIMUM_PAUSE_AFTER_SECONDS,
+                MAXIMUM_PAUSE_AFTER_SECONDS,
+            ) * MILLIS_PER_SECOND
+        },
+        onUptimeChanged = { preset, change ->
+            update(preset) { stats ->
+                stats.activeMillis = (stats.activeMillis + change).coerceAtLeast(0L)
+            }
+        },
+    )
     private val itemTracking = ProfitTrackerItemTracking()
     private val craftingReconciliation = ProfitCraftingReconciliation()
     private var dropCatalogVersion = -1L
@@ -68,7 +79,7 @@ object ProfitTracker {
             questCostCapture.recordChange(change.currency, change.amount)
             if (change.currency != SKYBLOCK_COINS) return@onChange
             val preset = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset ?: return@onChange
-            if (!shouldTrackCoinGain(preset, change.amount, lastActivityAtMillis[preset])) return@onChange
+            if (!shouldTrackCoinGain(preset, change.amount, uptime.lastActivityAt(preset))) return@onChange
             markActivity(preset)
             update(preset) { stats -> stats.coins += change.amount }
         }
@@ -105,30 +116,22 @@ object ProfitTracker {
         }
         SkysoftClientEvents.onEndTick(
             "Profit Tracker activity state",
-            isActive = { configs.isAnyEnabled() || attributionPreset != null || durationPreset != null },
-        ) {
+            isActive = {
+                configs.isAnyEnabled() || attributionPreset != null || durationPreset != null ||
+                    uptime.hasUnconfirmedUptime
+            },
+        ) { minecraft ->
             val locationPreset = currentPreset
             if (locationPreset == durationPreset) {
-                if (locationPreset != null) {
-                    val now = System.currentTimeMillis()
-                    val pauseAfterMillis = presetConfig(locationPreset).settings.pauseAfterSeconds.coerceIn(
-                        MINIMUM_PAUSE_AFTER_SECONDS,
-                        MAXIMUM_PAUSE_AFTER_SECONDS,
-                    ) * MILLIS_PER_SECOND
-                    if (isProfitTimerActive(lastActivityAtMillis[locationPreset], now, pauseAfterMillis) &&
-                        ++durationTicks >= DURATION_UPDATE_TICKS
-                    ) {
-                        durationTicks = 0
-                        update(locationPreset) { stats -> stats.activeMillis += DURATION_UPDATE_MILLIS }
-                    }
-                }
+                uptime.tick(locationPreset, minecraft.isWindowActive)
             } else {
+                uptime.tick(null, minecraft.isWindowActive)
                 durationPreset?.let { previous ->
                     previousPreset = previous
                     previousPresetLeftAtMillis = System.currentTimeMillis()
                 }
                 durationPreset = locationPreset
-                durationTicks = 0
+                uptime.resetTickProgress()
                 locationPreset?.takeUnless { it == ProfitTrackerPreset.FARMING }?.let(::markActivity)
             }
             val questPreset = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
@@ -179,13 +182,8 @@ object ProfitTracker {
         ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.storage.profitTracker.totals.getOrPut(preset.name, ::newProfitTrackerStats)
     }
 
-    internal fun isTimerPaused(preset: ProfitTrackerPreset): Boolean {
-        val pauseAfterMillis = presetConfig(preset).settings.pauseAfterSeconds.coerceIn(
-            MINIMUM_PAUSE_AFTER_SECONDS,
-            MAXIMUM_PAUSE_AFTER_SECONDS,
-        ) * MILLIS_PER_SECOND
-        return !isProfitTimerActive(lastActivityAtMillis[preset], System.currentTimeMillis(), pauseAfterMillis)
-    }
+    internal fun isTimerPaused(preset: ProfitTrackerPreset): Boolean =
+        uptime.isPaused(preset, Minecraft.getInstance().isWindowActive)
 
     internal fun displayPeriod(preset: ProfitTrackerPreset): ProfitTrackingPeriod =
         ProfileStorageApi.storage.profitTracker.displayPeriods[preset.name]
@@ -354,9 +352,7 @@ object ProfitTracker {
         }
     }
 
-    private fun markActivity(preset: ProfitTrackerPreset) {
-        lastActivityAtMillis[preset] = System.currentTimeMillis()
-    }
+    private fun markActivity(preset: ProfitTrackerPreset) = uptime.markActivity(preset)
 
     private fun resetSession() {
         sessionStats.clear()
@@ -364,10 +360,9 @@ object ProfitTracker {
         attributionPreset = null
         inactiveAttributionTicks = 0
         durationPreset = null
-        durationTicks = 0
         previousPreset = null
         previousPresetLeftAtMillis = 0L
-        lastActivityAtMillis.clear()
+        uptime.clear()
         itemTracking.clear()
         craftingReconciliation.clear()
         pendingReplenishCosts.clear()
@@ -461,9 +456,6 @@ internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
 
 private fun newProfitTrackerStats() = ProfileStorage.ProfitTrackerStats()
 
-internal fun isProfitTimerActive(lastActivityAtMillis: Long?, now: Long, pauseAfterMillis: Int): Boolean =
-    lastActivityAtMillis != null && now - lastActivityAtMillis <= pauseAfterMillis
-
 internal fun didRollProfitTrackerToday(tracker: ProfileStorage.ProfitTrackerData, epochDay: Long): Boolean {
     if (tracker.todayEpochDay == epochDay) return false
     tracker.todayEpochDay = epochDay
@@ -488,8 +480,6 @@ internal fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, c
 
 private const val QUEST_COST_CAPTURE_MILLIS = 1_500L
 private const val ATTRIBUTION_GRACE_TICKS = 2
-private const val DURATION_UPDATE_TICKS = 20
-private const val DURATION_UPDATE_MILLIS = 1_000L
 private const val MILLIS_PER_SECOND = 1_000
 private const val MINIMUM_PAUSE_AFTER_SECONDS = 15
 private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
