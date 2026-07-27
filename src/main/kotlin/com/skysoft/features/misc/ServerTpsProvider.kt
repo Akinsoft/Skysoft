@@ -32,12 +32,6 @@ internal class ServerTpsService(private val estimator: ServerTpsEstimator = Serv
     fun resetMeasurements() {
         estimator.reset()
     }
-
-    fun snapshot(): ServerTpsProviderSnapshot = ServerTpsProviderSnapshot(
-        registeredConsumers = registeredConsumers.toList(),
-        activeConsumers = activeConsumers.toList(),
-        estimator = estimator.snapshot(),
-    )
 }
 
 internal object ServerTpsProvider {
@@ -68,11 +62,4 @@ internal object ServerTpsProvider {
         return service.recordTimeUpdate(gameTime, timestampNanos, targetTps)
     }
 
-    fun snapshot(): ServerTpsProviderSnapshot = service.snapshot()
 }
-
-internal data class ServerTpsProviderSnapshot(
-    val registeredConsumers: List<String>,
-    val activeConsumers: List<String>,
-    val estimator: ServerTpsSnapshot,
-)
