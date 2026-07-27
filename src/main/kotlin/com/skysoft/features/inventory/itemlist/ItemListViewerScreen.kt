@@ -156,6 +156,10 @@ internal class ItemListViewerScreen(
         ) {
             return true
         }
+        if (Minecraft.getInstance().options.keyInventory.matches(event)) {
+            onClose()
+            return true
+        }
         itemListShortcutMode(event.key(), SkysoftConfigGui.config().inventory.itemList.settings)?.let {
             selection.changeMode(it)
             lastItemListShortcutOutcome = "$it selected:viewer"
