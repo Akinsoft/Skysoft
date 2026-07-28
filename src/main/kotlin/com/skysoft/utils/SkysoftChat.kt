@@ -14,8 +14,9 @@ import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 
 object SkysoftChat {
+    internal const val BRAND_BLUE = 0x2BB1FB
     private const val PREFIX_LEFT = 0x1A87C4
-    private const val PREFIX_RIGHT = 0x2BB1FB
+    private const val PREFIX_RIGHT = BRAND_BLUE
     private const val MESSAGE_LEFT = 0xE8E8E8
     private const val MESSAGE_RIGHT = 0xFFFFFF
 

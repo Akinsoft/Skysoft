@@ -32,38 +32,38 @@ class ProfitTrackersConfig {
     @JvmField
     @field:Expose
     @field:Category(name = "Zombie Slayer", desc = "Track Zombie Slayer profit.")
-    val zombie = ProfitTrackerConfig()
+    val zombie = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
     @field:Category(name = "Spider Slayer", desc = "Track Spider Slayer profit.")
-    val spider = ProfitTrackerConfig()
+    val spider = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
     @field:Category(name = "Wolf Slayer", desc = "Track Wolf Slayer profit.")
-    val wolf = ProfitTrackerConfig()
+    val wolf = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
     @field:Category(name = "Enderman Slayer", desc = "Track Enderman Slayer profit.")
-    val enderman = ProfitTrackerConfig()
+    val enderman = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
     @field:Category(name = "Blaze Slayer", desc = "Track Blaze Slayer profit.")
-    val blaze = ProfitTrackerConfig()
+    val blaze = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
     @field:Category(name = "Vampire Slayer", desc = "Track Vampire Slayer profit.")
-    val vampire = ProfitTrackerConfig()
+    val vampire = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     fun isAnyEnabled(): Boolean = farming.enabled || foraging.enabled || mining.enabled || zombie.enabled ||
         spider.enabled || wolf.enabled || enderman.enabled || blaze.enabled || vampire.enabled
 }
 
-class ProfitTrackerConfig(summaryLines: List<ProfitTrackerSummaryLine> = ProfitTrackerSummaryLine.entries) {
+class ProfitTrackerConfig(summaryLines: List<ProfitTrackerSummaryLine> = STANDARD_TRACKER_SUMMARY_LINES) {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Track profit for this activity.")
@@ -109,7 +109,7 @@ class ProfitTrackerSettingsConfig {
     var maximumItems = 8
 }
 
-class ProfitTrackerDetailsConfig(defaultSummaryLines: List<ProfitTrackerSummaryLine> = ProfitTrackerSummaryLine.entries) {
+class ProfitTrackerDetailsConfig(defaultSummaryLines: List<ProfitTrackerSummaryLine> = STANDARD_TRACKER_SUMMARY_LINES) {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Show Item Icons", desc = "Show item icons beside tracked drops.")
@@ -154,7 +154,7 @@ enum class ProfitTrackerQuantityPosition(private val displayName: String) {
     override fun toString(): String = displayName
 }
 
-enum class ProfitTrackerSummaryLine(private val displayName: String) {
+enum class ProfitTrackerSummaryLine(private val displayName: String, val requiresKillTime: Boolean = false) {
     @SerializedName(value = "COINS", alternate = ["MOB_KILL_COINS"])
     COINS("Coins"),
     QUEST_COSTS("Costs"),
@@ -162,12 +162,16 @@ enum class ProfitTrackerSummaryLine(private val displayName: String) {
     PROFIT_PER_HOUR("Profit/h"),
     @SerializedName(value = "ACTIONS", alternate = ["BOSSES_KILLED"])
     ACTIONS("Actions"),
+    AVERAGE_KILL_TIME("Average Kill Time", requiresKillTime = true),
+    PERSONAL_BEST("Personal Best", requiresKillTime = true),
     UPTIME("Uptime"),
     ;
 
     override fun toString(): String = displayName
 }
 
+private val STANDARD_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries.filterNot { it.requiresKillTime }
+private val SLAYER_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries
 private val RESOURCE_TRACKER_SUMMARY_LINES = listOf(
     ProfitTrackerSummaryLine.TOTAL_PROFIT,
     ProfitTrackerSummaryLine.PROFIT_PER_HOUR,

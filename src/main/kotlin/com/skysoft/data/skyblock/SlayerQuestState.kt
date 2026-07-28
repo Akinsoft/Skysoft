@@ -13,6 +13,7 @@ object SlayerQuestState {
     private var lastActiveSnapshot = SlayerQuestSnapshot.NONE
     private var completionListeners: List<(SlayerQuestSnapshot) -> Unit> = emptyList()
     private var startListeners: List<() -> Unit> = emptyList()
+    private var bossSpawnListeners: List<(SlayerQuestSnapshot) -> Unit> = emptyList()
     private val minibossNames = mutableSetOf<String>()
     private val recentlyClearedMinibossNames = mutableMapOf<String, Long>()
 
@@ -66,6 +67,10 @@ object SlayerQuestState {
         completionListeners += listener
     }
 
+    internal fun onBossSpawn(listener: (SlayerQuestSnapshot) -> Unit) {
+        bossSpawnListeners += listener
+    }
+
     fun isSlayerTarget(mobName: String): Boolean =
         bossNames.any { bossName -> bossName.endsWith(mobName, ignoreCase = true) } ||
             minibossNames.any { it.equals(mobName, ignoreCase = true) } ||
@@ -93,8 +98,10 @@ object SlayerQuestState {
             minibossNames.forEach { name -> recentlyClearedMinibossNames[name] = now }
             minibossNames.clear()
         }
+        val bossSpawned = snapshot.isActive && !snapshot.isBossActive && next.isBossActive
         snapshot = next
         if (next.isActive) lastActiveSnapshot = next
+        if (bossSpawned) bossSpawnListeners.forEach { it(next) }
     }
 
     private fun clear() {

@@ -90,6 +90,7 @@ import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.features.slayer.SlayerBossAlerts
 import com.skysoft.features.slayer.SlayerMinibossAlert
 import com.skysoft.features.slayer.SlayerTargetHighlighting
+import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.features.spotify.SpotifyAuthentication
 import com.skysoft.features.spotify.SpotifyDisplay
 import com.skysoft.gui.DeferredScreenRequests
@@ -215,6 +216,7 @@ internal object SkysoftFeatureRegistrations {
         register("Slayer Boss Alerts", SlayerBossAlerts::register)
         register("Slayer Miniboss Alert", SlayerMinibossAlert::register)
         register("Slayer Target Highlighting", SlayerTargetHighlighting::register)
+        register("Slayer Time to Kill", SlayerTimeToKill::register)
         register("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         register("Fishing Hotspot Radar", FishingHotspotRadar::register)
         register("Rare Loot Features", RareLootChatFeatures::register)
