@@ -3,14 +3,22 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.data.skyblock.SkyBlockSlayerType
+import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
 
 class CombatFeatureConfig : ConfigRepairable {
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Healing Pool", desc = "Mark active Wisp healing pools.")
+    val healingPool = HealingPoolConfig()
+
     @JvmField
     @field:Expose
     @field:Category(name = "Cocoon Display", desc = "Show cocooned mob names and hatch timers in the world.")
@@ -24,6 +32,48 @@ class CombatFeatureConfig : ConfigRepairable {
     override fun repairLoadedValues() {
         betterShurikens.settings.repairLoadedValues()
     }
+}
+
+class HealingPoolConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Mark active Wisp healing pools.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Choose which healing pool indicators appear.")
+    @field:Accordion
+    val settings = HealingPoolSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Customize healing pool indicators.")
+    @field:Accordion
+    val details = HealingPoolDetailsConfig()
+}
+
+class HealingPoolSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Show Text", desc = "Show text above active healing pools.")
+    @field:ConfigEditorBoolean
+    var showText = true
+}
+
+class HealingPoolDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Line and Text Color", desc = "Color used for the line and text.")
+    @field:ConfigEditorColour
+    val color: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 255, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Text", desc = "Text shown above active healing pools.")
+    @field:ConfigEditorText
+    var text = "Heal!"
 }
 
 class CocoonDisplayConfig {

@@ -30,6 +30,7 @@ import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.ImageLinkPreview
 import com.skysoft.features.combat.BetterShurikens
 import com.skysoft.features.combat.CocoonTracker
+import com.skysoft.features.combat.HealingPoolLine
 import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.event.diana.DianaBurrowInteractions
 import com.skysoft.features.event.diana.DianaBurrowStorage
@@ -209,6 +210,7 @@ internal object SkysoftFeatureRegistrations {
     private fun registerGameplayFeatures() {
         register("Bazaar Tracker", BazaarTracker::register)
         register("Cocoon Tracker", CocoonTracker::register)
+        register("Healing Pool Line", HealingPoolLine::register)
         register("Better Shurikens", BetterShurikens::register)
         register("Slayer Boss Alerts", SlayerBossAlerts::register)
         register("Slayer Miniboss Alert", SlayerMinibossAlert::register)
