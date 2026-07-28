@@ -27,6 +27,7 @@ import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.BazaarPriceData
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.pets.PetRepository
+import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
@@ -204,19 +205,20 @@ object ProfitTracker {
         itemTracking.clear()
         craftingReconciliation.clear(preset)
         pendingReplenishCosts.clear()
-        when (displayPeriod(preset)) {
+        val period = displayPeriod(preset)
+        when (period) {
             ProfitTrackingPeriod.SESSION -> sessionStats[preset.name]?.clear()
             ProfitTrackingPeriod.TODAY -> {
                 todayStats(preset).clear()
                 ProfileStorageApi.markDirty()
-                ProfileStorageApi.saveNow()
             }
             ProfitTrackingPeriod.TOTAL -> {
                 ProfileStorageApi.storage.profitTracker.totals[preset.name]?.clear()
                 ProfileStorageApi.markDirty()
-                ProfileStorageApi.saveNow()
             }
         }
+        preset.slayerType?.let { SlayerTimeToKill.reset(it, period) }
+        if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.saveNow()
     }
 
     private fun recordFarmingBlock(block: Block) {

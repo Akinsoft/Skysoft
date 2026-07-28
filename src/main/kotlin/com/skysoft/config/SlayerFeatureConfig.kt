@@ -7,6 +7,7 @@ import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
 class SlayerFeatureConfig {
@@ -22,9 +23,49 @@ class SlayerFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Time to Kill", desc = "Track Slayer boss kill times.")
+    val timeToKill = SlayerTimeToKillConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Miniboss Alert", desc = "Show a title and play a sound when a Slayer miniboss spawns.")
     @field:ConfigEditorBoolean
     var minibossAlert = false
+}
+
+class SlayerTimeToKillConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Report Slayer boss kill times in chat and track averages and personal bests.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Time to Kill settings.")
+    @field:Accordion
+    @field:ConfigVisibleIf("enabled")
+    val settings = SlayerTimeToKillSettingsConfig()
+}
+
+class SlayerTimeToKillSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Show Spawn Time", desc = "Include the time taken to spawn the boss in the kill message.")
+    @field:ConfigEditorBoolean
+    var showSpawnTime = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Show Total Time", desc = "Include the total quest time in the kill message.")
+    @field:ConfigEditorBoolean
+    var showTotalTime = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Share Personal Bests", desc = "Share new personal bests in party chat.")
+    @field:ConfigEditorBoolean
+    var sharePersonalBests = true
 }
 
 class SlayerTargetHighlightingConfig {

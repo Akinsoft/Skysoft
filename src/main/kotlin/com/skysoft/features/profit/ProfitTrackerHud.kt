@@ -10,6 +10,8 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.pets.PetRepository
+import com.skysoft.features.slayer.SlayerTimeToKill
+import com.skysoft.features.slayer.formatSlayerKillTimeForHud
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -278,9 +280,18 @@ private class ProfitTrackerRenderable(
     private val hiddenItemsAbove = scrollOffset
     private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins
     private val hasUnknownPrices = items.any { it.value == null }
+    private val profitLabel = when {
+        stats.costs.keys.any { it != COIN_CURRENCY } -> "Coin Profit"
+        hasUnknownPrices -> "Known Profit"
+        else -> "Total Profit"
+    }
     private val coinCosts = stats.costs[COIN_CURRENCY]?.toDouble() ?: 0.0
     private val profit = revenue - coinCosts
     private val period = ProfitTracker.displayPeriod(preset)
+    private val killTimeDisplay = preset.slayerType?.let { SlayerTimeToKill.displayStats(it, period) }
+    private val summaryLines = config.details.summaryLines.get().distinct().filter { summaryLine ->
+        killTimeDisplay != null || !summaryLine.requiresKillTime
+    }
     private val renderItemIcons = config.details.showItemIcons
     private val padding = if (background) OverlayPanelStyle.PADDING else 0
     private val resetLine = ProfitLine(
@@ -451,13 +462,8 @@ private class ProfitTrackerRenderable(
         } else if (hiddenItemsAbove > 0) {
             add(ProfitLine("§7$hiddenItemsAbove above...", centered = true))
         }
-        val profitLabel = when {
-            stats.costs.keys.any { it != COIN_CURRENCY } -> "Coin Profit"
-            hasUnknownPrices -> "Known Profit"
-            else -> "Total Profit"
-        }
         val profitPerHour = profitPerHour(profit, stats.activeMillis)
-        config.details.summaryLines.get().distinct().forEach { summaryLine ->
+        summaryLines.forEach { summaryLine ->
             when (summaryLine) {
                 ProfitTrackerSummaryLine.COINS -> if (stats.coins > 0.0) {
                     add(ProfitLine("§7${preset.coinLabel}", "§6${stats.coins.coinFormat()}"))
@@ -476,6 +482,18 @@ private class ProfitTrackerRenderable(
                 ProfitTrackerSummaryLine.ACTIONS -> {
                     add(ProfitLine("§7${preset.actionLabel}", "§e${stats.actions.addSeparators()}"))
                 }
+                ProfitTrackerSummaryLine.AVERAGE_KILL_TIME -> add(
+                    ProfitLine(
+                        "§7Average Kill",
+                        formatSlayerKillTimeForHud(requireNotNull(killTimeDisplay).averageMillis),
+                    ),
+                )
+                ProfitTrackerSummaryLine.PERSONAL_BEST -> add(
+                    ProfitLine(
+                        "§7Personal Best",
+                        formatSlayerKillTimeForHud(requireNotNull(killTimeDisplay).personalBestMillis),
+                    ),
+                )
                 ProfitTrackerSummaryLine.UPTIME -> {
                     val paused = if (ProfitTracker.isTimerPaused(preset)) " §c(paused)" else ""
                     add(ProfitLine("§7Uptime", "§b${formatProfitUptime(stats.activeMillis)}$paused"))

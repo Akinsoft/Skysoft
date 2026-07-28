@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.features.bazaar.BazaarOrderType
 import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.SkyBlockSkill
@@ -145,6 +146,7 @@ data class ProfileStorage(
         @Expose val inventoryItemCounts: MutableMap<String, Int> = mutableMapOf(),
         @Expose val sackContents: MutableMap<String, SackItemData> = mutableMapOf(),
         @Expose val profitTracker: ProfitTrackerData = ProfitTrackerData(),
+        @Expose val slayerTimeToKill: SlayerTimeToKillData = SlayerTimeToKillData(),
         @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
         @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
         @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
@@ -173,6 +175,7 @@ data class ProfileStorage(
             sackContents.keys.removeIf(String::isBlank)
             sackContents.values.forEach(SackItemData::repairLoadedValues)
             profitTracker.repairLoadedValues()
+            slayerTimeToKill.repairLoadedValues()
             bazaarTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
@@ -263,6 +266,61 @@ data class ProfileStorage(
             coins = 0.0
             activeMillis = 0L
             actions = 0L
+        }
+    }
+
+    data class SlayerTimeToKillData(
+        @Expose val totals: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>> = mutableMapOf(),
+        @Expose var todayEpochDay: Long = 0L,
+        @Expose val today: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>> = mutableMapOf(),
+        @Expose val lastTiers: MutableMap<SkyBlockSlayerType, Int> = mutableMapOf(),
+    ) {
+        fun repairLoadedValues() {
+            repairStats(totals)
+            repairStats(today)
+            lastTiers.entries.removeIf { (_, tier) -> tier !in SLAYER_TIER_RANGE }
+            if (todayEpochDay < 0L) todayEpochDay = 0L
+        }
+
+        private fun repairStats(stats: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>>) {
+            stats.values.forEach { tiers ->
+                tiers.keys.removeIf { tier -> tier !in SLAYER_TIER_RANGE }
+                tiers.values.forEach(SlayerKillTimeStats::repairLoadedValues)
+                tiers.entries.removeIf { (_, value) -> value.kills == 0L }
+            }
+            stats.entries.removeIf { (_, tiers) -> tiers.isEmpty() }
+        }
+
+        companion object {
+            private val SLAYER_TIER_RANGE = 1..5
+        }
+    }
+
+    data class SlayerKillTimeStats(
+        @Expose var kills: Long = 0L,
+        @Expose var totalMillis: Long = 0L,
+        @Expose var bestMillis: Long = 0L,
+    ) {
+        val averageMillis: Double?
+            get() = totalMillis.takeIf { kills > 0L }?.toDouble()?.div(kills)
+
+        fun record(durationMillis: Long): Long {
+            require(durationMillis > 0L)
+            val previousBestMillis = bestMillis
+            kills++
+            totalMillis += durationMillis
+            if (bestMillis == 0L || durationMillis < bestMillis) bestMillis = durationMillis
+            return previousBestMillis
+        }
+
+        fun repairLoadedValues() {
+            if (kills <= 0L || totalMillis <= 0L) {
+                kills = 0L
+                totalMillis = 0L
+                bestMillis = 0L
+            } else if (bestMillis !in 1..totalMillis) {
+                bestMillis = 0L
+            }
         }
     }
 

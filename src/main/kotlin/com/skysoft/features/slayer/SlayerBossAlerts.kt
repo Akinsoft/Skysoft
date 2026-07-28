@@ -19,7 +19,6 @@ import net.minecraft.sounds.SoundEvent
 
 object SlayerBossAlerts {
     private val config get() = SkysoftConfigGui.config().slayer.bossAlerts
-    private var wasBossActive: Boolean? = null
 
     fun register() {
         ChatEvents.onVisibleMessage(
@@ -41,33 +40,24 @@ object SlayerBossAlerts {
             }
             ChatMessageVisibility.SHOW
         }
-        SkysoftClientEvents.onEndTick(
-            "Slayer Boss Spawn Alert scoreboard",
-            isActive = { shouldTrackBossSpawn() || wasBossActive != null },
-        ) { updateBossState() }
-        SkysoftClientEvents.onDisconnect("Slayer Boss Alerts disconnect reset", ::clear)
-    }
-
-    private fun updateBossState() {
-        if (!shouldTrackBossSpawn()) {
-            wasBossActive = null
-            return
+        SlayerQuestState.onBossSpawn {
+            if (shouldTrackBossSpawn()) {
+                showAlert(
+                    title = BOSS_SPAWNED_TITLE,
+                    visible = config.settings.showSpawnAlert,
+                    sound = alertSound(
+                        config.settings.playSpawnSound,
+                        BOSS_SPAWN_SOUND_ID,
+                        BOSS_SPAWN_SOUND_PITCH,
+                        BOSS_SPAWN_SOUND_VOLUME,
+                        BOSS_SPAWN_SOUND_REPEAT_INTERVAL_MILLIS,
+                    ),
+                )
+            }
         }
-        val bossActive = SlayerQuestState.isBossActive
-        if (didSlayerBossSpawn(wasBossActive, bossActive)) {
-            showAlert(
-                title = BOSS_SPAWNED_TITLE,
-                visible = config.settings.showSpawnAlert,
-                sound = alertSound(
-                    config.settings.playSpawnSound,
-                    BOSS_SPAWN_SOUND_ID,
-                    BOSS_SPAWN_SOUND_PITCH,
-                    BOSS_SPAWN_SOUND_VOLUME,
-                    BOSS_SPAWN_SOUND_REPEAT_INTERVAL_MILLIS,
-                ),
-            )
+        SkysoftClientEvents.onDisconnect("Slayer Boss Alerts disconnect reset") {
+            ScreenAlertRenderer.clear(ALERT_ID)
         }
-        wasBossActive = bossActive
     }
 
     private fun showAlert(title: String, visible: Boolean, sound: ScreenAlertSound?) {
@@ -102,11 +92,6 @@ object SlayerBossAlerts {
             null
         }
 
-    private fun clear() {
-        wasBossActive = null
-        ScreenAlertRenderer.clear(ALERT_ID)
-    }
-
     private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
     private fun shouldTrackBossSpawn(): Boolean =
@@ -130,6 +115,3 @@ object SlayerBossAlerts {
     private const val BOSS_COCOON_SOUND_PITCH = 1.0f
     private const val BOSS_COCOON_SOUND_VOLUME = 1.75f
 }
-
-internal fun didSlayerBossSpawn(wasBossActive: Boolean?, bossActive: Boolean): Boolean =
-    wasBossActive == false && bossActive
