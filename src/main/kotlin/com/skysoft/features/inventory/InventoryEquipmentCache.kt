@@ -41,6 +41,7 @@ internal object InventoryEquipmentCache {
         ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
             if (consumers.hasActiveConsumers && screen is AbstractContainerScreen<*>) {
                 ScreenEvents.remove(screen).register {
+                    if (!consumers.hasActiveConsumers || !HypixelLocationState.inSkyBlock) return@register
                     SkysoftErrorBoundary.run("Inventory Equipment Cache close flush") {
                         readInventoryEquipmentScreen(screen)
                     }
