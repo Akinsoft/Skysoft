@@ -149,6 +149,11 @@ object CustomBars {
         replaceVanilla(VanillaHudElements.AIR_BAR, CustomBarPart.AIR) {
             config.settings.displays.air == CustomBarDisplayMode.VANILLA
         }
+        HudElementRegistry.replaceElement(VanillaHudElements.FOOD_BAR) { vanilla ->
+            HudElement { context, tick ->
+                if (!isActive()) vanilla.extractRenderState(context, tick)
+            }
+        }
     }
 
     private fun replaceVanilla(id: Identifier, part: CustomBarPart, shouldRender: () -> Boolean) {
