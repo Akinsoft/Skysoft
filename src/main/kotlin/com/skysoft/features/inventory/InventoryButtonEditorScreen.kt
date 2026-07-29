@@ -5,6 +5,7 @@ import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.inventory.InventoryButtonManager.BUTTON_SIZE
 import com.skysoft.features.inventory.InventoryButtonManager.IconCandidate
+import com.skysoft.gui.hudEditorNudge
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.scale.shouldUseConfiguredInventoryScale
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -419,7 +420,7 @@ object InventoryButtonEditorScreen {
     }
 
     private fun EditorScreen.nudgeActiveButton(key: Int): InputHandlingResult {
-        val delta = inventoryButtonNudge(key) ?: return InputHandlingResult.IGNORED
+        val delta = hudEditorNudge(key) ?: return InputHandlingResult.IGNORED
         val button = (hoveredIndex ?: selectedIndex)?.let(config.buttons::getOrNull)
             ?: return InputHandlingResult.IGNORED
         InventoryButtonLayout.nudgeButton(
