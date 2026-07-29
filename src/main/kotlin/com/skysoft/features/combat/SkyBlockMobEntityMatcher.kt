@@ -37,10 +37,16 @@ internal object SkyBlockMobEntityMatcher {
     fun allEntities(): List<Entity> =
         Minecraft.getInstance().level?.entitiesForRendering()?.toList().orEmpty()
 
+    fun physicalEntityFor(
+        nameplate: ArmorStand,
+        entities: List<Entity> = allEntities(),
+        isCandidate: (LivingEntity) -> Boolean = { true },
+    ): LivingEntity? = nameplate.linkedPhysicalEntity(entities, isCandidate)
+
     private fun ArmorStand.signal(entities: List<Entity>, labels: List<String>): SkyBlockMobSignal? {
         val name = cleanName()
         val label = matchingPreparedMobLabel(name, labels) ?: return null
-        val linkedEntity = linkedPhysicalEntity(entities)
+        val linkedEntity = physicalEntityFor(this, entities)
         if (linkedEntity?.isDeadOrDying == true) return null
         return SkyBlockMobSignal(
             label = label,
@@ -63,11 +69,16 @@ internal object SkyBlockMobEntityMatcher {
         )
     }
 
-    private fun ArmorStand.linkedPhysicalEntity(entities: List<Entity>): LivingEntity? {
+    private fun ArmorStand.linkedPhysicalEntity(
+        entities: List<Entity>,
+        isCandidate: (LivingEntity) -> Boolean,
+    ): LivingEntity? {
         val byId = entities.firstOrNull { entity -> entity.id == id - 1 && entity is LivingEntity } as? LivingEntity
-        if (byId != null && byId.isPossiblePhysicalEntity() && byId.isTightPair(this)) return byId
+        if (byId != null && byId.isPossiblePhysicalEntity() && isCandidate(byId) && byId.isTightPair(this)) return byId
         return entities.filterIsInstance<LivingEntity>()
-            .filter { entity -> entity.isPossiblePhysicalEntity() && entity.isTightPair(this) }
+            .filter { entity ->
+                entity.isPossiblePhysicalEntity() && isCandidate(entity) && entity.isTightPair(this)
+            }
             .minByOrNull { entity -> entity.distanceToSqr(this) }
     }
 
