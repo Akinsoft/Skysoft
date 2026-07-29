@@ -32,6 +32,7 @@ internal data class InventoryButtonCanvas(
     private fun origin(button: InventoryButtonConfig): Point = Point(
         if (button.anchorRight) container.x + container.width else container.x,
         when {
+            !button.anchorBottom && button.y < 0 -> container.y
             !button.anchorBottom -> verticalAnchor.y
             button.y >= 0 -> container.y + container.height
             else -> verticalAnchor.y + verticalAnchor.height
