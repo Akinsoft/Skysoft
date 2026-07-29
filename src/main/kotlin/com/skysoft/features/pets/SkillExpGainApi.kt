@@ -29,20 +29,20 @@ object SkillExpGainApi {
     private val storage get() = ProfileStorageApi.storage.skillData
     private val listeners = mutableListOf<Listener>()
     private var lastLilySplosion = ElapsedTimeMark.farPast()
-    private var activeSkill: SkyBlockSkill? = null
 
     fun register() {
-        TabListApi.registerConsumer("Skill Experience API", PetFeatureDemand::isActive)
+        ProfileStorageApi.registerConsumer("Skill Experience API", ::hasActiveListeners)
+        TabListApi.registerConsumer("Skill Experience API", ::hasActiveListeners)
         ChatEvents.onActionBar(
             "Skill Experience action bar",
-            isActive = PetFeatureDemand::isActive,
+            isActive = ::hasActiveListeners,
         ) { message ->
             if (HypixelLocationState.inSkyBlock) handleActionBar(message.component)
             ChatMessageVisibility.SHOW
         }
         ChatEvents.onVisibleMessage(
             "Skill Experience chat",
-            isActive = PetFeatureDemand::isActive,
+            isActive = ::hasActiveListeners,
         ) { message ->
             if (HypixelLocationState.inSkyBlock) handleChat(message.formattedText)
             ChatMessageVisibility.SHOW
@@ -62,6 +62,8 @@ object SkillExpGainApi {
 
     fun getSkillInfo(skill: SkyBlockSkill): SkillInfo? = storage[skill]
 
+    internal fun xpRequiredForMaxLevel(skill: SkyBlockSkill): Long = xpRequiredForLevel(skill.maxLevel)
+
     fun readOpenInventory(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
         if (inventoryName != "Your Skills") return
         var changed = false
@@ -79,33 +81,31 @@ object SkillExpGainApi {
     }
 
     private fun handleActionBar(component: Component) {
-        val components = component.cleanSkyBlockText().split("  ").map { it.trim() }.filter { it.isNotEmpty() }
-        for (part in components) {
-            val matcher = listOf(skillPercentPattern, skillMultiplierPattern)
-                .firstNotNullOfOrNull { pattern -> pattern.matchEntire(part)?.toMatcher(pattern) }
-                ?: continue
-            val skillType = SkyBlockSkill.getByNameOrNull(matcher.group("skillName")) ?: continue
-            val gained = matcher.group("gained").formatDoubleOrNull() ?: continue
-            val skillInfo = storage.getOrPut(skillType, ::SkillInfo)
-            val previousTotalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble()
-            activeSkill = skillType
-            when (matcher.pattern) {
-                skillPercentPattern -> handlePercentActionBar(matcher, skillType, skillInfo)
-                skillMultiplierPattern -> handleMultiplierActionBar(matcher, skillType, skillInfo)
-            }
-            ProfileStorageApi.markDirty()
-            post(
-                SkillExpGain(
-                    skill = skillType,
-                    gained = gained,
-                    totalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble(),
-                    previousTotalXp = previousTotalXp,
-                    source = ACTIONBAR_SOURCE,
-                ),
-            )
-            return
+        val match = findActionBarGain(component.cleanSkyBlockText()) ?: return
+        val skillType = SkyBlockSkill.getByNameOrNull(match.skillName) ?: return
+        val gained = match.gainedText.formatDoubleOrNull() ?: return
+        val skillInfo = storage.getOrPut(skillType, ::SkillInfo)
+        val previousTotalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble()
+        val updated = if (match.percentageText != null) {
+            tryHandlePercentActionBar(match, skillType, skillInfo)
+        } else {
+            tryHandleNumericActionBar(match, skillType, skillInfo)
         }
+        if (!updated) return
+        ProfileStorageApi.markDirty()
+        post(
+            SkillExpGain(
+                skill = skillType,
+                gained = gained,
+                totalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble(),
+                previousTotalXp = previousTotalXp,
+                source = ACTIONBAR_SOURCE,
+            ),
+        )
     }
+
+    internal fun findActionBarGain(text: String): SkillActionBarMatch? =
+        skillActionBarPattern.find(text)?.toSkillActionBarMatch()
 
     fun handleChat(message: String) {
         for (line in message.cleanSkyBlockText().lineSequence().map { it.trim() }) {
@@ -193,42 +193,68 @@ object SkillExpGainApi {
         return ChangeResult.from(skillInfo != before)
     }
 
-    private fun handlePercentActionBar(matcher: SkillMatcher, skillType: SkyBlockSkill, skillInfo: SkillInfo) {
-        val tabInfo = readTabSkillInfo(skillType) ?: return
-        val progress = matcher.group("progress").formatDoubleOrNull() ?: return
+    private fun tryHandlePercentActionBar(
+        match: SkillActionBarMatch,
+        skillType: SkyBlockSkill,
+        skillInfo: SkillInfo,
+    ): Boolean {
+        val tabInfo = readTabSkillInfo(skillType) ?: return false
+        val progress = match.percentageText?.formatDoubleOrNull() ?: return false
         val level = tabInfo.level
         if (tabInfo.currentXp != null && tabInfo.neededXp != null) {
             val totalXp = calculateLevelXp(level - 1).toLong() + tabInfo.currentXp
-            updateSkillInfo(skillInfo, level, tabInfo.currentXp, tabInfo.neededXp, totalXp, matcher.group("gained"))
-            return
+            updateSkillInfo(
+                skillInfo,
+                skillType.maxLevel,
+                level,
+                tabInfo.currentXp,
+                tabInfo.neededXp,
+                totalXp,
+                match.gainedText,
+            )
+            return true
         }
         val levelXp = calculateLevelXp(level - 1)
         val nextLevelDiff = levelArray.getOrNull(level)?.toDouble() ?: DEFAULT_SKILL_XP_TO_NEXT_LEVEL
         val currentXp = (nextLevelDiff * progress / PERCENT_DENOMINATOR).toLong()
         val totalXp = (levelXp + currentXp).toLong()
-        updateSkillInfo(skillInfo, level, currentXp, nextLevelDiff.toLong(), totalXp, matcher.group("gained"))
+        updateSkillInfo(
+            skillInfo,
+            skillType.maxLevel,
+            level,
+            currentXp,
+            nextLevelDiff.toLong(),
+            totalXp,
+            match.gainedText,
+        )
+        return true
     }
 
-    private fun handleMultiplierActionBar(matcher: SkillMatcher, skillType: SkyBlockSkill, skillInfo: SkillInfo) {
-        val currentXp = matcher.group("current").formatDoubleOrNull()?.roundToLong() ?: return
-        val maxXp = matcher.group("needed").formatDoubleOrNull()?.roundToLong() ?: return
+    private fun tryHandleNumericActionBar(
+        match: SkillActionBarMatch,
+        skillType: SkyBlockSkill,
+        skillInfo: SkillInfo,
+    ): Boolean {
+        val currentXp = match.currentText?.formatDoubleOrNull()?.roundToLong() ?: return false
+        val maxXp = match.neededText?.formatDoubleOrNull()?.roundToLong() ?: return false
         val minus = if (maxXp == 0L) 0 else 1
         val level = getLevelExact(maxXp, skillType) - minus
         val totalXp = if (maxXp == 0L) currentXp else calculateLevelXp(level - 1).roundToLong() + currentXp
-        updateSkillInfo(skillInfo, level, currentXp, maxXp, totalXp, matcher.group("gained"))
+        updateSkillInfo(skillInfo, skillType.maxLevel, level, currentXp, maxXp, totalXp, match.gainedText)
+        return true
     }
 
     private fun updateSkillInfo(
         skillInfo: SkillInfo,
+        maxLevel: Int,
         level: Int,
         currentXp: Long,
         maxXp: Long,
         totalXp: Long,
         gained: String,
     ) {
-        val cap = activeSkill?.maxLevel
-        val add = cap?.takeIf { level >= it }?.let(::xpRequiredForLevel) ?: 0L
-        val skillLevel = calculateSkillLevel(totalXp + add, cap ?: MAX_VANILLA_SKILL_LEVEL)
+        val add = maxLevel.takeIf { level >= it }?.let(::xpRequiredForLevel) ?: 0L
+        val skillLevel = calculateSkillLevel(totalXp + add, maxLevel)
         skillInfo.update(DisplayedSkillProgress(level, totalXp, currentXp, maxXp), skillLevel, gained)
     }
 
@@ -286,8 +312,7 @@ object SkillExpGainApi {
         }
     }
 
-    private fun MatchResult.toMatcher(pattern: Regex): SkillMatcher =
-        SkillMatcher(pattern, groups)
+    private fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
 
     data class SkillExpGain(
         val skill: SkyBlockSkill,
@@ -295,7 +320,9 @@ object SkillExpGainApi {
         val totalXp: Double?,
         val previousTotalXp: Double? = null,
         val source: String = ACTIONBAR_SOURCE,
-    )
+    ) {
+        internal val isFromActionBar: Boolean get() = source == ACTIONBAR_SOURCE
+    }
 
     private data class Listener(
         val boundary: String,
@@ -331,9 +358,11 @@ object SkillExpGainApi {
         }
     }
 
-    private val skillPercentPattern = Regex("""\+(?<gained>[\d.,]+) (?<skillName>.+) \((?<progress>[\d.,]+)%\)""")
-    private val skillMultiplierPattern =
-        Regex("""\+(?<gained>[\d.,]+) (?<skillName>.+) \((?<current>[\d.,]+)/(?<needed>[\d,.]+[kmbKMB]?)\)""")
+    private val skillNamePattern = SkyBlockSkill.entries.joinToString("|") { Regex.escape(it.displayName) }
+    private val skillActionBarPattern = Regex(
+        """\+(?<gained>[\d.,]+) (?<skillName>$skillNamePattern) """ +
+            """\((?:(?<progress>[\d.,]+)%|(?<current>[\d.,]+)/(?<needed>[\d,.]+[kmbKMB]?))\)""",
+    )
     private val skillMenuProgressPattern = Regex("""[\d,.]+[kmbKMB]?(?:/[\d,.]+[kmbKMB]?)?""")
     private val skillTabPattern = Regex(""" (?<type>\w+)(?: (?<level>\d+))?: (?<progress>[0-9.]+)%""")
     private val maxSkillTabPattern = Regex(""" (?<type>\w+) (?<level>\d+): MAX""")
@@ -443,12 +472,23 @@ private const val OVERFLOW_XP_SLOPE_START = 600_000L
 private const val OVERFLOW_SLOPE_DOUBLING_INTERVAL = 10
 private const val OVERFLOW_SLOPE_MULTIPLIER = 2
 
-private data class SkillMatcher(
-    val pattern: Regex,
-    val groups: MatchGroupCollection,
-) {
-    fun group(name: String): String = groups[name]?.value.orEmpty()
-}
+internal data class SkillActionBarMatch(
+    val range: IntRange,
+    val skillName: String,
+    val gainedText: String,
+    val percentageText: String?,
+    val currentText: String?,
+    val neededText: String?,
+)
+
+private fun MatchResult.toSkillActionBarMatch(): SkillActionBarMatch = SkillActionBarMatch(
+    range = range,
+    skillName = groups["skillName"]?.value.orEmpty(),
+    gainedText = groups["gained"]?.value.orEmpty(),
+    percentageText = groups["progress"]?.value,
+    currentText = groups["current"]?.value,
+    neededText = groups["needed"]?.value,
+)
 
 internal data class ParsedSkillLevel(
     val level: Int,

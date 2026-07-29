@@ -42,6 +42,11 @@ class GuiFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Skill EXP Display", desc = "Move Skill EXP gains out of the action bar.")
+    val skillExpDisplay = SkillExpDisplayConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Inventory HUD", desc = "Show your inventory, armor, and equipment in-game.")
     val inventoryHud = InventoryHudConfig()
 
