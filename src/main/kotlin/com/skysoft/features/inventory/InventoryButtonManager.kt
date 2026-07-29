@@ -21,7 +21,6 @@ import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.ColorUtilities.withAlpha
-import com.skysoft.utils.gui.Point
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -52,14 +51,6 @@ import org.lwjgl.glfw.GLFW
 
 private const val ADD_ICON_X_OFFSET = 6
 private const val ADD_ICON_Y_OFFSET = 5
-
-internal fun inventoryButtonNudge(key: Int): Point? = when (key) {
-    GLFW.GLFW_KEY_LEFT -> Point(-1, 0)
-    GLFW.GLFW_KEY_RIGHT -> Point(1, 0)
-    GLFW.GLFW_KEY_UP -> Point(0, -1)
-    GLFW.GLFW_KEY_DOWN -> Point(0, 1)
-    else -> null
-}
 
 object InventoryButtonManager {
     const val BUTTON_SIZE = 18

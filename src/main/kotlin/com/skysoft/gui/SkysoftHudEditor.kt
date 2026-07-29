@@ -5,12 +5,12 @@ import com.skysoft.features.inventory.InventoryButtonEditorActions
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryButtonResetShortcutResult
 import com.skysoft.features.inventory.inventoryButtonEditorState
-import com.skysoft.features.inventory.inventoryButtonNudge
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.scale.shouldUseConfiguredInventoryScale
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.gui.tooltip.TooltipScrollExcludedScreen
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.gui.Point
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -54,10 +54,12 @@ object SkysoftHudEditor {
         private var grabbedElementX = 0
         private var grabbedElementY = 0
         private var hoveredElement: HudEditorElement? = null
+        private var selectedElement: HudEditorElement? = null
         private var grabbedInventoryButtonIndex: Int? = null
         private var grabbedInventoryButtonOffsetX = 0
         private var grabbedInventoryButtonOffsetY = 0
         private var hoveredInventoryButtonIndex: Int? = null
+        private var selectedInventoryButtonIndex: Int? = null
         private var grabbedState: HudEditorSnapshot? = null
         private var oldScreenWidth = -1
         private var oldScreenHeight = -1
@@ -82,25 +84,33 @@ object SkysoftHudEditor {
             val placements = inventoryButtonPlacements()
             val hoveredButton = placements.lastOrNull { it.bounds.contains(mouseX, mouseY) }
             val elements = HudEditorRegistry.visibleElements(oldScreen != null)
+            selectedElement = selectedElement?.takeIf(elements::contains)
+            selectedInventoryButtonIndex = selectedInventoryButtonIndex?.takeIf { selected ->
+                placements.any { it.index == selected }
+            }
             val hovered = elementAt(mouseX, mouseY, elements)
             val activeHoveredButton = hoveredButton?.takeIf { hovered == null }
-            val active = grabbedElement ?: hovered
+            val selectedButton = inventoryButtonPlacement(selectedInventoryButtonIndex)
+            val activeButton = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: selectedButton ?: activeHoveredButton
+            val active = grabbedElement ?: selectedElement ?: hovered.takeIf { activeButton == null }
             val activeUsesInventoryCoordinates = when {
-                grabbedInventoryButtonIndex != null -> true
-                grabbedElement != null -> editorScale.usesInventoryCoordinates(checkNotNull(grabbedElement))
-                activeHoveredButton != null -> true
+                activeButton != null -> true
                 active != null -> editorScale.usesInventoryCoordinates(active)
                 else -> oldScreen != null
             }
             hoveredInventoryButtonIndex = activeHoveredButton?.index
             hoveredElement = hovered
-            val activeButton = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: activeHoveredButton
             val gridElement = active.takeIf { activeButton == null }
             val editorPadding = if (snapper.gridEnabled) 0 else HUD_EDITOR_BORDER
             if (snapper.gridEnabled && activeUsesInventoryCoordinates) renderEditorGrid(context, gridElement)
             renderInventoryButtons(context, placements, hoveredButton, editorPadding)
             elements.filter(editorScale::usesInventoryCoordinates).forEach { element ->
-                renderElement(context, element, element == hovered || element == grabbedElement, editorPadding)
+                renderElement(
+                    context,
+                    element,
+                    element == hovered || element == grabbedElement || element == selectedElement,
+                    editorPadding,
+                )
             }
             renderSnapGuides(
                 context,
@@ -113,7 +123,12 @@ object SkysoftHudEditor {
                 editorScale.withNormalGuiScale {
                     if (snapper.gridEnabled && !activeUsesInventoryCoordinates) renderEditorGrid(context, gridElement)
                     for (element in elements.filterNot(editorScale::usesInventoryCoordinates)) {
-                        renderElement(context, element, element == hovered || element == grabbedElement, editorPadding)
+                        renderElement(
+                            context,
+                            element,
+                            element == hovered || element == grabbedElement || element == selectedElement,
+                            editorPadding,
+                        )
                     }
                     renderSnapGuides(
                         context,
@@ -136,7 +151,7 @@ object SkysoftHudEditor {
                 positioner = if (tooltipFollowsMouse) {
                     null
                 } else {
-                    HudEditorHelpPositioner(activeEditorBounds(active, activeHoveredButton))
+                    HudEditorHelpPositioner(activeEditorBounds(active, activeButton))
                 },
             )
         }
@@ -196,7 +211,9 @@ object SkysoftHudEditor {
             padding: Int,
         ) {
             for (placement in placements) {
-                val selected = placement.index == grabbedInventoryButtonIndex || placement == hovered
+                val selected = placement.index == grabbedInventoryButtonIndex ||
+                    placement.index == selectedInventoryButtonIndex ||
+                    placement == hovered
                 context.fill(
                     placement.bounds.x - padding,
                     placement.bounds.y - padding,
@@ -225,9 +242,9 @@ object SkysoftHudEditor {
 
         private fun activeEditorBounds(
             element: HudEditorElement?,
-            hoveredButton: InventoryButtonManager.ButtonPlacement?,
+            activeButton: InventoryButtonManager.ButtonPlacement?,
         ): Rect? {
-            val button = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: hoveredButton
+            val button = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: activeButton
             if (button != null) return button.bounds
             val activeElement = element ?: return null
             val bounds = editorScale.withElementGuiScale(activeElement) {
@@ -304,6 +321,10 @@ object SkysoftHudEditor {
                         null
                     }
                     if (inventoryButton != null) {
+                        if (doubled) {
+                            selectedInventoryButtonIndex = inventoryButton.index
+                            selectedElement = null
+                        }
                         snapper.clear()
                         grabbedState = inventoryButtonEditorState()
                         grabbedInventoryButtonIndex = inventoryButton.index
@@ -316,6 +337,10 @@ object SkysoftHudEditor {
                         grabbedInventoryButtonIndex = null
                         grabbedState = element?.captureEditorState()
                         if (element != null) {
+                            if (doubled) {
+                                selectedElement = element
+                                selectedInventoryButtonIndex = null
+                            }
                             snapper.clear()
                             editorScale.withElementGuiScale(element) {
                                 grabbedWidth = (element.width() * element.position.scale).roundToInt()
@@ -342,6 +367,8 @@ object SkysoftHudEditor {
                             }
                             true
                         } else {
+                            selectedElement = null
+                            selectedInventoryButtonIndex = null
                             grabbedState = null
                             super.mouseClicked(click, doubled)
                         }
@@ -477,10 +504,7 @@ object SkysoftHudEditor {
         }
 
         override fun keyPressed(event: KeyEvent): Boolean {
-            if (
-                event.hasControlDownWithQuirk() &&
-                event.key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
-            ) {
+            if (event.isHudEditorHistoryKey()) {
                 if (grabbedElement == null && grabbedInventoryButtonIndex == null) {
                     if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) history.redo()
                     else history.undo()
@@ -493,14 +517,33 @@ object SkysoftHudEditor {
                 snapper.clear()
                 return true
             }
-            val buttonIndex = grabbedInventoryButtonIndex ?: hoveredInventoryButtonIndex
-            if (inventoryButtonNudge(event.key()) != null && buttonIndex != null) {
-                val before = inventoryButtonEditorState()
-                if (nudgeInventoryButton(event.key(), buttonIndex, oldScreen, snapper) == InputHandlingResult.CONSUMED) {
-                    history.record(before, inventoryButtonEditorState())
-                    return true
+            val nudge = hudEditorNudge(event.key())
+            val buttonIndex = grabbedInventoryButtonIndex
+                ?: selectedInventoryButtonIndex
+                ?: hoveredInventoryButtonIndex.takeIf { selectedElement == null }
+            val selected = grabbedElement ?: selectedElement
+            val nudgeResult = when {
+                nudge == null -> InputHandlingResult.IGNORED
+                buttonIndex != null -> {
+                    val before = inventoryButtonEditorState()
+                    nudgeInventoryButton(nudge, buttonIndex, oldScreen, snapper).also { result ->
+                        if (result == InputHandlingResult.CONSUMED) {
+                            history.record(before, inventoryButtonEditorState())
+                        }
+                    }
                 }
+                selected != null -> {
+                    val before = selected.captureEditorState()
+                    editorScale.withElementGuiScale(selected) { selected.nudgeInEditor(nudge) }.also { result ->
+                        if (result == InputHandlingResult.CONSUMED) {
+                            history.record(before, selected.captureEditorState())
+                            snapper.clear()
+                        }
+                    }
+                }
+                else -> InputHandlingResult.IGNORED
             }
+            if (nudgeResult == InputHandlingResult.CONSUMED) return true
             if (event.key() == GLFW.GLFW_KEY_R) {
                 if (buttonIndex != null) {
                     val before = inventoryButtonEditorState()
@@ -509,14 +552,16 @@ object SkysoftHudEditor {
                     ) {
                         grabbedInventoryButtonIndex = null
                         hoveredInventoryButtonIndex = null
+                        selectedInventoryButtonIndex = null
                     }
                     history.record(before, inventoryButtonEditorState())
-                    return true
+                } else {
+                    (grabbedElement ?: selectedElement ?: hoveredElement)?.let { element ->
+                        val before = element.captureEditorState()
+                        element.resetEditorState()
+                        history.record(before, element.captureEditorState())
+                    }
                 }
-                val element = grabbedElement ?: hoveredElement ?: return true
-                val before = element.captureEditorState()
-                element.resetEditorState()
-                history.record(before, element.captureEditorState())
                 return true
             }
             return super.keyPressed(event)
@@ -656,6 +701,7 @@ private fun hudEditorTooltipLines(
             add("§7Scale: §e${"%.2f".format(Locale.US, button.scale)}")
             add(inventoryButtonHoldKeyLine(button.requiredKey))
             add("§eLeft-click drag §7to move")
+            add("§eDouble-click §7to select")
             add("§eArrow Keys §7to move one pixel")
             add("§eHold Shift §7to snap to other buttons")
             add("§eScroll-Wheel §7to resize")
@@ -665,6 +711,7 @@ private fun hudEditorTooltipLines(
         active == null -> {
             add("§cSkysoft Position Editor")
             add("§7Hover a HUD element or inventory button to move it.")
+            add("§eDouble-click §7to select")
             add("§eLeft-click drag §7to move")
             add("§eScroll §7to resize")
         }
@@ -693,7 +740,11 @@ private fun hudEditorTooltipLines(
 }
 
 private fun defaultHudEditorActionLines(element: HudEditorElement): List<String> = buildList {
-    if (element.canMove) add("§eLeft-click drag §7to move")
+    if (element.canMove) {
+        add("§eLeft-click drag §7to move")
+        add("§eDouble-click §7to select")
+        add("§eArrow Keys §7to move one pixel")
+    }
     if (element.canResizeWidth || element.canResizeHeight) add("§eDrag outside corner handles §7to resize")
     if (element.canMove || element.canResizeWidth || element.canResizeHeight) add("§eHold Shift §7to snap")
     add("§eRight-click §7to open settings")
@@ -737,20 +788,18 @@ private fun inventoryButtonHoldKeyLine(requiredKey: Int?): String =
     }
 
 private fun nudgeInventoryButton(
-    key: Int,
-    index: Int?,
+    delta: Point,
+    index: Int,
     screen: AbstractContainerScreen<*>?,
     snapper: HudEditorSnapper,
 ): InputHandlingResult {
-    val delta = inventoryButtonNudge(key) ?: return InputHandlingResult.IGNORED
-    val buttonIndex = index ?: return InputHandlingResult.IGNORED
     val inventoryScreen = screen ?: return InputHandlingResult.IGNORED
     val placement = InventoryButtonManager.placements(inventoryScreen, includeInactive = true)
-        .firstOrNull { it.index == buttonIndex }
+        .firstOrNull { it.index == index }
         ?: return InputHandlingResult.IGNORED
     InventoryButtonManager.moveButton(
         inventoryScreen,
-        buttonIndex,
+        index,
         placement.bounds.x + delta.x,
         placement.bounds.y + delta.y,
     )
