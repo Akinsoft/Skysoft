@@ -8,6 +8,7 @@ import com.skysoft.utils.TabListOverlay
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.network.chat.Component
 import net.minecraft.world.level.GameType
 import net.minecraft.world.scores.PlayerTeam
@@ -179,19 +180,7 @@ object TabListApi {
 
     private fun readTabList(): List<TabListEntry> {
         val connection = Minecraft.getInstance().connection ?: return emptyList()
-        return connection.listedOnlinePlayers.map { playerInfo ->
-            val isSpectator = playerInfo.gameMode == GameType.SPECTATOR
-            val displayName = playerInfo.tabListDisplayName?.copy()
-                ?: PlayerTeam.formatNameForTeam(playerInfo.team, Component.literal(playerInfo.profile.name))
-            TabListEntry(
-                uuid = playerInfo.profile.id,
-                profileName = playerInfo.profile.name,
-                displayName = if (isSpectator) displayName.copy().withStyle(ChatFormatting.ITALIC) else displayName,
-                tabListOrder = playerInfo.tabListOrder,
-                isSpectator = isSpectator,
-                teamName = playerInfo.team?.name.orEmpty(),
-            )
-        }.sortedForDisplay()
+        return connection.listedOnlinePlayers.map { it.toTabListEntry() }.sortedForDisplay()
     }
 
     private const val READ_INTERVAL_TICKS = 5
@@ -202,6 +191,20 @@ internal fun parseSkyBlockTabArea(lines: Iterable<String>): String? = lines.firs
         ?.removePrefix(SKYBLOCK_AREA_PREFIX)
         ?.trim()
         ?.takeIf(String::isNotEmpty)
+}
+
+internal fun PlayerInfo.toTabListEntry(): TabListEntry {
+    val isSpectator = gameMode == GameType.SPECTATOR
+    val resolvedName = tabListDisplayName?.copy()
+        ?: PlayerTeam.formatNameForTeam(team, Component.literal(profile.name))
+    return TabListEntry(
+        uuid = profile.id,
+        profileName = profile.name,
+        displayName = if (isSpectator) resolvedName.copy().withStyle(ChatFormatting.ITALIC) else resolvedName,
+        tabListOrder = tabListOrder,
+        isSpectator = isSpectator,
+        teamName = team?.name.orEmpty(),
+    )
 }
 
 data class TabListEntry(
