@@ -28,6 +28,7 @@ import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.ImageLinkPreview
+import com.skysoft.features.chat.PlayerBadges
 import com.skysoft.features.combat.BetterShurikens
 import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.combat.HealingPoolLine
@@ -178,6 +179,7 @@ internal object SkysoftFeatureRegistrations {
         register("Profit Tracker", ProfitTracker::register)
         register("Chat History", ChatHistoryPersistence::register)
         register("Chat Tabs", ChatTabs::register)
+        register("Player Badges", PlayerBadges::register)
         register("Selected Item Name", SelectedItemName::register)
         register("Action Bar Customizer", ActionBarCustomizer::register)
         register("Skill EXP Display", SkillExpDisplay::register)

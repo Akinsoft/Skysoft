@@ -50,6 +50,11 @@ class ChatFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Player Badges", desc = "Show profile mode and faction icons beside player names.")
+    val playerBadges = PlayerBadgesConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Chat Tabs", desc = "Separate chat messages into channels.")
     val tabs = ChatTabsConfig()
 
@@ -277,6 +282,17 @@ class ChatFeatureConfig : ConfigRepairable {
                 MAX_CHAT_COMPACT_DURATION_SECONDS,
             )
         }
+    }
+
+    class PlayerBadgesConfig {
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(
+            name = "Enabled",
+            desc = "Show profile mode and Crimson Isle faction icons beside player names in chat.",
+        )
+        @field:ConfigEditorBoolean
+        var enabled = false
     }
 
     class ChatTabsConfig {
