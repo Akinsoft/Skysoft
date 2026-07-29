@@ -50,6 +50,8 @@ object InventoryHud {
                 override val id: String = "inventory_hud_${part.name.lowercase()}"
                 override val label: String = part.label
                 override val position get() = part.position()
+                override val canScale: Boolean = false
+                override val editorGridSpacing: Int = INVENTORY_HUD_GRID_SPACING
                 override val hasEditorBackground: Boolean
                     get() = !config.details.background && !config.details.outline && !config.details.slotBackgrounds
                 override fun width(): Int = part.width
@@ -331,6 +333,7 @@ private class InventoryHudRenderable(
 private const val MAIN_INVENTORY_START = 9
 private const val LAST_ARMOR_SLOT = 39
 private const val VANILLA_HOTBAR_TOP_OFFSET = 22
+private const val INVENTORY_HUD_GRID_SPACING = 2
 private const val ITEM_INSET = 1
 private const val ITEM_COUNT_RIGHT = 17
 private const val ITEM_COUNT_Y = 9

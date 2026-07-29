@@ -94,8 +94,10 @@ object SkysoftHudEditor {
             }
             hoveredInventoryButtonIndex = activeHoveredButton?.index
             hoveredElement = hovered
+            val activeButton = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: activeHoveredButton
+            val gridElement = active.takeIf { activeButton == null }
             val editorPadding = if (snapper.gridEnabled) 0 else HUD_EDITOR_BORDER
-            if (snapper.gridEnabled && activeUsesInventoryCoordinates) renderEditorGrid(context)
+            if (snapper.gridEnabled && activeUsesInventoryCoordinates) renderEditorGrid(context, gridElement)
             renderInventoryButtons(context, placements, hoveredButton, editorPadding)
             elements.filter(editorScale::usesInventoryCoordinates).forEach { element ->
                 renderElement(context, element, element == hovered || element == grabbedElement, editorPadding)
@@ -105,12 +107,11 @@ object SkysoftHudEditor {
                 snapper,
                 inventorySnapGuidesActive(grabbedInventoryButtonIndex, grabbedElement, editorScale),
             )
-            val activeButton = inventoryButtonPlacement(grabbedInventoryButtonIndex) ?: activeHoveredButton
             context.pose().pushMatrix()
             val tooltipLines = try {
                 context.pose().scale(editorScale.normalRenderScale(), editorScale.normalRenderScale())
                 editorScale.withNormalGuiScale {
-                    if (snapper.gridEnabled && !activeUsesInventoryCoordinates) renderEditorGrid(context)
+                    if (snapper.gridEnabled && !activeUsesInventoryCoordinates) renderEditorGrid(context, gridElement)
                     for (element in elements.filterNot(editorScale::usesInventoryCoordinates)) {
                         renderElement(context, element, element == hovered || element == grabbedElement, editorPadding)
                     }
@@ -705,18 +706,22 @@ private fun editorGlobalTooltipLines(gridEnabled: Boolean): List<String> = listO
     "§eCtrl+Z / Ctrl+Y §7to undo or redo",
 )
 
-private fun renderEditorGrid(context: GuiGraphicsExtractor) {
+private fun renderEditorGrid(context: GuiGraphicsExtractor, element: HudEditorElement?) {
     val window = Minecraft.getInstance().window
-    for (x in 0..window.guiScaledWidth step HUD_GRID_SPACING) {
-        context.fill(x, 0, x + 1, window.guiScaledHeight, HUD_GRID_COLOR)
+    val spacing = element?.editorGridSpacing ?: HUD_GRID_SPACING
+    val scale = element?.position?.effectiveScale ?: 1f
+    val width = element?.let { (it.width() * scale).roundToInt() } ?: 0
+    val height = element?.let { (it.height() * scale).roundToInt() } ?: 0
+    val xOrigin = element?.let { it.absoluteX(width) - it.position.x } ?: 0
+    val yOrigin = element?.let { it.absoluteY(height) - it.position.y } ?: 0
+    val color = if (spacing < HUD_GRID_SPACING) HUD_FINE_GRID_COLOR else HUD_GRID_COLOR
+    for (x in xOrigin.mod(spacing)..window.guiScaledWidth step spacing) {
+        context.fill(x, 0, x + 1, window.guiScaledHeight, color)
     }
-    for (y in 0..window.guiScaledHeight step HUD_GRID_SPACING) {
-        context.fill(0, y, window.guiScaledWidth, y + 1, HUD_GRID_COLOR)
+    for (y in yOrigin.mod(spacing)..window.guiScaledHeight step spacing) {
+        context.fill(0, y, window.guiScaledWidth, y + 1, color)
     }
 }
-
-private fun hudGridCoordinate(value: Int, enabled: Boolean): Int =
-    if (enabled) (value.toFloat() / HUD_GRID_SPACING).roundToInt() * HUD_GRID_SPACING else value
 
 private fun inventorySnapGuidesActive(
     buttonIndex: Int?,
@@ -818,12 +823,25 @@ private class HudEditorSnapper(
         y: Int,
         width: Int,
         height: Int,
-    ): HudSnappedPosition = snapPosition(
-        x,
-        y,
-        width,
-        height,
-    ) { axis -> targets(element, axis) }
+    ): HudSnappedPosition {
+        val gridPosition = HudSnappedPosition(
+            hudGridTarget(
+                x,
+                element.absoluteX(width),
+                element.position.x,
+                element.editorGridSpacing,
+                gridEnabled,
+            ),
+            hudGridTarget(
+                y,
+                element.absoluteY(height),
+                element.position.y,
+                element.editorGridSpacing,
+                gridEnabled,
+            ),
+        )
+        return snapPosition(x, y, width, height, gridPosition) { axis -> targets(element, axis) }
+    }
 
     fun snapPosition(
         x: Int,
@@ -836,6 +854,10 @@ private class HudEditorSnapper(
         y,
         width,
         height,
+        HudSnappedPosition(
+            hudGridCoordinate(x, HUD_GRID_SPACING, gridEnabled),
+            hudGridCoordinate(y, HUD_GRID_SPACING, gridEnabled),
+        ),
     ) { axis ->
         targets.flatMap { target ->
             targetPoints(
@@ -850,11 +872,12 @@ private class HudEditorSnapper(
         y: Int,
         width: Int,
         height: Int,
+        gridPosition: HudSnappedPosition,
         targetProvider: (HudSnapAxis) -> List<HudSnapTargetPoint>,
     ): HudSnappedPosition {
         if (!Minecraft.getInstance().hasShiftDown()) {
             clear()
-            return HudSnappedPosition(hudGridCoordinate(x, gridEnabled), hudGridCoordinate(y, gridEnabled))
+            return gridPosition
         }
         val rawBounds = HudSnapBounds(x, y, x + width, y + height)
         val horizontalOffset = snapAxis(
@@ -872,8 +895,8 @@ private class HudEditorSnapper(
             targets = targetProvider(HudSnapAxis.VERTICAL),
         )
         return HudSnappedPosition(
-            if (horizontalLock != null) x + horizontalOffset else hudGridCoordinate(x, gridEnabled),
-            if (verticalLock != null) y + verticalOffset else hudGridCoordinate(y, gridEnabled),
+            if (horizontalLock != null) x + horizontalOffset else gridPosition.x,
+            if (verticalLock != null) y + verticalOffset else gridPosition.y,
         )
     }
 
@@ -883,18 +906,28 @@ private class HudEditorSnapper(
         axis: HudSnapAxis,
         anchor: HudSnapAnchor,
     ): Int {
+        val elementBounds = bounds(element)
+        val gridOrigin = when (axis) {
+            HudSnapAxis.HORIZONTAL -> elementBounds.left - element.position.x
+            HudSnapAxis.VERTICAL -> elementBounds.top - element.position.y
+        }
+        val gridValue = gridOrigin + hudGridCoordinate(
+            value - gridOrigin,
+            element.editorGridSpacing,
+            gridEnabled,
+        )
         if (!Minecraft.getInstance().hasShiftDown()) {
             clear(axis)
-            return hudGridCoordinate(value, gridEnabled)
+            return gridValue
         }
         val offset = snapAxis(
             axis,
             listOf(HudSnapPoint(anchor, value)),
-            bounds(element),
+            elementBounds,
             matchingAnchorsOnly = false,
             targets = targets(element, axis),
         )
-        return if (lock(axis) != null) value + offset else hudGridCoordinate(value, gridEnabled)
+        return if (lock(axis) != null) value + offset else gridValue
     }
 
     fun guides(): List<HudSnapGuide> {
@@ -1293,8 +1326,9 @@ private const val HUD_EDITOR_BORDER = 2
 private const val RESIZE_HANDLE_SIZE = 4
 private const val RESIZE_HANDLE_HITBOX = 6
 private const val RESIZE_HANDLE_COLOR = 0xFFF0F0F0.toInt()
-private const val HUD_GRID_SPACING = 5
+private const val HUD_GRID_SPACING = HUD_EDITOR_GRID_SPACING
 private const val HUD_GRID_COLOR = 0x2855FFFF
+private const val HUD_FINE_GRID_COLOR = 0x1055FFFF
 private const val SNAP_ACQUIRE_DISTANCE = 8
 private const val SNAP_RELEASE_DISTANCE = 12
 private const val SNAP_GUIDE_OUTLINE_WIDTH = 1
