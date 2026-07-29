@@ -4,6 +4,7 @@ import com.skysoft.config.ChatTabPosition
 import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.chat.ChatCompactor
 import com.skysoft.features.chat.ChatNotifier
+import com.skysoft.features.chat.PlayerBadges
 import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.ChatTabBounds
 import com.skysoft.features.chat.ChatTimestamps
@@ -34,7 +35,7 @@ object MixinFeatureAdapters {
         trimmedMessages: MutableList<GuiMessage.Line>,
     ): PreparedChatMessage {
         val prepared = ChatCompactor.prepare(
-            ChatNotifier.decorate(DianaSphinxAnswerHighlighter.highlight(contents)),
+            ChatNotifier.decorate(PlayerBadges.decorate(DianaSphinxAnswerHighlighter.highlight(contents))),
             messages,
             trimmedMessages,
         )

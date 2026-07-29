@@ -29,8 +29,6 @@ internal object BetterTabLayoutBuilder {
     private const val HYPIXEL_ADVERTISING_TEXT = "HYPIXEL.NET"
     private val profileLinePattern = Regex("^(?<prefix>\\s*Profile:\\s*)(?<name>.+)$")
     private val playerColumnPattern = Regex("Players \\((?<count>\\d+)\\)")
-    private val playerNamePattern =
-        Regex("""^\[\d+] (?:\[[^]]+] )?(?<name>[A-Za-z0-9_]{1,16})(?:\s|$)""")
     private val otherPlayersPattern = Regex("and \\d+ other players?\\.\\.\\.", RegexOption.IGNORE_CASE)
 
     fun build(
@@ -83,7 +81,7 @@ internal object BetterTabLayoutBuilder {
                 val rows = section.mapTo(mutableListOf()) { entry ->
                     BetterTabRow(
                         component = entry.displayName.withCompactProfileName(),
-                        playerName = entry.displayName.playerName(),
+                        playerName = entry.skyBlockPlayerName,
                     )
                 }
                 if (index == sections.lastIndex && group.otherPlayerCount > 0) {
@@ -199,9 +197,6 @@ internal object BetterTabLayoutBuilder {
         string.contains(HYPIXEL_ADVERTISING_TEXT, ignoreCase = true)
 
     private fun Component.isVisuallyBlank(): Boolean = string.isBlank()
-
-    private fun Component.playerName(): String? =
-        playerNamePattern.find(string)?.groups?.get("name")?.value
 
     private fun Component.withCompactProfileName(): Component {
         val match = profileLinePattern.matchEntire(string) ?: return this

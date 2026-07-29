@@ -211,7 +211,10 @@ data class TabListEntry(
     val tabListOrder: Int = 0,
     val isSpectator: Boolean = false,
     val teamName: String = "",
-)
+) {
+    val skyBlockPlayerName: String?
+        get() = skyBlockPlayerPattern.find(displayName.cleanSkyBlockText())?.groups?.get("name")?.value
+}
 
 internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =
     sortedWith(
@@ -221,5 +224,8 @@ internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =
             .thenBy(String.CASE_INSENSITIVE_ORDER) { it.profileName },
     ).take(MAX_RENDERED_TAB_ENTRIES)
 
+private val skyBlockPlayerPattern = Regex(
+    """^\[\d+] (?:\[[^]]+] )?(?<name>[A-Za-z0-9_]{1,16})(?:\s|$)""",
+)
 private const val SKYBLOCK_AREA_PREFIX = "Area:"
 private const val MAX_RENDERED_TAB_ENTRIES = 80
