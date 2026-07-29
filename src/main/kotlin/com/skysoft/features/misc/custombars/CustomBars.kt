@@ -24,6 +24,9 @@ import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.features.inventory.InventoryHudLayout
 import com.skysoft.features.misc.AbsorptionHeartLayout
+import com.skysoft.features.misc.actionbar.NormalizedActionBar
+import com.skysoft.features.misc.actionbar.actionBarSegmentRange
+import com.skysoft.features.misc.actionbar.withoutRanges
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -47,12 +50,9 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import java.util.Optional
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -987,19 +987,24 @@ internal object CustomBarsActionBarParser {
                 healthMatch?.let {
                     val healingFollows = normalized.text.getOrNull(it.range.last + 1) == '+'
                     val range = normalized.rawRange(it.range, preserveLastCharacter = healingFollows)
-                    add(StatusRemoval(CustomBarStatus.HEALTH, if (healingFollows) range else text.statusRange(range)))
+                    add(
+                        StatusRemoval(
+                            CustomBarStatus.HEALTH,
+                            if (healingFollows) range else text.actionBarSegmentRange(range),
+                        ),
+                    )
                 }
                 manaMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.MANA, text.statusRange(normalized.rawRange(it.range))))
+                    add(StatusRemoval(CustomBarStatus.MANA, text.actionBarSegmentRange(normalized.rawRange(it.range))))
                 }
                 vitalityMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.VITALITY, text.statusRange(normalized.rawRange(it.range))))
+                    add(StatusRemoval(CustomBarStatus.VITALITY, text.actionBarSegmentRange(normalized.rawRange(it.range))))
                 }
                 defenseMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.DEFENSE, text.statusRange(normalized.rawRange(it.range))))
+                    add(StatusRemoval(CustomBarStatus.DEFENSE, text.actionBarSegmentRange(normalized.rawRange(it.range))))
                 }
                 riftTimeMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.RIFT_TIME, text.statusRange(normalized.rawRange(it.range))))
+                    add(StatusRemoval(CustomBarStatus.RIFT_TIME, text.actionBarSegmentRange(normalized.rawRange(it.range))))
                 }
             },
         )
@@ -1012,55 +1017,7 @@ internal object CustomBarsActionBarParser {
 
     private fun MatchResult.value(name: String): Int = groups[name]!!.value.skyBlockInt()
 
-    private fun String.statusRange(match: IntRange): IntRange {
-        var start = match.first
-        val endExclusive = match.last + 1
-        while (start > 0 && this[start - 1] == ' ') start--
-        var trailingEnd = endExclusive
-        while (getOrNull(trailingEnd) == ' ') trailingEnd++
-        if (match.first - start >= STATUS_SEPARATOR_LENGTH) {
-            return start until if (trailingEnd == length) trailingEnd else endExclusive
-        }
-        return if (trailingEnd - endExclusive >= STATUS_SEPARATOR_LENGTH) match.first until trailingEnd else match
-    }
-
     private fun String.skyBlockInt(): Int = formatInt()
-}
-
-private class NormalizedActionBar(private val raw: String) {
-    private val rawIndices: IntArray
-    val text: String
-
-    init {
-        val indices = mutableListOf<Int>()
-        text = buildString {
-            var index = 0
-            while (index < raw.length) {
-                if (raw[index] == LEGACY_FORMAT_PREFIX && index + 1 < raw.length) {
-                    index += LEGACY_FORMAT_LENGTH
-                } else {
-                    append(raw[index])
-                    indices += index
-                    index++
-                }
-            }
-        }
-        rawIndices = indices.toIntArray()
-    }
-
-    fun rawRange(range: IntRange, preserveLastCharacter: Boolean = false): IntRange {
-        val start = formattingStart(rawIndices[range.first])
-        val last = rawIndices[range.last]
-        return if (preserveLastCharacter) start until formattingStart(last) else start..last
-    }
-
-    private fun formattingStart(index: Int): Int {
-        var start = index
-        while (start >= LEGACY_FORMAT_LENGTH && raw[start - LEGACY_FORMAT_LENGTH] == LEGACY_FORMAT_PREFIX) {
-            start -= LEGACY_FORMAT_LENGTH
-        }
-        return start
-    }
 }
 
 internal enum class CustomBarStatus {
@@ -1102,19 +1059,6 @@ internal data class ParsedCustomBarActionBar(
 }
 
 internal data class StatusRemoval(val status: CustomBarStatus, val range: IntRange)
-
-private fun Component.withoutRanges(ranges: List<IntRange>): Component {
-    if (ranges.isEmpty()) return this
-    val output = Component.empty()
-    var offset = 0
-    visit({ style: Style, text: String ->
-        val kept = text.filterIndexed { index, _ -> ranges.none { offset + index in it } }
-        if (kept.isNotEmpty()) output.append(Component.literal(kept).withStyle(style))
-        offset += text.length
-        Optional.empty<Unit>()
-    }, Style.EMPTY)
-    return output
-}
 
 private fun GuiGraphicsExtractor.fillRoundedRect(x: Int, y: Int, width: Int, height: Int, color: Int) {
     if (width <= CORNER_RADIUS * 2 || height <= CORNER_RADIUS * 2) {
@@ -1211,9 +1155,6 @@ private const val COLOR_CHANNEL_MASK = 0xFF
 private const val ALPHA_MASK = 0xFF000000.toInt()
 private const val TEXT_OUTLINE_RGB = ALPHA_MASK
 private const val VANILLA_EXPERIENCE_LEVEL_RGB = 0xFF80FF20.toInt()
-private const val STATUS_SEPARATOR_LENGTH = 2
-private const val LEGACY_FORMAT_PREFIX = '§'
-private const val LEGACY_FORMAT_LENGTH = 2
 private const val TICKS_PER_SECOND = 20
 private const val SPEED_SCALE = 1_000f
 private const val SPRINT_SPEED_MULTIPLIER = 1.3f
