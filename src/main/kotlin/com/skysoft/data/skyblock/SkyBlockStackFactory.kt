@@ -15,7 +15,7 @@ import net.minecraft.world.item.component.ResolvableProfile
 import net.minecraft.world.item.component.ItemLore
 
 internal object SkyBlockStackFactory {
-    fun texturedHead(textureValue: String, name: Component, signature: String? = null): ItemStack {
+    fun texturedHead(textureValue: String, name: Component?, signature: String? = null): ItemStack {
         val split = textureValue.split(":", limit = 2)
         val uuid = split.getOrNull(0)?.takeIf(uuidPattern::matches)?.let(UUID::fromString)
             ?: UUID.nameUUIDFromBytes(textureValue.toByteArray())
@@ -27,7 +27,7 @@ internal object SkyBlockStackFactory {
         val profile = GameProfile(uuid, PROFILE_NAME, PropertyMap(properties))
         return ItemStack(Items.PLAYER_HEAD).apply {
             set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile))
-            set(DataComponents.CUSTOM_NAME, name)
+            name?.let { set(DataComponents.CUSTOM_NAME, it) }
         }
     }
 

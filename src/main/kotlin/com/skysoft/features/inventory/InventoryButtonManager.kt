@@ -1,7 +1,6 @@
 package com.skysoft.features.inventory
 
 import com.mojang.authlib.GameProfile
-import com.mojang.authlib.properties.Property
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.skysoft.SkysoftMod
 import com.skysoft.config.DEFAULT_INVENTORY_BUTTON_SCALE
@@ -14,6 +13,7 @@ import com.skysoft.config.MIN_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.gui.HudEditorSnapshot
@@ -24,10 +24,7 @@ import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
-import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.util.Locale
-import java.util.UUID
 import kotlin.math.max
 import kotlin.math.roundToInt
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
@@ -752,18 +749,8 @@ private object InventoryButtonIcons {
         return stack
     }
 
-    private fun texturedHeadStack(textureHash: String): ItemStack {
-        val textureJson = """{"textures":{"SKIN":{"url":"https://textures.minecraft.net/texture/$textureHash"}}}"""
-        val textureValue = Base64.getEncoder().encodeToString(textureJson.toByteArray(StandardCharsets.UTF_8))
-        val profile = GameProfile(
-            UUID.nameUUIDFromBytes(textureHash.toByteArray(StandardCharsets.UTF_8)),
-            "Skysoft",
-        )
-        profile.properties.put("textures", Property("textures", textureValue))
-        return ItemStack(Items.PLAYER_HEAD).apply {
-            set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile))
-        }
-    }
+    private fun texturedHeadStack(textureHash: String): ItemStack =
+        SkyBlockStackFactory.texturedHead(textureHash, name = null)
 
     private fun playerNameFromIcon(icon: String): String? = explicitPlayerNameQuery(icon)
 
