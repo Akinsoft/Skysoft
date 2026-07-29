@@ -87,6 +87,7 @@ import com.skysoft.features.pets.VisiblePetPosition
 import com.skysoft.features.profit.ProfitTracker
 import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.features.screenshot.ScreenshotManager
+import com.skysoft.features.slayer.BlazeAttunementHighlighting
 import com.skysoft.features.slayer.SlayerBossAlerts
 import com.skysoft.features.slayer.SlayerMinibossAlert
 import com.skysoft.features.slayer.SlayerTargetHighlighting
@@ -216,6 +217,7 @@ internal object SkysoftFeatureRegistrations {
         register("Slayer Boss Alerts", SlayerBossAlerts::register)
         register("Slayer Miniboss Alert", SlayerMinibossAlert::register)
         register("Slayer Target Highlighting", SlayerTargetHighlighting::register)
+        register("Blaze Attunement Highlighting", BlazeAttunementHighlighting::register)
         register("Slayer Time to Kill", SlayerTimeToKill::register)
         register("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         register("Fishing Hotspot Radar", FishingHotspotRadar::register)

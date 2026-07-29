@@ -51,6 +51,7 @@
     "KeyboardHandlerMixin",
     "LivingEntitySwingMixin",
     "LivingEntityRendererMixin",
+    "LivingEntityRenderStateMixin",
     "LocalPlayerSlotLockMixin",
     "MinecraftInputMixin",
     "MinecraftSlotLockMixin",

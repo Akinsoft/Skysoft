@@ -28,6 +28,15 @@ class SlayerFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Blaze Attunement Highlights",
+        desc = "Outline and tint Inferno Demonlord mobs with their current Hellion Shield attunement color.",
+    )
+    @field:ConfigEditorBoolean
+    var blazeAttunementHighlights = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Miniboss Alert", desc = "Show a title and play a sound when a Slayer miniboss spawns.")
     @field:ConfigEditorBoolean
     var minibossAlert = false
