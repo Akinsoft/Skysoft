@@ -31,6 +31,7 @@ interface HudEditorElement {
     val layoutOffsetY: Int get() = 0
     val snapGroup: String? get() = null
     val editorLeftPadding: Int get() = 0
+    val editorGridSpacing: Int get() = HUD_EDITOR_GRID_SPACING
     val usesInventoryScale: Boolean get() = false
     val requiresInventoryScreen: Boolean get() = false
 
