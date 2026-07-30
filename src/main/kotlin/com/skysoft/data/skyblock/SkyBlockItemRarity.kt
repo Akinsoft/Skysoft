@@ -43,18 +43,36 @@ internal fun rarityFromTooltipStyle(style: Identifier?): SkyBlockRarity? {
 }
 
 internal fun rarityFromLore(lines: List<Component>): SkyBlockRarity? =
+    itemClassificationFromLore(lines)?.rarity
+
+internal fun itemCategoryFromLore(lines: List<Component>): String? =
+    itemClassificationFromLore(lines)?.category
+
+private fun itemClassificationFromLore(lines: List<Component>): ItemLoreClassification? =
     lines.asReversed().firstNotNullOfOrNull { line ->
         line.visit({ style: Style, text: String ->
-            val rarity = RARITY_NAME_PATTERN.find(text)
-                ?.value
-                ?.replace(' ', '_')
-                ?.let(SkyBlockRarity::getByName)
-                ?.takeIf { candidate ->
-                    style.isBold && style.color?.value == (candidate.color.rgb and RGB_MASK)
-                }
-            Optional.ofNullable(rarity)
+            val classification = RARITY_NAME_PATTERN.find(text)?.let { match ->
+                match.value
+                    .replace(' ', '_')
+                    .let(SkyBlockRarity::getByName)
+                    ?.takeIf { rarity ->
+                        style.isBold && style.color?.value == (rarity.color.rgb and RGB_MASK)
+                    }
+                    ?.let { rarity ->
+                        ItemLoreClassification(
+                            rarity,
+                            text.substring(match.range.last + 1).trim().takeIf(String::isNotEmpty),
+                        )
+                    }
+            }
+            Optional.ofNullable(classification)
         }, Style.EMPTY).orElse(null)
     }
+
+private data class ItemLoreClassification(
+    val rarity: SkyBlockRarity,
+    val category: String?,
+)
 
 private val RARITY_NAME_PATTERN = Regex(
     SkyBlockRarity.entries

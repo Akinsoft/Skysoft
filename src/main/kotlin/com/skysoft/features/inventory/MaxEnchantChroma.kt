@@ -4,7 +4,9 @@ import com.google.gson.Gson
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
+import com.skysoft.data.skyblock.itemCategoryFromLore
 import com.skysoft.utils.NumberUtilities.romanNumeral
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.render.ChromaTextRendering
@@ -23,10 +25,12 @@ object MaxEnchantChroma {
         ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
             SkysoftErrorBoundary.run("Max Enchant Chroma tooltip") {
                 if (!config.enabled || !HypixelLocationState.inSkyBlock) return@run
+                val extraAttributes = stack.extraAttributes()
                 val labels = maxedEnchantmentLabels(
-                    stack.extraAttributes()?.skyBlockEnchantments().orEmpty(),
+                    extraAttributes?.skyBlockEnchantments().orEmpty(),
                     enchantments,
                     config.settings.includeUltimateEnchantments,
+                    maximumEfficiencyLevel(extraAttributes?.getStringOrNull("id"), itemCategoryFromLore(tooltip)),
                 )
                 if (labels.isEmpty()) return@run
                 tooltip.indices.forEach { index ->
@@ -76,15 +80,24 @@ internal fun maxedEnchantmentLabels(
     appliedEnchantments: Map<String, Int>,
     maximums: Map<String, MaxEnchantment>,
     includeUltimateEnchantments: Boolean,
+    efficiencyMaximumLevel: Int,
 ): Set<String> = buildSet {
     appliedEnchantments.forEach { (key, level) ->
         val id = key.lowercase(Locale.ROOT)
         if (!includeUltimateEnchantments && id.startsWith(ULTIMATE_ENCHANTMENT_PREFIX)) return@forEach
         val enchantment = maximums[id] ?: return@forEach
-        if (level < enchantment.level) return@forEach
+        val maximumLevel = if (id == EFFICIENCY_ENCHANTMENT_ID) efficiencyMaximumLevel else enchantment.level
+        if (level < maximumLevel) return@forEach
         add("${enchantment.displayName} ${level.romanNumeral()}")
         add("${enchantment.displayName} $level")
     }
+}
+
+internal fun maximumEfficiencyLevel(itemId: String?, itemCategory: String?): Int = when {
+    itemId == STONK_ITEM_ID -> STONK_EFFICIENCY_MAX_LEVEL
+    itemId == PROMISING_SHOVEL_ITEM_ID || itemCategory in EXTENDED_EFFICIENCY_ITEM_CATEGORIES ->
+        EXTENDED_EFFICIENCY_MAX_LEVEL
+    else -> STANDARD_EFFICIENCY_MAX_LEVEL
 }
 
 internal fun applyMaxEnchantChroma(
@@ -132,7 +145,14 @@ private val ENCHANTMENT_LINE_PATTERN = Regex(
     "^[A-Za-z][A-Za-z '\\-]+ (?:[IVXLCDM]+|[0-9]+)(?: [0-9][0-9,.]*[kKmMbB]?)?" +
         "(?:, [A-Za-z][A-Za-z '\\-]+ (?:[IVXLCDM]+|[0-9]+)(?: [0-9][0-9,.]*[kKmMbB]?)?)*$",
 )
+private val EXTENDED_EFFICIENCY_ITEM_CATEGORIES = setOf("PICKAXE", "DRILL", "GAUNTLET")
 private const val MAX_ENCHANTMENT_RESOURCE = "/assets/skysoft/data/max_enchantments.json"
 private const val MAX_ENCHANTMENT_SCHEMA_VERSION = 1
 private const val MINIMUM_ENCHANTMENT_COUNT = 150
+private const val EFFICIENCY_ENCHANTMENT_ID = "efficiency"
+private const val PROMISING_SHOVEL_ITEM_ID = "PROMISING_SPADE"
+private const val STONK_ITEM_ID = "STONK_PICKAXE"
+private const val STANDARD_EFFICIENCY_MAX_LEVEL = 5
+private const val STONK_EFFICIENCY_MAX_LEVEL = 6
+private const val EXTENDED_EFFICIENCY_MAX_LEVEL = 10
 private const val ULTIMATE_ENCHANTMENT_PREFIX = "ultimate_"
