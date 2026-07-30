@@ -51,6 +51,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.resources.Identifier
+import net.minecraft.util.ARGB
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import kotlin.math.ceil
@@ -643,19 +644,20 @@ object CustomBars {
                 context.fillGlossyRoundedRect(fillX + baseWidth, fillY, overflowWidth, fillHeight, overflowColor)
             }
             if (baseWidth > 0 && overflowWidth > 0) {
-                val baseBridge = CORNER_RADIUS.coerceAtMost(baseWidth)
-                val overflowBridge = CORNER_RADIUS.coerceAtMost(overflowWidth)
-                val bridgeWidth = baseBridge + overflowBridge
-                val bridgeX = fillX + baseWidth - baseBridge
-                repeat(bridgeWidth) { offset ->
-                    val barOffset = baseWidth - baseBridge + offset
+                val baseTransitionWidth = OVERFLOW_TRANSITION_HALF_WIDTH.coerceAtMost(baseWidth)
+                val overflowTransitionWidth = OVERFLOW_TRANSITION_HALF_WIDTH.coerceAtMost(overflowWidth)
+                val transitionWidth = baseTransitionWidth + overflowTransitionWidth
+                val transitionX = fillX + baseWidth - baseTransitionWidth
+                repeat(transitionWidth) { offset ->
+                    val colorProgress = offset.toFloat() / (transitionWidth - 1)
+                    val barOffset = baseWidth - baseTransitionWidth + offset
                     val verticalInset = roundedRectVerticalInset(barOffset, totalWidth, fillHeight)
                     context.fillGlossyRect(
-                        bridgeX + offset,
+                        transitionX + offset,
                         fillY + verticalInset,
                         1,
                         fillHeight - verticalInset * 2,
-                        if (offset < baseBridge) color else overflowColor,
+                        ARGB.srgbLerp(colorProgress, color, overflowColor),
                     )
                 }
             }
@@ -1169,6 +1171,7 @@ private const val ICON_SIZE = 9
 private const val EXPERIENCE_ICON_SIZE = 11
 private const val EXPERIENCE_ICON_X = -2
 private const val CORNER_RADIUS = 2
+private const val OVERFLOW_TRANSITION_HALF_WIDTH = 4
 private const val GLOSS_HIGHLIGHT = 42
 private const val GLOSS_SHADE = -48
 private const val RED_SHIFT = 16
