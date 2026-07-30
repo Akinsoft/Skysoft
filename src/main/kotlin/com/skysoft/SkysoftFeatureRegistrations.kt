@@ -62,6 +62,7 @@ import com.skysoft.features.inventory.itemlist.ItemListNpcWaypoint
 import com.skysoft.features.inventory.itemlist.ItemListState
 import com.skysoft.features.inventory.registerSlotBindingStorage
 import com.skysoft.features.loot.RareLootChatFeatures
+import com.skysoft.features.mining.MiningAbilityCooldownDisplay
 import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.PlayerHeadSkinFix
@@ -185,6 +186,7 @@ internal object SkysoftFeatureRegistrations {
         register("Action Bar Customizer", ActionBarCustomizer::register)
         register("Skill EXP Display", SkillExpDisplay::register)
         register("SkyBlock Level Bar", SkyBlockLevelBar::register)
+        register("Mining Ability Cooldown", MiningAbilityCooldownDisplay::register)
         register("Custom Bars", CustomBars::register)
         register("Inventory HUD", InventoryHud::register)
         register("Better TAB", BetterTab::register)

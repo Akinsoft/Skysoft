@@ -318,7 +318,7 @@ class CustomBarsDetailsConfig {
 }
 
 open class CustomElementDetailsConfig(
-    backgroundDefault: ChromaColour = configColor(TRACK_COLOR),
+    backgroundDefault: ChromaColour = configColor(CUSTOM_BAR_TRACK_COLOR),
     textDefault: ChromaColour = configColor(TEXT_COLOR),
 ) {
     @JvmField
@@ -348,7 +348,7 @@ open class CustomElementDetailsConfig(
 class CustomResourceBarDetailsConfig(
     barDefault: ChromaColour = configColor(TEXT_COLOR),
     overflowDefault: ChromaColour = configColor(TEXT_COLOR),
-    backgroundDefault: ChromaColour = configColor(TRACK_COLOR),
+    backgroundDefault: ChromaColour = configColor(CUSTOM_BAR_TRACK_COLOR),
     textDefault: ChromaColour = barDefault,
     iconDefault: ChromaColour = barDefault,
 ) : CustomElementDetailsConfig(backgroundDefault, textDefault) {
@@ -379,7 +379,7 @@ class CustomResourceBarDetailsConfig(
 
 class CustomProgressBarDetailsConfig(
     barDefault: ChromaColour = configColor(TEXT_COLOR),
-    backgroundDefault: ChromaColour = configColor(TRACK_COLOR),
+    backgroundDefault: ChromaColour = configColor(CUSTOM_BAR_TRACK_COLOR),
     textDefault: ChromaColour = barDefault,
 ) : CustomElementDetailsConfig(backgroundDefault, textDefault) {
     @JvmField
@@ -394,7 +394,7 @@ class CustomProgressBarDetailsConfig(
 }
 
 class CustomReadoutDetailsConfig(
-    backgroundDefault: ChromaColour = configColor(TRACK_COLOR),
+    backgroundDefault: ChromaColour = configColor(CUSTOM_BAR_TRACK_COLOR),
     textDefault: ChromaColour = configColor(TEXT_COLOR),
     iconDefault: ChromaColour = configColor(TEXT_COLOR),
 ) : CustomElementDetailsConfig(backgroundDefault, textDefault) {
@@ -417,12 +417,12 @@ enum class CustomBarIconPosition(private val displayName: String) {
     override fun toString(): String = displayName
 }
 
-private fun configColor(argb: Int): ChromaColour {
+internal fun configColor(argb: Int): ChromaColour {
     val color = Color(argb, true)
     return ChromaColour.fromRGB(color.red, color.green, color.blue, 0, color.alpha)
 }
 
-private const val TRACK_COLOR = 0xC0101010.toInt()
+internal const val CUSTOM_BAR_TRACK_COLOR = 0xC0101010.toInt()
 private const val HEALTH_COLOR = 0xFFFF5555.toInt()
 private const val HEALTH_OVERFLOW_COLOR = 0xFFFFB42B.toInt()
 private const val MANA_COLOR = 0xFF55FFFF.toInt()

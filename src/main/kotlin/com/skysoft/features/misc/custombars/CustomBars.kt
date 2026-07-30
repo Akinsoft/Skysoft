@@ -38,6 +38,11 @@ import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.render.drawGlossyProgressBar
+import com.skysoft.utils.render.fillGlossyRect
+import com.skysoft.utils.render.fillGlossyRoundedRect
+import com.skysoft.utils.render.fillRoundedRect
+import com.skysoft.utils.render.roundedRectVerticalInset
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
@@ -567,8 +572,7 @@ object CustomBars {
                 CustomBarPart.EXPERIENCE -> {
                     val details = config.details.experience
                     drawExperienceIcon(context, part.iconX, resourceBarHeight())
-                    drawProgressBar(
-                        context,
+                    context.drawGlossyProgressBar(
                         part.trackX,
                         RESOURCE_BAR_Y,
                         part.trackWidth,
@@ -675,29 +679,6 @@ object CustomBars {
                         ARGB.srgbLerp(colorProgress, color, overflowColor),
                     )
                 }
-            }
-        }
-
-        private fun drawProgressBar(
-            context: GuiGraphicsExtractor,
-            x: Int,
-            y: Int,
-            width: Int,
-            height: Int,
-            fill: Float,
-            color: Int,
-            backgroundColor: Int,
-        ) {
-            context.fillRoundedRect(x, y, width, height, backgroundColor)
-            val innerWidth = ((width - INNER_PADDING * 2) * fill.coerceIn(0f, 1f)).roundToInt()
-            if (innerWidth > 0) {
-                context.fillGlossyRoundedRect(
-                    x + INNER_PADDING,
-                    y + INNER_PADDING,
-                    innerWidth,
-                    height - INNER_PADDING * 2,
-                    color,
-                )
             }
         }
 
@@ -1095,56 +1076,6 @@ internal data class ParsedCustomBarActionBar(
 
 internal data class StatusRemoval(val status: CustomBarStatus, val range: IntRange)
 
-private fun GuiGraphicsExtractor.fillRoundedRect(x: Int, y: Int, width: Int, height: Int, color: Int) {
-    if (height <= CORNER_RADIUS * 2) {
-        fill(x, y, x + width, y + height, color)
-        return
-    }
-    if (width <= CORNER_RADIUS * 2) {
-        repeat(width) { offset ->
-            val verticalInset = roundedRectVerticalInset(offset, width, height)
-            fill(x + offset, y + verticalInset, x + offset + 1, y + height - verticalInset, color)
-        }
-        return
-    }
-    fill(x + CORNER_RADIUS, y, x + width - CORNER_RADIUS, y + 1, color)
-    fill(x + 1, y + 1, x + width - 1, y + CORNER_RADIUS, color)
-    fill(x, y + CORNER_RADIUS, x + width, y + height - CORNER_RADIUS, color)
-    fill(x + 1, y + height - CORNER_RADIUS, x + width - 1, y + height - 1, color)
-    fill(x + CORNER_RADIUS, y + height - 1, x + width - CORNER_RADIUS, y + height, color)
-}
-
-private fun roundedRectVerticalInset(horizontalOffset: Int, width: Int, height: Int): Int =
-    if (height <= CORNER_RADIUS * 2) 0
-    else (CORNER_RADIUS - minOf(horizontalOffset, width - horizontalOffset - 1)).coerceAtLeast(0)
-
-private fun GuiGraphicsExtractor.fillGlossyRoundedRect(x: Int, y: Int, width: Int, height: Int, color: Int) {
-    fillRoundedRect(x, y, width, height, color)
-    if (width <= CORNER_RADIUS * 2 || height <= CORNER_RADIUS * 2) return
-    fill(x + CORNER_RADIUS, y + 1, x + width - CORNER_RADIUS, y + 2, color.adjustRgb(GLOSS_HIGHLIGHT))
-    fill(
-        x + CORNER_RADIUS,
-        y + height - 2,
-        x + width - CORNER_RADIUS,
-        y + height - 1,
-        color.adjustRgb(GLOSS_SHADE),
-    )
-}
-
-private fun GuiGraphicsExtractor.fillGlossyRect(x: Int, y: Int, width: Int, height: Int, color: Int) {
-    fill(x, y, x + width, y + height, color)
-    if (height <= CORNER_RADIUS * 2) return
-    fill(x, y + 1, x + width, y + 2, color.adjustRgb(GLOSS_HIGHLIGHT))
-    fill(x, y + height - 2, x + width, y + height - 1, color.adjustRgb(GLOSS_SHADE))
-}
-
-private fun Int.adjustRgb(amount: Int): Int {
-    val red = ((this ushr RED_SHIFT) and COLOR_CHANNEL_MASK).plus(amount).coerceIn(0, COLOR_CHANNEL_MASK)
-    val green = ((this ushr GREEN_SHIFT) and COLOR_CHANNEL_MASK).plus(amount).coerceIn(0, COLOR_CHANNEL_MASK)
-    val blue = (this and COLOR_CHANNEL_MASK).plus(amount).coerceIn(0, COLOR_CHANNEL_MASK)
-    return (this and ALPHA_MASK) or (red shl RED_SHIFT) or (green shl GREEN_SHIFT) or blue
-}
-
 private fun net.minecraft.world.entity.player.Player.skyBlockSpeed(): Int =
     ((if (isSprinting) speed / SPRINT_SPEED_MULTIPLIER else speed) * SPEED_SCALE).roundToInt()
 
@@ -1192,13 +1123,7 @@ private const val TEXT_PADDING = 2
 private const val ICON_SIZE = 9
 private const val EXPERIENCE_ICON_SIZE = 11
 private const val EXPERIENCE_ICON_X = -2
-private const val CORNER_RADIUS = 2
 private const val OVERFLOW_TRANSITION_HALF_WIDTH = 4
-private const val GLOSS_HIGHLIGHT = 42
-private const val GLOSS_SHADE = -48
-private const val RED_SHIFT = 16
-private const val GREEN_SHIFT = 8
-private const val COLOR_CHANNEL_MASK = 0xFF
 private const val ALPHA_MASK = 0xFF000000.toInt()
 private const val TEXT_OUTLINE_RGB = ALPHA_MASK
 private const val VANILLA_EXPERIENCE_LEVEL_RGB = 0xFF80FF20.toInt()
