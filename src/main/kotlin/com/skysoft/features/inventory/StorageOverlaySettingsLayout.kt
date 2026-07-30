@@ -12,7 +12,6 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     PAGE_SPACING("Page Spacing"),
     SCROLL_SPEED("Scroll Speed"),
     AUTO_OPEN_PREVIOUS("Reopen Previous", true),
-    AUTOFOCUS("Autofocus", true),
     SHORTCUT("Shortcut", true),
     DIM_BACKGROUND("Dim Background", true),
     ;
@@ -24,7 +23,6 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
         PAGE_SPACING -> config.details.pageSpacing
         SCROLL_SPEED -> config.details.scrollSpeed
         AUTO_OPEN_PREVIOUS -> if (config.settings.autoOpenPrevious) 1 else 0
-        AUTOFOCUS -> if (config.settings.isAutofocusEnabled) 1 else 0
         SHORTCUT -> if (config.settings.miniMenu) 1 else 0
         DIM_BACKGROUND -> if (config.details.dimBackground) 1 else 0
     }
@@ -43,7 +41,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
         }
         PAGE_SPACING -> StorageOverlayConfigBounds.MIN_PAGE_SPACING..StorageOverlayConfigBounds.MAX_PAGE_SPACING
         SCROLL_SPEED -> StorageOverlayConfigBounds.MIN_SCROLL_SPEED..StorageOverlayConfigBounds.MAX_SCROLL_SPEED
-        MODE, AUTO_OPEN_PREVIOUS, AUTOFOCUS, SHORTCUT, DIM_BACKGROUND -> 0..1
+        MODE, AUTO_OPEN_PREVIOUS, SHORTCUT, DIM_BACKGROUND -> 0..1
     }
 
     fun step(): Int = if (this == HEIGHT) StorageOverlayConfigBounds.HEIGHT_STEP else 1
@@ -60,7 +58,6 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
             PAGE_SPACING -> config.details.pageSpacing = value
             SCROLL_SPEED -> config.details.scrollSpeed = value
             AUTO_OPEN_PREVIOUS -> config.settings.autoOpenPrevious = value != 0
-            AUTOFOCUS -> config.settings.isAutofocusEnabled = value != 0
             SHORTCUT -> config.settings.miniMenu = value != 0
             DIM_BACKGROUND -> config.details.dimBackground = value != 0
         }
@@ -77,11 +74,9 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
 internal fun visibleStorageSettings(): List<StorageVisualSetting> = StorageVisualSetting.entries.filter { setting ->
     when (setting) {
         StorageVisualSetting.HEIGHT,
-        StorageVisualSetting.AUTOFOCUS,
         StorageVisualSetting.SHORTCUT,
         -> !isModernStorageOverlay
 
-        StorageVisualSetting.AUTO_OPEN_PREVIOUS -> isModernStorageOverlay
         else -> true
     }
 }
