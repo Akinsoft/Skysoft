@@ -66,6 +66,11 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Mining", desc = "Mining settings.")
+    val mining = MiningFeatureConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Hunting", desc = "Hunting settings.")
     val hunting = HuntingFeatureConfig()
 
