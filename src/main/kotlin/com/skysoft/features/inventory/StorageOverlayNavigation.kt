@@ -16,7 +16,7 @@ internal fun rememberActivePage(handle: StorageHandle) {
 
 internal fun redirectToRememberedPage(screen: AbstractContainerScreen<*>, handle: StorageHandle) {
     if (handle != StorageHandle.Overview || !screen.menu.carried.isEmpty || pendingOverviewShortcutClick != null) return
-    if (isModernStorageOverlay && !config.settings.autoOpenPrevious) return
+    if (!config.settings.autoOpenPrevious) return
     val pageIndex = rememberedPageIndex?.takeIf { storageEntryExists(it) } ?: return
     val screenId = System.identityHashCode(screen)
     if (redirectedOverviewScreenId == screenId) return
@@ -76,10 +76,6 @@ internal fun focusActivePageIfNeeded(
             focusedPageKey = layoutKey
             return PageLayoutRefresh.UNCHANGED
         }
-    }
-    if (!config.settings.isAutofocusEnabled) {
-        clearPageFocusRequest()
-        return PageLayoutRefresh.UNCHANGED
     }
     val requested = requestedFocusPageIndex == pageIndex
     if (!requested && focusedPageKey == layoutKey) return PageLayoutRefresh.UNCHANGED

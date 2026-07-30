@@ -287,7 +287,7 @@ internal fun handleSelectorPageClick(
         return InputHandlingResult.CONSUMED
     }
     if (pageIndex == activePage || !screen.menu.carried.isEmpty || click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-        if (config.settings.isAutofocusEnabled) focusPage(measurements, pageLayoutResult, pageIndex)
+        focusPage(measurements, pageLayoutResult, pageIndex)
     } else {
         tryNavigateTo(screen, pageIndex)
     }

@@ -44,10 +44,6 @@ class StorageOverlaySettingsConfig {
     @JvmField
     @field:Expose
     var miniMenu = true
-
-    @JvmField
-    @field:Expose
-    var isAutofocusEnabled = true
 }
 
 enum class StorageOverlayMode(private val displayName: String) {
