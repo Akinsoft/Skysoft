@@ -645,8 +645,19 @@ object CustomBars {
             if (baseWidth > 0 && overflowWidth > 0) {
                 val baseBridge = CORNER_RADIUS.coerceAtMost(baseWidth)
                 val overflowBridge = CORNER_RADIUS.coerceAtMost(overflowWidth)
-                context.fillGlossyRect(fillX + baseWidth - baseBridge, fillY, baseBridge, fillHeight, color)
-                context.fillGlossyRect(fillX + baseWidth, fillY, overflowBridge, fillHeight, overflowColor)
+                val bridgeWidth = baseBridge + overflowBridge
+                val bridgeX = fillX + baseWidth - baseBridge
+                repeat(bridgeWidth) { offset ->
+                    val barOffset = baseWidth - baseBridge + offset
+                    val verticalInset = roundedRectVerticalInset(barOffset, totalWidth, fillHeight)
+                    context.fillGlossyRect(
+                        bridgeX + offset,
+                        fillY + verticalInset,
+                        1,
+                        fillHeight - verticalInset * 2,
+                        if (offset < baseBridge) color else overflowColor,
+                    )
+                }
             }
         }
 
@@ -1061,8 +1072,15 @@ internal data class ParsedCustomBarActionBar(
 internal data class StatusRemoval(val status: CustomBarStatus, val range: IntRange)
 
 private fun GuiGraphicsExtractor.fillRoundedRect(x: Int, y: Int, width: Int, height: Int, color: Int) {
-    if (width <= CORNER_RADIUS * 2 || height <= CORNER_RADIUS * 2) {
+    if (height <= CORNER_RADIUS * 2) {
         fill(x, y, x + width, y + height, color)
+        return
+    }
+    if (width <= CORNER_RADIUS * 2) {
+        repeat(width) { offset ->
+            val verticalInset = roundedRectVerticalInset(offset, width, height)
+            fill(x + offset, y + verticalInset, x + offset + 1, y + height - verticalInset, color)
+        }
         return
     }
     fill(x + CORNER_RADIUS, y, x + width - CORNER_RADIUS, y + 1, color)
@@ -1071,6 +1089,10 @@ private fun GuiGraphicsExtractor.fillRoundedRect(x: Int, y: Int, width: Int, hei
     fill(x + 1, y + height - CORNER_RADIUS, x + width - 1, y + height - 1, color)
     fill(x + CORNER_RADIUS, y + height - 1, x + width - CORNER_RADIUS, y + height, color)
 }
+
+private fun roundedRectVerticalInset(horizontalOffset: Int, width: Int, height: Int): Int =
+    if (height <= CORNER_RADIUS * 2) 0
+    else (CORNER_RADIUS - minOf(horizontalOffset, width - horizontalOffset - 1)).coerceAtLeast(0)
 
 private fun GuiGraphicsExtractor.fillGlossyRoundedRect(x: Int, y: Int, width: Int, height: Int, color: Int) {
     fillRoundedRect(x, y, width, height, color)
