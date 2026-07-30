@@ -27,6 +27,8 @@
     "EntityRendererMixin",
     "EffectsInInventoryMixin",
     "ExperienceBarMixin",
+    "ExperienceLevelColorMixin",
+    "ExperienceLevelMixin",
     "FontPreparedTextBuilderMixin",
     "GameRendererMixin",
     "GuiMixin",

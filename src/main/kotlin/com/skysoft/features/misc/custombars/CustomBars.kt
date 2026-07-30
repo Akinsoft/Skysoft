@@ -24,6 +24,7 @@ import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.features.inventory.InventoryHudLayout
 import com.skysoft.features.misc.AbsorptionHeartLayout
+import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.actionbar.NormalizedActionBar
 import com.skysoft.features.misc.actionbar.actionBarSegmentRange
 import com.skysoft.features.misc.actionbar.withoutRanges
@@ -234,18 +235,25 @@ object CustomBars {
                     VANILLA_EXPERIENCE_WIDTH,
                     VANILLA_EXPERIENCE_BAR_HEIGHT,
                 )
-                context.blitSprite(
-                    RenderPipelines.GUI_TEXTURED,
-                    VANILLA_EXPERIENCE_PROGRESS_SPRITE,
-                    VANILLA_EXPERIENCE_WIDTH,
-                    VANILLA_EXPERIENCE_BAR_HEIGHT,
-                    0,
-                    0,
+                SkyBlockLevelBar.renderVanillaExperienceProgress(
+                    context,
                     0,
                     VANILLA_EXPERIENCE_BAR_Y,
                     VANILLA_EXPERIENCE_PREVIEW_PROGRESS,
-                    VANILLA_EXPERIENCE_BAR_HEIGHT,
-                )
+                ) {
+                    context.blitSprite(
+                        RenderPipelines.GUI_TEXTURED,
+                        VANILLA_EXPERIENCE_PROGRESS_SPRITE,
+                        VANILLA_EXPERIENCE_WIDTH,
+                        VANILLA_EXPERIENCE_BAR_HEIGHT,
+                        0,
+                        0,
+                        0,
+                        VANILLA_EXPERIENCE_BAR_Y,
+                        VANILLA_EXPERIENCE_PREVIEW_PROGRESS,
+                        VANILLA_EXPERIENCE_BAR_HEIGHT,
+                    )
+                }
                 if (!config.settings.numbers.experience) drawVanillaExperienceLevelPreview(context)
             }
             CustomBarPart.AIR -> repeat(VANILLA_STATUS_ICON_COUNT) { index ->
@@ -294,7 +302,14 @@ object CustomBars {
         context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x - 1, 0, TEXT_OUTLINE_RGB, false)
         context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x, 1, TEXT_OUTLINE_RGB, false)
         context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x, -1, TEXT_OUTLINE_RGB, false)
-        context.text(font, VANILLA_EXPERIENCE_PREVIEW_LEVEL, x, 0, VANILLA_EXPERIENCE_LEVEL_RGB, false)
+        context.text(
+            font,
+            VANILLA_EXPERIENCE_PREVIEW_LEVEL,
+            x,
+            0,
+            SkyBlockLevelBar.displayedExperienceLevelColor(VANILLA_EXPERIENCE_LEVEL_RGB),
+            false,
+        )
     }
 
     private fun vanillaHealthLayout(): VanillaHealthLayout {
@@ -558,8 +573,8 @@ object CustomBars {
                         RESOURCE_BAR_Y,
                         part.trackWidth,
                         resourceBarHeight(),
-                        player?.experienceProgress ?: 0f,
-                        details.barColor.rgb(),
+                        SkyBlockLevelBar.displayedExperienceProgress(player?.experienceProgress ?: 0f),
+                        SkyBlockLevelBar.displayedExperienceBarColor(details.barColor.rgb()),
                         details.backgroundColor.rgb(),
                     )
                 }
@@ -698,7 +713,7 @@ object CustomBars {
 
         private fun drawExperienceIcon(context: GuiGraphicsExtractor, x: Int, barHeight: Int) {
             if (part.iconSlotWidth == 0) return
-            if (inRift) {
+            if (inRift && !SkyBlockLevelBar.isReplacingExperience) {
                 val y = RESOURCE_BAR_Y + (barHeight - Minecraft.getInstance().font.lineHeight) / 2
                 drawIcon(
                     context,
@@ -813,7 +828,12 @@ object CustomBars {
             barY(includeBottomLayout = true) + (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() + position.y
 
         override fun renderDummy(context: GuiGraphicsExtractor) {
-            drawCustomBarText(context, text(), 0, 0, part.visualDetails.textColor.rgb())
+            val color = if (part == CustomBarPart.EXPERIENCE) {
+                SkyBlockLevelBar.displayedExperienceLevelColor(part.visualDetails.textColor.rgb())
+            } else {
+                part.visualDetails.textColor.rgb()
+            }
+            drawCustomBarText(context, text(), 0, 0, color)
         }
 
         override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
@@ -868,10 +888,12 @@ object CustomBars {
             )
             CustomBarPart.MANA -> resourceText(mana, part.trackWidth)
             CustomBarPart.VITALITY -> resourceText(vitality, part.trackWidth)
-            CustomBarPart.EXPERIENCE -> if (inRift) {
+            CustomBarPart.EXPERIENCE -> if (inRift && !SkyBlockLevelBar.isReplacingExperience) {
                 RiftCustomBarValues.formatTime(Minecraft.getInstance().player?.experienceLevel ?: 0)
             } else {
-                (Minecraft.getInstance().player?.experienceLevel ?: 0).toString()
+                SkyBlockLevelBar.displayedExperienceLevel(
+                    Minecraft.getInstance().player?.experienceLevel ?: 0,
+                ).toString()
             }
             CustomBarPart.DEFENSE, CustomBarPart.SPEED, CustomBarPart.AIR -> error("${part.label} has no bar text")
         }

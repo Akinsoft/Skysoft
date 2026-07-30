@@ -69,6 +69,7 @@ import com.skysoft.features.misc.RealTimeDisplay
 import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
+import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.actionbar.ActionBarCustomizer
 import com.skysoft.features.misc.actionbar.SkillExpDisplay
 import com.skysoft.features.misc.autosprint.AutoSprint
@@ -183,6 +184,7 @@ internal object SkysoftFeatureRegistrations {
         register("Selected Item Name", SelectedItemName::register)
         register("Action Bar Customizer", ActionBarCustomizer::register)
         register("Skill EXP Display", SkillExpDisplay::register)
+        register("SkyBlock Level Bar", SkyBlockLevelBar::register)
         register("Custom Bars", CustomBars::register)
         register("Inventory HUD", InventoryHud::register)
         register("Better TAB", BetterTab::register)

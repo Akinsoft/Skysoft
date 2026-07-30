@@ -13,6 +13,7 @@ import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.misc.ServerInfoDisplay
+import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.WarpAliases
 import com.skysoft.features.misc.custombars.CustomBars
 import com.skysoft.features.screenshot.ScreenshotManager
@@ -76,7 +77,20 @@ object MixinFeatureAdapters {
 
     @JvmStatic
     fun renderVanillaExperienceBar(context: GuiGraphicsExtractor, render: Runnable) =
-        CustomBars.renderVanillaExperienceBar(context, render::run)
+        CustomBars.renderVanillaExperienceBar(context) {
+            SkyBlockLevelBar.renderVanillaExperienceBar(context, render::run)
+        }
+
+    @JvmStatic
+    fun skyBlockExperienceLevel(original: Int): Int = SkyBlockLevelBar.displayedExperienceLevel(original)
+
+    @JvmStatic
+    fun skyBlockExperienceLevelColor(original: Int): Int =
+        SkyBlockLevelBar.displayedExperienceLevelColor(original)
+
+    @JvmStatic
+    fun skyBlockExperienceLevelVisibility(original: Int): Int =
+        SkyBlockLevelBar.experienceLevelVisibility(original)
 
     @JvmStatic
     fun recordPong(sentAtMillis: Long, receivedAtNanos: Long) {

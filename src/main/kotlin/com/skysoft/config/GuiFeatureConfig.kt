@@ -57,6 +57,15 @@ class GuiFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "SkyBlock Level Bar",
+        desc = "Show your SkyBlock Level and progress on Minecraft's experience bar.",
+    )
+    @field:ConfigEditorBoolean
+    var isSkyBlockLevelBarEnabled = false
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Better TAB", desc = "Compact the Hypixel SkyBlock tab list.")
     val betterTab = BetterTabConfig()
 
