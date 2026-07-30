@@ -18,7 +18,7 @@
     },
     "SPIDER": {
       "islands": ["Spider's Den", "Crimson Isle"],
-      "areas": ["Spider Mound", "Arachne's Burrow", "Arachne's Sanctuary", "Burning Desert"],
+      "areas": ["Spider Mound", "Arachne's Burrow", "Arachne's Sanctuary", "Burning Desert", "Dragontail", "Crimson Isle"],
       "items": [
         "SPIDER_EYE",
         "STRING",
