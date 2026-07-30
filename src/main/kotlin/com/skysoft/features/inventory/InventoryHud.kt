@@ -40,7 +40,6 @@ object InventoryHud {
                 id = "inventory_hud",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
                 contexts = GuiOverlayContextType.entries.toSet(),
-                screenForegroundContexts = GuiOverlayContextType.entries.filter { it != GuiOverlayContextType.WORLD }.toSet(),
                 visible = ::isVisible,
                 render = { context, _ -> renderParts(context) },
             ),
