@@ -89,6 +89,7 @@ import com.skysoft.features.pets.PetXpEstimator
 import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.VisiblePetPosition
 import com.skysoft.features.profit.ProfitTracker
+import com.skysoft.features.ravengard.RavengardItemComparisonTooltip
 import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.features.slayer.BlazeAttunementHighlighting
@@ -162,6 +163,7 @@ internal object SkysoftFeatureRegistrations {
         register("Item Change Log", ItemChangeLog::register)
         register("Max Enchant Chroma", MaxEnchantChroma::register)
         register("Minister in Calendar", MinisterCalendarTooltip::register)
+        register("Ravengard Item Comparison", RavengardItemComparisonTooltip::register)
         register("Storage Previews", StoragePreviews::register)
         register("Full Inventory Warning", FullInventoryWarning::register)
         register("Inventory Buttons", InventoryButtonManager::register)

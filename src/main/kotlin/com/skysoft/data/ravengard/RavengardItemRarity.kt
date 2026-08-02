@@ -37,4 +37,4 @@ internal fun ravengardRarityColor(
 }
 
 private val RARITY_STYLES = setOf("common", "uncommon", "rare")
-private const val RAVENGARD_NAMESPACE = "hypixel_ravengard"
+internal const val RAVENGARD_NAMESPACE = "hypixel_ravengard"
