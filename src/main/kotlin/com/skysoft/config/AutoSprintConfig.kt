@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorCombinations
@@ -16,6 +17,7 @@ class AutoSprintConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Settings", desc = "Auto Sprint settings.")
     @field:Accordion
     val settings = AutoSprintSettingsConfig()
@@ -23,6 +25,7 @@ class AutoSprintConfig {
 
 class AutoSprintSettingsConfig {
     @JvmField
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "Item Conditions",
         desc = "Use §b/ss autosprint additem§7 while holding a SkyBlock item to add it as a condition.",
@@ -32,12 +35,14 @@ class AutoSprintSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Reverse Conditions", desc = "Matching combinations disable Auto Sprint instead.")
     @field:ConfigEditorBoolean
     var isConditionActivationReversed = false
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Combinations", desc = "Any matching combination enables Auto Sprint.")
     @field:ConfigEditorCombinations(provider = AutoSprintCombinationsProvider::class)
     val combinations: MutableList<FeatureConditionCombination> = mutableListOf()

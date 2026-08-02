@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -26,21 +27,25 @@ class MiscFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Rare Drop Titles", desc = "Show valuable rare drops as titles.")
     val rareDropTitles = RareDropTitlesConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in party chat.")
     val rareLootSharing = RareLootSharingConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Dropped Item Scaling", desc = "Customize dropped SkyBlock item sizes by rarity.")
     val droppedItemScaling = DroppedItemScalingConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "Short Warp Commands",
         desc = "Use warp names such as /garden and /crypts without typing /warp.",
@@ -59,6 +64,7 @@ class MiscFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "Keep SkyBlock Resource Pack",
         desc = "Keep Hypixel's SkyBlock resource pack loaded between servers.",

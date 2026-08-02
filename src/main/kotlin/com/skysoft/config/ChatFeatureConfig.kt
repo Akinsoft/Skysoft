@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.SoundUtilities
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -40,6 +41,7 @@ class ChatFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Message Filtering", desc = "Hide selected game messages.")
     val messageFiltering = MessageFilteringConfig()
 
@@ -50,6 +52,7 @@ class ChatFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Player Badges", desc = "Show profile mode and faction icons beside player names.")
     val playerBadges = PlayerBadgesConfig()
 
