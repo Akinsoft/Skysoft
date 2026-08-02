@@ -17,6 +17,7 @@ import com.skysoft.features.inventory.SlotLockManager;
 import com.skysoft.features.inventory.StorageOverlayController;
 import com.skysoft.features.inventory.itemlist.ItemListController;
 import com.skysoft.features.pets.PetStorageService;
+import com.skysoft.features.ravengard.RavengardItemComparisonTooltip;
 import com.skysoft.gui.scale.InventoryCursorMemory;
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer;
 import com.skysoft.utils.input.InputHandlingResult;
@@ -64,6 +65,7 @@ public class AbstractContainerScreenMixin {
             return;
         }
         MixinErrorBoundary.run("Minister in Calendar tooltip preparation", () -> MinisterCalendarTooltip.INSTANCE.prepare(screen, context));
+        MixinErrorBoundary.run("Ravengard item comparison tooltip preparation", () -> RavengardItemComparisonTooltip.INSTANCE.prepare(screen, context));
     }
 
     @WrapOperation(method = "extractTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;getItem()Lnet/minecraft/world/item/ItemStack;"))

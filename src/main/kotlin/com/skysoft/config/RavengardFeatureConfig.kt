@@ -22,5 +22,14 @@ class RavengardFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var showCrownValues = false
 
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Item Comparison",
+        desc = "Show the equipped item beside wearable armor and accessories.",
+    )
+    @field:ConfigEditorBoolean
+    var showItemComparison = false
+
     override fun repairLoadedValues() = repairLoadedConfigs(rarityHighlight)
 }

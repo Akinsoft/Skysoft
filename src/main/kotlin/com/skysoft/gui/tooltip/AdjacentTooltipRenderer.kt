@@ -4,6 +4,7 @@ import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner
+import net.minecraft.resources.Identifier
 import net.minecraft.util.FormattedCharSequence
 import org.joml.Vector2i
 import org.joml.Vector2ic
@@ -21,11 +22,16 @@ object AdjacentTooltipRenderer {
         pendingTooltip = null
     }
 
-    fun prepare(context: GuiGraphicsExtractor, lines: List<FormattedCharSequence>) {
+    fun prepare(
+        context: GuiGraphicsExtractor,
+        lines: List<FormattedCharSequence>,
+        style: Identifier? = null,
+    ) {
         if (lines.isEmpty()) return
         pendingTooltip = PendingTooltip(
             context = context,
             components = lines.map(ClientTooltipComponent::create),
+            style = style,
         )
     }
 
@@ -51,13 +57,14 @@ object AdjacentTooltipRenderer {
             0,
             0,
             AdjacentPositioner(mainFrame),
-            null,
+            pending.style,
         )
     }
 
     private data class PendingTooltip(
         val context: GuiGraphicsExtractor,
         val components: List<ClientTooltipComponent>,
+        val style: Identifier?,
         var mainFrame: TooltipFrame? = null,
     )
 
