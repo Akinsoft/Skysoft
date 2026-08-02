@@ -15,6 +15,7 @@ import com.skysoft.features.inventory.StorageOverlayController;
 import com.skysoft.features.inventory.itemlist.ItemListController;
 import com.skysoft.features.misc.PlayerHeadSkinFix;
 import com.skysoft.features.pets.ActivePetHighlighter;
+import com.skysoft.features.ravengard.CrownValueOverlay;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -85,6 +86,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
         MixinErrorBoundary.run("Experimentation Table helper slot", () -> ExperimentationTableHelper.INSTANCE.renderSlot(screen, context, slot));
         MixinErrorBoundary.run("Slot Lock overlay", () -> SlotLockManager.INSTANCE.renderSlotOverlay(context, slot));
         MixinErrorBoundary.run("Item Protection marker", () -> ItemProtectionManager.INSTANCE.renderProtectedMarker(context, slot));
+        MixinErrorBoundary.run("Ravengard Crown Value overlay", () -> CrownValueOverlay.render(context, slot));
     }
 
     @Inject(method = "extractSlot", at = @At("HEAD"))
@@ -137,6 +139,6 @@ public abstract class AbstractContainerScreenRenderingMixin {
 
     @Unique
     private void renderItemWithRarity(String boundary, ItemStack stack, Runnable render) {
-        MixinErrorBoundary.aroundUnit(boundary, render, renderItem -> RarityHighlightRenderer.renderItem(stack, () -> { renderItem.run(); return kotlin.Unit.INSTANCE; }));
+        MixinErrorBoundary.aroundUnit(boundary, render, renderItem -> RarityHighlightRenderer.renderContainerItem(stack, () -> { renderItem.run(); return kotlin.Unit.INSTANCE; }));
     }
 }

@@ -3,6 +3,7 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
+import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.gui.SkysoftHudEditor
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -42,21 +43,25 @@ class GuiFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Skill EXP Display", desc = "Move Skill EXP gains out of the action bar.")
     val skillExpDisplay = SkillExpDisplayConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Inventory HUD", desc = "Show your inventory, armor, and equipment in-game.")
     val inventoryHud = InventoryHudConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Custom Bars", desc = "Replace SkyBlock status displays with custom bars.")
     val customBars = CustomBarsConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "SkyBlock Level Bar",
         desc = "Show your SkyBlock Level and progress on Minecraft's experience bar.",
@@ -66,11 +71,13 @@ class GuiFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Better TAB", desc = "Compact the Hypixel SkyBlock tab list.")
     val betterTab = BetterTabConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Day Display", desc = "Show the current Minecraft day.")
     val dayDisplay = DayDisplayConfig()
 
@@ -132,12 +139,14 @@ class GuiFeatureConfig : ConfigRepairable {
 class VanillaUiConfig {
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Hide Recipe Book", desc = "Hide the recipe book in your inventory on SkyBlock.")
     @field:ConfigEditorBoolean
     var isVanillaRecipeBookHidden = false
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "Hide Shortbow Cooldowns",
         desc = "Hide the shaded cooldown animation over Shortbows.",
@@ -322,6 +331,7 @@ class InventoryScreenSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Only in Storage Overlay", desc = "Only use the Inventory GUI Scale while the Storage Overlay is open.")
     @field:ConfigEditorBoolean
     var isInventoryGuiScaleStorageOnly = false

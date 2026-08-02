@@ -8,8 +8,11 @@ import com.mojang.blaze3d.vertex.BufferBuilder
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.SkysoftMod
 import com.skysoft.config.RarityHighlightDetailsConfig
+import com.skysoft.config.RarityHighlightConfig
 import com.skysoft.config.RarityHighlightType
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.ravengard.RavengardItemRarity
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.ColorUtilities.withAlpha
@@ -32,7 +35,8 @@ import net.minecraft.client.renderer.state.gui.GuiRenderState
 import net.minecraft.world.item.ItemStack
 
 object RarityHighlightRenderer {
-    private val config get() = SkysoftConfigGui.config().inventory.rarityHighlight
+    private val skyBlockConfig get() = SkysoftConfigGui.config().inventory.rarityHighlight
+    private val ravengardConfig get() = SkysoftConfigGui.config().ravengard.rarityHighlight
     private val contourColors = IdentityHashMap<GuiItemRenderState, Int>()
     private var pendingContourColor: Int? = null
 
@@ -44,39 +48,34 @@ object RarityHighlightRenderer {
 
     @JvmStatic
     fun renderContainerBackgrounds(context: GuiGraphicsExtractor, screen: AbstractContainerScreen<*>) {
-        val highlight = config
+        val highlight = containerConfig()
         if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
         if (StorageOverlayController.isActive(screen)) return
         for (slot in screen.menu.slots) {
             if (slot.isActive) {
-                renderBackground(
-                    context,
-                    slot.item,
-                    slot.x,
-                    slot.y,
-                    highlight.settings.type,
-                    highlight.details.opacity,
-                )
+                val color = containerRarityColor(slot.item) ?: continue
+                renderBackground(context, slot.x, slot.y, color, highlight.settings.type, highlight.details.opacity)
             }
         }
     }
 
     @JvmStatic
     fun renderBackground(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
-        val highlight = config
+        val highlight = skyBlockConfig
         if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
-        renderBackground(context, stack, x, y, highlight.settings.type, highlight.details.opacity)
+        val color = rarity(stack)?.color?.rgb ?: return
+        renderBackground(context, x, y, color, highlight.settings.type, highlight.details.opacity)
     }
 
     private fun renderBackground(
         context: GuiGraphicsExtractor,
-        stack: ItemStack,
         x: Int,
         y: Int,
+        rarityColor: Int,
         type: RarityHighlightType,
         opacity: Int,
     ) {
-        val color = rarityColor(rarity(stack) ?: return, opacity)
+        val color = rarityColor.withOpacity(opacity)
         when (type) {
             RarityHighlightType.ROUND -> SkysoftCircleShaderRenderer.drawFilledCircle(
                 context,
@@ -112,17 +111,30 @@ object RarityHighlightRenderer {
 
     @JvmStatic
     fun renderItem(stack: ItemStack, render: () -> Unit) {
-        val highlight = config
-        if (!highlight.isEnabled || highlight.settings.type != RarityHighlightType.CONTOUR) {
+        val highlight = skyBlockConfig
+        if (!highlight.isContourEnabled()) {
             render()
             return
         }
-        val rarity = rarity(stack)
-        if (rarity == null) {
+        renderContourItem(rarity(stack)?.color?.rgb, highlight.details.opacity, render)
+    }
+
+    @JvmStatic
+    fun renderContainerItem(stack: ItemStack, render: () -> Unit) {
+        val highlight = containerConfig()
+        if (!highlight.isContourEnabled()) {
             render()
             return
         }
-        val color = rarityColor(rarity, highlight.details.opacity)
+        renderContourItem(containerRarityColor(stack), highlight.details.opacity, render)
+    }
+
+    private fun renderContourItem(rarityColor: Int?, opacity: Int, render: () -> Unit) {
+        if (rarityColor == null) {
+            render()
+            return
+        }
+        val color = rarityColor.withOpacity(opacity)
         val previousColor = pendingContourColor
         pendingContourColor = color
         try {
@@ -149,13 +161,26 @@ object RarityHighlightRenderer {
 
     internal fun rarity(stack: ItemStack): SkyBlockRarity? = SkyBlockItemRarity.from(stack)
 
-    private fun rarityColor(rarity: SkyBlockRarity, opacity: Int): Int {
+    private fun containerConfig(): RarityHighlightConfig =
+        if (HypixelLocationState.inRavengard) ravengardConfig else skyBlockConfig
+
+    private fun RarityHighlightConfig.isContourEnabled(): Boolean =
+        isEnabled && settings.type == RarityHighlightType.CONTOUR
+
+    private fun containerRarityColor(stack: ItemStack): Int? =
+        if (HypixelLocationState.inRavengard) {
+            RavengardItemRarity.color(stack)
+        } else {
+            rarity(stack)?.color?.rgb
+        }
+
+    private fun Int.withOpacity(opacity: Int): Int {
         val clampedOpacity = opacity.coerceIn(
             RarityHighlightDetailsConfig.MIN_OPACITY,
             RarityHighlightDetailsConfig.MAX_OPACITY,
         )
         val alpha = (clampedOpacity * MAX_ALPHA + HALF_PERCENT) / RarityHighlightDetailsConfig.MAX_OPACITY
-        return rarity.color.rgb.withAlpha(alpha)
+        return withAlpha(alpha)
     }
 
     private const val SLOT_SIZE = 16

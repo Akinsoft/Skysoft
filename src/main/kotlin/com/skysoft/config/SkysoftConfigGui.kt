@@ -2,6 +2,8 @@ package com.skysoft.config
 
 import com.skysoft.config.discovery.NewSettingsConfigEditor
 import com.skysoft.config.discovery.NewSettingsEditor
+import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.SkysoftGame
 import com.skysoft.utils.MinecraftClient
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.gui.GuiContext
@@ -15,7 +17,7 @@ import java.util.Locale
 
 object SkysoftConfigGui {
     private val config = SkysoftConfig.load()
-    private var editor: MoulConfigEditor<SkysoftConfig>? = null
+    private val editors = mutableMapOf<SkysoftGame, MoulConfigEditor<SkysoftConfig>>()
 
     fun open(search: String? = null) {
         val currentEditor = editor()
@@ -36,7 +38,7 @@ object SkysoftConfigGui {
         createScreen(parent, editor())
 
     internal fun openNewSettings(optionIds: Set<String>): NewSettingsEditor<SkysoftConfig>? {
-        val filteredEditor = NewSettingsConfigEditor.create(config, optionIds) ?: return null
+        val filteredEditor = NewSettingsConfigEditor.create(config, optionIds, configGame()) ?: return null
         MinecraftClient.setScreen(createScreen(null, filteredEditor.editor))
         return filteredEditor
     }
@@ -56,13 +58,12 @@ object SkysoftConfigGui {
     fun config(): SkysoftConfig = config
 
     private fun editor(): MoulConfigEditor<SkysoftConfig> {
-        val currentEditor = editor
-        if (currentEditor != null) {
-            return currentEditor
-        }
-
-        return SkysoftMoulConfigGuis.createEditor(config).also { editor = it }
+        val game = configGame()
+        return editors.getOrPut(game) { SkysoftMoulConfigGuis.createEditor(config, game) }
     }
+
+    private fun configGame(): SkysoftGame =
+        if (HypixelLocationState.inRavengard) SkysoftGame.RAVENGARD else SkysoftGame.SKYBLOCK
 }
 
 internal fun configSearchQuery(search: String?): String = search.orEmpty()

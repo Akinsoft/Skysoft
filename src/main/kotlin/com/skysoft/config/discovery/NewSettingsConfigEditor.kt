@@ -1,6 +1,8 @@
 package com.skysoft.config.discovery
 
 import com.skysoft.config.SkysoftMoulConfigGuis
+import com.skysoft.config.categoriesForGame
+import com.skysoft.data.hypixel.SkysoftGame
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor
@@ -30,14 +32,21 @@ internal data class NewSettingsFilter<T : Config>(
 }
 
 internal object NewSettingsConfigEditor {
-    fun <T : Config> create(config: T, requestedOptionIds: Set<String>): NewSettingsEditor<T>? {
+    fun <T : Config> create(
+        config: T,
+        requestedOptionIds: Set<String>,
+        game: SkysoftGame? = null,
+    ): NewSettingsEditor<T>? {
         val filter = filter(config, requestedOptionIds) ?: return null
+        val categories = if (game == null) filter.categories else categoriesForGame(filter.categories, game)
+        val includedOptions = categories.values.flatMap { it.options }
+        if (includedOptions.isEmpty()) return null
         return NewSettingsEditor(
-            editor = MoulConfigEditor(filter.categories, config),
+            editor = MoulConfigEditor(categories, config),
             requestedOptionCount = filter.requestedOptionCount,
-            includedOptionCount = filter.includedOptionCount,
-            includedCategoryCount = filter.includedCategoryCount,
-            includedOptionPaths = filter.includedOptionPaths,
+            includedOptionCount = includedOptions.size,
+            includedCategoryCount = categories.size,
+            includedOptionPaths = includedOptions.map { it.path },
         )
     }
 

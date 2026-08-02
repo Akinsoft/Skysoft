@@ -11,6 +11,8 @@ import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.hypixel.SkysoftGame.RAVENGARD
+import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.LegacyStringChromaColourTypeAdapter
@@ -30,62 +32,80 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
     @field:Category(name = "About", desc = "Information about Skysoft.")
     val about = AboutConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(RAVENGARD)
+    @field:Category(name = "Ravengard", desc = "Ravengard settings.")
+    val ravengard = RavengardFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
     @field:Category(name = "GUI", desc = "GUI and HUD editor settings.")
     val gui = GuiFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
     @field:Category(name = "Inventory", desc = "Inventory and item tooltip settings.")
     val inventory = InventoryFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Combat", desc = "Combat settings.")
     val combat = CombatFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Slayer", desc = "Slayer quest helpers.")
     val slayer = SlayerFeatureConfig()
 
     @JvmField
     @field:Expose
     @field:SerializedName(value = "profitTrackers", alternate = ["profitTracker"])
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Profit Trackers", desc = "Configure activity profit trackers.")
     val profitTrackers = ProfitTrackersConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
     @field:Category(name = "Chat", desc = "Chat history, compacting, and visual settings.")
     val chat = ChatFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Mining", desc = "Mining settings.")
     val mining = MiningFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Hunting", desc = "Hunting settings.")
     val hunting = HuntingFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Fishing", desc = "Fishing settings.")
     val fishing = FishingFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Events", desc = "Event settings.")
     val events = EventFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Pets", desc = "Pet display and storage settings.")
     val pets = PetFeatureConfig()
 
@@ -94,11 +114,13 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
     @field:Category(name = "Misc", desc = "Miscellaneous settings.")
     val misc = MiscFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
     @field:Category(name = "Fixes", desc = "Fixes for Minecraft and SkyBlock issues.")
     val fixes = FixesConfig()
 
@@ -181,6 +203,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     fun repairLoadedValues() {
         migrateLoadedValues()
         repairLoadedConfigs(
+            ravengard,
             gui,
             inventory,
             combat,

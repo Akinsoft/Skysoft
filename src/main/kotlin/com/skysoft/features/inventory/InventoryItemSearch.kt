@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.ItemStackComponentCache
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.inventory.Slot
@@ -32,18 +33,11 @@ internal class InventoryItemSearchQuery private constructor(internal val terms: 
 }
 
 internal object InventoryItemSearchIndex {
-    private val itemTextByHash = mutableMapOf<Int, MutableList<IndexedItemText>>()
+    private val textCache = ItemStackComponentCache<String>()
 
     fun text(stack: ItemStack): String {
         if (stack.isEmpty) return ""
-        val hash = ItemStack.hashItemAndComponents(stack)
-        itemTextByHash[hash]?.firstOrNull { ItemStack.isSameItemSameComponents(it.stack, stack) }?.let {
-            return it.text
-        }
-        if (itemTextByHash.size >= MAX_ITEM_HASHES) itemTextByHash.clear()
-        return searchableText(stack).also { text ->
-            itemTextByHash.getOrPut(hash) { mutableListOf() } += IndexedItemText(stack.copyWithCount(1), text)
-        }
+        return textCache.getOrPut(stack) { searchableText(stack) }
     }
 
     private fun searchableText(stack: ItemStack): String = buildString {
@@ -51,9 +45,6 @@ internal object InventoryItemSearchIndex {
         stack.loreLines().forEach { append(it.cleanSkyBlockText()).append('\n') }
     }.lowercase()
 
-    private data class IndexedItemText(val stack: ItemStack, val text: String)
-
-    private const val MAX_ITEM_HASHES = 512
 }
 
 internal object InventoryItemSearchHighlight {
