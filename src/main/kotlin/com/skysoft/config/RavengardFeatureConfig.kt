@@ -31,5 +31,14 @@ class RavengardFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var showItemComparison = false
 
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Opened Loot Bags",
+        desc = "Mark opened loot bags with a green checkmark.",
+    )
+    @field:ConfigEditorBoolean
+    var markOpenedLootBags = false
+
     override fun repairLoadedValues() = repairLoadedConfigs(rarityHighlight)
 }

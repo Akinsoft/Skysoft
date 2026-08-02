@@ -90,6 +90,7 @@ import com.skysoft.features.pets.SkillExpGainApi
 import com.skysoft.features.pets.VisiblePetPosition
 import com.skysoft.features.profit.ProfitTracker
 import com.skysoft.features.ravengard.RavengardItemComparisonTooltip
+import com.skysoft.features.ravengard.RavengardLootBagCheckmarks
 import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.features.slayer.BlazeAttunementHighlighting
@@ -224,6 +225,7 @@ internal object SkysoftFeatureRegistrations {
         register("Cocoon Tracker", CocoonTracker::register)
         register("Healing Pool Line", HealingPoolLine::register)
         register("Better Shurikens", BetterShurikens::register)
+        register("Ravengard Loot Bag Checkmarks", RavengardLootBagCheckmarks::register)
         register("Slayer Boss Alerts", SlayerBossAlerts::register)
         register("Slayer Miniboss Alert", SlayerMinibossAlert::register)
         register("Slayer Target Highlighting", SlayerTargetHighlighting::register)
