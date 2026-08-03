@@ -34,6 +34,15 @@ class RavengardFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(
+        name = "Weapon DPS",
+        desc = "Show damage per second in Ravengard weapon tooltips.",
+    )
+    @field:ConfigEditorBoolean
+    var showWeaponDps = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
         name = "Opened Loot Bags",
         desc = "Mark opened loot bags with a green checkmark.",
     )

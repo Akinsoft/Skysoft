@@ -112,6 +112,9 @@ private fun ravengardStat(line: Component): RavengardStat? {
     )
 }
 
+internal fun ravengardStatValue(line: Component, name: String): BigDecimal? =
+    ravengardStat(line)?.takeIf { stat -> stat.key.name == name && !stat.key.percent }?.value
+
 private fun Component.withDeltaBeforeName(stat: RavengardStat, delta: BigDecimal): Component {
     val result = Component.empty()
     var offset = 0
