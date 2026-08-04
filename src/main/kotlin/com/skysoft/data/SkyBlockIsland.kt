@@ -27,6 +27,7 @@ enum class SkyBlockIsland(
     CRIMSON_ISLE("Crimson Isle", "crimson_isle"),
     BACKWATER_BAYOU("Backwater Bayou", "fishing_1", "backwater_bayou"),
     GALATEA("Galatea", "foraging_2"),
+    TORRHUS_CANYON("Torrhus Canyon", "foraging_3"),
     LOTUS_ATOLL("Lotus Atoll", "lotus_atoll"),
     ;
 

@@ -267,6 +267,11 @@
       "maxLevel": 10
     },
     {
+      "id": "karma",
+      "name": "Karma",
+      "maxLevel": 6
+    },
+    {
       "id": "knockback",
       "name": "Knockback",
       "maxLevel": 2
@@ -340,6 +345,11 @@
       "id": "pesterminator",
       "name": "Pesterminator",
       "maxLevel": 6
+    },
+    {
+      "id": "petalfall",
+      "name": "Petalfall",
+      "maxLevel": 5
     },
     {
       "id": "piercing",
