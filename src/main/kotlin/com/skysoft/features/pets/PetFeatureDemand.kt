@@ -10,7 +10,8 @@ internal object PetFeatureDemand {
             pets.visiblePetPosition.enabled ||
             pets.highlightActivePet ||
             pets.hideAutopet ||
-            config.events.diana.enabled
+            config.events.diana.enabled ||
+            config.foraging.throwingAxeHelper.enabled
     }
 
     fun isDisplayActive(): Boolean = SkysoftConfigGui.config().pets.petDisplay.enabled.get()
