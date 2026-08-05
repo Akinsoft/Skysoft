@@ -40,6 +40,7 @@ import com.skysoft.features.event.diana.DianaRareMobSharing
 import com.skysoft.features.event.diana.MythologicalRitualTracker
 import com.skysoft.features.fishing.FishingHotspotRadar
 import com.skysoft.features.fishing.FishingHotspotSharing
+import com.skysoft.features.foraging.ThrowingAxeHelper
 import com.skysoft.features.hunting.LotumHelper
 import com.skysoft.features.inventory.FullInventoryWarning
 import com.skysoft.features.inventory.InventoryButtonManager
@@ -235,6 +236,7 @@ internal object SkysoftFeatureRegistrations {
         register("Slayer Time to Kill", SlayerTimeToKill::register)
         register("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         register("Fishing Hotspot Radar", FishingHotspotRadar::register)
+        register("Throwing Axe Helper", ThrowingAxeHelper::register)
         register("Rare Loot Features", RareLootChatFeatures::register)
         register("Diana Burrow Storage", DianaBurrowStorage::register)
         register("Diana Burrow Helper", DianaBurrowHelper::register)

@@ -88,6 +88,12 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Foraging", desc = "Foraging settings.")
+    val foraging = ForagingFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Hunting", desc = "Hunting settings.")
     val hunting = HuntingFeatureConfig()
 
