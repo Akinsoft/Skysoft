@@ -2,6 +2,7 @@ package com.skysoft.features.foraging
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.StoredPetData
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.AttributeShardCatalog
@@ -9,6 +10,7 @@ import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
+import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.events.particle.ClientParticleEvents
 import com.skysoft.features.pets.ActivePetTracker
 import com.skysoft.utils.ColorUtilities.toColor
@@ -109,13 +111,14 @@ object ThrowingAxeHelper {
 
         val positions = connected.toSet()
         val section = section(kind, target, positions)
-        val effectiveSweep = sharpenedSweep(baseSweep, kind)
+        val activePet = ActivePetTracker.currentPet
+        val effectiveSweep = sharpenedSweep(baseSweep + currentStronkArmSweep(activePet), kind)
         val toughness = toughness(kind, section)
         val wrongStyle = hasWrongStylePenalty(level, kind, section, connected, positions)
         val missile = axe.extraAttributes()?.skyBlockEnchantments()?.get("ultimate_missile") ?: 0
         val throwMultiplier = throwMultiplier(
             missile,
-            ActivePetTracker.currentPet?.petInternalName?.substringBefore(';') == PRECURSOR_DRONE,
+            activePet?.petInternalName?.substringBefore(';') == PRECURSOR_DRONE,
         )
         val extraLogs = sweepExtraLogs(effectiveSweep, toughness) * throwMultiplier * if (wrongStyle) {
             WRONG_STYLE_MULTIPLIER
@@ -255,6 +258,9 @@ object ThrowingAxeHelper {
         else -> false
     }
 
+    private fun currentStronkArmSweep(pet: StoredPetData?): Double =
+        if (pet?.petInternalName?.substringBefore(';') == SLOTH) stronkArmSweep(pet.rarity, pet.level) else 0.0
+
     private fun sharpenedSweep(baseSweep: Double, kind: TreeKind): Double {
         val sharpeningLevel = when (kind) {
             TreeKind.FIG -> AttributeShardCatalog.getActiveLevelByAbilityName(FIG_SHARPENING)
@@ -356,6 +362,7 @@ object ThrowingAxeHelper {
     private const val SWEEP_PREFIX = "Sweep:"
     private val SWEEP_VALUE = Regex("""\d+(?:\.\d+)?""")
     private const val PRECURSOR_DRONE = "PRECURSOR_DRONE"
+    private const val SLOTH = "SLOTH"
     private const val CHOP = "Chop"
     private const val FIG_SHARPENING = "Fig Sharpening"
     private const val MANGROVE_SHARPENING = "Mangrove Sharpening"
@@ -398,6 +405,15 @@ private const val THROWING_AXE_ABILITY = "Ability: Throwing Axe"
 internal fun ItemStack.isThrowingAxe(): Boolean =
     skyBlockId() in THROWING_AXES || loreLines().any { it.cleanSkyBlockText().contains(THROWING_AXE_ABILITY) }
 
+internal fun stronkArmSweep(rarity: SkyBlockRarity, level: Int): Double {
+    val sweepPerLevel = when (rarity) {
+        SkyBlockRarity.RARE -> RARE_STRONK_ARM_SWEEP_PER_LEVEL
+        SkyBlockRarity.EPIC, SkyBlockRarity.LEGENDARY -> EPIC_STRONK_ARM_SWEEP_PER_LEVEL
+        else -> 0.0
+    }
+    return level * sweepPerLevel
+}
+
 @Suppress("DEPRECATION")
 internal fun isThrowingAxePassable(state: BlockState): Boolean =
     !state.blocksMotion() || state.block is LeavesBlock
@@ -425,6 +441,8 @@ internal fun predictedPrimaryLogCount(extraLogs: Double, chopLevel: Int): Int =
 internal fun throwMultiplier(missileLevel: Int, precursorDrone: Boolean): Double =
     if (precursorDrone) 1.0 else (BASE_THROW_MULTIPLIER + missileLevel * MISSILE_BONUS_PER_LEVEL).coerceAtMost(1.0)
 
+private const val RARE_STRONK_ARM_SWEEP_PER_LEVEL = 0.2
+private const val EPIC_STRONK_ARM_SWEEP_PER_LEVEL = 0.4
 private const val AXE_SPEED = 1.2
 private const val AXE_GRAVITY = 0.008
 private const val MAX_EXTRA_LOGS = 35.0
