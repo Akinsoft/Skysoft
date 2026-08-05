@@ -15,6 +15,12 @@ class ForagingFeatureConfig {
     @field:Expose
     @field:Category(name = "Throwing Axe Helper", desc = "Preview logs cut by Throwing Axe.")
     val throwingAxeHelper = ThrowingAxeHelperConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Axe Particles", desc = "Hide particles emitted by flying Throwing Axes.")
+    @field:ConfigEditorBoolean
+    var hideAxeParticles = false
 }
 
 class ThrowingAxeHelperConfig {
