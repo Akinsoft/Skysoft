@@ -1,6 +1,7 @@
 package com.skysoft.mixin;
 
 import com.skysoft.features.event.diana.DianaRareMobEntityMatcher;
+import com.skysoft.features.foraging.ThrowingAxeGhostFix;
 import com.skysoft.features.misc.DeadEntityHider;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -21,7 +22,11 @@ public class EntityRenderDispatcherMixin {
         double cameraZ,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (DeadEntityHider.shouldHide(entity) || DianaRareMobEntityMatcher.shouldHideBuggedEntity(entity)) {
+        if (
+            DeadEntityHider.shouldHide(entity)
+                || DianaRareMobEntityMatcher.shouldHideBuggedEntity(entity)
+                || ThrowingAxeGhostFix.shouldHide(entity)
+        ) {
             cir.setReturnValue(false);
         }
     }

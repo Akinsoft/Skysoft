@@ -245,6 +245,8 @@ object ThrowingAxeHelper {
         TreeKind.HELIX_BEIGE, TreeKind.HELIX_RED -> HELIX_TOUGHNESS
     }
 
+    internal fun isTreeBlock(island: SkyBlockIsland, state: BlockState): Boolean = treeKind(island, state) != null
+
     private fun treeKind(island: SkyBlockIsland, state: BlockState): TreeKind? = when (island) {
         SkyBlockIsland.THE_PARK -> TreeKind.PARK.takeIf { state.`is`(BlockTags.LOGS) }
         SkyBlockIsland.GALATEA -> when (state.block) {

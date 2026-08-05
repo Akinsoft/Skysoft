@@ -28,6 +28,16 @@ class FixesConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:ConfigOption(
+        name = "Throwing Axe Ghost Fix",
+        desc = "Hide log animations left behind by Throwing Axe.",
+    )
+    @field:ConfigEditorBoolean
+    var hideThrowingAxeGhostBlocks = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(
         name = "Centered Crosshair",
         desc = "Fix the vanilla crosshair being slightly off-center.",
