@@ -7,6 +7,7 @@ import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
 class ForagingFeatureConfig {
@@ -25,9 +26,33 @@ class ThrowingAxeHelperConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Throwing Axe Helper settings.")
+    @field:Accordion
+    val settings = ThrowingAxeHelperSettingsConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Details", desc = "Throwing Axe Helper appearance.")
     @field:Accordion
     val details = ThrowingAxeHelperDetailsConfig()
+}
+
+class ThrowingAxeHelperSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Highlight Thrown Logs", desc = "Keep logs targeted by recent throws highlighted until they break.")
+    @field:ConfigEditorBoolean
+    var highlightThrownLogs = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Highlight Overlapping Logs",
+        desc = "Highlight logs targeted by both your current aim and a recent throw in red.",
+    )
+    @field:ConfigEditorBoolean
+    @field:ConfigVisibleIf("highlightThrownLogs")
+    var highlightOverlappingLogs = true
 }
 
 class ThrowingAxeHelperDetailsConfig {
@@ -42,4 +67,10 @@ class ThrowingAxeHelperDetailsConfig {
     @field:ConfigOption(name = "Possible Color", desc = "Color used for possible extra logs.")
     @field:ConfigEditorColour
     val possibleColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 85, 0, 204))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Thrown Log Color", desc = "Color used for logs targeted by recent throws.")
+    @field:ConfigEditorColour
+    val thrownLogColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(43, 177, 251, 0, 204))
 }

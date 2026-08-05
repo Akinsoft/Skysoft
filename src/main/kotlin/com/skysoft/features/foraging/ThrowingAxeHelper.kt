@@ -9,6 +9,7 @@ import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
+import com.skysoft.events.particle.ClientParticleEvents
 import com.skysoft.features.pets.ActivePetTracker
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.SkysoftClientEvents
@@ -29,6 +30,7 @@ import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
 import net.minecraft.tags.BlockTags
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.LeavesBlock
 import net.minecraft.world.level.block.state.BlockState
@@ -36,33 +38,54 @@ import net.minecraft.world.phys.Vec3
 
 object ThrowingAxeHelper {
     private var highlights = HighlightSnapshot()
+    private val throwTracker = ThrowingAxeThrowTracker()
     private var tabSession = Long.MIN_VALUE
     private var tabVersion = Long.MIN_VALUE
     private var sweep: Double? = null
 
     fun register() {
         TabListApi.registerConsumer("Throwing Axe Helper") { config.enabled }
+        ClientParticleEvents.register(
+            "Throwing Axe Helper throw confirmation",
+            isActive = { config.enabled && config.settings.highlightThrownLogs },
+        ) { event ->
+            Minecraft.getInstance().level?.let { level -> throwTracker.confirm(event, level) }
+            false
+        }
         SkysoftClientEvents.onEndTick(
             "Throwing Axe Helper update",
             isActive = { config.enabled },
             action = ::update,
         )
+        SkysoftClientEvents.onEndTick(
+            "Throwing Axe Helper aim tracking",
+            isActive = { config.enabled && config.settings.highlightThrownLogs },
+            action = ::recordAim,
+        )
         WorldRenderDispatcher.registerHandler(
             "Throwing Axe Helper rendering",
-            isActive = { config.enabled && highlights.isNotEmpty() },
+            isActive = {
+                config.enabled && (
+                    highlights.primary.isNotEmpty() || highlights.possible.isNotEmpty() ||
+                        config.settings.highlightThrownLogs && throwTracker.isNotEmpty
+                    )
+            },
             handler = ::render,
         )
+        SkysoftClientEvents.onDisconnect("Throwing Axe Helper reset", throwTracker::clear)
     }
 
     private fun update(minecraft: Minecraft) {
         val island = HypixelLocationState.currentIsland
         val level = minecraft.level
         val player = minecraft.player
-        val axe = player?.mainHandItem
-        if (island == null || island !in FORAGING_ISLANDS || level == null || player == null || axe == null) {
+        if (island == null || island !in FORAGING_ISLANDS || level == null || player == null) {
             highlights = HighlightSnapshot()
+            throwTracker.clear()
             return
         }
+        throwTracker.update(level, config.settings.highlightThrownLogs)
+        val axe = player.mainHandItem
         if (!axe.isThrowingAxe() || player.cooldowns.isOnCooldown(axe)) {
             highlights = HighlightSnapshot()
             return
@@ -108,6 +131,19 @@ object ThrowingAxeHelper {
         highlights = HighlightSnapshot(
             primary = connected.take(primaryCount),
             possible = connected.drop(primaryCount).take(possibleCount),
+            expectedBlock = level.getBlockState(target).block,
+        )
+    }
+
+    private fun recordAim(minecraft: Minecraft) {
+        val level = minecraft.level ?: return
+        val player = minecraft.player ?: return
+        if (HypixelLocationState.currentIsland !in FORAGING_ISLANDS || !player.mainHandItem.isThrowingAxe()) return
+        throwTracker.record(
+            recordedTick = level.gameTime,
+            firstParticle = throwingAxePosition(player.eyePosition, player.lookAngle, tick = 1).toWorldVec(),
+            blocks = highlights.primary + highlights.possible,
+            expectedBlock = highlights.expectedBlock,
         )
     }
 
@@ -266,11 +302,21 @@ object ThrowingAxeHelper {
         skyBlockId() in THROWING_AXES || loreLines().any { it.cleanSkyBlockText().contains(THROWING_AXE_ABILITY) }
 
     private fun render(context: SkysoftRenderContext) {
+        val settings = config.settings
         val details = config.details
+        val thrown = if (settings.highlightThrownLogs) throwTracker.positions else emptySet()
+        val overlapping = if (settings.highlightOverlappingLogs) {
+            thrown.intersect(highlights.primary + highlights.possible)
+        } else {
+            emptySet()
+        }
         val highlightColor = details.highlightColor.get().toColor()
         val possibleColor = details.possibleColor.get().toColor()
-        highlights.primary.forEach { drawBlock(context, it, highlightColor) }
-        highlights.possible.forEach { drawBlock(context, it, possibleColor) }
+        highlights.primary.filterNot { it in thrown }.forEach { drawBlock(context, it, highlightColor) }
+        highlights.possible.filterNot { it in thrown }.forEach { drawBlock(context, it, possibleColor) }
+        val thrownColor = details.thrownLogColor.get().toColor()
+        thrown.filterNot { it in overlapping }.forEach { drawBlock(context, it, thrownColor) }
+        overlapping.forEach { drawBlock(context, it, OVERLAP_COLOR) }
     }
 
     private fun drawBlock(context: SkysoftRenderContext, position: BlockPos, color: Color) {
@@ -290,9 +336,8 @@ object ThrowingAxeHelper {
     private data class HighlightSnapshot(
         val primary: List<BlockPos> = emptyList(),
         val possible: List<BlockPos> = emptyList(),
-    ) {
-        fun isNotEmpty(): Boolean = primary.isNotEmpty() || possible.isNotEmpty()
-    }
+        val expectedBlock: Block? = null,
+    )
 
     private enum class TreeKind {
         PARK,
@@ -348,6 +393,7 @@ object ThrowingAxeHelper {
     private const val MANGROVE_ROOT_HEIGHT = 0.45
     private const val BRANCH_VERTICAL_RUN = 2
     private const val TREE_SECTION_UNCERTAINTY = 3
+    private val OVERLAP_COLOR = Color(255, 85, 85, 204)
     private const val FILL_ALPHA_SCALE = 0.2
 }
 
