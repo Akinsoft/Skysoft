@@ -298,9 +298,6 @@ object ThrowingAxeHelper {
         else -> null
     }
 
-    private fun ItemStack.isThrowingAxe(): Boolean =
-        skyBlockId() in THROWING_AXES || loreLines().any { it.cleanSkyBlockText().contains(THROWING_AXE_ABILITY) }
-
     private fun render(context: SkysoftRenderContext) {
         val settings = config.settings
         val details = config.details
@@ -356,18 +353,8 @@ object ThrowingAxeHelper {
     }
 
     private val FORAGING_ISLANDS = setOf(SkyBlockIsland.THE_PARK, SkyBlockIsland.GALATEA, SkyBlockIsland.TORRHUS_CANYON)
-    private val THROWING_AXES = setOf(
-        "JUNGLE_AXE",
-        "TREECAPITATOR_AXE",
-        "FIG_AXE",
-        "FIGSTONE_AXE",
-        "DECENT_AXE",
-        "SERIOUSLY_DAMAGED_AXE",
-        "HELIX_CHOPPER",
-    )
     private const val SWEEP_PREFIX = "Sweep:"
     private val SWEEP_VALUE = Regex("""\d+(?:\.\d+)?""")
-    private const val THROWING_AXE_ABILITY = "Ability: Throwing Axe"
     private const val PRECURSOR_DRONE = "PRECURSOR_DRONE"
     private const val CHOP = "Chop"
     private const val FIG_SHARPENING = "Fig Sharpening"
@@ -396,6 +383,20 @@ object ThrowingAxeHelper {
     private val OVERLAP_COLOR = Color(255, 85, 85, 204)
     private const val FILL_ALPHA_SCALE = 0.2
 }
+
+private val THROWING_AXES = setOf(
+    "JUNGLE_AXE",
+    "TREECAPITATOR_AXE",
+    "FIG_AXE",
+    "FIGSTONE_AXE",
+    "DECENT_AXE",
+    "SERIOUSLY_DAMAGED_AXE",
+    "HELIX_CHOPPER",
+)
+private const val THROWING_AXE_ABILITY = "Ability: Throwing Axe"
+
+internal fun ItemStack.isThrowingAxe(): Boolean =
+    skyBlockId() in THROWING_AXES || loreLines().any { it.cleanSkyBlockText().contains(THROWING_AXE_ABILITY) }
 
 @Suppress("DEPRECATION")
 internal fun isThrowingAxePassable(state: BlockState): Boolean =
