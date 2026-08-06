@@ -49,7 +49,6 @@ object InventoryHud {
                 override val id: String = "inventory_hud_${part.name.lowercase()}"
                 override val label: String = part.label
                 override val position get() = part.position()
-                override val canScale: Boolean = false
                 override val editorGridSpacing: Int = INVENTORY_HUD_GRID_SPACING
                 override val hasEditorBackground: Boolean
                     get() = !config.details.background && !config.details.outline && !config.details.slotBackgrounds
