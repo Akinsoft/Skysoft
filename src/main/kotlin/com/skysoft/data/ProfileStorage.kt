@@ -148,6 +148,7 @@ data class ProfileStorage(
         @Expose val profitTracker: ProfitTrackerData = ProfitTrackerData(),
         @Expose val slayerTimeToKill: SlayerTimeToKillData = SlayerTimeToKillData(),
         @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
+        @Expose val honeyhiveTracker: HoneyhiveTrackerData = HoneyhiveTrackerData(),
         @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
         @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
     ) {
@@ -177,6 +178,7 @@ data class ProfileStorage(
             profitTracker.repairLoadedValues()
             slayerTimeToKill.repairLoadedValues()
             bazaarTracker.repairLoadedValues()
+            honeyhiveTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
         }
@@ -335,6 +337,28 @@ data class ProfileStorage(
                 exact = false
             }
         }
+    }
+
+    data class HoneyhiveTrackerData(
+        @Expose var initialized: Boolean = false,
+        @Expose val hives: MutableList<HoneyhiveData> = mutableListOf(),
+    ) {
+        fun repairLoadedValues() {
+            hives.removeIf { !it.isUsable() }
+            val repaired = hives.associateBy { it.locationKey() }.values
+            hives.clear()
+            hives.addAll(repaired)
+        }
+    }
+
+    data class HoneyhiveData(
+        @Expose var x: Int = 0,
+        @Expose var y: Int = 0,
+        @Expose var z: Int = 0,
+        @Expose var readyAtMillis: Long = 0L,
+    ) {
+        fun isUsable(): Boolean = readyAtMillis >= 0L
+        fun locationKey(): String = "$x:$y:$z"
     }
 
     data class DianaBurrowCacheData(
