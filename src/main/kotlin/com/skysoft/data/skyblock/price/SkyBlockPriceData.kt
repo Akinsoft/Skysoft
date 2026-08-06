@@ -1,6 +1,7 @@
 package com.skysoft.data.skyblock.price
 
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.PriceTooltipLine
@@ -28,10 +29,16 @@ object SkyBlockPriceData {
     private const val LOWEST_BINS_URL = "https://api.findthesoft.com/lowest-bins"
     private const val AUCTION_HOUSE_URL = "https://api.findthesoft.com/auction-house"
     private const val NPC_SELL_PRICES_URL = "https://api.hypixel.net/v2/resources/skyblock/items"
+    private const val GEORGE_PET_PRICES_RESOURCE = "/assets/skysoft/data/george_pet_prices.json"
     private const val BAZAAR_REFRESH_INTERVAL_TICKS = 20 * 20
     private const val LOWEST_BINS_REFRESH_INTERVAL_TICKS = 20 * 60 * 2
 
     private val gson = Gson()
+    private val georgePetSellPrices = requireNotNull(javaClass.getResourceAsStream(GEORGE_PET_PRICES_RESOURCE)) {
+        "Missing bundled George pet prices"
+    }.bufferedReader().use { reader ->
+        gson.fromJson<Map<String, Double>>(reader, georgePetPriceMapType)
+    }
     private val directRequests = PendingHttpRequests()
     private val bazaarRequests = PendingHttpRequests()
     private val lowestBinRequests = PendingHttpRequests()
@@ -178,7 +185,7 @@ object SkyBlockPriceData {
     fun getLowestBin(itemId: String): Long? = lowestBins[itemId]
 
     fun getNpcSellPrices(itemId: String): SkyBlockNpcSellPrices =
-        SkyBlockNpcSellPrices(npcSellPrices[itemId], motesSellPrices[itemId])
+        SkyBlockNpcSellPrices(georgePetSellPrices[itemId] ?: npcSellPrices[itemId], motesSellPrices[itemId])
 
     internal fun marketSnapshotForRawCraft(): RawCraftMarketSnapshot? {
         if (bazaarStatus.state != BazaarDataLoadState.READY) return null
@@ -432,6 +439,8 @@ object SkyBlockPriceData {
 
     private const val BAZAAR_DEPTH_PRODUCT_LIMIT = 50
 }
+
+private val georgePetPriceMapType = object : TypeToken<Map<String, Double>>() {}.type
 
 private fun bazaarProductId(itemId: String): String =
     AttributeShardCatalog.bazaarProductAliases()[itemId] ?: itemId
