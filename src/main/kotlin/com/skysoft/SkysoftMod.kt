@@ -14,6 +14,7 @@ import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.itemlist.ItemListSearchCommand
 import com.skysoft.features.misc.MouseLock
+import com.skysoft.features.misc.WarpAliases
 import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import com.skysoft.features.misc.update.DownloadOpenResult
@@ -99,6 +100,7 @@ class SkysoftMod : ClientModInitializer {
                 register()
             }
             ItemListSearchCommand.register(dispatcher)
+            WarpAliases.registerSuggestions(dispatcher)
         }
 
         private fun openMenu(search: String? = null): Int {

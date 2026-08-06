@@ -1,10 +1,21 @@
 package com.skysoft.features.misc
 
+import com.mojang.brigadier.CommandDispatcher
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.commands.SkysoftCommandRegistry.Companion.literal
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 
 object WarpAliases {
+    fun registerSuggestions(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
+        WARP_ALIASES.forEach { alias ->
+            dispatcher.register(
+                literal(alias).requires { SkysoftConfigGui.config().misc.shortWarpCommands },
+            )
+        }
+    }
+
     @JvmStatic
     fun rewrite(command: String): String =
         if (SkysoftConfigGui.config().misc.shortWarpCommands && HypixelLocationState.inSkyBlock) {
@@ -103,6 +114,7 @@ private val WARP_ALIASES = setOf(
     "taylor",
     "the_rift",
     "top",
+    "torrhus",
     "tower",
     "trap",
     "trapper",
