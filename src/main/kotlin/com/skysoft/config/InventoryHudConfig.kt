@@ -46,9 +46,6 @@ class InventoryHudConfig {
     val equipmentPosition = defaultEquipmentPanelPosition().rememberDefault()
 
     fun repairLoadedValues() {
-        listOf(position, inventoryPosition, armorPosition, equipmentPosition).forEach {
-            it.scale = HudPosition.DEFAULT_SCALE
-        }
         position.rememberDefault(defaultInventoryHudPosition())
         inventoryPosition.rememberDefault(defaultInventoryPanelPosition())
         armorPosition.rememberDefault(defaultArmorPanelPosition())
