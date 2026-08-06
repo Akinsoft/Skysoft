@@ -8,5 +8,10 @@
     "sounds": [
       "minecraft:entity/painting/break3"
     ]
+  },
+  "honeyhive.ready": {
+    "sounds": [
+      "skysoft:foraging/honeyhive_ready"
+    ]
   }
 }
