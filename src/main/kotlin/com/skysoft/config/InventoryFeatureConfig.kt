@@ -7,6 +7,7 @@ import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 
@@ -135,13 +136,11 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(
+    @field:Category(
         name = "Preserve Cursor Position",
-        desc = "Keep the mouse at the same position when Minecraft briefly closes and reopens an inventory, " +
-            "such as SkyBlock storage page swaps.",
+        desc = "Keep cursor positions through brief inventory closures.",
     )
-    @field:ConfigEditorBoolean
-    var preserveCursorPosition = false
+    val cursorPositionPreservation = PreserveCursorPositionConfig()
 
     override fun repairLoadedValues() = repairLoadedConfigs(
         itemList,
@@ -155,6 +154,32 @@ class InventoryFeatureConfig : ConfigRepairable {
         storageOverlay,
         rarityHighlight,
     )
+}
+
+class PreserveCursorPositionConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Enabled",
+        desc = "Keep the mouse at the same position when Minecraft briefly closes and reopens an inventory.",
+    )
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Cursor position preservation settings.")
+    @field:Accordion
+    @field:ConfigVisibleIf("enabled")
+    val settings = PreserveCursorPositionSettingsConfig()
+}
+
+class PreserveCursorPositionSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Duration", desc = "Seconds to keep a cursor position after its inventory closes.")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
+    var durationSeconds = 1
 }
 
 class MaxEnchantChromaConfig {
