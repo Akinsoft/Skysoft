@@ -127,7 +127,7 @@ internal fun drawPage(
     mouseX: Int,
     mouseY: Int,
 ) {
-    val titleColor = if (active) "§b" else "§f"
+    val titleColor = if (active) "§b" else if (isLightStorageOverlay) "§8" else "§f"
     val title = titleDisplayText(titleText(layout.pageIndex))
     context.fill(
         layout.x,
@@ -165,6 +165,7 @@ internal fun drawPage(
         titleColor + title,
         layout.x + StorageTitle.X_OFFSET,
         layout.y + StorageTitle.Y_OFFSET,
+        shadow = !isLightStorageOverlay,
         defaultColor = StorageColors.TEXT_WHITE,
     )
     if (
@@ -269,6 +270,8 @@ internal fun drawSearchBox(context: GuiGraphicsExtractor, measurements: Measurem
         "Search...",
         backgroundColor = StorageColors.SEARCH_BACKGROUND,
         outlineColor = if (storageSearchField.focused) StorageColors.SELECTED else StorageColors.PANEL_OUTLINE,
+        textColor = StorageColors.TEXT_WHITE,
+        placeholderColor = StorageColors.SEARCH_PLACEHOLDER,
     )
 }
 
@@ -345,9 +348,10 @@ internal fun drawStorageSelectorPanel(
     context.outline(bounds.x, bounds.y, bounds.width, bounds.height, StorageColors.PAGE_PANEL_OUTLINE)
     LegacyTextRenderer.draw(
         context,
-        "§fShortcut",
+        "Shortcut",
         bounds.x + StorageSelector.TEXT_X_OFFSET,
         bounds.y + StorageSelector.TEXT_Y_OFFSET,
+        shadow = !isLightStorageOverlay,
         defaultColor = StorageColors.TEXT_WHITE,
     )
     val firstSlot = selectorSlotPosition(measurements, 0)

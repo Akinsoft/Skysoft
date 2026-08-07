@@ -39,6 +39,10 @@ class StorageOverlaySettingsConfig {
 
     @JvmField
     @field:Expose
+    var theme = StorageOverlayTheme.DARK
+
+    @JvmField
+    @field:Expose
     var autoOpenPrevious = true
 
     @JvmField
@@ -49,6 +53,14 @@ class StorageOverlaySettingsConfig {
 enum class StorageOverlayMode(private val displayName: String) {
     MODERN("Modern"),
     CLASSIC("Classic"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class StorageOverlayTheme(private val displayName: String) {
+    DARK("Dark"),
+    LIGHT("Light"),
     ;
 
     override fun toString(): String = displayName

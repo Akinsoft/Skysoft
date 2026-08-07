@@ -71,6 +71,17 @@ internal fun drawStorageSettingsPanel(
         layout.settings.forEach { setting ->
             drawStorageVisualSetting(context, layout, setting, screenWidth, screenHeight, measurements, mouseX, mouseY)
         }
+        val theme = StorageVisualSetting.THEME
+        val themeToggle = layout.themeToggle
+        PixelButtonRenderer.draw(
+            context,
+            font,
+            themeToggle,
+            theme.displayValue(),
+            theme.value() != 0,
+            themeToggle.contains(mouseX, mouseY),
+            true,
+        )
     } finally {
         context.disableScissor()
     }
@@ -187,6 +198,13 @@ private fun processOpenStorageSettingsClick(
         draggedStorageVisualSetting = null
         lastStorageSettingsOutcome = "closed"
         SoundUtilities.playClickSound()
+        return InputHandlingResult.CONSUMED
+    }
+    if (layout.themeToggle.contains(mouseX, mouseY)) {
+        SoundUtilities.playClickSound()
+        val theme = StorageVisualSetting.THEME
+        theme.set(if (theme.value() == 0) 1 else 0)
+        saveStorageSettings("${theme.name.lowercase()}=${theme.displayValue()}")
         return InputHandlingResult.CONSUMED
     }
     val setting = layout.settingAt(mouseX, mouseY) ?: return InputHandlingResult.CONSUMED
