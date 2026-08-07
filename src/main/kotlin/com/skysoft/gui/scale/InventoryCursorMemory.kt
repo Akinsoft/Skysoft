@@ -19,7 +19,7 @@ class InventoryCursorMemory private constructor() {
     )
 
     companion object {
-        private const val EXPIRY_NANOS = 1_000_000_000L
+        private const val NANOS_PER_SECOND = 1_000_000_000L
 
         private var inventoryScreenClosed = false
         private var pending: CursorSnapshot? = null
@@ -72,9 +72,14 @@ class InventoryCursorMemory private constructor() {
         }
 
         private fun isUsable(snapshot: CursorSnapshot?): Boolean =
-            snapshot?.let { System.nanoTime() - it.capturedAt <= EXPIRY_NANOS } == true
+            snapshot?.let {
+                val durationSeconds = SkysoftConfigGui.config()
+                    .inventory.cursorPositionPreservation.settings.durationSeconds
+                System.nanoTime() - it.capturedAt <=
+                    durationSeconds * NANOS_PER_SECOND
+            } == true
 
-        private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.preserveCursorPosition
+        private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.cursorPositionPreservation.enabled
 
         private fun discard() {
             inventoryScreenClosed = false

@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 13
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 14
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -70,6 +70,7 @@ internal object SkysoftConfigMigrations {
         }
         if (migrationVersion < SPOTIFY_LYRICS_MODE_VERSION) migrateSpotifyLyricsMode(json)
         if (migrationVersion < SERVER_INFO_METRIC_COLORS_VERSION) migrateServerInfoMetricColors(json)
+        migrateCursorPositionPreservation(json, migrationVersion)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -411,6 +412,16 @@ internal object SkysoftConfigMigrations {
     private const val SPOTIFY_LYRICS_MODE_VERSION = 12
     private const val SERVER_INFO_METRIC_COLORS_VERSION = 13
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
+}
+
+private const val CURSOR_POSITION_PRESERVATION_CATEGORY_VERSION = 14
+
+private fun migrateCursorPositionPreservation(json: JsonObject, migrationVersion: Int) {
+    if (migrationVersion >= CURSOR_POSITION_PRESERVATION_CATEGORY_VERSION) return
+    val inventoryJson = json.getObjectOrNull("inventory") ?: return
+    val legacyEnabled = inventoryJson.remove("preserveCursorPosition") ?: return
+    val featureJson = inventoryJson.getOrCreateObject("cursorPositionPreservation")
+    if (!featureJson.has("enabled")) featureJson.add("enabled", legacyEnabled.deepCopy())
 }
 
 private val CUSTOM_BAR_RESOURCE_FIELDS = setOf("health", "mana", "vitality", "experience")
