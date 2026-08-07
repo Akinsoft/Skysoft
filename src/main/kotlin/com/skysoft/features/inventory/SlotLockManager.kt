@@ -83,10 +83,16 @@ object SlotLockManager {
     fun isSlotLockPending(slotIndex: Int): Boolean = pendingLockSlot == slotIndex
 
     @JvmStatic
-    fun renderSlotOverlay(context: GuiGraphicsExtractor, slot: Slot) {
+    @JvmOverloads
+    fun renderSlotOverlay(
+        context: GuiGraphicsExtractor,
+        slot: Slot,
+        x: Int = slot.x,
+        y: Int = slot.y,
+    ) {
         if (!isFeatureAvailable() || !isSlotLocked(slot)) return
         val isBlocked = blockedSlot == slot.containerSlot && System.currentTimeMillis() < blockedUntilMillis
-        SlotLockRenderer.render(context, slot, isBlocked)
+        SlotLockRenderer.render(context, x, y, isBlocked)
     }
 
     @JvmStatic
@@ -256,17 +262,17 @@ private object SlotLockRenderer {
     private val blockedBorder = 0xFFFF5555.toInt()
     private val barrierIcon = ItemIconRenderable(ItemStack(Items.BARRIER), alpha = BARRIER_OPACITY)
 
-    fun render(context: GuiGraphicsExtractor, slot: Slot, isBlocked: Boolean) {
+    fun render(context: GuiGraphicsExtractor, x: Int, y: Int, isBlocked: Boolean) {
         val borderColor = if (isBlocked) blockedBorder else slotBorder
-        context.fill(slot.x, slot.y, slot.x + SLOT_SIZE, slot.y + SLOT_SIZE, SLOT_SHADE)
+        context.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_SHADE)
         context.outline(
-            slot.x - SLOT_OUTLINE_INSET,
-            slot.y - SLOT_OUTLINE_INSET,
+            x - SLOT_OUTLINE_INSET,
+            y - SLOT_OUTLINE_INSET,
             SLOT_OUTLINE_SIZE,
             SLOT_OUTLINE_SIZE,
             borderColor,
         )
-        barrierIcon.renderAt(context, slot.x, slot.y)
+        barrierIcon.renderAt(context, x, y)
     }
 }
 

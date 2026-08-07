@@ -314,10 +314,14 @@ internal fun drawPlayerSlot(
 ) {
     val pos = playerSlotPosition(measurements, containerSlot)
     val stack = slot?.item ?: ItemStack.EMPTY
-    if (!stack.isEmpty && !SmoothSwapping.shouldSuppressSlot(screen, slot)) {
+    val shouldRenderItem = !stack.isEmpty && !SmoothSwapping.shouldSuppressSlot(screen, slot)
+    if (shouldRenderItem) {
         RarityHighlightRenderer.renderSlot(context, stack, pos.x, pos.y) {
             context.itemWithDecorations(stack, pos.x, pos.y)
         }
+    }
+    slot?.let { SlotLockManager.renderSlotOverlay(context, it, pos.x, pos.y) }
+    if (shouldRenderItem) {
         ItemProtectionManager.renderProtectedMarker(context, stack, pos.x, pos.y)
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
