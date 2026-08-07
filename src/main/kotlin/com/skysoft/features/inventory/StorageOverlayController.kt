@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.StorageOverlayMode
+import com.skysoft.config.StorageOverlayTheme
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftItems
@@ -102,6 +103,7 @@ internal val storage get() = ProfileStorageApi.storage
 internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
 internal val isStorageOverlayEnabled get() = SkysoftConfigGui.config().inventory.isStorageOverlayEnabled
 internal val isModernStorageOverlay get() = config.settings.mode == StorageOverlayMode.MODERN
+internal val isLightStorageOverlay get() = config.settings.theme == StorageOverlayTheme.LIGHT
 
 internal var lastInventoryKey: String? = null
 internal val storageSearchField = TextFieldState()

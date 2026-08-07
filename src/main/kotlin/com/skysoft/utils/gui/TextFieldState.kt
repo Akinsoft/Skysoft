@@ -45,6 +45,8 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         alpha: Double = 1.0,
         backgroundColor: Int = BACKGROUND_COLOR,
         outlineColor: Int? = null,
+        textColor: Int = TEXT_COLOR,
+        placeholderColor: Int = PLACEHOLDER_COLOR,
     ) {
         context.fill(x, y, x + width, y + height, backgroundColor.withScaledAlpha(alpha))
         context.outline(
@@ -72,7 +74,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
             x + TEXT_X_OFFSET,
             textFieldTextY(y, height, font.lineHeight),
             shadow = false,
-            defaultColor = (if (isPlaceholderVisible) PLACEHOLDER_COLOR else TEXT_COLOR).withScaledAlpha(alpha),
+            defaultColor = (if (isPlaceholderVisible) placeholderColor else textColor).withScaledAlpha(alpha),
         )
         if (focused && isCursorVisible()) {
             val cursorText = visibleText.text.substring(0, visibleText.cursorOffset)
@@ -82,7 +84,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
                 y + CURSOR_Y_INSET,
                 cursorX + CURSOR_WIDTH,
                 y + height - CURSOR_Y_INSET,
-                TEXT_COLOR.withScaledAlpha(alpha),
+                textColor.withScaledAlpha(alpha),
             )
         }
     }

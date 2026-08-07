@@ -2,11 +2,13 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.StorageOverlayConfigBounds
 import com.skysoft.config.StorageOverlayMode
+import com.skysoft.config.StorageOverlayTheme
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
 
 internal enum class StorageVisualSetting(val label: String, val isToggle: Boolean = false) {
     MODE("Mode", true),
+    THEME("Theme", true),
     COLUMNS("Columns"),
     HEIGHT("Height"),
     PAGE_SPACING("Page Spacing"),
@@ -18,6 +20,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
 
     fun value(): Int = when (this) {
         MODE -> if (config.settings.mode == StorageOverlayMode.MODERN) 1 else 0
+        THEME -> if (config.settings.theme == StorageOverlayTheme.LIGHT) 1 else 0
         COLUMNS -> config.details.columns
         HEIGHT -> config.details.height
         PAGE_SPACING -> config.details.pageSpacing
@@ -41,7 +44,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
         }
         PAGE_SPACING -> StorageOverlayConfigBounds.MIN_PAGE_SPACING..StorageOverlayConfigBounds.MAX_PAGE_SPACING
         SCROLL_SPEED -> StorageOverlayConfigBounds.MIN_SCROLL_SPEED..StorageOverlayConfigBounds.MAX_SCROLL_SPEED
-        MODE, AUTO_OPEN_PREVIOUS, SHORTCUT, DIM_BACKGROUND -> 0..1
+        MODE, THEME, AUTO_OPEN_PREVIOUS, SHORTCUT, DIM_BACKGROUND -> 0..1
     }
 
     fun step(): Int = if (this == HEIGHT) StorageOverlayConfigBounds.HEIGHT_STEP else 1
@@ -53,6 +56,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
                 resetModernTransientState()
                 resetStorageScroll()
             }
+            THEME -> config.settings.theme = if (value != 0) StorageOverlayTheme.LIGHT else StorageOverlayTheme.DARK
             COLUMNS -> config.details.columns = value
             HEIGHT -> config.details.height = value
             PAGE_SPACING -> config.details.pageSpacing = value
@@ -65,7 +69,11 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     }
 
     fun displayValue(): String = if (isToggle) {
-        if (this == MODE) config.settings.mode.toString() else if (value() != 0) "On" else "Off"
+        when (this) {
+            MODE -> config.settings.mode.toString()
+            THEME -> config.settings.theme.toString()
+            else -> if (value() != 0) "On" else "Off"
+        }
     } else {
         value().toString()
     }
@@ -76,6 +84,8 @@ internal fun visibleStorageSettings(): List<StorageVisualSetting> = StorageVisua
         StorageVisualSetting.HEIGHT,
         StorageVisualSetting.SHORTCUT,
         -> !isModernStorageOverlay
+
+        StorageVisualSetting.THEME -> false
 
         else -> true
     }
@@ -94,6 +104,17 @@ internal data class StorageSettingsPanelLayout(
             StorageSettingsPanel.CLOSE_SIZE,
             StorageSettingsPanel.HEADER_BUTTON_HEIGHT,
         )
+
+    val themeToggle: Rect
+        get() {
+            val modeToggle = toggle(StorageVisualSetting.MODE)
+            return Rect(
+                modeToggle.x - StorageSettingsPanel.TOGGLE_GAP - StorageSettingsPanel.TOGGLE_WIDTH,
+                modeToggle.y,
+                StorageSettingsPanel.TOGGLE_WIDTH,
+                StorageSettingsPanel.TOGGLE_HEIGHT,
+            )
+        }
 
     fun row(setting: StorageVisualSetting): Rect {
         val index = settings.indexOf(setting)
@@ -147,7 +168,8 @@ internal data class StorageSettingsPanelLayout(
             settings: List<StorageVisualSetting> = StorageVisualSetting.entries,
             buttonAnchor: Rect = playerBounds,
         ): StorageSettingsPanelLayout {
-            val panelHeight = StorageSettingsPanel.height(settings.size)
+            val visibleSettings = settings.filter { it != StorageVisualSetting.THEME }
+            val panelHeight = StorageSettingsPanel.height(visibleSettings.size)
             val panelWidth = (screenWidth - StoragePanel.EDGE_MARGIN * 2)
                 .coerceAtMost(StorageSettingsPanel.WIDTH)
                 .coerceAtLeast(1)
@@ -178,7 +200,7 @@ internal data class StorageSettingsPanelLayout(
                 ),
                 panel = Rect(panelX, panelY, panelWidth, panelHeight),
                 isBesideInventory = panelX == preferredX,
-                settings = settings,
+                settings = visibleSettings,
             )
         }
     }
@@ -234,6 +256,7 @@ internal object StorageSettingsPanel {
     const val LABEL_WIDTH = 88
     const val RESERVED_WIDTH = 124
     const val TOGGLE_WIDTH = 44
+    const val TOGGLE_GAP = 4
     const val MODE_TOGGLE_WIDTH = 48
     const val TOGGLE_HEIGHT = 16
     const val BOTTOM_INSET = 8
