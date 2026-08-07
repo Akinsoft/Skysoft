@@ -9,7 +9,7 @@ import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.StringDecomposer
 
 object LegacyTextRenderer {
-    fun width(text: String): Int = Minecraft.getInstance().font.width(text)
+    fun width(text: String): Int = Minecraft.getInstance().font.width(formattedSequence(text))
 
     fun draw(
         context: GuiGraphicsExtractor,
