@@ -2,6 +2,7 @@ package com.skysoft.mixin;
 
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.features.bazaar.BazaarTracker;
+import com.skysoft.features.inventory.AnimatedDyeArmorCache;
 import com.skysoft.features.inventory.ContainerSearchHighlighter;
 import com.skysoft.features.inventory.ExperimentationTableHelper;
 import com.skysoft.features.inventory.InventoryButtonManager;
@@ -139,6 +140,12 @@ public abstract class AbstractContainerScreenRenderingMixin {
 
     @Unique
     private void renderItemWithRarity(String boundary, ItemStack stack, Runnable render) {
-        MixinErrorBoundary.aroundUnit(boundary, render, renderItem -> RarityHighlightRenderer.renderContainerItem(stack, () -> { renderItem.run(); return kotlin.Unit.INSTANCE; }));
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        ItemStack rarityStack = MixinErrorBoundary.value(
+            "Animated dye armor rarity",
+            stack,
+            () -> AnimatedDyeArmorCache.displayStack(screen, skysoftSmoothSwappingSlot, stack)
+        );
+        MixinErrorBoundary.aroundUnit(boundary, render, renderItem -> RarityHighlightRenderer.renderContainerItem(rarityStack, () -> { renderItem.run(); return kotlin.Unit.INSTANCE; }));
     }
 }

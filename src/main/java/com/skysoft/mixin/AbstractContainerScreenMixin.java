@@ -4,6 +4,7 @@ import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.features.bazaar.BazaarTracker;
+import com.skysoft.features.inventory.AnimatedDyeArmorCache;
 import com.skysoft.features.inventory.ExperimentationTableHelper;
 import com.skysoft.features.inventory.InventoryButtonManager;
 import com.skysoft.features.inventory.InventoryEquipment;
@@ -69,13 +70,18 @@ public class AbstractContainerScreenMixin {
     }
 
     @WrapOperation(method = "extractTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;getItem()Lnet/minecraft/world/item/ItemStack;"))
-    private ItemStack skysoftShowRememberedExperimentationTooltip(Slot slot, Operation<ItemStack> original) {
+    private ItemStack skysoftShowRememberedTooltip(Slot slot, Operation<ItemStack> original) {
         ItemStack stack = original.call(slot);
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        ItemStack armorStack = MixinErrorBoundary.value(
+            "Animated dye armor tooltip",
+            stack,
+            () -> AnimatedDyeArmorCache.displayStack(screen, slot, stack)
+        );
         return MixinErrorBoundary.value(
             "Experimentation Table remembered tooltip",
-            stack,
-            () -> ExperimentationTableHelper.INSTANCE.displayStack(screen, slot, stack)
+            armorStack,
+            () -> ExperimentationTableHelper.INSTANCE.displayStack(screen, slot, armorStack)
         );
     }
 
@@ -295,6 +301,7 @@ public class AbstractContainerScreenMixin {
     @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
     protected void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        MixinErrorBoundary.run("Animated dye armor Wardrobe selection", () -> AnimatedDyeArmorCache.observeWardrobeSelection(screen, slot, button, action));
         InputHandlingResult protection = MixinErrorBoundary.value("Item Protection slot click", InputHandlingResult.IGNORED, () -> ItemProtectionManager.handleContainerDrop(screen, slot, slotId, action));
         if (protection == InputHandlingResult.CONSUMED) { ci.cancel(); return; }
         InputHandlingResult binding = MixinErrorBoundary.value("Slot Binding slot click", InputHandlingResult.IGNORED, () -> SlotBindingManager.handleSlotClick(screen, slot, action));

@@ -44,6 +44,7 @@ import com.skysoft.features.foraging.HoneyhiveHelper
 import com.skysoft.features.foraging.ThrowingAxeHelper
 import com.skysoft.features.foraging.ThrowingAxeParticleHider
 import com.skysoft.features.hunting.LotumHelper
+import com.skysoft.features.inventory.AnimatedDyeArmorCache
 import com.skysoft.features.inventory.FullInventoryWarning
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
@@ -163,6 +164,7 @@ internal object SkysoftFeatureRegistrations {
     }
 
     private fun registerInventoryFeatures() {
+        register("Animated Dye Armor Cache", AnimatedDyeArmorCache::register)
         register("Price Tooltip Raw Craft Costs", PriceTooltipRawCraftCosts::register)
         register("Price Tooltips", PriceTooltips::register)
         register("Item Change Log", ItemChangeLog::register)

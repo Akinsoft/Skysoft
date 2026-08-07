@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "HeartLayoutMixin",
+    "AnimatedDyeArmorInventoryMixin",
     "AbstractContainerMenuMixin",
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenRenderingMixin",
