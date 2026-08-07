@@ -5,12 +5,14 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockUuid
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.toPackedArgb
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.withIsolatedPose
@@ -74,23 +76,27 @@ object ItemProtectionManager {
     }
 
     @JvmStatic
-    fun handleContainerDrop(
+    fun handleSlotClick(
         screen: AbstractContainerScreen<*>,
         slot: Slot?,
         slotId: Int,
         action: ContainerInput,
     ): InputHandlingResult {
-        if (!isFeatureAvailable() || !isContainerItemDrop(action, slotId)) return InputHandlingResult.IGNORED
+        if (!isFeatureAvailable()) return InputHandlingResult.IGNORED
         val stack = slot?.item ?: screen.menu.carried
+        val isDrop = isContainerItemDrop(action, slotId)
+        val isSale = isPlayerInventorySlot(slot) &&
+            isItemSaleInteraction(screen.title.cleanSkyBlockText(), stack.loreLines())
+        if (!isDrop && !isSale) return InputHandlingResult.IGNORED
         if (!isProtected(stack)) return InputHandlingResult.IGNORED
-        return blockProtectedItemDrop(stack)
+        return blockProtectedItemAction(stack, isDrop && config.settings.hideProtectedItemDropMessages)
     }
 
     @JvmStatic
     fun handleWorldDrop(player: LocalPlayer): InputHandlingResult {
         val stack = player.mainHandItem
         if (worldDropDecision(stack) != ItemDropProtectionDecision.BLOCK) return InputHandlingResult.IGNORED
-        return blockProtectedItemDrop(stack)
+        return blockProtectedItemAction(stack, config.settings.hideProtectedItemDropMessages)
     }
 
     @JvmStatic
@@ -146,8 +152,8 @@ object ItemProtectionManager {
             allowDungeonUltimates = config.settings.allowDungeonUltimates,
         )
 
-    private fun blockProtectedItemDrop(stack: ItemStack): InputHandlingResult {
-        if (!config.settings.hideProtectedItemDropMessages) {
+    private fun blockProtectedItemAction(stack: ItemStack, hideMessage: Boolean): InputHandlingResult {
+        if (!hideMessage) {
             SkysoftChat.error("${stack.hoverName.string} is protected.")
         }
         return InputHandlingResult.CONSUMED
@@ -188,6 +194,11 @@ object ItemProtectionManager {
     }
 }
 
+internal fun isItemSaleInteraction(menuTitle: String, itemLore: List<String>): Boolean =
+    menuTitle == CREATE_AUCTION_TITLE ||
+        menuTitle == CREATE_BIN_AUCTION_TITLE ||
+        itemLore.any { it.cleanSkyBlockText() == CLICK_TO_SELL_LORE }
+
 enum class ItemDropProtectionDecision {
     ALLOW,
     ALLOW_DUNGEON_ULTIMATE,
@@ -221,3 +232,6 @@ private const val OUTSIDE_SLOT = -999
 private const val SLOT_SIZE = 16
 private const val PROTECTED_MARKER = "✦"
 private const val PERCENT_MAX = 100.0
+private const val CREATE_AUCTION_TITLE = "Create Auction"
+private const val CREATE_BIN_AUCTION_TITLE = "Create BIN Auction"
+private const val CLICK_TO_SELL_LORE = "Click to sell!"

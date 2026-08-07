@@ -302,7 +302,7 @@ public class AbstractContainerScreenMixin {
     protected void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
         MixinErrorBoundary.run("Animated dye armor Wardrobe selection", () -> AnimatedDyeArmorCache.observeWardrobeSelection(screen, slot, button, action));
-        InputHandlingResult protection = MixinErrorBoundary.value("Item Protection slot click", InputHandlingResult.IGNORED, () -> ItemProtectionManager.handleContainerDrop(screen, slot, slotId, action));
+        InputHandlingResult protection = MixinErrorBoundary.value("Item Protection slot click", InputHandlingResult.IGNORED, () -> ItemProtectionManager.handleSlotClick(screen, slot, slotId, action));
         if (protection == InputHandlingResult.CONSUMED) { ci.cancel(); return; }
         InputHandlingResult binding = MixinErrorBoundary.value("Slot Binding slot click", InputHandlingResult.IGNORED, () -> SlotBindingManager.handleSlotClick(screen, slot, action));
         if (binding == InputHandlingResult.CONSUMED) {
