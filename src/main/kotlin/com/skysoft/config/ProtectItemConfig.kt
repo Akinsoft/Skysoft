@@ -17,7 +17,7 @@ import org.lwjgl.glfw.GLFW
 class ProtectItemConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Prevent protected items from being dropped.")
+    @field:ConfigOption(name = "Enabled", desc = "Prevent protected items from being dropped or sold.")
     @field:ConfigEditorBoolean
     var enabled = false
 
