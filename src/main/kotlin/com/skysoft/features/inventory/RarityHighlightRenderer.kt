@@ -53,7 +53,8 @@ object RarityHighlightRenderer {
         if (StorageOverlayController.isActive(screen)) return
         for (slot in screen.menu.slots) {
             if (slot.isActive) {
-                val color = containerRarityColor(slot.item) ?: continue
+                val stack = AnimatedDyeArmorCache.displayStack(screen, slot, slot.item)
+                val color = containerRarityColor(stack) ?: continue
                 renderBackground(context, slot.x, slot.y, color, highlight.settings.type, highlight.details.opacity)
             }
         }
