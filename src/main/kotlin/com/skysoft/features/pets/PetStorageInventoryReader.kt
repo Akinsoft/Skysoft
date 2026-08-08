@@ -167,11 +167,7 @@ internal object PetStorageInventoryReader {
     }
 
     private fun readPetTabWidget() {
-        if (!TabListApi.isSkyBlockDataLoaded) return
-        val widget = parsePetTabWidget(TabListApi.skyBlockLines) ?: run {
-            PetWidgetStateTracker.setNotReady()
-            return
-        }
+        val widget = petTabWidgetLinesOrNull() ?: return
         val component = widget.pet
         val match = petTabWidgetNamePattern.matchEntire(component.string) ?: run {
             PetWidgetStateTracker.setNotReady()
@@ -256,6 +252,20 @@ internal object PetStorageInventoryReader {
         PetStorageService.markDirty()
     }
 
+    private fun petTabWidgetLinesOrNull(): PetTabWidgetLines? {
+        if (!TabListApi.isSkyBlockDataLoaded) return null
+        val lines = TabListApi.skyBlockLines
+        if (isPetTabWidgetEmpty(lines)) {
+            ActivePetTracker.assertNoCurrentPetFromTab()
+            PetWidgetStateTracker.setReady()
+            return null
+        }
+        return parsePetTabWidget(lines) ?: run {
+            PetWidgetStateTracker.setNotReady()
+            null
+        }
+    }
+
     private val PetExpRead?.exactValue get() = this?.takeIf { it.exact }?.value
     private const val PET_TAB_WIDGET_READ_INTERVAL_TICKS = 10
 }
@@ -267,7 +277,7 @@ internal data class PetTabWidgetLines(
 )
 
 internal fun parsePetTabWidget(lines: List<Component>): PetTabWidgetLines? {
-    val headerIndex = lines.indexOfFirst { it.cleanSkyBlockText() == "Pet:" }
+    val headerIndex = findPetTabWidgetHeaderIndex(lines)
     if (headerIndex < 0) return null
     val pet = lines.getOrNull(headerIndex + PET_TAB_WIDGET_PET_OFFSET) ?: return null
     if (!petTabWidgetNamePattern.matches(pet.string)) return null
@@ -280,6 +290,15 @@ internal fun parsePetTabWidget(lines: List<Component>): PetTabWidgetLines? {
             ?.let { PetTabWidgetLines(pet, next, it) }
     }
 }
+
+internal fun isPetTabWidgetEmpty(lines: List<Component>): Boolean {
+    val headerIndex = findPetTabWidgetHeaderIndex(lines)
+    return headerIndex >= 0 && lines.getOrNull(headerIndex + PET_TAB_WIDGET_PET_OFFSET)
+        ?.cleanSkyBlockText() == "No pet selected"
+}
+
+private fun findPetTabWidgetHeaderIndex(lines: List<Component>): Int =
+    lines.indexOfFirst { it.cleanSkyBlockText() == "Pet:" }
 
 private const val PET_TAB_WIDGET_PET_OFFSET = 1
 private const val PET_TAB_WIDGET_SECOND_LINE_OFFSET = 2

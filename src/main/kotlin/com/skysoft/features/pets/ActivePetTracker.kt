@@ -95,6 +95,11 @@ object ActivePetTracker {
         if (hadStoredCurrentPet) ProfileStorageApi.markDirty()
     }
 
+    fun assertNoCurrentPetFromTab() {
+        if (currentPet == null || shouldDelayTabAssertion()) return
+        clearCurrentPet()
+    }
+
     private fun resetProfileState() {
         currentPetSnapshot = null
         pendingTabPetData = null
