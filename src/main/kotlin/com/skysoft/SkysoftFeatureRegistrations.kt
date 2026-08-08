@@ -41,6 +41,7 @@ import com.skysoft.features.event.diana.MythologicalRitualTracker
 import com.skysoft.features.fishing.FishingHotspotRadar
 import com.skysoft.features.fishing.FishingHotspotSharing
 import com.skysoft.features.foraging.HoneyhiveHelper
+import com.skysoft.features.foraging.QueenAntWarning
 import com.skysoft.features.foraging.ThrowingAxeHelper
 import com.skysoft.features.foraging.ThrowingAxeParticleHider
 import com.skysoft.features.hunting.LotumHelper
@@ -241,6 +242,7 @@ internal object SkysoftFeatureRegistrations {
         register("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         register("Fishing Hotspot Radar", FishingHotspotRadar::register)
         register("Honeyhive Helper", HoneyhiveHelper::register)
+        register("Queen Ant Warning", QueenAntWarning::register)
         register("Throwing Axe Helper", ThrowingAxeHelper::register)
         register("Hide Axe Particles", ThrowingAxeParticleHider::register)
         register("Rare Loot Features", RareLootChatFeatures::register)
