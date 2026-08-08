@@ -13,5 +13,10 @@
     "sounds": [
       "skysoft:foraging/honeyhive_ready"
     ]
+  },
+  "queen_ant.found": {
+    "sounds": [
+      "skysoft:foraging/queen_ant_found"
+    ]
   }
 }

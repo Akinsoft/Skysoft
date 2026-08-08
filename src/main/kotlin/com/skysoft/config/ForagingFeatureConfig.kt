@@ -22,6 +22,11 @@ class ForagingFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Queen Ant Warning", desc = "Show a title when you find a Queen Ant.")
+    val queenAntWarning = QueenAntWarningConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Throwing Axe Helper", desc = "Preview logs cut by Throwing Axe.")
     val throwingAxeHelper = ThrowingAxeHelperConfig()
 
@@ -30,6 +35,28 @@ class ForagingFeatureConfig {
     @field:ConfigOption(name = "Hide Axe Particles", desc = "Hide particles emitted by flying Throwing Axes.")
     @field:ConfigEditorBoolean
     var hideAxeParticles = false
+}
+
+class QueenAntWarningConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Show a title when you find a Queen Ant.")
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Queen Ant Warning appearance.")
+    @field:Accordion
+    val details = QueenAntWarningDetailsConfig()
+}
+
+class QueenAntWarningDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Crosshair Line", desc = "Draw a line to the Queen Ant.")
+    @field:ConfigEditorBoolean
+    var crosshairLine = true
 }
 
 class ThrowingAxeHelperConfig {
