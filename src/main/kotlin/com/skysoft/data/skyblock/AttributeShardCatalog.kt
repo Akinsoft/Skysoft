@@ -44,8 +44,9 @@ object AttributeShardCatalog {
         ProfileStorageApi.registerConsumer("Attribute Shard Catalog", ::isActive)
         SkysoftClientEvents.onEndTick(
             "Attribute Shard loading",
-            isActive = { isActive() || wasActive },
+            isActive = { isActive() || !AttributeShardConstants.remoteConstantsLoaded || wasActive },
         ) {
+            AttributeShardConstants.ensureLoaded()
             if (!isActive()) {
                 if (wasActive) AttributeShardConstants.cancelAll()
                 wasActive = false
@@ -372,6 +373,10 @@ private object AttributeShardConstants {
     private var constantsLastFailure = ElapsedTimeMark.farPast()
 
     @Volatile
+    var remoteConstantsLoaded = false
+        private set
+
+    @Volatile
     private var attributeLevelling = mapOf<SkyBlockRarity, List<Int>>()
 
     @Volatile
@@ -394,11 +399,9 @@ private object AttributeShardConstants {
     }
 
     fun ensureLoaded(): Boolean {
-        if (attributeInfo.isNotEmpty()) return true
-        loadLocalConstants()
-        if (attributeInfo.isNotEmpty()) return true
-        loadConstants()
-        return false
+        if (attributeInfo.isEmpty()) loadLocalConstants()
+        if (!remoteConstantsLoaded) loadConstants()
+        return attributeInfo.isNotEmpty()
     }
 
     fun activeLevel(storage: Map<String, ProfileStorage.AttributeShardData>, abilityName: String): Int {
@@ -476,6 +479,7 @@ private object AttributeShardConstants {
                     try {
                         if (error == null && data != null) {
                             applyConstants(data)
+                            remoteConstantsLoaded = true
                         } else if (error?.isCancellationFailure() != true) {
                             constantsLastFailure = ElapsedTimeMark.now()
                             SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
