@@ -3,6 +3,7 @@ package com.skysoft.features.inventory
 import com.skysoft.config.INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContext
@@ -236,7 +237,7 @@ private class InventoryHudRenderable(
             for (column in 0 until columns) {
                 val slotX = InventoryHudLayout.PANEL_PADDING + column * InventoryHudLayout.SLOT_SIZE
                 val slotY = InventoryHudLayout.PANEL_PADDING + row * InventoryHudLayout.SLOT_SIZE
-                drawSlot(context, slotX, slotY, stack(row, column) ?: ItemStack.EMPTY)
+                drawSlot(context, slotX, slotY, row, column, stack(row, column) ?: ItemStack.EMPTY)
                 if (part == InventoryHudPart.HOTBAR && column == player?.inventory?.selectedSlot) {
                     drawOutline(
                         context,
@@ -270,7 +271,14 @@ private class InventoryHudRenderable(
         }
     }
 
-    private fun drawSlot(context: GuiGraphicsExtractor, x: Int, y: Int, stack: ItemStack) {
+    private fun drawSlot(
+        context: GuiGraphicsExtractor,
+        x: Int,
+        y: Int,
+        row: Int,
+        column: Int,
+        stack: ItemStack,
+    ) {
         if (details.slotBackgrounds) {
             context.fillOverlayBackground(
                 x,
@@ -281,17 +289,18 @@ private class InventoryHudRenderable(
                 details.roundedCorners,
             )
         }
-        if (stack.isEmpty) return
+        val renderStack = PlayerHeadSkinFix.stableHeadStack(Triple(part, row, column), stack) ?: stack
+        if (renderStack.isEmpty) return
         val itemX = x + ITEM_INSET
         val itemY = y + ITEM_INSET
-        val rarityStack = if (part == InventoryHudPart.ARMOR) AnimatedDyeArmorCache.displayStack(stack) else stack
+        val rarityStack = if (part == InventoryHudPart.ARMOR) AnimatedDyeArmorCache.displayStack(renderStack) else renderStack
         RarityHighlightRenderer.renderSlot(context, rarityStack, itemX, itemY) {
-            context.item(stack, itemX, itemY)
+            context.item(renderStack, itemX, itemY)
         }
-        val countText = if (stack.count == 1) null else ""
-        context.itemDecorations(Minecraft.getInstance().font, stack, itemX, itemY, countText)
-        if (stack.count != 1) {
-            val text = stack.count.toString()
+        val countText = if (renderStack.count == 1) null else ""
+        context.itemDecorations(Minecraft.getInstance().font, renderStack, itemX, itemY, countText)
+        if (renderStack.count != 1) {
+            val text = renderStack.count.toString()
             val font = Minecraft.getInstance().font
             context.text(
                 font,
