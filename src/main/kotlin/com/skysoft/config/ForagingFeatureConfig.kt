@@ -22,6 +22,12 @@ class ForagingFeatureConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Floor Drop Highlighter", desc = "Highlight visible Floor Drops.")
+    @field:ConfigEditorBoolean
+    var highlightFloorDrops = false
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Queen Ant Warning", desc = "Show a title when you find a Queen Ant.")
     val queenAntWarning = QueenAntWarningConfig()
 
