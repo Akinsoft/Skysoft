@@ -50,6 +50,11 @@ object AnimatedDyeArmorCache {
         return displayStack(stack, stacks[equipmentSlot])
     }
 
+    fun displayStack(stack: ItemStack): ItemStack {
+        val equipmentSlot = stack.get(DataComponents.EQUIPPABLE)?.slot() ?: return stack
+        return displayStack(stack, stacks[equipmentSlot])
+    }
+
     internal fun displayStack(current: ItemStack, remembered: ItemStack?): ItemStack {
         if (!current.hasHiddenTooltip() || remembered == null || remembered.hasHiddenTooltip()) return current
         if (current.item != remembered.item || current.count != remembered.count) return current

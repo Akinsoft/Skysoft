@@ -284,7 +284,8 @@ private class InventoryHudRenderable(
         if (stack.isEmpty) return
         val itemX = x + ITEM_INSET
         val itemY = y + ITEM_INSET
-        RarityHighlightRenderer.renderSlot(context, stack, itemX, itemY) {
+        val rarityStack = if (part == InventoryHudPart.ARMOR) AnimatedDyeArmorCache.displayStack(stack) else stack
+        RarityHighlightRenderer.renderSlot(context, rarityStack, itemX, itemY) {
             context.item(stack, itemX, itemY)
         }
         val countText = if (stack.count == 1) null else ""
