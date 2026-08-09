@@ -28,6 +28,7 @@ enum class SkyBlockIsland(
     BACKWATER_BAYOU("Backwater Bayou", "fishing_1", "backwater_bayou"),
     GALATEA("Galatea", "foraging_2"),
     TORRHUS_CANYON("Torrhus Canyon", "foraging_3"),
+    SAFARI("Critter Safari", "safari"),
     LOTUS_ATOLL("Lotus Atoll", "lotus_atoll"),
     ;
 
