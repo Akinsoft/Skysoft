@@ -1,5 +1,7 @@
 package com.skysoft.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.features.bazaar.BazaarTracker;
 import com.skysoft.features.inventory.AnimatedDyeArmorCache;
@@ -26,7 +28,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AbstractContainerScreen.class)
@@ -96,31 +97,31 @@ public abstract class AbstractContainerScreenRenderingMixin {
     @Inject(method = "extractSlot", at = @At("RETURN"))
     protected void skysoftClearSmoothSwappingSlot(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) { skysoftSmoothSwappingSlot = null; }
 
-    @Redirect(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;item(Lnet/minecraft/world/item/ItemStack;III)V"))
-    protected void skysoftSuppressSmoothSwappingItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed) {
+    @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;item(Lnet/minecraft/world/item/ItemStack;III)V"))
+    protected void skysoftSuppressSmoothSwappingItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original) {
         boolean render = MixinErrorBoundary.value("Smooth Swapping item suppression", true,
             () -> InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot));
         if (!render) return;
         ItemStack renderStack = skysoftContainerRenderStack(stack);
-        if (renderStack != null) renderItemWithRarity("Rarity Highlight item rendering", renderStack, () -> context.item(renderStack, x, y, seed));
+        if (renderStack != null) renderItemWithRarity("Rarity Highlight item rendering", renderStack, () -> original.call(context, renderStack, x, y, seed));
     }
 
-    @Redirect(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;III)V"))
-    protected void skysoftSuppressSmoothSwappingFakeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed) {
+    @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;III)V"))
+    protected void skysoftSuppressSmoothSwappingFakeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original) {
         boolean render = MixinErrorBoundary.value("Smooth Swapping fake item suppression", true,
             () -> InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot));
         if (!render) return;
         ItemStack renderStack = skysoftContainerRenderStack(stack);
-        if (renderStack != null) renderItemWithRarity("Rarity Highlight fake item rendering", renderStack, () -> context.fakeItem(renderStack, x, y, seed));
+        if (renderStack != null) renderItemWithRarity("Rarity Highlight fake item rendering", renderStack, () -> original.call(context, renderStack, x, y, seed));
     }
 
-    @Redirect(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"))
-    protected void skysoftSuppressSmoothSwappingItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text) {
+    @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"))
+    protected void skysoftSuppressSmoothSwappingItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text, Operation<Void> original) {
         boolean render = MixinErrorBoundary.value("Smooth Swapping item decoration suppression", true,
             () -> InventoryEquipment.INSTANCE.isEquipmentSlot(skysoftSmoothSwappingSlot) || !SmoothSwapping.INSTANCE.shouldSuppressSlot((AbstractContainerScreen<?>) (Object) this, skysoftSmoothSwappingSlot));
         if (!render) return;
         ItemStack renderStack = skysoftContainerRenderStack(stack);
-        if (renderStack != null) context.itemDecorations(font, renderStack, x, y, text);
+        if (renderStack != null) original.call(context, font, renderStack, x, y, text);
     }
 
     @Unique
