@@ -39,8 +39,8 @@ internal fun registerBazaarTracker() {
         wasBazaarTrackerEnabled = config.enabled
         onClientTick()
     }
-    SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset") { resetTransientState(true) }
-    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset", { config.enabled }) { resetTransientState(true) }
+    SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset") { resetTransientState(false) }
+    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset", { config.enabled }) { resetTransientState(false) }
     GuiOverlayRegistry.register(
         GuiOverlay(
             id = "bazaar_tracker",

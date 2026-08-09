@@ -31,8 +31,8 @@ object SlayerTimeToKill {
         SlayerQuestState.onBossSpawn(::onBossSpawn)
         SlayerQuestState.onQuestStarted(::onQuestStarted)
         SlayerQuestState.onQuestComplete(::onQuestComplete)
-        SkysoftClientEvents.onDisconnect("Slayer Time to Kill session reset", ::clearSession)
-        SkyBlockProfileApi.onProfileChange("Slayer Time to Kill profile reset", { true }) { clearSession() }
+        SkysoftClientEvents.onDisconnect("Slayer Time to Kill disconnect reset", ::clearTransientState)
+        SkyBlockProfileApi.onProfileChange("Slayer Time to Kill profile reset", { true }) { clearTransientState() }
     }
 
     internal fun displayStats(
@@ -130,10 +130,9 @@ object SlayerTimeToKill {
         return data.today
     }
 
-    private fun clearSession() {
+    private fun clearTransientState() {
         questStartedAtNanos = null
         activeBoss = null
-        sessionStats.clear()
     }
 }
 

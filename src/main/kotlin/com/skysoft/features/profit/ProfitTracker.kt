@@ -152,8 +152,8 @@ object ProfitTracker {
                 stats.costs[cost.currency] = stats.costs.getOrDefault(cost.currency, 0L) + cost.amount
             }
         }
-        SkysoftClientEvents.onDisconnect("Profit Tracker session reset", ::resetSession)
-        SkyBlockProfileApi.onProfileChange("Profit Tracker profile reset", { true }) { resetSession() }
+        SkysoftClientEvents.onDisconnect("Profit Tracker disconnect reset", ::resetTransientState)
+        SkyBlockProfileApi.onProfileChange("Profit Tracker profile reset", { true }) { resetTransientState() }
         registerProfitTrackerHud()
     }
 
@@ -356,8 +356,7 @@ object ProfitTracker {
 
     private fun markActivity(preset: ProfitTrackerPreset) = uptime.markActivity(preset)
 
-    private fun resetSession() {
-        sessionStats.clear()
+    private fun resetTransientState() {
         questCostCapture.clear()
         attributionPreset = null
         inactiveAttributionTicks = 0
