@@ -76,6 +76,7 @@ import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
 import com.skysoft.features.misc.SkyBlockLevelBar
+import com.skysoft.features.misc.Zoom
 import com.skysoft.features.misc.actionbar.ActionBarCustomizer
 import com.skysoft.features.misc.actionbar.SkillExpDisplay
 import com.skysoft.features.misc.autosprint.AutoSprint
@@ -208,6 +209,7 @@ internal object SkysoftFeatureRegistrations {
         register("Spotify Authentication", SpotifyAuthentication::register)
         register("Spotify Display", SpotifyDisplay::register)
         register("Mouse Lock", MouseLock::register)
+        register("Zoom", Zoom::register)
         register("Scoreboard Position Editor", ScoreboardPositionEditor::register)
         register("Player Head Skin Fix", PlayerHeadSkinFix::register)
         register("Auto Sprint", AutoSprint::register)

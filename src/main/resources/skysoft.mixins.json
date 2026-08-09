@@ -32,6 +32,7 @@
     "ExperienceLevelMixin",
     "FontPreparedTextBuilderMixin",
     "GameRendererMixin",
+    "ZoomRendererMixin",
     "GuiMixin",
     "GuiMessageLineMixin",
     "GuiRendererMixin",

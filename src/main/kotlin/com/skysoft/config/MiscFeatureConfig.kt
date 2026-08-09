@@ -27,6 +27,11 @@ class MiscFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Zoom", desc = "Magnify the camera with configurable controls.")
+    val zoom = ZoomConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Rare Drop Titles", desc = "Show valuable rare drops as titles.")
     val rareDropTitles = RareDropTitlesConfig()
@@ -76,6 +81,7 @@ class MiscFeatureConfig : ConfigRepairable {
 
     override fun repairLoadedValues() {
         droppedItemScaling.repairLoadedValues()
+        zoom.repairLoadedValues()
     }
 }
 
