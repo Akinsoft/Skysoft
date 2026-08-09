@@ -1,6 +1,5 @@
 package com.skysoft.features.pets
 
-import com.skysoft.data.StoredPetData
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
@@ -57,14 +56,12 @@ internal object PetStorageChat {
             name = petName,
             rarity = rarity,
             heldItem = petHeldItem,
+            heldItemName = petHeldItemName,
             heldItemKnown = hoverInfo.isNotEmpty(),
             skinTag = skinTag,
             skinTagKnown = skinTag != null,
             level = level,
-        ) ?: StoredPetData(
-            petInternalName = petInternalName,
-            exp = PetRepository.levelToXp(level, petInternalName),
-        )
+        ) ?: return true
 
         PetStoragePetItems.applyKnownData(resolvedPet, skinInternalName = petSkin)
         when {

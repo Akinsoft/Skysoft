@@ -119,6 +119,13 @@ internal object PetStoragePetItems {
         }
     }
 
+    fun matchesHeldItemName(petData: StoredPetData, heldItemName: String): Boolean {
+        val internalName = petData.heldItemInternalName ?: return false
+        return PetRepository.itemName(internalName)
+            ?.removeColor()
+            ?.equals(heldItemName.removeColor(), ignoreCase = true) == true
+    }
+
     fun hasMatchingExp(petData: StoredPetData, exp: Double?, expErrorFactor: Double): Boolean = exp?.let { readExp ->
         val allowedError = (readExp * expErrorFactor).coerceAtLeast(1.0)
         abs((petData.exp ?: 0.0) - readExp) <= allowedError
