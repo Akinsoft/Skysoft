@@ -7,6 +7,7 @@ import com.mojang.blaze3d.platform.Window;
 import com.skysoft.features.bazaar.BazaarTracker;
 import com.skysoft.features.inventory.StorageOverlayController;
 import com.skysoft.features.misc.MouseLock;
+import com.skysoft.features.misc.Zoom;
 import com.skysoft.features.screenshot.ScreenshotCapturePreview;
 import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.gui.scale.InventoryCursorMemory;
@@ -57,7 +58,12 @@ public class MouseHandlerMixin {
 
     @WrapOperation(method = "turnPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;turn(DD)V"))
     protected void skysoftApplyMouseLock(LocalPlayer player, double x, double y, Operation<Void> original) {
-        original.call(player, MouseLock.apply(x), MouseLock.apply(y));
+        original.call(player, Zoom.applyMouseMovement(MouseLock.apply(x)), Zoom.applyMouseMovement(MouseLock.apply(y)));
+    }
+
+    @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
+    protected void skysoftAdjustZoom(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
+        if (MixinErrorBoundary.value("Zoom mouse scrolling", false, () -> Zoom.didHandleScroll(verticalAmount))) ci.cancel();
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
