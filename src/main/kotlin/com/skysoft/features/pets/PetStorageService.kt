@@ -107,6 +107,7 @@ object PetStorageService {
         name: String,
         rarity: SkyBlockRarity? = null,
         heldItem: String? = null,
+        heldItemName: String? = null,
         heldItemKnown: Boolean = false,
         skinTag: String? = null,
         skinTagKnown: Boolean = false,
@@ -119,7 +120,9 @@ object PetStorageService {
         .filter { rarity == null || it.rarity == rarity }
         .filter {
             when {
-                heldItem != null -> it.heldItemInternalName == heldItem
+                heldItem != null && it.heldItemInternalName == heldItem -> true
+                heldItemName != null -> PetStoragePetItems.matchesHeldItemName(it, heldItemName)
+                heldItem != null -> false
                 heldItemKnown -> it.heldItemInternalName == null
                 else -> true
             }
