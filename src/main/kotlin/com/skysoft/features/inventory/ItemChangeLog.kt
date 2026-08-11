@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.config.ItemChangeLogAlignment
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -75,6 +76,10 @@ object ItemChangeLog {
             }
             override fun height(): Int = itemChangeLogHeight(config.settings.maximumLines)
             override fun isVisible(): Boolean = config.enabled
+            override fun absoluteX(width: Int): Int {
+                ensureFixedHorizontalAnchor(width)
+                return position.getAbsX0AllowingOverflow(0) - config.details.alignment.anchorOffset(width)
+            }
             override fun absoluteY(height: Int): Int = itemChangeLogY(
                 anchorY = position.getAbsY0AllowingOverflow(0),
                 height = height,
@@ -82,9 +87,11 @@ object ItemChangeLog {
             )
             override fun renderDummy(context: GuiGraphicsExtractor) {
                 val renderable = currentRenderable() ?: return
+                val x = config.details.alignment.anchorOffset(retainedEditorWidth) -
+                    config.details.alignment.anchorOffset(renderable.width)
                 val y = if (config.settings.invertDirection) 0 else height() - renderable.height
                 context.withIsolatedPose {
-                    pose().translate(0f, y.toFloat())
+                    pose().translate(x.toFloat(), y.toFloat())
                     renderable.render(context)
                 }
             }
@@ -95,17 +102,13 @@ object ItemChangeLog {
             override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
                 val targetX = absoluteX(dragWidth) + deltaX
                 val targetY = absoluteY(dragHeight) + deltaY
+                val anchorX = targetX + config.details.alignment.anchorOffset(dragWidth)
                 val anchorY = if (config.settings.invertDirection) targetY else targetY + dragHeight
-                position.moveToAbsoluteAllowingOverflow(targetX, anchorY, dragWidth, 0)
+                position.moveToAbsoluteAllowingOverflow(anchorX, anchorY, 0, 0)
                 return InputHandlingResult.CONSUMED
             }
             override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                val oldWidth = (width() * position.scale).roundToInt()
-                val anchorY = position.getAbsY0AllowingOverflow(0)
-                val x = absoluteX(oldWidth)
                 position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
-                val newWidth = (width() * position.scale).roundToInt()
-                position.moveToAbsoluteAllowingOverflow(x, anchorY, newWidth, 0)
                 return InputHandlingResult.CONSUMED
             }
             override fun openConfig() = SkysoftConfigGui.open("Item Change Log")
@@ -126,7 +129,9 @@ object ItemChangeLog {
         val scale = config.position.effectiveScale
         val scaledWidth = (renderable.width * scale).roundToInt()
         val scaledHeight = (renderable.height * scale).roundToInt()
-        val x = config.position.getAbsX0AllowingOverflow(scaledWidth)
+        ensureFixedHorizontalAnchor(scaledWidth)
+        val x = config.position.getAbsX0AllowingOverflow(0) -
+            config.details.alignment.anchorOffset(scaledWidth)
         val y = itemChangeLogY(
             anchorY = config.position.getAbsY0AllowingOverflow(0),
             height = scaledHeight,
@@ -137,6 +142,14 @@ object ItemChangeLog {
             pose().scale(scale, scale)
             renderable.render(context)
         }
+    }
+
+    private fun ensureFixedHorizontalAnchor(width: Int) {
+        if (config.fixedHorizontalAnchor) return
+        val position = config.position
+        val anchorX = position.getAbsX0AllowingOverflow(width) + config.details.alignment.anchorOffset(width)
+        position.moveToAbsoluteAllowingOverflow(anchorX, position.getAbsY0AllowingOverflow(0), 0, 0)
+        config.fixedHorizontalAnchor = true
     }
 
     private fun currentRenderable(): GuiRenderable? {
@@ -182,9 +195,22 @@ object ItemChangeLog {
                 ),
             ),
             spacing = COLUMN_SPACING,
+            horizontalAlign = config.details.alignment.guiAlignment(),
             verticalAlign = GuiAlignment.VerticalAlignment.CENTER,
         )
     }
+}
+
+private fun ItemChangeLogAlignment.anchorOffset(width: Int): Int = when (this) {
+    ItemChangeLogAlignment.LEFT -> 0
+    ItemChangeLogAlignment.CENTER -> width / 2
+    ItemChangeLogAlignment.RIGHT -> width
+}
+
+private fun ItemChangeLogAlignment.guiAlignment(): GuiAlignment.HorizontalAlignment = when (this) {
+    ItemChangeLogAlignment.LEFT -> GuiAlignment.HorizontalAlignment.LEFT
+    ItemChangeLogAlignment.CENTER -> GuiAlignment.HorizontalAlignment.CENTER
+    ItemChangeLogAlignment.RIGHT -> GuiAlignment.HorizontalAlignment.RIGHT
 }
 
 internal fun itemChangeLogY(anchorY: Int, height: Int, growsDownward: Boolean): Int =

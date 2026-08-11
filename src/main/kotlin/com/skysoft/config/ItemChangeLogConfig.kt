@@ -6,6 +6,7 @@ import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
@@ -35,6 +36,10 @@ class ItemChangeLogConfig {
     @JvmField
     @field:Expose
     val position = HudPosition(8, 110, centerY = false).rememberDefault()
+
+    @JvmField
+    @field:Expose
+    var fixedHorizontalAnchor = false
 }
 
 class ItemChangeLogSettingsConfig {
@@ -60,6 +65,12 @@ class ItemChangeLogSettingsConfig {
 class ItemChangeLogDetailsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Alignment", desc = "Choose which side of the Item Change Log stays fixed.")
+    @field:ConfigEditorDropdown
+    var alignment = ItemChangeLogAlignment.LEFT
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Gain Color", desc = "Color used for gained items.")
     @field:ConfigEditorColour
     val gainColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 85, 0, 255))
@@ -69,4 +80,13 @@ class ItemChangeLogDetailsConfig {
     @field:ConfigOption(name = "Loss Color", desc = "Color used for lost items.")
     @field:ConfigEditorColour
     val lossColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 85, 85, 0, 255))
+}
+
+enum class ItemChangeLogAlignment(private val displayName: String) {
+    LEFT("Left"),
+    CENTER("Center"),
+    RIGHT("Right"),
+    ;
+
+    override fun toString(): String = displayName
 }
