@@ -5,60 +5,76 @@ import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
 
 internal object ProfitTrackerItemCustomizations {
-    fun data(preset: ProfitTrackerPreset): ProfileStorage.ProfitTrackerItemCustomizations? =
-        ProfileStorageApi.storage.profitTracker.itemCustomizations[preset.name]
+    fun data(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerItemCustomizations? =
+        target.custom?.let { custom ->
+            ProfileStorage.ProfitTrackerItemCustomizations(
+                customItems = custom.items,
+                priceSources = custom.priceSources,
+            )
+        } ?: ProfileStorageApi.storage.profitTracker.itemCustomizations[target.storageKey]
 
-    fun isExcluded(preset: ProfitTrackerPreset, itemId: String): Boolean =
-        itemId in data(preset)?.excludedItems.orEmpty()
+    fun isExcluded(target: ProfitTrackerTarget, itemId: String): Boolean =
+        itemId in data(target)?.excludedItems.orEmpty()
 
-    fun customItems(preset: ProfitTrackerPreset): Set<String> = data(preset)?.customItems.orEmpty().toSet()
+    fun customItems(target: ProfitTrackerTarget): Set<String> = data(target)?.customItems.orEmpty().toSet()
 
-    fun priceSource(preset: ProfitTrackerPreset, itemId: String): ProfitTrackerPriceSource =
-        priceSourceOverride(preset, itemId) ?: presetConfig(preset).settings.priceSource
+    fun priceSource(target: ProfitTrackerTarget, itemId: String): ProfitTrackerPriceSource =
+        priceSourceOverride(target, itemId) ?: target.config.settings.priceSource
 
-    fun priceSourceOverride(preset: ProfitTrackerPreset, itemId: String): ProfitTrackerPriceSource? =
-        data(preset)?.priceSources?.get(itemId)
+    fun priceSourceOverride(target: ProfitTrackerTarget, itemId: String): ProfitTrackerPriceSource? =
+        data(target)?.priceSources?.get(itemId)
             ?.let { stored -> ProfitTrackerPriceSource.entries.firstOrNull { it.name == stored } }
 
-    fun exclude(preset: ProfitTrackerPreset, itemId: String) = update(preset) { customizations ->
-        if (itemId !in customizations.excludedItems) customizations.excludedItems += itemId
+    fun exclude(target: ProfitTrackerTarget, itemId: String) = update(target) { customizations ->
+        if (target.custom != null) customizations.customItems.remove(itemId)
+        else if (itemId !in customizations.excludedItems) customizations.excludedItems += itemId
     }
 
-    fun restore(preset: ProfitTrackerPreset, itemId: String) = update(preset) { customizations ->
+    fun restore(target: ProfitTrackerTarget, itemId: String) = update(target) { customizations ->
         customizations.excludedItems.remove(itemId)
     }
 
-    fun addCustomItem(preset: ProfitTrackerPreset, itemId: String) = update(preset) { customizations ->
+    fun addCustomItem(target: ProfitTrackerTarget, itemId: String) = update(target) { customizations ->
         if (itemId !in customizations.customItems) customizations.customItems += itemId
         customizations.excludedItems.remove(itemId)
     }
 
-    fun removeCustomItem(preset: ProfitTrackerPreset, itemId: String) = update(preset) { customizations ->
+    fun removeCustomItem(target: ProfitTrackerTarget, itemId: String) = update(target) { customizations ->
         customizations.customItems.remove(itemId)
         customizations.excludedItems.remove(itemId)
         customizations.priceSources.remove(itemId)
     }
 
-    fun setPriceSource(preset: ProfitTrackerPreset, itemId: String, source: ProfitTrackerPriceSource?) =
-        update(preset) { customizations ->
+    fun setPriceSource(target: ProfitTrackerTarget, itemId: String, source: ProfitTrackerPriceSource?) =
+        update(target) { customizations ->
             if (source == null) customizations.priceSources.remove(itemId)
             else customizations.priceSources[itemId] = source.name
         }
 
-    fun reset(preset: ProfitTrackerPreset) = update(preset) { customizations ->
+    fun reset(target: ProfitTrackerTarget) = update(target) { customizations ->
         customizations.excludedItems.clear()
         customizations.customItems.clear()
         customizations.priceSources.clear()
     }
 
     private fun update(
-        preset: ProfitTrackerPreset,
+        target: ProfitTrackerTarget,
         action: (ProfileStorage.ProfitTrackerItemCustomizations) -> Unit,
     ) {
-        val customizations = ProfileStorageApi.storage.profitTracker.itemCustomizations
-            .getOrPut(preset.name) { ProfileStorage.ProfitTrackerItemCustomizations() }
+        val custom = target.custom
+        val customizations = custom?.let {
+            ProfileStorage.ProfitTrackerItemCustomizations(
+                customItems = it.items,
+                priceSources = it.priceSources,
+            )
+        } ?: ProfileStorageApi.storage.profitTracker.itemCustomizations
+            .getOrPut(target.storageKey) { ProfileStorage.ProfitTrackerItemCustomizations() }
         action(customizations)
-        ProfileStorageApi.markDirty()
-        ProfileStorageApi.saveNow()
+        if (custom != null) {
+            com.skysoft.config.SkysoftConfigGui.config().saveNow()
+        } else {
+            ProfileStorageApi.markDirty()
+            ProfileStorageApi.saveNow()
+        }
     }
 }

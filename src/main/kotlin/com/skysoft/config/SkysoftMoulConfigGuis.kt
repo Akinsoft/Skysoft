@@ -1,6 +1,8 @@
 package com.skysoft.config
 
 import com.skysoft.data.hypixel.SkysoftGame
+import com.skysoft.features.profit.ConfigEditorSkyBlockLocations
+import com.skysoft.features.profit.SkyBlockLocationsEditor
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor
 import io.github.notenoughupdates.moulconfig.processor.BuiltinMoulConfigGuis
@@ -29,6 +31,9 @@ object SkysoftMoulConfigGuis {
         BuiltinMoulConfigGuis.addProcessors(processor)
         processor.registerConfigEditor(ConfigEditorUpdate::class.java) { option, _ ->
             SkysoftUpdateEditor(option)
+        }
+        processor.registerConfigEditor(ConfigEditorSkyBlockLocations::class.java) { option, _ ->
+            SkyBlockLocationsEditor(option)
         }
     }
 }

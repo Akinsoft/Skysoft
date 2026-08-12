@@ -111,7 +111,7 @@ internal class ProfitTrackerItemPanel(
 
     fun render(
         context: GuiGraphicsExtractor,
-        preset: ProfitTrackerPreset,
+        target: ProfitTrackerTarget,
         trackerWidth: Int,
         placeRight: Boolean,
         mouseX: Int,
@@ -134,7 +134,7 @@ internal class ProfitTrackerItemPanel(
                 transition.isInteractive,
             )
         }
-        val rows = rows(current, preset)
+        val rows = rows(current, target)
         val width = maxOf(
             PANEL_MINIMUM_WIDTH,
             rows.maxOfOrNull { row -> Minecraft.getInstance().font.width(row.text) + row.iconOffset } ?: 0,
@@ -177,14 +177,14 @@ internal class ProfitTrackerItemPanel(
         transition.show()
     }
 
-    private fun rows(content: Content, preset: ProfitTrackerPreset): List<PanelRow> = when (content) {
-        Content.Overview -> overviewRows(preset)
+    private fun rows(content: Content, target: ProfitTrackerTarget): List<PanelRow> = when (content) {
+        Content.Overview -> overviewRows(target)
         Content.AddItem -> emptyList()
-        is Content.Item -> itemRows(preset, content.itemId)
+        is Content.Item -> itemRows(target, content.itemId)
     }
 
-    private fun overviewRows(preset: ProfitTrackerPreset): List<PanelRow> {
-        val customizations = ProfitTrackerItemCustomizations.data(preset)
+    private fun overviewRows(target: ProfitTrackerTarget): List<PanelRow> {
+        val customizations = ProfitTrackerItemCustomizations.data(target)
         return buildList {
             add(PanelRow(styledText("Item Settings", TITLE_COLOR, bold = true)))
             add(PanelRow(styledText("Add Item", ACTION_COLOR), ProfitTrackerControl.AddItem))
@@ -226,8 +226,8 @@ internal class ProfitTrackerItemPanel(
         }
     }
 
-    private fun itemRows(preset: ProfitTrackerPreset, itemId: String): List<PanelRow> {
-        val override = ProfitTrackerItemCustomizations.priceSourceOverride(preset, itemId)
+    private fun itemRows(target: ProfitTrackerTarget, itemId: String): List<PanelRow> {
+        val override = ProfitTrackerItemCustomizations.priceSourceOverride(target, itemId)
         val source = override?.toString() ?: "Tracker Default"
         val sources = listOf("Tracker Default") + ProfitTrackerPriceSource.entries.map { it.toString() }
         val presentation = profitTrackerItemPresentation(itemId)
@@ -238,7 +238,11 @@ internal class ProfitTrackerItemPanel(
                 ProfitTrackerControl.ItemPriceSource(itemId),
                 OverlayControlTooltips.cycle("Item Price Source", sources, (override?.ordinal ?: -1) + 1),
             ),
-            PanelRow(styledText("Exclude", DANGER_COLOR), ProfitTrackerControl.ExcludeItem(itemId)),
+            if (target.custom == null) {
+                PanelRow(styledText("Exclude", DANGER_COLOR), ProfitTrackerControl.ExcludeItem(itemId))
+            } else {
+                PanelRow(styledText("Remove", DANGER_COLOR), ProfitTrackerControl.RemoveCustomItem(itemId))
+            },
         )
     }
 
@@ -601,7 +605,7 @@ private data class SearchCacheKey(
     val snapshotVersion: Long,
 )
 
-private fun profitTrackerItemPresentation(itemId: String): ProfitTrackerItemPresentation {
+internal fun profitTrackerItemPresentation(itemId: String): ProfitTrackerItemPresentation {
     val key = SkyBlockDataRepository.itemKey(itemId)
     val entry = SkyBlockDataRepository.entry(key)
     val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId)
@@ -614,7 +618,7 @@ private fun profitTrackerItemPresentation(itemId: String): ProfitTrackerItemPres
     return ProfitTrackerItemPresentation(name, formattedName, stack, styledText(name, color))
 }
 
-private data class ProfitTrackerItemPresentation(
+internal data class ProfitTrackerItemPresentation(
     val name: String,
     val formattedName: String,
     val stack: ItemStack?,

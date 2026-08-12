@@ -49,21 +49,21 @@ object ProfitTracker {
     private var durationPreset: ProfitTrackerPreset? = null
     private var previousPreset: ProfitTrackerPreset? = null
     private var previousPresetLeftAtMillis = 0L
-    private val uptime = ProfitUptimeTracker(
-        pauseAfterMillis = { preset ->
-            presetConfig(preset).settings.pauseAfterSeconds.coerceIn(
+    private val uptime = ProfitUptimeTracker<ProfitTrackerTarget>(
+        pauseAfterMillis = { target ->
+            target.config.settings.pauseAfterSeconds.coerceIn(
                 MINIMUM_PAUSE_AFTER_SECONDS,
                 MAXIMUM_PAUSE_AFTER_SECONDS,
             ) * MILLIS_PER_SECOND
         },
-        onUptimeChanged = { preset, change ->
-            update(preset) { stats ->
+        onUptimeChanged = { target, change ->
+            update(target) { stats ->
                 stats.activeMillis = (stats.activeMillis + change).coerceAtLeast(0L)
             }
         },
     )
     private val itemTracking = ProfitTrackerItemTracking()
-    private val craftingReconciliation = ProfitCraftingReconciliation()
+    private val craftingReconciliation = ProfitCraftingReconciliation<ProfitTrackerTarget>()
     private var dropCatalogVersion = -1L
     private var trackedItems = emptyMap<ProfitTrackerPreset, Set<String>>()
     private val pendingReplenishCosts = mutableMapOf<ReplenishCrop, Int>()
@@ -80,9 +80,10 @@ object ProfitTracker {
             questCostCapture.recordChange(change.currency, change.amount)
             if (change.currency != SKYBLOCK_COINS) return@onChange
             val preset = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset ?: return@onChange
-            if (!shouldTrackCoinGain(preset, change.amount, uptime.lastActivityAt(preset))) return@onChange
-            markActivity(preset)
-            update(preset) { stats -> stats.coins += change.amount }
+            val target = ProfitTrackerTarget.preset(preset)
+            if (!shouldTrackCoinGain(preset, change.amount, uptime.lastActivityAt(target))) return@onChange
+            uptime.markActivity(target)
+            update(target) { stats -> stats.coins += change.amount }
         }
         IMMEDIATE_DROP_PRESETS.forEach { preset ->
             ChatEvents.onVisibleMessage(
@@ -112,8 +113,9 @@ object ProfitTracker {
             if (!configs.isAnyEnabled()) return@onQuestComplete
             val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
                 ?: return@onQuestComplete
-            markActivity(preset)
-            update(preset) { stats -> stats.actions++ }
+            val target = ProfitTrackerTarget.preset(preset)
+            uptime.markActivity(target)
+            update(target) { stats -> stats.actions++ }
         }
         SkysoftClientEvents.onEndTick(
             "Profit Tracker activity state",
@@ -122,12 +124,9 @@ object ProfitTracker {
                     uptime.hasUnconfirmedUptime
             },
         ) { minecraft ->
-            fishingHookPreset?.let { uptime.refreshActivity(it) }
+            fishingHookPreset?.let { uptime.refreshActivity(ProfitTrackerTarget.preset(it)) }
             val locationPreset = currentPreset
-            if (locationPreset == durationPreset) {
-                uptime.tick(locationPreset, minecraft.isWindowActive)
-            } else {
-                uptime.tick(null, minecraft.isWindowActive)
+            if (locationPreset != durationPreset) {
                 durationPreset?.let { previous ->
                     previousPreset = previous
                     previousPresetLeftAtMillis = System.currentTimeMillis()
@@ -135,6 +134,7 @@ object ProfitTracker {
                 durationPreset = locationPreset
                 uptime.resetTickProgress()
             }
+            uptime.tick(activeProfitTrackerTargets(locationPreset), minecraft.isWindowActive)
             val questPreset = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
             val activePreset = questPreset ?: locationPreset?.takeIf {
                 it == ProfitTrackerPreset.FARMING || it == ProfitTrackerPreset.FISHING
@@ -149,8 +149,9 @@ object ProfitTracker {
             questCostCapture.clearExpired()
             val preset = questPreset ?: return@onEndTick
             val cost = questCostCapture.take() ?: return@onEndTick
-            markActivity(preset)
-            update(preset) { stats ->
+            val target = ProfitTrackerTarget.preset(preset)
+            uptime.markActivity(target)
+            update(target) { stats ->
                 stats.costs[cost.currency] = stats.costs.getOrDefault(cost.currency, 0L) + cost.amount
             }
         }
@@ -192,7 +193,7 @@ object ProfitTracker {
             return preset.takeIf {
                 config.enabled &&
                     isProfitTimerActive(
-                        uptime.lastActivityAt(preset),
+                        uptime.lastActivityAt(ProfitTrackerTarget.preset(preset)),
                         System.currentTimeMillis(),
                         pauseAfterMillis,
                     )
@@ -206,55 +207,76 @@ object ProfitTracker {
                 .let { stored -> ProfitTrackerPreset.entries.firstOrNull { it.name == stored } }
                 ?.takeIf(::isInPresetArea)
 
-    internal fun stats(preset: ProfitTrackerPreset): ProfileStorage.ProfitTrackerStats = when (displayPeriod(preset)) {
-        ProfitTrackingPeriod.SESSION -> sessionStats.getOrPut(preset.name, ::newProfitTrackerStats)
-        ProfitTrackingPeriod.TODAY -> todayStats(preset)
-        ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.storage.profitTracker.totals.getOrPut(preset.name, ::newProfitTrackerStats)
+    internal fun stats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats = when (displayPeriod(target)) {
+        ProfitTrackingPeriod.SESSION -> sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats)
+        ProfitTrackingPeriod.TODAY -> todayStats(target)
+        ProfitTrackingPeriod.TOTAL ->
+            ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats)
     }
 
-    internal fun isTimerPaused(preset: ProfitTrackerPreset): Boolean =
-        uptime.isPaused(preset, Minecraft.getInstance().isWindowActive)
+    internal fun isTimerPaused(target: ProfitTrackerTarget): Boolean =
+        uptime.isPaused(target, Minecraft.getInstance().isWindowActive)
 
-    internal fun displayPeriod(preset: ProfitTrackerPreset): ProfitTrackingPeriod =
-        ProfileStorageApi.storage.profitTracker.displayPeriods[preset.name]
+    internal fun displayPeriod(target: ProfitTrackerTarget): ProfitTrackingPeriod =
+        ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey]
             ?.let { period -> ProfitTrackingPeriod.entries.firstOrNull { it.name == period } }
             ?: ProfitTrackingPeriod.SESSION
 
-    internal fun cyclePeriod(preset: ProfitTrackerPreset, backwards: Boolean) {
+    internal fun cyclePeriod(target: ProfitTrackerTarget, backwards: Boolean) {
         val periods = ProfitTrackingPeriod.entries
-        val current = displayPeriod(preset)
+        val current = displayPeriod(target)
         val step = if (backwards) -1 else 1
         val next = periods[Math.floorMod(current.ordinal + step, periods.size)]
-        ProfileStorageApi.storage.profitTracker.displayPeriods[preset.name] = next.name
+        ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
         ProfileStorageApi.markDirty()
         ProfileStorageApi.saveNow()
     }
 
-    internal fun resetDisplayed(preset: ProfitTrackerPreset) {
+    internal fun resetDisplayed(target: ProfitTrackerTarget) {
         itemTracking.clear()
-        craftingReconciliation.clear(preset)
+        craftingReconciliation.clear(target)
         pendingReplenishCosts.clear()
-        val period = displayPeriod(preset)
+        val period = displayPeriod(target)
         when (period) {
-            ProfitTrackingPeriod.SESSION -> sessionStats[preset.name]?.clear()
+            ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey]?.clear()
             ProfitTrackingPeriod.TODAY -> {
-                todayStats(preset).clear()
+                todayStats(target).clear()
                 ProfileStorageApi.markDirty()
             }
             ProfitTrackingPeriod.TOTAL -> {
-                ProfileStorageApi.storage.profitTracker.totals[preset.name]?.clear()
+                ProfileStorageApi.storage.profitTracker.totals[target.storageKey]?.clear()
                 ProfileStorageApi.markDirty()
             }
         }
-        preset.slayerType?.let { SlayerTimeToKill.reset(it, period) }
+        target.slayerType?.let { SlayerTimeToKill.reset(it, period) }
         if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.saveNow()
+    }
+
+    internal fun deleteCustomTrackerData(target: ProfitTrackerTarget) {
+        require(target.custom != null)
+        val key = target.storageKey
+        sessionStats.remove(key)
+        craftingReconciliation.clear(target)
+        uptime.clear(target)
+        val storage = ProfileStorageApi.allStorage
+        val profiles = storage.profiles.values + storage.players.values.flatMap { it.profiles.values }
+        profiles.forEach { profile ->
+            with(profile.profitTracker) {
+                totals.remove(key)
+                today.remove(key)
+                displayPeriods.remove(key)
+                itemCustomizations.remove(key)
+            }
+        }
+        ProfileStorageApi.markDirty()
+        ProfileStorageApi.saveNow()
     }
 
     private fun recordFarmingBlock(block: Block) {
         if (!presetConfig(ProfitTrackerPreset.FARMING).enabled ||
             currentPreset != ProfitTrackerPreset.FARMING || !isFarmingCropBlock(block)
         ) return
-        markActivity(ProfitTrackerPreset.FARMING)
+        uptime.markActivity(ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING))
         val minecraft = Minecraft.getInstance()
         if (minecraft.player?.mainHandItem?.extraAttributes()?.skyBlockEnchantments()?.containsKey("replenish") != true) {
             return
@@ -276,50 +298,63 @@ object ProfitTracker {
         val drop = activityDrop ?: dyeDrop
         drop?.let {
             val itemId = SkyBlockItemNames.itemId(it.displayName) ?: return@let
-            if (dyeDrop != null && itemId !in trackedItemIds(preset)) return@let
-            markActivity(preset)
+            val presetTarget = ProfitTrackerTarget.preset(preset)
+            val targets = buildList {
+                if (activityDrop != null || itemId in trackedItemIds(presetTarget)) add(presetTarget)
+                addAll(matchingCustomTrackerTargets().filter { target -> itemId in trackedItemIds(target) })
+            }
+            if (targets.isEmpty()) return@let
             itemTracking.suppressGain(itemId, it.amount)
-            update(preset) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
+            targets.forEach { target ->
+                uptime.markActivity(target)
+                update(target) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
+            }
         }
         if (preset == ProfitTrackerPreset.FARMING && isCountedPestKillMessage(message)) {
-            markActivity(ProfitTrackerPreset.FARMING)
-            update(ProfitTrackerPreset.FARMING) { stats -> stats.actions++ }
+            val target = ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING)
+            uptime.markActivity(target)
+            update(target) { stats -> stats.actions++ }
         }
     }
 
-    internal fun unitValue(preset: ProfitTrackerPreset, itemId: String): Double? {
+    internal fun unitValue(target: ProfitTrackerTarget, itemId: String): Double? {
         val sourcePrice = profitTrackerSourcePrice(
             SkyBlockPriceData.getBazaarPrice(itemId),
             SkyBlockPriceData.getNpcSellPrices(itemId).coins,
-            ProfitTrackerItemCustomizations.priceSource(preset, itemId),
+            ProfitTrackerItemCustomizations.priceSource(target, itemId),
         )
         return sourcePrice?.takeIf { it > 0.0 }
             ?: SkyBlockPriceData.getLowestBin(itemId)?.toDouble()?.takeIf { it > 0.0 }
     }
 
-    internal fun trackedItemIds(preset: ProfitTrackerPreset): Set<String> {
+    internal fun trackedItemIds(target: ProfitTrackerTarget): Set<String> {
+        if (target.custom != null) return ProfitTrackerItemCustomizations.customItems(target)
         if (dropCatalogVersion != SkyBlockDataRepository.snapshotVersion) rebuildDropCatalog()
-        return trackedItems[preset].orEmpty() + ProfitTrackerItemCustomizations.customItems(preset)
+        return trackedItems[target.preset].orEmpty() + ProfitTrackerItemCustomizations.customItems(target)
     }
 
     private fun recordItemChanges(batch: SkyBlockItemChangeBatch) {
         val unsuppressedChanges = itemTracking.consume(batch)
-        val preset = itemAttributionPreset(batch)
-        val allowedItems = preset?.let(::trackedItemIds).orEmpty()
-        val changes = when {
-            preset == null -> emptyMap()
-            batch.source == SkyBlockItemChangeSource.INVENTORY &&
-                MinecraftClient.screen() is AbstractContainerScreen<*> -> emptyMap()
-            else -> craftingReconciliation.reconcile(preset, batch.source, unsuppressedChanges, allowedItems)
-                .withReplenishCosts(preset)
+        if (batch.source == SkyBlockItemChangeSource.INVENTORY && MinecraftClient.screen() is AbstractContainerScreen<*>) {
+            return
         }
-        if (preset == null || changes.isEmpty()) return
-        markActivity(preset)
-        update(preset) { stats -> applyTrackedItemChanges(stats, changes) }
+        val targets = buildList {
+            itemAttributionPreset(batch)?.let { add(ProfitTrackerTarget.preset(it)) }
+            addAll(matchingCustomTrackerTargets())
+        }.distinct()
+        targets.forEach { target ->
+            val allowedItems = trackedItemIds(target)
+            val changes = craftingReconciliation
+                .reconcile(target, batch.source, unsuppressedChanges, allowedItems)
+                .withReplenishCosts(target)
+            if (changes.isEmpty()) return@forEach
+            uptime.markActivity(target)
+            update(target) { stats -> applyTrackedItemChanges(stats, changes) }
+        }
     }
 
-    private fun Map<String, Int>.withReplenishCosts(preset: ProfitTrackerPreset): Map<String, Int> {
-        if (preset != ProfitTrackerPreset.FARMING || pendingReplenishCosts.isEmpty()) return this
+    private fun Map<String, Int>.withReplenishCosts(target: ProfitTrackerTarget): Map<String, Int> {
+        if (target.preset != ProfitTrackerPreset.FARMING || pendingReplenishCosts.isEmpty()) return this
         val costs = pendingReplenishCosts.filterKeys { crop -> getOrDefault(crop.harvestItemId, 0) > 0 }
         if (costs.isEmpty()) return this
         pendingReplenishCosts.keys.removeAll(costs.keys)
@@ -328,19 +363,19 @@ object ProfitTracker {
         }.filterValues { it != 0 }
     }
 
-    private fun update(preset: ProfitTrackerPreset, action: (ProfileStorage.ProfitTrackerStats) -> Unit) {
-        action(sessionStats.getOrPut(preset.name, ::newProfitTrackerStats))
-        action(todayStats(preset))
-        action(ProfileStorageApi.storage.profitTracker.totals.getOrPut(preset.name, ::newProfitTrackerStats))
-        ProfileStorageApi.storage.profitTracker.lastPreset = preset.name
+    private fun update(target: ProfitTrackerTarget, action: (ProfileStorage.ProfitTrackerStats) -> Unit) {
+        action(sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats))
+        action(todayStats(target))
+        action(ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
+        target.preset?.let { ProfileStorageApi.storage.profitTracker.lastPreset = it.name }
         ProfileStorageApi.markDirty()
     }
 
-    private fun todayStats(preset: ProfitTrackerPreset): ProfileStorage.ProfitTrackerStats {
+    private fun todayStats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats {
         val tracker = ProfileStorageApi.storage.profitTracker
         val today = LocalDate.now().toEpochDay()
         if (didRollProfitTrackerToday(tracker, today)) ProfileStorageApi.markDirty()
-        return tracker.today.getOrPut(preset.name, ::newProfitTrackerStats)
+        return tracker.today.getOrPut(target.storageKey, ::newProfitTrackerStats)
     }
 
     private fun rebuildDropCatalog() {
@@ -386,8 +421,6 @@ object ProfitTracker {
             System.currentTimeMillis() - previousPresetLeftAtMillis <= windowMillis
         }
     }
-
-    private fun markActivity(preset: ProfitTrackerPreset) = uptime.markActivity(preset)
 
     private fun resetTransientState() {
         questCostCapture.clear()

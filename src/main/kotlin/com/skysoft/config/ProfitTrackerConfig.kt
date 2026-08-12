@@ -3,17 +3,26 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.HudPosition
+import com.skysoft.features.profit.CustomProfitTrackerConfigScreen
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.annotations.ConfigOrder
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
 class ProfitTrackersConfig {
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Custom Trackers", desc = "Create and share custom Profit Trackers.")
+    @field:ConfigOrder(-100)
+    val custom = CustomProfitTrackersConfig()
+
     @JvmField
     @field:Expose
     @field:Category(name = "Farming", desc = "Track Farming profit.")
@@ -64,8 +73,26 @@ class ProfitTrackersConfig {
     @field:Category(name = "Vampire Slayer", desc = "Track Vampire Slayer profit.")
     val vampire = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
-    fun isAnyEnabled(): Boolean = farming.enabled || fishing.enabled || foraging.enabled || mining.enabled || zombie.enabled ||
+    fun isAnyEnabled(): Boolean = custom.trackers.any { it.config.enabled } || farming.enabled || fishing.enabled ||
+        foraging.enabled || mining.enabled || zombie.enabled ||
         spider.enabled || wolf.enabled || enderman.enabled || blaze.enabled || vampire.enabled
+}
+
+class CustomProfitTrackersConfig {
+    @JvmField
+    @field:Expose
+    val trackers: MutableList<CustomProfitTrackerConfig> = mutableListOf()
+
+    @JvmField
+    @field:ConfigOption(name = "Open Editor", desc = "Create and configure custom Profit Trackers.")
+    @field:ConfigEditorButton(buttonText = "Open")
+    val openEditor = Runnable { CustomProfitTrackerConfigScreen.open() }
+
+    fun repairLoadedValues() {
+        val usedIds = mutableSetOf<String>()
+        val usedNames = mutableSetOf<String>()
+        trackers.forEach { tracker -> tracker.repairLoadedValues(usedIds, usedNames) }
+    }
 }
 
 class ProfitTrackerConfig(summaryLines: List<ProfitTrackerSummaryLine> = STANDARD_TRACKER_SUMMARY_LINES) {
@@ -177,7 +204,7 @@ enum class ProfitTrackerSummaryLine(private val displayName: String, val require
 
 private val STANDARD_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries.filterNot { it.requiresKillTime }
 private val SLAYER_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries
-private val RESOURCE_TRACKER_SUMMARY_LINES = listOf(
+internal val RESOURCE_TRACKER_SUMMARY_LINES = listOf(
     ProfitTrackerSummaryLine.TOTAL_PROFIT,
     ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
     ProfitTrackerSummaryLine.UPTIME,
