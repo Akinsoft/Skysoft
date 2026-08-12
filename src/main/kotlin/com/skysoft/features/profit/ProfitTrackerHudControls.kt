@@ -18,9 +18,9 @@ internal class ProfitTrackerHudControls(
     private val resetTransition = PanelFadeTransition()
     private var pendingReset: ResetTarget? = null
 
-    fun resetConfirmationOpacity(preset: ProfitTrackerPreset, period: ProfitTrackingPeriod): Double {
+    fun resetConfirmationOpacity(target: ProfitTrackerTarget, period: ProfitTrackingPeriod): Double {
         if (pendingReset == null) return 0.0
-        if (pendingReset != ResetTarget(preset, period)) {
+        if (pendingReset != ResetTarget(target, period)) {
             clearResetConfirmation()
             return 0.0
         }
@@ -29,11 +29,11 @@ internal class ProfitTrackerHudControls(
         return opacity
     }
 
-    fun isResetConfirmationPending(preset: ProfitTrackerPreset, period: ProfitTrackingPeriod): Boolean =
-        pendingReset == ResetTarget(preset, period)
+    fun isResetConfirmationPending(target: ProfitTrackerTarget, period: ProfitTrackingPeriod): Boolean =
+        pendingReset == ResetTarget(target, period)
 
-    fun isResetConfirmationInteractive(preset: ProfitTrackerPreset, period: ProfitTrackingPeriod): Boolean =
-        isResetConfirmationPending(preset, period) && resetTransition.isInteractive
+    fun isResetConfirmationInteractive(target: ProfitTrackerTarget, period: ProfitTrackingPeriod): Boolean =
+        isResetConfirmationPending(target, period) && resetTransition.isInteractive
 
     fun clearResetConfirmation() {
         pendingReset = null
@@ -42,68 +42,66 @@ internal class ProfitTrackerHudControls(
 
     fun wasClickHandled(
         screen: AbstractContainerScreen<*>,
+        target: ProfitTrackerTarget,
         action: ProfitTrackerControl?,
         button: Int,
     ): Boolean {
-        val preset = ProfitTracker.selectedPreset() ?: return false
         val activated = if (action == null) {
-            wasInventoryItemAdded(screen, preset, button)
+            wasInventoryItemAdded(screen, target, button)
         } else {
-            wasActionHandled(preset, action, button)
+            wasActionHandled(target, action, button)
         }
         if (activated) SoundUtilities.playClickSound()
         return activated
     }
 
-    fun wasKeyPressHandled(event: KeyEvent): Boolean {
-        val preset = ProfitTracker.selectedPreset() ?: return false
-        return itemPanel.wasKeyPressHandled(event) { itemId -> selectSearchedItem(preset, itemId) }
-    }
+    fun wasKeyPressHandled(target: ProfitTrackerTarget, event: KeyEvent): Boolean =
+        itemPanel.wasKeyPressHandled(event) { itemId -> selectSearchedItem(target, itemId) }
 
     fun wasCharTypedHandled(event: CharacterEvent): Boolean = itemPanel.wasCharTypedHandled(event)
 
     private fun wasInventoryItemAdded(
         screen: AbstractContainerScreen<*>,
-        preset: ProfitTrackerPreset,
+        target: ProfitTrackerTarget,
         button: Int,
     ): Boolean {
         if (!itemPanel.isAddingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
         val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
         val player = Minecraft.getInstance().player ?: return false
         val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
-        if (itemId !in ProfitTracker.trackedItemIds(preset)) ProfitTrackerItemCustomizations.addCustomItem(preset, itemId)
+        if (itemId !in ProfitTracker.trackedItemIds(target)) ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
         itemPanel.openItem(itemId)
         return true
     }
 
     private fun wasActionHandled(
-        preset: ProfitTrackerPreset,
+        target: ProfitTrackerTarget,
         action: ProfitTrackerControl,
         button: Int,
     ): Boolean = when (action) {
-        ProfitTrackerControl.Period -> wasPeriodCycled(preset, button)
-        ProfitTrackerControl.PriceSource -> wasTrackerPriceSourceCycled(preset, button)
+        ProfitTrackerControl.Period -> wasPeriodCycled(target, button)
+        ProfitTrackerControl.PriceSource -> wasTrackerPriceSourceCycled(target, button)
         ProfitTrackerControl.Reset -> wasLeftClickHandled(button) {
-            pendingReset = ResetTarget(preset, ProfitTracker.displayPeriod(preset))
+            pendingReset = ResetTarget(target, ProfitTracker.displayPeriod(target))
             resetTransition.show()
         }
         ProfitTrackerControl.CancelReset -> wasLeftClickHandled(button, resetTransition::hide)
         ProfitTrackerControl.ConfirmReset -> wasLeftClickHandled(button) {
-            ProfitTracker.resetDisplayed(preset)
+            ProfitTracker.resetDisplayed(target)
             resetTransition.hide()
         }
         ProfitTrackerControl.More -> wasLeftClickHandled(button, itemPanel::toggleOverview)
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
-        is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(preset, action.itemId, button)
+        is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(target, action.itemId, button)
         is ProfitTrackerControl.ExcludeItem -> wasLeftClickHandled(button) {
-            ProfitTrackerItemCustomizations.exclude(preset, action.itemId)
+            ProfitTrackerItemCustomizations.exclude(target, action.itemId)
             itemPanel.showOverview()
         }
         is ProfitTrackerControl.RestoreItem -> wasLeftClickHandled(button) {
-            ProfitTrackerItemCustomizations.restore(preset, action.itemId)
+            ProfitTrackerItemCustomizations.restore(target, action.itemId)
         }
         is ProfitTrackerControl.RemoveCustomItem -> wasLeftClickHandled(button) {
-            ProfitTrackerItemCustomizations.removeCustomItem(preset, action.itemId)
+            ProfitTrackerItemCustomizations.removeCustomItem(target, action.itemId)
         }
         ProfitTrackerControl.AddItem -> wasLeftClickHandled(button, itemPanel::beginAddingItem)
         ProfitTrackerControl.AddItemInventory -> wasLeftClickHandled(button) {
@@ -116,43 +114,43 @@ internal class ProfitTrackerHudControls(
             itemPanel.focusSearch(action.localMouseX)
         }
         is ProfitTrackerControl.AddItemSearchResult -> wasLeftClickHandled(button) {
-            selectSearchedItem(preset, action.itemId)
+            selectSearchedItem(target, action.itemId)
         }
         ProfitTrackerControl.ResetCustomizations -> wasLeftClickHandled(button) {
-            ProfitTrackerItemCustomizations.reset(preset)
+            ProfitTrackerItemCustomizations.reset(target)
         }
     }
 
-    private fun selectSearchedItem(preset: ProfitTrackerPreset, itemId: String) {
-        if (itemId in ProfitTracker.trackedItemIds(preset)) {
+    private fun selectSearchedItem(target: ProfitTrackerTarget, itemId: String) {
+        if (itemId in ProfitTracker.trackedItemIds(target)) {
             itemPanel.openItem(itemId)
         } else {
-            ProfitTrackerItemCustomizations.addCustomItem(preset, itemId)
+            ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
         }
     }
 
-    private fun wasPeriodCycled(preset: ProfitTrackerPreset, button: Int): Boolean =
+    private fun wasPeriodCycled(target: ProfitTrackerTarget, button: Int): Boolean =
         wasCycleClickHandled(button) { backwards ->
-            ProfitTracker.cyclePeriod(preset, backwards)
+            ProfitTracker.cyclePeriod(target, backwards)
         }
 
-    private fun wasTrackerPriceSourceCycled(preset: ProfitTrackerPreset, button: Int): Boolean =
+    private fun wasTrackerPriceSourceCycled(target: ProfitTrackerTarget, button: Int): Boolean =
         wasCycleClickHandled(button) { backwards ->
-            val settings = presetConfig(preset).settings
+            val settings = target.config.settings
             settings.priceSource = nextProfitTrackerPriceSource(settings.priceSource, backwards)
             SkysoftConfigGui.config().saveNow()
         }
 
     private fun wasItemPriceSourceCycled(
-        preset: ProfitTrackerPreset,
+        target: ProfitTrackerTarget,
         itemId: String,
         button: Int,
     ): Boolean = wasCycleClickHandled(button) { backwards ->
         val choices = listOf(null) + ProfitTrackerPriceSource.entries
-        val current = ProfitTrackerItemCustomizations.priceSourceOverride(preset, itemId)
+        val current = ProfitTrackerItemCustomizations.priceSourceOverride(target, itemId)
         val step = if (backwards) -1 else 1
         val next = choices[Math.floorMod(choices.indexOf(current) + step, choices.size)]
-        ProfitTrackerItemCustomizations.setPriceSource(preset, itemId, next)
+        ProfitTrackerItemCustomizations.setPriceSource(target, itemId, next)
     }
 
     private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
@@ -168,7 +166,20 @@ internal class ProfitTrackerHudControls(
     }
 
     private data class ResetTarget(
-        val preset: ProfitTrackerPreset,
+        val target: ProfitTrackerTarget,
         val period: ProfitTrackingPeriod,
     )
+}
+
+internal fun profitTrackerScrollOffset(current: Int, verticalAmount: Double, maximumOffset: Int): Int =
+    (current + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
+
+internal fun nextProfitTrackerPriceSource(
+    current: ProfitTrackerPriceSource,
+    backwards: Boolean,
+): ProfitTrackerPriceSource {
+    val step = if (backwards) -1 else 1
+    return ProfitTrackerPriceSource.entries[
+        Math.floorMod(current.ordinal + step, ProfitTrackerPriceSource.entries.size)
+    ]
 }

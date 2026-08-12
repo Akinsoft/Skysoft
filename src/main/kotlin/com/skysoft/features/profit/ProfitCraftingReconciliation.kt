@@ -10,14 +10,14 @@ internal data class ProfitCraftingConversion(
     val outputCount: Long,
 )
 
-internal class ProfitCraftingReconciliation(
+internal class ProfitCraftingReconciliation<T : Any>(
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
     private val conversionsFor: (String) -> List<ProfitCraftingConversion> = ::craftingConversionsFor,
 ) {
-    private val removals = mutableMapOf<Pair<String, String>, PendingRemoval>()
+    private val removals = mutableMapOf<Pair<T, String>, PendingRemoval>()
 
     fun reconcile(
-        preset: ProfitTrackerPreset,
+        preset: T,
         source: SkyBlockItemChangeSource,
         changes: Map<String, Int>,
         allowedItems: Set<String>,
@@ -27,7 +27,7 @@ internal class ProfitCraftingReconciliation(
         if (source != SkyBlockItemChangeSource.SACKS && source != SkyBlockItemChangeSource.HUNTING_BOX) {
             changes.forEach { (itemId, amount) ->
                 if (amount >= 0 || itemId !in allowedItems) return@forEach
-                val key = preset.name to itemId
+                val key = preset to itemId
                 removals[key] = PendingRemoval(
                     amount = removals.getOrDefault(key, PendingRemoval(0, 0)).amount - amount,
                     expiresAtMillis = now + COMPACTION_RECONCILIATION_MILLIS,
@@ -41,9 +41,9 @@ internal class ProfitCraftingReconciliation(
                 if (outputAmount <= 0 || outputId !in allowedItems) return@forEach
                 val conversion = conversionsFor(outputId).firstOrNull { conversion ->
                     outputAmount.toLong() % conversion.outputCount == 0L &&
-                        removals.containsKey(preset.name to conversion.inputId)
+                        removals.containsKey(preset to conversion.inputId)
                 } ?: return@forEach
-                val key = preset.name to conversion.inputId
+                val key = preset to conversion.inputId
                 val pending = removals.getValue(key)
                 val required = conversion.inputCount * outputAmount / conversion.outputCount
                 val consumed = minOf(pending.amount.toLong(), required).toInt()
@@ -55,8 +55,8 @@ internal class ProfitCraftingReconciliation(
         }
     }
 
-    fun clear(preset: ProfitTrackerPreset? = null) {
-        if (preset == null) removals.clear() else removals.keys.removeIf { (presetName, _) -> presetName == preset.name }
+    fun clear(preset: T? = null) {
+        if (preset == null) removals.clear() else removals.keys.removeIf { (target, _) -> target == preset }
     }
 
     private data class PendingRemoval(val amount: Int, val expiresAtMillis: Long)

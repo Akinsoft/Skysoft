@@ -19,6 +19,7 @@ import com.skysoft.features.misc.autosprint.AutoSprint
 import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import com.skysoft.features.misc.update.DownloadOpenResult
 import com.skysoft.features.misc.update.ModUpdateChecker
+import com.skysoft.features.profit.CustomProfitTrackerConfigScreen
 import com.skysoft.gui.DeferredScreenRequests
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.TooltipViewport
@@ -81,6 +82,7 @@ class SkysoftMod : ClientModInitializer {
                 child { InventoryButtonImportCommand.command(::openButtonEditor) }
                 child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
+                child("customtrackers") { name -> literal(name).executes { openCustomTrackers() } }
                 child("mouselock", "ssmouselock") { name -> literal(name).executes { MouseLock.toggle(it.source) } }
                 child("new") { name -> literal(name).executes { openNewSettings(it.source) } }
                 child("protect") { name -> literal(name).executes { ItemProtectionManager.toggleHeldItem(it.source) } }
@@ -120,6 +122,13 @@ class SkysoftMod : ClientModInitializer {
 
         private fun openHeldItemEditor(): Int {
             DeferredScreenRequests.request("Held item editor", HeldItemEditorScreen::open)
+            return Command.SINGLE_SUCCESS
+        }
+
+        private fun openCustomTrackers(): Int {
+            DeferredScreenRequests.request("Custom Profit Tracker editor") {
+                CustomProfitTrackerConfigScreen.open()
+            }
             return Command.SINGLE_SUCCESS
         }
 

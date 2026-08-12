@@ -217,6 +217,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
             events,
             misc,
         )
+        profitTrackers.custom.repairLoadedValues()
         repairLoadedConfigs(pets)
     }
 
