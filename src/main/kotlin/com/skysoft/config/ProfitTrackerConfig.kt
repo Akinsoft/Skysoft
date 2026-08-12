@@ -21,6 +21,11 @@ class ProfitTrackersConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Fishing", desc = "Track Fishing profit.")
+    val fishing = ProfitTrackerConfig(RESOURCE_TRACKER_SUMMARY_LINES)
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Foraging", desc = "Track Foraging profit.")
     val foraging = ProfitTrackerConfig(RESOURCE_TRACKER_SUMMARY_LINES)
 
@@ -59,7 +64,7 @@ class ProfitTrackersConfig {
     @field:Category(name = "Vampire Slayer", desc = "Track Vampire Slayer profit.")
     val vampire = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
-    fun isAnyEnabled(): Boolean = farming.enabled || foraging.enabled || mining.enabled || zombie.enabled ||
+    fun isAnyEnabled(): Boolean = farming.enabled || fishing.enabled || foraging.enabled || mining.enabled || zombie.enabled ||
         spider.enabled || wolf.enabled || enderman.enabled || blaze.enabled || vampire.enabled
 }
 

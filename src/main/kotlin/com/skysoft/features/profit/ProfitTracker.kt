@@ -122,6 +122,7 @@ object ProfitTracker {
                     uptime.hasUnconfirmedUptime
             },
         ) { minecraft ->
+            fishingHookPreset?.let { uptime.refreshActivity(it) }
             val locationPreset = currentPreset
             if (locationPreset == durationPreset) {
                 uptime.tick(locationPreset, minecraft.isWindowActive)
@@ -135,7 +136,9 @@ object ProfitTracker {
                 uptime.resetTickProgress()
             }
             val questPreset = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
-            val activePreset = questPreset ?: locationPreset?.takeIf { it == ProfitTrackerPreset.FARMING }
+            val activePreset = questPreset ?: locationPreset?.takeIf {
+                it == ProfitTrackerPreset.FARMING || it == ProfitTrackerPreset.FISHING
+            }
             if (activePreset != null) {
                 attributionPreset = activePreset
                 inactiveAttributionTicks = 0
@@ -166,8 +169,35 @@ object ProfitTracker {
         get() = ProfitTrackerPresets.forLocation(
             TabListApi.skyBlockAreaName ?: HypixelLocationState.currentIsland?.displayName,
             SkyBlockAreaState.currentArea,
-            SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer),
+            SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)
+                ?: fishingHookPreset
+                ?: activeFishingPreset,
         )
+
+    private val fishingHookPreset: ProfitTrackerPreset?
+        get() = ProfitTrackerPreset.FISHING.takeIf {
+            presetConfig(it).enabled &&
+                HypixelLocationState.inSkyBlock &&
+                Minecraft.getInstance().player?.fishing != null
+        }
+
+    private val activeFishingPreset: ProfitTrackerPreset?
+        get() {
+            val preset = ProfitTrackerPreset.FISHING
+            val config = presetConfig(preset)
+            val pauseAfterMillis = config.settings.pauseAfterSeconds.coerceIn(
+                MINIMUM_PAUSE_AFTER_SECONDS,
+                MAXIMUM_PAUSE_AFTER_SECONDS,
+            ) * MILLIS_PER_SECOND
+            return preset.takeIf {
+                config.enabled &&
+                    isProfitTimerActive(
+                        uptime.lastActivityAt(preset),
+                        System.currentTimeMillis(),
+                        pauseAfterMillis,
+                    )
+            }
+        }
 
     internal fun selectedPreset(): ProfitTrackerPreset? =
         SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
@@ -316,19 +346,23 @@ object ProfitTracker {
     private fun rebuildDropCatalog() {
         trackedItems = ProfitTrackerPreset.entries.associateWith { preset ->
             val slayerType = preset.slayerType
-            val directDrops = if (slayerType == null) {
-                emptySet()
-            } else {
-                SkyBlockDataRepository.entries.asSequence()
-                    .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
-                    .filter { entry ->
-                        SkyBlockDataRepository.info(entry.key)?.dropSources.orEmpty().any { source ->
-                            SkyBlockSlayerType.fromBossEntityId(source.entityId)?.first == slayerType
+            val directDrops = SkyBlockDataRepository.entries.asSequence()
+                .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
+                .filter { entry ->
+                    SkyBlockDataRepository.info(entry.key)?.dropSources.orEmpty().any { source ->
+                        if (preset == ProfitTrackerPreset.FISHING) {
+                            SkyBlockDataRepository.entity(source.entityId)?.type.equals(
+                                SEA_CREATURE_ENTITY_TYPE,
+                                ignoreCase = true,
+                            )
+                        } else {
+                            slayerType != null &&
+                                SkyBlockSlayerType.fromBossEntityId(source.entityId)?.first == slayerType
                         }
                     }
-                    .map { entry -> entry.key.id }
-                    .toSet()
-            }
+                }
+                .map { entry -> entry.key.id }
+                .toSet()
             val presetItems = directDrops + ProfitTrackerPresets.get(preset).additionalItems
             val compactedDrops = SkyBlockDataRepository.entries.asSequence()
                 .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
@@ -443,6 +477,7 @@ internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
     with(SkysoftConfigGui.config().profitTrackers) {
         when (preset) {
             ProfitTrackerPreset.FARMING -> farming
+            ProfitTrackerPreset.FISHING -> fishing
             ProfitTrackerPreset.FORAGING -> foraging
             ProfitTrackerPreset.MINING -> mining
             ProfitTrackerPreset.ZOMBIE -> zombie
@@ -488,6 +523,7 @@ private const val MAXIMUM_COIN_GAIN = 100_000.0
 private const val BOUNTIFUL_ATTRIBUTION_MILLIS = 2_000L
 private const val MINECRAFT_DAY_TICKS = 24_000L
 private const val MINECRAFT_NIGHT_START_TICK = 12_000L
+private const val SEA_CREATURE_ENTITY_TYPE = "Sea Creature"
 
 private fun shouldTrackCoinGain(
     preset: ProfitTrackerPreset,
@@ -497,7 +533,9 @@ private fun shouldTrackCoinGain(
     if (MinecraftClient.screen() != null || amount <= TALISMAN_OF_COINS_AMOUNT || amount >= MAXIMUM_COIN_GAIN) {
         return false
     }
-    if (preset != ProfitTrackerPreset.FARMING) return preset.slayerType != null
+    if (preset != ProfitTrackerPreset.FARMING) {
+        return preset.slayerType != null || preset == ProfitTrackerPreset.FISHING
+    }
     val recentlyFarmed = lastActivityAtMillis?.let {
         System.currentTimeMillis() - it <= BOUNTIFUL_ATTRIBUTION_MILLIS
     } == true
