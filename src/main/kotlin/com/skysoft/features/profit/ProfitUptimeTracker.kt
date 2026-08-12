@@ -28,6 +28,13 @@ internal class ProfitUptimeTracker(
         lastActivityAtMillis[preset] = now
     }
 
+    fun refreshActivity(preset: ProfitTrackerPreset) {
+        val now = currentTimeMillis()
+        if (!isProfitTimerActive(lastActivityAtMillis[preset], now, pauseAfterMillis(preset))) return
+        unconfirmedUptimeMillis.remove(preset)
+        lastActivityAtMillis[preset] = now
+    }
+
     fun tick(preset: ProfitTrackerPreset?, isWindowActive: Boolean) {
         val now = currentTimeMillis()
         unconfirmedUptimeMillis.keys

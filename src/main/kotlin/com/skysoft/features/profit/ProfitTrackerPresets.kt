@@ -16,8 +16,9 @@ internal object ProfitTrackerPresets {
         preferred: ProfitTrackerPreset? = null,
     ): ProfitTrackerPreset? {
         if (island == null) return null
-        val matches = presets.filterValues { preset ->
-            island in preset.islands &&
+        val matches = presets.filter { (type, preset) ->
+            (type != ProfitTrackerPreset.FISHING || preferred == ProfitTrackerPreset.FISHING) &&
+                (preset.anyIsland || island in preset.islands) &&
                 (preset.areas.isEmpty() || area in preset.areas) &&
                 (preset.islandAreas[island]?.let { area in it } != false)
         }
@@ -33,8 +34,11 @@ internal object ProfitTrackerPresets {
         val resource = stream.bufferedReader().use { reader -> Gson().fromJson(reader, PresetResource::class.java) }
         return ProfitTrackerPreset.entries.associateWith { type ->
             val data = requireNotNull(resource.data(type)) { "Profit Tracker is missing the ${type.name} preset" }
+            val islands = data.islands.filter(String::isNotBlank).toSet()
+            require(data.anyIsland || islands.isNotEmpty())
             ProfitPreset(
-                islands = data.islands.filter(String::isNotBlank).toSet().also { require(it.isNotEmpty()) },
+                anyIsland = data.anyIsland,
+                islands = islands,
                 areas = data.areas.filter(String::isNotBlank).toSet(),
                 islandAreas = data.islandAreas.mapValues { (_, areas) -> areas.filter(String::isNotBlank).toSet() },
                 additionalItems = data.items.filter(String::isNotBlank).toSet(),
@@ -45,11 +49,13 @@ internal object ProfitTrackerPresets {
     private data class PresetResource(
         val slayer: Map<String, PresetData> = emptyMap(),
         val farming: PresetData? = null,
+        val fishing: PresetData? = null,
         val foraging: PresetData? = null,
         val mining: PresetData? = null,
     ) {
         fun data(type: ProfitTrackerPreset): PresetData? = when (type) {
             ProfitTrackerPreset.FARMING -> farming
+            ProfitTrackerPreset.FISHING -> fishing
             ProfitTrackerPreset.FORAGING -> foraging
             ProfitTrackerPreset.MINING -> mining
             else -> type.slayerType?.let { slayer[it.name] }
@@ -57,6 +63,7 @@ internal object ProfitTrackerPresets {
     }
 
     private data class PresetData(
+        val anyIsland: Boolean = false,
         val islands: List<String> = emptyList(),
         val areas: List<String> = emptyList(),
         val islandAreas: Map<String, List<String>> = emptyMap(),
@@ -77,6 +84,7 @@ internal enum class ProfitTrackerPreset(
     BLAZE("Blaze Slayer", SkyBlockSlayerType.BLAZE),
     VAMPIRE("Vampire Slayer", SkyBlockSlayerType.VAMPIRE),
     FARMING("Farming", coinLabel = "Bountiful Coins", actionLabel = "Pests Vacuumed"),
+    FISHING("Fishing", coinLabel = "Coins", actionLabel = "Catches"),
     FORAGING("Foraging"),
     MINING("Mining"),
     ;
@@ -87,6 +95,7 @@ internal enum class ProfitTrackerPreset(
 }
 
 internal data class ProfitPreset(
+    val anyIsland: Boolean,
     val islands: Set<String>,
     val areas: Set<String>,
     val islandAreas: Map<String, Set<String>>,
