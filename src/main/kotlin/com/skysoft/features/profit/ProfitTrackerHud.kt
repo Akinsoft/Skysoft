@@ -23,6 +23,7 @@ import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
@@ -39,10 +40,12 @@ import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.input.CharacterEvent
 import net.minecraft.world.item.ItemStack
 
 private var hoveredControl: OverlayControlArea<ProfitTrackerControl>? = null
@@ -50,6 +53,18 @@ private var isTrackerHovered = false
 private val itemPanel = ProfitTrackerItemPanel()
 private val hudControls = ProfitTrackerHudControls(itemPanel)
 private val itemScrollOffsets = mutableMapOf<ItemScrollKey, Int>()
+
+object ProfitTrackerHudInput {
+    @JvmStatic
+    fun handleCharTyped(event: CharacterEvent): InputHandlingResult =
+        if (ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled == true &&
+            hudControls.wasCharTypedHandled(event)
+        ) {
+            InputHandlingResult.CONSUMED
+        } else {
+            InputHandlingResult.IGNORED
+        }
+}
 
 internal fun registerProfitTrackerHud() {
     registerMouseCapture()
@@ -230,7 +245,14 @@ private fun registerMouseCapture() {
             SkysoftErrorBoundary.value("Profit Tracker mouse scroll", true) {
                 InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
                     ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
-                    !isTrackerHovered || !wasItemScrollHandled(verticalAmount)
+                    !itemPanel.wasSearchScrollHandled(verticalAmount) &&
+                    (!isTrackerHovered || !wasItemScrollHandled(verticalAmount))
+            }
+        }
+        ScreenKeyboardEvents.allowKeyPress(screen).register { _, event ->
+            SkysoftErrorBoundary.value("Profit Tracker key input", true) {
+                ProfitTracker.selectedPreset()?.let(::presetConfig)?.enabled != true ||
+                    !hudControls.wasKeyPressHandled(event)
             }
         }
     }

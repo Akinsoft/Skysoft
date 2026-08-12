@@ -8,6 +8,8 @@ import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
 import org.lwjgl.glfw.GLFW
 
 internal class ProfitTrackerHudControls(
@@ -53,12 +55,19 @@ internal class ProfitTrackerHudControls(
         return activated
     }
 
+    fun wasKeyPressHandled(event: KeyEvent): Boolean {
+        val preset = ProfitTracker.selectedPreset() ?: return false
+        return itemPanel.wasKeyPressHandled(event) { itemId -> selectSearchedItem(preset, itemId) }
+    }
+
+    fun wasCharTypedHandled(event: CharacterEvent): Boolean = itemPanel.wasCharTypedHandled(event)
+
     private fun wasInventoryItemAdded(
         screen: AbstractContainerScreen<*>,
         preset: ProfitTrackerPreset,
         button: Int,
     ): Boolean {
-        if (!itemPanel.isAddingItem() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (!itemPanel.isAddingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
         val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
         val player = Minecraft.getInstance().player ?: return false
         val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
@@ -97,8 +106,28 @@ internal class ProfitTrackerHudControls(
             ProfitTrackerItemCustomizations.removeCustomItem(preset, action.itemId)
         }
         ProfitTrackerControl.AddItem -> wasLeftClickHandled(button, itemPanel::beginAddingItem)
+        ProfitTrackerControl.AddItemInventory -> wasLeftClickHandled(button) {
+            itemPanel.selectAddItemMode(AddItemMode.INVENTORY)
+        }
+        ProfitTrackerControl.AddItemSearch -> wasLeftClickHandled(button) {
+            itemPanel.selectAddItemMode(AddItemMode.SEARCH)
+        }
+        is ProfitTrackerControl.AddItemSearchField -> wasLeftClickHandled(button) {
+            itemPanel.focusSearch(action.localMouseX)
+        }
+        is ProfitTrackerControl.AddItemSearchResult -> wasLeftClickHandled(button) {
+            selectSearchedItem(preset, action.itemId)
+        }
         ProfitTrackerControl.ResetCustomizations -> wasLeftClickHandled(button) {
             ProfitTrackerItemCustomizations.reset(preset)
+        }
+    }
+
+    private fun selectSearchedItem(preset: ProfitTrackerPreset, itemId: String) {
+        if (itemId in ProfitTracker.trackedItemIds(preset)) {
+            itemPanel.openItem(itemId)
+        } else {
+            ProfitTrackerItemCustomizations.addCustomItem(preset, itemId)
         }
     }
 
