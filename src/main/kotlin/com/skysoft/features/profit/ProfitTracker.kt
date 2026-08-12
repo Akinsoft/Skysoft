@@ -133,7 +133,6 @@ object ProfitTracker {
                 }
                 durationPreset = locationPreset
                 uptime.resetTickProgress()
-                locationPreset?.takeUnless { it == ProfitTrackerPreset.FARMING }?.let(::markActivity)
             }
             val questPreset = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
             val activePreset = questPreset ?: locationPreset?.takeIf { it == ProfitTrackerPreset.FARMING }
