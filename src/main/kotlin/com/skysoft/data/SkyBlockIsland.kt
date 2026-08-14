@@ -26,7 +26,7 @@ enum class SkyBlockIsland(
     GLACITE_MINESHAFTS("Glacite Mineshafts", "mineshaft"),
     CRIMSON_ISLE("Crimson Isle", "crimson_isle"),
     BACKWATER_BAYOU("Backwater Bayou", "fishing_1", "backwater_bayou"),
-    GALATEA("Galatea", "foraging_2"),
+    GALATEA("Moonglade Marsh", "foraging_2"),
     TORRHUS_CANYON("Torrhus Canyon", "foraging_3"),
     SAFARI("Critter Safari", "safari"),
     LOTUS_ATOLL("Lotus Atoll", "lotus_atoll"),
