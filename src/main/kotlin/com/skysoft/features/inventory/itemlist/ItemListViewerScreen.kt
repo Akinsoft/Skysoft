@@ -1066,7 +1066,7 @@ private data class PetIngredientBounds(
 private fun openWiki(key: ItemListEntryKey, isVisible: Boolean): ViewerInputResult {
     if (!isVisible) return ViewerInputResult.IGNORED
     val url = SkyBlockDataRepository.wikiLink(key) ?: return ViewerInputResult.IGNORED
-    BrowserUtilities.open(url)
+    BrowserUtilities.tryOpen(url)
     return ViewerInputResult.HANDLED
 }
 

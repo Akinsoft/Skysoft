@@ -11,7 +11,6 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.formatLocalTime
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
@@ -71,7 +70,7 @@ internal fun realTimeText(
     time: LocalTime,
     format: ChatTimestampFormat,
     labelStyle: DisplayLabelStyle = DisplayLabelStyle.VALUES_ONLY,
-): String = labelStyle.prefix("Time", "⌚") + formatLocalTime(time, format.pattern)
+): String = labelStyle.prefix("Time", "⌚") + format.format(time)
 
 internal fun shouldShowRealTimeDisplay(
     isEnabled: Boolean,

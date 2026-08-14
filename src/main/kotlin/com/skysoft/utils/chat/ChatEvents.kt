@@ -22,7 +22,7 @@ object ChatEvents {
         visibleListeners += Listener(boundary, isActive, listener)
     }
 
-    fun onMessageType(
+    private fun onMessageType(
         boundary: String,
         messageType: ChatMessageType,
         isActive: () -> Boolean,

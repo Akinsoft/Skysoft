@@ -65,7 +65,7 @@ internal fun normalizedCustomTrackerName(name: String): String =
         .ifBlank { DEFAULT_CUSTOM_TRACKER_NAME }
         .take(CUSTOM_TRACKER_NAME_LENGTH)
 
-internal fun uniqueCustomTrackerName(name: String, usedNames: MutableSet<String>): String {
+private fun uniqueCustomTrackerName(name: String, usedNames: MutableSet<String>): String {
     val base = normalizedCustomTrackerName(name)
     var candidate = base
     var suffix = 2

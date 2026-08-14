@@ -612,7 +612,6 @@ data class ProfileStorage(
         const val SKYBLOCK_RIFT_STORAGE_PAGE_COUNT = 2
         const val SKYBLOCK_CONTAINER_MAX_ROWS = 6
         const val SLOTS_PER_STORAGE_ROW = 9
-        const val SKYBLOCK_STORAGE_MAX_ROWS = SKYBLOCK_CONTAINER_MAX_ROWS
         const val INVENTORY_EQUIPMENT_SLOT_COUNT = 4
         private val PLAYER_INVENTORY_SLOT_RANGE = 0..40
         val SKYBLOCK_TOOLKIT_KEYS = setOf("farming", "hunting")

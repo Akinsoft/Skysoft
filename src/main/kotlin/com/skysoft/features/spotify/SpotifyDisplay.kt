@@ -14,6 +14,7 @@ import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.boundedAccessOrderMap
 import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.image.ScaledImageDecoder
 import com.skysoft.utils.input.InputUtilities
@@ -21,7 +22,6 @@ import com.skysoft.utils.net.SkysoftHttp
 import com.skysoft.utils.renderables.renderRenderable
 import java.net.URI
 import java.util.EnumMap
-import java.util.LinkedHashMap
 import java.util.concurrent.CompletableFuture
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -47,10 +47,7 @@ object SpotifyDisplay {
     private var previousLyricIndex: Int? = null
     private var lyricChangedAtMillis = 0L
     private val keyStates = EnumMap<SpotifyPlaybackAction, Boolean>(SpotifyPlaybackAction::class.java)
-    private val lyricsCache = object : LinkedHashMap<String, List<SyncedLyricLine>>(LYRICS_CACHE_SIZE, CACHE_LOAD_FACTOR, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<SyncedLyricLine>>): Boolean =
-            size > LYRICS_CACHE_SIZE
-    }
+    private val lyricsCache = boundedAccessOrderMap<String, List<SyncedLyricLine>>(LYRICS_CACHE_SIZE)
 
     fun register() {
         SkysoftClientEvents.onEndTick(
@@ -464,7 +461,6 @@ object SpotifyDisplay {
     private const val MAXIMUM_ARTWORK_SIZE = 300
     private const val SPOTIFY_ARTWORK_HOST = "i.scdn.co"
     private const val LYRICS_CACHE_SIZE = 20
-    private const val CACHE_LOAD_FACTOR = 0.75f
     private const val PREVIEW_DURATION_MILLIS = 213_000L
     private const val PREVIEW_PROGRESS_MILLIS = 68_000L
     private const val HTTP_UNAUTHORIZED = 401

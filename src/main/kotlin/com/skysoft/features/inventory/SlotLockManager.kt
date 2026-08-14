@@ -145,16 +145,10 @@ object SlotLockManager {
         slot?.let { isLockablePlayerSlot(it) && it.containerSlot in lockedSlots } == true
 
     @JvmStatic
-    fun isSlotIndexLocked(slotIndex: Int): Boolean = slotIndex in lockedSlots
-
-    @JvmStatic
     fun isLockKey(key: Int): Boolean = config.lockKey != GLFW.GLFW_KEY_UNKNOWN && key == config.lockKey
 
     @JvmStatic
     fun isFeatureAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
-
-    @JvmStatic
-    fun hasLocks(): Boolean = lockedSlots.isNotEmpty()
 
     @JvmStatic
     fun resetAllLocks() {

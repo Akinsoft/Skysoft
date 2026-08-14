@@ -108,9 +108,6 @@ internal object SkyBlockMobEntityMatcher {
     private const val REAL_PLAYER_UUID_VERSION = 4
 }
 
-internal fun matchingMobLabel(name: String, labels: Collection<String>): String? =
-    matchingPreparedMobLabel(name, prepareMobLabels(labels))
-
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
     val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name).withoutEmpyreanPrefix()
     return labels.firstOrNull { label -> normalizedName.equals(label, ignoreCase = true) }

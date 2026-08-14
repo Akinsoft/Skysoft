@@ -9,6 +9,7 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.elide
+import com.skysoft.utils.image.RegisteredImageTexture
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -79,7 +80,7 @@ internal object ScreenshotManagerRenderer {
         font: Font,
         layout: ScreenshotFocusLayout,
         entry: ScreenshotEntry,
-        texture: ScreenshotTexture?,
+        texture: RegisteredImageTexture?,
         didLoadFail: Boolean,
         editSession: ScreenshotEditSession,
         editorGeometry: ScreenshotEditorGeometry?,
@@ -346,7 +347,7 @@ internal object ScreenshotManagerRenderer {
         font: Font,
         layout: ScreenshotFocusLayout,
         visuals: ScreenshotFocusVisuals,
-        texture: ScreenshotTexture?,
+        texture: RegisteredImageTexture?,
         didLoadFail: Boolean,
     ) {
         if (!visuals.shouldClipImage) {
@@ -447,7 +448,7 @@ internal object ScreenshotManagerRenderer {
         context: GuiGraphicsExtractor,
         font: Font,
         bounds: Rect,
-        texture: ScreenshotTexture?,
+        texture: RegisteredImageTexture?,
         didLoadFail: Boolean,
     ) {
         context.fill(

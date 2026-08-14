@@ -77,7 +77,7 @@ internal fun consumeTrackedLotsForSale(
     itemName: String,
     soldAmount: Long,
     revenue: Double,
-): TrackedSaleResult {
+): Double {
     var remaining = soldAmount
     var knownCost = 0.0
     var knownAmount = 0L
@@ -93,15 +93,8 @@ internal fun consumeTrackedLotsForSale(
         if (lot.amount <= 0L) iterator.remove()
     }
     val knownRevenue = revenue * (knownAmount.toDouble() / soldAmount.coerceAtLeast(1L))
-    return TrackedSaleResult(knownAmount, knownCost, knownRevenue - knownCost, remaining)
+    return knownRevenue - knownCost
 }
-
-internal data class TrackedSaleResult(
-    val knownAmount: Long,
-    val knownCost: Double,
-    val profit: Double,
-    val unmatchedAmount: Long,
-)
 
 internal enum class CraftPreparationResult {
     NOT_NEEDED,

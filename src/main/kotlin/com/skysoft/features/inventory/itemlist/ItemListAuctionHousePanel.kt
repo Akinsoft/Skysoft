@@ -232,7 +232,7 @@ internal fun auctionHouseCategoryAvailable(
     availability: BazaarProductAvailability,
 ): Boolean = isSkyBlockItem && availability != BazaarProductAvailability.UNAVAILABLE
 
-internal fun auctionRemainingTime(endMillis: Long, nowMillis: Long): String {
+private fun auctionRemainingTime(endMillis: Long, nowMillis: Long): String {
     val seconds = Math.ceilDiv((endMillis - nowMillis).coerceAtLeast(0L), MILLIS_PER_SECOND)
     return when {
         seconds >= SECONDS_PER_DAY -> "${seconds / SECONDS_PER_DAY}d"

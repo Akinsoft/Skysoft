@@ -96,8 +96,6 @@ object ContainerSearchHighlighter {
     @JvmStatic
     fun isActive(): Boolean = active
 
-    internal fun activeQuery(): String? = query.terms.joinToString(" ").takeIf { active }
-
     internal fun matches(slot: Slot): Boolean = active && slot.isActive && query.matches(slot.item)
 
     @JvmStatic

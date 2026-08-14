@@ -21,7 +21,7 @@ internal fun parseBazaarOrderOwner(stack: ItemStack): String? =
 internal fun shouldBlockBazaarOrderOwner(owner: String, playerName: String): Boolean =
     !owner.equals(playerName, ignoreCase = true)
 
-internal fun isLocalBazaarOrder(stack: ItemStack, playerName: String): Boolean? =
+private fun isLocalBazaarOrder(stack: ItemStack, playerName: String): Boolean? =
     parseBazaarOrderOwner(stack)?.let { owner -> !shouldBlockBazaarOrderOwner(owner, playerName) }
 
 internal fun isLocalCoopBazaarOrder(stack: ItemStack): Boolean {

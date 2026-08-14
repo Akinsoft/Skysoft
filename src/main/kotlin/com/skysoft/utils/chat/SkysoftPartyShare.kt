@@ -39,7 +39,7 @@ object SkysoftPartyShare {
         }
     }
 
-    fun partyCommand(message: String): String = "pc $message"
+    private fun partyCommand(message: String): String = "pc $message"
 
     fun sendParty(message: String, allowRecentPartyChatEvidence: Boolean = false) {
         if (partySendBlockedReason(allowRecentPartyChatEvidence) != null) return

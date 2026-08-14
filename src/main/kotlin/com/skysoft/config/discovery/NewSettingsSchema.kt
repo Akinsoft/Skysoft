@@ -20,6 +20,7 @@ import java.lang.reflect.WildcardType
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Collections
+import java.util.HexFormat
 import java.util.IdentityHashMap
 
 internal data class NewSettingDescriptor(
@@ -189,11 +190,9 @@ internal fun discoverySignature(field: java.lang.reflect.Field): String {
         dropdownChoices,
         enumChoices,
     ).joinToString(separator = "|")
-    return MessageDigest.getInstance(SHA_256)
-        .digest(signatureSource.toByteArray(StandardCharsets.UTF_8))
-        .joinToString(separator = "") { byte ->
-            (byte.toInt() and UNSIGNED_BYTE_MASK).toString(HEX_RADIX).padStart(HEX_BYTE_LENGTH, '0')
-        }
+    return HexFormat.of().formatHex(
+        MessageDigest.getInstance(SHA_256).digest(signatureSource.toByteArray(StandardCharsets.UTF_8)),
+    )
 }
 
 private fun editorNames(field: java.lang.reflect.Field): List<String> =
@@ -221,9 +220,6 @@ private const val MOULCONFIG_ANNOTATION_PACKAGE = "io.github.notenoughupdates.mo
 private const val CONFIG_EDITOR_PREFIX = "ConfigEditor"
 private val EXCLUDED_EDITOR_NAMES = setOf("ConfigEditorButton", "ConfigEditorInfoText")
 private const val SHA_256 = "SHA-256"
-private const val UNSIGNED_BYTE_MASK = 0xFF
-private const val HEX_RADIX = 16
-private const val HEX_BYTE_LENGTH = 2
 
 internal data class NewSettingsDetection(
     val addedIds: Set<String>,

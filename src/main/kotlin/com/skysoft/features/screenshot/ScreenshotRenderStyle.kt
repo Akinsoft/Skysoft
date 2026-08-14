@@ -5,6 +5,7 @@ import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.image.RegisteredImageTexture
 import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.Font
@@ -69,7 +70,7 @@ internal object ScreenshotRenderStyle {
         context.text(font, text, bounds.x + (bounds.width - font.width(text)) / 2, y, color, false)
     }
 
-    fun drawTextureCover(context: GuiGraphicsExtractor, texture: ScreenshotTexture, bounds: Rect) {
+    fun drawTextureCover(context: GuiGraphicsExtractor, texture: RegisteredImageTexture, bounds: Rect) {
         val sourceAspect = texture.width.toFloat() / texture.height
         val boundsAspect = bounds.width.toFloat() / bounds.height
         val uInset = if (sourceAspect > boundsAspect) (1f - boundsAspect / sourceAspect) / 2f else 0f
@@ -88,7 +89,7 @@ internal object ScreenshotRenderStyle {
         )
     }
 
-    fun drawTextureContained(context: GuiGraphicsExtractor, texture: ScreenshotTexture, bounds: Rect) {
+    fun drawTextureContained(context: GuiGraphicsExtractor, texture: RegisteredImageTexture, bounds: Rect) {
         val scale = min(bounds.width.toDouble() / texture.width, bounds.height.toDouble() / texture.height)
         val width = (texture.width * scale).roundToInt().coerceAtLeast(1)
         val height = (texture.height * scale).roundToInt().coerceAtLeast(1)

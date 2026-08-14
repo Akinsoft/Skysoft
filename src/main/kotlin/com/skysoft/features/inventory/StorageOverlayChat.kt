@@ -13,7 +13,7 @@ internal fun registerStorageOverlayChat() {
     }
 }
 
-internal fun recordBackpackRemoval(message: String): ChangeResult {
+private fun recordBackpackRemoval(message: String): ChangeResult {
     val pageIndex = removedBackpackPageIndex(message) ?: return ChangeResult.UNCHANGED
     val backpackSlot = pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1
     emptyOverviewStacks[pageIndex] = emptyBackpackShortcutStack(backpackSlot)

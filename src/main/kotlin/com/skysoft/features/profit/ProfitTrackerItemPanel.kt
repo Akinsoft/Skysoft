@@ -605,7 +605,7 @@ private data class SearchCacheKey(
     val snapshotVersion: Long,
 )
 
-internal fun profitTrackerItemPresentation(itemId: String): ProfitTrackerItemPresentation {
+private fun profitTrackerItemPresentation(itemId: String): ProfitTrackerItemPresentation {
     val key = SkyBlockDataRepository.itemKey(itemId)
     val entry = SkyBlockDataRepository.entry(key)
     val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId)

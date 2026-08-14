@@ -1315,5 +1315,4 @@ private object EditorColors {
     val WHITE_TEXT = PixelControlColors.TEXT
     val MUTED_TEXT = PixelControlColors.MUTED_TEXT
     val DISABLED_TEXT = 0xFF606870.toInt()
-    val BUTTON_OUTLINE = 0x805A626A.toInt()
 }

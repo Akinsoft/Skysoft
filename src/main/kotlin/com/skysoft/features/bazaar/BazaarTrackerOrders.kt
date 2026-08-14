@@ -18,7 +18,7 @@ internal fun applyCancel(cancel: PendingCancel) {
     markBazaarTrackerChanged()
 }
 
-internal fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
+private fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
     cancel.orderId?.let { id ->
         storage.activeOrders.firstOrNull { it.id == id && it.type == cancel.type }?.let { return it }
     }
@@ -35,7 +35,7 @@ internal fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderD
         )
 }
 
-internal fun isPlausibleCancelOrder(order: ProfileStorage.BazaarOrderData, cancel: PendingCancel): Boolean {
+private fun isPlausibleCancelOrder(order: ProfileStorage.BazaarOrderData, cancel: PendingCancel): Boolean {
     val amount = cancel.amount ?: return true
     if (amount < 0 || order.amountOrdered <= 0) return false
     val expectedUnfilled = (order.maximumAmount() - order.filledAmount).coerceAtLeast(0L)
@@ -48,7 +48,7 @@ internal fun isPlausibleCancelOrder(order: ProfileStorage.BazaarOrderData, cance
     return true
 }
 
-internal fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: PendingCancel): Long {
+private fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: PendingCancel): Long {
     val amount = cancel.amount ?: return 0L
     val expectedUnfilled = (order.maximumAmount() - order.filledAmount).coerceAtLeast(0L)
     return amountDistance(expectedUnfilled, amount)
@@ -96,7 +96,7 @@ internal fun findClaimOrder(
     )
 }
 
-internal fun isPlausibleClaimOrder(
+private fun isPlausibleClaimOrder(
     order: ProfileStorage.BazaarOrderData,
     id: String,
     type: BazaarOrderType,
@@ -171,7 +171,7 @@ internal fun pruneOrdersMissingFromGui(
     return ChangeResult.from(changed)
 }
 
-internal fun shouldPruneMissingFromGui(
+private fun shouldPruneMissingFromGui(
     order: ProfileStorage.BazaarOrderData,
     parsedOrders: List<PendingOrder>,
     recentlyClickedOrder: Boolean,
@@ -191,7 +191,7 @@ internal fun shouldPruneMissingFromGui(
     return parsedOrders.none { parsed -> parsedRepresentsOrder(order, parsed) }
 }
 
-internal fun parsedRepresentsOrder(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
+private fun parsedRepresentsOrder(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (order.type != parsed.type) return false
     if (!productMatches(order.productId, parsed.productId) && !namesMatch(order.itemName, parsed.itemName)) return false
     if (!orderMatchesParsedIdentity(order, parsed)) return false

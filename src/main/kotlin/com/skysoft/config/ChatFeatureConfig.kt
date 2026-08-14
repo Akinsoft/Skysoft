@@ -16,6 +16,9 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
 import io.github.notenoughupdates.moulconfig.observer.Property
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import org.lwjgl.glfw.GLFW
 
 class ChatFeatureConfig : ConfigRepairable {
@@ -431,12 +434,16 @@ enum class ChatTabChannel(private val displayName: String) {
     override fun toString(): String = displayName
 }
 
-enum class ChatTimestampFormat(private val displayName: String, val pattern: String) {
+enum class ChatTimestampFormat(private val displayName: String, pattern: String) {
     TWENTY_FOUR_HOUR("24-hour (HH:mm)", "HH:mm"),
     TWENTY_FOUR_HOUR_SECONDS("24-hour with seconds", "HH:mm:ss"),
     TWELVE_HOUR("12-hour (h:mm a)", "h:mm a"),
     TWELVE_HOUR_SECONDS("12-hour with seconds", "h:mm:ss a"),
     ;
+
+    private val formatter = DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH)
+
+    fun format(time: LocalTime): String = formatter.format(time)
 
     override fun toString(): String = displayName
 }

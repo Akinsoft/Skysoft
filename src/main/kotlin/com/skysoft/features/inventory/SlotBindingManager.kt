@@ -602,7 +602,7 @@ object SlotBindingManager {
     private data class LineValues(val x0: Double, val y0: Double, val x1: Double, val y1: Double, val gradient: Double)
 }
 
-internal fun canRenderSlotBindingLine(
+private fun canRenderSlotBindingLine(
     screenWidth: Int,
     screenHeight: Int,
     startX: Int,

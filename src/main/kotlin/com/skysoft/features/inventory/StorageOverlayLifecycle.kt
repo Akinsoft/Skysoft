@@ -34,7 +34,7 @@ internal fun registerStorageOverlay() {
     registerMouseClickInterceptor()
 }
 
-internal fun registerMouseClickInterceptor() {
+private fun registerMouseClickInterceptor() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
         if (!isStorageOverlayEnabled) return@register
         SkysoftErrorBoundary.run("Storage Overlay screen initialization") {
@@ -119,7 +119,7 @@ internal fun renderStorageOverlayBackground(
     renderOverlay(screen, context, mouseX, mouseY)
 }
 
-internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+private fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
     val layoutState = storageOverlayLayoutScreen(screen, shouldReadScreen = false) ?: return
     SmoothSwapping.beginFrame(screen)
     val handle = layoutState.handle
@@ -164,7 +164,7 @@ internal fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtracto
 internal fun shouldSuppressStorageOverlayContainerLabels(screen: AbstractContainerScreen<*>): Boolean =
     storageOverlayIsActive(screen)
 
-internal fun handlePreScreenMouseClick(
+private fun handlePreScreenMouseClick(
     screen: AbstractContainerScreen<*>,
     click: MouseButtonEvent,
 ): InputHandlingResult {
@@ -262,7 +262,7 @@ internal fun handleStorageOverlayMouseClick(
     }
 }
 
-internal fun handleSelectorPageClick(
+private fun handleSelectorPageClick(
     screen: AbstractContainerScreen<*>,
     handle: StorageHandle,
     click: MouseButtonEvent,
@@ -322,7 +322,7 @@ internal fun routeOverviewShortcutClick(
     return InputHandlingResult.CONSUMED
 }
 
-internal fun handlePageAreaClick(
+private fun handlePageAreaClick(
     screen: AbstractContainerScreen<*>,
     click: MouseButtonEvent,
     measurements: Measurements,

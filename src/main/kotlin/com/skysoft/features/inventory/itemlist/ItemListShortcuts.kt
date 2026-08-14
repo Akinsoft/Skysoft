@@ -61,7 +61,7 @@ internal fun resolveItemListShortcut(
     return target?.let { ItemListShortcutRequest(mode, it) }
 }
 
-internal fun hoveredItemListKey(screen: AbstractContainerScreen<*>): ItemListEntryKey? {
+private fun hoveredItemListKey(screen: AbstractContainerScreen<*>): ItemListEntryKey? {
     val storageStack = hoveredStorageItem.takeIf { StorageOverlayController.isActive(screen) && !it.isEmpty }
     val stack = storageStack ?: (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()?.item
     return stack?.itemListKey()

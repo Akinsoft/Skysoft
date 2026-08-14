@@ -66,7 +66,7 @@ internal enum class InteractionTarget {
     NONE,
 }
 
-internal fun interactionTarget(type: HitResult.Type?): InteractionTarget =
+private fun interactionTarget(type: HitResult.Type?): InteractionTarget =
     when (type) {
         HitResult.Type.BLOCK -> InteractionTarget.BLOCK
         HitResult.Type.ENTITY -> InteractionTarget.ENTITY

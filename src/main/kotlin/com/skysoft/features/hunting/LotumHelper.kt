@@ -70,7 +70,7 @@ object LotumHelper {
         }
     }
 
-    fun onRenderWorld(context: SkysoftRenderContext) {
+    private fun onRenderWorld(context: SkysoftRenderContext) {
         if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
             trackedLotums.clear()
             return

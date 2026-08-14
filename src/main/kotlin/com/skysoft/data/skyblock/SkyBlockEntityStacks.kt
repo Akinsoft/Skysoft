@@ -1,6 +1,6 @@
 package com.skysoft.data.skyblock
 
-import java.util.LinkedHashMap
+import com.skysoft.utils.boundedAccessOrderMap
 import java.util.function.Supplier
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
@@ -11,9 +11,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.entity.player.PlayerSkin
 
 internal object SkyBlockEntityStacks {
-    private val cache = object : LinkedHashMap<String, ItemStack>(CACHE_SIZE, LOAD_FACTOR, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ItemStack>?): Boolean = size > CACHE_SIZE
-    }
+    private val cache = boundedAccessOrderMap<String, ItemStack>(CACHE_SIZE)
     private val skinLookups = mutableMapOf<String, Supplier<PlayerSkin>>()
 
     fun stack(id: String): ItemStack? = SkyBlockDataRepository.entity(id)?.let(::stack)
@@ -48,5 +46,4 @@ internal object SkyBlockEntityStacks {
     }
 
     private const val CACHE_SIZE = 128
-    private const val LOAD_FACTOR = 0.75f
 }

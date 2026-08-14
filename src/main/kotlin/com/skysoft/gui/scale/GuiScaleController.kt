@@ -181,7 +181,7 @@ internal fun shouldUseConfiguredInventoryScale(
     isStorageOverlayActive: Boolean,
 ): Boolean = isEnabled && (!isStorageOnly || isStorageOverlayActive)
 
-internal fun capStorageOverlayScale(scale: Int, isStorageOverlayActive: Boolean): Int =
+private fun capStorageOverlayScale(scale: Int, isStorageOverlayActive: Boolean): Int =
     if (isStorageOverlayActive) minOf(scale, STORAGE_OVERLAY_MAX_GUI_SCALE) else scale
 
 private const val STORAGE_OVERLAY_MAX_GUI_SCALE = 4

@@ -585,7 +585,7 @@ private fun drawButtonContents(
     }
 }
 
-internal fun normalizedInventoryButtonScale(scale: Float): Float = scale
+private fun normalizedInventoryButtonScale(scale: Float): Float = scale
     .takeIf(Float::isFinite)
     ?.takeIf { it > 0f }
     ?.coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)

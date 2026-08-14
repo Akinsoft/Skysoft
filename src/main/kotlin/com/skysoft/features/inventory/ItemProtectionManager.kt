@@ -135,8 +135,6 @@ object ItemProtectionManager {
 
     fun isFeatureAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
-    fun hasProtectedItems(): Boolean = protectedItemUuids.isNotEmpty()
-
     fun resetProtectedItems() {
         if (protectedItemUuids.isEmpty()) return
         protectedItemUuids.clear()

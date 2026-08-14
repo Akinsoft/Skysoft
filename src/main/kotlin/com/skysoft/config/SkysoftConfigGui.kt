@@ -68,7 +68,7 @@ object SkysoftConfigGui {
 
 internal fun configSearchQuery(search: String?): String = search.orEmpty()
 
-internal fun <T : Config> selectSearchResult(editor: MoulConfigEditor<T>, query: String) {
+private fun <T : Config> selectSearchResult(editor: MoulConfigEditor<T>, query: String) {
     val matchingOption = matchingSearchOption(editor.allOptions, query) ?: return
     editor.goToOption(matchingOption)
 }

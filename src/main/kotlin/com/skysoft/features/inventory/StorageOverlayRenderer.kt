@@ -116,7 +116,7 @@ private fun focusBackdropColor(progress: Float): Int {
     return StorageColors.FOCUS_BACKDROP.withScaledAlpha(progress.toDouble())
 }
 
-internal fun drawPage(
+private fun drawPage(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
     page: ProfileStorage.SkyBlockStoragePageData,
@@ -306,7 +306,7 @@ internal fun drawPlayerInventoryPanel(
     }
 }
 
-internal fun drawPlayerSlot(
+private fun drawPlayerSlot(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
     measurements: Measurements,
@@ -414,7 +414,7 @@ internal fun drawStorageSelectorPanel(
     }
 }
 
-internal fun toolkitShortcutStack(type: ToolkitType): ItemStack {
+private fun toolkitShortcutStack(type: ToolkitType): ItemStack {
     val isAvailable = storageEntryExists(type.pageIndex)
     if (isAvailable) {
         val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
@@ -429,13 +429,12 @@ internal fun toolkitShortcutStack(type: ToolkitType): ItemStack {
     }
 }
 
-internal fun drawSlotHover(context: GuiGraphicsExtractor, x: Int, y: Int) {
+private fun drawSlotHover(context: GuiGraphicsExtractor, x: Int, y: Int) {
     context.fill(x, y, x + StorageSlots.INNER_SIZE, y + StorageSlots.INNER_SIZE, StorageColors.SLOT_HOVER)
 }
 
-internal fun drawMiniItem(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
+private fun drawMiniItem(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
     context.itemWithDecorations(stack, x, y)
 }
 
 private const val PLAYER_INVENTORY_ROWS = 3
-

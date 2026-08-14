@@ -28,7 +28,7 @@ object SpotifyAuthentication {
     }
 
     fun openDashboard() {
-        if (BrowserUtilities.open(SPOTIFY_DASHBOARD) == BrowserUtilities.OpenResult.FAILED) {
+        if (!BrowserUtilities.tryOpen(SPOTIFY_DASHBOARD)) {
             SkysoftChat.error("Could not open the Spotify dashboard.")
         }
     }
@@ -64,7 +64,7 @@ object SpotifyAuthentication {
         }
         SkysoftConfigGui.config().saveNow()
         pending.server.start()
-        if (BrowserUtilities.open(SpotifyOAuth.authorizationUrl(pending)) == BrowserUtilities.OpenResult.FAILED) {
+        if (!BrowserUtilities.tryOpen(SpotifyOAuth.authorizationUrl(pending))) {
             didStopPendingAuthorization(pending)
             SkysoftChat.error("Could not open Spotify in your browser.")
             return

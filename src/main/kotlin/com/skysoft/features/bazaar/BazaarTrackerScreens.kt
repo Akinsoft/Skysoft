@@ -225,13 +225,13 @@ private fun hasMarketProof(order: ProfileStorage.BazaarOrderData, market: Bazaar
     return true
 }
 
-internal fun slotFillColor(status: OrderStatus): Int = when (status) {
+private fun slotFillColor(status: OrderStatus): Int = when (status) {
     OrderStatus.FILLED -> SLOT_FILLED_FILL
     OrderStatus.OUTBID, OrderStatus.UNDERCUT -> SLOT_UNDERCUT_FILL
     OrderStatus.COMPETITIVE -> SLOT_COMPETITIVE_FILL
 }
 
-internal fun slotOutlineColor(status: OrderStatus): Int = when (status) {
+private fun slotOutlineColor(status: OrderStatus): Int = when (status) {
     OrderStatus.FILLED -> SLOT_FILLED_OUTLINE
     OrderStatus.OUTBID, OrderStatus.UNDERCUT -> SLOT_UNDERCUT_OUTLINE
     OrderStatus.COMPETITIVE -> SLOT_COMPETITIVE_OUTLINE
@@ -255,7 +255,7 @@ internal fun recordClickedOrder(screen: AbstractContainerScreen<*>, click: Mouse
     pendingOrderOptionId = findMatchingOrderMatch(parsed, emptySet())?.order?.id
 }
 
-internal fun recordOrderOptionsClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent) {
+private fun recordOrderOptionsClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent) {
     val title = screen.title.cleanSkyBlockText()
     if (title != "Order options") return
     val slot = slotAt(screen, click.x().toInt(), click.y().toInt()) ?: return

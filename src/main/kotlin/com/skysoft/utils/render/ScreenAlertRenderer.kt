@@ -40,7 +40,7 @@ object ScreenAlertRenderer {
         activeAlerts.remove(id)
     }
 
-    fun clearAll() {
+    private fun clearAll() {
         activeAlerts.clear()
     }
 

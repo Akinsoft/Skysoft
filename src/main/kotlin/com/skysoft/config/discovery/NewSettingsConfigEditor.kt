@@ -148,4 +148,4 @@ internal object NewSettingsConfigEditor {
     }
 }
 
-internal fun ProcessedOption.fieldOrNull(): Field? = (this as? ProcessedOption.HasField)?.field
+private fun ProcessedOption.fieldOrNull(): Field? = (this as? ProcessedOption.HasField)?.field

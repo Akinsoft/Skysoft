@@ -68,7 +68,7 @@ object SkysoftHttp {
         ),
     )
 
-    fun sendBytes(
+    private fun sendBytes(
         request: HttpRequest,
         maximumResponseBytes: Long = DEFAULT_MAXIMUM_BYTE_RESPONSE_BYTES,
     ): CompletableFuture<HttpResponse<ByteArray>> = cancellationPropagatingFuture(
@@ -92,29 +92,17 @@ object SkysoftHttp {
 }
 
 class PendingHttpRequests {
-    private val pendingRequests = mutableSetOf<CompletableFuture<*>>()
+    private var requests = CancellableRequestGroup()
 
-    fun getString(url: String): CompletableFuture<String> = track(SkysoftHttp.getString(url))
-
-    fun cancelAll() {
-        val requests = synchronized(pendingRequests) {
-            pendingRequests.toList().also {
-                pendingRequests.clear()
-            }
-        }
-        requests.forEach { it.cancel(true) }
+    fun getString(url: String): CompletableFuture<String> = synchronized(this) {
+        requests.track(SkysoftHttp.getString(url))
     }
 
-    private fun <T> track(future: CompletableFuture<T>): CompletableFuture<T> {
-        synchronized(pendingRequests) {
-            pendingRequests += future
+    fun cancelAll() {
+        val cancelled = synchronized(this) {
+            requests.also { requests = CancellableRequestGroup() }
         }
-        future.whenComplete { _, _ ->
-            synchronized(pendingRequests) {
-                pendingRequests -= future
-            }
-        }
-        return future
+        cancelled.cancel()
     }
 }
 

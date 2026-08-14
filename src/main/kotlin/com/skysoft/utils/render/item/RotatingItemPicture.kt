@@ -6,8 +6,6 @@ package com.skysoft.utils.render.item
 import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.vertex.PoseStack
 import com.skysoft.utils.MinecraftRenderer
-import com.skysoft.utils.render.PoseMatrixUtilities.PoseRotationResult
-import com.skysoft.utils.render.PoseMatrixUtilities.applyRotation
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.renderer.SubmitNodeCollector
@@ -17,6 +15,7 @@ import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix3x2f
+import org.joml.Quaternionf
 
 class RotatingItemPicture(
     private val source: GuiItemRenderState,
@@ -43,7 +42,7 @@ class RotatingItemPicture(
     override fun bounds(): ScreenRectangle? = source.bounds()
 
     fun drawModel(poseStack: PoseStack, nodes: SubmitNodeCollector) {
-        if (poseStack.applyRotation(rotation) == PoseRotationResult.APPLIED) model.setAnimated()
+        if (poseStack.didApplyRotation(rotation)) model.setAnimated()
         poseStack.translate(0.0f, MODEL_Y_OFFSET, MODEL_Z_OFFSET)
         val lighting = if (model.usesBlockLight()) Lighting.Entry.ITEMS_3D else Lighting.Entry.ITEMS_FLAT
         MinecraftRenderer.lighting(Minecraft.getInstance().gameRenderer).setupFor(lighting)
@@ -57,3 +56,15 @@ class RotatingItemPicture(
         private const val FULL_BRIGHT_LIGHT = 15_728_880
     }
 }
+
+private fun PoseStack.didApplyRotation(rotation: Vec3): Boolean {
+    val xRad = Math.toRadians(rotation.x % FULL_ROTATION_DEGREES).toFloat()
+    val yRad = Math.toRadians(rotation.y % FULL_ROTATION_DEGREES).toFloat()
+    val zRad = Math.toRadians(rotation.z % FULL_ROTATION_DEGREES).toFloat()
+    if (xRad == 0f && yRad == 0f && zRad == 0f) return false
+
+    mulPose(Quaternionf().rotateXYZ(xRad, yRad, zRad))
+    return true
+}
+
+private const val FULL_ROTATION_DEGREES = 360

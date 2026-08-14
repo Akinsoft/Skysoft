@@ -88,7 +88,7 @@ internal fun stackFor(item: ProfileStorage.SkyBlockStorageItemData?): ItemStack 
     return decodedStack
 }
 
-internal fun encodeStack(stack: ItemStack): String {
+private fun encodeStack(stack: ItemStack): String {
     val tag = ItemStack.CODEC.encodeStart(registryOps(), stack)
         .resultOrPartial { error -> throw IllegalStateException("Failed to encode SkyBlock storage item: $error") }
         .orElseThrow { IllegalStateException("Failed to encode SkyBlock storage item") } as? CompoundTag
@@ -101,7 +101,7 @@ internal fun encodeStack(stack: ItemStack): String {
     }
 }
 
-internal fun decodeStack(encoded: String): ItemStack? = runCatching {
+private fun decodeStack(encoded: String): ItemStack? = runCatching {
     val bytes = Base64.getDecoder().decode(encoded)
     val root = NbtIo.readCompressed(ByteArrayInputStream(bytes), NbtAccounter.create(StorageRuntime.MAX_ITEM_NBT_BYTES))
     val tag = root.getCompound("stack").orElse(null) ?: return null

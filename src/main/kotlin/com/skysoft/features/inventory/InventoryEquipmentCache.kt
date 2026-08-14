@@ -76,7 +76,7 @@ private val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStorag
 
 internal var lastEquipmentInventoryKey: String? = null
 
-internal fun readInventoryEquipmentScreen(screen: AbstractContainerScreen<*>): ChangeResult {
+private fun readInventoryEquipmentScreen(screen: AbstractContainerScreen<*>): ChangeResult {
     val inventoryName = screen.title.cleanSkyBlockText()
     if (!isInventoryEquipmentMenuName(inventoryName)) {
         lastEquipmentInventoryKey = null
@@ -107,7 +107,7 @@ internal fun readInventoryEquipmentScreen(screen: AbstractContainerScreen<*>): C
     return result
 }
 
-internal fun repairInventoryEquipmentItems(items: MutableList<ProfileStorage.SkyBlockStorageItemData>) {
+private fun repairInventoryEquipmentItems(items: MutableList<ProfileStorage.SkyBlockStorageItemData>) {
     while (items.size > ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) items.removeAt(items.lastIndex)
     while (items.size < ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) items.add(ProfileStorage.SkyBlockStorageItemData())
 }

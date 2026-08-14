@@ -24,9 +24,6 @@ object PetStorageService {
     internal var ticks = 0
     internal var lastInventoryKey: String? = null
 
-    val isPetWidgetReadyForDisplay: Boolean
-        get() = PetWidgetStateTracker.isReadyForDisplay
-
     internal val petDisplayDataSource: PetDisplayDataSource
         get() = PetWidgetStateTracker.displayDataSource
 

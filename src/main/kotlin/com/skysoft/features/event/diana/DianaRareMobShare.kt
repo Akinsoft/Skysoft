@@ -79,8 +79,6 @@ internal object DianaRareMobShareParser {
     fun formatCocoon(mob: DianaRareMobOption): String =
         cocoonMarker(mob)
 
-    const val SHARED_CLEAR_MESSAGE = "Rare Diana Mob dead!"
-
     fun parse(message: String): DianaRareMobShare? {
         val body = message.partyBodyOrSelf()
         legacyFoundPattern.matchEntire(body)?.let { return parseLegacyFoundMessage(it) }

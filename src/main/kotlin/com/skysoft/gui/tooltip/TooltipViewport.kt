@@ -371,5 +371,5 @@ object TooltipViewport {
     private const val SETTLE_TOLERANCE = 0.05
 }
 
-internal fun isTooltipScrollEnabledForScreen(screen: Screen?, isEnabledInChat: Boolean): Boolean =
+private fun isTooltipScrollEnabledForScreen(screen: Screen?, isEnabledInChat: Boolean): Boolean =
     screen !is TooltipScrollExcludedScreen && (screen !is ChatScreen || isEnabledInChat)

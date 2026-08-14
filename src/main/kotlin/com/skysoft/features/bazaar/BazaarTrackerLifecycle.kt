@@ -64,18 +64,6 @@ internal fun registerBazaarTracker() {
     })
 }
 
-internal fun resetBazaarTracker() {
-    storage.activeOrders.clear()
-    storage.itemLots.clear()
-    storage.transactions.clear()
-    storage.totalKnownProfit = 0.0
-    storage.taxPercent = 1.0
-    storage.activeFlipBatchId = 0L
-    resetTransientState(true)
-    ProfileStorageApi.markDirty()
-    ProfileStorageApi.saveNow()
-}
-
 internal fun resetBazaarTrackerDisplayedProfit() {
     if (displayMode == TrackerDisplayMode.SESSION) {
         sessionKnownProfit = 0.0
@@ -87,14 +75,14 @@ internal fun resetBazaarTrackerDisplayedProfit() {
     }
 }
 
-internal fun registerChatListeners() {
+private fun registerChatListeners() {
     ChatEvents.onVisibleMessage("Bazaar Tracker chat", { config.enabled }) { message ->
         handleChat(message.plainText)
         ChatMessageVisibility.SHOW
     }
 }
 
-internal fun registerMouseClickCapture() {
+private fun registerMouseClickCapture() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
         if (!config.enabled) return@register
         SkysoftErrorBoundary.run("Bazaar Tracker screen initialization") {
@@ -140,7 +128,7 @@ internal fun onClientTick() {
     }
 }
 
-internal fun checkStatusAlerts() {
+private fun checkStatusAlerts() {
     if (statusAlertTick++ % STATUS_ALERT_INTERVAL_TICKS != 0) return
     val activeIds = storage.activeOrders.mapTo(mutableSetOf()) { it.id }
     lastAlertStatuses.keys.retainAll(activeIds)
@@ -191,7 +179,7 @@ internal fun showEstimatedFillProgress(
     lastAlertStatuses[order.id] = statusFor(order)
 }
 
-internal fun playAlertSound(sound: BazaarTrackerSound) {
+private fun playAlertSound(sound: BazaarTrackerSound) {
     if (sound !in config.settings.sounds.get()) return
     val minecraft = Minecraft.getInstance()
     val instance = when (sound) {

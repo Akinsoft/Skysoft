@@ -1,6 +1,7 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.features.pets.setSkyBlockId
+import com.skysoft.utils.boundedAccessOrderMap
 import kotlin.math.floor
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -8,9 +9,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.component.ItemLore
 
 internal object SkyBlockPetStacks {
-    private val cache = object : LinkedHashMap<String, ItemStack>(CACHE_SIZE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ItemStack>?): Boolean = size > CACHE_SIZE
-    }
+    private val cache = boundedAccessOrderMap<String, ItemStack>(CACHE_SIZE)
 
     fun stack(
         ingredientId: String,

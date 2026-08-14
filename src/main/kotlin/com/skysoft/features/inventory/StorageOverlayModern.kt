@@ -138,7 +138,7 @@ internal fun synchronizeModernFocus(screen: AbstractContainerScreen<*>, handle: 
     modernFocusTransition.snap(if (shouldAnimate) 0f else 1f)
 }
 
-internal fun modernFocusPresentation(): ModernFocusPresentation {
+private fun modernFocusPresentation(): ModernFocusPresentation {
     if (!isModernStorageOverlay) return ModernFocusPresentation(null, 0f, false)
     val progress = modernFocusTransition.value(if (isModernFocusExpanded) 1f else 0f)
     if (!isModernFocusExpanded && progress <= ModernStoragePanel.MIN_VISIBLE_PROGRESS) {

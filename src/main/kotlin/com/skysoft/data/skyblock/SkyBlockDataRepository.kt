@@ -4,7 +4,7 @@ import com.skysoft.SkysoftMod
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
-import java.util.LinkedHashMap
+import com.skysoft.utils.boundedAccessOrderMap
 import java.util.concurrent.CompletableFuture
 import net.minecraft.world.item.ItemStack
 
@@ -24,14 +24,8 @@ object SkyBlockDataRepository {
     @Volatile
     var updateMessage: String = "Using bundled item data"
         private set
-    private val stackCache = object : LinkedHashMap<ItemListEntryKey, ItemStack>(STACK_CACHE_SIZE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ItemListEntryKey, ItemStack>?): Boolean =
-            size > STACK_CACHE_SIZE
-    }
-    private val searchCache = object : LinkedHashMap<String, List<ItemListEntry>>(SEARCH_CACHE_SIZE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<ItemListEntry>>?): Boolean =
-            size > SEARCH_CACHE_SIZE
-    }
+    private val stackCache = boundedAccessOrderMap<ItemListEntryKey, ItemStack>(STACK_CACHE_SIZE)
+    private val searchCache = boundedAccessOrderMap<String, List<ItemListEntry>>(SEARCH_CACHE_SIZE)
 
     fun register() {
         MinecraftRecipeAdapter.register()

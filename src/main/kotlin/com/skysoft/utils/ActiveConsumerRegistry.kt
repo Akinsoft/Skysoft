@@ -14,8 +14,6 @@ internal class ActiveConsumerRegistry {
         check(consumers.putIfAbsent(id, isActive) == null) { "Consumer is already registered: $id" }
     }
 
-    fun activeConsumerIds(): List<String> = consumers.filterValues { it() }.keys.toList()
-
     fun activity(): ConsumerActivity {
         val isActive = hasActiveConsumers
         val activity = when {
