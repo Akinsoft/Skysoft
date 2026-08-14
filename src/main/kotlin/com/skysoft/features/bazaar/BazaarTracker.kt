@@ -193,7 +193,7 @@ internal fun cycleDisplayMode(backwards: Boolean) {
     displayMode = displayModeCycle[Math.floorMod(currentIndex + step, displayModeCycle.size)]
 }
 
-internal fun trackerControlTooltip(action: TrackerControl): List<String> = when (action) {
+private fun trackerControlTooltip(action: TrackerControl): List<String> = when (action) {
     TrackerControl.TOGGLE_MODE -> displayModeTooltip()
     TrackerControl.RESET -> listOf(
         "§7Clicking this will reset your ${resetTooltipModeText()}§7.",

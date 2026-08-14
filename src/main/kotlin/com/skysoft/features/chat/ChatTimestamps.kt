@@ -2,7 +2,6 @@ package com.skysoft.features.chat
 
 import com.skysoft.config.ChatTimestampFormat
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.utils.formatLocalTime
 import java.time.LocalTime
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
@@ -20,7 +19,7 @@ object ChatTimestamps {
         format: ChatTimestampFormat,
     ): Component {
         if (!isEnabled) return content
-        val timestamp = Component.literal("[${formatLocalTime(time, format.pattern)}] ")
+        val timestamp = Component.literal("[${format.format(time)}] ")
             .withStyle(ChatFormatting.DARK_GRAY)
         return Component.empty().append(timestamp).append(content)
     }

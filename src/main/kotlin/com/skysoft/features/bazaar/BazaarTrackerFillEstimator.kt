@@ -45,7 +45,7 @@ internal fun requestBazaarFillEstimateRefresh() {
     refreshBazaarFillEstimates()
 }
 
-internal fun refreshBazaarFillEstimates() {
+private fun refreshBazaarFillEstimates() {
     if (!config.settings.estimateFills) {
         fillEstimateStates.clear()
         return
@@ -64,7 +64,7 @@ internal fun refreshBazaarFillEstimates() {
     }
 }
 
-internal fun applyBazaarDepthProducts(products: Map<String, SkysoftBazaarDepthProduct>) {
+private fun applyBazaarDepthProducts(products: Map<String, SkysoftBazaarDepthProduct>) {
     if (!config.settings.estimateFills) {
         fillEstimateStates.clear()
         return
@@ -85,7 +85,7 @@ internal fun applyBazaarDepthProducts(products: Map<String, SkysoftBazaarDepthPr
     }
 }
 
-internal fun updateFillEstimate(
+private fun updateFillEstimate(
     order: ProfileStorage.BazaarOrderData,
     product: SkysoftBazaarDepthProduct,
 ) {
@@ -189,7 +189,7 @@ internal fun visibleFilledAmount(order: ProfileStorage.BazaarOrderData): Long {
     return max(confirmedFilled, estimatedFilledAmount(order)).coerceAtMost(order.amountOrdered - 1)
 }
 
-internal fun pruneFillEstimateStates() {
+private fun pruneFillEstimateStates() {
     val activeIds = storage.activeOrders.mapTo(mutableSetOf()) { it.id }
     fillEstimateStates.keys.retainAll(activeIds)
 }

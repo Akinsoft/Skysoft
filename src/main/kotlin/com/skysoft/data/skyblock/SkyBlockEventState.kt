@@ -68,8 +68,6 @@ object SkyBlockEventState {
     internal val hasActiveConsumers: Boolean
         get() = consumers.hasActiveConsumers
 
-    fun isActive(event: SkyBlockEvent): Boolean = event in snapshot.activeEvents
-
     fun activeEvents(): Set<SkyBlockEvent> = snapshot.activeEvents
 
     internal fun availability(

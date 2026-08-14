@@ -32,13 +32,13 @@ object NewSettingsDiscovery {
         return presentedCount > 0
     }
 
-    internal fun openPresentedSettings(): NewSettingsOpenResult {
-        val activeRuntime = runtime ?: return NewSettingsOpenResult.NOT_AVAILABLE
+    internal fun didOpenPresentedSettings(): Boolean {
+        val activeRuntime = runtime ?: return false
         val optionIds = activeRuntime.state.lastPresentedOptionIds
             .filterTo(linkedSetOf(), activeRuntime.schema.byId::containsKey)
-        if (optionIds.isEmpty()) return NewSettingsOpenResult.NOT_AVAILABLE
-        SkysoftConfigGui.openNewSettings(optionIds) ?: return NewSettingsOpenResult.NOT_AVAILABLE
-        return NewSettingsOpenResult.OPENED
+        if (optionIds.isEmpty()) return false
+        SkysoftConfigGui.openNewSettings(optionIds) ?: return false
+        return true
     }
 
     private fun initialize() {
@@ -96,11 +96,6 @@ object NewSettingsDiscovery {
         var state: NewSettingsDiscoveryState,
         val store: NewSettingsStateStore,
     )
-}
-
-internal enum class NewSettingsOpenResult {
-    OPENED,
-    NOT_AVAILABLE,
 }
 
 internal fun newSettingsAnnouncement(): Component =

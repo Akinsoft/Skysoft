@@ -48,12 +48,3 @@ object ClientParticleEvents {
         val callback: ReceiveParticleCallback,
     )
 }
-
-internal fun receiveParticleInvoker(listeners: Array<ReceiveParticleCallback>): ReceiveParticleCallback =
-    ReceiveParticleCallback { event ->
-        var cancelled = false
-        listeners.forEach { listener ->
-            cancelled = listener.shouldCancelParticle(event) || cancelled
-        }
-        cancelled
-    }

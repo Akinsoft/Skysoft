@@ -170,8 +170,6 @@ enum class SkyBlockSlayerType(
     VAMPIRE("Vampire", "Riftstalker Bloodfiend", "RIFTSTALKER_BLOODFIEND"),
     ;
 
-    fun bossEntityId(tier: Int): String = "${bossEntityPrefix}_${tier}_BOSS"
-
     fun bossNames(tier: Int): Set<String> =
         tierFiveBossNames.takeIf { tier == TIER_FIVE && it.isNotEmpty() } ?: setOf(bossName)
 

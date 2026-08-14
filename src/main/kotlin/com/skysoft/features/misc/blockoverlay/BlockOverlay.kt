@@ -124,7 +124,7 @@ enum class BlockOutlineSelection(val rendersVanilla: Boolean) {
     CUSTOM(false),
 }
 
-internal fun shouldReplaceVanillaBlockOutline(
+private fun shouldReplaceVanillaBlockOutline(
     isVanillaEligible: Boolean,
     isEnabled: Boolean,
     hasBlockTarget: Boolean,
@@ -132,7 +132,7 @@ internal fun shouldReplaceVanillaBlockOutline(
     hasRenderableShape: Boolean,
 ): Boolean = isVanillaEligible && isEnabled && hasBlockTarget && isActivationAllowed && hasRenderableShape
 
-internal fun isRenderableBlockTarget(isBlockHit: Boolean, isAir: Boolean): Boolean = isBlockHit && !isAir
+private fun isRenderableBlockTarget(isBlockHit: Boolean, isAir: Boolean): Boolean = isBlockHit && !isAir
 
 private data class BlockOverlayTarget(
     val position: BlockPos,

@@ -38,7 +38,7 @@ internal object DamageSplashText {
             .mapNotNull { value -> value.componentText() }
             .mapNotNull { name -> fromName(entityId, name, location) }
 
-    fun fromName(entityId: Int, cleanName: String, location: WorldVec): DamageSplash? {
+    private fun fromName(entityId: Int, cleanName: String, location: WorldVec): DamageSplash? {
         val damage = parseDamage(cleanName) ?: return null
         return DamageSplash(
             entityId = entityId,

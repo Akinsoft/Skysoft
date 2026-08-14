@@ -29,7 +29,7 @@ object CrownValueOverlay {
         HypixelLocationState.inRavengard && SkysoftConfigGui.config().ravengard.showCrownValues
 }
 
-internal fun ItemStack.crownValue(): String? =
+private fun ItemStack.crownValue(): String? =
     get(DataComponents.LORE)?.lines()?.let(::crownValueFromLore)
 
 internal fun crownValueFromLore(lines: Iterable<Component>): String? =

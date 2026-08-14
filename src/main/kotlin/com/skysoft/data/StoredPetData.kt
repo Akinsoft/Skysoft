@@ -32,7 +32,6 @@ data class StoredPetData(
     val fauxInternalName: String get() = "$properPetName;${rarity.id}"
     val cleanName: String get() = PetRepository.getCleanPetName(fauxInternalName, colored = false)
     val displayName: String get() = if (isDragonEggStage) "$cleanName Egg" else cleanName
-    val coloredName: String get() = "${rarity.chatColorCode}$cleanName"
     val coloredDisplayName: String get() = "${rarity.chatColorCode}$displayName"
     val level: Int get() = PetRepository.xpToLevel(exp ?: 0.0, fauxInternalName)
     val skinTag: String? get() = PetRepository.skinColorCodeOrNull(skinInternalName)?.let { "$it✦" }

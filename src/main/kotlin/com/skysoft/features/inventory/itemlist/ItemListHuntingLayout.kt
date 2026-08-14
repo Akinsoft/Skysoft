@@ -64,6 +64,3 @@ internal data class ItemListHuntingLayout(
         private const val NAVIGATION_CONTROL_HEIGHT = 18
     }
 }
-
-internal fun huntingSourceBounds(bounds: Rect, sourceCount: Int): List<Rect> =
-    ItemListHuntingLayout.create(bounds, sourceCount, requestedPage = 0).cards

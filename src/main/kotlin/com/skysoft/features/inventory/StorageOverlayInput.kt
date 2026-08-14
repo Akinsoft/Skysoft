@@ -25,7 +25,7 @@ internal fun isActivePageSlotClick(
     } != null
 }
 
-internal fun activePageSlotAt(
+private fun activePageSlotAt(
     screen: AbstractContainerScreen<*>,
     measurements: Measurements,
     handle: StorageHandle,

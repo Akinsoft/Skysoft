@@ -29,7 +29,7 @@ internal fun AbstractContainerScreen<*>.nonPlayerInventoryKey(
     }
 }
 
-internal fun defaultStackSignature(stack: ItemStack): String =
+private fun defaultStackSignature(stack: ItemStack): String =
     if (stack.isEmpty) "" else "${ItemStack.hashItemAndComponents(stack)}:${stack.count}"
 
 internal fun AbstractContainerScreen<*>.nonPlayerSlotAt(mouseX: Int, mouseY: Int, includeEmpty: Boolean = false): Slot? {

@@ -16,7 +16,7 @@ internal fun handleChat(rawMessage: String) {
     handleBazaarChatMessage(message)
 }
 
-internal fun handleBazaarChatMessage(message: String) {
+private fun handleBazaarChatMessage(message: String) {
     tryHandleInstantTransactionMessage(message) ||
         tryHandleSetupChatMessage(message) ||
         tryHandleOrderFlippedChatMessage(message) ||
@@ -25,7 +25,7 @@ internal fun handleBazaarChatMessage(message: String) {
         tryHandleFilledChatMessage(message)
 }
 
-internal fun tryHandleSetupChatMessage(message: String): Boolean {
+private fun tryHandleSetupChatMessage(message: String): Boolean {
     buySetupPattern.matchEntire(message)?.let { match ->
         confirmSetup(
             BazaarOrderType.BUY,
@@ -47,7 +47,7 @@ internal fun tryHandleSetupChatMessage(message: String): Boolean {
     return false
 }
 
-internal fun tryHandleOrderFlippedChatMessage(message: String): Boolean {
+private fun tryHandleOrderFlippedChatMessage(message: String): Boolean {
     orderFlippedPattern.matchEntire(message)?.let { match ->
         flipOrder(
             parseExactLong(match.groupValues[BazaarChatGroups.FLIPPED_AMOUNT]),
@@ -59,7 +59,7 @@ internal fun tryHandleOrderFlippedChatMessage(message: String): Boolean {
     return false
 }
 
-internal fun tryHandleCancelChatMessage(message: String): Boolean {
+private fun tryHandleCancelChatMessage(message: String): Boolean {
     buyCancelPattern.matchEntire(message)?.let { match ->
         cancelBuyOrderFromChat(parseNumber(match.groupValues[BazaarChatGroups.CANCEL_REFUND]).value)
         return true
@@ -74,7 +74,7 @@ internal fun tryHandleCancelChatMessage(message: String): Boolean {
     return false
 }
 
-internal fun tryHandleClaimChatMessage(message: String): Boolean {
+private fun tryHandleClaimChatMessage(message: String): Boolean {
     buyClaimPattern.matchEntire(message)?.let { match ->
         claimBuyOrder(
             parseExactLong(match.groupValues[BazaarChatGroups.BUY_CLAIM_AMOUNT]),
@@ -96,7 +96,7 @@ internal fun tryHandleClaimChatMessage(message: String): Boolean {
     return false
 }
 
-internal fun tryHandleFilledChatMessage(message: String): Boolean {
+private fun tryHandleFilledChatMessage(message: String): Boolean {
     filledPattern.matchEntire(message)?.let { match ->
         val type = if (match.groupValues[BazaarChatGroups.FILLED_TYPE] == "Buy Order") BazaarOrderType.BUY else BazaarOrderType.SELL
         markFilled(
@@ -109,7 +109,7 @@ internal fun tryHandleFilledChatMessage(message: String): Boolean {
     return false
 }
 
-internal fun confirmSetup(type: BazaarOrderType, amountText: String, itemName: String, totalText: String) {
+private fun confirmSetup(type: BazaarOrderType, amountText: String, itemName: String, totalText: String) {
     val amount = parseExactLong(amountText)
     val totalCoins = parseNumber(totalText).value
     val pending = pendingSetup?.takeIf {
@@ -145,7 +145,7 @@ internal fun confirmSetup(type: BazaarOrderType, amountText: String, itemName: S
     markBazaarTrackerChanged(refreshFillEstimates = true, refreshOrderBook = true)
 }
 
-internal fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
+private fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
     val buyOrder = pendingOrderOptionId
         ?.let { id -> storage.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
         ?: storage.activeOrders
@@ -189,7 +189,7 @@ internal fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
     markBazaarTrackerChanged(refreshFillEstimates = true, refreshOrderBook = true)
 }
 
-internal fun claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPrice: Double) {
+private fun claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPrice: Double) {
     val order = findClaimOrder(BazaarOrderType.BUY, itemName, amount, unitPrice)
     if (order != null) {
         applyClaimedAmount(order, amount)
@@ -205,7 +205,7 @@ internal fun claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPr
     markBazaarTrackerChanged()
 }
 
-internal fun claimSellOrder(coins: Double, amount: Long, itemName: String, unitPrice: Double) {
+private fun claimSellOrder(coins: Double, amount: Long, itemName: String, unitPrice: Double) {
     val order = findClaimOrder(BazaarOrderType.SELL, itemName, amount, unitPrice)
     if (order != null) {
         applyClaimedAmount(order, amount, claimedCoins = coins)
@@ -215,15 +215,14 @@ internal fun claimSellOrder(coins: Double, amount: Long, itemName: String, unitP
     }
     val productId = order.productId ?: resolveProductId(itemName)
     prepareCraftedCostBasis(productId, itemName, amount)
-    val sale = consumeTrackedLotsForSale(storage, productId, itemName, amount, coins)
-    val knownProfit = sale.profit
+    val knownProfit = consumeTrackedLotsForSale(storage, productId, itemName, amount, coins)
     storage.totalKnownProfit += knownProfit
     sessionKnownProfit += knownProfit
     clearPendingOrderAction()
     markBazaarTrackerChanged()
 }
 
-internal fun markFilled(type: BazaarOrderType, amount: Long, itemName: String) {
+private fun markFilled(type: BazaarOrderType, amount: Long, itemName: String) {
     val candidates = storage.activeOrders
         .filter { it.type == type && namesMatch(it.itemName, itemName) }
         .filter {
@@ -259,7 +258,7 @@ internal fun selectFilledOrder(
     return candidates.minWithOrNull(priceComparator.thenBy { it.createdAtMillis })
 }
 
-internal fun cancelBuyOrderFromChat(refundedCoins: Double) {
+private fun cancelBuyOrderFromChat(refundedCoins: Double) {
     val pending = pendingCancel?.takeIf { it.type == BazaarOrderType.BUY }
     val order = pending?.orderId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
         ?: pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
@@ -281,7 +280,7 @@ internal fun cancelBuyOrderFromChat(refundedCoins: Double) {
     applyCancel(cancel)
 }
 
-internal fun cancelSellOrderFromChat(amount: Long, itemName: String) {
+private fun cancelSellOrderFromChat(amount: Long, itemName: String) {
     val pending = pendingCancel?.takeIf {
         it.type == BazaarOrderType.SELL && (it.itemName.isBlank() || namesMatch(it.itemName, itemName))
     }

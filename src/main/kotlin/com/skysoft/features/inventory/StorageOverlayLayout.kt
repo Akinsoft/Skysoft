@@ -222,7 +222,7 @@ internal fun selectorSlotPosition(measurements: Measurements, slot: Int): Point 
             (slot / StorageSelector.COLUMNS) * StorageSelector.SLOT_SIZE,
     )
 
-internal fun selectorSlotBounds(pos: Point): Rect =
+private fun selectorSlotBounds(pos: Point): Rect =
     Rect(pos.x - 1, pos.y - 1, StorageSelector.SLOT_SIZE, StorageSelector.SLOT_SIZE)
 
 internal fun selectorIconStack(pageIndex: Int, page: ProfileStorage.SkyBlockStoragePageData?): ItemStack {

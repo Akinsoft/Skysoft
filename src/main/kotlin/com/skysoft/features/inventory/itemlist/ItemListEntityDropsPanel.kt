@@ -102,12 +102,12 @@ internal data class EntityDropListing(
     val drop: SkyBlockEntityDrop,
 )
 
-internal fun entityDropListings(entity: SkyBlockEntityInfo): List<EntityDropListing> =
+private fun entityDropListings(entity: SkyBlockEntityInfo): List<EntityDropListing> =
     entity.lootTables.flatMap { table -> table.drops.map { drop -> EntityDropListing(table, drop) } }
 
 internal fun entityDropCount(entity: SkyBlockEntityInfo): Int = entity.lootTables.sumOf { it.drops.size }
 
-internal fun entityDropKey(drop: SkyBlockEntityDrop): ItemListEntryKey? = drop.itemId
+private fun entityDropKey(drop: SkyBlockEntityDrop): ItemListEntryKey? = drop.itemId
     ?.let(SkyBlockDataRepository::itemKey)
     ?.takeIf { SkyBlockDataRepository.entry(it) != null }
 

@@ -1,5 +1,6 @@
 package com.skysoft.features.screenshot
 
+import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
 import java.nio.file.Path
 
@@ -19,7 +20,7 @@ internal class ScreenshotEditorController {
     fun prepare(
         path: Path,
         viewport: com.skysoft.utils.gui.Rect,
-        texture: ScreenshotTexture?,
+        texture: RegisteredImageTexture?,
     ): ScreenshotEditorPresentation {
         val session = session(path)
         val geometry = texture?.let {

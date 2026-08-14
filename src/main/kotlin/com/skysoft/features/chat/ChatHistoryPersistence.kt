@@ -44,7 +44,7 @@ object ChatHistoryPersistence {
         }
     }
 
-    fun restore(chat: ChatComponent) {
+    private fun restore(chat: ChatComponent) {
         if (!SkysoftConfigFiles.hasFileOrBackup(SkysoftConfigFiles.chatHistory)) return
         try {
             val messages = SkysoftConfigFiles.readWithBackup(SkysoftConfigFiles.chatHistory) { path ->

@@ -6,7 +6,6 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.logging.LogUtils
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.discovery.NewSettingsDiscovery
-import com.skysoft.config.discovery.NewSettingsOpenResult
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.features.helditem.HeldItemEditorScreen
 import com.skysoft.features.inventory.InventoryButtonEditorScreen
@@ -138,7 +137,7 @@ class SkysoftMod : ClientModInitializer {
                 return Command.SINGLE_SUCCESS
             }
             DeferredScreenRequests.request("New settings") {
-                if (NewSettingsDiscovery.openPresentedSettings() != NewSettingsOpenResult.OPENED) {
+                if (!NewSettingsDiscovery.didOpenPresentedSettings()) {
                     SkysoftChat.chat("No new Skysoft settings have been discovered yet.")
                 }
             }

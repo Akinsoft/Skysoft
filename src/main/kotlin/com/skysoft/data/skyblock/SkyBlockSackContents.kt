@@ -27,16 +27,6 @@ object SkyBlockSackContents {
         )
     }
 
-    fun amount(itemId: String): SkyBlockSackAmount? =
-        ProfileStorageApi.storage.sackContents[itemId]?.let { data ->
-            SkyBlockSackAmount(data.amount, data.exact)
-        }
-
-    fun snapshot(): Map<String, SkyBlockSackAmount> =
-        ProfileStorageApi.storage.sackContents.mapValues { (_, data) ->
-            SkyBlockSackAmount(data.amount, data.exact)
-        }
-
     private fun readOpenInventory(snapshot: SkyBlockOpenInventorySnapshot?) {
         if (snapshot == null || !isSackContentsMenu(snapshot.title) || SkyBlockProfileApi.currentProfileKey == null) return
         var changed = false
@@ -88,11 +78,6 @@ object SkyBlockSackContents {
     private fun isSackContentsMenu(title: String): Boolean =
         title.endsWith(SACK_MENU_SUFFIX) && title != SACK_OF_SACKS_MENU
 }
-
-data class SkyBlockSackAmount(
-    val amount: Long,
-    val exact: Boolean,
-)
 
 internal fun storedSackAmount(loreLines: Iterable<String>): Long? =
     loreLines.asSequence()

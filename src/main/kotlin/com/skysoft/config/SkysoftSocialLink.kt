@@ -18,7 +18,7 @@ internal class SkysoftSocialLink private constructor(
 
     override fun onClick() {
         SoundUtilities.playClickSound()
-        BrowserUtilities.open(url)
+        BrowserUtilities.tryOpen(url)
     }
 
     override fun getTooltip(): List<StructuredText> {

@@ -321,7 +321,7 @@ internal fun entityTooltipLines(
     }
 }
 
-internal fun entityInfoLines(entity: SkyBlockEntityInfo): List<String> = buildList {
+private fun entityInfoLines(entity: SkyBlockEntityInfo): List<String> = buildList {
     add("§7ID: §f${entity.id}")
     add("§7Type: §f${entity.type}")
     entity.location?.let { add("§7Location: §f$it") }

@@ -52,7 +52,7 @@ internal fun setStorageScrollFromScrollbar(
     snapStorageScroll(scrollbarScrollPosition(pointerY, dragOffset, bar, knobHeight, maximum))
 }
 
-internal fun snapStorageScroll(position: Double) {
+private fun snapStorageScroll(position: Double) {
     scrollPosition = position
     scrollTarget = position
     scroll = position.roundToInt()

@@ -17,6 +17,7 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
@@ -24,8 +25,6 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.renderer.texture.DynamicTexture
-import net.minecraft.resources.Identifier
 import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 
@@ -114,7 +113,7 @@ internal object ScreenshotCapturePreview {
         val bounds = imageBounds(
             context.guiWidth(),
             context.guiHeight(),
-            current.imageWidth.toDouble() / current.imageHeight,
+            current.image.width.toDouble() / current.image.height,
             current.elapsedMillis(),
         )
         val isSettled = current.elapsedMillis() >= TRAVEL_END_MILLIS
@@ -182,7 +181,7 @@ internal object ScreenshotCapturePreview {
 
     private fun drawTexture(context: GuiGraphicsExtractor, presentation: CapturePresentation, bounds: Rect) {
         context.blit(
-            presentation.texture.textureView,
+            presentation.image.texture.textureView,
             RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
             bounds.x,
             bounds.y,
@@ -233,19 +232,8 @@ internal object ScreenshotCapturePreview {
     private fun replacePresentation(path: Path, image: NativeImage) {
         clear()
         val id = SkysoftMod.id("screenshot_capture/preview_${nextTextureId++}")
-        val texture = try {
-            DynamicTexture({ "Skysoft Screenshot Capture Preview" }, image)
-        } catch (failure: Throwable) {
-            image.close()
-            throw failure
-        }
-        try {
-            Minecraft.getInstance().textureManager.register(id, texture)
-        } catch (failure: Throwable) {
-            texture.close()
-            throw failure
-        }
-        presentation = CapturePresentation(path, id, texture, image.width, image.height, System.currentTimeMillis())
+        val texture = RegisteredImageTexture.register(id, "Skysoft Screenshot Capture Preview", image)
+        presentation = CapturePresentation(path, texture, System.currentTimeMillis())
     }
 
     private fun clear() {
@@ -255,7 +243,7 @@ internal object ScreenshotCapturePreview {
         shareBounds = null
         deleteBounds = null
         closeBounds = null
-        current?.let { Minecraft.getInstance().textureManager.release(it.id) }
+        current?.image?.release()
     }
 
     private data class CapturePreviewLayout(
@@ -326,10 +314,7 @@ internal object ScreenshotCapturePreview {
 
 private data class CapturePresentation(
     val path: Path,
-    val id: Identifier,
-    val texture: DynamicTexture,
-    val imageWidth: Int,
-    val imageHeight: Int,
+    val image: RegisteredImageTexture,
     val startedAtMillis: Long,
 ) {
     fun elapsedMillis(): Long = System.currentTimeMillis() - startedAtMillis

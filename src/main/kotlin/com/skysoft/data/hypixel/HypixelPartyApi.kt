@@ -51,9 +51,6 @@ object HypixelPartyApi {
         SkysoftClientEvents.onDisconnect("Hypixel Party reset", ::reset)
     }
 
-    fun member(uuid: UUID): HypixelPartyMember? =
-        state.members[uuid]
-
     val hasActiveConsumers: Boolean
         get() = consumers.hasActiveConsumers
 

@@ -32,7 +32,7 @@ internal fun onClientTick() {
     }
 }
 
-internal fun resetScreenState() {
+private fun resetScreenState() {
     restoreStorageOverlaySlots()
     freezeStorageScroll()
     scrollbarDragOffset = null
@@ -119,7 +119,7 @@ internal fun readScreen(screen: AbstractContainerScreen<*>, handle: StorageHandl
 
 internal fun buildInventoryKey(screen: AbstractContainerScreen<*>): String = screen.nonPlayerInventoryKey()
 
-internal fun readOverview(screen: AbstractContainerScreen<*>) {
+private fun readOverview(screen: AbstractContainerScreen<*>) {
     var changed = false
     for (slot in screen.nonPlayerSlots()) {
         changed = readOverviewSlot(slot) == ChangeResult.CHANGED || changed
@@ -127,7 +127,7 @@ internal fun readOverview(screen: AbstractContainerScreen<*>) {
     if (changed) ProfileStorageApi.markDirty()
 }
 
-internal fun readOverviewSlot(slot: Slot): ChangeResult {
+private fun readOverviewSlot(slot: Slot): ChangeResult {
     val pageIndex = StorageOverviewSlots.pageIndexForSlot(slot.containerSlot)
         ?: return if (isStorageOverlayEnabled) readToolkitOverviewSlot(slot) else ChangeResult.UNCHANGED
     val stack = slot.item
@@ -142,7 +142,7 @@ internal fun readOverviewSlot(slot: Slot): ChangeResult {
     }
 }
 
-internal fun readToolkitOverviewSlot(slot: Slot): ChangeResult {
+private fun readToolkitOverviewSlot(slot: Slot): ChangeResult {
     val stack = slot.item
     if (stack.isEmpty || stack.formattedHoverName().cleanSkyBlockText() != "Toolkits") return ChangeResult.UNCHANGED
     val overviewIcon = encodeItem(stack).encodedStack
@@ -160,7 +160,7 @@ internal fun readToolkitOverviewSlot(slot: Slot): ChangeResult {
     return ChangeResult.from(changed)
 }
 
-internal fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
+private fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     return if (isEnderChestPage(pageIndex)) {
         if (isStorageOverlayEnabled) emptyOverviewStacks[pageIndex] = stack.copy()
         ensureUnloadedPage(pageIndex)
@@ -169,12 +169,12 @@ internal fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResu
     }
 }
 
-internal fun readUnavailableOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
+private fun readUnavailableOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     if (isStorageOverlayEnabled) emptyOverviewStacks[pageIndex] = stack.copy()
     return ChangeResult.from(storage.skyBlockStoragePages.remove(pageIndex) != null)
 }
 
-internal fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
+private fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     var changed = false
     if (isStorageOverlayEnabled) emptyOverviewStacks.remove(pageIndex)
     val page = storage.skyBlockStoragePages.getOrPut(pageIndex) {
@@ -190,7 +190,7 @@ internal fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeRe
     return ChangeResult.from(changed)
 }
 
-internal fun readStoragePage(
+private fun readStoragePage(
     screen: AbstractContainerScreen<*>,
     pageIndex: Int,
     storedPageIndex: Int,
@@ -224,7 +224,7 @@ internal fun readStoragePage(
     if (changed) ProfileStorageApi.markDirty()
 }
 
-internal fun readToolkit(screen: AbstractContainerScreen<*>, handle: StorageHandle.Toolkit) {
+private fun readToolkit(screen: AbstractContainerScreen<*>, handle: StorageHandle.Toolkit) {
     val rows = handle.rows.coerceIn(1, ProfileStorage.SKYBLOCK_CONTAINER_MAX_ROWS)
     var changed = false
     val page = storage.skyBlockToolkits.getOrPut(handle.type.storageKey) {

@@ -572,10 +572,6 @@ object ItemListController {
     fun reservedBounds(screen: AbstractContainerScreen<*>): Rect? =
         if (isVisible(screen)) ItemListLayout.create(screen, favoriteEntries().isNotEmpty())?.panel else null
 
-    internal fun searchFieldDebugSummary(): String =
-        "focused=${searchField.focused} length=${searchField.text.length} cursor=${searchField.cursorIndex} " +
-            "selected=${searchField.selectedCharacterCount}"
-
     private fun isVisible(screen: AbstractContainerScreen<*>): Boolean {
         val config = SkysoftConfigGui.config().inventory.itemList
         return config.enabled &&

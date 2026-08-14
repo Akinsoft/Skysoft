@@ -107,7 +107,7 @@ internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int): 
     return sent
 }
 
-internal fun tryNavigateToRememberedPage(pageIndex: Int): Boolean {
+private fun tryNavigateToRememberedPage(pageIndex: Int): Boolean {
     val sent = trySendPageCommand(pageIndex)
     if (sent) {
         if (isModernStorageOverlay) {
@@ -126,7 +126,7 @@ internal enum class RiftNavigationResult {
     UNAVAILABLE,
 }
 
-internal fun clickRiftStorageNavigation(
+private fun clickRiftStorageNavigation(
     screen: AbstractContainerScreen<*>,
     pageIndex: Int,
 ): RiftNavigationResult {
@@ -153,7 +153,7 @@ internal fun clickRiftStorageNavigation(
     return RiftNavigationResult.CLICKED
 }
 
-internal fun trySendPageCommand(pageIndex: Int): Boolean {
+private fun trySendPageCommand(pageIndex: Int): Boolean {
     val command = commandForPage(pageIndex) ?: return false
     val connection = Minecraft.getInstance().connection ?: return false
     val now = System.currentTimeMillis()
@@ -169,7 +169,7 @@ internal enum class PageLayoutRefresh {
     UNCHANGED,
 }
 
-internal fun commandForPage(pageIndex: Int): String? = when (pageIndex) {
+private fun commandForPage(pageIndex: Int): String? = when (pageIndex) {
     in 0 until ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES -> "enderchest ${pageIndex + 1}"
     in ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES until ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT ->
         "backpack ${pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1}"
@@ -178,7 +178,7 @@ internal fun commandForPage(pageIndex: Int): String? = when (pageIndex) {
     else -> null
 }
 
-internal fun requestPageFocus(pageIndex: Int) {
+private fun requestPageFocus(pageIndex: Int) {
     requestedFocusPageIndex = pageIndex
     requestedFocusKey = null
 }
@@ -188,7 +188,7 @@ internal fun clearPageFocusRequest() {
     requestedFocusKey = null
 }
 
-internal fun layoutPageKey(
+private fun layoutPageKey(
     pageIndex: Int,
     measurements: Measurements,
     pageLayoutResult: PageLayoutResult,

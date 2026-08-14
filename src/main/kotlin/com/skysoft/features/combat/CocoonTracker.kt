@@ -375,7 +375,7 @@ private fun isPossibleMobNameplate(cocoon: WorldVec, nameplate: WorldVec): Boole
         kotlin.math.abs(cocoon.y - nameplate.y) <= NAMEPLATE_VERTICAL_DISTANCE
 }
 
-internal fun formatCocoonTime(remainingMillis: Long): String =
+private fun formatCocoonTime(remainingMillis: Long): String =
     String.format(Locale.ROOT, "%.1fs", remainingMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND)
 
 internal fun shouldShowFilteredCocoon(

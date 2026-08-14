@@ -71,7 +71,7 @@ internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Se
     }
 }
 
-internal fun shouldCompactBazaarOrderMenu(totalOrders: Int, ownedOrders: Int): Boolean = totalOrders > ownedOrders
+private fun shouldCompactBazaarOrderMenu(totalOrders: Int, ownedOrders: Int): Boolean = totalOrders > ownedOrders
 
 internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSnapshot {
     val playerName = Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank)

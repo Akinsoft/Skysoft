@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.boundedAccessOrderMap
 import java.util.Locale
 import net.minecraft.network.chat.Component
 import net.minecraft.core.component.DataComponents
@@ -10,10 +11,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
 internal object SkyBlockCurrencyStacks {
-    private val cache = object : LinkedHashMap<CurrencyCacheKey, ItemStack>(CACHE_SIZE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<CurrencyCacheKey, ItemStack>?): Boolean =
-            size > CACHE_SIZE
-    }
+    private val cache = boundedAccessOrderMap<CurrencyCacheKey, ItemStack>(CACHE_SIZE)
 
     fun coinStack(amount: Long): ItemStack = synchronized(cache) {
         cache.getOrPut(CurrencyCacheKey(COIN, amount)) {

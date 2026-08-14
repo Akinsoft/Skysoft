@@ -216,12 +216,6 @@ internal data class ServerInfoValues(
     val ping: Int?,
 )
 
-internal fun serverInfoLines(
-    metrics: List<ServerInfoMetric>,
-    values: ServerInfoValues,
-    labelStyle: DisplayLabelStyle = DisplayLabelStyle.TEXT,
-): List<String> = metrics.map { metric -> serverInfoText(metric, values, labelStyle) }
-
 internal fun serverInfoText(
     metric: ServerInfoMetric,
     values: ServerInfoValues,

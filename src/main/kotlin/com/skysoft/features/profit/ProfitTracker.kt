@@ -615,7 +615,7 @@ internal fun replenishCrop(block: Block, dayTime: Long = 0L): ReplenishCrop? = w
     else -> null
 }
 
-internal fun isFarmingCropBlock(block: Block): Boolean = when (block) {
+private fun isFarmingCropBlock(block: Block): Boolean = when (block) {
     Blocks.WHEAT,
     Blocks.CARROTS,
     Blocks.POTATOES,

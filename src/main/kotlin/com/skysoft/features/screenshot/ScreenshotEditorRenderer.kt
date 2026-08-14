@@ -6,6 +6,7 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.image.RegisteredImageTexture
 import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.math.max
@@ -43,7 +44,7 @@ internal object ScreenshotEditorRenderer {
         context: GuiGraphicsExtractor,
         font: Font,
         layout: ScreenshotFocusLayout,
-        texture: ScreenshotTexture?,
+        texture: RegisteredImageTexture?,
         didLoadFail: Boolean,
         session: ScreenshotEditSession,
         geometry: ScreenshotEditorGeometry?,
@@ -195,7 +196,7 @@ internal object ScreenshotEditorRenderer {
 
     private fun drawEditableImage(
         context: GuiGraphicsExtractor,
-        texture: ScreenshotTexture,
+        texture: RegisteredImageTexture,
         session: ScreenshotEditSession,
         geometry: ScreenshotEditorGeometry,
         mouseX: Int,
@@ -215,7 +216,7 @@ internal object ScreenshotEditorRenderer {
 
     private fun drawTexture(
         context: GuiGraphicsExtractor,
-        texture: ScreenshotTexture,
+        texture: RegisteredImageTexture,
         geometry: ScreenshotEditorGeometry,
     ) {
         val bounds = geometry.imageBounds.rounded()

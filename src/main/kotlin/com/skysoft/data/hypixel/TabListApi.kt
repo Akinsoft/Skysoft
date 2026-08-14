@@ -59,9 +59,6 @@ object TabListApi {
     val skyBlockLines: List<Component>
         get() = if (isSkyBlockDataLoaded) cachedLines else emptyList()
 
-    val skyBlockHeader: Component?
-        get() = if (isSkyBlockDataLoaded) cachedHeader else null
-
     val skyBlockFooter: Component?
         get() = if (isSkyBlockDataLoaded) cachedFooter else null
 

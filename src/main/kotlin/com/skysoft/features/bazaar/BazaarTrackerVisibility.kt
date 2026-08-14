@@ -15,7 +15,7 @@ internal fun isBazaarTrackerVisible(minecraft: Minecraft): Boolean {
     return true
 }
 
-internal fun shouldShowBazaarTrackerOnScreen(
+private fun shouldShowBazaarTrackerOnScreen(
     isOnlyInMenus: Boolean,
     isContainerMenuOpen: Boolean,
 ): Boolean = !isOnlyInMenus || isContainerMenuOpen

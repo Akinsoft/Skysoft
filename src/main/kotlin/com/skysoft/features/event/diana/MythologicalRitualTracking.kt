@@ -116,7 +116,7 @@ internal fun MythologicalRitualTrackerState.addMob(mob: DianaRareMobOption, amou
     since.incrementForMob(mob, amount)
 }
 
-internal fun MythologicalRitualTrackerState.addLootShareMob(mob: DianaRareMobOption, amount: Long = 1L) {
+private fun MythologicalRitualTrackerState.addLootShareMob(mob: DianaRareMobOption, amount: Long = 1L) {
     val key = lootShareMobKey(mob) ?: return
     event.addMob(key, amount)
     total.addMob(key, amount)
@@ -130,7 +130,7 @@ internal fun MythologicalRitualTrackerState.addItem(itemKey: String, amount: Lon
     session.addItem(itemKey, amount)
 }
 
-internal fun MythologicalRitualTrackerState.addTrackedDrop(drop: MythologicalRitualTrackedDrop, lootshare: Boolean) {
+private fun MythologicalRitualTrackerState.addTrackedDrop(drop: MythologicalRitualTrackedDrop, lootshare: Boolean) {
     addItem(drop.itemKey, drop.amount)
     since.resetForDrop(drop.itemKey)
     if (!lootshare && drop.magicFindKey != null) magicFind.record(drop.magicFindKey, drop.magicFind)

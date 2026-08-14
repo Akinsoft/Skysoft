@@ -51,9 +51,6 @@ internal class DianaArrowShapeDetector {
     private val points = mutableListOf<TimedArrowPoint>()
     private var activeDistanceHint: DianaArrowDistance? = null
 
-    val pointCount: Int
-        get() = points.size
-
     fun add(location: WorldVec, distanceHint: DianaArrowDistance, now: Long = System.currentTimeMillis()): DianaArrowRay? {
         if (activeDistanceHint != distanceHint) {
             points.clear()

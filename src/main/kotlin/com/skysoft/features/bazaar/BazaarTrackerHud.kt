@@ -99,7 +99,7 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
     return BazaarTrackerRenderable(lines, config.details.showBackground)
 }
 
-internal fun displayModeLine(): DisplayLine = DisplayLine.segments(
+private fun displayModeLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§7Display Mode "),
     LineSegment(
         if (displayMode == TrackerDisplayMode.SESSION) "§a§l[Session]" else "§a§l[Total]",
@@ -111,7 +111,7 @@ internal fun resetLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§c[Reset ${displayMode.displayName}]", TrackerControl.RESET),
 )
 
-internal fun displayOrders(): List<ProfileStorage.BazaarOrderData> =
+private fun displayOrders(): List<ProfileStorage.BazaarOrderData> =
     storage.activeOrders.sortedWith(
         compareByDescending<ProfileStorage.BazaarOrderData> { statusPriority(statusFor(it)) }
             .thenByDescending { it.updatedAtMillis }
@@ -133,7 +133,7 @@ internal fun markFillHighlight(order: ProfileStorage.BazaarOrderData, filled: Lo
     }
 }
 
-internal fun fillProgressStyle(order: ProfileStorage.BazaarOrderData): String {
+private fun fillProgressStyle(order: ProfileStorage.BazaarOrderData): String {
     val expiresAt = fillHighlightExpiresAt[order.id] ?: return "§8"
     val filled = visibleFilledAmount(order)
     if (System.currentTimeMillis() >= expiresAt || !isPartialFill(order, filled)) {
@@ -156,7 +156,7 @@ internal fun statusFor(order: ProfileStorage.BazaarOrderData): OrderStatus {
     return marketStatusFor(order)
 }
 
-internal fun statusPriority(status: OrderStatus): Int = when (status) {
+private fun statusPriority(status: OrderStatus): Int = when (status) {
     OrderStatus.FILLED -> FILLED_STATUS_PRIORITY
     OrderStatus.OUTBID, OrderStatus.UNDERCUT -> WARNING_STATUS_PRIORITY
     OrderStatus.COMPETITIVE -> COMPETITIVE_STATUS_PRIORITY

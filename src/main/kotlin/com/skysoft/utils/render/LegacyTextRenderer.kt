@@ -1,6 +1,5 @@
 package com.skysoft.utils.render
 
-import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -21,8 +20,6 @@ object LegacyTextRenderer {
     ) {
         context.text(Minecraft.getInstance().font, text, x, y, defaultColor, shadow)
     }
-
-    fun stripFormatting(text: String): String = text.removeColor()
 
     fun formattedSequence(text: String): FormattedCharSequence =
         FormattedCharSequence { sink -> StringDecomposer.iterateFormatted(text, Style.EMPTY, sink) }

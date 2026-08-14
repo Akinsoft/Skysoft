@@ -80,13 +80,9 @@ object ModUpdateChecker {
 
     fun openDownload(): DownloadOpenResult {
         val update = status.update ?: return DownloadOpenResult.NOT_READY
-        return when (BrowserUtilities.open(update.url)) {
-            BrowserUtilities.OpenResult.OPENED -> DownloadOpenResult.OPENED
-            BrowserUtilities.OpenResult.FAILED -> {
-                SkysoftChat.error("Could not open the Skysoft download page.")
-                DownloadOpenResult.FAILED
-            }
-        }
+        if (BrowserUtilities.tryOpen(update.url)) return DownloadOpenResult.OPENED
+        SkysoftChat.error("Could not open the Skysoft download page.")
+        return DownloadOpenResult.FAILED
     }
 
     fun buttonText(): String =
