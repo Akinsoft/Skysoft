@@ -185,7 +185,7 @@
     ]
   },
   "foraging": {
-    "islands": ["Hub", "The Park", "Galatea", "Torrhus Canyon"],
+    "islands": ["Hub", "The Park", "Moonglade Marsh", "Torrhus Canyon"],
     "islandAreas": {"Hub": ["Forest"]},
     "items": [
       "LOG",
