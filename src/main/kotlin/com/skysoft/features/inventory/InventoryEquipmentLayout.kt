@@ -71,7 +71,7 @@ internal fun handleInventoryEquipmentMouseClick(
         return InputHandlingResult.IGNORED
     }
     if (isEquipmentCommandClick(click) && screen.menu.carried.isEmpty) {
-        inventoryEquipmentConfig.clickAction.command?.let { command ->
+        inventoryEquipmentClickCommand()?.let { command ->
             Minecraft.getInstance().connection?.sendCommand(command)
         }
     }

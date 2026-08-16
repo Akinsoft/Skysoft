@@ -210,6 +210,8 @@ internal object SkysoftConfigMigrations {
             inventoryButtonsJson.moveFieldsInto("settings", INVENTORY_BUTTON_SETTINGS_FIELDS)
             inventoryButtonsJson.moveFieldsInto("details", INVENTORY_BUTTON_DETAILS_FIELDS)
         }
+        inventoryJson.getObjectOrNull("inventoryEquipment")
+            ?.moveFieldsInto("settings", INVENTORY_EQUIPMENT_SETTINGS_FIELDS)
         inventoryJson.getObjectOrNull("fullInventory")?.let { fullInventoryJson ->
             fullInventoryJson.moveFieldsInto("settings", FULL_INVENTORY_SETTINGS_FIELDS)
             fullInventoryJson.moveFieldsInto("details", FULL_INVENTORY_DETAILS_FIELDS)
@@ -379,6 +381,7 @@ internal object SkysoftConfigMigrations {
     private val STORAGE_OVERLAY_DETAILS_FIELDS = listOf("columns", "height", "scrollSpeed")
     private val INVENTORY_BUTTON_SETTINGS_FIELDS = listOf("clickType")
     private val INVENTORY_BUTTON_DETAILS_FIELDS = listOf("tooltipDelay")
+    private val INVENTORY_EQUIPMENT_SETTINGS_FIELDS = listOf("clickAction")
     private val FULL_INVENTORY_SETTINGS_FIELDS = listOf("emptySlots")
     private val FULL_INVENTORY_DETAILS_FIELDS = listOf("playSound")
     private val SLOT_BINDING_SETTINGS_FIELDS = listOf("bindingKey")

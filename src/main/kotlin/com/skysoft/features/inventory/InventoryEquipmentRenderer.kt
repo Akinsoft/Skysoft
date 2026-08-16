@@ -54,7 +54,7 @@ internal fun renderInventoryEquipment(
 }
 
 private fun inventoryEquipmentClickTooltip(): Component? =
-    inventoryEquipmentConfig.clickAction.command
+    inventoryEquipmentClickCommand()
         ?.let { command -> Component.literal("Open /$command").withStyle(ChatFormatting.GRAY) }
 
 internal fun restoreInventoryEquipmentSlots(screen: AbstractContainerScreen<*>) {
