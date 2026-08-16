@@ -1,8 +1,6 @@
 package com.skysoft.features.inventory
 
 import com.mojang.authlib.GameProfile
-import com.mojang.brigadier.exceptions.CommandSyntaxException
-import com.skysoft.SkysoftMod
 import com.skysoft.config.DEFAULT_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.INVENTORY_BUTTON_SCALE_STEP
 import com.skysoft.config.InventoryButtonClickType
@@ -19,7 +17,6 @@ import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.mixin.AbstractContainerScreenAccessor
-import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
@@ -27,8 +24,6 @@ import com.skysoft.utils.input.InputUtilities
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -335,37 +330,7 @@ object InventoryButtonManager {
 
     private fun executeCommand(rawCommand: String) {
         val command = rawCommand.trim().removePrefix("/")
-        if (command.isBlank()) return
-
-        val minecraft = Minecraft.getInstance()
-        val connection = minecraft.connection ?: return
-        val firstLiteral = command.substringBefore(' ')
-        val source = connection.suggestionsProvider as? FabricClientCommandSource
-        val dispatcher = try {
-            ClientCommands.getActiveDispatcher()
-        } catch (e: Exception) {
-            SkysoftMod.LOGGER.warn("Failed to access client command dispatcher from inventory button: /$command", e)
-            source?.let { SkysoftChat.error(it, "Client commands are unavailable. See the log for details.") }
-            return
-        }
-        if (dispatcher == null) {
-            SkysoftMod.LOGGER.warn("Client command dispatcher is unavailable from inventory button: /$command")
-            source?.let { SkysoftChat.error(it, "Client commands are unavailable. See the log for details.") }
-            return
-        }
-        if (source != null && dispatcher.root.getChild(firstLiteral) != null) {
-            try {
-                dispatcher.execute(command, source)
-            } catch (e: CommandSyntaxException) {
-                SkysoftChat.error(source, e.message ?: "Invalid client command")
-            } catch (e: Exception) {
-                SkysoftMod.LOGGER.warn("Failed to execute client command from inventory button: /$command", e)
-                SkysoftChat.error(source, e.message ?: "Failed to execute client command")
-            }
-            return
-        }
-
-        connection.sendCommand(command)
+        if (command.isNotBlank()) Minecraft.getInstance().connection?.sendCommand(command)
     }
 
     private fun clearHover() {
