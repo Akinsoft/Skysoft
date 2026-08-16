@@ -34,7 +34,7 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 
 - Project: https://github.com/hannibal002/SkyHanni-REPO
 - License: MIT License
-- Usage: enchantment data validation reference
+- Usage: enchantment data validation reference and bundled Sea Creature catch messages
 
 ## Runtime and Build Dependencies
 

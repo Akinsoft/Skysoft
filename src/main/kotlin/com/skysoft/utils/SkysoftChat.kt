@@ -17,8 +17,8 @@ object SkysoftChat {
     internal const val BRAND_BLUE = 0x2BB1FB
     private const val PREFIX_LEFT = 0x1A87C4
     private const val PREFIX_RIGHT = BRAND_BLUE
-    private const val MESSAGE_LEFT = 0xE8E8E8
-    private const val MESSAGE_RIGHT = 0xFFFFFF
+    internal const val MESSAGE_GRADIENT_START = 0xE8E8E8
+    internal const val MESSAGE_GRADIENT_END = 0xFFFFFF
 
     fun chat(message: String): ChatDeliveryResult =
         chat(Component.literal(message))
@@ -62,12 +62,12 @@ object SkysoftChat {
     }
 
     fun prefixed(message: Component): MutableComponent =
-        Component.empty().append(prefix()).append(gradient(message, MESSAGE_LEFT, MESSAGE_RIGHT))
+        Component.empty().append(prefix()).append(gradient(message, MESSAGE_GRADIENT_START, MESSAGE_GRADIENT_END))
 
     private fun prefix(): MutableComponent =
         gradient(Component.literal("[Skysoft] "), PREFIX_LEFT, PREFIX_RIGHT).withStyle(ChatFormatting.BOLD)
 
-    private fun gradient(component: Component, start: Int, end: Int): MutableComponent {
+    internal fun gradient(component: Component, start: Int, end: Int): MutableComponent {
         val result = Component.empty()
         val lastIndex = (component.string.length - 1).coerceAtLeast(1)
         var index = 0
