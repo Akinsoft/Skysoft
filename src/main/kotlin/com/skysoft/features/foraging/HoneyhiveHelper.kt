@@ -184,6 +184,8 @@ object HoneyhiveHelper {
         KnownHoneyhive(-696, 93, 150),
         KnownHoneyhive(-693, 94, 147),
         KnownHoneyhive(-693, 93, 153),
+        KnownHoneyhive(-664, 96, 170),
+        KnownHoneyhive(-665, 97, 167),
         KnownHoneyhive(-724, 93, 211),
         KnownHoneyhive(-721, 92, 207),
         KnownHoneyhive(-724, 92, 204),
