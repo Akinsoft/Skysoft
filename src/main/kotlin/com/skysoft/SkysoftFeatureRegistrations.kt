@@ -38,6 +38,7 @@ import com.skysoft.features.event.diana.DianaBurrowStorage
 import com.skysoft.features.event.diana.DianaLobbyCompromisedWatcher
 import com.skysoft.features.event.diana.DianaRareMobSharing
 import com.skysoft.features.event.diana.MythologicalRitualTracker
+import com.skysoft.features.farming.NoCropRotation
 import com.skysoft.features.fishing.FishingHotspotRadar
 import com.skysoft.features.fishing.FishingHotspotSharing
 import com.skysoft.features.foraging.FloorDropHighlighter
@@ -232,6 +233,7 @@ internal object SkysoftFeatureRegistrations {
     }
 
     private fun registerGameplayFeatures() {
+        register("No Crop Rotation", NoCropRotation::register)
         register("Bazaar Tracker", BazaarTracker::register)
         register("Cocoon Tracker", CocoonTracker::register)
         register("Healing Pool Line", HealingPoolLine::register)
