@@ -520,7 +520,10 @@ object ItemListController {
                 InputHandlingResult.CONSUMED
             }
         }
-        if (event.key() == config.settings.visibilityKey && config.enabled && HypixelLocationState.onHypixel) {
+        if (config.settings.visibilityKey != GLFW.GLFW_KEY_UNKNOWN &&
+            event.key() == config.settings.visibilityKey &&
+            config.enabled && HypixelLocationState.onHypixel
+        ) {
             ItemListState.isTemporarilyHidden = !ItemListState.isTemporarilyHidden
             searchField.focused = false
             return InputHandlingResult.CONSUMED
