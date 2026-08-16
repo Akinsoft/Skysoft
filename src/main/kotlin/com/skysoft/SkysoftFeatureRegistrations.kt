@@ -48,6 +48,7 @@ import com.skysoft.features.foraging.ThrowingAxeHelper
 import com.skysoft.features.foraging.ThrowingAxeParticleHider
 import com.skysoft.features.hunting.LotumHelper
 import com.skysoft.features.inventory.AnimatedDyeArmorCache
+import com.skysoft.features.inventory.DuplicateEnchantmentTooltipFix
 import com.skysoft.features.inventory.FullInventoryWarning
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
@@ -172,6 +173,7 @@ internal object SkysoftFeatureRegistrations {
         register("Price Tooltip Raw Craft Costs", PriceTooltipRawCraftCosts::register)
         register("Price Tooltips", PriceTooltips::register)
         register("Item Change Log", ItemChangeLog::register)
+        register("Duplicate Enchantment Tooltip Fix", DuplicateEnchantmentTooltipFix::register)
         register("Max Enchant Chroma", MaxEnchantChroma::register)
         register("Minister in Calendar", MinisterCalendarTooltip::register)
         register("Ravengard Weapon DPS", RavengardWeaponDpsTooltip::register)
