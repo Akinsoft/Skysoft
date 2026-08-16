@@ -41,6 +41,7 @@ import com.skysoft.features.event.diana.MythologicalRitualTracker
 import com.skysoft.features.farming.NoCropRotation
 import com.skysoft.features.fishing.FishingHotspotRadar
 import com.skysoft.features.fishing.FishingHotspotSharing
+import com.skysoft.features.fishing.SeaCreatureCatchMessages
 import com.skysoft.features.foraging.FloorDropHighlighter
 import com.skysoft.features.foraging.HoneyhiveHelper
 import com.skysoft.features.foraging.QueenAntWarning
@@ -246,6 +247,7 @@ internal object SkysoftFeatureRegistrations {
         register("Slayer Target Highlighting", SlayerTargetHighlighting::register)
         register("Blaze Attunement Highlighting", BlazeAttunementHighlighting::register)
         register("Slayer Time to Kill", SlayerTimeToKill::register)
+        register("Sea Creature Catch Messages", SeaCreatureCatchMessages::register)
         register("Fishing Hotspot Sharing", FishingHotspotSharing::register)
         register("Fishing Hotspot Radar", FishingHotspotRadar::register)
         register("Floor Drop Highlighter", FloorDropHighlighter::register)
