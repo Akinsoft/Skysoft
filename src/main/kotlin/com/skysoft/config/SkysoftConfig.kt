@@ -82,6 +82,12 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Farming", desc = "Farming settings.")
+    val farming = FarmingFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Mining", desc = "Mining settings.")
     val mining = MiningFeatureConfig()
 
