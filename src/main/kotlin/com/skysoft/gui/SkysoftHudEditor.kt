@@ -64,7 +64,8 @@ object SkysoftHudEditor {
         private var oldScreenWidth = -1
         private var oldScreenHeight = -1
         private val editorScale = EditorGuiScale(oldScreen != null)
-        private val snapper = HudEditorSnapper(oldScreen != null, editorScale)
+        private val elements = HudEditorRegistry.visibleElements(oldScreen != null)
+        private val snapper = HudEditorSnapper(elements, editorScale)
         private val history = HudEditorHistory()
 
         override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
@@ -83,7 +84,6 @@ object SkysoftHudEditor {
 
             val placements = inventoryButtonPlacements()
             val hoveredButton = placements.lastOrNull { it.bounds.contains(mouseX, mouseY) }
-            val elements = HudEditorRegistry.visibleElements(oldScreen != null)
             selectedElement = selectedElement?.takeIf(elements::contains)
             selectedInventoryButtonIndex = selectedInventoryButtonIndex?.takeIf { selected ->
                 placements.any { it.index == selected }
@@ -185,10 +185,13 @@ object SkysoftHudEditor {
         private fun elementAt(
             mouseX: Int,
             mouseY: Int,
-            elements: List<HudEditorElement> = HudEditorRegistry.visibleElements(oldScreen != null),
-        ): HudEditorElement? =
-            elements.lastOrNull { resizeHandleAt(it, mouseX, mouseY) != null }
-                ?: elements.lastOrNull { isElementHovered(it, mouseX, mouseY) }
+            elements: List<HudEditorElement> = this.elements,
+        ): HudEditorElement? {
+            elements.lastOrNull { resizeHandleAt(it, mouseX, mouseY) != null }?.let { return it }
+            val hovered = elements.filter { isElementHovered(it, mouseX, mouseY) }
+            val priority = hovered.maxOfOrNull(HudEditorElement::editorSelectionPriority) ?: return null
+            return hovered.lastOrNull { it.editorSelectionPriority == priority }
+        }
 
         private fun resizeHandleAt(element: HudEditorElement, mouseX: Int, mouseY: Int): HudResizeHandle? =
             editorScale.withElementGuiScale(element) {
@@ -282,7 +285,7 @@ object SkysoftHudEditor {
             context.pose().pushMatrix()
             context.pose().translate(x.toFloat(), y.toFloat())
             context.pose().scale(position.scale, position.scale)
-            element.renderEditorDummy(context)
+            element.renderEditor(context)
             context.pose().popMatrix()
             if (selected && (element.canResizeWidth || element.canResizeHeight)) {
                 drawResizeHandles(context, x, y, scaledWidth, scaledHeight)
@@ -857,7 +860,7 @@ private fun renderSnapGuides(
 }
 
 private class HudEditorSnapper(
-    private val hasInventoryScreen: Boolean,
+    private val elements: List<HudEditorElement>,
     private val editorScale: EditorGuiScale,
 ) {
     private var horizontalLock: HudSnapLock? = null
@@ -1078,7 +1081,7 @@ private class HudEditorSnapper(
 
     private fun targets(element: HudEditorElement, axis: HudSnapAxis): List<HudSnapTargetPoint> {
         val values = mutableListOf<HudSnapTargetPoint>()
-        HudEditorRegistry.visibleElements(hasInventoryScreen)
+        elements
             .filter {
                 it !== element &&
                     !it.isInSnapGroupWith(element) &&

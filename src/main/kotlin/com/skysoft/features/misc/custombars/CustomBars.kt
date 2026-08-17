@@ -118,7 +118,7 @@ object CustomBars {
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
                 override fun isVisible(): Boolean = config.enabled && part.isEditorVisible()
-                override fun renderDummy(context: GuiGraphicsExtractor) {
+                override fun renderEditor(context: GuiGraphicsExtractor) {
                     if (part.usesVanillaDisplay()) renderVanillaPreview(context, part)
                     else renderable(part, previewAir = part == CustomBarPart.AIR).render(context)
                 }
@@ -808,7 +808,7 @@ object CustomBars {
         override fun absoluteY(height: Int): Int =
             barY(includeBottomLayout = true) + (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() + position.y
 
-        override fun renderDummy(context: GuiGraphicsExtractor) {
+        override fun renderEditor(context: GuiGraphicsExtractor) {
             val color = if (part == CustomBarPart.EXPERIENCE) {
                 SkyBlockLevelBar.displayedExperienceLevelColor(part.visualDetails.textColor.rgb())
             } else {
@@ -852,7 +852,7 @@ object CustomBars {
             context.withIsolatedPose {
                 pose().translate(x.toFloat(), y.toFloat())
                 pose().scale(position.effectiveScale, position.effectiveScale)
-                renderDummy(context)
+                renderEditor(context)
             }
         }
 

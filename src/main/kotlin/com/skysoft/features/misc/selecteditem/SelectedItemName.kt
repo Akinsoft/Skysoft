@@ -32,7 +32,7 @@ object SelectedItemName {
             override fun width(): Int = currentRenderable()?.width ?: 0
             override fun height(): Int = currentRenderable()?.height ?: 0
             override fun isVisible(): Boolean = config.enabled && currentRenderable() != null
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 currentRenderable()?.render(context)
             }
             override fun openConfig() = SkysoftConfigGui.open("Selected Item Name")

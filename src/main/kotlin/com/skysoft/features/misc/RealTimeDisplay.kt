@@ -40,7 +40,7 @@ object RealTimeDisplay {
             override fun width(): Int = currentRenderable().width
             override fun height(): Int = currentRenderable().height
             override fun isVisible(): Boolean = config.enabled
-            override fun renderDummy(context: GuiGraphicsExtractor) = currentRenderable().render(context)
+            override fun renderEditor(context: GuiGraphicsExtractor) = currentRenderable().render(context)
             override fun openConfig() = SkysoftConfigGui.open("Real Time Display")
         })
     }

@@ -56,7 +56,7 @@ object InventoryHud {
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
                 override fun isVisible(): Boolean = config.enabled && part.isEnabled()
-                override fun renderDummy(context: GuiGraphicsExtractor) = currentRenderable(part).render(context)
+                override fun renderEditor(context: GuiGraphicsExtractor) = currentRenderable(part).render(context)
                 override fun openConfig() = SkysoftConfigGui.open("Inventory HUD")
             })
         }

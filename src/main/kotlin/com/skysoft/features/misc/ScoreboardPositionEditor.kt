@@ -47,7 +47,7 @@ object ScoreboardPositionEditor {
                 currentLayout()?.top ?: 0
             }
 
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 val objective = SidebarScoreboard.currentObjective() ?: return
                 isRenderingEditorPreview = true
                 try {

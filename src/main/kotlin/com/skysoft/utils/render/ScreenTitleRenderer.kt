@@ -69,7 +69,7 @@ object ScreenTitleRenderer {
             override fun width(): Int = editorTitle?.let(::linesWidth) ?: 0
             override fun height(): Int = editorTitle?.totalHeight() ?: 0
             override fun isVisible(): Boolean = editorTitle != null
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 val lines = editorTitle ?: return
                 drawLinesAt(context, lines, width() / 2f, height() / 2f)
             }
