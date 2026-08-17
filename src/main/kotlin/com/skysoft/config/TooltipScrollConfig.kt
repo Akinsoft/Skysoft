@@ -14,6 +14,7 @@ class TooltipScrollConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Allow tooltips to be moved with the mouse wheel and movement keys.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

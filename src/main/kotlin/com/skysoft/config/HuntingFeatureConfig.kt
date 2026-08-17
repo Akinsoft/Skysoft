@@ -17,6 +17,7 @@ class LotumHelperConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Draw a green line to clicked Lotums on Lotus Atoll.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

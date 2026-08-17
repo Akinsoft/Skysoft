@@ -89,6 +89,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Hide Sacks Messages", desc = "Hide item transfer summaries from Sacks.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var hideSacksMessages = false
     }
@@ -97,6 +98,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Show image links hovered in chat.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 
@@ -120,12 +122,14 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Animate Messages", desc = "Slide new chat messages into place.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var animateMessages = false
 
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Animate Chat Open", desc = "Slide the chat input bar into place when chat opens.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var animateChatOpen = false
 
@@ -183,6 +187,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Expand chat while the peek key is held.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 
@@ -206,12 +211,14 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Longer History", desc = "Keep more messages available in chat.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var isLongerHistoryEnabled = false
 
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Retain History", desc = "Keep recent chat after disconnecting or restarting Minecraft.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var isHistoryRetained = false
 
@@ -247,6 +254,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Combine repeated chat messages into one line.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 
@@ -297,6 +305,7 @@ class ChatFeatureConfig : ConfigRepairable {
             name = "Enabled",
             desc = "Show profile mode and Crimson Isle faction icons beside player names in chat.",
         )
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
     }
@@ -305,6 +314,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Show channel tabs when chat is open.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 
@@ -336,6 +346,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Highlight configured words in chat.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 
@@ -372,6 +383,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Show the time beside each chat message.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 
@@ -395,6 +407,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Copy a complete chat message while hovering it.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         var enabled = false
 

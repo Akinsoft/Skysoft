@@ -38,6 +38,12 @@ internal fun <T : ProcessedCategory> categoriesForGame(
             implementation.accordionAnchors.entries.removeIf { it.value !in implementation.options }
             put(id, category)
         }
+        entries.firstOrNull { (_, category) ->
+            category.parentCategoryId == null && category.displayName.text == "Settings"
+        }?.let { (id, category) ->
+            remove(id)
+            put(id, category)
+        }
     }
 }
 

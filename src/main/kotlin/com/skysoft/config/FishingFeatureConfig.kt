@@ -35,6 +35,7 @@ class SeaCreatureCatchMessageConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Replace Sea Creature catch chat with compact messages.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -129,6 +130,7 @@ class HotspotRadarConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show guesses from the Hotspot Radar.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -151,6 +153,7 @@ class HotspotSharingConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Share Hotspots", desc = "Automatically share fishing hotspots in chat.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var shareHotspots = false
 

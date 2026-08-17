@@ -20,6 +20,7 @@ class SpotifyDisplayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show your current Spotify playback in-game.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

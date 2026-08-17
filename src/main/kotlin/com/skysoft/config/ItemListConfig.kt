@@ -16,6 +16,7 @@ class ItemListConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show Skysoft's Item List on Hypixel inventory screens.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

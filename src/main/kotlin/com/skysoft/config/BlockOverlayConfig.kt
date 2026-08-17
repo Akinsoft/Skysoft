@@ -15,6 +15,7 @@ class BlockOverlayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Highlight the block you are targeting.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

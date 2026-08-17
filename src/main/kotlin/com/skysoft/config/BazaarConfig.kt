@@ -23,6 +23,7 @@ class SkysoftBazaarConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show the Bazaar order tracker overlay.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

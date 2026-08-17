@@ -60,6 +60,7 @@ class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Solid Tooltip Background", desc = "Make tooltip backgrounds fully opaque.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isTooltipBackgroundSolid = false
 
@@ -73,6 +74,7 @@ class InventoryFeatureConfig : ConfigRepairable {
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Minister in Calendar", desc = "Show the current minister and perk beside the mayor tooltip.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isMinisterInCalendarShown = false
 
@@ -83,6 +85,7 @@ class InventoryFeatureConfig : ConfigRepairable {
         name = "Experimentation Helper",
         desc = "Show Chronomatron notes, reveal Ultrasequencer numbers, and keep seen Superpairs rewards visible.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isExperimentationTableHelperEnabled = false
 
@@ -90,6 +93,7 @@ class InventoryFeatureConfig : ConfigRepairable {
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Storage Overlay", desc = "Replace SkyBlock storage screens with a searchable overlay.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isStorageOverlayEnabled = false
 
@@ -163,6 +167,7 @@ class PreserveCursorPositionConfig {
         name = "Enabled",
         desc = "Keep the mouse at the same position when Minecraft briefly closes and reopens an inventory.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -186,6 +191,7 @@ class MaxEnchantChromaConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show maximum-level enchantments in animated chroma.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

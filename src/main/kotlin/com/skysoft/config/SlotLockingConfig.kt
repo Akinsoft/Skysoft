@@ -13,6 +13,7 @@ class SlotLockingConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Protect locked inventory slots.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

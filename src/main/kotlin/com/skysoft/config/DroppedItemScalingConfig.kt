@@ -11,6 +11,7 @@ class DroppedItemScalingConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Scale dropped SkyBlock items by rarity.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isEnabled = false
 

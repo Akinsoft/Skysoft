@@ -26,6 +26,7 @@ class MiningAbilityCooldownConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show your Pickaxe Ability cooldown.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

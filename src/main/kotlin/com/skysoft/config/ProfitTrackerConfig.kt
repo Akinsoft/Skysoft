@@ -99,6 +99,7 @@ class ProfitTrackerConfig(summaryLines: List<ProfitTrackerSummaryLine> = STANDAR
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Track profit for this activity.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

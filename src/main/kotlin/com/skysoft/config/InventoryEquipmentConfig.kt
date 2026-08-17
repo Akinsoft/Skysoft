@@ -9,6 +9,7 @@ class InventoryEquipmentConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show cached equipment beside your inventory.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

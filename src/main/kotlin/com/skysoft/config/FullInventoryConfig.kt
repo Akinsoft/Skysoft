@@ -11,6 +11,7 @@ class FullInventoryConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show a warning when your inventory reaches the configured empty slot limit.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
