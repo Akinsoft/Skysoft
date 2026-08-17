@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal object PetRepoCache {
     const val RAW_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master"
-    const val PETS_URL = "$RAW_BASE/constants/pets.json"
     const val GITHUB_TREE_URL =
         "https://api.github.com/repos/NotEnoughUpdates/NotEnoughUpdates-REPO/git/trees/master?recursive=1"
 
@@ -20,7 +19,6 @@ internal object PetRepoCache {
     val requests = PendingHttpRequests()
     val loadingLocalRepoCache = AtomicBoolean(false)
     var localRepoLoadFuture: CompletableFuture<*>? = null
-    val loadingConstants = AtomicBoolean(false)
     val requestedItems = ConcurrentHashMap.newKeySet<String>()
     val loadingItemIndexes = AtomicBoolean(false)
     val itemStacks = ConcurrentHashMap<String, ItemStack>()
@@ -36,9 +34,6 @@ internal object PetRepoCache {
 
     @Volatile
     var localRepoCacheLastFailure = ElapsedTimeMark.farPast()
-
-    @Volatile
-    var constantsLastFailure = ElapsedTimeMark.farPast()
 
     @Volatile
     var localItemsByInternalName: Map<String, SkyBlockItemJson> = emptyMap()
