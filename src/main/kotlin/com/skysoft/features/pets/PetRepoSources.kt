@@ -21,28 +21,16 @@ private val LOCAL_REPO_CACHE_RETRY_DELAY = 30.seconds
 
 internal object PetRepoConstants {
     fun load() {
-        if (PetRepoCache.constantsLastFailure.passedSince() < PET_CONSTANTS_RETRY_DELAY) return
-        if (!PetRepoCache.loadingConstants.compareAndSet(false, true)) return
-        RemoteSkyBlockCatalog.request(PetRepoCache.PETS_URL).thenApply {
-            PetRepoCache.gson.fromJson(it, SkysoftPetsRepoJson::class.java)
-        }.whenComplete { pets, error ->
-            SkysoftErrorBoundary.run("Pet Repository constants async completion") {
-                try {
-                    if (error == null) {
-                        PetRepoCache.petsJson = pets
-                    } else if (!error.isCancellationFailure()) {
-                        PetRepoCache.constantsLastFailure = ElapsedTimeMark.now()
-                        SkysoftMod.LOGGER.warn("Failed to load pet data", error)
-                    }
-                } finally {
-                    PetRepoCache.loadingConstants.set(false)
-                }
-            }
+        val stream = requireNotNull(javaClass.getResourceAsStream(PET_CONSTANTS_RESOURCE)) {
+            "Missing bundled pet constants"
+        }
+        PetRepoCache.petsJson = stream.bufferedReader().use { reader ->
+            PetRepoCache.gson.fromJson(reader, SkysoftPetsRepoJson::class.java)
         }
     }
-}
 
-private val PET_CONSTANTS_RETRY_DELAY = 30.seconds
+    private const val PET_CONSTANTS_RESOURCE = "/assets/skysoft/data/pet_constants.json"
+}
 
 internal object LocalSkyBlockCatalog {
     fun load() {
