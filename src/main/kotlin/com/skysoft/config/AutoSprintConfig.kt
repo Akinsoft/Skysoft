@@ -12,6 +12,7 @@ class AutoSprintConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Automatically sprint while moving.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

@@ -16,6 +16,7 @@ class ItemChangeLogConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show recent inventory item gains and losses.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

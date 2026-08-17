@@ -17,12 +17,14 @@ class ForagingFeatureConfig {
         name = "Honeyhive Helper",
         desc = "Show waypoints and play a sound when Honeyhives are ready to loot.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var honeyhiveHelper = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Floor Drop Highlighter", desc = "Highlight visible Floor Drops.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var highlightFloorDrops = false
 
@@ -39,6 +41,7 @@ class ForagingFeatureConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Hide Axe Particles", desc = "Hide particles emitted by flying Throwing Axes.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var hideAxeParticles = false
 }
@@ -47,6 +50,7 @@ class QueenAntWarningConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show a title when you find a Queen Ant.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -69,6 +73,7 @@ class ThrowingAxeHelperConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Highlight logs your Throwing Axe is expected to cut.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

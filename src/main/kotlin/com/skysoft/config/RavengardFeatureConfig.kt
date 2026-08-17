@@ -19,6 +19,7 @@ class RavengardFeatureConfig : ConfigRepairable {
         name = "Crown Values",
         desc = "Show item Crown values in the top-left of container slots.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var showCrownValues = false
 
@@ -28,6 +29,7 @@ class RavengardFeatureConfig : ConfigRepairable {
         name = "Item Comparison",
         desc = "Show the equipped item beside wearable armor and accessories.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var showItemComparison = false
 
@@ -37,6 +39,7 @@ class RavengardFeatureConfig : ConfigRepairable {
         name = "Weapon DPS",
         desc = "Show damage per second in Ravengard weapon tooltips.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var showWeaponDps = false
 
@@ -46,6 +49,7 @@ class RavengardFeatureConfig : ConfigRepairable {
         name = "Opened Loot Bags",
         desc = "Mark opened loot bags with a green checkmark.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var markOpenedLootBags = false
 

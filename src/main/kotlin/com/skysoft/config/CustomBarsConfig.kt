@@ -19,6 +19,7 @@ class CustomBarsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Customize SkyBlock status displays and numbers.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

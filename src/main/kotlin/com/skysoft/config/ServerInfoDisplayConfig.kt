@@ -60,6 +60,7 @@ class ServerInfoDisplayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show server performance information.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

@@ -17,6 +17,7 @@ class SlotBindingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Enable slot bindings.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

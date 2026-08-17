@@ -66,6 +66,7 @@ class GuiFeatureConfig : ConfigRepairable {
         name = "SkyBlock Level Bar",
         desc = "Show your SkyBlock Level and progress on Minecraft's experience bar.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isSkyBlockLevelBarEnabled = false
 
@@ -112,18 +113,21 @@ class GuiFeatureConfig : ConfigRepairable {
         name = "Merge Absorption Hearts",
         desc = "Show absorption within the normal heart grid instead of extending the health bar.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var areAbsorptionHeartsMerged = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Stop Heart Bobbing", desc = "Stop regeneration and low-health heart movement.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isHeartBobbingDisabled = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Render Titles In Front", desc = "Render Skysoft titles in front of open screens.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var areTitlesRenderedInFront = false
 
@@ -141,6 +145,7 @@ class VanillaUiConfig {
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(name = "Hide Recipe Book", desc = "Hide the recipe book in your inventory on SkyBlock.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isVanillaRecipeBookHidden = false
 
@@ -151,6 +156,7 @@ class VanillaUiConfig {
         name = "Hide Shortbow Cooldowns",
         desc = "Hide the shaded cooldown animation over Shortbows.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var areShortbowCooldownsHidden = false
 
@@ -160,6 +166,7 @@ class VanillaUiConfig {
         name = "Hide Status Effects",
         desc = "Hide status effects beside inventories and in the top-right HUD.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var areVanillaStatusEffectsHidden = false
 }
@@ -168,6 +175,7 @@ class ScreenshotManagerConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Enable screenshot sounds, messages, and the manager key.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -240,6 +248,7 @@ class SkysoftActionBarConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Draw a box behind the action bar.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var background = false
 
@@ -306,12 +315,14 @@ class InventoryScreenConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Separate Inventory GUI Scale", desc = "Use a different GUI scale for inventory screens.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var separateInventoryGuiScale = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Separate Tooltip GUI Scale", desc = "Use a different GUI scale for inventory tooltips.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var separateTooltipGuiScale = false
 

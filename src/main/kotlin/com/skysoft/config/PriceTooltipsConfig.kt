@@ -17,6 +17,7 @@ class PriceTooltipsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show configured prices on item tooltips.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

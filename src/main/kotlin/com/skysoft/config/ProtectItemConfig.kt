@@ -18,6 +18,7 @@ class ProtectItemConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Prevent protected items from being dropped or sold.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

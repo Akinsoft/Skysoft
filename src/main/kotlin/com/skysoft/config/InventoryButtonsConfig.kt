@@ -15,6 +15,7 @@ class InventoryButtonsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show custom command buttons on inventory screens.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

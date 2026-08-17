@@ -32,6 +32,7 @@ class SkysoftDianaConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show Diana burrow helpers.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

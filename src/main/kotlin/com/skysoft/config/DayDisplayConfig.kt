@@ -15,6 +15,7 @@ class DayDisplayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show the current Minecraft day.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

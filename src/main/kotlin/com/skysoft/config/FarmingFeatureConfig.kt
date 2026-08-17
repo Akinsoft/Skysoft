@@ -21,6 +21,7 @@ class NoCropRotationConfig {
         name = "Enabled",
         desc = "Render crops without coordinate-based offsets or randomized model rotations.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

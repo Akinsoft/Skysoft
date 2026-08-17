@@ -12,6 +12,7 @@ class SmoothSwappingConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Animate item movement inside inventory screens.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

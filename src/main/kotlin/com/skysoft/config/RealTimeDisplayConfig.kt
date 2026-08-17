@@ -14,6 +14,7 @@ class RealTimeDisplayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show your local time in-game.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

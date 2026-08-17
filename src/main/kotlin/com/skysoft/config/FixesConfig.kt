@@ -13,6 +13,7 @@ class FixesConfig {
         name = "Menu Drop Fix",
         desc = "Prevent the SkyBlock Menu from opening when dropping hovered inventory items.\n§cUse at your own risk.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var preventSkyBlockMenuOpeningOnInventoryDrop = false
 
@@ -23,6 +24,7 @@ class FixesConfig {
         name = "Held Item Update Fix",
         desc = "Prevent same-item SkyBlock data updates from replaying the hand-swap animation or resetting block breaking.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isHeldItemUpdateFixEnabled = false
 
@@ -33,6 +35,7 @@ class FixesConfig {
         name = "Throwing Axe Ghost Fix",
         desc = "Hide log animations left behind by Throwing Axe.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var hideThrowingAxeGhostBlocks = false
 
@@ -42,6 +45,7 @@ class FixesConfig {
         name = "Centered Crosshair",
         desc = "Fix the vanilla crosshair being slightly off-center.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isCenteredCrosshairFixEnabled = false
 
@@ -52,6 +56,7 @@ class FixesConfig {
         name = "Hide Glitch Mobs",
         desc = "Hide nametagless rare mob player models left behind by Hypixel.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var hideGlitchMobs = true
 
@@ -62,6 +67,7 @@ class FixesConfig {
         name = "Hide Bugged Nameplates",
         desc = "Hide bugged floating nameplates left behind by Hypixel.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var hideBuggedNameplates = true
 
@@ -71,6 +77,7 @@ class FixesConfig {
         name = "Player Head Skin Fix",
         desc = "Stops custom player heads from flashing the default player face while their real skin loads.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var playerHeadSkinFix = true
 }

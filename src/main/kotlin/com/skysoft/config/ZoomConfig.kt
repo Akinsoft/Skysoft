@@ -15,6 +15,7 @@ class ZoomConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Zoom the camera with a configurable key.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

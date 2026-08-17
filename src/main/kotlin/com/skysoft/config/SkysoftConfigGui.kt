@@ -43,8 +43,9 @@ object SkysoftConfigGui {
         return filteredEditor
     }
 
-    private fun createScreen(parent: Screen?, configEditor: MoulConfigEditor<SkysoftConfig>): Screen =
-        object : MoulConfigScreenComponent(
+    private fun createScreen(parent: Screen?, configEditor: MoulConfigEditor<SkysoftConfig>): Screen {
+        config.settings.clearConfirmations()
+        return object : MoulConfigScreenComponent(
             Component.empty(),
             GuiContext(GuiElementComponent(configEditor)),
             parent,
@@ -54,6 +55,7 @@ object SkysoftConfigGui {
                 config.saveNow()
             }
         }
+    }
 
     fun config(): SkysoftConfig = config
 

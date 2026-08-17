@@ -9,6 +9,7 @@ class BetterTabConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Replace the Hypixel SkyBlock tab list with a compact layout.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isEnabled = false
 

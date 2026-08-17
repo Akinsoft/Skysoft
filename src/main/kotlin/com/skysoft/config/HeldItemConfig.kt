@@ -14,6 +14,7 @@ class HeldItemConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Apply held item position, scale, swing, and texture settings.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

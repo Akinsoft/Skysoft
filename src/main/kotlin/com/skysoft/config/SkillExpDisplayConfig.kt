@@ -11,6 +11,7 @@ class SkillExpDisplayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show Skill EXP gains in a separate HUD element.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

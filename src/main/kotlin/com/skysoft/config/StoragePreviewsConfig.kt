@@ -11,6 +11,7 @@ class StoragePreviewsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show storage contents on item tooltips.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

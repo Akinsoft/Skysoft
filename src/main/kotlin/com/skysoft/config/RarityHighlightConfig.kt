@@ -12,6 +12,7 @@ class RarityHighlightConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Highlight inventory items by rarity.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isEnabled = false
 

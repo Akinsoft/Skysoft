@@ -1,6 +1,7 @@
 package com.skysoft.config.features.pets
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.MainFeatureToggle
 import com.skysoft.config.core.ConfigRepairable
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.repairFiniteFloat
@@ -35,6 +36,7 @@ class PetFeatureConfig : ConfigRepairable {
         name = "Highlight Active Pet",
         desc = "Highlight the currently equipped pet's slot in the Pet Menu."
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     @field:ConfigOrder(20)
     var highlightActivePet: Boolean = false
@@ -45,6 +47,7 @@ class PetFeatureConfig : ConfigRepairable {
         name = "Hide Autopet Messages",
         desc = "Hide autopet messages in chat."
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     @field:ConfigOrder(30)
     var hideAutopet: Boolean = false
@@ -61,6 +64,7 @@ class PetFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Enabled", desc = "Adjust the floating in-world pet head near you.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         @field:ConfigOrder(10)
         var enabled: Boolean = false
@@ -117,6 +121,7 @@ class PetFeatureConfig : ConfigRepairable {
 
         @JvmField
         @field:ConfigOption(name = "Enabled", desc = "Show a GUI element for the currently active pet.")
+        @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         @field:ConfigOrder(10)
         var enabled: Property<Boolean> = display.general.enabled

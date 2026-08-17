@@ -14,6 +14,7 @@ class InventoryHudConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show your inventory as part of the in-game HUD.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

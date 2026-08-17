@@ -55,6 +55,7 @@ class MiscFeatureConfig : ConfigRepairable {
         name = "Short Warp Commands",
         desc = "Use warp names such as /garden and /crypts without typing /warp.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var shortWarpCommands = false
 
@@ -64,6 +65,7 @@ class MiscFeatureConfig : ConfigRepairable {
         name = "Hide Dead Entities",
         desc = "Hide entities during their death animation.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var hideDeadEntities = false
 
@@ -74,6 +76,7 @@ class MiscFeatureConfig : ConfigRepairable {
         name = "Keep SkyBlock Resource Pack",
         desc = "Keep Hypixel's SkyBlock resource pack loaded between servers.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
@@ -89,6 +92,7 @@ class RareDropTitlesConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show valuable rare drops as titles.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -111,6 +115,7 @@ class RareLootSharingConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Share valuable drops in party chat.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

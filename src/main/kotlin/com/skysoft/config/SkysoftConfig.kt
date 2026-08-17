@@ -13,6 +13,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.SkysoftGame.RAVENGARD
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
+import com.skysoft.utils.ColorUtilities.RGB_MASK
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.LegacyStringChromaColourTypeAdapter
@@ -20,6 +21,7 @@ import io.github.notenoughupdates.moulconfig.Social
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.common.text.StructuredText
 import io.github.notenoughupdates.moulconfig.observer.PropertyTypeAdapterFactory
+import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -136,10 +138,27 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @field:Category(name = "Fixes", desc = "Fixes for Minecraft and SkyBlock issues.")
     val fixes = FixesConfig()
 
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
+    @field:Category(name = "Settings", desc = "Global feature and config menu settings.")
+    val settings = SettingsConfig()
+
     override fun getTitle(): StructuredText =
         StructuredText.of("Skysoft ${SkysoftMod.VERSION} by §cAkinsoft§r, config by §5Moulberry §rand §5nea89")
 
     override fun getSocials(): List<Social> = SkysoftSocialLink.headerLinks
+
+    override fun formatCategoryName(category: ProcessedCategory, isSelected: Boolean): StructuredText {
+        val color = when {
+            isSelected -> settings.selectedCategoryColor
+            category.parentCategoryId == null -> settings.categoryColor
+            else -> settings.subcategoryColor
+        }
+        return category.displayName.copyShallow()
+            .withColour(color.get().getEffectiveColourRGB() and RGB_MASK)
+            .apply { if (isSelected) underlined() }
+    }
 
     override fun saveNow() {
         try {

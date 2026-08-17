@@ -32,12 +32,14 @@ class SlayerFeatureConfig {
         name = "Blaze Attunement Highlights",
         desc = "Outline and tint Inferno Demonlord mobs with their current Hellion Shield attunement color.",
     )
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var blazeAttunementHighlights = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Miniboss Alert", desc = "Show a title and play a sound when a Slayer miniboss spawns.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var minibossAlert = false
 }
@@ -46,6 +48,7 @@ class SlayerTimeToKillConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Report Slayer boss kill times in chat and track averages and personal bests.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -81,6 +84,7 @@ class SlayerTargetHighlightingConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Highlight Slayer bosses and mini-bosses.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -135,6 +139,7 @@ class SlayerBossAlertsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show alerts for Slayer boss events.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

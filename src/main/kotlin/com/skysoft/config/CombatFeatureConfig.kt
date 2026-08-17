@@ -38,6 +38,7 @@ class HealingPoolConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Mark active Wisp healing pools.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -80,6 +81,7 @@ class CocoonDisplayConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show cocooned mob names and hatch timers in the world.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
@@ -111,6 +113,7 @@ class BetterShurikensConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show shuriken status at mobs' feet.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 

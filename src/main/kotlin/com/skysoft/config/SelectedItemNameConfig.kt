@@ -11,6 +11,7 @@ class SelectedItemNameConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Customize the selected item name above the hotbar.")
+    @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
