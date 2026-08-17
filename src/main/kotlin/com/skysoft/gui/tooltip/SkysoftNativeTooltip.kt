@@ -38,10 +38,11 @@ object SkysoftNativeTooltip {
     fun setItemActionForNextFrame(
         context: GuiGraphicsExtractor,
         stack: ItemStack,
-        action: String,
+        action: String?,
         formattedItemName: String,
         mouseX: Int,
         mouseY: Int,
+        actionLines: List<String> = emptyList(),
     ) {
         TooltipViewport.clear()
         context.setTooltipForNextFrame(
@@ -50,7 +51,10 @@ object SkysoftNativeTooltip {
             Optional.of(
                 ItemActionTooltip(
                     stack,
-                    LegacyTextRenderer.formattedSequence("§7$action $formattedItemName"),
+                    LegacyTextRenderer.formattedSequence(
+                        if (action.isNullOrBlank()) formattedItemName else "§7$action $formattedItemName",
+                    ),
+                    actionLines.map(LegacyTextRenderer::formattedSequence),
                 ),
             ),
             NonScrollableTooltipPositioner,
@@ -64,6 +68,7 @@ object SkysoftNativeTooltip {
     private data class ItemActionTooltip(
         val stack: ItemStack,
         val text: FormattedCharSequence,
+        val actionLines: List<FormattedCharSequence>,
     ) : SkysoftTooltipComponent {
         override fun clientComponent(): ClientTooltipComponent = ClientItemActionTooltip(this)
     }
@@ -71,9 +76,13 @@ object SkysoftNativeTooltip {
     private class ClientItemActionTooltip(
         private val tooltip: ItemActionTooltip,
     ) : ClientTooltipComponent {
-        override fun getHeight(font: Font): Int = ITEM_TOOLTIP_HEIGHT
+        override fun getHeight(font: Font): Int = ITEM_TOOLTIP_HEIGHT +
+            tooltip.actionLines.size * ITEM_TOOLTIP_LINE_HEIGHT
 
-        override fun getWidth(font: Font): Int = ITEM_TOOLTIP_TEXT_X + font.width(tooltip.text)
+        override fun getWidth(font: Font): Int = maxOf(
+            ITEM_TOOLTIP_TEXT_X + font.width(tooltip.text),
+            tooltip.actionLines.maxOfOrNull(font::width) ?: 0,
+        )
 
         override fun extractImage(
             font: Font,
@@ -92,6 +101,16 @@ object SkysoftNativeTooltip {
                 ITEM_TOOLTIP_COLOR,
                 false,
             )
+            tooltip.actionLines.forEachIndexed { index, line ->
+                context.text(
+                    font,
+                    line,
+                    x,
+                    y + ITEM_TOOLTIP_HEIGHT + index * ITEM_TOOLTIP_LINE_HEIGHT,
+                    ITEM_TOOLTIP_COLOR,
+                    false,
+                )
+            }
         }
     }
 
@@ -114,6 +133,7 @@ object SkysoftNativeTooltip {
     }
 
     private const val ITEM_TOOLTIP_HEIGHT = 10
+    private const val ITEM_TOOLTIP_LINE_HEIGHT = 10
     private const val ITEM_TOOLTIP_TEXT_X = 10
     private const val ITEM_TOOLTIP_TEXT_Y = 1
     private const val ITEM_TOOLTIP_ICON_SCALE = 0.5

@@ -28,6 +28,7 @@ import com.skysoft.data.skyblock.price.BazaarPriceData
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
+import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
@@ -225,8 +226,7 @@ object ProfitTracker {
     internal fun cyclePeriod(target: ProfitTrackerTarget, backwards: Boolean) {
         val periods = ProfitTrackingPeriod.entries
         val current = displayPeriod(target)
-        val step = if (backwards) -1 else 1
-        val next = periods[Math.floorMod(current.ordinal + step, periods.size)]
+        val next = OverlayControlCycle.next(periods, current, backwards)
         ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
         ProfileStorageApi.markDirty()
         ProfileStorageApi.saveNow()

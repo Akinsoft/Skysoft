@@ -75,9 +75,10 @@ object SkyBlockSackContents {
         if (changed) ProfileStorageApi.markDirty()
     }
 
-    private fun isSackContentsMenu(title: String): Boolean =
-        title.endsWith(SACK_MENU_SUFFIX) && title != SACK_OF_SACKS_MENU
 }
+
+internal fun isSackContentsMenu(title: String): Boolean =
+    title.endsWith(SACK_MENU_SUFFIX) && title != SACK_OF_SACKS_MENU
 
 internal fun storedSackAmount(loreLines: Iterable<String>): Long? =
     loreLines.asSequence()
