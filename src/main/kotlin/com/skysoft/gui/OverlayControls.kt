@@ -4,6 +4,7 @@ import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
 import net.minecraft.client.Minecraft
+import org.lwjgl.glfw.GLFW
 
 data class OverlayControlArea<T>(
     val action: T,
@@ -28,6 +29,21 @@ object OverlayControlTooltips {
             add("§eClick §7to switch §e$settingName")
             add("§eRight-click §7to go backwards")
         }
+    }
+}
+
+object OverlayControlCycle {
+    fun wasClickHandled(button: Int, action: (backwards: Boolean) -> Unit): Boolean {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
+        action(button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+        return true
+    }
+
+    fun <T> next(values: List<T>, current: T, backwards: Boolean): T {
+        require(values.isNotEmpty()) { "Cycle values cannot be empty" }
+        val currentIndex = values.indexOf(current)
+        require(currentIndex >= 0) { "Current cycle value is missing" }
+        return values[Math.floorMod(currentIndex + if (backwards) -1 else 1, values.size)]
     }
 }
 

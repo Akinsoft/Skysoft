@@ -3,6 +3,7 @@ package com.skysoft.features.profit
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
@@ -130,12 +131,12 @@ internal class ProfitTrackerHudControls(
     }
 
     private fun wasPeriodCycled(target: ProfitTrackerTarget, button: Int): Boolean =
-        wasCycleClickHandled(button) { backwards ->
+        OverlayControlCycle.wasClickHandled(button) { backwards ->
             ProfitTracker.cyclePeriod(target, backwards)
         }
 
     private fun wasTrackerPriceSourceCycled(target: ProfitTrackerTarget, button: Int): Boolean =
-        wasCycleClickHandled(button) { backwards ->
+        OverlayControlCycle.wasClickHandled(button) { backwards ->
             val settings = target.config.settings
             settings.priceSource = nextProfitTrackerPriceSource(settings.priceSource, backwards)
             SkysoftConfigGui.config().saveNow()
@@ -145,23 +146,19 @@ internal class ProfitTrackerHudControls(
         target: ProfitTrackerTarget,
         itemId: String,
         button: Int,
-    ): Boolean = wasCycleClickHandled(button) { backwards ->
+    ): Boolean = OverlayControlCycle.wasClickHandled(button) { backwards ->
         val choices = listOf(null) + ProfitTrackerPriceSource.entries
         val current = ProfitTrackerItemCustomizations.priceSourceOverride(target, itemId)
-        val step = if (backwards) -1 else 1
-        val next = choices[Math.floorMod(choices.indexOf(current) + step, choices.size)]
-        ProfitTrackerItemCustomizations.setPriceSource(target, itemId, next)
+        ProfitTrackerItemCustomizations.setPriceSource(
+            target,
+            itemId,
+            OverlayControlCycle.next(choices, current, backwards),
+        )
     }
 
     private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
         action()
-        return true
-    }
-
-    private inline fun wasCycleClickHandled(button: Int, action: (Boolean) -> Unit): Boolean {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
-        action(button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
         return true
     }
 
@@ -178,8 +175,5 @@ internal fun nextProfitTrackerPriceSource(
     current: ProfitTrackerPriceSource,
     backwards: Boolean,
 ): ProfitTrackerPriceSource {
-    val step = if (backwards) -1 else 1
-    return ProfitTrackerPriceSource.entries[
-        Math.floorMod(current.ordinal + step, ProfitTrackerPriceSource.entries.size)
-    ]
+    return OverlayControlCycle.next(ProfitTrackerPriceSource.entries, current, backwards)
 }

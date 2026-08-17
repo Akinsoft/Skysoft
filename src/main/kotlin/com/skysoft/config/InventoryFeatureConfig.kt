@@ -26,6 +26,12 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Sack Display", desc = "Show sack contents beside open sack menus.")
+    val sackDisplay = SackDisplayConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Tooltip Scroll", desc = "Move oversized item tooltips.")
     val tooltipScroll = TooltipScrollConfig()
 
@@ -149,6 +155,7 @@ class InventoryFeatureConfig : ConfigRepairable {
     override fun repairLoadedValues() = repairLoadedConfigs(
         itemList,
         bazaar,
+        sackDisplay,
         tooltipScroll,
         priceTooltips,
         smoothSwapping,
