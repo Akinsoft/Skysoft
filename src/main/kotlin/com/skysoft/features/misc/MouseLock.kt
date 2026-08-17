@@ -45,7 +45,7 @@ object MouseLock {
             override fun width(): Int = renderable().width
             override fun height(): Int = renderable().height
             override fun isVisible(): Boolean = config.settings.showDisplay
-            override fun renderDummy(context: GuiGraphicsExtractor) = renderable().render(context)
+            override fun renderEditor(context: GuiGraphicsExtractor) = renderable().render(context)
             override fun openConfig() = SkysoftConfigGui.open("Mouse Lock")
         })
     }

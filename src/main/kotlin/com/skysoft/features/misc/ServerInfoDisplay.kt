@@ -60,7 +60,7 @@ object ServerInfoDisplay {
                 config.enabled &&
                     config.details.style == ServerInfoDisplayStyle.SIMPLE &&
                     configuredMetrics().isNotEmpty()
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 currentSimpleRenderable()?.render(context)
             }
             override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
@@ -77,7 +77,7 @@ object ServerInfoDisplay {
                     config.enabled &&
                         config.details.style == ServerInfoDisplayStyle.SPLIT &&
                         metric in configuredMetrics()
-                override fun renderDummy(context: GuiGraphicsExtractor) = currentSplitRenderable(metric).render(context)
+                override fun renderEditor(context: GuiGraphicsExtractor) = currentSplitRenderable(metric).render(context)
                 override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
             })
         }

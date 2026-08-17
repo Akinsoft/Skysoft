@@ -36,7 +36,7 @@ object ActionBarCustomizer {
             override fun width(): Int = editorLayout().width
             override fun height(): Int = editorLayout().height
             override fun isVisible(): Boolean = config.settings.customPosition
-            override fun renderDummy(context: GuiGraphicsExtractor) = renderEditorPreview(context)
+            override fun renderEditor(context: GuiGraphicsExtractor) = renderEditorPreview(context)
             override fun openConfig() = SkysoftConfigGui.open("Action Bar")
         })
         HudElementRegistry.replaceElement(VanillaHudElements.OVERLAY_MESSAGE) { vanilla ->

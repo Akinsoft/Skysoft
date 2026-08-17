@@ -58,7 +58,7 @@ internal fun registerBazaarTracker() {
         override fun width(): Int = buildRenderable(false).width
         override fun height(): Int = buildRenderable(false).height
         override fun isVisible(): Boolean = config.enabled
-        override fun renderDummy(context: GuiGraphicsExtractor) =
+        override fun renderEditor(context: GuiGraphicsExtractor) =
             buildRenderable(false).render(context)
         override fun openConfig() = SkysoftConfigGui.open("Bazaar Tracker")
     })

@@ -85,7 +85,7 @@ object ItemChangeLog {
                 height = height,
                 growsDownward = config.settings.invertDirection,
             )
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 val renderable = currentRenderable() ?: return
                 val x = config.details.alignment.anchorOffset(retainedEditorWidth) -
                     config.details.alignment.anchorOffset(renderable.width)

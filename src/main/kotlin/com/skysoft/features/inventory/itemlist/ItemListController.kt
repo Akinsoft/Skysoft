@@ -91,6 +91,7 @@ object ItemListController {
             override val canMove: Boolean = false
             override val canScale: Boolean = false
             override val hasEditorBackground: Boolean = false
+            override val editorSelectionPriority: Int = ITEM_LIST_EDITOR_SELECTION_PRIORITY
             override val editorLeftPadding: Int
                 get() = LegacyTextRenderer.width(EDITOR_RESIZE_ARROW) + EDITOR_RESIZE_ARROW_GAP
             override val usesInventoryScale: Boolean = true
@@ -98,9 +99,8 @@ object ItemListController {
             override fun width(): Int = lastLayout?.panel?.width ?: 0
             override fun height(): Int = lastLayout?.panel?.height ?: 0
             override fun isVisible(): Boolean = lastLayout != null
-            override fun renderDummy(context: GuiGraphicsExtractor) = Unit
 
-            override fun renderEditorDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 LegacyTextRenderer.draw(
                     context,
                     EDITOR_RESIZE_ARROW,
@@ -191,12 +191,13 @@ object ItemListController {
             override val position get() = SkysoftConfigGui.config().inventory.itemList.sources.searchPosition
             override val canScale: Boolean = false
             override val keepsInsideScreen: Boolean = true
+            override val editorSelectionPriority: Int = ITEM_LIST_EDITOR_SELECTION_PRIORITY
             override val usesInventoryScale: Boolean = true
             override val requiresInventoryScreen: Boolean = true
             override fun width(): Int = lastLayout?.footer?.width ?: ItemListLayout.DEFAULT_FOOTER_WIDTH
             override fun height(): Int = ItemListLayout.FOOTER_HEIGHT
             override fun isVisible(): Boolean = lastLayout != null
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 val isSettingsButtonHidden = SkysoftConfigGui.config().inventory.itemList.sources.isSettingsButtonHidden
                 val footerWidth = width()
                 val searchWidth = if (isSettingsButtonHidden) {
@@ -761,6 +762,7 @@ object ItemListController {
     private const val NO_ROOM_TEXT_BOTTOM = 14
     private const val EMPTY_TEXT_X_OFFSET = 4
     private const val EMPTY_TEXT_Y_OFFSET = 5
+    private const val ITEM_LIST_EDITOR_SELECTION_PRIORITY = -1
     private const val TOOLTIP_EDGE = 4
     private const val EDITOR_RESIZE_ARROW = "↔"
     private const val EDITOR_RESIZE_ARROW_GAP = 4

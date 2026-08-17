@@ -18,7 +18,7 @@ import org.lwjgl.glfw.GLFW
 class GuiFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
-    @field:Category(name = "Position Editor", desc = "Move and scale HUD elements.")
+    @field:Category(name = "Position Editor", desc = "Move and scale HUD elements (§c/skysoft edit§r).")
     val positionEditor = PositionEditorConfig()
 
     @JvmField

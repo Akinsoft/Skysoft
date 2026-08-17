@@ -31,6 +31,7 @@ interface HudEditorElement {
     val layoutOffsetY: Int get() = 0
     val snapGroup: String? get() = null
     val editorLeftPadding: Int get() = 0
+    val editorSelectionPriority: Int get() = 0
     val editorGridSpacing: Int get() = HUD_EDITOR_GRID_SPACING
     val usesInventoryScale: Boolean get() = false
     val requiresInventoryScreen: Boolean get() = false
@@ -38,8 +39,7 @@ interface HudEditorElement {
     fun width(): Int
     fun height(): Int
     fun isVisible(): Boolean
-    fun renderDummy(context: GuiGraphicsExtractor)
-    fun renderEditorDummy(context: GuiGraphicsExtractor) = renderDummy(context)
+    fun renderEditor(context: GuiGraphicsExtractor)
     fun absoluteX(width: Int): Int = layoutOffsetX + if (keepsInsideScreen) {
         position.getAbsX0(width)
     } else {

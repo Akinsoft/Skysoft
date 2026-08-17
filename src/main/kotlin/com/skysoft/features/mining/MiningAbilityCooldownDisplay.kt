@@ -74,7 +74,7 @@ object MiningAbilityCooldownDisplay {
             override fun width(): Int = previewRenderable().width
             override fun height(): Int = previewRenderable().height
             override fun isVisible(): Boolean = config.enabled
-            override fun renderDummy(context: GuiGraphicsExtractor) = previewRenderable().render(context)
+            override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
             override fun openConfig() = SkysoftConfigGui.open("Mining Ability Cooldown")
         })
     }

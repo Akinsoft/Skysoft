@@ -91,7 +91,7 @@ internal fun registerProfitTrackerHudEditor(target: ProfitTrackerTarget) {
         override fun width(): Int = buildProfitRenderable(target, false).width
         override fun height(): Int = buildProfitRenderable(target, false).height
         override fun isVisible(): Boolean = target.isVisible()
-        override fun renderDummy(context: GuiGraphicsExtractor) = buildProfitRenderable(target, false).render(context)
+        override fun renderEditor(context: GuiGraphicsExtractor) = buildProfitRenderable(target, false).render(context)
         override fun openConfig() = target.customId?.let(CustomProfitTrackerConfigScreen::open)
             ?: SkysoftConfigGui.open(target.displayName)
     })

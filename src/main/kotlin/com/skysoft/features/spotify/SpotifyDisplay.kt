@@ -80,7 +80,7 @@ object SpotifyDisplay {
             override fun width(): Int = editorRenderable().width
             override fun height(): Int = editorRenderable().height
             override fun isVisible(): Boolean = config().enabled
-            override fun renderDummy(context: GuiGraphicsExtractor) = editorRenderable().render(context)
+            override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable().render(context)
             override fun openConfig() = SkysoftConfigGui.open("Spotify Display")
         })
     }

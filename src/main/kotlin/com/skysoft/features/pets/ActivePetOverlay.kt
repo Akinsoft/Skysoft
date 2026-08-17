@@ -100,7 +100,7 @@ object ActivePetOverlay {
             override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
             override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
             override fun isVisible(): Boolean = SkysoftConfigGui.config().pets.petDisplay.enabled.get()
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 previewRenderable()?.render(context)
             }
             override fun openConfig() = PetOverlayConfigScreen.open()

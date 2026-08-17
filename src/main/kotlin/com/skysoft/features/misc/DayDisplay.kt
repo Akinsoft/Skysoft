@@ -38,7 +38,7 @@ object DayDisplay {
             override fun width(): Int = currentRenderable()?.width ?: 0
             override fun height(): Int = currentRenderable()?.height ?: 0
             override fun isVisible(): Boolean = config.enabled && currentDay() != null
-            override fun renderDummy(context: GuiGraphicsExtractor) {
+            override fun renderEditor(context: GuiGraphicsExtractor) {
                 currentRenderable()?.render(context)
             }
             override fun openConfig() = SkysoftConfigGui.open("Day Display")
