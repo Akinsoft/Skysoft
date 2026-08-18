@@ -8,18 +8,17 @@ import net.minecraft.world.item.component.TooltipDisplay
 
 object DuplicateEnchantmentTooltipFix {
     fun register() {
-        ItemTooltipCallback.EVENT.register { stack, context, flag, tooltip ->
+        ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
             SkysoftErrorBoundary.run("Duplicate enchantment tooltip") {
                 if (!HypixelLocationState.inSkyBlock) return@run
                 if (!stack.getOrDefault(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay.DEFAULT)
                         .shows(DataComponents.ENCHANTMENTS)
                 ) return@run
                 val lore = stack.get(DataComponents.LORE)?.lines()?.mapTo(hashSetOf()) { it.string } ?: return@run
-                stack.get(DataComponents.ENCHANTMENTS)?.addToTooltip(context, { enchantment ->
-                    if (enchantment.string !in lore) return@addToTooltip
-                    val index = (1 until tooltip.size).firstOrNull { tooltip[it].string == enchantment.string }
-                    if (index != null) tooltip.removeAt(index)
-                }, flag, stack)
+                for (line in lore) {
+                    val first = (1 until tooltip.size).firstOrNull { tooltip[it].string == line } ?: continue
+                    if ((first + 1 until tooltip.size).any { tooltip[it].string == line }) tooltip.removeAt(first)
+                }
             }
         }
     }
