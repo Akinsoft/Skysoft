@@ -1,14 +1,16 @@
 package com.skysoft.features.inventory.sacks
 
+import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.isSackContentsMenu
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
+import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
+import com.skysoft.features.profit.profitTrackerSourcePrice
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -129,6 +131,14 @@ private fun shouldAllowSackDisplayClick(
     val handled = when (control) {
         SackDisplayControl.Mode -> OverlayControlCycle.wasClickHandled(click.button()) { backwards ->
             displayMode = OverlayControlCycle.next(SackDisplayMode.entries, displayMode, backwards)
+        }
+        SackDisplayControl.PriceSource -> OverlayControlCycle.wasClickHandled(click.button()) { backwards ->
+            config.settings.priceSource = OverlayControlCycle.next(
+                ProfitTrackerPriceSource.entries,
+                config.settings.priceSource,
+                backwards,
+            )
+            SkysoftConfigGui.config().saveNow()
         }
         is SackDisplayControl.Item -> wasSackItemClickHandled(screen, control.item, click.button())
     }
@@ -283,7 +293,12 @@ private fun buildRenderable(sack: OpenSack): SackDisplayRenderable {
         hiddenAbove = scrollOffset,
         hiddenBelow = (sack.items.size - scrollOffset - displayedItems.size).coerceAtLeast(0),
         mode = displayMode,
-        totalValue = if (displayMode == SackDisplayMode.TOTAL_VALUE) sack.items.totalValue() else null,
+        priceSource = config.settings.priceSource,
+        totalValue = if (displayMode == SackDisplayMode.TOTAL_VALUE) {
+            sack.items.totalValue(config.settings.priceSource)
+        } else {
+            null
+        },
         showIcons = config.details.showItemIcons,
         background = config.details.showBackground,
     )
@@ -300,6 +315,7 @@ private class SackDisplayRenderable(
     private val hiddenAbove: Int,
     private val hiddenBelow: Int,
     private val mode: SackDisplayMode,
+    private val priceSource: ProfitTrackerPriceSource,
     private val totalValue: Double?,
     private val showIcons: Boolean,
     private val background: Boolean,
@@ -309,7 +325,7 @@ private class SackDisplayRenderable(
         SackDisplayRow(
             item = item,
             name = item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH),
-            value = item.displayValue(mode),
+            value = item.displayValue(mode, priceSource),
             stack = item.stack,
             reserveIcon = showIcons,
         )
@@ -320,6 +336,7 @@ private class SackDisplayRenderable(
         if (hiddenBelow > 0) add("$hiddenBelow more")
     }.joinToString(" §8• §7", prefix = "§7", postfix = if (hiddenAbove > 0 || hiddenBelow > 0) "..." else "")
     private val modeLine = "§7Mode: §a§l[${mode.displayName}]"
+    private val priceSourceLine = "§7Price Source: §e§l[$priceSource]"
     private val totalText = totalValue?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
     private val totalWidth = LegacyTextRenderer.width("§7Total") + COLUMN_GAP + LegacyTextRenderer.width(totalText)
     private val contentWidth = maxOf(
@@ -328,6 +345,7 @@ private class SackDisplayRenderable(
         rows.maxOfOrNull(SackDisplayRow::width) ?: LegacyTextRenderer.width(emptyText),
         LegacyTextRenderer.width(indicatorText),
         LegacyTextRenderer.width(modeLine),
+        LegacyTextRenderer.width(priceSourceLine).takeIf { mode == SackDisplayMode.TOTAL_VALUE } ?: 0,
         totalWidth.takeIf { mode == SackDisplayMode.TOTAL_VALUE } ?: 0,
     )
 
@@ -335,7 +353,8 @@ private class SackDisplayRenderable(
     override val height: Int = padding * 2 + TITLE_HEIGHT +
         (if (rows.isEmpty()) TEXT_ROW_HEIGHT else rows.size * ITEM_ROW_HEIGHT) +
         (if (indicatorText.isEmpty()) 0 else TEXT_ROW_HEIGHT) +
-        (if (mode == SackDisplayMode.TOTAL_VALUE) TEXT_ROW_HEIGHT else 0) + CONTROL_ROW_HEIGHT
+        (if (mode == SackDisplayMode.TOTAL_VALUE) TEXT_ROW_HEIGHT + CONTROL_ROW_HEIGHT else 0) +
+        CONTROL_ROW_HEIGHT
 
     override fun render(context: GuiGraphicsExtractor) {
         renderInteractive(context, null, null)
@@ -361,36 +380,58 @@ private class SackDisplayRenderable(
             LegacyTextRenderer.draw(context, indicatorText, (width - LegacyTextRenderer.width(indicatorText)) / 2, y)
             y += TEXT_ROW_HEIGHT
         }
+        var hoveredPriceSource: LocalSackControl? = null
         if (mode == SackDisplayMode.TOTAL_VALUE) {
             LegacyTextRenderer.draw(context, "§7Total", padding, y)
             LegacyTextRenderer.draw(context, totalText, width - padding - LegacyTextRenderer.width(totalText), y)
             y += TEXT_ROW_HEIGHT
+            hoveredPriceSource = renderControl(
+                context,
+                y,
+                priceSourceLine,
+                SackDisplayControl.PriceSource,
+                OverlayControlTooltips.cycle(
+                    "Price Source",
+                    ProfitTrackerPriceSource.entries.map(ProfitTrackerPriceSource::toString),
+                    priceSource.ordinal,
+                ),
+                mouseX,
+                mouseY,
+            )
+            y += CONTROL_ROW_HEIGHT
         }
-        val hoveredMode = renderModeControl(context, y, mouseX, mouseY)
-        return hoveredItem ?: hoveredMode
-    }
-
-    private fun renderModeControl(
-        context: GuiGraphicsExtractor,
-        y: Int,
-        mouseX: Int?,
-        mouseY: Int?,
-    ): LocalSackControl? {
-        val bounds = Rect(padding, y, LegacyTextRenderer.width(modeLine), CONTROL_ROW_HEIGHT)
-        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
-        if (hovered) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
-        }
-        LegacyTextRenderer.draw(context, modeLine, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
-        return LocalSackControl(
-            action = SackDisplayControl.Mode,
-            bounds = bounds,
-            tooltipLines = OverlayControlTooltips.cycle(
+        val hoveredMode = renderControl(
+            context,
+            y,
+            modeLine,
+            SackDisplayControl.Mode,
+            OverlayControlTooltips.cycle(
                 "Mode",
                 SackDisplayMode.entries.map(SackDisplayMode::displayName),
                 mode.ordinal,
             ),
-        ).takeIf { hovered }
+            mouseX,
+            mouseY,
+        )
+        return hoveredItem ?: hoveredPriceSource ?: hoveredMode
+    }
+
+    private fun renderControl(
+        context: GuiGraphicsExtractor,
+        y: Int,
+        line: String,
+        action: SackDisplayControl,
+        tooltipLines: List<String>,
+        mouseX: Int?,
+        mouseY: Int?,
+    ): LocalSackControl? {
+        val bounds = Rect(padding, y, LegacyTextRenderer.width(line), CONTROL_ROW_HEIGHT)
+        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
+        if (hovered) {
+            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
+        }
+        LegacyTextRenderer.draw(context, line, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
+        return LocalSackControl(action, bounds, tooltipLines).takeIf { hovered }
     }
 }
 
@@ -424,28 +465,37 @@ private data class SackDisplayRow(
     }
 }
 
-private fun SackDisplayItem.displayValue(mode: SackDisplayMode): String = when (mode) {
+private fun SackDisplayItem.displayValue(
+    mode: SackDisplayMode,
+    priceSource: ProfitTrackerPriceSource,
+): String = when (mode) {
     SackDisplayMode.ITEM_QUANTITIES -> if (amount == 0L) {
         "§8x0"
     } else {
         "§7x§e${amount.addSeparators()}" + (capacity?.let { " §8/ §7$it" } ?: "")
     }
-    SackDisplayMode.TOTAL_VALUE -> totalValue()?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
+    SackDisplayMode.TOTAL_VALUE -> totalValue(priceSource)?.let {
+        "§6${it.coinFormat()} coins"
+    } ?: "§8Unknown"
 }
 
-private fun SackDisplayItem.totalValue(): Double? = if (amount == 0L) {
+private fun SackDisplayItem.totalValue(priceSource: ProfitTrackerPriceSource): Double? = if (amount == 0L) {
     0.0
 } else {
-    SkyBlockPriceData.getBazaarPrice(itemId)?.instantSellPrice
+    profitTrackerSourcePrice(
+        SkyBlockPriceData.getBazaarPrice(itemId),
+        SkyBlockPriceData.getNpcSellPrices(itemId).coins,
+        priceSource,
+    )
         ?.takeIf { it.isFinite() && it > 0.0 }
         ?.times(amount)
         ?.takeIf(Double::isFinite)
 }
 
-private fun List<SackDisplayItem>.totalValue(): Double? {
+private fun List<SackDisplayItem>.totalValue(priceSource: ProfitTrackerPriceSource): Double? {
     var total = 0.0
     for (item in this) {
-        total += item.totalValue() ?: return null
+        total += item.totalValue(priceSource) ?: return null
         if (!total.isFinite()) return null
     }
     return total
@@ -470,6 +520,7 @@ private enum class SackDisplayMode(val displayName: String) {
 
 private sealed interface SackDisplayControl {
     data object Mode : SackDisplayControl
+    data object PriceSource : SackDisplayControl
     data class Item(val item: SackDisplayItem) : SackDisplayControl
 }
 

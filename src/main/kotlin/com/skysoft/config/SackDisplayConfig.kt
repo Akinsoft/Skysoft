@@ -5,6 +5,7 @@ import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
@@ -41,6 +42,12 @@ class SackDisplayConfig : ConfigRepairable {
 }
 
 class SackDisplaySettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Price Source", desc = "Choose how sack items are valued.")
+    @field:ConfigEditorDropdown
+    var priceSource = ProfitTrackerPriceSource.INSTANT_SELL
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Maximum Items", desc = "Maximum sack item rows shown at once.")
