@@ -63,6 +63,7 @@ import com.skysoft.features.inventory.PriceTooltipRawCraftCosts
 import com.skysoft.features.inventory.PriceTooltips
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.sacks.SackDisplay
+import com.skysoft.features.inventory.sacks.SackHud
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.StorageCache
 import com.skysoft.features.inventory.StorageOverlayController
@@ -175,6 +176,7 @@ internal object SkysoftFeatureRegistrations {
         register("Price Tooltip Raw Craft Costs", PriceTooltipRawCraftCosts::register)
         register("Price Tooltips", PriceTooltips::register)
         register("Sack Display", SackDisplay::register)
+        register("Sack HUD", SackHud::register)
         register("Item Change Log", ItemChangeLog::register)
         register("Duplicate Enchantment Tooltip Fix", DuplicateEnchantmentTooltipFix::register)
         register("Max Enchant Chroma", MaxEnchantChroma::register)
