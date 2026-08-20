@@ -91,6 +91,18 @@ class SackHudSettingsConfig {
 class SackHudDetailsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Show Title", desc = "Show the §eSack HUD§7 title above tracked items.")
+    @field:ConfigEditorBoolean
+    var showTitle = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Show Item Names", desc = "Show item names beside tracked sack amounts.")
+    @field:ConfigEditorBoolean
+    var showItemNames = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Show Item Icons", desc = "Show item icons beside tracked sack amounts.")
     @field:ConfigEditorBoolean
     var showItemIcons = true
