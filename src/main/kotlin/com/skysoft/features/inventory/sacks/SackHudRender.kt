@@ -46,9 +46,9 @@ internal fun renderSackHud(context: GuiGraphicsExtractor) {
     val interactive = inventoryScreen != null &&
         !InventoryOverlayInput.isPointCovered(inventoryScreen, screenMouseX.toDouble(), screenMouseY.toDouble())
     val scale = sackHudConfig.position.effectiveScale
-    val scaledWidth = (renderable.width * scale).roundToInt()
     val scaledHeight = (renderable.height * scale).roundToInt()
-    val x = sackHudConfig.position.getAbsX0AllowingOverflow(scaledWidth)
+    // Use width 0 so the stored X is the left edge; wider amounts grow to the right.
+    val x = sackHudConfig.position.getAbsX0AllowingOverflow(0)
     val y = sackHudConfig.position.getAbsY0AllowingOverflow(scaledHeight)
     val localMouseX = floor((normalMouseX - x) / scale).toInt()
     val localMouseY = floor((normalMouseY - y) / scale).toInt()
@@ -232,7 +232,7 @@ internal class SackHudRenderable(
             }
         }
         if (indicatorText.isNotEmpty()) {
-            LegacyTextRenderer.draw(context, indicatorText, (width - LegacyTextRenderer.width(indicatorText)) / 2, y)
+            LegacyTextRenderer.draw(context, indicatorText, padding, y)
             y += TEXT_ROW_HEIGHT
         }
         if (inventoryOpen) {
@@ -278,11 +278,14 @@ private data class SackHudRow(
     private val iconWidth = if (reserveIcon) ITEM_TEXT_OFFSET else 0
     private val nameWidth = if (name.isEmpty()) 0 else LegacyTextRenderer.width(name)
     private val valueWidth = LegacyTextRenderer.width(value)
-    val width: Int = if (compact) {
-        iconWidth + (if (reserveIcon) COMPACT_ICON_VALUE_GAP else 0) + valueWidth
-    } else {
-        iconWidth + nameWidth + COLUMN_GAP + valueWidth
+    private val afterIconGap = when {
+        !reserveIcon -> 0
+        compact || name.isEmpty() -> COMPACT_ICON_VALUE_GAP
+        else -> 0
     }
+    private val nameValueGap = if (name.isNotEmpty()) COLUMN_GAP else 0
+    private val valueXOffset = iconWidth + afterIconGap + nameWidth + nameValueGap
+    val width: Int = valueXOffset + valueWidth
 
     fun renderInteractive(
         context: GuiGraphicsExtractor,
@@ -292,8 +295,7 @@ private data class SackHudRow(
         mouseX: Int?,
         mouseY: Int?,
     ): LocalSackHudControl? {
-        val rowRight = if (compact) left + width else right
-        val bounds = Rect(left, y, (rowRight - left).coerceAtLeast(1), ITEM_ROW_HEIGHT)
+        val bounds = Rect(left, y, (right - left).coerceAtLeast(1), ITEM_ROW_HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
         if (hovered) {
             context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
@@ -302,12 +304,8 @@ private data class SackHudRow(
         if (name.isNotEmpty()) {
             LegacyTextRenderer.draw(context, name, left + iconWidth, y + ITEM_TEXT_Y_OFFSET)
         }
-        val valueX = if (compact) {
-            left + iconWidth + if (reserveIcon) COMPACT_ICON_VALUE_GAP else 0
-        } else {
-            rowRight - valueWidth
-        }
-        LegacyTextRenderer.draw(context, value, valueX, y + ITEM_TEXT_Y_OFFSET)
+        // Amounts are left-flowing after the icon/name so extra digits grow to the right.
+        LegacyTextRenderer.draw(context, value, left + valueXOffset, y + ITEM_TEXT_Y_OFFSET)
         return LocalSackHudControl(SackHudControl.Item(item.itemId), bounds, emptyList()).takeIf { hovered }
     }
 }
