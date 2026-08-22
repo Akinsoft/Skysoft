@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.features.misc.PlayerHeadSkinFix
+import com.skysoft.utils.gui.itemWithDecorations
 import com.skysoft.utils.render.GuiRenderStateAccess
 import java.util.IdentityHashMap
 import net.minecraft.client.Minecraft
@@ -18,6 +19,12 @@ import org.joml.Matrix3x2f
 internal object StorageOverlayItemRenderer {
     private val models = IdentityHashMap<ItemStack, TrackingItemStackRenderState>()
 
+    fun drawLiveItem(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
+        drawItem(context, stack, x, y) {
+            context.itemWithDecorations(stack, x, y)
+        }
+    }
+
     fun drawStoredItem(
         context: GuiGraphicsExtractor,
         stack: ItemStack,
@@ -25,7 +32,7 @@ internal object StorageOverlayItemRenderer {
         y: Int,
         scissorArea: ScreenRectangle,
     ) {
-        RarityHighlightRenderer.renderSlot(context, stack, x, y) {
+        drawItem(context, stack, x, y) {
             if (requiresLiveModel(stack)) {
                 context.item(stack, x, y)
             } else {
@@ -42,6 +49,19 @@ internal object StorageOverlayItemRenderer {
             }
         }
         context.itemDecorations(Minecraft.getInstance().font, stack, x, y)
+    }
+
+    private fun drawItem(
+        context: GuiGraphicsExtractor,
+        stack: ItemStack,
+        x: Int,
+        y: Int,
+        render: () -> Unit,
+    ) {
+        RarityHighlightRenderer.renderSlot(context, stack, x, y) {
+            SkyblockerItemBackgrounds.draw(context, stack, x, y)
+            render()
+        }
     }
 
     fun reset() {
