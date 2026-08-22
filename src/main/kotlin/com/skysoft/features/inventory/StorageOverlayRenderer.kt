@@ -232,9 +232,7 @@ private fun drawPageSlots(
             }
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
                 if (active) {
-                    RarityHighlightRenderer.renderSlot(context, stack, slotX, slotY) {
-                        context.itemWithDecorations(stack, slotX, slotY)
-                    }
+                    StorageOverlayItemRenderer.drawLiveItem(context, stack, slotX, slotY)
                 } else {
                     StorageOverlayItemRenderer.drawStoredItem(context, stack, slotX, slotY, itemScissor)
                 }
@@ -319,9 +317,7 @@ private fun drawPlayerSlot(
     val stack = slot?.item ?: ItemStack.EMPTY
     val shouldRenderItem = !stack.isEmpty && !SmoothSwapping.shouldSuppressSlot(screen, slot)
     if (shouldRenderItem) {
-        RarityHighlightRenderer.renderSlot(context, stack, pos.x, pos.y) {
-            context.itemWithDecorations(stack, pos.x, pos.y)
-        }
+        StorageOverlayItemRenderer.drawLiveItem(context, stack, pos.x, pos.y)
     }
     slot?.let { SlotLockManager.renderSlotOverlay(context, it, pos.x, pos.y) }
     if (shouldRenderItem) {
