@@ -8,7 +8,6 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockAreaState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -72,7 +71,6 @@ object ProfitTracker {
 
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
-        TabListApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         SkyBlockDataRepository.Demand.register("Profit Tracker") { configs.isAnyEnabled() }
         PetRepository.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         itemTracking.register({ configs.isAnyEnabled() }, ::recordItemChanges)
@@ -169,7 +167,7 @@ object ProfitTracker {
 
     private val locationPreset: ProfitTrackerPreset?
         get() = ProfitTrackerPresets.forLocation(
-            TabListApi.skyBlockAreaName ?: HypixelLocationState.currentIsland?.displayName,
+            HypixelLocationState.currentIsland?.displayName,
             SkyBlockAreaState.currentArea,
             SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)
                 ?: fishingHookPreset
