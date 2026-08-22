@@ -22,8 +22,9 @@ internal object ProfitTrackerPresets {
                 (preset.areas.isEmpty() || area in preset.areas) &&
                 (preset.islandAreas[island]?.let { area in it } != false)
         }
-        preferred?.let { return it.takeIf(matches::containsKey) }
-        return matches.keys.singleOrNull { it.slayerType == null } ?: matches.keys.singleOrNull()
+        return preferred?.takeIf(matches::containsKey)
+            ?: matches.keys.singleOrNull { it.slayerType == null }
+            ?: matches.keys.singleOrNull()
     }
 
     private fun load(): Map<ProfitTrackerPreset, ProfitPreset> {
