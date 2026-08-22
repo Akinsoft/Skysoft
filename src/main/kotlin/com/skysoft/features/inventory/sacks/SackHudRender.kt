@@ -189,10 +189,13 @@ internal class SackHudRenderable(
     } else {
         "§7Loading item data..."
     }
-    private val indicatorText = buildList {
-        if (hiddenAbove > 0) add("$hiddenAbove above")
-        if (hiddenBelow > 0) add("$hiddenBelow more")
-    }.joinToString(" §8• §7", prefix = "§7", postfix = if (hiddenAbove > 0 || hiddenBelow > 0) "..." else "")
+    private val indicatorText = when {
+        hiddenAbove <= 0 && hiddenBelow <= 0 -> ""
+        else -> buildList {
+            if (hiddenAbove > 0) add("$hiddenAbove above")
+            if (hiddenBelow > 0) add("$hiddenBelow more")
+        }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
+    }
     private val addLine = if (addingItem) "§a§l[+ Click Inventory Item]" else "§e[+ Add Item]"
     private val titleText = "§e§lSack HUD"
     private val contentWidth = maxOf(
