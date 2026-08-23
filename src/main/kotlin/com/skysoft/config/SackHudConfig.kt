@@ -21,14 +21,14 @@ class SackHudConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Sack HUD settings.")
+    @field:ConfigOption(name = "Settings", desc = "Sacks Tracker settings.")
     @field:Accordion
     @field:ConfigVisibleIf("enabled")
     val settings = SackHudSettingsConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Details", desc = "Sack HUD appearance.")
+    @field:ConfigOption(name = "Details", desc = "Sacks Tracker appearance.")
     @field:Accordion
     @field:ConfigVisibleIf("enabled")
     val details = SackHudDetailsConfig()
@@ -67,18 +67,18 @@ class SackHudSettingsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Only in Menus", desc = "Only show the Sack HUD while a container menu is open.")
+    @field:ConfigOption(name = "Only in Menus", desc = "Only show the Sacks Tracker while a container menu is open.")
     @field:ConfigEditorBoolean
     var isOnlyInMenus = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Hide When Empty", desc = "Hide the Sack HUD when no items are being tracked.")
+    @field:ConfigOption(name = "Hide When Empty", desc = "Hide the Sacks Tracker when no items are being tracked.")
     @field:ConfigEditorBoolean
     var hideWhenEmpty = false
 
     @JvmField
-    @field:ConfigOption(name = "Clear Tracked Items", desc = "Remove every item from the Sack HUD.")
+    @field:ConfigOption(name = "Clear Tracked Items", desc = "Remove every item from the Sacks Tracker.")
     @field:ConfigEditorButton(buttonText = "Clear")
     val clearTrackedItems = Runnable {
         val config = SkysoftConfigGui.config().inventory.sackHud
@@ -91,7 +91,7 @@ class SackHudSettingsConfig {
 class SackHudDetailsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Show Title", desc = "Show the §eSack HUD§7 title above tracked items.")
+    @field:ConfigOption(name = "Show Title", desc = "Show the §eSacks Tracker§7 title above tracked items.")
     @field:ConfigEditorBoolean
     var showTitle = true
 
@@ -109,7 +109,7 @@ class SackHudDetailsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Show Background", desc = "Draw a dark background behind the Sack HUD.")
+    @field:ConfigOption(name = "Show Background", desc = "Draw a dark background behind the Sacks Tracker.")
     @field:ConfigEditorBoolean
     var showBackground = true
 

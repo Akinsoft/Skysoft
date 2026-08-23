@@ -179,7 +179,7 @@ internal object SkysoftFeatureRegistrations {
         register("Price Tooltip Raw Craft Costs", PriceTooltipRawCraftCosts::register)
         register("Price Tooltips", PriceTooltips::register)
         register("Sack Display", SackDisplay::register)
-        register("Sack HUD", SackHud::register)
+        register("Sacks Tracker", SackHud::register)
         register("Item Change Log", ItemChangeLog::register)
         register("Duplicate Enchantment Tooltip Fix", DuplicateEnchantmentTooltipFix::register)
         register("Max Enchant Chroma", MaxEnchantChroma::register)

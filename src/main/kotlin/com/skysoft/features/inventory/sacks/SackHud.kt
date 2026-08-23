@@ -33,14 +33,14 @@ internal var sackHudHovered = false
 internal val sackHudChangeHighlights = mutableMapOf<String, Long>()
 
 private fun registerSackHud() {
-    ProfileStorageApi.registerConsumer("Sack HUD") { sackHudConfig.enabled }
-    SkyBlockDataRepository.Demand.register("Sack HUD") { sackHudConfig.enabled }
+    ProfileStorageApi.registerConsumer("Sacks Tracker") { sackHudConfig.enabled }
+    SkyBlockDataRepository.Demand.register("Sacks Tracker") { sackHudConfig.enabled }
     SkyBlockSackChanges.onChange(
-        "Sack HUD changes",
+        "Sacks Tracker changes",
         isActive = { sackHudConfig.enabled && sackHudConfig.details.highlightChanges },
         listener = ::highlightSackChanges,
     )
-    SkysoftClientEvents.onDisconnect("Sack HUD reset") {
+    SkysoftClientEvents.onDisconnect("Sacks Tracker reset") {
         sackHudAddingItem = false
         sackHudScrollOffset = 0
         sackHudChangeHighlights.clear()
@@ -58,12 +58,12 @@ private fun registerSackHud() {
     )
     HudEditorRegistry.register(object : HudEditorElement {
         override val id: String = "sack_hud"
-        override val label: String = "Sack HUD"
+        override val label: String = "Sacks Tracker"
         override val position get() = sackHudConfig.position
         override val hasEditorBackground: Boolean get() = !sackHudConfig.details.showBackground
         override fun width(): Int = buildSackHudRenderable(inventoryOpen = false).width
         override fun height(): Int = buildSackHudRenderable(inventoryOpen = false).height
-        override fun isVisible(): Boolean = sackHudConfig.enabled
+        override fun isVisible(): Boolean = isSackHudVisible()
         // Pin the left edge so growing quantities expand rightward only.
         override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
         override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
@@ -79,7 +79,7 @@ private fun registerSackHud() {
             position.scale += if (scrollY > 0.0) SACK_HUD_EDITOR_SCALE_STEP else -SACK_HUD_EDITOR_SCALE_STEP
             return InputHandlingResult.CONSUMED
         }
-        override fun openConfig() = SkysoftConfigGui.open("Sack HUD")
+        override fun openConfig() = SkysoftConfigGui.open("Sacks Tracker")
     })
 }
 
@@ -103,8 +103,12 @@ internal fun isSackHudVisible(): Boolean {
     if (!sackHudConfig.enabled || !HypixelLocationState.inSkyBlock) return false
     val minecraft = Minecraft.getInstance()
     if (MinecraftClient.isGuiHidden(minecraft)) return false
-    if (sackHudConfig.settings.hideWhenEmpty && sackHudConfig.trackedItems.isEmpty()) return false
-    if (sackHudConfig.settings.isOnlyInMenus && MinecraftClient.screen(minecraft) !is AbstractContainerScreen<*>) {
+    val inInventory = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
+    // Keep the HUD in inventories when empty so Hide When Empty does not remove Add Item.
+    if (sackHudConfig.settings.hideWhenEmpty && sackHudConfig.trackedItems.isEmpty() && !inInventory) {
+        return false
+    }
+    if (sackHudConfig.settings.isOnlyInMenus && !inInventory) {
         return false
     }
     return true
