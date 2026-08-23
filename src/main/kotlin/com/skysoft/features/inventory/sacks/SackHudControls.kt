@@ -20,12 +20,12 @@ internal fun registerSackHudInput() {
     ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
         if (screen !is AbstractContainerScreen<*>) return@register
         ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-            SkysoftErrorBoundary.value("Sack HUD mouse click", true) {
+            SkysoftErrorBoundary.value("Sacks Tracker mouse click", true) {
                 shouldAllowSackHudClick(screen, click)
             }
         }
         ScreenMouseEvents.allowMouseScroll(screen).register { _, mouseX, mouseY, _, verticalAmount ->
-            SkysoftErrorBoundary.value("Sack HUD mouse scroll", true) {
+            SkysoftErrorBoundary.value("Sacks Tracker mouse scroll", true) {
                 InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
                     !wasSackHudScrollHandled(verticalAmount)
             }

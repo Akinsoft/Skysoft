@@ -93,7 +93,7 @@ internal fun renderSackHud(context: GuiGraphicsExtractor) {
                 screenMouseY,
                 actionLines = buildList {
                     add("§eLeft-click §7to open Bazaar")
-                    add("§eRight-click §7to remove from Sack HUD")
+                    add("§eRight-click §7to remove from Sacks Tracker")
                     if (SkysoftConfigGui.config().inventory.itemList.enabled) {
                         add("§eMiddle-click §7to open Item List")
                     }
@@ -197,7 +197,7 @@ internal class SackHudRenderable(
         }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
     }
     private val addLine = if (addingItem) "§a§l[+ Click Inventory Item]" else "§e[+ Add Item]"
-    private val titleText = "§e§lSack HUD"
+    private val titleText = "§e§lSacks Tracker"
     private val contentWidth = maxOf(
         if (compactRows) COMPACT_MINIMUM_WIDTH else MINIMUM_WIDTH,
         if (showTitle) LegacyTextRenderer.width(titleText) else 0,
