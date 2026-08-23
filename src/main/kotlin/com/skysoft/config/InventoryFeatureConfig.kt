@@ -33,7 +33,7 @@ class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Sack HUD", desc = "Show selected sack item quantities on a movable HUD.")
+    @field:Category(name = "Sacks Tracker", desc = "Show selected sack item quantities on a movable HUD.")
     val sackHud = SackHudConfig()
 
     @JvmField
