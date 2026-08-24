@@ -74,10 +74,10 @@ internal object SkyBlockMobEntityMatcher {
         isCandidate: (LivingEntity) -> Boolean,
     ): LivingEntity? {
         val byId = entities.firstOrNull { entity -> entity.id == id - 1 && entity is LivingEntity } as? LivingEntity
-        if (byId != null && byId.isPossiblePhysicalEntity() && isCandidate(byId) && byId.isTightPair(this)) return byId
+        if (byId != null && byId.isPossibleSkyBlockMob() && isCandidate(byId) && byId.isTightPair(this)) return byId
         return entities.filterIsInstance<LivingEntity>()
             .filter { entity ->
-                entity.isPossiblePhysicalEntity() && isCandidate(entity) && entity.isTightPair(this)
+                entity.isPossibleSkyBlockMob() && isCandidate(entity) && entity.isTightPair(this)
             }
             .minByOrNull { entity -> entity.distanceToSqr(this) }
     }
@@ -92,20 +92,16 @@ internal object SkyBlockMobEntityMatcher {
     }
 
     private fun LivingEntity.isStandaloneSignalEntity(): Boolean =
-        isAlive && isPossiblePhysicalEntity() && this !is Player
-
-    private fun LivingEntity.isPossiblePhysicalEntity(): Boolean {
-        val player = Minecraft.getInstance().player
-        if (this == player || this is ArmorStand) return false
-        return this !is Player || !isRealPlayer()
-    }
-
-    private fun Player.isRealPlayer(): Boolean =
-        uuid.version() == REAL_PLAYER_UUID_VERSION
+        isAlive && isPossibleSkyBlockMob() && this !is Player
 
     private const val NAMEPLATE_PAIR_HORIZONTAL_DISTANCE_SQ = 1.0
     private const val NAMEPLATE_PAIR_MAX_VERTICAL_DISTANCE = 4.0
-    private const val REAL_PLAYER_UUID_VERSION = 4
+}
+
+internal fun LivingEntity.isPossibleSkyBlockMob(): Boolean {
+    val player = Minecraft.getInstance().player
+    if (this == player || this is ArmorStand) return false
+    return this !is Player || uuid.version() != REAL_PLAYER_UUID_VERSION
 }
 
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
@@ -126,3 +122,4 @@ private fun String.withoutEmpyreanPrefix(): String =
 
 private val TIER_SUFFIX = Regex("""\s+[IVX]+$""")
 private const val EMPYREAN_PREFIX = "Empyrean "
+private const val REAL_PLAYER_UUID_VERSION = 4

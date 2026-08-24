@@ -10,8 +10,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.entity.decoration.ArmorStand
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 
 internal object BetterShurikenReminderMarkers {
@@ -50,7 +48,7 @@ internal object BetterShurikenReminderMarkers {
 }
 
 internal val LivingEntity.isShurikenTarget: Boolean
-    get() = isAlive && this !is ArmorStand && this !is Player
+    get() = isAlive && isPossibleSkyBlockMob()
 
 internal fun drawShurikenBadge(
     context: SkysoftRenderContext,
