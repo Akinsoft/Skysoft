@@ -45,6 +45,11 @@ class ProfitTrackersConfig {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Mythological Ritual", desc = "Track Mythological Ritual profit.")
+    val mythologicalRitual = ProfitTrackerConfig(MYTHOLOGICAL_RITUAL_TRACKER_SUMMARY_LINES)
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Zombie Slayer", desc = "Track Zombie Slayer profit.")
     val zombie = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
@@ -74,7 +79,7 @@ class ProfitTrackersConfig {
     val vampire = ProfitTrackerConfig(SLAYER_TRACKER_SUMMARY_LINES)
 
     fun isAnyEnabled(): Boolean = custom.trackers.any { it.config.enabled } || farming.enabled || fishing.enabled ||
-        foraging.enabled || mining.enabled || zombie.enabled ||
+        foraging.enabled || mining.enabled || mythologicalRitual.enabled || zombie.enabled ||
         spider.enabled || wolf.enabled || enderman.enabled || blaze.enabled || vampire.enabled
 }
 
@@ -208,5 +213,11 @@ private val SLAYER_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries
 internal val RESOURCE_TRACKER_SUMMARY_LINES = listOf(
     ProfitTrackerSummaryLine.TOTAL_PROFIT,
     ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
+    ProfitTrackerSummaryLine.UPTIME,
+)
+private val MYTHOLOGICAL_RITUAL_TRACKER_SUMMARY_LINES = listOf(
+    ProfitTrackerSummaryLine.TOTAL_PROFIT,
+    ProfitTrackerSummaryLine.PROFIT_PER_HOUR,
+    ProfitTrackerSummaryLine.ACTIONS,
     ProfitTrackerSummaryLine.UPTIME,
 )

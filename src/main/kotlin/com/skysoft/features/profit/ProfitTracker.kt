@@ -9,6 +9,7 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.ItemListEntryKind
+import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockAreaState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemChangeBatch
@@ -25,6 +26,8 @@ import com.skysoft.data.skyblock.SlayerMessageParser
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.BazaarPriceData
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
+import com.skysoft.features.event.diana.DianaEventState
+import com.skysoft.features.event.diana.MythologicalRitualMessageTracker
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.gui.OverlayControlCycle
@@ -72,6 +75,7 @@ object ProfitTracker {
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         SkyBlockDataRepository.Demand.register("Profit Tracker") { configs.isAnyEnabled() }
+        MayorPerkApi.registerConsumer("Profit Tracker") { configs.mythologicalRitual.enabled }
         PetRepository.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         itemTracking.register({ configs.isAnyEnabled() }, ::recordItemChanges)
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, state -> recordFarmingBlock(state.block) }
@@ -136,7 +140,9 @@ object ProfitTracker {
             uptime.tick(activeProfitTrackerTargets(locationPreset), minecraft.isWindowActive)
             val questPreset = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
             val activePreset = questPreset ?: locationPreset?.takeIf {
-                it == ProfitTrackerPreset.FARMING || it == ProfitTrackerPreset.FISHING
+                it == ProfitTrackerPreset.FARMING ||
+                    it == ProfitTrackerPreset.FISHING ||
+                    it == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL
             }
             if (activePreset != null) {
                 attributionPreset = activePreset
@@ -169,7 +175,14 @@ object ProfitTracker {
         get() = ProfitTrackerPresets.forLocation(
             HypixelLocationState.currentIsland?.displayName,
             SkyBlockAreaState.currentArea,
-            SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)
+            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL.takeIf {
+                presetConfig(it).enabled &&
+                    DianaEventState.isOnHub() &&
+                    DianaEventState.isMythologicalRitualActive() &&
+                    MayorPerkApi.mythologicalRitualEventKey != null &&
+                    DianaEventState.hasSpadeInHotbar()
+            }
+                ?: SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)
                 ?: fishingHookPreset
                 ?: activeFishingPreset,
         )
@@ -209,6 +222,7 @@ object ProfitTracker {
     internal fun stats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats = when (displayPeriod(target)) {
         ProfitTrackingPeriod.SESSION -> sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats)
         ProfitTrackingPeriod.TODAY -> todayStats(target)
+        ProfitTrackingPeriod.MAYOR -> requireNotNull(mythologicalRitualMayorStats(target))
         ProfitTrackingPeriod.TOTAL ->
             ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats)
     }
@@ -218,11 +232,15 @@ object ProfitTracker {
 
     internal fun displayPeriod(target: ProfitTrackerTarget): ProfitTrackingPeriod =
         ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey]
-            ?.let { period -> ProfitTrackingPeriod.entries.firstOrNull { it.name == period } }
-            ?: ProfitTrackingPeriod.SESSION
+            ?.let { period -> target.trackingPeriods.firstOrNull { it.name == period } }
+            ?: if (target.preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) {
+                ProfitTrackingPeriod.MAYOR
+            } else {
+                ProfitTrackingPeriod.SESSION
+            }
 
     internal fun cyclePeriod(target: ProfitTrackerTarget, backwards: Boolean) {
-        val periods = ProfitTrackingPeriod.entries
+        val periods = target.trackingPeriods
         val current = displayPeriod(target)
         val next = OverlayControlCycle.next(periods, current, backwards)
         ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
@@ -239,6 +257,10 @@ object ProfitTracker {
             ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey]?.clear()
             ProfitTrackingPeriod.TODAY -> {
                 todayStats(target).clear()
+                ProfileStorageApi.markDirty()
+            }
+            ProfitTrackingPeriod.MAYOR -> {
+                mythologicalRitualMayorStats(target)?.clear()
                 ProfileStorageApi.markDirty()
             }
             ProfitTrackingPeriod.TOTAL -> {
@@ -308,8 +330,13 @@ object ProfitTracker {
                 update(target) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
             }
         }
-        if (preset == ProfitTrackerPreset.FARMING && isCountedPestKillMessage(message)) {
-            val target = ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING)
+        val actionOccurred = when (preset) {
+            ProfitTrackerPreset.FARMING -> isCountedPestKillMessage(message)
+            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL -> MythologicalRitualMessageTracker.isBurrowMessage(message)
+            else -> false
+        }
+        if (actionOccurred) {
+            val target = ProfitTrackerTarget.preset(preset)
             uptime.markActivity(target)
             update(target) { stats -> stats.actions++ }
         }
@@ -364,6 +391,7 @@ object ProfitTracker {
     private fun update(target: ProfitTrackerTarget, action: (ProfileStorage.ProfitTrackerStats) -> Unit) {
         action(sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats))
         action(todayStats(target))
+        mythologicalRitualMayorStats(target)?.let(action)
         action(ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
         target.preset?.let { ProfileStorageApi.storage.profitTracker.lastPreset = it.name }
         ProfileStorageApi.markDirty()
@@ -383,14 +411,15 @@ object ProfitTracker {
                 .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
                 .filter { entry ->
                     SkyBlockDataRepository.info(entry.key)?.dropSources.orEmpty().any { source ->
-                        if (preset == ProfitTrackerPreset.FISHING) {
-                            SkyBlockDataRepository.entity(source.entityId)?.type.equals(
-                                SEA_CREATURE_ENTITY_TYPE,
-                                ignoreCase = true,
-                            )
-                        } else {
-                            slayerType != null &&
-                                SkyBlockSlayerType.fromBossEntityId(source.entityId)?.first == slayerType
+                        val entityType = SkyBlockDataRepository.entity(source.entityId)?.type
+                        when (preset) {
+                            ProfitTrackerPreset.FISHING ->
+                                entityType.equals(SEA_CREATURE_ENTITY_TYPE, ignoreCase = true)
+                            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL ->
+                                entityType.equals(MYTHOLOGICAL_CREATURE_ENTITY_TYPE, ignoreCase = true)
+                            else ->
+                                slayerType != null &&
+                                    SkyBlockSlayerType.fromBossEntityId(source.entityId)?.first == slayerType
                         }
                     }
                 }
@@ -434,6 +463,25 @@ object ProfitTracker {
         foragingTreeGiftParser.clear()
     }
 }
+
+private fun mythologicalRitualMayorStats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats? {
+    if (target.preset != ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) return null
+    val eventKey = MayorPerkApi.mythologicalRitualEventKey ?: return null
+    val tracker = ProfileStorageApi.storage.profitTracker
+    if (tracker.mythologicalRitualMayorKey != eventKey) {
+        tracker.mythologicalRitualMayorKey = eventKey
+        tracker.mythologicalRitualMayor.clear()
+        ProfileStorageApi.markDirty()
+    }
+    return tracker.mythologicalRitualMayor
+}
+
+private val ProfitTrackerTarget.trackingPeriods: List<ProfitTrackingPeriod>
+    get() = if (preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) {
+        MYTHOLOGICAL_RITUAL_TRACKING_PERIODS
+    } else {
+        STANDARD_TRACKING_PERIODS
+    }
 
 private class ForagingTreeGiftParser {
     private var isBonusGiftPending = false
@@ -511,6 +559,7 @@ internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
             ProfitTrackerPreset.FISHING -> fishing
             ProfitTrackerPreset.FORAGING -> foraging
             ProfitTrackerPreset.MINING -> mining
+            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL -> mythologicalRitual
             ProfitTrackerPreset.ZOMBIE -> zombie
             ProfitTrackerPreset.SPIDER -> spider
             ProfitTrackerPreset.WOLF -> wolf
@@ -555,6 +604,7 @@ private const val BOUNTIFUL_ATTRIBUTION_MILLIS = 2_000L
 private const val MINECRAFT_DAY_TICKS = 24_000L
 private const val MINECRAFT_NIGHT_START_TICK = 12_000L
 private const val SEA_CREATURE_ENTITY_TYPE = "Sea Creature"
+private const val MYTHOLOGICAL_CREATURE_ENTITY_TYPE = "Mythological Creature"
 
 private fun shouldTrackCoinGain(
     preset: ProfitTrackerPreset,
@@ -565,7 +615,9 @@ private fun shouldTrackCoinGain(
         return false
     }
     if (preset != ProfitTrackerPreset.FARMING) {
-        return preset.slayerType != null || preset == ProfitTrackerPreset.FISHING
+        return preset.slayerType != null ||
+            preset == ProfitTrackerPreset.FISHING ||
+            preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL
     }
     val recentlyFarmed = lastActivityAtMillis?.let {
         System.currentTimeMillis() - it <= BOUNTIFUL_ATTRIBUTION_MILLIS
@@ -669,5 +721,13 @@ private val IMMEDIATE_DROP_PRESETS = ProfitTrackerPreset.entries
 enum class ProfitTrackingPeriod(val displayName: String) {
     SESSION("Session"),
     TODAY("Today"),
+    MAYOR("Mayor"),
     TOTAL("Total"),
 }
+
+private val STANDARD_TRACKING_PERIODS = listOf(
+    ProfitTrackingPeriod.SESSION,
+    ProfitTrackingPeriod.TODAY,
+    ProfitTrackingPeriod.TOTAL,
+)
+private val MYTHOLOGICAL_RITUAL_TRACKING_PERIODS = ProfitTrackingPeriod.entries
