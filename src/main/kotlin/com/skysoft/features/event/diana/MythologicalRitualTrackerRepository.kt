@@ -19,7 +19,7 @@ internal object MythologicalRitualTrackerRepository {
         if (currentProfileId != null) return writableState(currentProfileId)
         val profileId = lastKnownProfileId ?: return null
         val profile = data.profileOrNull(profileId.playerKey, profileId.profileKey) ?: return null
-        val event = profile.eventForDisplay(currentEventKey(), UNRESOLVED_EVENT_KEY)
+        val event = profile.eventForDisplay(currentEventKey(), UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY)
         return MythologicalRitualTrackerState(
             event = event,
             total = profile.total,
@@ -65,8 +65,8 @@ internal object MythologicalRitualTrackerRepository {
         lastKnownProfileId = profileId
         val eventKey = currentEventKey()
         val profile = data.profile(profileId.playerKey, profileId.profileKey)
-        if (eventKey != UNRESOLVED_EVENT_KEY) {
-            profile.mergeEvent(UNRESOLVED_EVENT_KEY, eventKey)
+        if (eventKey != UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY) {
+            profile.mergeEvent(UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY, eventKey)
         }
         return MythologicalRitualTrackerState(
             event = profile.event(eventKey),
@@ -78,8 +78,9 @@ internal object MythologicalRitualTrackerRepository {
     }
 
     private fun currentEventKey(): String =
-        MayorPerkApi.mythologicalRitualEventKey ?: UNRESOLVED_EVENT_KEY
+        MayorPerkApi.mythologicalRitualEventKey ?: UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
 
-    private const val UNRESOLVED_EVENT_KEY = "unresolved-current-event"
     private const val ACTIVE_SAVE_INTERVAL_MILLIS = 30_000L
 }
+
+internal const val UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY = "unresolved-current-event"

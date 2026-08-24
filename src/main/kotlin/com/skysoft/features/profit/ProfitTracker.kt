@@ -28,6 +28,7 @@ import com.skysoft.data.skyblock.price.BazaarPriceData
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.event.diana.DianaEventState
 import com.skysoft.features.event.diana.MythologicalRitualMessageTracker
+import com.skysoft.features.event.diana.UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.gui.OverlayControlCycle
@@ -179,7 +180,6 @@ object ProfitTracker {
                 presetConfig(it).enabled &&
                     DianaEventState.isOnHub() &&
                     DianaEventState.isMythologicalRitualActive() &&
-                    MayorPerkApi.mythologicalRitualEventKey != null &&
                     DianaEventState.hasSpadeInHotbar()
             }
                 ?: SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)
@@ -466,11 +466,14 @@ object ProfitTracker {
 
 private fun mythologicalRitualMayorStats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats? {
     if (target.preset != ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) return null
-    val eventKey = MayorPerkApi.mythologicalRitualEventKey ?: return null
     val tracker = ProfileStorageApi.storage.profitTracker
+    val eventKey = MayorPerkApi.mythologicalRitualEventKey
+        ?: tracker.mythologicalRitualMayorKey.takeIf(String::isNotBlank)
+        ?: UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
     if (tracker.mythologicalRitualMayorKey != eventKey) {
+        val preserveStats = tracker.mythologicalRitualMayorKey == UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
         tracker.mythologicalRitualMayorKey = eventKey
-        tracker.mythologicalRitualMayor.clear()
+        if (!preserveStats) tracker.mythologicalRitualMayor.clear()
         ProfileStorageApi.markDirty()
     }
     return tracker.mythologicalRitualMayor
