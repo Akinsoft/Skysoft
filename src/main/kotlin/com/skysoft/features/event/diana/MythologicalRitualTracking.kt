@@ -97,6 +97,7 @@ internal object MythologicalRitualMessageTracker {
     private val burrowPattern = Regex("""^You .* Griffin [Bb]urrow.*$""")
     private val coinPattern = Regex("""^Wow! You dug out (?<coins>[\d,]+) coins!$""", RegexOption.IGNORE_CASE)
     private val shardPatterns = listOf(
+        Regex("""^CHARM! You charmed the .+? and received (?<amount>\d+) (?<mob>.+?) Shards?!$"""),
         Regex("""^You charmed a (?<mob>.+?) and captured (?<amount>\d+) Shards from it\.$"""),
         Regex("""^You charmed a (?<mob>.+?) and captured its Shard\.$"""),
         Regex("""^You caught (?<amount>\d+)x (?<mob>.+?) Shards.*$"""),
