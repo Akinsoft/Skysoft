@@ -50,11 +50,17 @@ internal object RareDropTitleFormatter {
             .append(Component.literal(drop.prefix()).withStyle(ChatFormatting.WHITE))
             .append(
                 Component.literal(drop.displayName).withStyle { style ->
-                    style.withColor(rarity.color.rgb and RGB_MASK)
+                    if (drop.itemId?.startsWith(ULTIMATE_ENCHANTMENT_PREFIX) == true) {
+                        style.withColor(ChatFormatting.LIGHT_PURPLE)
+                    } else {
+                        style.withColor(rarity.color.rgb and RGB_MASK)
+                    }
                 },
             )
             .append(Component.literal(" (${value.coins.coinFormat()})").withStyle(ChatFormatting.GOLD))
 
     private fun RareLootDrop.prefix(): String =
         if (amount > 1) "+ ${amount}x " else "+ "
+
+    private const val ULTIMATE_ENCHANTMENT_PREFIX = "ENCHANTMENT_ULTIMATE_"
 }
