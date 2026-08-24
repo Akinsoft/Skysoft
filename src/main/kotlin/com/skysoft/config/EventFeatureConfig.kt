@@ -56,6 +56,12 @@ class SkysoftDianaConfig {
 class DianaSettingsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Keep Hub Terrain Loaded", desc = "Keep visited Hub terrain loaded for smoother warps.")
+    @field:ConfigEditorBoolean
+    var keepHubTerrainLoaded = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Crosshair Line", desc = "Draw a line to the next burrow.")
     @field:ConfigEditorBoolean
     var crosshairLine = true
