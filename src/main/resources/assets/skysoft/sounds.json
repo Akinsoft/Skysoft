@@ -18,5 +18,15 @@
     "sounds": [
       "skysoft:foraging/queen_ant_found"
     ]
+  },
+  "for_intrests.death": {
+    "sounds": [
+      "skysoft:misc/return_by_death"
+    ]
+  },
+  "for_intrests.death_idiot": {
+    "sounds": [
+      "skysoft:misc/return_by_death_idiot"
+    ]
   }
 }
