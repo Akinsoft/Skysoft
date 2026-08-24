@@ -74,6 +74,7 @@ import com.skysoft.features.inventory.registerSlotBindingStorage
 import com.skysoft.features.loot.RareLootChatFeatures
 import com.skysoft.features.mining.MiningAbilityCooldownDisplay
 import com.skysoft.features.misc.DayDisplay
+import com.skysoft.features.misc.ForIntrests
 import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
@@ -266,6 +267,7 @@ internal object SkysoftFeatureRegistrations {
         register("Diana Lobby Compromised Watcher", DianaLobbyCompromisedWatcher::register)
         register("Diana Rare Mob Sharing", DianaRareMobSharing::register)
         register("Mythological Ritual Tracker", MythologicalRitualTracker::register)
+        register("For Intrests", ForIntrests::register)
         register("New Settings Discovery", NewSettingsDiscovery::register)
         register("Update Checker", ModUpdateChecker::register)
     }

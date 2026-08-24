@@ -2,9 +2,11 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import io.github.notenoughupdates.moulconfig.ChromaColour
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorInfoText
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
@@ -59,6 +61,22 @@ class SettingsConfig {
     @field:ConfigEditorColour
     val subcategoryColor: Property<ChromaColour> =
         Property.of(ChromaColour.fromRGB(85, 85, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "For Intrests",
+        desc = "A long long time ago, a wise Intrests said \"what if a mod did...\" and then this happened.",
+    )
+    @field:ConfigEditorBoolean
+    var forIntrests = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Volume", desc = "Volume of the death sound.")
+    @field:ConfigVisibleIf("forIntrests")
+    @field:ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 1f)
+    var forIntrestsVolume = 50
 
     internal fun clearConfirmations() {
         turnOffPending.set(false)
