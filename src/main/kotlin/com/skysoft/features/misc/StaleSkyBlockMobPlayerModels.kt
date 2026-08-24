@@ -2,8 +2,12 @@ package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.features.combat.SkyBlockMobEntityMatcher
+import com.skysoft.features.combat.SkyBlockMobTextParser
+import com.skysoft.utils.EntityUtilities.cleanName
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.player.Player
 
 internal object StaleSkyBlockMobPlayerModels {
@@ -24,7 +28,16 @@ internal object StaleSkyBlockMobPlayerModels {
             !isRealPlayer() &&
             vehicle == null &&
             tickCount >= STALE_MOB_MIN_AGE_TICKS &&
-            hasStaleMobHealthProfile(health, maxHealth)
+            hasStaleMobHealthProfile(health, maxHealth) &&
+            !hasVisibleMobNameplate()
+
+    private fun Player.hasVisibleMobNameplate(): Boolean {
+        val entities = SkyBlockMobEntityMatcher.allEntities()
+        return entities.filterIsInstance<ArmorStand>().any { nameplate ->
+            SkyBlockMobTextParser.parseHealth(nameplate.cleanName()) != null &&
+                SkyBlockMobEntityMatcher.physicalEntityFor(nameplate, entities) { candidate -> candidate == this } == this
+        }
+    }
 
     private fun Player.isRealPlayer(): Boolean =
         uuid.version() == REAL_PLAYER_UUID_VERSION
