@@ -108,6 +108,12 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Safari", desc = "Critter Safari helpers.")
+    val safari = SafariFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Fishing", desc = "Fishing settings.")
     val fishing = FishingFeatureConfig()
 
