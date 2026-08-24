@@ -137,6 +137,7 @@ class GuiFeatureConfig : ConfigRepairable {
         actionBar.repairLoadedValues()
         inventoryHud.repairLoadedValues()
         customBars.repairLoadedValues()
+        betterTab.repairLoadedValues()
     }
 }
 
