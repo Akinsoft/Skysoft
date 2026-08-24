@@ -29,7 +29,7 @@ internal object DianaRareMobRenderer {
         targets.forEach { target -> renderTarget(context, target, drawLootshareRadius, localPlayerName, lootshareColors) }
         if (currentTarget != null && drawCrosshairLine) {
             val lineEntity = currentTarget.entity ?: currentTarget.nameplate
-            if (lineEntity?.isVisibleToPlayer() == true) {
+            if (lineEntity == null || lineEntity.isVisibleToPlayer()) {
                 context.drawLineToCrosshair(
                     currentTarget.lineLocation(),
                     RARE_MOB_COLOR,
