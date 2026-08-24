@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.input.InputHandlingResult
@@ -50,3 +51,10 @@ internal val inventoryEquipmentConfig
 
 internal fun isInventoryEquipmentAvailable(): Boolean =
     inventoryEquipmentConfig.enabled && HypixelLocationState.inSkyBlock
+
+internal fun inventoryEquipmentClickCommand(): String? =
+    if (SkyBlockIsland.THE_RIFT.isInIsland()) {
+        inventoryEquipmentConfig.settings.riftClickAction.command
+    } else {
+        inventoryEquipmentConfig.settings.clickAction.command
+    }
