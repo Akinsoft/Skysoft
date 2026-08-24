@@ -47,6 +47,7 @@ object SlayerTimeToKill {
             when (period) {
                 ProfitTrackingPeriod.SESSION -> sessionStats
                 ProfitTrackingPeriod.TODAY -> todayStats(data)
+                ProfitTrackingPeriod.MAYOR -> error("Slayer trackers do not support the Mayor period")
                 ProfitTrackingPeriod.TOTAL -> data.totals
             }[slayerType]?.get(it)
         }
@@ -58,6 +59,7 @@ object SlayerTimeToKill {
         when (period) {
             ProfitTrackingPeriod.SESSION -> sessionStats.remove(slayerType)
             ProfitTrackingPeriod.TODAY -> todayStats(ProfileStorageApi.storage.slayerTimeToKill).remove(slayerType)
+            ProfitTrackingPeriod.MAYOR -> error("Slayer trackers do not support the Mayor period")
             ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.storage.slayerTimeToKill.totals.remove(slayerType)
         }
         if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.markDirty()

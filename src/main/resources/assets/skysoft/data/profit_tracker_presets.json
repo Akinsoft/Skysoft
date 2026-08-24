@@ -377,6 +377,22 @@
       "YOGGIE"
     ]
   },
+  "mythologicalRitual": {
+    "islands": ["Hub"],
+    "items": [
+      "GRIFFIN_FEATHER",
+      "MYTHOS_FRAGMENT",
+      "BRAIDED_GRIFFIN_FEATHER",
+      "MYTH_THE_FISH",
+      "PRE_DIGESTION_FISH",
+      "ATTRIBUTE_SHARD_MYTHOLOGICAL_RULER;1",
+      "ATTRIBUTE_SHARD_MYTHOLOGICAL_RESISTANCE;1",
+      "ATTRIBUTE_SHARD_MYTHOLOGICAL_FORTUNE;1",
+      "ATTRIBUTE_SHARD_TREE_LURKER;1",
+      "ATTRIBUTE_SHARD_BIG_GAME_HUNTER;1",
+      "ATTRIBUTE_SHARD_KING_OF_GREED;1"
+    ]
+  },
   "fishing": {
     "anyIsland": true,
     "islands": ["Hub"],

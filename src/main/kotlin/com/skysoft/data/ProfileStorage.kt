@@ -203,6 +203,8 @@ data class ProfileStorage(
         @Expose val totals: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
         @Expose var todayEpochDay: Long = 0L,
         @Expose val today: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
+        @Expose var mythologicalRitualMayorKey: String = "",
+        @Expose val mythologicalRitualMayor: ProfitTrackerStats = ProfitTrackerStats(),
         @Expose val displayPeriods: MutableMap<String, String> = mutableMapOf(),
         @Expose val itemCustomizations: MutableMap<String, ProfitTrackerItemCustomizations> = mutableMapOf(),
         @Expose
@@ -219,6 +221,8 @@ data class ProfileStorage(
             itemCustomizations.values.forEach(ProfitTrackerItemCustomizations::repairLoadedValues)
             totals.values.forEach(ProfitTrackerStats::repairLoadedValues)
             today.values.forEach(ProfitTrackerStats::repairLoadedValues)
+            mythologicalRitualMayor.repairLoadedValues()
+            if (mythologicalRitualMayorKey.isBlank()) mythologicalRitualMayor.clear()
             if (todayEpochDay < 0L) todayEpochDay = 0L
         }
     }
@@ -618,7 +622,7 @@ data class ProfileStorage(
     }
 }
 
-private val PROFIT_TRACKER_PERIODS = setOf("SESSION", "TODAY", "TOTAL")
+private val PROFIT_TRACKER_PERIODS = setOf("SESSION", "TODAY", "MAYOR", "TOTAL")
 private val PROFIT_TRACKER_PRICE_SOURCES = ProfitTrackerPriceSource.entries.mapTo(mutableSetOf()) { it.name }
 
 private fun repairPetReferences(

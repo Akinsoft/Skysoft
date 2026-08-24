@@ -44,7 +44,7 @@ internal object MythologicalRitualMessageTracker {
             lootShareWindow.recordReceipt(now)
         }
         when {
-            clean.isBurrowMessage() -> state.addItem(MythologicalRitualItemKey.TOTAL_BURROWS)
+            isBurrowMessage(clean) -> state.addItem(MythologicalRitualItemKey.TOTAL_BURROWS)
             coinPattern.matchEntire(clean) != null -> state.addCoins(clean)
             else -> state.trackNonCoinMessage(clean)
         }
@@ -91,8 +91,8 @@ internal object MythologicalRitualMessageTracker {
         return null
     }
 
-    private fun String.isBurrowMessage(): Boolean =
-        burrowPattern.matches(this)
+    fun isBurrowMessage(message: String): Boolean =
+        burrowPattern.matches(message.trim())
 
     private val burrowPattern = Regex("""^You .* Griffin [Bb]urrow.*$""")
     private val coinPattern = Regex("""^Wow! You dug out (?<coins>[\d,]+) coins!$""", RegexOption.IGNORE_CASE)

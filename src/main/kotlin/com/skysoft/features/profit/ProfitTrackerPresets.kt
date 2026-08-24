@@ -17,7 +17,7 @@ internal object ProfitTrackerPresets {
     ): ProfitTrackerPreset? {
         if (island == null) return null
         val matches = presets.filter { (type, preset) ->
-            (type != ProfitTrackerPreset.FISHING || preferred == ProfitTrackerPreset.FISHING) &&
+            (!type.requiresPreference || preferred == type) &&
                 (preset.anyIsland || island in preset.islands) &&
                 (preset.areas.isEmpty() || area in preset.areas) &&
                 (preset.islandAreas[island]?.let { area in it } != false)
@@ -52,12 +52,14 @@ internal object ProfitTrackerPresets {
         val fishing: PresetData? = null,
         val foraging: PresetData? = null,
         val mining: PresetData? = null,
+        val mythologicalRitual: PresetData? = null,
     ) {
         fun data(type: ProfitTrackerPreset): PresetData? = when (type) {
             ProfitTrackerPreset.FARMING -> farming
             ProfitTrackerPreset.FISHING -> fishing
             ProfitTrackerPreset.FORAGING -> foraging
             ProfitTrackerPreset.MINING -> mining
+            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL -> mythologicalRitual
             else -> type.slayerType?.let { slayer[it.name] }
         }
     }
@@ -76,6 +78,7 @@ internal enum class ProfitTrackerPreset(
     val slayerType: SkyBlockSlayerType? = null,
     val coinLabel: String = "Mob Kill Coins",
     val actionLabel: String = "Bosses Killed",
+    val requiresPreference: Boolean = false,
 ) {
     ZOMBIE("Zombie Slayer", SkyBlockSlayerType.ZOMBIE),
     SPIDER("Spider Slayer", SkyBlockSlayerType.SPIDER),
@@ -84,9 +87,15 @@ internal enum class ProfitTrackerPreset(
     BLAZE("Blaze Slayer", SkyBlockSlayerType.BLAZE),
     VAMPIRE("Vampire Slayer", SkyBlockSlayerType.VAMPIRE),
     FARMING("Farming", coinLabel = "Bountiful Coins", actionLabel = "Pests Vacuumed"),
-    FISHING("Fishing", coinLabel = "Coins", actionLabel = "Catches"),
+    FISHING("Fishing", coinLabel = "Coins", actionLabel = "Catches", requiresPreference = true),
     FORAGING("Foraging"),
     MINING("Mining"),
+    MYTHOLOGICAL_RITUAL(
+        "Mythological Ritual",
+        coinLabel = "Coins",
+        actionLabel = "Burrows Dug",
+        requiresPreference = true,
+    ),
     ;
 
     companion object {
