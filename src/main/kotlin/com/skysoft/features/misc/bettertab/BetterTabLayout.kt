@@ -26,7 +26,9 @@ internal data class BetterTabLayout(
 internal object BetterTabLayoutBuilder {
     private const val SOURCE_COLUMN_ROWS = 20
     private const val MAXIMUM_PROFILE_NAME_LENGTH = 14
+    private const val HYPIXEL_SERVER_LINE_PREFIX = "You are playing on"
     private const val HYPIXEL_ADVERTISING_TEXT = "HYPIXEL.NET"
+    private const val HYPIXEL_SPACER_CODE = "§s"
     private val profileLinePattern = Regex("^(?<prefix>\\s*Profile:\\s*)(?<name>.+)$")
     private val playerColumnPattern = Regex("Players \\((?<count>\\d+)\\)")
     private val otherPlayersPattern = Regex("and \\d+ other players?\\.\\.\\.", RegexOption.IGNORE_CASE)
@@ -36,12 +38,16 @@ internal object BetterTabLayoutBuilder {
         header: Component?,
         footer: Component?,
         maximumRows: Int,
+        isServerAddressHidden: Boolean,
+        isStoreBannerHidden: Boolean,
         isSecondPlayerColumnHidden: Boolean,
     ): BetterTabLayout {
-        val footerContent = parseFooter(footer)
+        val footerContent = parseFooter(footer, isStoreBannerHidden)
         val blocks = parseEntryBlocks(entries, isSecondPlayerColumnHidden) + footerContent.blocks
         return BetterTabLayout(
-            headerLines = header?.splitStyledLines()?.filterNot { it.isVisuallyBlank() }.orEmpty(),
+            headerLines = header?.splitStyledLines()?.filter { line ->
+                !line.isVisuallyBlank() && (!isServerAddressHidden || !line.isHypixelServerLine())
+            }.orEmpty(),
             columns = packBlocks(blocks, maximumRows),
             footerLines = footerContent.bannerLines,
         )
@@ -122,9 +128,9 @@ internal object BetterTabLayoutBuilder {
         return sections
     }
 
-    private fun parseFooter(footer: Component?): FooterContent {
+    private fun parseFooter(footer: Component?, isStoreBannerHidden: Boolean): FooterContent {
         val lines = footer?.splitStyledLines().orEmpty()
-        val bannerLines = lines.filter { it.isHypixelAdvertisingLine() }
+        val bannerLines = if (isStoreBannerHidden) emptyList() else lines.filter { it.isHypixelAdvertisingLine() }
         val contentLines = lines.map { line ->
             if (line.isHypixelAdvertisingLine()) Component.empty() else line
         }
@@ -193,10 +199,14 @@ internal object BetterTabLayoutBuilder {
 
     private fun Boolean.toInt(): Int = if (this) 1 else 0
 
+    private fun Component.isHypixelServerLine(): Boolean =
+        string.trimStart().startsWith(HYPIXEL_SERVER_LINE_PREFIX, ignoreCase = true)
+
     private fun Component.isHypixelAdvertisingLine(): Boolean =
         string.contains(HYPIXEL_ADVERTISING_TEXT, ignoreCase = true)
 
-    private fun Component.isVisuallyBlank(): Boolean = string.isBlank()
+    private fun Component.isVisuallyBlank(): Boolean =
+        string.replace(HYPIXEL_SPACER_CODE, "", ignoreCase = true).isBlank()
 
     private fun Component.withCompactProfileName(): Component {
         val match = profileLinePattern.matchEntire(string) ?: return this
