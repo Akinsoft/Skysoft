@@ -317,7 +317,7 @@ internal fun parseHuntingBoxDeposit(message: String): ParsedHuntingBoxDeposit? {
 }
 
 internal fun parseAttributeShardGain(message: String): ParsedAttributeShardGain? {
-    val match = sequenceOf(caughtShardsPattern, lootShareShardPattern, charmedShardPattern)
+    val match = sequenceOf(caughtShardsPattern, lootShareShardPattern, charmedShardPattern, receivedCharmedShardPattern)
         .firstNotNullOfOrNull { pattern -> pattern.matchEntire(message) }
         ?: return null
     return ParsedAttributeShardGain(
@@ -358,6 +358,8 @@ private val lootShareShardPattern =
     Regex("""LOOT SHARE You received (?:an?|(?<amount>\d+)) (?<shardName>.+) Shards? for assisting .*!""")
 private val charmedShardPattern =
     Regex("""(?:CHARM|SALT|NAGA) You charmed an? (?<shardName>.+) and captured (?:(?<amount>\d+) Shards from it|its Shard)\.""")
+private val receivedCharmedShardPattern =
+    Regex("""CHARM! You charmed the .+? and received (?<amount>\d+) (?<shardName>.+?) Shards?!""")
 private val sentToHuntingBoxPattern =
     Regex("""You sent (?:an?|a|(?<amount>\d+)) (?<shardName>.+) Shards? to your Hunting Box\.""")
 private val fusionShardPattern =
