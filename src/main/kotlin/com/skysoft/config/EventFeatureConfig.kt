@@ -20,7 +20,7 @@ import org.lwjgl.glfw.GLFW
 class EventFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
-    @field:Category(name = "Diana", desc = "Diana event helpers.")
+    @field:Category(name = "Diana", desc = "Diana Event Features")
     val diana = SkysoftDianaConfig()
 
     override fun repairLoadedValues() {
@@ -31,92 +31,73 @@ class EventFeatureConfig : ConfigRepairable {
 class SkysoftDianaConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Show Diana burrow helpers.")
+    @field:ConfigOption(name = "Burrow Helper", desc = "Find and display Diana burrows.")
+    @field:Accordion
+    val burrowHelper = DianaBurrowHelperConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Rare Mob Sharing", desc = "Share and display selected rare mobs.")
+    @field:Accordion
+    val rareMobSharing = DianaRareMobSharingConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Lobby Compromised", desc = "Alert when too many non-party players join the lobby.")
+    @field:Accordion
+    val lobbyCompromised = DianaLobbyCompromisedConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Sphinx Helper", desc = "Highlight correct Sphinx answers.")
+    @field:Accordion
+    val sphinxHelper = DianaSphinxHelperConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Quick Warps", desc = "Suggest quick warps to get to burrows faster.")
+    @field:Accordion
+    val quickWarps = DianaQuickWarpsConfig()
+
+    fun isAnyFeatureEnabled(): Boolean =
+        burrowHelper.enabled ||
+            rareMobSharing.enabled ||
+            lobbyCompromised.enabled ||
+            sphinxHelper.enabled ||
+            quickWarps.enabled
+
+    fun repairLoadedValues() {
+        lobbyCompromised.settings.repairLoadedValues()
+    }
+}
+
+class DianaBurrowHelperConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Find and display Diana burrows.")
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Burrow and warp settings.")
+    @field:ConfigOption(name = "Settings", desc = "Burrow Helper settings.")
     @field:Accordion
-    val settings = DianaSettingsConfig()
+    val settings = DianaBurrowSettingsConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Details", desc = "Detailed visual settings.")
+    @field:ConfigOption(name = "Details", desc = "Burrow Helper appearance.")
     @field:Accordion
-    val details = DianaDetailsConfig()
-
-    fun repairLoadedValues() {
-        settings.repairLoadedValues()
-    }
+    val details = DianaBurrowDetailsConfig()
 }
 
-class DianaSettingsConfig {
+class DianaBurrowSettingsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Keep Hub Terrain Loaded", desc = "Keep visited Hub terrain loaded for smoother warps.")
-    @field:ConfigEditorBoolean
-    var keepHubTerrainLoaded = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Crosshair Line", desc = "Draw a line to the next burrow.")
+    @field:ConfigOption(name = "Crosshair Line", desc = "Draw a line to the next burrow or shared rare mob.")
     @field:ConfigEditorBoolean
     var crosshairLine = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Rare Mob Sharing", desc = "Share selected rare mobs in party chat.")
-    @field:ConfigEditorBoolean
-    var rareMobSharing = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Shared Mobs", desc = "Rare mobs Skysoft should share.")
-    @field:ConfigVisibleIf("rareMobSharing")
-    @field:ConfigEditorDraggableList
-    val sharedRareMobs: Property<MutableList<DianaRareMobOption>> = Property.of(defaultDianaRareMobs())
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Received Mobs", desc = "Rare mob pings Skysoft should show.")
-    @field:ConfigEditorDraggableList
-    val receivedRareMobs: Property<MutableList<DianaRareMobOption>> = Property.of(defaultDianaRareMobs())
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Lobby Compromised", desc = "Alert when too many non-party players join.")
-    @field:ConfigEditorBoolean
-    var lobbyCompromised = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Stranger Limit", desc = "Non-party players before alerting.")
-    @field:ConfigVisibleIf("lobbyCompromised")
-    @field:ConfigEditorSlider(minValue = 1f, maxValue = 6f, minStep = 1f)
-    var lobbyCompromisedStrangerLimit = DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Lobby Alerts", desc = "Lobby compromised alerts to show.")
-    @field:ConfigVisibleIf("lobbyCompromised")
-    @field:ConfigEditorDraggableList
-    val lobbyCompromisedAlerts: Property<MutableList<DianaLobbyCompromisedAlert>> =
-        Property.of(mutableListOf(DianaLobbyCompromisedAlert.TITLE_ALERT))
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Lootshare Radius", desc = "Draw a 30 block lootshare radius.")
-    @field:ConfigEditorBoolean
-    var lootshareRadius = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Sphinx Answers", desc = "Highlight correct Sphinx answers.")
-    @field:ConfigEditorBoolean
-    var sphinxAnswers = true
 
     @JvmField
     @field:Expose
@@ -130,34 +111,9 @@ class DianaSettingsConfig {
     @field:ConfigVisibleIf("clickCounter")
     @field:ConfigEditorDropdown
     var clickCounterPosition = DianaClickCounterPosition.RIGHT
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Warp Hint", desc = "Show a useful warp title.")
-    @field:ConfigEditorBoolean
-    var warpHint = true
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Warp Key", desc = "Press this key to use the suggested warp.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var warpKey = GLFW.GLFW_KEY_UNKNOWN
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Min Warp Savings", desc = "Minimum blocks saved before suggesting a warp.")
-    @field:ConfigEditorSlider(minValue = 0f, maxValue = 80f, minStep = 1f)
-    var minWarpSavings = 10
-
-    fun repairLoadedValues() {
-        lobbyCompromisedStrangerLimit = lobbyCompromisedStrangerLimit.coerceIn(
-            MIN_LOBBY_COMPROMISED_STRANGER_LIMIT,
-            MAX_LOBBY_COMPROMISED_STRANGER_LIMIT,
-        )
-    }
 }
 
-class DianaDetailsConfig {
+class DianaBurrowDetailsConfig {
     val customBurrowBoxColorVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
         override fun get(): Boolean = burrowBoxColorMode == DianaBurrowBoxColorMode.CUSTOM
 
@@ -224,18 +180,149 @@ Guess""",
     @field:ConfigOption(name = "Guess Text Color", desc = "Color used for Guess burrow text.")
     @field:ConfigEditorColour
     val guessTextColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
+}
+
+class DianaRareMobSharingConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Share and display selected rare mobs.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Lootshare Missing", desc = "Color before you deal enough damage.")
+    @field:ConfigOption(name = "Settings", desc = "Rare Mob Sharing settings.")
+    @field:Accordion
+    val settings = DianaRareMobSharingSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Rare Mob Sharing appearance.")
+    @field:Accordion
+    val details = DianaRareMobSharingDetailsConfig()
+}
+
+class DianaRareMobSharingSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Share Mobs", desc = "Share selected rare mobs in party chat.")
+    @field:ConfigEditorBoolean
+    var shareMobs = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Shared Mobs", desc = "Rare mobs Skysoft should share.")
+    @field:ConfigVisibleIf("shareMobs")
+    @field:ConfigEditorDraggableList
+    val sharedRareMobs: Property<MutableList<DianaRareMobOption>> = Property.of(defaultDianaRareMobs())
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Received Mobs", desc = "Rare mob pings Skysoft should show.")
+    @field:ConfigEditorDraggableList
+    val receivedRareMobs: Property<MutableList<DianaRareMobOption>> = Property.of(defaultDianaRareMobs())
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Lootshare Radius", desc = "Draw a 30 block lootshare radius.")
+    @field:ConfigEditorBoolean
+    var lootshareRadius = true
+}
+
+class DianaRareMobSharingDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Lootshare Missing",
+        desc = "Color of the Lootshare text above the mob's head when you haven't dealt enough damage to secure lootshare yet.",
+    )
     @field:ConfigEditorColour
     val lootshareMissingColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 85, 85, 0, 230))
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Lootshare Ready", desc = "Color after you deal enough damage.")
+    @field:ConfigOption(
+        name = "Lootshare Ready",
+        desc = "Color of the Lootshare text above the mob's head when you've dealt enough damage to secure lootshare.",
+    )
     @field:ConfigEditorColour
     val lootshareReadyColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 255, 0, 230))
+}
+
+class DianaLobbyCompromisedConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Alert when too many non-party players join the lobby.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Lobby Compromised settings.")
+    @field:Accordion
+    val settings = DianaLobbyCompromisedSettingsConfig()
+}
+
+class DianaLobbyCompromisedSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Stranger Limit", desc = "Non-party players before alerting.")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 6f, minStep = 1f)
+    var strangerLimit = DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Lobby Alerts", desc = "Lobby compromised alerts to show.")
+    @field:ConfigEditorDraggableList
+    val alerts: Property<MutableList<DianaLobbyCompromisedAlert>> =
+        Property.of(mutableListOf(DianaLobbyCompromisedAlert.TITLE_ALERT))
+
+    fun repairLoadedValues() {
+        strangerLimit = strangerLimit.coerceIn(
+            MIN_LOBBY_COMPROMISED_STRANGER_LIMIT,
+            MAX_LOBBY_COMPROMISED_STRANGER_LIMIT,
+        )
+    }
+}
+
+class DianaSphinxHelperConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Highlight correct Sphinx answers.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+}
+
+class DianaQuickWarpsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Suggest quick warps to get to burrows faster.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Quick Warps settings.")
+    @field:Accordion
+    val settings = DianaQuickWarpsSettingsConfig()
+}
+
+class DianaQuickWarpsSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Warp Key", desc = "Press this key to use the suggested warp.")
+    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    var warpKey = GLFW.GLFW_KEY_UNKNOWN
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Minimum Savings", desc = "Minimum blocks saved before suggesting a warp.")
+    @field:ConfigEditorSlider(minValue = 0f, maxValue = 80f, minStep = 1f)
+    var minWarpSavings = 10
 }
 
 enum class DianaClickCounterPosition(private val displayName: String) {

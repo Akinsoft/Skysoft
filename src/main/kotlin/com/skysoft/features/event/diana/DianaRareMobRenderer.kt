@@ -1,6 +1,6 @@
 package com.skysoft.features.event.diana
 
-import com.skysoft.config.DianaDetailsConfig
+import com.skysoft.config.DianaRareMobSharingDetailsConfig
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
@@ -136,7 +136,7 @@ internal data class DianaLootshareColors(
     val ready: Color,
 )
 
-internal fun DianaDetailsConfig.lootshareColors(): DianaLootshareColors =
+internal fun DianaRareMobSharingDetailsConfig.lootshareColors(): DianaLootshareColors =
     DianaLootshareColors(
         missing = lootshareMissingColor.get().toColor(),
         ready = lootshareReadyColor.get().toColor(),

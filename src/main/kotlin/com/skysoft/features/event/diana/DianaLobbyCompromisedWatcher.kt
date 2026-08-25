@@ -20,8 +20,8 @@ import kotlin.time.Duration.Companion.seconds
 internal object DianaLobbyCompromisedWatcher {
     const val MESSAGE = "Lobby compromised!"
 
-    private val config get() = SkysoftConfigGui.config().events.diana
-    private val settings get() = config.settings
+    private val feature get() = SkysoftConfigGui.config().events.diana.lobbyCompromised
+    private val settings get() = feature.settings
     private val alertState = DianaLobbyCompromisedState(REQUIRED_COMPROMISED_STABLE_MILLIS)
     private val friendlyPresenceTracker = DianaLobbyFriendlyPresenceTracker()
     private var lastTabSessionId = Long.MIN_VALUE
@@ -51,23 +51,22 @@ internal object DianaLobbyCompromisedWatcher {
             lastTabSessionId = TabListApi.sessionId
         }
 
-        val threshold = settings.lobbyCompromisedStrangerLimit.coerceIn(
+        val threshold = settings.strangerLimit.coerceIn(
             MIN_LOBBY_COMPROMISED_STRANGER_LIMIT,
             MAX_LOBBY_COMPROMISED_STRANGER_LIMIT,
         )
         val result = alertState.update(population.strangerCount, threshold, now)
         if (result == DianaLobbyCompromisedUpdate.BECAME_COMPROMISED) {
-            sendAlerts(settings.lobbyCompromisedAlerts.get())
+            sendAlerts(settings.alerts.get())
         }
     }
 
     private fun isActive(): Boolean =
-        config.enabled &&
-            settings.lobbyCompromised &&
+        feature.enabled &&
             DianaEventState.isOnHub() &&
             DianaEventState.isMythologicalRitualActive()
 
-    private fun isConfigured(): Boolean = config.enabled && settings.lobbyCompromised
+    private fun isConfigured(): Boolean = feature.enabled
 
     private fun currentPopulation(now: Long): DianaLobbyPopulation? {
         if (

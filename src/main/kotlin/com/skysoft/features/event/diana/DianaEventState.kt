@@ -12,7 +12,7 @@ object DianaEventState {
     private var cachedHotbarSpadeTick = Long.MIN_VALUE
     private var cachedHasSpadeInHotbar = false
 
-    fun canUseHelper(): Boolean = config.enabled && isOnHub() && hasSpadeInHotbar()
+    fun canUseHelper(): Boolean = config.burrowHelper.enabled && isOnHub() && hasSpadeInHotbar()
 
     fun isOnHub(): Boolean = SkyBlockIsland.HUB.isInIsland()
 

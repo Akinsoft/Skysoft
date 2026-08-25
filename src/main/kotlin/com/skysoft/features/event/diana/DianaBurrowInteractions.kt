@@ -17,7 +17,7 @@ internal object DianaBurrowInteractions {
     fun register() {
         BlockInteractionEvents.register(
             "Diana Burrow block interaction",
-            isActive = { config.enabled && DianaEventState.isOnHub() },
+            isActive = { config.burrowHelper.enabled && DianaEventState.isOnHub() },
         ) { event ->
             onBlockClick(event).shouldCancel
         }
@@ -120,7 +120,7 @@ internal object DianaBurrowInteractions {
     }
 
     private fun onBlockClick(event: BlockInteractionEvent): DianaBlockClickResult {
-        if (!DianaEventState.isOnHub() || !config.enabled) return DianaBlockClickResult.ALLOW
+        if (!DianaEventState.isOnHub() || !config.burrowHelper.enabled) return DianaBlockClickResult.ALLOW
         val block = event.position.roundToBlock()
         val target = targetForClickedBlock(block) ?: return DianaBlockClickResult.ALLOW
         val now = System.currentTimeMillis()

@@ -3,7 +3,7 @@ package com.skysoft.features.event.diana
 import com.skysoft.config.DianaBurrowBoxColorMode
 import com.skysoft.config.DianaClickCounterPosition
 import com.skysoft.config.WaypointLabelFormat
-import com.skysoft.config.DianaDetailsConfig
+import com.skysoft.config.DianaBurrowDetailsConfig
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
 import com.skysoft.utils.ColorUtilities.RGB_MASK
@@ -260,14 +260,14 @@ internal data class DianaBurrowBoxColors(
     val fill: Color,
 )
 
-internal fun DianaDetailsConfig.burrowLabelColors(): Map<DianaBurrowType, Color> = mapOf(
+internal fun DianaBurrowDetailsConfig.burrowLabelColors(): Map<DianaBurrowType, Color> = mapOf(
     DianaBurrowType.START to startTextColor.get().toColor(),
     DianaBurrowType.MOB to mobTextColor.get().toColor(),
     DianaBurrowType.TREASURE to treasureTextColor.get().toColor(),
     DianaBurrowType.GUESS to guessTextColor.get().toColor(),
 )
 
-internal fun DianaDetailsConfig.burrowBoxStyle(
+internal fun DianaBurrowDetailsConfig.burrowBoxStyle(
     labelColors: Map<DianaBurrowType, Color> = burrowLabelColors(),
 ): DianaBurrowBoxStyle =
     DianaBurrowBoxStyle(

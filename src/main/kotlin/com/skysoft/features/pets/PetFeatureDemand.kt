@@ -10,7 +10,7 @@ internal object PetFeatureDemand {
             pets.visiblePetPosition.enabled ||
             pets.highlightActivePet ||
             pets.hideAutopet ||
-            config.events.diana.enabled ||
+            config.events.diana.rareMobSharing.enabled ||
             config.foraging.throwingAxeHelper.enabled
     }
 
