@@ -1,11 +1,13 @@
 package com.skysoft.features.event.diana
 
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
 
 internal object DianaLootshareReadyMessage {
     fun broadcast() {
+        if (!SkysoftConfigGui.config().events.diana.lootshare.settings.shareSecuredMessage) return
         SkysoftPartyShare.sendParty(MESSAGE)
     }
 

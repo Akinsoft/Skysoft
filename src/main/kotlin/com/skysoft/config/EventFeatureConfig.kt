@@ -43,6 +43,12 @@ class SkysoftDianaConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Lootshare", desc = "Configure lootshare messages and indicators.")
+    @field:Accordion
+    val lootshare = DianaLootshareConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Party Commands", desc = "Respond to selected Diana commands in party chat.")
     @field:Accordion
     val partyCommands = DianaPartyCommandsConfig()
@@ -202,12 +208,6 @@ class DianaRareMobSharingConfig {
     @field:ConfigOption(name = "Settings", desc = "Rare Mob Sharing settings.")
     @field:Accordion
     val settings = DianaRareMobSharingSettingsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Details", desc = "Rare Mob Sharing appearance.")
-    @field:Accordion
-    val details = DianaRareMobSharingDetailsConfig()
 }
 
 class DianaRareMobSharingSettingsConfig {
@@ -229,15 +229,46 @@ class DianaRareMobSharingSettingsConfig {
     @field:ConfigOption(name = "Received Mobs", desc = "Rare mob pings Skysoft should show.")
     @field:ConfigEditorDraggableList
     val receivedRareMobs: Property<MutableList<DianaRareMobOption>> = Property.of(defaultDianaRareMobs())
+}
 
+class DianaLootshareConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Lootshare settings.")
+    @field:Accordion
+    val settings = DianaLootshareSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Lootshare appearance.")
+    @field:Accordion
+    val details = DianaLootshareDetailsConfig()
+}
+
+class DianaLootshareSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Share Secured Message",
+        desc = "Send a party chat message after dealing enough damage to secure lootshare.",
+    )
+    @field:ConfigEditorBoolean
+    var shareSecuredMessage = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Party Checkmarks", desc = "Show a checkmark above party members who have secured lootshare.")
+    @field:ConfigEditorBoolean
+    var partyCheckmarks = true
+}
+
+class DianaLootshareDetailsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Lootshare Radius", desc = "Draw a 30 block lootshare radius.")
     @field:ConfigEditorBoolean
     var lootshareRadius = true
-}
 
-class DianaRareMobSharingDetailsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(
