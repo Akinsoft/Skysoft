@@ -172,13 +172,13 @@ class DianaDetailsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Hide Guess Arrows", desc = "Hide Diana arrow particles.")
+    @field:ConfigOption(name = "Hide Guess Arrows", desc = "Hide burrow arrow particles.")
     @field:ConfigEditorBoolean
     var hideGuessArrows = false
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Burrow Box Color", desc = "Choose default type colors or one custom box color.")
+    @field:ConfigOption(name = "Burrow Box Color", desc = "Match burrow text colors or choose one custom box color.")
     @field:ConfigEditorDropdown
     var burrowBoxColorMode = DianaBurrowBoxColorMode.DEFAULT
 
@@ -203,6 +203,30 @@ Guess""",
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Start Text Color", desc = "Color used for Start burrow text.")
+    @field:ConfigEditorColour
+    val startTextColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Mob Text Color", desc = "Color used for Mob burrow text.")
+    @field:ConfigEditorColour
+    val mobTextColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 85, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Treasure Text Color", desc = "Color used for Treasure burrow text.")
+    @field:ConfigEditorColour
+    val treasureTextColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 170, 0, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Guess Text Color", desc = "Color used for Guess burrow text.")
+    @field:ConfigEditorColour
+    val guessTextColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Lootshare Missing", desc = "Color before you deal enough damage.")
     @field:ConfigEditorColour
     val lootshareMissingColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 85, 85, 0, 230))
@@ -223,7 +247,7 @@ enum class DianaClickCounterPosition(private val displayName: String) {
 }
 
 enum class DianaBurrowBoxColorMode(private val displayName: String) {
-    DEFAULT("Default"),
+    DEFAULT("Match Text"),
     CUSTOM("Custom"),
     ;
 

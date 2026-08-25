@@ -6,6 +6,7 @@ import com.skysoft.config.WaypointLabelFormat
 import com.skysoft.config.DianaDetailsConfig
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
+import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.WorldVec
@@ -29,6 +30,7 @@ internal object DianaBurrowRenderer {
         drawCrosshairLine: Boolean,
         boldLabels: Boolean,
         labelFormat: WaypointLabelFormat,
+        labelColors: Map<DianaBurrowType, Color>,
         boxStyle: DianaBurrowBoxStyle,
         showClickCounter: Boolean,
         clickCounterPosition: DianaClickCounterPosition,
@@ -41,6 +43,7 @@ internal object DianaBurrowRenderer {
                     target,
                     boldLabels,
                     labelFormat,
+                    labelColors,
                     boxStyle,
                     showClickCounter,
                     clickCounterPosition,
@@ -53,6 +56,7 @@ internal object DianaBurrowRenderer {
             currentTarget,
             boldLabels,
             labelFormat,
+            labelColors,
             boxStyle,
             showClickCounter,
             clickCounterPosition,
@@ -74,6 +78,7 @@ internal object DianaBurrowRenderer {
         target: DianaBurrowTarget,
         boldLabels: Boolean,
         labelFormat: WaypointLabelFormat,
+        labelColors: Map<DianaBurrowType, Color>,
         boxStyle: DianaBurrowBoxStyle,
         showClickCounter: Boolean,
         clickCounterPosition: DianaClickCounterPosition,
@@ -95,6 +100,7 @@ internal object DianaBurrowRenderer {
             displayType,
             boldLabels,
             labelFormat,
+            labelColors.getValue(displayType),
             clickProgress.takeIf { showClickCounter },
             clickCounterPosition,
             visualAlphaScale,
@@ -107,11 +113,12 @@ internal object DianaBurrowRenderer {
         displayType: DianaBurrowType,
         boldLabels: Boolean,
         labelFormat: WaypointLabelFormat,
+        labelColor: Color,
         clickProgress: DianaBurrowClickProgress?,
         clickCounterPosition: DianaClickCounterPosition,
         visualAlphaScale: Double,
     ) {
-        val label = displayType.labelComponent(boldLabels, labelFormat, visualAlphaScale)
+        val label = displayType.labelComponent(boldLabels, labelFormat, labelColor, visualAlphaScale)
         val anchor = target.location + LABEL_OFFSET
         val style = LABEL_STYLE.withAlpha(visualAlphaScale)
         if (clickProgress == null) {
@@ -126,22 +133,18 @@ internal object DianaBurrowRenderer {
     private fun DianaBurrowType.labelComponent(
         boldLabels: Boolean,
         labelFormat: WaypointLabelFormat,
+        labelColor: Color,
         visualAlphaScale: Double,
     ): Component {
         val textAlpha = textAlpha(visualAlphaScale)
-        return LABEL_CACHE.getOrPut(LabelKey(this, boldLabels, labelFormat, textAlpha)) {
-            val text = labelFormat.format(label)
-            if (textAlpha == FULL_TEXT_ALPHA && boldLabels) {
-                Component.literal(text).withStyle(chatColor, ChatFormatting.BOLD)
-            } else if (textAlpha == FULL_TEXT_ALPHA) {
-                Component.literal(text).withStyle(chatColor)
-            } else {
-                Component.literal(text).withStyle { style ->
-                    val colored = style.withColor(TextColor.fromRgb(chatColor.withAlpha(textAlpha)))
-                    if (boldLabels) colored.withBold(true) else colored
-                }
-            }
-        }
+        val rgb = labelColor.rgb and RGB_MASK
+        val color = if (textAlpha == FULL_TEXT_ALPHA) rgb else rgb.withAlpha(textAlpha)
+        val key = LabelKey(boldLabels, labelFormat, color)
+        LABEL_CACHE[this]?.takeIf { it.first == key }?.second?.let { return it }
+        return Component.literal(labelFormat.format(label)).withStyle { style ->
+            val colored = style.withColor(TextColor.fromRgb(color))
+            if (boldLabels) colored.withBold(true) else colored
+        }.also { LABEL_CACHE[this] = key to it }
     }
 
     private fun progressComponent(clickProgress: DianaBurrowClickProgress, visualAlphaScale: Double): Component {
@@ -211,14 +214,13 @@ internal object DianaBurrowRenderer {
     private const val PROGRESS_GAP = 3f
     private const val FULL_TEXT_ALPHA = 255
     private const val WHITE_RGB = 0xFFFFFF
-    private val LABEL_CACHE = mutableMapOf<LabelKey, Component>()
+    private val LABEL_CACHE = mutableMapOf<DianaBurrowType, Pair<LabelKey, Component>>()
     private val PROGRESS_CACHE = mutableMapOf<ProgressKey, Component>()
 
     private data class LabelKey(
-        val type: DianaBurrowType,
         val boldLabels: Boolean,
         val labelFormat: WaypointLabelFormat,
-        val textAlpha: Int,
+        val color: Int,
     )
 
     private data class ProgressKey(
@@ -227,15 +229,21 @@ internal object DianaBurrowRenderer {
     )
 }
 
-internal class DianaBurrowBoxStyle(private val customColor: Color?) {
+internal class DianaBurrowBoxStyle(
+    private val labelColors: Map<DianaBurrowType, Color>,
+    private val customColor: Color?,
+) {
     fun colorsFor(type: DianaBurrowType, visualAlphaScale: Double = 1.0): DianaBurrowBoxColors {
-        val color = customColor ?: return DianaBurrowBoxColors(
-            type.outlineColor.withScaledAlpha(visualAlphaScale),
-            type.fillColor.withScaledAlpha(visualAlphaScale),
-        )
+        customColor?.let { color ->
+            return DianaBurrowBoxColors(
+                color.withScaledAlpha(visualAlphaScale),
+                color.withScaledAlpha(CUSTOM_FILL_ALPHA_SCALE * visualAlphaScale),
+            )
+        }
+        val color = labelColors.getValue(type)
         return DianaBurrowBoxColors(
-            color.withScaledAlpha(visualAlphaScale),
-            color.withScaledAlpha(CUSTOM_FILL_ALPHA_SCALE * visualAlphaScale),
+            Color(color.red, color.green, color.blue, type.outlineColor.alpha).withScaledAlpha(visualAlphaScale),
+            Color(color.red, color.green, color.blue, type.fillColor.alpha).withScaledAlpha(visualAlphaScale),
         )
     }
 
@@ -252,8 +260,18 @@ internal data class DianaBurrowBoxColors(
     val fill: Color,
 )
 
-internal fun DianaDetailsConfig.burrowBoxStyle(): DianaBurrowBoxStyle =
+internal fun DianaDetailsConfig.burrowLabelColors(): Map<DianaBurrowType, Color> = mapOf(
+    DianaBurrowType.START to startTextColor.get().toColor(),
+    DianaBurrowType.MOB to mobTextColor.get().toColor(),
+    DianaBurrowType.TREASURE to treasureTextColor.get().toColor(),
+    DianaBurrowType.GUESS to guessTextColor.get().toColor(),
+)
+
+internal fun DianaDetailsConfig.burrowBoxStyle(
+    labelColors: Map<DianaBurrowType, Color> = burrowLabelColors(),
+): DianaBurrowBoxStyle =
     DianaBurrowBoxStyle(
+        labelColors = labelColors,
         customColor = if (burrowBoxColorMode == DianaBurrowBoxColorMode.CUSTOM) {
             burrowBoxColor.get().toColor()
         } else {
