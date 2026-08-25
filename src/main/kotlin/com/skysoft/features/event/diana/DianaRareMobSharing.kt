@@ -245,10 +245,7 @@ internal object DianaRareMobSharing {
                     clearTarget(target, clearReason)
                     return@forEach
                 }
-                if (trackedMobUnloaded &&
-                    target.entity?.isAlive == false &&
-                    target.clearReasonForTrackedEntityDeath() != null
-                ) {
+                if (trackedMobUnloaded && target.entity?.isAlive == false) {
                     target.markTrackedEntityDeath(now)
                 }
                 target.detachEntity(entity.id)
@@ -353,16 +350,11 @@ internal object DianaRareMobSharing {
                 target.isAwaitingCocoonHatch(now) -> Unit
                 target.currentHealth == 0L -> clearTarget(target, HEALTH_REACHED_ZERO_REASON)
                 target.hasConfirmedTrackedEntityDeath(now, TRACKED_ENTITY_DEATH_CONFIRM_MILLIS) -> {
-                    val clearReason = target.clearReasonForTrackedEntityDeath()
-                    if (clearReason != null) {
-                        clearTarget(target, clearReason)
-                    }
+                    clearTarget(target, "mob died")
                 }
                 target.entity?.isAlive == false -> {
                     val entityId = target.entity?.id
-                    if (target.clearReasonForTrackedEntityDeath() != null) {
-                        target.markTrackedEntityDeath(now)
-                    }
+                    target.markTrackedEntityDeath(now)
                     entityId?.let { target.detachEntity(it) }
                 }
             }
@@ -554,12 +546,6 @@ internal fun rememberPendingRemoteRareMobClear(
         expiresAtMillis = expiresAtMillis,
     )
 }
-
-internal fun DianaRareMobTarget.clearReasonForTrackedEntityDeath(): String? =
-    when (mob) {
-        DianaRareMobOption.KING_MINOS -> null
-        else -> "mob died"
-    }
 
 internal fun clearRemoteTargetForPlayerDeath(
     targets: Collection<DianaRareMobTarget>,
