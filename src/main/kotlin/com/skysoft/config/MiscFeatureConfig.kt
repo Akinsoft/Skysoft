@@ -52,6 +52,17 @@ class MiscFeatureConfig : ConfigRepairable {
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
+        name = "Keep Terrain Loaded",
+        desc = "Keep visited Hub terrain loaded for smoother warps.",
+    )
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var keepTerrainLoaded = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:ConfigOption(
         name = "Short Warp Commands",
         desc = "Use warp names such as /garden and /crypts without typing /warp.",
     )

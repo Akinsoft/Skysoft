@@ -23,7 +23,11 @@ import org.lwjgl.glfw.GLFW
 
 object DianaBurrowHelper {
     private val config get() = SkysoftConfigGui.config().events.diana
-    private val settings get() = config.settings
+    private val burrowHelper get() = config.burrowHelper
+    private val settings get() = burrowHelper.settings
+    private val details get() = burrowHelper.details
+    private val quickWarps get() = config.quickWarps
+    private val quickWarpSettings get() = quickWarps.settings
     private val disabledWarpCommands = mutableSetOf<String>()
     private var warpKeyWasDown = false
     private var lastWarpCommand: DianaWarpPoint? = null
@@ -32,15 +36,15 @@ object DianaBurrowHelper {
 
     fun register() {
         DianaHubTerrainCache.register()
-        ProfileStorageApi.registerConsumer("Diana Burrow Helper") { config.enabled }
-        MayorPerkApi.registerConsumer("Diana Burrow Helper") { config.enabled }
-        HypixelPartyApi.registerConsumer("Diana Burrow Helper") { config.enabled }
+        ProfileStorageApi.registerConsumer("Diana Burrow Helper") { burrowHelper.enabled }
+        MayorPerkApi.registerConsumer("Diana helpers") { config.isAnyFeatureEnabled() }
+        HypixelPartyApi.registerConsumer("Diana helpers") { config.isAnyFeatureEnabled() }
         SkysoftClientEvents.onEndTick(
             "Diana Burrow Helper tick",
-            isActive = { isEnabled() || hasRuntimeState() },
+            isActive = { isEnabled() || quickWarps.enabled || hasRuntimeState() },
         ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Burrow Helper disconnect reset", ::clearSession)
-        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", { config.enabled }) { profile ->
+        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", { burrowHelper.enabled }) { profile ->
             DianaBurrowStorage.saveCurrentTargets()
             clearTargets(persistTargets = false)
             DianaBurrowStorage.resetLoadedProfile()
@@ -59,52 +63,55 @@ object DianaBurrowHelper {
             onItemUse(event)
             false
         }
-        ChatEvents.onVisibleMessage("Diana Burrow chat", ::isEnabled) { message ->
+        ChatEvents.onVisibleMessage("Diana Burrow chat", { isEnabled() || quickWarps.enabled }) { message ->
             if (message.isSystemLike) {
-                handleWarpFailure(message.cleanText)
-                DianaBurrowInteractions.onMessage(message)
+                if (quickWarps.enabled) handleWarpFailure(message.cleanText)
+                if (isEnabled()) DianaBurrowInteractions.onMessage(message)
             }
             ChatMessageVisibility.SHOW
         }
         WorldRenderDispatcher.registerHandler(
             "Diana Burrow world rendering",
-            isActive = { config.enabled && DianaEventState.isOnHub() },
+            isActive = { burrowHelper.enabled && DianaEventState.isOnHub() },
             handler = ::onRenderWorld,
         )
         DianaWarpTitleRenderer.register(::activeWarpSuggestion)
     }
 
-    private fun isEnabled(): Boolean = config.enabled
+    private fun isEnabled(): Boolean = burrowHelper.enabled
 
     private fun hasRuntimeState(): Boolean =
         wasOnHub || warpKeyWasDown || DianaBurrowTargetTracker.hasTargets()
 
     private fun onTick() {
         val now = System.currentTimeMillis()
-        if (!config.enabled) {
+        val onHub = DianaEventState.isOnHub()
+        if (burrowHelper.enabled) {
+            if (onHub) {
+                wasOnHub = true
+                DianaBurrowStorage.restoreCurrentProfile(now)
+                DianaBurrowChainState.restoreCurrentProfile(now)
+                DianaBurrowStorage.refreshCurrentTargets(now)
+                DianaHubSurfaceCache.onTick(now)
+                DianaBurrowParticleDetector.prune(now)
+                DianaArrowGuess.prune(now)
+                DianaBurrowTargetTracker.prune(now)
+                DianaBurrowInteractions.onTick(now)
+            } else {
+                suspendTargets(now)
+            }
+        } else if (wasOnHub || DianaBurrowTargetTracker.hasTargets()) {
             clearTargets(persistTargets = false)
             DianaBurrowStorage.resetLoadedProfile()
             DianaBurrowChainState.resetLoadedProfile()
             wasOnHub = false
-            warpKeyWasDown = false
-            return
-        }
-        if (!DianaEventState.isOnHub()) {
-            suspendTargets(now)
-            warpKeyWasDown = false
-            return
         }
 
-        wasOnHub = true
-        DianaBurrowStorage.restoreCurrentProfile(now)
-        DianaBurrowChainState.restoreCurrentProfile(now)
-        DianaBurrowStorage.refreshCurrentTargets(now)
-        DianaHubSurfaceCache.onTick(now)
-        DianaBurrowParticleDetector.prune(now)
-        DianaArrowGuess.prune(now)
-        DianaBurrowTargetTracker.prune(now)
-        DianaBurrowInteractions.onTick(now)
-        handleWarpKey(now)
+        if (quickWarps.enabled && onHub) {
+            handleWarpKey(now)
+        } else {
+            warpKeyWasDown = false
+        }
     }
 
     private fun handleParticle(event: ClientParticleEvent) {
@@ -116,7 +123,7 @@ object DianaBurrowHelper {
     }
 
     private fun shouldHideArrowParticle(event: ClientParticleEvent): Boolean =
-        DianaEventState.canUseHelper() && config.details.hideGuessArrows && DianaParticleClassifier.isArrowParticle(event)
+        DianaEventState.canUseHelper() && details.hideGuessArrows && DianaParticleClassifier.isArrowParticle(event)
 
     private fun onItemUse(event: ItemUseEvent) {
         if (DianaEventState.canUseHelper()) {
@@ -125,7 +132,7 @@ object DianaBurrowHelper {
     }
 
     private fun onRenderWorld(context: SkysoftRenderContext) {
-        if (!config.enabled || !DianaEventState.isOnHub()) return
+        if (!burrowHelper.enabled || !DianaEventState.isOnHub()) return
         if (!DianaEventState.canUseHelper()) return
         val targets = DianaBurrowTargetTracker.snapshot()
         renderTargets(context, targets)
@@ -134,16 +141,16 @@ object DianaBurrowHelper {
     internal fun renderTargets(context: SkysoftRenderContext, targets: Collection<DianaBurrowTarget>) {
         val playerLocation = currentPlayerLocation()
         val target = targets.currentTarget(playerLocation) ?: return
-        val labelColors = config.details.burrowLabelColors()
+        val labelColors = details.burrowLabelColors()
         DianaBurrowRenderer.renderWorld(
             context = context,
             targets = targets,
             currentTarget = target,
             drawCrosshairLine = settings.crosshairLine && !DianaRareMobSharing.hasActiveTarget(),
-            boldLabels = config.details.boldText,
-            labelFormat = config.details.labelFormat,
+            boldLabels = details.boldText,
+            labelFormat = details.labelFormat,
             labelColors = labelColors,
-            boxStyle = config.details.burrowBoxStyle(labelColors),
+            boxStyle = details.burrowBoxStyle(labelColors),
             showClickCounter = settings.clickCounter,
             clickCounterPosition = settings.clickCounterPosition,
             visualAlphaScale = if (DianaRareMobSharing.remotePriorityTarget != null) {
@@ -155,7 +162,7 @@ object DianaBurrowHelper {
     }
 
     private fun handleWarpKey(now: Long) {
-        val key = settings.warpKey
+        val key = quickWarpSettings.warpKey
         val keyDown = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isBindingDown(key)
         if (!keyDown) {
             warpKeyWasDown = false
@@ -168,7 +175,7 @@ object DianaBurrowHelper {
     }
 
     private fun activeWarpSuggestion(): DianaWarpSuggestion? {
-        if (!settings.warpHint || MinecraftClient.screen() != null) return null
+        if (!quickWarps.enabled || MinecraftClient.screen() != null) return null
         val playerLocation = currentPlayerLocation() ?: return null
         DianaRareMobSharing.remotePriorityTarget?.let { target ->
             return currentWarpSuggestion(target.sharedLocation, playerLocation)
@@ -188,7 +195,7 @@ object DianaBurrowHelper {
         DianaWarpSelector.bestWarp(
             target = targetLocation,
             playerLocation = playerLocation,
-            minSavings = settings.minWarpSavings.toDouble(),
+            minSavings = quickWarpSettings.minWarpSavings.toDouble(),
             disabledCommands = disabledWarpCommands,
         )
 

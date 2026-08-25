@@ -13,7 +13,7 @@ import net.minecraft.world.level.LightLayer
 import net.minecraft.world.level.chunk.status.ChunkStatus
 
 internal object DianaHubTerrainCache {
-    private val config get() = SkysoftConfigGui.config().events.diana
+    private val config get() = SkysoftConfigGui.config().misc
     private val retainedChunks = linkedSetOf<ChunkPos>()
     private val bobbyInstalled = FabricLoader.getInstance().isModLoaded("bobby")
     private var expandedLevel: ClientLevel? = null
@@ -126,7 +126,7 @@ internal object DianaHubTerrainCache {
     }
 
     private fun isConfigured(): Boolean =
-        !bobbyInstalled && config.enabled && config.settings.keepHubTerrainLoaded
+        !bobbyInstalled && config.keepTerrainLoaded
 
     private fun reset() {
         retainedChunks.clear()

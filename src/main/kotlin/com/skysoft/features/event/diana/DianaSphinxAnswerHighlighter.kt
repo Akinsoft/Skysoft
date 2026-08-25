@@ -13,7 +13,7 @@ internal object DianaSphinxAnswerHighlighter {
 
     @JvmStatic
     fun highlight(component: Component): Component {
-        if (!config.enabled || !config.settings.sphinxAnswers || !DianaEventState.isOnHub()) {
+        if (!config.sphinxHelper.enabled || !DianaEventState.isOnHub()) {
             state.clear()
             return component
         }
