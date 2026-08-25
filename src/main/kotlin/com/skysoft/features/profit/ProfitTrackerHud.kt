@@ -55,6 +55,9 @@ private var isTrackerHovered = false
 private val itemPanel = ProfitTrackerItemPanel()
 private val hudControls = ProfitTrackerHudControls(itemPanel)
 private val itemScrollOffsets = mutableMapOf<ItemScrollKey, Int>()
+private var profitRenderableTick = Long.MIN_VALUE
+private val profitRenderables = mutableMapOf<ProfitTrackerTarget, ProfitTrackerRenderable>()
+private val inventoryProfitRenderables = mutableMapOf<ProfitTrackerTarget, ProfitTrackerRenderable>()
 
 object ProfitTrackerHudInput {
     @JvmStatic
@@ -240,24 +243,33 @@ private fun renderPositioned(
 }
 
 private fun buildProfitRenderable(target: ProfitTrackerTarget, inventoryOpen: Boolean): ProfitTrackerRenderable {
-    val config = target.config
-    val stats = ProfitTracker.stats(target)
-    val items = profitDisplayItems(target, stats)
-    val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
-    val scrollKey = ItemScrollKey(target, ProfitTracker.displayPeriod(target))
-    val maximumOffset = (items.size - maximumItems).coerceAtLeast(0)
-    val scrollOffset = itemScrollOffsets.getOrDefault(scrollKey, 0).coerceIn(0, maximumOffset)
-    if (scrollOffset == 0) itemScrollOffsets.remove(scrollKey) else itemScrollOffsets[scrollKey] = scrollOffset
-    return ProfitTrackerRenderable(
-        target = target,
-        stats = stats,
-        items = items,
-        maximumItems = maximumItems,
-        scrollOffset = scrollOffset,
-        inventoryOpen = inventoryOpen,
-        config = config,
-        background = config.details.showBackground,
-    )
+    val tick = Minecraft.getInstance().level?.gameTime ?: Long.MIN_VALUE
+    if (tick != profitRenderableTick) {
+        profitRenderableTick = tick
+        profitRenderables.clear()
+        inventoryProfitRenderables.clear()
+    }
+    val cache = if (inventoryOpen) inventoryProfitRenderables else profitRenderables
+    return cache.getOrPut(target) {
+        val config = target.config
+        val stats = ProfitTracker.stats(target)
+        val items = profitDisplayItems(target, stats)
+        val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
+        val scrollKey = ItemScrollKey(target, ProfitTracker.displayPeriod(target))
+        val maximumOffset = (items.size - maximumItems).coerceAtLeast(0)
+        val scrollOffset = itemScrollOffsets.getOrDefault(scrollKey, 0).coerceIn(0, maximumOffset)
+        if (scrollOffset == 0) itemScrollOffsets.remove(scrollKey) else itemScrollOffsets[scrollKey] = scrollOffset
+        ProfitTrackerRenderable(
+            target = target,
+            stats = stats,
+            items = items,
+            maximumItems = maximumItems,
+            scrollOffset = scrollOffset,
+            inventoryOpen = inventoryOpen,
+            config = config,
+            background = config.details.showBackground,
+        )
+    }
 }
 
 private fun registerMouseCapture() {
@@ -306,9 +318,10 @@ private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
 private fun profitDisplayItems(
     target: ProfitTrackerTarget,
     stats: ProfileStorage.ProfitTrackerStats,
-): List<ProfitDisplayItem> =
-    stats.itemCounts.mapNotNull { (itemId, amount) ->
-        if (itemId !in ProfitTracker.trackedItemIds(target) || ProfitTrackerItemCustomizations.isExcluded(target, itemId)) {
+): List<ProfitDisplayItem> {
+    val trackedItemIds = ProfitTracker.trackedItemIds(target)
+    return stats.itemCounts.mapNotNull { (itemId, amount) ->
+        if (itemId !in trackedItemIds || ProfitTrackerItemCustomizations.isExcluded(target, itemId)) {
             return@mapNotNull null
         }
         val key = SkyBlockDataRepository.itemKey(itemId)
@@ -318,6 +331,7 @@ private fun profitDisplayItems(
         val unitValue = ProfitTracker.unitValue(target, itemId)
         ProfitDisplayItem(itemId, name, stack, amount, unitValue?.times(amount))
     }.sortedWith(compareByDescending<ProfitDisplayItem> { it.value ?: Double.NEGATIVE_INFINITY }.thenBy { it.name })
+}
 
 private class ProfitTrackerRenderable(
     private val target: ProfitTrackerTarget,

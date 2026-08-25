@@ -34,6 +34,22 @@ internal object SkyBlockMobEntityMatcher {
         return nameplateSignals + physicalSignals
     }
 
+    fun hasVisibleNameplateFor(
+        entity: LivingEntity,
+        labels: Collection<String>,
+        entities: List<Entity> = allEntities(),
+    ): Boolean {
+        val preparedLabels = prepareMobLabels(labels)
+        if (preparedLabels.isEmpty()) return false
+        return entities.filterIsInstance<ArmorStand>().any { nameplate ->
+            canPairWithNameplate(entity, nameplate) &&
+                nameplate.signal(entities, preparedLabels)?.entity?.id == entity.id
+        }
+    }
+
+    fun canPairWithNameplate(entity: LivingEntity, nameplate: ArmorStand): Boolean =
+        entity.isTightPair(nameplate)
+
     fun allEntities(): List<Entity> =
         Minecraft.getInstance().level?.entitiesForRendering()?.toList().orEmpty()
 
@@ -44,6 +60,7 @@ internal object SkyBlockMobEntityMatcher {
     ): LivingEntity? = nameplate.linkedPhysicalEntity(entities, isCandidate)
 
     private fun ArmorStand.signal(entities: List<Entity>, labels: List<String>): SkyBlockMobSignal? {
+        if (!hasCustomName()) return null
         val name = cleanName()
         val label = matchingPreparedMobLabel(name, labels) ?: return null
         val linkedEntity = physicalEntityFor(this, entities)
@@ -105,6 +122,7 @@ internal fun LivingEntity.isPossibleSkyBlockMob(): Boolean {
 }
 
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
+    if (labels.none { label -> name.contains(label, ignoreCase = true) }) return null
     val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name).withoutMobPrefix()
     return labels.firstOrNull { label -> normalizedName.equals(label, ignoreCase = true) }
 }

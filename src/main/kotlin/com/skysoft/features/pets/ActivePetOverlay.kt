@@ -70,6 +70,8 @@ object ActivePetOverlay {
     private val orbitStartedAtNanos = System.nanoTime()
     private var animatedPetKey: Any? = null
     private var lastDisplayState: PetDisplayState? = null
+    private var displayRenderableFrame = Long.MIN_VALUE
+    private var cachedDisplayRenderable: GuiRenderable? = null
 
     private val previewPet: StoredPetData by lazy {
         StoredPetData(
@@ -106,6 +108,7 @@ object ActivePetOverlay {
             override fun openConfig() = PetOverlayConfigScreen.open()
         })
         ActivePetTracker.onChange("Active Pet Overlay state change", PetFeatureDemand::isDisplayActive) { petData ->
+            displayRenderableFrame = Long.MIN_VALUE
             if (petData == null) lastDisplayState = null
             val petKey = petData?.uuid ?: petData?.fauxInternalName
             if (petKey != animatedPetKey) {
@@ -149,12 +152,22 @@ object ActivePetOverlay {
             config.general.settings.hideInMenus.get() && MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
         ) return
         context.nextStratum()
-        val renderable = buildDisplayRenderable(displayState)
+        val renderable = currentDisplayRenderable
         renderable?.also {
             anchorPetPositionToTop(it)
             config.general.position.renderRenderable(context, it)
         }
     }
+
+    private val currentDisplayRenderable: GuiRenderable?
+        get() {
+            val frame = System.currentTimeMillis() / ANIMATION_TICK_MILLIS
+            if (frame != displayRenderableFrame || xpAnimations.hasPendingAnimations) {
+                displayRenderableFrame = frame
+                cachedDisplayRenderable = buildDisplayRenderable(displayState)
+            }
+            return cachedDisplayRenderable
+        }
 
     private fun buildDisplayRenderable(state: PetDisplayState?): GuiRenderable? {
         val renderable = state?.messageLines?.let(::buildWidgetMessageRenderable)
@@ -379,19 +392,15 @@ object ActivePetOverlay {
             PetHeadRenderKey(uuid, petInternalName, skinInternalName, displayIconTexture),
             frame.stack,
         ) ?: return null
-        val elapsedSeconds = (nowMillis % MILLIS_PER_HOUR) / MILLIS_PER_SECOND_FLOAT
-        val staticX = icon.rotation.staticRotation.xRotation.get()
-        val spinX = icon.rotation.spinRotation.speedX.get() * elapsedSeconds
-        val staticY = icon.rotation.staticRotation.yRotation.get()
-        val spinY = icon.rotation.spinRotation.speedY.get() * elapsedSeconds
-        val staticZ = icon.rotation.staticRotation.zRotation.get()
-        val spinZ = icon.rotation.spinRotation.speedZ.get() * elapsedSeconds
         return ItemIconRenderable(
             stableStack,
             scale = icon.scale.get().toDouble(),
-            xRotationDegrees = staticX + spinX,
-            yRotationDegrees = staticY + spinY,
-            zRotationDegrees = staticZ + spinZ,
+            xRotationDegrees = icon.rotation.staticRotation.xRotation.get(),
+            yRotationDegrees = icon.rotation.staticRotation.yRotation.get(),
+            zRotationDegrees = icon.rotation.staticRotation.zRotation.get(),
+            xRotationSpeedDegreesPerSecond = icon.rotation.spinRotation.speedX.get(),
+            yRotationSpeedDegreesPerSecond = icon.rotation.spinRotation.speedY.get(),
+            zRotationSpeedDegreesPerSecond = icon.rotation.spinRotation.speedZ.get(),
             alpha = opacity,
             highQualityScaling = true,
         )
@@ -494,8 +503,6 @@ object ActivePetOverlay {
     private const val PREVIEW_WIDTH = 120
     private const val PREVIEW_HEIGHT = 40
     private const val ANIMATION_TICK_MILLIS = 50L
-    private const val MILLIS_PER_HOUR = 3_600_000L
-    private const val MILLIS_PER_SECOND_FLOAT = 1000f
     private const val ICON_GROUP_SPACING = 2
 }
 

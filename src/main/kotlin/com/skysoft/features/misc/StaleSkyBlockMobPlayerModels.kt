@@ -12,8 +12,8 @@ import net.minecraft.world.entity.player.Player
 
 internal object StaleSkyBlockMobPlayerModels {
     fun shouldHide(entity: Entity): Boolean {
-        if (!SkysoftConfigGui.config().fixes.hideGlitchMobs || !HypixelLocationState.inSkyBlock) return false
         val player = entity as? Player ?: return false
+        if (!SkysoftConfigGui.config().fixes.hideGlitchMobs || !HypixelLocationState.inSkyBlock) return false
         return player.isStaleSkyBlockMobPlayerModel()
     }
 
@@ -34,7 +34,8 @@ internal object StaleSkyBlockMobPlayerModels {
     private fun Player.hasVisibleMobNameplate(): Boolean {
         val entities = SkyBlockMobEntityMatcher.allEntities()
         return entities.filterIsInstance<ArmorStand>().any { nameplate ->
-            SkyBlockMobTextParser.parseHealth(nameplate.cleanName()) != null &&
+            SkyBlockMobEntityMatcher.canPairWithNameplate(this, nameplate) &&
+                SkyBlockMobTextParser.parseHealth(nameplate.cleanName()) != null &&
                 SkyBlockMobEntityMatcher.physicalEntityFor(nameplate, entities) { candidate -> candidate == this } == this
         }
     }

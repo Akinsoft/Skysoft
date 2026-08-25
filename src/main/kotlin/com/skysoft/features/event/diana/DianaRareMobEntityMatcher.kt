@@ -36,22 +36,23 @@ internal object DianaRareMobEntityMatcher {
         }
 
     @JvmStatic
-    fun shouldHideBuggedEntity(entity: Entity): Boolean =
-        shouldHideStaleRarePlayerModel(entity) ||
-            StaleSkyBlockMobPlayerModels.shouldHide(entity) ||
-            shouldHideBuggedNameplate(entity)
+    fun shouldHideBuggedEntity(entity: Entity): Boolean = when (entity) {
+        is Player -> shouldHideStaleRarePlayerModel(entity) || StaleSkyBlockMobPlayerModels.shouldHide(entity)
+        is ArmorStand -> shouldHideBuggedNameplate(entity)
+        else -> false
+    }
 
     @JvmStatic
     fun shouldHideStaleRarePlayerModel(entity: Entity): Boolean {
+        val player = entity as? Player ?: return false
         val config = SkysoftConfigGui.config()
         if (!shouldCheckStaleRarePlayerModels(config.fixes.hideGlitchMobs, HypixelLocationState.inSkyBlock)) {
             return false
         }
-        val player = entity as? Player ?: return false
         if (player == Minecraft.getInstance().player || player.isRealPlayer() || player.vehicle != null) return false
         val label = labelFromName(player.cleanName(), ALL_RARE_MOB_LABELS) ?: return false
         val labels = DianaRareMobOption.fromLabel(label)?.matchLabels ?: setOf(label)
-        return SkyBlockMobEntityMatcher.visibleSignals(labels).none { signal -> signal.entity?.id == player.id }
+        return !SkyBlockMobEntityMatcher.hasVisibleNameplateFor(player, labels)
     }
 
     fun shouldCheckStaleRarePlayerModels(hideGlitchMobs: Boolean, inSkyBlock: Boolean): Boolean =
@@ -61,9 +62,10 @@ internal object DianaRareMobEntityMatcher {
         name in BUGGED_NAMEPLATES
 
     private fun shouldHideBuggedNameplate(entity: Entity): Boolean {
-        val config = SkysoftConfigGui.config()
-        if (!config.fixes.hideBuggedNameplates) return false
-        return entity is ArmorStand && isBuggedNameplateText(entity.cleanName())
+        val nameplate = entity as? ArmorStand ?: return false
+        if (!SkysoftConfigGui.config().fixes.hideBuggedNameplates) return false
+        if (nameplate.customName?.string?.contains(BUGGED_NAMEPLATE_MARKER) != true) return false
+        return isBuggedNameplateText(nameplate.cleanName())
     }
 
     private fun Player.isRealPlayer(): Boolean =
@@ -73,6 +75,7 @@ internal object DianaRareMobEntityMatcher {
         labels.firstOrNull { label -> name.contains(label, ignoreCase = true) }
 
     private const val REAL_PLAYER_UUID_VERSION = 4
+    private const val BUGGED_NAMEPLATE_MARKER = "Bleeds"
     private val BUGGED_NAMEPLATES = setOf("☣ Bleeds: -")
     private val ALL_RARE_MOB_LABELS = DianaRareMobOption.entries.flatMap { it.matchLabels }
 }

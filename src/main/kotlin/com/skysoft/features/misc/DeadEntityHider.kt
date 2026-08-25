@@ -1,22 +1,33 @@
 package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
+import java.util.IdentityHashMap
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
 
 object DeadEntityHider {
+    private var linkedDyingCacheTick = Long.MIN_VALUE
+    private val linkedDyingCache = IdentityHashMap<ArmorStand, Boolean>()
+
     @JvmStatic
     fun shouldHide(entity: Entity): Boolean {
         if (!SkysoftConfigGui.config().misc.hideDeadEntities) return false
-        val dyingEntity = when {
-            entity is LivingEntity && entity.isDeadOrDying -> entity
-            entity is ArmorStand -> entity.linkedDyingEntity()
-            else -> null
-        } ?: return false
+        return when {
+            entity is LivingEntity && entity.isDeadOrDying -> true
+            entity is ArmorStand -> entity.hasLinkedDyingEntity()
+            else -> false
+        }
+    }
 
-        return true
+    private fun ArmorStand.hasLinkedDyingEntity(): Boolean {
+        val tick = Minecraft.getInstance().level?.gameTime ?: return false
+        if (tick != linkedDyingCacheTick) {
+            linkedDyingCacheTick = tick
+            linkedDyingCache.clear()
+        }
+        return linkedDyingCache.getOrPut(this) { linkedDyingEntity() != null }
     }
 
     private fun ArmorStand.linkedDyingEntity(): LivingEntity? {
