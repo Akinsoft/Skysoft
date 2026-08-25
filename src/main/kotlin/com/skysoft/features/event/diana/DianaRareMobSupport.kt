@@ -96,20 +96,25 @@ internal object DianaRareMobGlow {
     fun apply(
         targets: Collection<DianaRareMobTarget>,
         localPlayerName: String?,
+        lootshareEnabled: Boolean,
         lootshareColors: DianaLootshareColors,
     ) {
         targets.forEach { target ->
             val entity = target.entity ?: return@forEach
-            val color = target.glowColor(localPlayerName, lootshareColors)
+            val color = target.glowColor(localPlayerName, lootshareEnabled, lootshareColors)
             if (target.glowColor == color) return@forEach
             target.glowColor = color
             EntityHighlightRenderer.setEntityColor(entity, color) { target in targets && entity.isAlive }
         }
     }
 
-    private fun DianaRareMobTarget.glowColor(localPlayerName: String?, lootshareColors: DianaLootshareColors): Color =
+    private fun DianaRareMobTarget.glowColor(
+        localPlayerName: String?,
+        lootshareEnabled: Boolean,
+        lootshareColors: DianaLootshareColors,
+    ): Color =
         when {
-            isSpawner(localPlayerName) -> RARE_MOB_GLOW_COLOR
+            isSpawner(localPlayerName) || !lootshareEnabled -> RARE_MOB_GLOW_COLOR
             else -> DianaRareMobRenderer.lootshareColor(this, lootshareColors)
         }
 

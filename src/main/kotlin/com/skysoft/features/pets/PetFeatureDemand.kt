@@ -11,6 +11,7 @@ internal object PetFeatureDemand {
             pets.highlightActivePet ||
             pets.hideAutopet ||
             config.events.diana.rareMobSharing.enabled ||
+            config.events.diana.lootshare.enabled ||
             config.foraging.throwingAxeHelper.enabled
     }
 

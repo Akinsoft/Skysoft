@@ -21,13 +21,25 @@ internal object DianaRareMobRenderer {
         context: SkysoftRenderContext,
         targets: Collection<DianaRareMobTarget>,
         currentTarget: DianaRareMobTarget?,
+        showRareMobSharing: Boolean,
+        showLootshare: Boolean,
         drawCrosshairLine: Boolean,
         drawLootshareRadius: Boolean,
         localPlayerName: String?,
         lootshareColors: DianaLootshareColors,
     ) {
-        targets.forEach { target -> renderTarget(context, target, drawLootshareRadius, localPlayerName, lootshareColors) }
-        if (currentTarget != null && drawCrosshairLine) {
+        targets.forEach { target ->
+            renderTarget(
+                context,
+                target,
+                showRareMobSharing,
+                showLootshare,
+                drawLootshareRadius,
+                localPlayerName,
+                lootshareColors,
+            )
+        }
+        if (showRareMobSharing && currentTarget != null && drawCrosshairLine) {
             val lineEntity = currentTarget.entity ?: currentTarget.nameplate
             if (lineEntity == null || lineEntity.isVisibleToPlayer()) {
                 context.drawLineToCrosshair(
@@ -43,15 +55,17 @@ internal object DianaRareMobRenderer {
     private fun renderTarget(
         context: SkysoftRenderContext,
         target: DianaRareMobTarget,
+        showRareMobSharing: Boolean,
+        showLootshare: Boolean,
         drawLootshareRadius: Boolean,
         localPlayerName: String?,
         lootshareColors: DianaLootshareColors,
     ) {
         if (!target.hasVisibleSignal()) {
-            renderWaypoint(context, target)
+            if (showRareMobSharing) renderWaypoint(context, target)
             return
         }
-        renderLootshareUi(context, target, drawLootshareRadius, localPlayerName, lootshareColors)
+        if (showLootshare) renderLootshareUi(context, target, drawLootshareRadius, localPlayerName, lootshareColors)
     }
 
     private fun renderWaypoint(context: SkysoftRenderContext, target: DianaRareMobTarget) {

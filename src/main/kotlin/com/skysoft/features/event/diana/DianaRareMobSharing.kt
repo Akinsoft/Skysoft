@@ -25,8 +25,9 @@ internal object DianaRareMobSharing {
     private val config get() = SkysoftConfigGui.config().events.diana
     private val feature get() = config.rareMobSharing
     private val settings get() = feature.settings
-    private val lootshareSettings get() = config.lootshare.settings
-    private val lootshareDetails get() = config.lootshare.details
+    private val lootshareFeature get() = config.lootshare
+    private val lootshareSettings get() = lootshareFeature.settings
+    private val lootshareDetails get() = lootshareFeature.details
     private val targets = mutableMapOf<String, DianaRareMobTarget>()
     private val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
     private val pendingLocalClears = mutableListOf<PendingLocalRareMobClear>()
@@ -43,20 +44,18 @@ internal object DianaRareMobSharing {
         ChatEvents.onVisibleMessage("Diana Rare Mob chat", { isEnabledOnHub }) { message -> onMessage(message) }
         ClientEntityMetadataEvents.register(
             "Diana Rare Mob entity metadata",
-            isActive = { isEnabledOnHub && targets.isNotEmpty() },
+            isActive = { isLootshareEnabledOnHub && targets.isNotEmpty() },
         ) { event ->
-            if (feature.enabled && DianaEventState.isOnHub()) {
-                DianaRareMobLootshare.handleMetadata(
-                    event,
-                    targets.values,
-                    DianaRareMobRuntime.localPlayerName(),
-                    System.currentTimeMillis(),
-                )
-            }
+            DianaRareMobLootshare.handleMetadata(
+                event,
+                targets.values,
+                DianaRareMobRuntime.localPlayerName(),
+                System.currentTimeMillis(),
+            )
         }
         EntityLifecycleEvents.onLoad("Diana Rare Mob entity loading", { isEnabledOnHub }) { entity -> onEntityLoad(entity) }
         EntityLifecycleEvents.onUnload("Diana Rare Mob entity unloading", { isEnabledOnHub }) { entity -> onEntityUnload(entity) }
-        EntityInteractionEvents.register("Diana Rare Mob entity interaction", { isEnabledOnHub }) { event ->
+        EntityInteractionEvents.register("Diana Rare Mob entity interaction", { isLootshareEnabledOnHub }) { event ->
             onEntityClick(event)
             false
         }
@@ -68,7 +67,10 @@ internal object DianaRareMobSharing {
     }
 
     private val isEnabledOnHub: Boolean
-        get() = feature.enabled && DianaEventState.isOnHub()
+        get() = (feature.enabled || lootshareFeature.enabled) && DianaEventState.isOnHub()
+
+    private val isLootshareEnabledOnHub: Boolean
+        get() = lootshareFeature.enabled && DianaEventState.isOnHub()
 
     private val hasRuntimeState: Boolean
         get() = targets.isNotEmpty() || pendingLocalSpawns.isNotEmpty() ||
@@ -91,9 +93,18 @@ internal object DianaRareMobSharing {
 
     private fun onTick() {
         val now = System.currentTimeMillis()
-        if (!feature.enabled || !DianaEventState.isOnHub()) {
+        if (!isEnabledOnHub) {
             clear()
             return
+        }
+        if (!feature.enabled) {
+            pendingLocalSpawns.clear()
+            pendingLocalClears.clear()
+            DianaRareMobTitleRenderer.clear()
+            targets.values
+                .filter { target -> target.source == DianaRareMobTargetSource.LOCAL }
+                .toList()
+                .forEach { target -> clearTarget(target, "sharing disabled", broadcast = false) }
         }
         val signals = if (
             ++ticks % LINK_INTERVAL_TICKS == 0 &&
@@ -104,42 +115,53 @@ internal object DianaRareMobSharing {
             null
         }
         if (signals != null) {
-            trySharePending(signals, now)
+            if (feature.enabled) trySharePending(signals, now)
             linkTargets(signals, now)
             pruneStaleRemoteTargets(now, DianaRareMobRuntime.playerLocation())
         }
-        DianaRareMobLootshare.scan(targets.values, DianaRareMobRuntime.localPlayerName(), now)
+        if (lootshareFeature.enabled) {
+            DianaRareMobLootshare.scan(targets.values, DianaRareMobRuntime.localPlayerName(), now)
+        } else {
+            DianaLootshareReadyMarkers.clear()
+        }
         pruneTargets(now)
-        flushPendingLocalRareMobClears(pendingLocalClears, now)
+        if (feature.enabled) flushPendingLocalRareMobClears(pendingLocalClears, now)
         flushPendingRemoteRareMobClears(targets, pendingRemoteClears, now) { target, reason ->
             clearTarget(target, reason, broadcast = false, deferRemoteDeathClear = false)
         }
-        DianaRareMobGlow.apply(targets.values, DianaRareMobRuntime.localPlayerName(), lootshareDetails.lootshareColors())
+        DianaRareMobGlow.apply(
+            targets.values,
+            DianaRareMobRuntime.localPlayerName(),
+            lootshareFeature.enabled,
+            lootshareDetails.lootshareColors(),
+        )
+        if (targets.isEmpty()) DianaLootshareReadyMarkers.clear()
     }
 
     private fun onMessage(message: ChatMessage): ChatMessageVisibility {
         val now = System.currentTimeMillis()
-        if (message.type == ChatMessageType.PARTY && DianaLootshareReadyMessage.isMessage(message.body)) {
+        if (
+            lootshareFeature.enabled &&
+            message.type == ChatMessageType.PARTY &&
+            DianaLootshareReadyMessage.isMessage(message.body)
+        ) {
             return DianaLootshareReadyMessage.handlePartyMessage(
                 message = message,
                 localPlayerName = DianaRareMobRuntime.localPlayerName(),
                 now = now,
-                showMarker = feature.enabled &&
-                    lootshareSettings.partyCheckmarks &&
-                    DianaEventState.isOnHub() &&
-                    targets.isNotEmpty(),
+                showMarker = lootshareSettings.partyCheckmarks && targets.isNotEmpty(),
             )
         }
-        if (!feature.enabled || !DianaEventState.isOnHub()) return ChatMessageVisibility.SHOW
+        if (!isEnabledOnHub) return ChatMessageVisibility.SHOW
         if (message.isSystemLike) {
             val localCocoon = DianaRareMobShareParser.parseLocalCocoon(message.cleanText)
-            if (localCocoon != null) {
+            if (localCocoon != null && feature.enabled) {
                 handleLocalCocoon(localCocoon, now)
                 return ChatMessageVisibility.SHOW
             }
             recordLocalSpawn(
                 message = message.cleanText,
-                rareMobSharing = settings.shareMobs,
+                rareMobSharing = feature.enabled && settings.shareMobs,
                 sharedRareMobs = settings.sharedRareMobs.get(),
                 pendingLocalSpawns = pendingLocalSpawns,
                 now = now,
@@ -173,6 +195,7 @@ internal object DianaRareMobSharing {
         val context = DianaRareMobPartyMessages.Context(
             localPlayerName = DianaRareMobRuntime.localPlayerName(),
             receivedRareMobs = settings.receivedRareMobs.get(),
+            showRareMobSharing = feature.enabled,
             now = now,
         )
         val cocoon = DianaRareMobShareParser.parseCocoon(message.body)
@@ -218,10 +241,12 @@ internal object DianaRareMobSharing {
     }
 
     private fun onEntityLoad(entity: Entity) {
-        if (!feature.enabled || !DianaEventState.isOnHub()) return
+        if (!isEnabledOnHub) return
         if (pendingLocalSpawns.isEmpty() && targets.isEmpty()) return
         val now = System.currentTimeMillis()
-        if (entity is ArmorStand &&
+        if (
+            lootshareFeature.enabled &&
+            entity is ArmorStand &&
             DianaRareMobLootshare.tryHandleDamageSplash(
                 entity,
                 targets.values,
@@ -230,12 +255,12 @@ internal object DianaRareMobSharing {
             )
         ) return
         val signals = DianaRareMobEntityMatcher.visibleSignals()
-        trySharePending(signals, now)
+        if (feature.enabled) trySharePending(signals, now)
         linkTargets(signals, now)
     }
 
     private fun onEntityUnload(entity: Entity) {
-        if (!feature.enabled || !DianaEventState.isOnHub()) return
+        if (!isEnabledOnHub) return
         val now = System.currentTimeMillis()
         targets.values
             .filter { target -> target.entity?.id == entity.id || target.nameplate?.id == entity.id }
@@ -376,21 +401,19 @@ internal object DianaRareMobSharing {
     }
 
     private fun onRenderWorld(context: SkysoftRenderContext) {
-        if (!feature.enabled || !DianaEventState.isOnHub()) return
-        if (targets.isEmpty()) {
-            DianaLootshareReadyMarkers.clear()
-        }
-        val currentTarget = currentTarget()
+        if (!isEnabledOnHub) return
         DianaRareMobRenderer.renderWorld(
             context = context,
             targets = targets.values,
-            currentTarget = currentTarget,
+            currentTarget = if (feature.enabled) currentTarget() else null,
+            showRareMobSharing = feature.enabled,
+            showLootshare = lootshareFeature.enabled,
             drawCrosshairLine = config.burrowHelper.settings.crosshairLine,
             drawLootshareRadius = lootshareDetails.lootshareRadius,
             localPlayerName = DianaRareMobRuntime.localPlayerName(),
             lootshareColors = lootshareDetails.lootshareColors(),
         )
-        if (lootshareSettings.partyCheckmarks) {
+        if (lootshareFeature.enabled && lootshareSettings.partyCheckmarks) {
             DianaLootshareReadyMarkers.renderWorld(
                 context,
                 DianaRareMobRuntime.localPlayerName(),
