@@ -44,11 +44,12 @@ object EntityHighlightRenderer {
     }
 
     private fun activeHighlight(entity: LivingEntity): EntityHighlight? {
+        val entityHighlights = highlights[entity] ?: return null
         if (!entity.isVisibleToPlayer()) return null
-        return highlights[entity]?.values
-            ?.asSequence()
-            ?.filter { highlight -> highlight.condition() }
-            ?.maxByOrNull(EntityHighlight::priority)
+        return entityHighlights.values
+            .asSequence()
+            .filter { highlight -> highlight.condition() }
+            .maxByOrNull(EntityHighlight::priority)
     }
 
     private data class EntityHighlight(

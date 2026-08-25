@@ -14,6 +14,9 @@ data class ItemIconRenderable(
     private val xRotationDegrees: Float = 0f,
     private val yRotationDegrees: Float = 0f,
     private val zRotationDegrees: Float = 0f,
+    private val xRotationSpeedDegreesPerSecond: Float = 0f,
+    private val yRotationSpeedDegreesPerSecond: Float = 0f,
+    private val zRotationSpeedDegreesPerSecond: Float = 0f,
     private val alpha: Float = 1f,
     private val highQualityScaling: Boolean = false,
     override val horizontalAlign: GuiAlignment.HorizontalAlignment = GuiAlignment.HorizontalAlignment.LEFT,
@@ -27,7 +30,20 @@ data class ItemIconRenderable(
     override fun render(context: GuiGraphicsExtractor) {
         if (stack.isEmpty || renderScale <= 0.0 || alpha <= 0f) return
 
-        val rotationVector = Vec3(xRotationDegrees.toDouble(), yRotationDegrees.toDouble(), zRotationDegrees.toDouble())
+        val elapsedSeconds = if (
+            xRotationSpeedDegreesPerSecond != 0f ||
+            yRotationSpeedDegreesPerSecond != 0f ||
+            zRotationSpeedDegreesPerSecond != 0f
+        ) {
+            (System.currentTimeMillis() % MILLIS_PER_HOUR) / MILLIS_PER_SECOND_FLOAT
+        } else {
+            0f
+        }
+        val rotationVector = Vec3(
+            (xRotationDegrees + xRotationSpeedDegreesPerSecond * elapsedSeconds).toDouble(),
+            (yRotationDegrees + yRotationSpeedDegreesPerSecond * elapsedSeconds).toDouble(),
+            (zRotationDegrees + zRotationSpeedDegreesPerSecond * elapsedSeconds).toDouble(),
+        )
         if (
             rotationVector != Vec3.ZERO ||
             alpha < OPAQUE_ALPHA_THRESHOLD ||
@@ -45,5 +61,7 @@ data class ItemIconRenderable(
 
     private companion object {
         private const val OPAQUE_ALPHA_THRESHOLD = 0.999f
+        private const val MILLIS_PER_HOUR = 3_600_000L
+        private const val MILLIS_PER_SECOND_FLOAT = 1000f
     }
 }

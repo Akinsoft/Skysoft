@@ -10,6 +10,9 @@ class PetXpAnimationState {
     private var equippedAnimation: XpAnimation? = null
     private val expShareAnimations = mutableMapOf<UUID, XpAnimation>()
 
+    val hasPendingAnimations: Boolean
+        get() = equippedAnimation?.isPending == true || expShareAnimations.values.any { it.isPending }
+
     fun withAnimatedEquipped(petData: StoredPetData): StoredPetData = animate(petData, equippedAnimation) {
         equippedAnimation = it
     }
@@ -56,6 +59,8 @@ class PetXpAnimationState {
         val targetExp: Double,
         val startedAt: ElapsedTimeMark = ElapsedTimeMark.now(),
     ) {
+        val isPending: Boolean get() = startExp != targetExp
+
         fun currentExp(): Double {
             if (startExp == targetExp) return targetExp
             val progress = (startedAt.passedSince() / XP_ANIMATION_DURATION).coerceIn(0.0, 1.0)

@@ -9,10 +9,11 @@ import net.minecraft.world.entity.Entity
 object ThrowingAxeGhostFix {
     @JvmStatic
     fun shouldHide(entity: Entity): Boolean {
+        val display = entity as? Display.BlockDisplay ?: return false
         if (!SkysoftConfigGui.config().fixes.hideThrowingAxeGhostBlocks) return false
         val island = HypixelLocationState.currentIsland
         if (island != SkyBlockIsland.GALATEA && island != SkyBlockIsland.TORRHUS_CANYON) return false
-        val state = (entity as? Display.BlockDisplay)?.blockRenderState()?.blockState() ?: return false
+        val state = display.blockRenderState()?.blockState() ?: return false
         return ThrowingAxeHelper.isTreeBlock(island, state)
     }
 }
