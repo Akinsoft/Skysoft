@@ -277,7 +277,7 @@ private fun registerMouseCapture() {
             SkysoftErrorBoundary.value("Profit Tracker mouse scroll", true) {
                 InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
                     itemPanelTarget?.takeIf { it.isVisible() } == null && hoveredTracker == null ||
-                    !itemPanel.wasSearchScrollHandled(verticalAmount) &&
+                    itemPanelTarget?.let { itemPanel.wasSearchScrollHandled(it, verticalAmount) } != true &&
                     (!isTrackerHovered || !wasItemScrollHandled(verticalAmount))
             }
         }
@@ -676,6 +676,6 @@ private const val ICON_SCALE = 0.75
 private const val ITEM_TEXT_OFFSET = 14
 private const val COLUMN_GAP = 8
 private const val ITEM_COLUMN_GAP = 4
-private const val SIDE_PANEL_ESTIMATED_WIDTH = 220
+private const val SIDE_PANEL_ESTIMATED_WIDTH = 310
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
 private const val CONTROL_HOVER_COLOR = 0x20FFFFFF
