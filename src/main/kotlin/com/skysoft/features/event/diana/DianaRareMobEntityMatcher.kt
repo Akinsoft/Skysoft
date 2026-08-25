@@ -48,7 +48,7 @@ internal object DianaRareMobEntityMatcher {
             return false
         }
         val player = entity as? Player ?: return false
-        if (player == Minecraft.getInstance().player || player.isRealPlayer()) return false
+        if (player == Minecraft.getInstance().player || player.isRealPlayer() || player.vehicle != null) return false
         val label = labelFromName(player.cleanName(), ALL_RARE_MOB_LABELS) ?: return false
         val labels = DianaRareMobOption.fromLabel(label)?.matchLabels ?: setOf(label)
         return SkyBlockMobEntityMatcher.visibleSignals(labels).none { signal -> signal.entity?.id == player.id }
