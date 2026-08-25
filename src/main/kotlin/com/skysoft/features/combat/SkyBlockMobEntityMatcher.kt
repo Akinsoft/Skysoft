@@ -105,7 +105,7 @@ internal fun LivingEntity.isPossibleSkyBlockMob(): Boolean {
 }
 
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
-    val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name).withoutEmpyreanPrefix()
+    val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name).withoutMobPrefix()
     return labels.firstOrNull { label -> normalizedName.equals(label, ignoreCase = true) }
 }
 
@@ -117,9 +117,11 @@ private fun prepareMobLabels(labels: Collection<String>): List<String> = labels.
 
 private fun normalizeMobName(name: String): String = name.replace(TIER_SUFFIX, "").trim()
 
-private fun String.withoutEmpyreanPrefix(): String =
-    if (startsWith(EMPYREAN_PREFIX, ignoreCase = true)) substring(EMPYREAN_PREFIX.length) else this
+private fun String.withoutMobPrefix(): String {
+    val prefix = MOB_PREFIXES.firstOrNull { prefix -> startsWith("$prefix ", ignoreCase = true) } ?: return this
+    return substring(prefix.length + 1)
+}
 
 private val TIER_SUFFIX = Regex("""\s+[IVX]+$""")
-private const val EMPYREAN_PREFIX = "Empyrean "
+private val MOB_PREFIXES = setOf("Empyrean", "Exalted", "Runic", "Venerable", "Stalwart", "Blessed")
 private const val REAL_PLAYER_UUID_VERSION = 4
