@@ -201,6 +201,7 @@ object DianaBurrowHelper {
             playerLocation = playerLocation,
             minSavings = quickWarpSettings.minWarpSavings.toDouble(),
             disabledCommands = disabledWarpCommands,
+            warps = quickWarpSettings.warps.get(),
         )
 
     private fun handleWarpFailure(message: String) {

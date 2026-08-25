@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.features.event.diana.DianaWarpPoint
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -381,6 +382,13 @@ class DianaQuickWarpsConfig {
 }
 
 class DianaQuickWarpsSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Warps", desc = "Fast travel destinations Skysoft may suggest.")
+    @field:ConfigEditorDraggableList
+    val warps: Property<MutableList<DianaWarpPoint>> =
+        Property.of(DianaWarpPoint.defaultEnabled.toMutableList())
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Warp Key", desc = "Press this key to use the suggested warp.")
