@@ -6,6 +6,7 @@
     "HeartLayoutMixin",
     "AnimatedDyeArmorInventoryMixin",
     "AbstractContainerMenuMixin",
+    "AbstractSignEditScreenMixin",
     "AbstractContainerScreenMixin",
     "AbstractContainerScreenRenderingMixin",
     "AbstractContainerScreenAccessor",
