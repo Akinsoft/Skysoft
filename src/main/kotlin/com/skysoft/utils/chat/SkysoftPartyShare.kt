@@ -21,19 +21,15 @@ object SkysoftPartyShare {
         ) { updateQueue() }
         SkysoftClientEvents.onDisconnect("Party Share disconnect reset", ::clearRecentSentMessages)
         ChatEvents.onVisibleMessage(
-            "Party Share sent-message tracking",
+            "Share queue tracking",
             isActive = HypixelPartyApi::hasActiveConsumers,
         ) { message ->
             recordCommandCooldownFailure(message.cleanText)
-            ChatMessageVisibility.SHOW
-        }
-        ChatEvents.onPartyMessage(
-            "Party Share received-message tracking",
-            isActive = HypixelPartyApi::hasActiveConsumers,
-        ) { message ->
-            message.sender?.takeIf { it.isLocalPlayerName(localPlayerName()) }?.let {
-                commandQueue.recordLocalPartyChat()
-                recordPartyEchoDelivered(message.body)
+            if (message.type == ChatMessageType.PARTY || message.type == ChatMessageType.GUILD) {
+                message.sender?.takeIf { it.isLocalPlayerName(localPlayerName()) }?.let {
+                    commandQueue.recordLocalPartyChat()
+                    recordPartyEchoDelivered(message.body)
+                }
             }
             ChatMessageVisibility.SHOW
         }
@@ -44,6 +40,15 @@ object SkysoftPartyShare {
     fun sendParty(message: String, allowRecentPartyChatEvidence: Boolean = false) {
         if (partySendBlockedReason(allowRecentPartyChatEvidence) != null) return
         commandQueue.enqueue(message, allowRecentPartyChatEvidence)
+    }
+
+    fun sendGuild(message: String) {
+        commandQueue.enqueue(
+            message = message,
+            allowRecentPartyChatEvidence = false,
+            command = "gc ${message.trim()}",
+            requireParty = false,
+        )
     }
 
     fun markPartyChatObserved(now: Long = System.currentTimeMillis()) {

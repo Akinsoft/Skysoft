@@ -9,19 +9,28 @@ internal class SkysoftPartyCommandQueue(
     private val pendingSentMessages = mutableListOf<PendingSentPartyMessage>()
     private var nextPartyCommandAtMillis = 0L
 
-    fun enqueue(message: String, allowRecentPartyChatEvidence: Boolean) {
+    fun enqueue(
+        message: String,
+        allowRecentPartyChatEvidence: Boolean,
+        command: String? = null,
+        requireParty: Boolean = true,
+    ) {
         val trimmedMessage = message.trim()
         if (queuedPartyMessages.size >= MAX_QUEUED_PARTY_MESSAGES) {
             return
         }
-        queuedPartyMessages += QueuedPartyMessage(trimmedMessage, allowRecentPartyChatEvidence)
+        queuedPartyMessages += QueuedPartyMessage(
+            trimmedMessage,
+            allowRecentPartyChatEvidence,
+            command,
+            requireParty,
+        )
     }
 
     fun nextPartyCommand(now: Long = System.currentTimeMillis()): String? {
         if (now < nextPartyCommandAtMillis) return null
         val queued = queuedPartyMessages.firstOrNull() ?: return null
-        val blockedReason = blockedReason(queued.allowRecentPartyChatEvidence)
-        if (blockedReason != null) {
+        if (queued.requireParty && blockedReason(queued.allowRecentPartyChatEvidence) != null) {
             queuedPartyMessages.removeFirst()
             return null
         }
@@ -29,7 +38,7 @@ internal class SkysoftPartyCommandQueue(
         rememberSentMessage(queued.message, now)
         rememberPendingSentMessage(queued, now)
         nextPartyCommandAtMillis = now + PARTY_COMMAND_SPACING_MILLIS
-        return partyCommand(queued.message)
+        return queued.command ?: partyCommand(queued.message)
     }
 
     fun recordLocalPartyChat(now: Long = System.currentTimeMillis()) {
@@ -54,6 +63,8 @@ internal class SkysoftPartyCommandQueue(
             QueuedPartyMessage(
                 message = pending.message,
                 allowRecentPartyChatEvidence = pending.allowRecentPartyChatEvidence,
+                command = pending.command,
+                requireParty = pending.requireParty,
                 cooldownRetries = pending.cooldownRetries + 1,
             ),
         )
@@ -84,6 +95,8 @@ internal class SkysoftPartyCommandQueue(
         pendingSentMessages += PendingSentPartyMessage(
             message = queued.message,
             allowRecentPartyChatEvidence = queued.allowRecentPartyChatEvidence,
+            command = queued.command,
+            requireParty = queued.requireParty,
             cooldownRetries = queued.cooldownRetries,
             expiresAtMillis = now + PENDING_SENT_MESSAGE_MILLIS,
         )
@@ -103,12 +116,16 @@ internal class SkysoftPartyCommandQueue(
     private data class QueuedPartyMessage(
         val message: String,
         val allowRecentPartyChatEvidence: Boolean,
+        val command: String?,
+        val requireParty: Boolean,
         val cooldownRetries: Int = 0,
     )
 
     private data class PendingSentPartyMessage(
         val message: String,
         val allowRecentPartyChatEvidence: Boolean,
+        val command: String?,
+        val requireParty: Boolean,
         val cooldownRetries: Int,
         val expiresAtMillis: Long,
     )

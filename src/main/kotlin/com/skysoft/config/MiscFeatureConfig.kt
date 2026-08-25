@@ -6,8 +6,10 @@ import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.observer.Property
 
 class MiscFeatureConfig : ConfigRepairable {
     @JvmField
@@ -39,7 +41,7 @@ class MiscFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in party chat.")
+    @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in selected chat channels.")
     val rareLootSharing = RareLootSharingConfig()
 
     @JvmField
@@ -91,7 +93,9 @@ class MiscFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
-    fun isAnyRareLootFeatureEnabled(): Boolean = rareDropTitles.enabled || rareLootSharing.enabled
+    fun isAnyRareLootFeatureEnabled(): Boolean =
+        rareDropTitles.enabled ||
+            (rareLootSharing.enabled && rareLootSharing.settings.channels.get().isNotEmpty())
 
     override fun repairLoadedValues() {
         droppedItemScaling.repairLoadedValues()
@@ -125,7 +129,7 @@ class RareDropTitlesSettingsConfig {
 class RareLootSharingConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Share valuable drops in party chat.")
+    @field:ConfigOption(name = "Enabled", desc = "Share valuable drops in selected chat channels.")
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
@@ -140,7 +144,22 @@ class RareLootSharingConfig {
 class RareLootSharingSettingsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Channels", desc = "Chat channels where Skysoft should share valuable drops.")
+    @field:ConfigEditorDraggableList
+    val channels: Property<MutableList<RareLootShareChannel>> =
+        Property.of(mutableListOf(RareLootShareChannel.PARTY))
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Rare Loot Value", desc = "Minimum coin value to share.")
     @field:ConfigEditorText
     var rareLootValue = "1,000,000"
+}
+
+enum class RareLootShareChannel(private val displayName: String) {
+    PARTY("Party"),
+    GUILD("Guild"),
+    ;
+
+    override fun toString(): String = displayName
 }

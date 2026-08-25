@@ -10,9 +10,8 @@ import net.minecraft.network.chat.Style
 
 internal object RareLootPartyGlyphRenderer {
     fun render(message: ChatMessage): Component {
-        if (message.type != ChatMessageType.PARTY || !rareLootWithMagicFindPattern.matches(message.body)) {
-            return message.component
-        }
+        if (message.type != ChatMessageType.PARTY && message.type != ChatMessageType.GUILD) return message.component
+        if (!rareLootWithMagicFindPattern.matches(message.body)) return message.component
         return message.component.replaceTextSegments(MAGIC_FIND_SUFFIX, RENDERED_MAGIC_FIND_SUFFIX)
     }
 
