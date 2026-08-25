@@ -61,6 +61,17 @@ class MiscFeatureConfig : ConfigRepairable {
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
+        name = "Input Math",
+        desc = "Calculate equations in SkyBlock number inputs when pressing Enter or Done.",
+    )
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var inputMath = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:ConfigOption(
         name = "Short Warp Commands",
         desc = "Use warp names such as /garden and /crypts without typing /warp.",
     )

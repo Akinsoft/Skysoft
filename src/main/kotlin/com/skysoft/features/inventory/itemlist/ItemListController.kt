@@ -23,6 +23,7 @@ import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SmoothFloatTransition
 import com.skysoft.utils.SoundUtilities
+import com.skysoft.utils.formatSkyBlockCalculation
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
@@ -46,10 +47,6 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.joml.Vector2i
 import org.lwjgl.glfw.GLFW
-import java.math.BigDecimal
-import java.math.MathContext
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -820,112 +817,10 @@ internal fun itemListSearchWidthAfterEditorScroll(currentWidth: Int, scrollY: Do
 internal fun calculationLabelAlphas(calculationBlend: Float): Pair<Float, Float> =
     (1f - calculationBlend * 2f).coerceIn(0f, 1f) to (calculationBlend * 2f - 1f).coerceIn(0f, 1f)
 
-internal fun itemListCalculation(query: String): String? =
-    itemListCalculationResult(query)?.let { result ->
-        DecimalFormat("#,##0.##########", DecimalFormatSymbols(Locale.US)).format(result)
-    }
+internal fun itemListCalculation(query: String): String? = formatSkyBlockCalculation(query, grouped = true)
 
 internal fun itemListCompiledCalculation(query: String): String? =
-    itemListCalculationResult(query)?.let { result ->
-        DecimalFormat("0.##########", DecimalFormatSymbols(Locale.US)).format(result)
-    }
-
-private fun itemListCalculationResult(query: String): BigDecimal? {
-    val expression = query.replace(",", "")
-    if (expression.none { it in "+-*/xX" } && !ITEM_LIST_SUFFIX_PATTERN.containsMatchIn(expression)) return null
-    return runCatching { ItemListMathParser(expression).parse() }.getOrNull()
-}
-
-private class ItemListMathParser(private val expression: String) {
-    private var index = 0
-
-    fun parse(): BigDecimal {
-        val result = parseExpression()
-        skipSpaces()
-        require(index == expression.length)
-        return result
-    }
-
-    private fun parseExpression(): BigDecimal {
-        var result = parseTerm()
-        while (true) {
-            result = when (nextOperator('+', '-')) {
-                '+' -> result + parseTerm()
-                '-' -> result - parseTerm()
-                else -> return result
-            }
-        }
-    }
-
-    private fun parseTerm(): BigDecimal {
-        var result = parseFactor()
-        while (true) {
-            result = when (nextOperator('*', 'x', 'X', '/')) {
-                '*', 'x', 'X' -> result * parseFactor()
-                '/' -> result.divide(parseFactor(), MathContext.DECIMAL64)
-                else -> return result
-            }
-        }
-    }
-
-    private fun parseFactor(): BigDecimal {
-        skipSpaces()
-        return when (expression.getOrNull(index)) {
-            '+' -> {
-                index++
-                parseFactor()
-            }
-            '-' -> {
-                index++
-                -parseFactor()
-            }
-            '(' -> {
-                index++
-                val result = parseExpression()
-                skipSpaces()
-                require(expression.getOrNull(index++) == ')')
-                result
-            }
-            else -> parseNumber()
-        }
-    }
-
-    private fun parseNumber(): BigDecimal {
-        skipSpaces()
-        val start = index
-        while (expression.getOrNull(index)?.let { it.isDigit() || it == '.' } == true) index++
-        require(index > start)
-        val value = expression.substring(start, index).toBigDecimal()
-        val multiplier = when (expression.getOrNull(index)?.lowercaseChar()) {
-            's' -> STACK_MULTIPLIER
-            'e' -> ENCHANTED_MULTIPLIER
-            'k' -> THOUSAND_MULTIPLIER
-            'm' -> MILLION_MULTIPLIER
-            'b' -> BILLION_MULTIPLIER
-            else -> return value
-        }
-        index++
-        return value * BigDecimal.valueOf(multiplier)
-    }
-
-    private fun nextOperator(vararg operators: Char): Char? {
-        skipSpaces()
-        val operator = expression.getOrNull(index)?.takeIf { it in operators } ?: return null
-        index++
-        return operator
-    }
-
-    private fun skipSpaces() {
-        while (expression.getOrNull(index)?.isWhitespace() == true) index++
-    }
-}
-
-private val ITEM_LIST_SUFFIX_PATTERN = Regex("""\d[sekmb]""", RegexOption.IGNORE_CASE)
-private const val STACK_MULTIPLIER = 64L
-private const val ENCHANTED_MULTIPLIER = 160L
-private const val THOUSAND_MULTIPLIER = 1_000L
-private const val MILLION_MULTIPLIER = 1_000_000L
-private const val BILLION_MULTIPLIER = 1_000_000_000L
+    formatSkyBlockCalculation(query, grouped = false)
 
 private fun drawCenteredText(
     context: GuiGraphicsExtractor,
