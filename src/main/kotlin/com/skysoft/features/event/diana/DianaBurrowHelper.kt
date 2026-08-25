@@ -35,7 +35,6 @@ object DianaBurrowHelper {
     private var wasOnHub = false
 
     fun register() {
-        DianaHubTerrainCache.register()
         ProfileStorageApi.registerConsumer("Diana Burrow Helper") { burrowHelper.enabled }
         MayorPerkApi.registerConsumer("Diana helpers") { config.isAnyFeatureEnabled() }
         HypixelPartyApi.registerConsumer("Diana helpers") { config.isAnyFeatureEnabled() }
