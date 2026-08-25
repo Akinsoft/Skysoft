@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 16
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 17
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -23,7 +23,7 @@ internal object SkysoftConfigMigrations {
             migrateBuggedNameplatesIntoMisc(json)
             migrateDianaFeatureAccordions(json)
         }
-        if (migrationVersion < TERRAIN_SETTINGS_VERSION) migrateTerrainSettings(json)
+        if (migrationVersion < TERRAIN_AND_PARTY_COMMAND_SETTINGS_VERSION) migrateTerrainAndPartyCommandSettings(json)
         migrateOrganizedConfigLayout(json)
         if (migrationVersion < PRICE_TOOLTIP_CUSTOMIZATION_VERSION) {
             migratePriceTooltipCustomization(json)
@@ -419,7 +419,7 @@ internal object SkysoftConfigMigrations {
     private const val SPOTIFY_LYRICS_MODE_VERSION = 12
     private const val SERVER_INFO_METRIC_COLORS_VERSION = 13
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
-    private const val TERRAIN_SETTINGS_VERSION = 16
+    private const val TERRAIN_AND_PARTY_COMMAND_SETTINGS_VERSION = 17
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
@@ -475,21 +475,31 @@ private fun migrateDianaFeatureAccordions(json: JsonObject) {
     if (!miscJson.has("keepTerrainLoaded")) miscJson.addProperty("keepTerrainLoaded", keepTerrainLoaded)
 }
 
-private fun migrateTerrainSettings(json: JsonObject) {
-    val miscJson = json.getObjectOrNull("misc") ?: return
-    val wasEnabled = miscJson.get("keepTerrainLoaded").booleanPrimitiveOrNull()?.asBoolean
-    if (wasEnabled != null) {
-        miscJson.add(
-            "keepTerrainLoaded",
-            JsonObject().also { featureJson -> featureJson.addProperty("enabled", wasEnabled) },
-        )
+private fun migrateTerrainAndPartyCommandSettings(json: JsonObject) {
+    json.getObjectOrNull("misc")?.let { miscJson ->
+        val wasEnabled = miscJson.get("keepTerrainLoaded").booleanPrimitiveOrNull()?.asBoolean
+        if (wasEnabled != null) {
+            miscJson.add(
+                "keepTerrainLoaded",
+                JsonObject().also { featureJson -> featureJson.addProperty("enabled", wasEnabled) },
+            )
+        }
+        val islands = miscJson.getObjectOrNull("keepTerrainLoaded")
+            ?.getObjectOrNull("settings")
+            ?.getAsJsonArray("islands")
+        if (islands != null) {
+            for (index in islands.size() - 1 downTo 0) {
+                if (islands[index].asString in NON_PERSISTENT_TERRAIN_ISLANDS) islands.remove(index)
+            }
+        }
     }
-    val islands = miscJson.getObjectOrNull("keepTerrainLoaded")
-        ?.getObjectOrNull("settings")
-        ?.getAsJsonArray("islands")
-        ?: return
-    for (index in islands.size() - 1 downTo 0) {
-        if (islands[index].asString in NON_PERSISTENT_TERRAIN_ISLANDS) islands.remove(index)
+
+    val diana = json.getObjectOrNull("events")?.getObjectOrNull("diana") ?: return
+    val partyCommands = diana.getOrCreateObject("partyCommands")
+    if (!partyCommands.has("enabled")) {
+        val wasEnabled = listOf("burrowHelper", "rareMobSharing", "lobbyCompromised", "sphinxHelper", "quickWarps")
+            .any { feature -> diana.getObjectOrNull(feature)?.get("enabled").booleanPrimitiveOrNull()?.asBoolean == true }
+        partyCommands.addProperty("enabled", wasEnabled)
     }
 }
 

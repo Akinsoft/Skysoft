@@ -60,13 +60,14 @@ internal object MythologicalRitualTracker {
     }
 
     private fun handlePartyMessage(message: ChatMessage) {
-        if (!isEnabled()) return
+        if (!isEnabled() || !config.partyCommands.enabled) return
         SkysoftPartyShare.markPartyChatObserved()
         val state = MythologicalRitualTrackerRepository.displayStateOrNull() ?: return
         val response = MythologicalRitualPartyCommands.response(
             body = message.body,
             localPlayerName = DianaRareMobRuntime.localPlayerName(),
             state = state,
+            enabledCommands = config.partyCommands.settings.commands.get(),
         ) ?: return
         if (!partyCommandCooldown.canRespond(message.sender?.name, System.currentTimeMillis())) return
         SkysoftPartyShare.sendParty(response, allowRecentPartyChatEvidence = true)
