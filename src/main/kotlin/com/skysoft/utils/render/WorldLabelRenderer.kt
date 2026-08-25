@@ -127,6 +127,20 @@ object WorldLabelRenderer {
         y: Float,
         style: WorldLabelStyle,
     ) {
+        if (style.displayMode == Font.DisplayMode.SEE_THROUGH) {
+            context.submitNodeCollector.submitText(
+                context.matrices,
+                x,
+                y,
+                component.visualOrderText,
+                style.shadow,
+                Font.DisplayMode.NORMAL,
+                LightCoordsUtil.FULL_BRIGHT,
+                style.textColor,
+                style.backgroundColor,
+                style.outlineColor,
+            )
+        }
         context.submitNodeCollector.submitText(
             context.matrices,
             x,
