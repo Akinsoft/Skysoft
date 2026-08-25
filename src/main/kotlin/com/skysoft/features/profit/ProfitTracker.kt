@@ -31,7 +31,6 @@ import com.skysoft.features.event.diana.MythologicalRitualMessageTracker
 import com.skysoft.features.event.diana.UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
 import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
-import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
@@ -239,15 +238,6 @@ object ProfitTracker {
                 ProfitTrackingPeriod.SESSION
             }
 
-    internal fun cyclePeriod(target: ProfitTrackerTarget, backwards: Boolean) {
-        val periods = target.trackingPeriods
-        val current = displayPeriod(target)
-        val next = OverlayControlCycle.next(periods, current, backwards)
-        ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
-        ProfileStorageApi.markDirty()
-        ProfileStorageApi.saveNow()
-    }
-
     internal fun resetDisplayed(target: ProfitTrackerTarget) {
         itemTracking.clear()
         craftingReconciliation.clear(target)
@@ -270,6 +260,26 @@ object ProfitTracker {
         }
         target.slayerType?.let { SlayerTimeToKill.reset(it, period) }
         if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.saveNow()
+    }
+
+    internal fun modifyItemAmount(target: ProfitTrackerTarget, itemId: String, amount: Long) {
+        if (amount == 0L) return
+        if (amount > 0L) {
+            if (ProfitTrackerItemCustomizations.isExcluded(target, itemId)) {
+                ProfitTrackerItemCustomizations.restore(target, itemId)
+            }
+            if (itemId !in trackedItemIds(target)) ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
+        }
+        update(target) { stats ->
+            val current = stats.itemCounts.getOrDefault(itemId, 0L)
+            val updated = if (amount > 0L) {
+                current + amount.coerceAtMost(Long.MAX_VALUE - current)
+            } else {
+                (current + amount).coerceAtLeast(0L)
+            }
+            if (updated == 0L) stats.itemCounts.remove(itemId) else stats.itemCounts[itemId] = updated
+        }
+        ProfileStorageApi.saveNow()
     }
 
     internal fun deleteCustomTrackerData(target: ProfitTrackerTarget) {

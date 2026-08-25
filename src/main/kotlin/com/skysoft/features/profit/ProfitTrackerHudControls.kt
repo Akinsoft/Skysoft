@@ -2,6 +2,7 @@ package com.skysoft.features.profit
 
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.mixin.AbstractContainerScreenAccessor
@@ -57,7 +58,12 @@ internal class ProfitTrackerHudControls(
     }
 
     fun wasKeyPressHandled(target: ProfitTrackerTarget, event: KeyEvent): Boolean =
-        itemPanel.wasKeyPressHandled(event) { itemId -> selectSearchedItem(target, itemId) }
+        itemPanel.wasKeyPressHandled(
+            event,
+            target,
+            { itemId -> selectSearchedItem(target, itemId) },
+            { itemId, amount -> ProfitTracker.modifyItemAmount(target, itemId, amount) },
+        )
 
     fun wasCharTypedHandled(event: CharacterEvent): Boolean = itemPanel.wasCharTypedHandled(event)
 
@@ -66,11 +72,14 @@ internal class ProfitTrackerHudControls(
         target: ProfitTrackerTarget,
         button: Int,
     ): Boolean {
-        if (!itemPanel.isAddingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (!itemPanel.isSelectingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
         val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
         val player = Minecraft.getInstance().player ?: return false
         val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
-        if (itemId !in ProfitTracker.trackedItemIds(target)) ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
+        if (itemPanel.isAddingItems()) {
+            if (itemId in ProfitTracker.trackedItemIds(target)) return true
+            ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
+        }
         itemPanel.openItem(itemId)
         return true
     }
@@ -94,6 +103,15 @@ internal class ProfitTrackerHudControls(
         ProfitTrackerControl.More -> wasLeftClickHandled(button, itemPanel::toggleOverview)
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
         is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(target, action.itemId, button)
+        is ProfitTrackerControl.ModifyItem -> wasLeftClickHandled(button) {
+            ProfitTracker.modifyItemAmount(target, action.itemId, action.amount)
+        }
+        is ProfitTrackerControl.BeginCustomModification -> wasLeftClickHandled(button) {
+            itemPanel.itemModifier.begin(action.direction)
+        }
+        is ProfitTrackerControl.ModifyItemField -> wasLeftClickHandled(button) {
+            itemPanel.itemModifier.focus(action.localMouseX, action.bounds)
+        }
         is ProfitTrackerControl.ExcludeItem -> wasLeftClickHandled(button) {
             ProfitTrackerItemCustomizations.exclude(target, action.itemId)
             itemPanel.showOverview()
@@ -105,6 +123,7 @@ internal class ProfitTrackerHudControls(
             ProfitTrackerItemCustomizations.removeCustomItem(target, action.itemId)
         }
         ProfitTrackerControl.AddItem -> wasLeftClickHandled(button, itemPanel::beginAddingItem)
+        ProfitTrackerControl.ManageItems -> wasLeftClickHandled(button, itemPanel::beginManagingItem)
         ProfitTrackerControl.AddItemInventory -> wasLeftClickHandled(button) {
             itemPanel.selectAddItemMode(AddItemMode.INVENTORY)
         }
@@ -123,16 +142,22 @@ internal class ProfitTrackerHudControls(
     }
 
     private fun selectSearchedItem(target: ProfitTrackerTarget, itemId: String) {
-        if (itemId in ProfitTracker.trackedItemIds(target)) {
-            itemPanel.openItem(itemId)
-        } else {
+        if (itemPanel.isAddingItems()) {
             ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
+        } else {
+            itemPanel.openItem(itemId)
         }
     }
 
     private fun wasPeriodCycled(target: ProfitTrackerTarget, button: Int): Boolean =
         OverlayControlCycle.wasClickHandled(button) { backwards ->
-            ProfitTracker.cyclePeriod(target, backwards)
+            val periods = ProfitTrackingPeriod.entries.filter {
+                target.preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL || it != ProfitTrackingPeriod.MAYOR
+            }
+            val next = OverlayControlCycle.next(periods, ProfitTracker.displayPeriod(target), backwards)
+            ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
+            ProfileStorageApi.markDirty()
+            ProfileStorageApi.saveNow()
         }
 
     private fun wasTrackerPriceSourceCycled(target: ProfitTrackerTarget, button: Int): Boolean =
