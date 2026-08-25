@@ -101,7 +101,7 @@ object ActivePetOverlay {
             override val hasEditorBackground: Boolean get() = !config.general.settings.background.get()
             override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
             override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
-            override fun isVisible(): Boolean = SkysoftConfigGui.config().pets.petDisplay.enabled.get()
+            override fun isVisible(): Boolean = PetFeatureDemand.isDisplayActive()
             override fun renderEditor(context: GuiGraphicsExtractor) {
                 previewRenderable()?.render(context)
             }
@@ -148,7 +148,7 @@ object ActivePetOverlay {
         val minecraft = Minecraft.getInstance()
         if (
             MinecraftClient.isGuiHidden(minecraft) ||
-            !SkysoftConfigGui.config().pets.petDisplay.enabled.get() ||
+            !PetFeatureDemand.isDisplayActive() ||
             config.general.settings.hideInMenus.get() && MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
         ) return
         context.nextStratum()
