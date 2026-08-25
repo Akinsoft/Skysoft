@@ -59,9 +59,19 @@ object HoneybugHelper {
 
     private fun tick() {
         resetForLocationChange()
-        val enabled = isEnabled()
+        if (!SkyBlockIsland.SAFARI.isInIsland()) {
+            clear()
+            return
+        }
+        val enabled = config.enabled
         if (enabled && !wasEnabled) scanLoadedHives()
-        if (!enabled) visibleHives.clear()
+        if (enabled) {
+            Minecraft.getInstance().level?.let { level ->
+                visibleHives.removeIf { position -> level.getBlockState(position).block != Blocks.BEE_NEST }
+            }
+        } else {
+            visibleHives.clear()
+        }
         wasEnabled = enabled
     }
 
