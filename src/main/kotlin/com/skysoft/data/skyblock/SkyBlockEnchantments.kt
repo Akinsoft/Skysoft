@@ -8,6 +8,9 @@ import java.util.Locale
 import net.minecraft.world.item.ItemStack
 
 internal object SkyBlockEnchantments {
+    fun isUltimate(internalName: String?): Boolean =
+        internalName?.startsWith(ULTIMATE_ENCHANTMENT_PREFIX) == true
+
     fun read(json: String): List<BundledEnchantment> = StringReader(json).use { reader ->
         Gson().fromJson(reader, Array<BundledEnchantment>::class.java).orEmpty().map { enchantment ->
             enchantment.copy(lore = normalizeEnchantmentLore(enchantment.lore))
@@ -36,6 +39,7 @@ internal object SkyBlockEnchantments {
                 displayName = displayName,
                 source = SKYBLOCK_SOURCE,
                 searchableText = "${enchantment.name} $displayName ${enchantment.id}".lowercase(Locale.ROOT),
+                formattedDisplayName = if (isUltimate(enchantment.id)) "§d$displayName" else displayName,
             )
             info[key] = SkyBlockItemInfo(
                 key = key,
@@ -75,6 +79,7 @@ internal object SkyBlockEnchantments {
     }
 
     private const val SKYBLOCK_SOURCE = "skyblock"
+    private const val ULTIMATE_ENCHANTMENT_PREFIX = "ENCHANTMENT_ULTIMATE_"
     private val TIER_SUFFIX = Regex(" [IVXLCDM]+$")
 }
 

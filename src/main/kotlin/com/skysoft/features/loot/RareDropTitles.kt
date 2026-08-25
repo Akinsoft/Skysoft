@@ -1,6 +1,7 @@
 package com.skysoft.features.loot
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.skyblock.SkyBlockEnchantments
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.ColorUtilities.RGB_MASK
@@ -50,7 +51,7 @@ internal object RareDropTitleFormatter {
             .append(Component.literal(drop.prefix()).withStyle(ChatFormatting.WHITE))
             .append(
                 Component.literal(drop.displayName).withStyle { style ->
-                    if (drop.itemId?.startsWith(ULTIMATE_ENCHANTMENT_PREFIX) == true) {
+                    if (SkyBlockEnchantments.isUltimate(drop.itemId)) {
                         style.withColor(ChatFormatting.LIGHT_PURPLE)
                     } else {
                         style.withColor(rarity.color.rgb and RGB_MASK)
@@ -61,6 +62,4 @@ internal object RareDropTitleFormatter {
 
     private fun RareLootDrop.prefix(): String =
         if (amount > 1) "+ ${amount}x " else "+ "
-
-    private const val ULTIMATE_ENCHANTMENT_PREFIX = "ENCHANTMENT_ULTIMATE_"
 }
