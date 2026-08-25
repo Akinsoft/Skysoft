@@ -43,7 +43,7 @@ class SkysoftDianaConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Lootshare", desc = "Configure lootshare messages and indicators.")
+    @field:ConfigOption(name = "Lootshare Helper", desc = "Track lootshare damage and show nearby indicators.")
     @field:Accordion
     val lootshare = DianaLootshareConfig()
 
@@ -74,6 +74,7 @@ class SkysoftDianaConfig {
     fun isAnyFeatureEnabled(): Boolean =
         burrowHelper.enabled ||
             rareMobSharing.enabled ||
+            lootshare.enabled ||
             (partyCommands.enabled && partyCommands.settings.commands.get().isNotEmpty()) ||
             lobbyCompromised.enabled ||
             sphinxHelper.enabled ||
@@ -234,13 +235,20 @@ class DianaRareMobSharingSettingsConfig {
 class DianaLootshareConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Lootshare settings.")
+    @field:ConfigOption(name = "Enabled", desc = "Track lootshare damage and show nearby indicators.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Lootshare Helper settings.")
     @field:Accordion
     val settings = DianaLootshareSettingsConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Details", desc = "Lootshare appearance.")
+    @field:ConfigOption(name = "Details", desc = "Lootshare Helper appearance.")
     @field:Accordion
     val details = DianaLootshareDetailsConfig()
 }

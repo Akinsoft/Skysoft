@@ -145,14 +145,17 @@ object DianaBurrowHelper {
             context = context,
             targets = targets,
             currentTarget = target,
-            drawCrosshairLine = settings.crosshairLine && !DianaRareMobSharing.hasActiveTarget(),
+            drawCrosshairLine = settings.crosshairLine &&
+                (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget()),
             boldLabels = details.boldText,
             labelFormat = details.labelFormat,
             labelColors = labelColors,
             boxStyle = details.burrowBoxStyle(labelColors),
             showClickCounter = settings.clickCounter,
             clickCounterPosition = settings.clickCounterPosition,
-            visualAlphaScale = if (DianaRareMobSharing.remotePriorityTarget != null) {
+            visualAlphaScale = if (
+                config.rareMobSharing.enabled && DianaRareMobSharing.remotePriorityTarget != null
+            ) {
                 RARE_MOB_PRIORITY_BURROW_ALPHA
             } else {
                 1.0
@@ -176,8 +179,10 @@ object DianaBurrowHelper {
     private fun activeWarpSuggestion(): DianaWarpSuggestion? {
         if (!quickWarps.enabled || MinecraftClient.screen() != null) return null
         val playerLocation = currentPlayerLocation() ?: return null
-        DianaRareMobSharing.remotePriorityTarget?.let { target ->
-            return currentWarpSuggestion(target.sharedLocation, playerLocation)
+        if (config.rareMobSharing.enabled) {
+            DianaRareMobSharing.remotePriorityTarget?.let { target ->
+                return currentWarpSuggestion(target.sharedLocation, playerLocation)
+            }
         }
         if (!DianaEventState.canUseHelper()) return null
         val target = DianaBurrowTargetTracker.currentTarget(playerLocation) ?: return null

@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 18
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 19
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -419,7 +419,7 @@ internal object SkysoftConfigMigrations {
     private const val SPOTIFY_LYRICS_MODE_VERSION = 12
     private const val SERVER_INFO_METRIC_COLORS_VERSION = 13
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
-    private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 18
+    private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 19
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
@@ -500,6 +500,10 @@ private fun migrateDianaAndTerrainSettings(json: JsonObject) {
         ?: rareMobSharing.remove("lootshare")?.takeIf { it.isJsonObject }?.asJsonObject
         ?: JsonObject()
     diana.add("lootshare", lootshare)
+    if (!lootshare.has("enabled")) {
+        val rareMobSharingEnabled = rareMobSharing.get("enabled").booleanPrimitiveOrNull()?.asBoolean ?: false
+        lootshare.addProperty("enabled", rareMobSharingEnabled)
+    }
     val settings = lootshare.getOrCreateObject("settings")
     if (!settings.has("shareSecuredMessage")) settings.addProperty("shareSecuredMessage", true)
     val details = lootshare.getOrCreateObject("details")

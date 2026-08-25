@@ -12,6 +12,7 @@ internal object DianaRareMobPartyMessages {
     data class Context(
         val localPlayerName: String?,
         val receivedRareMobs: Collection<DianaRareMobOption>,
+        val showRareMobSharing: Boolean,
         val now: Long,
     )
 
@@ -32,11 +33,13 @@ internal object DianaRareMobPartyMessages {
             cocoon.mob !in context.receivedRareMobs -> ChatMessageVisibility.SHOW
             else -> {
                 refreshRemoteCocoonTargets(targets, pendingRemoteClears, cocoon.mob, sender, context.now)
-                SkysoftPartyShare.showCocoonReplacement(
-                    sender = sender,
-                    label = Component.literal(cocoon.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
-                )
-                DianaRareMobTitleRenderer.showCocoon(cocoon.mob, sender)
+                if (context.showRareMobSharing) {
+                    SkysoftPartyShare.showCocoonReplacement(
+                        sender = sender,
+                        label = Component.literal(cocoon.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
+                    )
+                    DianaRareMobTitleRenderer.showCocoon(cocoon.mob, sender)
+                }
                 ChatMessageVisibility.HIDE
             }
         }
@@ -84,12 +87,14 @@ internal object DianaRareMobPartyMessages {
             sender.isLocalPlayer(context.localPlayerName) -> ChatMessageVisibility.SHOW
             else -> {
                 rememberShare(share, sender)
-                SkysoftPartyShare.showFoundReplacement(
-                    sender = sender,
-                    label = Component.literal(share.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
-                    location = share.location,
-                )
-                DianaRareMobTitleRenderer.show(share.mob, sender)
+                if (context.showRareMobSharing) {
+                    SkysoftPartyShare.showFoundReplacement(
+                        sender = sender,
+                        label = Component.literal(share.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
+                        location = share.location,
+                    )
+                    DianaRareMobTitleRenderer.show(share.mob, sender)
+                }
                 ChatMessageVisibility.HIDE
             }
         }

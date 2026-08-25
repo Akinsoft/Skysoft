@@ -7,7 +7,8 @@ import com.skysoft.utils.chat.SkysoftPartyShare
 
 internal object DianaLootshareReadyMessage {
     fun broadcast() {
-        if (!SkysoftConfigGui.config().events.diana.lootshare.settings.shareSecuredMessage) return
+        val config = SkysoftConfigGui.config().events.diana.lootshare
+        if (!config.enabled || !config.settings.shareSecuredMessage) return
         SkysoftPartyShare.sendParty(MESSAGE)
     }
 
