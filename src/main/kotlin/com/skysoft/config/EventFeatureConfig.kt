@@ -43,6 +43,12 @@ class SkysoftDianaConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Party Commands", desc = "Respond to selected Diana commands in party chat.")
+    @field:Accordion
+    val partyCommands = DianaPartyCommandsConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Lobby Compromised", desc = "Alert when too many non-party players join the lobby.")
     @field:Accordion
     val lobbyCompromised = DianaLobbyCompromisedConfig()
@@ -62,6 +68,7 @@ class SkysoftDianaConfig {
     fun isAnyFeatureEnabled(): Boolean =
         burrowHelper.enabled ||
             rareMobSharing.enabled ||
+            (partyCommands.enabled && partyCommands.settings.commands.get().isNotEmpty()) ||
             lobbyCompromised.enabled ||
             sphinxHelper.enabled ||
             quickWarps.enabled
@@ -250,6 +257,29 @@ class DianaRareMobSharingDetailsConfig {
     val lootshareReadyColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 255, 0, 230))
 }
 
+class DianaPartyCommandsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Respond to selected Diana commands in party chat.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Settings", desc = "Party Commands settings.")
+    @field:Accordion
+    val settings = DianaPartyCommandsSettingsConfig()
+}
+
+class DianaPartyCommandsSettingsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Commands", desc = "Diana commands Skysoft should answer in party chat.")
+    @field:ConfigEditorDraggableList
+    val commands: Property<MutableList<DianaPartyCommand>> = Property.of(DianaPartyCommand.entries.toMutableList())
+}
+
 class DianaLobbyCompromisedConfig {
     @JvmField
     @field:Expose
@@ -323,6 +353,46 @@ class DianaQuickWarpsSettingsConfig {
     @field:ConfigOption(name = "Minimum Savings", desc = "Minimum blocks saved before suggesting a warp.")
     @field:ConfigEditorSlider(minValue = 0f, maxValue = 80f, minStep = 1f)
     var minWarpSavings = 10
+}
+
+enum class DianaPartyCommand(private val command: String) {
+    CHIMERA("!chim"),
+    INQUISITOR_LOOTSHARE("!inqsls"),
+    INQUISITOR("!inq"),
+    KING_MINOS("!king"),
+    KING_MINOS_LOOTSHARE("!kingls"),
+    BURROWS("!burrows"),
+    RELICS("!relic"),
+    CHIMERA_LOOTSHARE("!chimls"),
+    MANTI_CORE("!core"),
+    MANTI_CORE_LOOTSHARE("!corels"),
+    FATEFUL_STINGER("!stinger"),
+    FATEFUL_STINGER_LOOTSHARE("!stingerls"),
+    SHIMMERING_WOOL("!wool"),
+    SHIMMERING_WOOL_LOOTSHARE("!woolls"),
+    BRAIN_FOOD("!food"),
+    BRAIN_FOOD_LOOTSHARE("!foodls"),
+    KING_SHARDS("!kingshard"),
+    SPHINX_SHARDS("!sphinxshard"),
+    MINOTAUR_SHARDS("!minotaurshard"),
+    CRETAN_SHARDS("!cretanshard"),
+    MYTHOS_FRAGMENTS("!mythofrag"),
+    CRETAN_URNS("!urns"),
+    HILT_OF_REVELATIONS("!hilt"),
+    DAEDALUS_STICKS("!sticks"),
+    GRIFFIN_FEATHERS("!feathers"),
+    COINS("!coins"),
+    MOBS("!mobs"),
+    MAGIC_FIND("!mf"),
+    PLAYTIME("!playtime"),
+    PROFITS("!profits"),
+    STATS("!stats"),
+    TOTAL_STATS("!totalstats"),
+    SESSION_STATS("!sessionstats"),
+    SINCE("!since"),
+    ;
+
+    override fun toString(): String = command
 }
 
 enum class DianaClickCounterPosition(private val displayName: String) {
