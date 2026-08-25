@@ -120,7 +120,7 @@ class PetFeatureConfig : ConfigRepairable {
         val display: PetOverlayConfig = PetOverlayConfig()
 
         @JvmField
-        @field:ConfigOption(name = "Enabled", desc = "Show a GUI element for the currently active pet.")
+        @field:ConfigOption(name = "Enabled", desc = "Show the currently active pet.")
         @field:MainFeatureToggle
         @field:ConfigEditorBoolean
         @field:ConfigOrder(10)
