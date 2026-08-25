@@ -25,7 +25,8 @@ internal object DianaRareMobSharing {
     private val config get() = SkysoftConfigGui.config().events.diana
     private val feature get() = config.rareMobSharing
     private val settings get() = feature.settings
-    private val details get() = feature.details
+    private val lootshareSettings get() = config.lootshare.settings
+    private val lootshareDetails get() = config.lootshare.details
     private val targets = mutableMapOf<String, DianaRareMobTarget>()
     private val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
     private val pendingLocalClears = mutableListOf<PendingLocalRareMobClear>()
@@ -113,7 +114,7 @@ internal object DianaRareMobSharing {
         flushPendingRemoteRareMobClears(targets, pendingRemoteClears, now) { target, reason ->
             clearTarget(target, reason, broadcast = false, deferRemoteDeathClear = false)
         }
-        DianaRareMobGlow.apply(targets.values, DianaRareMobRuntime.localPlayerName(), details.lootshareColors())
+        DianaRareMobGlow.apply(targets.values, DianaRareMobRuntime.localPlayerName(), lootshareDetails.lootshareColors())
     }
 
     private fun onMessage(message: ChatMessage): ChatMessageVisibility {
@@ -123,7 +124,10 @@ internal object DianaRareMobSharing {
                 message = message,
                 localPlayerName = DianaRareMobRuntime.localPlayerName(),
                 now = now,
-                showMarker = feature.enabled && DianaEventState.isOnHub() && targets.isNotEmpty(),
+                showMarker = feature.enabled &&
+                    lootshareSettings.partyCheckmarks &&
+                    DianaEventState.isOnHub() &&
+                    targets.isNotEmpty(),
             )
         }
         if (!feature.enabled || !DianaEventState.isOnHub()) return ChatMessageVisibility.SHOW
@@ -382,15 +386,17 @@ internal object DianaRareMobSharing {
             targets = targets.values,
             currentTarget = currentTarget,
             drawCrosshairLine = config.burrowHelper.settings.crosshairLine,
-            drawLootshareRadius = settings.lootshareRadius,
+            drawLootshareRadius = lootshareDetails.lootshareRadius,
             localPlayerName = DianaRareMobRuntime.localPlayerName(),
-            lootshareColors = details.lootshareColors(),
+            lootshareColors = lootshareDetails.lootshareColors(),
         )
-        DianaLootshareReadyMarkers.renderWorld(
-            context,
-            DianaRareMobRuntime.localPlayerName(),
-            System.currentTimeMillis(),
-        )
+        if (lootshareSettings.partyCheckmarks) {
+            DianaLootshareReadyMarkers.renderWorld(
+                context,
+                DianaRareMobRuntime.localPlayerName(),
+                System.currentTimeMillis(),
+            )
+        }
     }
 
     private fun clearTarget(

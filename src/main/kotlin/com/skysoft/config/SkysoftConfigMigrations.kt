@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 17
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 18
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -23,7 +23,7 @@ internal object SkysoftConfigMigrations {
             migrateBuggedNameplatesIntoMisc(json)
             migrateDianaFeatureAccordions(json)
         }
-        if (migrationVersion < TERRAIN_AND_PARTY_COMMAND_SETTINGS_VERSION) migrateTerrainAndPartyCommandSettings(json)
+        if (migrationVersion < DIANA_AND_TERRAIN_SETTINGS_VERSION) migrateDianaAndTerrainSettings(json)
         migrateOrganizedConfigLayout(json)
         if (migrationVersion < PRICE_TOOLTIP_CUSTOMIZATION_VERSION) {
             migratePriceTooltipCustomization(json)
@@ -419,7 +419,7 @@ internal object SkysoftConfigMigrations {
     private const val SPOTIFY_LYRICS_MODE_VERSION = 12
     private const val SERVER_INFO_METRIC_COLORS_VERSION = 13
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
-    private const val TERRAIN_AND_PARTY_COMMAND_SETTINGS_VERSION = 17
+    private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 18
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
@@ -475,7 +475,7 @@ private fun migrateDianaFeatureAccordions(json: JsonObject) {
     if (!miscJson.has("keepTerrainLoaded")) miscJson.addProperty("keepTerrainLoaded", keepTerrainLoaded)
 }
 
-private fun migrateTerrainAndPartyCommandSettings(json: JsonObject) {
+private fun migrateDianaAndTerrainSettings(json: JsonObject) {
     json.getObjectOrNull("misc")?.let { miscJson ->
         val wasEnabled = miscJson.get("keepTerrainLoaded").booleanPrimitiveOrNull()?.asBoolean
         if (wasEnabled != null) {
@@ -495,6 +495,24 @@ private fun migrateTerrainAndPartyCommandSettings(json: JsonObject) {
     }
 
     val diana = json.getObjectOrNull("events")?.getObjectOrNull("diana") ?: return
+    val rareMobSharing = diana.getObjectOrNull("rareMobSharing") ?: return
+    val lootshare = diana.getObjectOrNull("lootshare")
+        ?: rareMobSharing.remove("lootshare")?.takeIf { it.isJsonObject }?.asJsonObject
+        ?: JsonObject()
+    diana.add("lootshare", lootshare)
+    val settings = lootshare.getOrCreateObject("settings")
+    if (!settings.has("shareSecuredMessage")) settings.addProperty("shareSecuredMessage", true)
+    val details = lootshare.getOrCreateObject("details")
+    details.remove("partyCheckmarks")?.let { partyCheckmarks ->
+        if (!settings.has("partyCheckmarks")) settings.add("partyCheckmarks", partyCheckmarks)
+    }
+    if (!settings.has("partyCheckmarks")) settings.addProperty("partyCheckmarks", true)
+    rareMobSharing.getObjectOrNull("settings")?.moveFieldsInto(details, listOf("lootshareRadius"))
+    rareMobSharing.getObjectOrNull("details")?.let { legacyDetails ->
+        legacyDetails.moveFieldsInto(details, listOf("lootshareMissingColor", "lootshareReadyColor"))
+        if (legacyDetails.size() == 0) rareMobSharing.remove("details")
+    }
+
     val partyCommands = diana.getOrCreateObject("partyCommands")
     if (!partyCommands.has("enabled")) {
         val wasEnabled = listOf("burrowHelper", "rareMobSharing", "lobbyCompromised", "sphinxHelper", "quickWarps")
