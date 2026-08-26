@@ -53,7 +53,7 @@ internal object DianaArrowCandidateResolver {
                 YELLOW_AMBIGUOUS_CANDIDATE_COMPARATOR
             distanceHint != null && bestByBlock.size >= AMBIGUOUS_CANDIDATE_COUNT ->
                 ambiguousCandidateComparator(distanceHint)
-            else -> RESOLVED_CANDIDATE_COMPARATOR
+            else -> resolvedCandidateComparator(distanceHint)
         }
         return bestByBlock.values.sortedWith(comparator)
     }
@@ -153,6 +153,7 @@ internal object DianaArrowCandidateResolver {
 
     private fun ambiguousCandidateComparator(distanceHint: DianaArrowDistance): Comparator<ResolvedArrowCandidate> =
         compareBy<ResolvedArrowCandidate> { candidate -> candidate.surfaceSource.knownSurfaceRank }
+            .thenBy { candidate -> candidate.nominalDistanceRank(distanceHint) }
             .thenBy { candidate -> abs(candidate.distanceFromOrigin - distanceHint.midpoint) }
             .thenBy { candidate -> candidate.scaledDistanceToRay }
             .thenBy { candidate -> candidate.distanceFromOrigin }
@@ -162,6 +163,7 @@ internal object DianaArrowCandidateResolver {
 
     private val YELLOW_AMBIGUOUS_CANDIDATE_COMPARATOR =
         compareBy<ResolvedArrowCandidate> { candidate -> candidate.surfaceSource.knownSurfaceRank }
+            .thenBy { candidate -> candidate.nominalDistanceRank(DianaArrowDistance.YELLOW) }
             .thenBy { candidate -> candidate.yellowExactRayRank() }
             .thenBy { candidate -> candidate.yellowExactRayAlignmentScore() }
             .thenBy { candidate -> candidate.yellowRayFitBucket() }
@@ -171,6 +173,9 @@ internal object DianaArrowCandidateResolver {
             .thenBy { candidate -> abs(candidate.location.y - candidate.raw.y) }
             .thenBy { candidate -> candidate.surfaceSource.rank }
             .thenBy { candidate -> candidate.order }
+
+    private fun ResolvedArrowCandidate.nominalDistanceRank(distanceHint: DianaArrowDistance?): Int =
+        if (distanceHint == null || distanceFromOrigin.toInt() in distanceHint.minDistance..distanceHint.maxDistance) 0 else 1
 
     private fun ResolvedArrowCandidate.yellowRayFitBucket(): Int =
         floor(distanceToRay / YELLOW_RAY_FIT_BUCKET_BLOCKS).toInt()
@@ -183,19 +188,24 @@ internal object DianaArrowCandidateResolver {
 
     private const val VERTICAL_SURFACE_SCAN_RADIUS = 12
     private const val AMBIGUOUS_CANDIDATE_COUNT = 48
-    private const val YELLOW_AMBIGUOUS_CANDIDATE_COUNT = 5
+    private const val YELLOW_AMBIGUOUS_CANDIDATE_COUNT = 2
     private const val YELLOW_RAY_FIT_BUCKET_BLOCKS = 0.75
     private const val YELLOW_EXACT_RAY_DISTANCE = 0.1
     private val VERTICAL_SURFACE_SCAN_OFFSETS = (0..VERTICAL_SURFACE_SCAN_RADIUS).flatMap { offset ->
         if (offset == 0) listOf(0) else listOf(-offset, offset)
     }
-    private val RESOLVED_CANDIDATE_COMPARATOR =
+    private fun resolvedCandidateComparator(
+        distanceHint: DianaArrowDistance? = null,
+    ): Comparator<ResolvedArrowCandidate> =
         compareBy<ResolvedArrowCandidate> { candidate -> candidate.surfaceSource.knownSurfaceRank }
+            .thenBy { candidate -> candidate.nominalDistanceRank(distanceHint) }
             .thenBy { candidate -> candidate.scaledDistanceToRay }
             .thenBy { candidate -> candidate.distanceFromOrigin }
             .thenBy { candidate -> abs(candidate.location.y - candidate.raw.y) }
             .thenBy { candidate -> candidate.surfaceSource.rank }
             .thenBy { candidate -> candidate.order }
+
+    private val RESOLVED_CANDIDATE_COMPARATOR = resolvedCandidateComparator()
 }
 
 private val DianaArrowCandidateSurfaceSource.knownSurfaceRank: Int
