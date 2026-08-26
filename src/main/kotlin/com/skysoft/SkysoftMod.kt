@@ -7,6 +7,7 @@ import com.mojang.logging.LogUtils
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.discovery.NewSettingsDiscovery
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.helditem.HeldItemEditorScreen
 import com.skysoft.features.inventory.InventoryButtonEditorScreen
 import com.skysoft.features.inventory.InventoryButtonImportCommand
@@ -82,6 +83,7 @@ class SkysoftMod : ClientModInitializer {
                 child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
                 child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
                 child("customtrackers") { name -> literal(name).executes { openCustomTrackers() } }
+                child("clearburrows") { name -> literal(name).executes { clearBurrows(it.source) } }
                 child("mouselock", "ssmouselock") { name -> literal(name).executes { MouseLock.toggle(it.source) } }
                 child("new") { name -> literal(name).executes { openNewSettings(it.source) } }
                 child("protect") { name -> literal(name).executes { ItemProtectionManager.toggleHeldItem(it.source) } }
@@ -128,6 +130,18 @@ class SkysoftMod : ClientModInitializer {
             DeferredScreenRequests.request("Custom Profit Tracker editor") {
                 CustomProfitTrackerConfigScreen.open()
             }
+            return Command.SINGLE_SUCCESS
+        }
+
+        private fun clearBurrows(source: FabricClientCommandSource): Int {
+            SkysoftChat.feedback(
+                source,
+                if (DianaBurrowHelper.didClearBurrows()) {
+                    "Cleared your saved Diana burrows."
+                } else {
+                    "No SkyBlock profile is currently loaded."
+                },
+            )
             return Command.SINGLE_SUCCESS
         }
 
