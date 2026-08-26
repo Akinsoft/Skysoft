@@ -235,6 +235,7 @@ internal object DianaRareMobSharing {
             .forEach { target -> clearTarget(target, "cocooned", broadcast = false) }
 
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatCocoon(cocoon.mob))
+        if (settings.ownMobAlerts) DianaRareMobTitleRenderer.showOwnCocoon(cocoon.mob)
         if (location == null) return
         val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(cocoon.mob, location)
@@ -322,6 +323,7 @@ internal object DianaRareMobSharing {
         val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(pending.mob, signal.location.roundToBlock())
         rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, signal, now)
+        if (settings.ownMobAlerts) DianaRareMobTitleRenderer.showOwn(pending.mob)
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.format(share))
         return LocalRareMobShareResult.SHARED
     }

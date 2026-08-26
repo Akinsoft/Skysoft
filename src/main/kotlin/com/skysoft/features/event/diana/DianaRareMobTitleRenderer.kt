@@ -19,21 +19,33 @@ internal object DianaRareMobTitleRenderer {
         show(mob, sender, "Cocooned by ")
     }
 
+    fun showOwn(mob: DianaRareMobOption) {
+        showAlert(mob, null)
+    }
+
+    fun showOwnCocoon(mob: DianaRareMobOption) {
+        showAlert(mob, Component.literal("Cocooned!").withStyle(ChatFormatting.GRAY))
+    }
+
     private fun show(mob: DianaRareMobOption, sender: ChatMessageSender, subtitlePrefix: String) {
+        showAlert(
+            mob,
+            Component.literal(subtitlePrefix)
+                .withStyle(ChatFormatting.GRAY)
+                .append(sender.nameComponent()),
+        )
+    }
+
+    private fun showAlert(mob: DianaRareMobOption, subtitle: Component?) {
         ScreenAlertRenderer.show(
             ScreenAlert(
                 id = ALERT_ID,
-                lines = listOf(
+                lines = listOfNotNull(
                     ScreenTitleLine(
                         Component.literal(mob.label).withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD),
                         TITLE_SCALE,
                     ),
-                    ScreenTitleLine(
-                        Component.literal(subtitlePrefix)
-                            .withStyle(ChatFormatting.GRAY)
-                            .append(sender.nameComponent()),
-                        SUBTITLE_SCALE,
-                    ),
+                    subtitle?.let { ScreenTitleLine(it, SUBTITLE_SCALE) },
                 ),
                 durationMillis = ALERT_DURATION_MILLIS,
                 sound = ScreenAlertSound(

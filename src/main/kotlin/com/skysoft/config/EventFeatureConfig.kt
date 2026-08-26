@@ -309,6 +309,13 @@ class DianaRareMobSharingSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Own Mob Alerts", desc = "Show title alerts for rare mobs you share.")
+    @field:ConfigVisibleIf("shareMobs")
+    @field:ConfigEditorBoolean
+    var ownMobAlerts = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Shared Mobs", desc = "Rare mobs Skysoft should share.")
     @field:ConfigVisibleIf("shareMobs")
     @field:ConfigEditorDraggableList
