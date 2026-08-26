@@ -150,6 +150,7 @@ object DianaBurrowHelper {
             boldLabels = details.boldText,
             labelFormat = details.labelFormat,
             labelColors = labelColors,
+            beamColors = if (details.beaconBeam) details.burrowBeamColors() else null,
             boxStyle = details.burrowBoxStyle(labelColors),
             showClickCounter = settings.clickCounter,
             clickCounterPosition = settings.clickCounterPosition,

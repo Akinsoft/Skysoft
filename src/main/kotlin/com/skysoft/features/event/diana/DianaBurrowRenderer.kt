@@ -17,6 +17,9 @@ import com.skysoft.utils.render.WorldLabelRenderer
 import com.skysoft.utils.render.WorldLabelStyle
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.OrderedSubmitNodeCollector
+import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.blockentity.BeaconRenderer
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
 import java.awt.Color
@@ -31,6 +34,7 @@ internal object DianaBurrowRenderer {
         boldLabels: Boolean,
         labelFormat: WaypointLabelFormat,
         labelColors: Map<DianaBurrowType, Color>,
+        beamColors: Map<DianaBurrowType, Color>?,
         boxStyle: DianaBurrowBoxStyle,
         showClickCounter: Boolean,
         clickCounterPosition: DianaClickCounterPosition,
@@ -44,6 +48,7 @@ internal object DianaBurrowRenderer {
                     boldLabels,
                     labelFormat,
                     labelColors,
+                    beamColors,
                     boxStyle,
                     showClickCounter,
                     clickCounterPosition,
@@ -57,6 +62,7 @@ internal object DianaBurrowRenderer {
             boldLabels,
             labelFormat,
             labelColors,
+            beamColors,
             boxStyle,
             showClickCounter,
             clickCounterPosition,
@@ -79,6 +85,7 @@ internal object DianaBurrowRenderer {
         boldLabels: Boolean,
         labelFormat: WaypointLabelFormat,
         labelColors: Map<DianaBurrowType, Color>,
+        beamColors: Map<DianaBurrowType, Color>?,
         boxStyle: DianaBurrowBoxStyle,
         showClickCounter: Boolean,
         clickCounterPosition: DianaClickCounterPosition,
@@ -94,6 +101,7 @@ internal object DianaBurrowRenderer {
             boxColors.fill,
             displayType.lineWidth,
         )
+        beamColors?.let { renderBeaconBeam(context, target.location, it.getValue(displayType)) }
         renderLabel(
             context,
             target,
@@ -105,6 +113,43 @@ internal object DianaBurrowRenderer {
             clickCounterPosition,
             visualAlphaScale,
         )
+    }
+
+    private fun renderBeaconBeam(context: SkysoftRenderContext, location: WorldVec, color: Color) {
+        val cameraPosition = context.camera.position()
+        val radiusScale = maxOf(
+            1.0,
+            Math.hypot(
+                location.x + BEACON_CENTER_OFFSET - cameraPosition.x,
+                location.z + BEACON_CENTER_OFFSET - cameraPosition.z,
+            ) / BEACON_SCALE_DISTANCE,
+        ).toFloat()
+        val parentCollector = context.submitNodeCollector
+        val beamCollector = object :
+            SubmitNodeCollector,
+            OrderedSubmitNodeCollector by parentCollector.order(BEACON_RENDER_ORDER) {
+            override fun order(order: Int): OrderedSubmitNodeCollector = parentCollector.order(order)
+        }
+        context.matrices.pushPose()
+        context.matrices.translate(
+            location.x - cameraPosition.x,
+            location.y - cameraPosition.y,
+            location.z - cameraPosition.z,
+        )
+        BeaconRenderer.submitBeaconBeam(
+            context.matrices,
+            beamCollector,
+            BeaconRenderer.BEAM_LOCATION,
+            1f,
+            Math.floorMod(Minecraft.getInstance().level?.gameTime ?: 0L, BEACON_ANIMATION_TICKS).toFloat() +
+                context.partialTicks,
+            0,
+            BeaconRenderer.MAX_RENDER_Y,
+            color.rgb,
+            BeaconRenderer.SOLID_BEAM_RADIUS * radiusScale,
+            BeaconRenderer.BEAM_GLOW_RADIUS * radiusScale,
+        )
+        context.matrices.popPose()
     }
 
     private fun renderLabel(
@@ -214,6 +259,10 @@ internal object DianaBurrowRenderer {
     private const val PROGRESS_GAP = 3f
     private const val FULL_TEXT_ALPHA = 255
     private const val WHITE_RGB = 0xFFFFFF
+    private const val BEACON_RENDER_ORDER = -1
+    private const val BEACON_ANIMATION_TICKS = 40L
+    private const val BEACON_SCALE_DISTANCE = 96.0
+    private const val BEACON_CENTER_OFFSET = 0.5
     private val LABEL_CACHE = mutableMapOf<DianaBurrowType, Pair<LabelKey, Component>>()
     private val PROGRESS_CACHE = mutableMapOf<ProgressKey, Component>()
 
@@ -265,6 +314,13 @@ internal fun DianaBurrowDetailsConfig.burrowLabelColors(): Map<DianaBurrowType, 
     DianaBurrowType.MOB to mobTextColor.get().toColor(),
     DianaBurrowType.TREASURE to treasureTextColor.get().toColor(),
     DianaBurrowType.GUESS to guessTextColor.get().toColor(),
+)
+
+internal fun DianaBurrowDetailsConfig.burrowBeamColors(): Map<DianaBurrowType, Color> = mapOf(
+    DianaBurrowType.START to startBeamColor.get().toColor(),
+    DianaBurrowType.MOB to mobBeamColor.get().toColor(),
+    DianaBurrowType.TREASURE to treasureBeamColor.get().toColor(),
+    DianaBurrowType.GUESS to guessBeamColor.get().toColor(),
 )
 
 internal fun DianaBurrowDetailsConfig.burrowBoxStyle(
