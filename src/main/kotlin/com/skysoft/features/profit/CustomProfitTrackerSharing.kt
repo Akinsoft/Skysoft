@@ -22,6 +22,7 @@ internal object CustomProfitTrackerSharing {
             items = tracker.items.toList(),
             priceSources = tracker.priceSources.toMap(),
             priceSource = tracker.config.settings.priceSource.name,
+            pauseAfter = tracker.config.settings.pauseAfter,
             pauseAfterSeconds = tracker.config.settings.pauseAfterSeconds,
             maximumItems = tracker.config.settings.maximumItems,
             showItemIcons = tracker.config.details.showItemIcons,
@@ -58,6 +59,7 @@ internal object CustomProfitTrackerSharing {
         )
         with(tracker.config.settings) {
             priceSource = source
+            pauseAfter = shared.pauseAfter
             pauseAfterSeconds = shared.pauseAfterSeconds.coerceIn(MINIMUM_PAUSE_AFTER_SECONDS, MAXIMUM_PAUSE_AFTER_SECONDS)
             maximumItems = shared.maximumItems.coerceIn(MINIMUM_ITEMS, MAXIMUM_ITEMS)
         }
@@ -78,6 +80,7 @@ internal object CustomProfitTrackerSharing {
         val items: List<String> = emptyList(),
         val priceSources: Map<String, String> = emptyMap(),
         val priceSource: String = ProfitTrackerPriceSource.INSTANT_SELL.name,
+        val pauseAfter: Boolean = true,
         val pauseAfterSeconds: Int = 60,
         val maximumItems: Int = 8,
         val showItemIcons: Boolean = true,
