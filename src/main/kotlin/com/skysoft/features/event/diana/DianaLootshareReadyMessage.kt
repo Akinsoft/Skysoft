@@ -8,8 +8,13 @@ import com.skysoft.utils.chat.SkysoftPartyShare
 internal object DianaLootshareReadyMessage {
     fun broadcast() {
         val config = SkysoftConfigGui.config().events.diana.lootshare
-        if (!config.enabled || !config.settings.shareSecuredMessage) return
-        SkysoftPartyShare.sendParty(MESSAGE)
+        if (!config.enabled) return
+        if (config.settings.partyCheckmarks) {
+            DianaRareMobRuntime.localPlayerName()?.let { playerName ->
+                DianaLootshareReadyMarkers.mark(playerName, System.currentTimeMillis())
+            }
+        }
+        if (config.settings.shareSecuredMessage) SkysoftPartyShare.sendParty(MESSAGE)
     }
 
     fun isMessage(body: String): Boolean =

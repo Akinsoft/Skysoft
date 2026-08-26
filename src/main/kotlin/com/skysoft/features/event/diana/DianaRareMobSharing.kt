@@ -79,6 +79,9 @@ internal object DianaRareMobSharing {
     fun hasActiveTarget(): Boolean =
         targets.isNotEmpty()
 
+    val activeSpawnerNames: Set<String>
+        get() = targets.values.mapTo(mutableSetOf()) { target -> target.sharedBy.name }
+
     val likelyRemoteRareLoot: Boolean
         get() = targets.values.any { target -> target.source == DianaRareMobTargetSource.REMOTE } &&
             targets.values.none { target -> target.source == DianaRareMobTargetSource.LOCAL } &&
@@ -417,6 +420,7 @@ internal object DianaRareMobSharing {
             DianaLootshareReadyMarkers.renderWorld(
                 context,
                 DianaRareMobRuntime.localPlayerName(),
+                activeSpawnerNames,
                 System.currentTimeMillis(),
             )
         }

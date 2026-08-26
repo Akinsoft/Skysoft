@@ -21,18 +21,24 @@ internal object DianaLootshareReadyMarkers {
         return readyPlayers.values.mapTo(mutableSetOf()) { readyPlayer -> readyPlayer.playerName }
     }
 
-    fun renderWorld(context: SkysoftRenderContext, localPlayerName: String?, now: Long) {
-        val readyNames = readyPlayerNames(now).mapTo(mutableSetOf()) { name -> name.lowercase() }
-        if (readyNames.isEmpty()) return
+    fun renderWorld(
+        context: SkysoftRenderContext,
+        localPlayerName: String?,
+        spawnerNames: Set<String>,
+        now: Long,
+    ) {
+        val checkmarks = readyPlayerNames(now).associateTo(mutableMapOf()) { name -> name.lowercase() to checkmark }
+        spawnerNames.forEach { name -> checkmarks[name.lowercase()] = spawnerCheckmark }
+        if (checkmarks.isEmpty()) return
         val level = Minecraft.getInstance().level ?: return
         level.players()
-            .filter { player -> player.gameProfile.name.lowercase() in readyNames }
             .filterNot { player -> player.gameProfile.name.equals(localPlayerName, ignoreCase = true) }
             .forEach { player ->
+                val marker = checkmarks[player.gameProfile.name.lowercase()] ?: return@forEach
                 EntityLabelRenderer.drawAboveNameTag(
                     context,
                     player,
-                    listOf(CHECKMARK),
+                    listOf(marker),
                     CHECKMARK_STYLE,
                 )
             }
@@ -48,10 +54,14 @@ internal object DianaLootshareReadyMarkers {
     )
 
     private val readyPlayers = mutableMapOf<String, ReadyPlayer>()
-    private val CHECKMARK = Component.literal("✓").withStyle { style ->
-        style.withColor(TextColor.fromRgb(LOOTSHARE_READY_COLOR)).withBold(true)
-    }
+    val checkmark: Component = checkmark(LOOTSHARE_READY_COLOR)
+    val spawnerCheckmark: Component = checkmark(SPAWNER_COLOR)
     private val CHECKMARK_STYLE = WorldLabelStyle(maxRenderDistance = 80.0, maxScale = 6.0)
     private const val LOOTSHARE_READY_COLOR = 0x55FFFF
+    private const val SPAWNER_COLOR = 0xFF55FF
     private const val MARKER_LIFETIME_MILLIS = 75_000L
+
+    private fun checkmark(color: Int): Component = Component.literal("✓").withStyle { style ->
+        style.withColor(TextColor.fromRgb(color)).withBold(true)
+    }
 }
