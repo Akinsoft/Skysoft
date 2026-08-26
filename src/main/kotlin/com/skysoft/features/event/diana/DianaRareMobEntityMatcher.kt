@@ -9,6 +9,7 @@ import com.skysoft.features.misc.StaleSkyBlockMobPlayerModels
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
@@ -23,6 +24,10 @@ internal data class DianaRareMobSignal(
 )
 
 internal object DianaRareMobEntityMatcher {
+    private var checkedLevel: ClientLevel? = null
+    private var checkedTick = Long.MIN_VALUE
+    private val stalePlayerModels = mutableMapOf<Int, Boolean>()
+
     fun visibleSignals(): List<DianaRareMobSignal> =
         SkyBlockMobEntityMatcher.visibleSignals(ALL_RARE_MOB_LABELS).mapNotNull { signal ->
             val rareMob = DianaRareMobOption.fromLabel(signal.label) ?: return@mapNotNull null
@@ -49,10 +54,19 @@ internal object DianaRareMobEntityMatcher {
         if (!shouldCheckStaleRarePlayerModels(config.fixes.hideGlitchMobs, HypixelLocationState.inSkyBlock)) {
             return false
         }
-        if (player == Minecraft.getInstance().player || player.isRealPlayer() || player.vehicle != null) return false
-        val label = labelFromName(player.cleanName(), ALL_RARE_MOB_LABELS) ?: return false
-        val labels = DianaRareMobOption.fromLabel(label)?.matchLabels ?: setOf(label)
-        return !SkyBlockMobEntityMatcher.hasVisibleNameplateFor(player, labels)
+        val minecraft = Minecraft.getInstance()
+        if (player == minecraft.player || player.isRealPlayer() || player.vehicle != null) return false
+        val level = minecraft.level ?: return false
+        if (checkedLevel !== level || checkedTick != level.gameTime) {
+            checkedLevel = level
+            checkedTick = level.gameTime
+            stalePlayerModels.clear()
+        }
+        return stalePlayerModels.getOrPut(player.id) {
+            val label = labelFromName(player.cleanName(), ALL_RARE_MOB_LABELS) ?: return@getOrPut false
+            val labels = DianaRareMobOption.fromLabel(label)?.matchLabels ?: setOf(label)
+            !SkyBlockMobEntityMatcher.hasVisibleNameplateFor(player, labels, level.entitiesForRendering())
+        }
     }
 
     fun shouldCheckStaleRarePlayerModels(hideGlitchMobs: Boolean, inSkyBlock: Boolean): Boolean =
