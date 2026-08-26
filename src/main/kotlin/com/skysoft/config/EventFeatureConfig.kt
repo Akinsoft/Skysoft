@@ -342,7 +342,7 @@ class DianaLobbyCompromisedSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Stranger Limit", desc = "Non-party players before alerting.")
-    @field:ConfigEditorSlider(minValue = 1f, maxValue = 6f, minStep = 1f)
+    @field:ConfigEditorSlider(minValue = 2f, maxValue = 12f, minStep = 1f)
     var strangerLimit = DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT
 
     @JvmField
@@ -514,6 +514,6 @@ enum class DianaRareMobOption(
 private fun defaultDianaRareMobs(): MutableList<DianaRareMobOption> =
     mutableListOf(DianaRareMobOption.MINOS_INQUISITOR, DianaRareMobOption.KING_MINOS)
 
-const val MIN_LOBBY_COMPROMISED_STRANGER_LIMIT = 1
-const val MAX_LOBBY_COMPROMISED_STRANGER_LIMIT = 6
-const val DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT = 3
+const val MIN_LOBBY_COMPROMISED_STRANGER_LIMIT = 2
+const val MAX_LOBBY_COMPROMISED_STRANGER_LIMIT = 12
+const val DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT = 10
