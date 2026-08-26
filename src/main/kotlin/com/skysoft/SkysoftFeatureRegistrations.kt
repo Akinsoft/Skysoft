@@ -77,6 +77,7 @@ import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.ForIntrests
 import com.skysoft.features.misc.KeepTerrainLoaded
 import com.skysoft.features.misc.MouseLock
+import com.skysoft.features.misc.PartyDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
 import com.skysoft.features.misc.ScoreboardPositionEditor
@@ -212,6 +213,7 @@ internal object SkysoftFeatureRegistrations {
         register("Custom Bars", CustomBars::register)
         register("Inventory HUD", InventoryHud::register)
         register("Better TAB", BetterTab::register)
+        register("Party Display", PartyDisplay::register)
         register("Day Display", DayDisplay::register)
         register("Real Time Display", RealTimeDisplay::register)
         register("Server TPS Provider", ServerTpsProvider::register)

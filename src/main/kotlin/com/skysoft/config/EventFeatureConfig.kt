@@ -266,7 +266,10 @@ class DianaLootshareSettingsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Party Checkmarks", desc = "Show a checkmark above party members who have secured lootshare.")
+    @field:ConfigOption(
+        name = "Party Checkmarks",
+        desc = "Show checkmarks above party members who secured loot or spawned the rare mob.",
+    )
     @field:ConfigEditorBoolean
     var partyCheckmarks = true
 }

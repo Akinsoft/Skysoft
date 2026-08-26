@@ -22,6 +22,7 @@ import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -447,22 +448,10 @@ private class ProfitTrackerRenderable(
             LocalControlArea(action, Rect(secondaryX, y, rightWidth, line.height), emptyList())
         }
         primaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
-            context.fill(
-                area.bounds.x,
-                area.bounds.y,
-                area.bounds.x + area.bounds.width,
-                area.bounds.y + area.bounds.height,
-                CONTROL_HOVER_COLOR.withScaledAlpha(opacity),
-            )
+            OverlayTextStyle.drawControlHover(context, area.bounds, opacity)
         }
         secondaryArea?.takeIf { it.contains(mouseX, mouseY) }?.let { area ->
-            context.fill(
-                area.bounds.x,
-                area.bounds.y,
-                area.bounds.x + area.bounds.width,
-                area.bounds.y + area.bounds.height,
-                CONTROL_HOVER_COLOR.withScaledAlpha(opacity),
-            )
+            OverlayTextStyle.drawControlHover(context, area.bounds, opacity)
         }
         val textColor = TEXT_COLOR.withScaledAlpha(opacity)
         line.leading?.let {
@@ -501,7 +490,7 @@ private class ProfitTrackerRenderable(
     private fun buildLines(): List<ProfitLine> = buildList {
         val itemRows = displayedItems.map { item -> item to item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH) }
         val itemNameColumnWidth = itemRows.maxOfOrNull { (_, name) -> LegacyTextRenderer.width(name) } ?: 0
-        add(ProfitLine("§e§l${target.displayName} Profit", height = TITLE_HEIGHT))
+        add(ProfitLine("§e§l${target.displayName} Profit", height = OverlayTextStyle.TITLE_HEIGHT))
         if (displayedItems.isEmpty()) {
             add(ProfitLine("§7No tracked drops yet."))
         } else {
@@ -599,7 +588,7 @@ private data class ProfitLine(
     val left: String,
     val right: String? = null,
     val icon: ItemStack? = null,
-    val height: Int = TEXT_ROW_HEIGHT,
+    val height: Int = OverlayTextStyle.ROW_HEIGHT,
     val textYOffset: Int = 0,
     val control: ProfitTrackerControl? = null,
     val secondaryControl: ProfitTrackerControl? = null,
@@ -683,8 +672,6 @@ private const val SECONDS_PER_HOUR = 3_600L
 private const val MAXIMUM_ITEMS = 15
 private const val MAXIMUM_ITEM_NAME_LENGTH = 20
 private const val MINIMUM_WIDTH = 145
-private const val TITLE_HEIGHT = 12
-private const val TEXT_ROW_HEIGHT = 11
 private const val ITEM_ROW_HEIGHT = 13
 private const val ICON_SCALE = 0.75
 private const val ITEM_TEXT_OFFSET = 14
@@ -692,4 +679,3 @@ private const val COLUMN_GAP = 8
 private const val ITEM_COLUMN_GAP = 4
 private const val SIDE_PANEL_ESTIMATED_WIDTH = 310
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
-private const val CONTROL_HOVER_COLOR = 0x20FFFFFF
