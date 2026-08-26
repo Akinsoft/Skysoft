@@ -91,8 +91,10 @@ internal object DianaBurrowStorage {
         cache.targets.clear()
         cache.targets += storageTargets
         persistentDirtyMarker()
-        persistentSaver()
-        lastPersistentSaveMillis = now
+        if (forceFlush) {
+            persistentSaver()
+            lastPersistentSaveMillis = now
+        }
     }
 
     private fun persistentTargets(now: Long): CachedDianaTargets? {
