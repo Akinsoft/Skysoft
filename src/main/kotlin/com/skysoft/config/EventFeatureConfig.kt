@@ -149,6 +149,40 @@ class DianaBurrowDetailsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Beacon Beam", desc = "Show a beacon beam above burrows.")
+    @field:ConfigEditorBoolean
+    var beaconBeam = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Start Beam Color", desc = "Color used for Start burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val startBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Mob Beam Color", desc = "Color used for Mob burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val mobBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 85, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Treasure Beam Color", desc = "Color used for Treasure burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val treasureBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 170, 0, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Guess Beam Color", desc = "Color used for Guess burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val guessBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Burrow Box Color", desc = "Match burrow text colors or choose one custom box color.")
     @field:ConfigEditorDropdown
     var burrowBoxColorMode = DianaBurrowBoxColorMode.DEFAULT
