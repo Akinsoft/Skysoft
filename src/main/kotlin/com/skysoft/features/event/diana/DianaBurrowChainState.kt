@@ -12,7 +12,6 @@ internal object DianaBurrowChainState {
     private var storageKeyProvider: () -> SkyBlockProfileId? = { SkyBlockProfileApi.currentProfileId }
     private var persistentStorageProvider: () -> ProfileStorage.ProfileSpecific? = { ProfileStorageApi.storage }
     private var persistentDirtyMarker: () -> Unit = { ProfileStorageApi.markDirty() }
-    private var persistentSaver: () -> Unit = { ProfileStorageApi.saveNow() }
 
     fun restoreCurrentProfile(now: Long = System.currentTimeMillis()) {
         val storageKey = currentStorageKey() ?: return
@@ -162,7 +161,6 @@ internal object DianaBurrowChainState {
         val data = persistentStorageProvider()?.dianaBurrowChain ?: return
         writePersistentStates(data, statesToSave, now)
         persistentDirtyMarker()
-        persistentSaver()
     }
 
     private fun writePersistentStates(
@@ -193,7 +191,6 @@ internal object DianaBurrowChainState {
         if (data.savedAtMillis == 0L && !data.isUsable()) return
         data.clear()
         persistentDirtyMarker()
-        persistentSaver()
     }
 
     private fun persistentStates(now: Long): List<ActiveDianaBurrowChain> {
@@ -223,7 +220,6 @@ internal object DianaBurrowChainState {
         if (restored.size != activeTargets.size) {
             writePersistentStates(data, restored, data.savedAtMillis.takeIf { savedAt -> savedAt > 0L } ?: now)
             persistentDirtyMarker()
-            persistentSaver()
         }
         return restored
     }
