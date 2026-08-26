@@ -17,6 +17,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.GetSetter
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
+import java.util.Locale
 
 class EventFeatureConfig : ConfigRepairable {
     @JvmField
@@ -134,6 +135,11 @@ class DianaBurrowDetailsConfig {
 
         override fun set(value: Boolean) = Unit
     })
+    val distanceHideRadiusVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
+        override fun get(): Boolean = showDistance && hideDistanceWithin
+
+        override fun set(value: Boolean) = Unit
+    })
 
     @JvmField
     @field:Expose
@@ -205,6 +211,54 @@ Guess""",
     )
     @field:ConfigEditorDropdown
     var labelFormat = WaypointLabelFormat.CAPS
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Burrow Distance", desc = "Show distance next to burrow labels.")
+    @field:ConfigEditorBoolean
+    var showDistance = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Bold", desc = "Show burrow distance in bold.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorBoolean
+    var distanceBold = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Position", desc = "Choose where distance appears around burrow labels.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorDropdown
+    var distancePosition = DianaBurrowDistancePosition.RIGHT
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Distance Within", desc = "Hide distance when close to a burrow.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorBoolean
+    var hideDistanceWithin = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Within Blocks", desc = "Distance at which burrow labels stop showing distance.")
+    @field:ConfigVisibleIf("distanceHideRadiusVisible")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 255f, minStep = 1f)
+    var distanceHideRadius = 25
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Format", desc = "How to display burrow distances.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorDropdown
+    var distanceFormat = DianaBurrowDistanceFormat.DECIMAL_METERS
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Color", desc = "Color used for burrow distances.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorColour
+    val distanceColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
 
     @JvmField
     @field:Expose
@@ -483,6 +537,31 @@ enum class DianaClickCounterPosition(private val displayName: String) {
     RIGHT("Right"),
     BELOW("Below"),
     ;
+
+    override fun toString(): String = displayName
+}
+
+enum class DianaBurrowDistancePosition(private val displayName: String) {
+    RIGHT("Right"),
+    ABOVE("Above"),
+    LEFT("Left"),
+    BELOW("Below"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class DianaBurrowDistanceFormat(
+    private val displayName: String,
+    private val pattern: String,
+) {
+    DECIMAL_METERS("50.2m", "%.1fm"),
+    DECIMAL("50.2", "%.1f"),
+    WHOLE_METERS("50m", "%.0fm"),
+    WHOLE("50", "%.0f"),
+    ;
+
+    fun format(distance: Double): String = String.format(Locale.ROOT, pattern, distance)
 
     override fun toString(): String = displayName
 }

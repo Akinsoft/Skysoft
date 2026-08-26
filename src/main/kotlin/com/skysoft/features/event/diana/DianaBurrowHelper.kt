@@ -138,13 +138,14 @@ object DianaBurrowHelper {
     }
 
     internal fun renderTargets(context: SkysoftRenderContext, targets: Collection<DianaBurrowTarget>) {
-        val playerLocation = currentPlayerLocation()
+        val playerLocation = currentPlayerLocation() ?: return
         val target = targets.currentTarget(playerLocation) ?: return
         val labelColors = details.burrowLabelColors()
         DianaBurrowRenderer.renderWorld(
             context = context,
             targets = targets,
             currentTarget = target,
+            playerLocation = playerLocation,
             drawCrosshairLine = settings.crosshairLine &&
                 (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget()),
             boldLabels = details.boldText,
@@ -152,6 +153,7 @@ object DianaBurrowHelper {
             labelColors = labelColors,
             beamColors = if (details.beaconBeam) details.burrowBeamColors() else null,
             boxStyle = details.burrowBoxStyle(labelColors),
+            distanceStyle = if (details.showDistance) details.burrowDistanceStyle() else null,
             showClickCounter = settings.clickCounter,
             clickCounterPosition = settings.clickCounterPosition,
             visualAlphaScale = if (
