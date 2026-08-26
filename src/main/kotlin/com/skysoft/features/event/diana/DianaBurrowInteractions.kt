@@ -37,20 +37,10 @@ internal object DianaBurrowInteractions {
                 val progress = parseDianaBurrowProgress(message.cleanText)
                 DianaBurrowChainState.onProgress(progress, completed, now)
                 DianaArrowGuess.markBurrowRelatedMessage(
-                    anchor = completed?.location ?: playerLocation,
+                    anchor = completed?.location,
                     now = now,
-                    playerLocation = playerLocation,
                     progress = progress,
-                    clearCurrentReason = NEW_BURROW_STEP_REASON,
                     clearCurrentRadius = NEW_BURROW_STEP_CLEAR_RADIUS,
-                )
-            }
-            message.cleanText.startsWith("Follow the arrows") -> {
-                val now = System.currentTimeMillis()
-                DianaArrowGuess.markBurrowRelatedMessage(
-                    anchor = null,
-                    now = now,
-                    playerLocation = currentPlayerLocation(),
                 )
             }
             message.cleanText == "Couldn't find an appropriate burrow, try again!" ->
@@ -338,7 +328,6 @@ private const val UNMATCHED_CHAT_TARGET_DISTANCE = 8.0
 private val MOB_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.MOB, DianaBurrowType.GUESS)
 private val TREASURE_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.TREASURE, DianaBurrowType.GUESS)
 private val PROGRESS_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.START, DianaBurrowType.MOB, DianaBurrowType.GUESS)
-private const val NEW_BURROW_STEP_REASON = "new burrow step"
 private const val NEW_BURROW_STEP_CLEAR_RADIUS = 0.0
 
 internal data class DianaBurrowClickProgress(
