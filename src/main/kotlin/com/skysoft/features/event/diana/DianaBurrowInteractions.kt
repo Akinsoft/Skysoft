@@ -128,12 +128,9 @@ internal object DianaBurrowInteractions {
             return DianaNonSpadeGuessBreaks.onBlockClick(event, target, now)
         }
         val kind = PendingBurrowClickKind.forTarget(target)
-        if (kind == PendingBurrowClickKind.MOB_VALIDATION &&
-            pendingClicks.any { click -> click.kind == kind && click.target.targetId == target.targetId }
-        ) {
+        if (pendingClicks.any { click -> click.target.targetId == target.targetId }) {
             return DianaBlockClickResult.ALLOW
         }
-        pendingClicks.removeAll { it.target.targetId == target.targetId }
         pendingClicks += PendingBurrowClick(target, now + kind.timeoutMillis, kind)
         return DianaBlockClickResult.ALLOW
     }
@@ -176,6 +173,8 @@ internal object DianaBurrowInteractions {
 
     private fun removeOrAdvanceRejectedGuess(target: DianaBurrowTarget, now: Long) {
         if (DianaArrowGuess.handleRejectedGuess(target, now) == ArrowGuessActionResult.HANDLED) return
+        val current = target.currentExactTarget()
+        if (target.source == DianaBurrowSource.GUESS && current?.source == DianaBurrowSource.DETECTED) return
         DianaBurrowTargetTracker.removeIfCurrent(target, now)
     }
 
