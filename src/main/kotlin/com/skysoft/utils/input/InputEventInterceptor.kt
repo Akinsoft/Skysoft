@@ -12,6 +12,7 @@ import com.skysoft.events.input.ItemUseEvent
 import com.skysoft.events.input.ItemUseEvents
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
+import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
@@ -32,6 +33,16 @@ object InputEventInterceptor {
             InteractionClick.LEFT_CLICK,
             EntityInteractionEvent.ActionType.ATTACK,
         )
+
+    @JvmStatic
+    fun processContinuedLeftBlockClick(position: BlockPos): InputHandlingResult {
+        val player = Minecraft.getInstance().player
+        val consumed = BlockInteractionEvents.hasActiveListeners() &&
+            BlockInteractionEvents.shouldCancelBlockClick(
+                BlockInteractionEvent(InteractionClick.LEFT_CLICK, player?.mainHandItem, position.toWorldVec()),
+            )
+        return if (consumed) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
+    }
 
     private fun dispatchClick(
         hitResult: HitResult?,

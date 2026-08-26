@@ -122,7 +122,7 @@ internal object DianaBurrowInteractions {
     private fun onBlockClick(event: BlockInteractionEvent): DianaBlockClickResult {
         if (!DianaEventState.isOnHub() || !config.burrowHelper.enabled) return DianaBlockClickResult.ALLOW
         val block = event.position.roundToBlock()
-        val target = targetForClickedBlock(block) ?: return DianaBlockClickResult.ALLOW
+        val target = DianaBurrowTargetTracker.targetAt(block) ?: return DianaBlockClickResult.ALLOW
         val now = System.currentTimeMillis()
         if (!event.itemInHand.isDianaSpade()) {
             return DianaNonSpadeGuessBreaks.onBlockClick(event, target, now)
@@ -149,6 +149,12 @@ internal object DianaBurrowInteractions {
         if (pending == null) {
             return removeActiveMobBurrow(now, playerLocation)
                 ?: removeNearbyProgressBurrow(now, playerLocation)
+        }
+        if (pending.target.targetId !in activeMobBurrowIds) {
+            removeActiveMobBurrow(now, playerLocation)?.let { activeMob ->
+                pendingClicks += pending
+                return activeMob
+            }
         }
 
         val removed = removePendingClick(pending, now)
@@ -287,10 +293,6 @@ internal object DianaBurrowInteractions {
     private const val QUESTION_CLICK_CLEAR_MILLIS = 60_000L
 }
 
-internal fun targetForClickedBlock(block: WorldVec): DianaBurrowTarget? =
-    DianaBurrowTargetTracker.targetAt(block)
-        ?: nearestTargetNear(block.blockCenter(), ALL_BURROW_TYPES, ADJACENT_CLICK_MATCH_DISTANCE)
-
 private fun nearestTargetNear(
     location: WorldVec?,
     types: Set<DianaBurrowType>,
@@ -309,7 +311,6 @@ private fun nearestTargetNear(
 private fun DianaBurrowTarget.currentClickTarget(types: Set<DianaBurrowType>): DianaBurrowTarget? =
     DianaBurrowTargetTracker.targetAt(location)
         ?.takeIf { target -> target.type in types }
-        ?: nearestTargetNear(location.blockCenter(), types, ADJACENT_CLICK_MATCH_DISTANCE)
 
 private fun DianaBurrowTarget.currentExactTarget(): DianaBurrowTarget? =
     DianaBurrowTargetTracker.targetAt(location)
@@ -333,10 +334,8 @@ private val MOB_SPAWN_PATTERN =
     Regex("""^(?:Oh|Uh oh|Yikes|Oi|Good Grief|Danger|Woah)! You dug out (?:a )?.+!.*$""")
 private val TREASURE_PATTERN =
     Regex("""^(?:RARE DROP!|Wow!) You dug out(?: a)? .+!.*$""")
-private const val ADJACENT_CLICK_MATCH_DISTANCE = 1.75
 private const val EXACT_BURROW_PARTICLE_DISTANCE = 0.1
 private const val UNMATCHED_CHAT_TARGET_DISTANCE = 8.0
-private val ALL_BURROW_TYPES = DianaBurrowType.entries.toSet()
 private val MOB_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.MOB, DianaBurrowType.GUESS)
 private val TREASURE_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.TREASURE, DianaBurrowType.GUESS)
 private val PROGRESS_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.START, DianaBurrowType.MOB, DianaBurrowType.GUESS)
