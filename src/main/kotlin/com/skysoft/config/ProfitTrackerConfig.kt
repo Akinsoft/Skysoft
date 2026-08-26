@@ -136,7 +136,14 @@ class ProfitTrackerSettingsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Pause After", desc = "Pause time tracking after this many seconds without tracked activity.")
+    @field:ConfigOption(name = "Pause After", desc = "Pause time tracking after a period without tracked activity.")
+    @field:ConfigEditorBoolean
+    var pauseAfter = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Inactivity Time", desc = "Seconds without tracked activity before time tracking pauses.")
+    @field:ConfigVisibleIf("pauseAfter")
     @field:ConfigEditorSlider(minValue = 15f, maxValue = 900f, minStep = 15f)
     var pauseAfterSeconds = 60
 
