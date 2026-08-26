@@ -223,6 +223,7 @@ internal object DianaArrowGuess {
         var result = ArrowGuessActionResult.IGNORED
         activeSequences.values.toList().forEach { sequence ->
             val target = activeSequences.currentGuessForSequence(sequence.targetId, sequence) ?: return@forEach
+            if (DianaBurrowInteractions.hasPendingClick(target)) return@forEach
             val rejectionCandidates = sequence.candidates
                 .withIndex()
                 .drop(sequence.currentIndex)
