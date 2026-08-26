@@ -90,7 +90,6 @@ object DianaBurrowHelper {
                 wasOnHub = true
                 DianaBurrowStorage.restoreCurrentProfile(now)
                 DianaBurrowChainState.restoreCurrentProfile(now)
-                DianaBurrowStorage.refreshCurrentTargets(now)
                 DianaHubSurfaceCache.onTick(now)
                 DianaBurrowParticleDetector.prune(now)
                 DianaArrowGuess.prune(now)
