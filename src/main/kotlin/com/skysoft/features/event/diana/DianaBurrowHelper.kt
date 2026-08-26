@@ -77,6 +77,16 @@ object DianaBurrowHelper {
         DianaWarpTitleRenderer.register(::activeWarpSuggestion)
     }
 
+    fun didClearBurrows(): Boolean {
+        if (SkyBlockProfileApi.currentProfileId == null) return false
+        DianaBurrowStorage.restoreCurrentProfile()
+        DianaBurrowChainState.restoreCurrentProfile()
+        clearTargets(persistTargets = true)
+        DianaBurrowChainState.clear(persist = true)
+        DianaBurrowStorage.saveCurrentTargets()
+        return true
+    }
+
     private fun isEnabled(): Boolean = burrowHelper.enabled
 
     private fun hasRuntimeState(): Boolean =
