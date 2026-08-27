@@ -13,13 +13,7 @@ internal data class ResolvedArrowCandidate(
     val distanceToRay: Double,
     val scaledDistanceToRay: Double,
     val order: Int,
-    val loaded: Boolean,
-    val surfaceResolved: Boolean,
-    val surfaceSource: DianaArrowCandidateSurfaceSource = if (loaded) {
-        DianaArrowCandidateSurfaceSource.LIVE
-    } else {
-        DianaArrowCandidateSurfaceSource.UNKNOWN
-    },
+    val surfaceSource: DianaArrowCandidateSurfaceSource,
 )
 
 internal enum class DianaArrowCandidateSurfaceSource {
@@ -29,6 +23,9 @@ internal enum class DianaArrowCandidateSurfaceSource {
 }
 
 internal object DianaArrowCandidateResolver {
+    fun resolve(ray: DianaArrowRay, bounds: DianaArrowBounds): List<ResolvedArrowCandidate> =
+        resolve(ray, DianaArrowProjector.project(ray, bounds))
+
     fun resolve(ray: DianaArrowRay, candidates: List<DianaArrowCandidate>): List<ResolvedArrowCandidate> {
         return rank(
             candidates.flatMapIndexed { index, candidate -> candidate.resolveLoadedSurfaceCandidates(ray, index) },
@@ -75,8 +72,6 @@ internal object DianaArrowCandidateResolver {
                 candidate.toResolved(
                     order = order,
                     raw = block,
-                    loaded = true,
-                    surfaceResolved = candidate.block != block,
                     surfaceSource = DianaArrowCandidateSurfaceSource.LIVE,
                 )
             }
@@ -97,8 +92,6 @@ internal object DianaArrowCandidateResolver {
                             candidate.toResolved(
                                 order = order,
                                 raw = block,
-                                loaded = false,
-                                surfaceResolved = candidate.block != block,
                                 surfaceSource = DianaArrowCandidateSurfaceSource.CACHED,
                             ),
                         )
@@ -108,8 +101,6 @@ internal object DianaArrowCandidateResolver {
             DianaCachedSurfaceStatus.UNKNOWN -> listOf(
                 toResolved(
                     order = order,
-                    loaded = false,
-                    surfaceResolved = false,
                     surfaceSource = DianaArrowCandidateSurfaceSource.UNKNOWN,
                 ),
             )
@@ -119,13 +110,7 @@ internal object DianaArrowCandidateResolver {
     private fun DianaArrowCandidate.toResolved(
         order: Int,
         raw: WorldVec = block,
-        loaded: Boolean,
-        surfaceResolved: Boolean,
-        surfaceSource: DianaArrowCandidateSurfaceSource = if (loaded) {
-            DianaArrowCandidateSurfaceSource.LIVE
-        } else {
-            DianaArrowCandidateSurfaceSource.UNKNOWN
-        },
+        surfaceSource: DianaArrowCandidateSurfaceSource,
     ): ResolvedArrowCandidate =
         ResolvedArrowCandidate(
             raw = raw,
@@ -134,8 +119,6 @@ internal object DianaArrowCandidateResolver {
             distanceToRay = distanceToRay,
             scaledDistanceToRay = scaledDistanceToRay,
             order = order,
-            loaded = loaded,
-            surfaceResolved = surfaceResolved,
             surfaceSource = surfaceSource,
         )
 
