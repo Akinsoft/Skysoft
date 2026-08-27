@@ -76,11 +76,19 @@ internal object DianaRareMobSharing {
         get() = targets.isNotEmpty() || pendingLocalSpawns.isNotEmpty() ||
             pendingLocalClears.isNotEmpty() || pendingRemoteClears.isNotEmpty()
 
-    fun hasActiveTarget(): Boolean =
-        targets.isNotEmpty()
+    val hasActiveTarget: Boolean
+        get() = targets.isNotEmpty()
 
     val activeSpawnerNames: Set<String>
         get() = targets.values.mapTo(mutableSetOf()) { target -> target.sharedBy.name }
+
+    fun remoteMobSharedBy(playerName: String): DianaRareMobOption? =
+        targets.values
+            .asSequence()
+            .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
+            .filter { target -> target.sharedBy.name.equals(playerName, ignoreCase = true) }
+            .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
+            ?.mob
 
     val likelyRemoteRareLoot: Boolean
         get() = targets.values.any { target -> target.source == DianaRareMobTargetSource.REMOTE } &&

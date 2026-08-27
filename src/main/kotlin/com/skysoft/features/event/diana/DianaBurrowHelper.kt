@@ -156,7 +156,7 @@ object DianaBurrowHelper {
             currentTarget = target,
             playerLocation = playerLocation,
             drawCrosshairLine = settings.crosshairLine &&
-                (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget()),
+                (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget),
             boldLabels = details.boldText,
             labelFormat = details.labelFormat,
             labelColors = labelColors,

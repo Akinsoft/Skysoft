@@ -7,6 +7,7 @@ import com.skysoft.features.loot.RareLootChatDrop
 import com.skysoft.features.loot.RareLootContextContributor
 import com.skysoft.features.loot.RareLootContextRegistry
 import com.skysoft.features.loot.RareLootDropCount
+import com.skysoft.features.loot.RareLootShareReceipt
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -54,8 +55,10 @@ internal object MythologicalRitualTracker {
         if (!isEnabled() || !message.isSystemLike || !DianaEventState.isOnHub()) return
         if (RareLootChatParser.parse(message.cleanText) != null) return
         val now = System.currentTimeMillis()
+        val lootShareMob = RareLootShareReceipt.assistedPlayer(message.cleanText)
+            ?.let(DianaRareMobSharing::remoteMobSharedBy)
         MythologicalRitualTrackerRepository.update(now) { state ->
-            MythologicalRitualMessageTracker.trackNonRareLoot(message.cleanText, state, lootShareWindow, now)
+            MythologicalRitualMessageTracker.trackNonRareLoot(message.cleanText, state, lootShareWindow, now, lootShareMob)
         }
     }
 
