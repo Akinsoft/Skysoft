@@ -14,6 +14,7 @@ import com.skysoft.data.skyblock.SkyBlockMenuItem.isSkyBlockMenu
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ColorUtilities.hasVisibleAlpha
 import com.skysoft.utils.ColorUtilities.toPackedArgb
 import com.skysoft.utils.ColorUtilities.toColor
@@ -250,7 +251,7 @@ object SlotBindingManager {
         if (menuBindingCount > 0) {
             bindings.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
         }
-        if (repair.changed || menuBindingCount > 0) ProfileStorageApi.markDirty()
+        if (repair == ChangeResult.CHANGED || menuBindingCount > 0) ProfileStorageApi.markDirty()
     }
 
     private fun swapBoundSlots(
