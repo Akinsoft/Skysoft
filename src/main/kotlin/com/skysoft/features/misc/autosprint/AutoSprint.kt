@@ -13,10 +13,6 @@ import net.minecraft.client.player.LocalPlayer
 object AutoSprint {
     private val conditions = FeatureConditionState()
     private var wasActive = false
-    internal var lastActivationChange = "none"
-        private set
-    internal var lastResetOutcome = "none"
-        private set
 
     fun register() {
         conditions.startSession(config.settings.combinations)
@@ -29,16 +25,9 @@ object AutoSprint {
             val isCurrentlyActive = isActive(player)
             if (wasActive && !isCurrentlyActive) {
                 val sprintKey = minecraft.options.keySprint as ToggleKeyMapping
-                val wasSprinting = player.isSprinting
-                val wasSprintKeyDown = sprintKey.isDown
-                val wasRestorePending = sprintKey.shouldRestoreStateOnScreenClosed()
                 (sprintKey as ToggleKeyMappingAccessor).skysoftReset()
                 player.isSprinting = false
-                lastResetOutcome =
-                    "sprinting=$wasSprinting->${player.isSprinting} keyDown=$wasSprintKeyDown->${sprintKey.isDown} " +
-                    "restorePending=$wasRestorePending->false"
             }
-            if (isCurrentlyActive != wasActive) lastActivationChange = "$wasActive->$isCurrentlyActive"
             wasActive = isCurrentlyActive
         }
     }

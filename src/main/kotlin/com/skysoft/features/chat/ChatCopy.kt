@@ -12,12 +12,9 @@ import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.multiplayer.chat.GuiMessage
 
 object ChatCopy {
-    private var copiedCount = 0
-    private var lastOutcome = CopyChatResult.IGNORED
-
     fun copyHoveredMessage(inputCode: Int, mouseX: Int, mouseY: Int): CopyChatResult {
         val config = SkysoftConfigGui.config().chat.copyChat
-        if (!config.enabled || inputCode != config.settings.key) return record(CopyChatResult.IGNORED)
+        if (!config.enabled || inputCode != config.settings.key) return CopyChatResult.IGNORED
 
         val minecraft = Minecraft.getInstance()
         val chat = MinecraftClient.chat(minecraft)
@@ -32,13 +29,12 @@ object ChatCopy {
             lineHeight = accessor.skysoftLineHeight(),
             linesPerPage = chat.linesPerPage,
             scrollPosition = accessor.skysoftChatScrollbarPos(),
-        ) ?: return record(CopyChatResult.NO_MESSAGE)
+        ) ?: return CopyChatResult.NO_MESSAGE
 
         val text = ChatFormatting.stripFormatting(ChatTimestamps.originalContent(message.content()).string).orEmpty()
         minecraft.keyboardHandler.setClipboard(text)
-        copiedCount++
         SkysoftChat.chat("Copied chat message to clipboard.")
-        return record(CopyChatResult.COPIED)
+        return CopyChatResult.COPIED
     }
 
     internal fun hoveredMessage(
@@ -63,13 +59,6 @@ object ChatCopy {
         val visibleLine = floor(distanceFromBottom / lineHeight).toInt()
         if (visibleLine !in 0 until linesPerPage) return null
         return lines.getOrNull(scrollPosition + visibleLine)?.parent()
-    }
-
-    internal fun debugSummary(): String = "copied=$copiedCount lastOutcome=$lastOutcome"
-
-    private fun record(result: CopyChatResult): CopyChatResult {
-        lastOutcome = result
-        return result
     }
 
     private const val CHAT_LEFT = 4

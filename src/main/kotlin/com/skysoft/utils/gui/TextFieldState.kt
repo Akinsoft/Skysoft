@@ -31,9 +31,6 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     var cursorIndex = this.text.length
         private set
 
-    val selectedCharacterCount: Int
-        get() = selection()?.let { it.endExclusive - it.start } ?: 0
-
     fun render(
         context: GuiGraphicsExtractor,
         x: Int,

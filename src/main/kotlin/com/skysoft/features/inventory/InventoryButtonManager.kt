@@ -199,7 +199,6 @@ object InventoryButtonManager {
             button.anchorBottom = default.anchorBottom
         }
         button.scale = DEFAULT_INVENTORY_BUTTON_SCALE
-        InventoryButtonEditorActions.recordReset(index, button.scale)
     }
 
     fun drawButton(
@@ -432,39 +431,26 @@ internal enum class InventoryButtonResetShortcutResult {
 internal object InventoryButtonEditorActions {
     private val config get() = SkysoftConfigGui.config().inventory.inventoryButtons
 
-    internal var lastOutcome = "none"
-        private set
-
     fun changeButtonScale(index: Int, scrollY: Double): InputHandlingResult {
         val button = config.buttons.getOrNull(index) ?: return InputHandlingResult.IGNORED
         if (scrollY == 0.0) return InputHandlingResult.IGNORED
-        val oldScale = normalizedInventoryButtonScale(button.scale)
-        button.scale = inventoryButtonScaleAfterScroll(oldScale, scrollY)
-        lastOutcome = "resize index=$index oldScale=$oldScale newScale=${button.scale} scrollY=$scrollY"
+        button.scale = inventoryButtonScaleAfterScroll(normalizedInventoryButtonScale(button.scale), scrollY)
         return InputHandlingResult.CONSUMED
     }
 
     fun addButtonSlot(): Int {
-        val button = InventoryButtonLayout.nextEditorButtonSlot(config.buttons)
-        config.buttons.add(button)
-        val index = config.buttons.lastIndex
-        lastOutcome = "add index=$index x=${button.x} y=${button.y}"
-        return index
+        config.buttons.add(InventoryButtonLayout.nextEditorButtonSlot(config.buttons))
+        return config.buttons.lastIndex
     }
 
     fun resetOrRemoveButton(index: Int): InventoryButtonResetShortcutResult {
         val button = config.buttons.getOrNull(index) ?: return InventoryButtonResetShortcutResult.IGNORED
         if (button.isUserCreated == true) {
             config.buttons.removeAt(index)
-            lastOutcome = "remove index=$index x=${button.x} y=${button.y}"
             return InventoryButtonResetShortcutResult.REMOVED
         }
         InventoryButtonManager.resetButtonPosition(index)
         return InventoryButtonResetShortcutResult.RESET
-    }
-
-    fun recordReset(index: Int, scale: Float) {
-        lastOutcome = "reset index=$index scale=$scale"
     }
 }
 

@@ -98,7 +98,6 @@ internal class ItemListViewerScreen(
                 ingredientBounds = emptyList()
                 progressionBounds = emptyList()
                 quickCraftBounds = emptyList()
-                visibleItemListQuickCraftButtons = 0
                 entityBounds = emptyList()
                 petBounds = emptyList()
                 fusionIngredientTriggers = emptyList()
@@ -162,7 +161,6 @@ internal class ItemListViewerScreen(
         }
         itemListShortcutMode(event.key(), SkysoftConfigGui.config().inventory.itemList.settings)?.let {
             selection.changeMode(it)
-            lastItemListShortcutOutcome = "$it selected:viewer"
             return true
         }
         return when (event.key()) {
@@ -326,7 +324,6 @@ internal class ItemListViewerScreen(
     private fun renderRecipes(context: GuiGraphicsExtractor, layout: ViewerLayout, mouseX: Int, mouseY: Int) {
         progressionBounds = emptyList()
         quickCraftBounds = emptyList()
-        visibleItemListQuickCraftButtons = 0
         entityBounds = emptyList()
         petBounds = emptyList()
         fusionIngredientTriggers = emptyList()
@@ -434,7 +431,6 @@ internal class ItemListViewerScreen(
         itemListQuickCraftCommand(recipe.result.id)?.let { command ->
             val button = itemListQuickCraftButtonBounds(crafting.result)
             quickCraftBounds += button to command
-            visibleItemListQuickCraftButtons = quickCraftBounds.size
             val isHovered = button.contains(mouseX, mouseY)
             PixelButtonRenderer.draw(context, font, button, "+", false, isHovered, true)
             if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eQuick Craft"), mouseX, mouseY)
@@ -624,12 +620,8 @@ internal class ItemListViewerScreen(
         val quickCraftCommand = quickCraftBounds.firstOrNull { it.first.contains(mouseX, mouseY) }?.second
         if (canQuickCraft && quickCraftCommand != null) {
             val connection = Minecraft.getInstance().connection
-            if (connection == null) {
-                lastItemListQuickCraftOutcome = "$quickCraftCommand rejected:no-connection"
-                return ViewerInputResult.IGNORED
-            }
+            if (connection == null) return ViewerInputResult.IGNORED
             connection.sendCommand(quickCraftCommand)
-            lastItemListQuickCraftOutcome = "$quickCraftCommand sent"
             return ViewerInputResult.HANDLED
         }
         val key = ingredientBounds.firstOrNull { it.first.contains(mouseX, mouseY) }?.second
