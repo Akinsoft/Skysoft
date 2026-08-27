@@ -98,12 +98,7 @@ internal object DianaArrowCandidateResolver {
                     }
                     .orEmpty()
             DianaCachedSurfaceStatus.INVALID -> emptyList()
-            DianaCachedSurfaceStatus.UNKNOWN -> listOf(
-                toResolved(
-                    order = order,
-                    surfaceSource = DianaArrowCandidateSurfaceSource.UNKNOWN,
-                ),
-            )
+            DianaCachedSurfaceStatus.UNKNOWN -> emptyList()
         }
     }
 
