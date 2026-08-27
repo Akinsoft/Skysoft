@@ -36,6 +36,7 @@ import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.event.diana.DianaBurrowInteractions
 import com.skysoft.features.event.diana.DianaBurrowStorage
 import com.skysoft.features.event.diana.DianaLobbyCompromisedWatcher
+import com.skysoft.features.event.diana.DianaParticleQuality
 import com.skysoft.features.event.diana.DianaRareMobSharing
 import com.skysoft.features.event.diana.MythologicalRitualTracker
 import com.skysoft.features.farming.NoCropRotation
@@ -266,6 +267,7 @@ internal object SkysoftFeatureRegistrations {
         register("Rare Loot Features", RareLootChatFeatures::register)
         register("Keep Terrain Loaded", KeepTerrainLoaded::register)
         register("Diana Burrow Storage", DianaBurrowStorage::register)
+        register("Diana Particle Quality", DianaParticleQuality::register)
         register("Diana Burrow Helper", DianaBurrowHelper::register)
         register("Diana Burrow Interactions", DianaBurrowInteractions::register)
         register("Diana Lobby Compromised Watcher", DianaLobbyCompromisedWatcher::register)

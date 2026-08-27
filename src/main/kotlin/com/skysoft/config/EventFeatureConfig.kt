@@ -33,6 +33,16 @@ class EventFeatureConfig : ConfigRepairable {
 class SkysoftDianaConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Particle Quality",
+        desc = "Burrow Helper requires the highest particle quality to work properly. " +
+            "Press this button to set it, or use §c/pq extreme§r.",
+    )
+    @field:ConfigEditorParticleQuality
+    val particleQuality = DianaParticleQualityConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Burrow Helper", desc = "Find and display Diana burrows.")
     @field:Accordion
     val burrowHelper = DianaBurrowHelperConfig()
@@ -83,7 +93,31 @@ class SkysoftDianaConfig {
             quickWarps.enabled
 
     fun repairLoadedValues() {
+        particleQuality.repairLoadedValues()
         lobbyCompromised.settings.repairLoadedValues()
+    }
+}
+
+class DianaParticleQualityConfig {
+    @JvmField
+    @field:Expose
+    var maximumParticlesPerTick: Int? = null
+
+    @JvmField
+    @field:Expose
+    var automaticMigrationAttemptsRemaining = 0
+
+    fun repairLoadedValues() {
+        if (maximumParticlesPerTick !in PARTICLE_COUNTS) maximumParticlesPerTick = null
+        automaticMigrationAttemptsRemaining = automaticMigrationAttemptsRemaining.coerceIn(
+            0,
+            MAX_AUTOMATIC_MIGRATION_ATTEMPTS,
+        )
+    }
+
+    companion object {
+        const val MAX_AUTOMATIC_MIGRATION_ATTEMPTS = 2
+        private val PARTICLE_COUNTS = setOf(5, 15, 30, 50)
     }
 }
 

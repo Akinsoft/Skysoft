@@ -32,6 +32,9 @@ object SkysoftMoulConfigGuis {
         processor.registerConfigEditor(ConfigEditorUpdate::class.java) { option, _ ->
             SkysoftUpdateEditor(option)
         }
+        processor.registerConfigEditor(ConfigEditorParticleQuality::class.java) { option, _ ->
+            DianaParticleQualityEditor(option)
+        }
         processor.registerConfigEditor(ConfigEditorSkyBlockLocations::class.java) { option, _ ->
             SkyBlockLocationsEditor(option)
         }
