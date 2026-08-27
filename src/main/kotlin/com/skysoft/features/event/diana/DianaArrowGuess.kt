@@ -35,7 +35,7 @@ internal object DianaArrowGuess {
         val distanceHint = DianaParticleClassifier.arrowDistance(event) ?: return
         val ray = detectors.getOrPut(distanceHint) { DianaArrowShapeDetector() }
             .add(event.location, distanceHint, now) ?: return
-        val pending = pendingRay(ray, session.anchor, ray.resolveCandidates(HUB_BOUNDS)) ?: return
+        val pending = pendingRay(ray, session.anchor, DianaArrowCandidateResolver.resolve(ray, HUB_BOUNDS)) ?: return
         pendingSession = null
         trackPendingRay(pending, session.anchor, now, session.progress)
     }
@@ -222,10 +222,7 @@ internal object DianaArrowGuess {
                     candidates = orderedCandidates,
                     current = candidate,
                     currentIndex = index,
-                    distanceHint = distanceHint,
-                    createdAtMillis = now,
                     currentTrackedAtMillis = now,
-                    firstGuess = target.location,
                     invalidatedBlockKeys = emptySet(),
                     missingParticlesFirstCheckAtMillis = null,
                 )
@@ -300,7 +297,7 @@ internal object DianaArrowGuess {
 
     internal fun handleLoadedInvalidSequences(
         now: Long,
-        checkSurface: (WorldVec) -> DianaBurrowSurfaceCheck = DianaBurrowSurfaceValidator::check,
+        checkSurface: (WorldVec) -> DianaBurrowSurfaceStatus = DianaBurrowSurfaceValidator::check,
     ): ArrowGuessActionResult {
         var result = ArrowGuessActionResult.IGNORED
         var advanced: Boolean
@@ -311,8 +308,7 @@ internal object DianaArrowGuess {
                 if (target.targetId != sequence.targetId || target.source != DianaBurrowSource.GUESS) return@forEach
                 if (DianaNonSpadeGuessBreaks.hasRecentBreakAttempt(target, now)) return@forEach
                 if (DianaBurrowInteractions.hasPendingClick(target)) return@forEach
-                val surface = checkSurface(target.location)
-                if (surface.status != DianaBurrowSurfaceStatus.INVALID) return@forEach
+                if (checkSurface(target.location) != DianaBurrowSurfaceStatus.INVALID) return@forEach
                 val rejection = handleRejectedGuess(target, now)
                 if (rejection == ArrowGuessActionResult.HANDLED) {
                     advanced = true

@@ -8,10 +8,7 @@ internal data class ArrowCandidateSequence(
     val candidates: List<ResolvedArrowCandidate>,
     val current: ResolvedArrowCandidate,
     val currentIndex: Int,
-    val distanceHint: DianaArrowDistance?,
-    val createdAtMillis: Long,
     val currentTrackedAtMillis: Long,
-    val firstGuess: WorldVec,
     val invalidatedBlockKeys: Set<String>,
     val missingParticlesFirstCheckAtMillis: Long?,
 )
