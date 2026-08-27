@@ -324,11 +324,15 @@ private class PartyDisplayRenderable(
     private fun renderMember(context: GuiGraphicsExtractor, member: PartyDisplayMember, x: Int, y: Int) {
         val opacity = memberOpacity(member)
         val faceColor = (if (member.invited) INVITED_MEMBER_COLOR else TEXT_COLOR).withScaledAlpha(opacity)
+        val name = displayName(member)
+        val rightAligned = alignment == PartyDisplayAlignment.RIGHT
+        val faceX = if (rightAligned) x + memberWidth - HEAD_SIZE else x
+        val nameX = if (rightAligned) faceX - HEAD_GAP - font.width(name) else faceX + HEAD_SIZE + HEAD_GAP
         PartyDisplay.face(member)?.let { face ->
             PlayerFaceExtractor.extractRenderState(
                 context,
                 face.texture,
-                x,
+                faceX,
                 y,
                 HEAD_SIZE,
                 face.showHat,
@@ -336,8 +340,6 @@ private class PartyDisplayRenderable(
                 faceColor,
             )
         }
-        val nameX = x + HEAD_SIZE + HEAD_GAP
-        val name = displayName(member)
         context.text(
             font,
             if (member.invited) invitedName(name) else name,
@@ -350,7 +352,7 @@ private class PartyDisplayRenderable(
             context.text(
                 font,
                 checkmark,
-                nameX + usernameWidth + STATUS_GAP,
+                if (rightAligned) x else nameX + usernameWidth + STATUS_GAP,
                 y,
                 TEXT_COLOR.withScaledAlpha(opacity),
                 true,
