@@ -73,12 +73,12 @@ internal object PriceTooltipRawCraftCosts {
         build.future = backgroundExecutor().submit {
             try {
                 val source = SnapshotRawCraftPriceSource(recipeSnapshot, marketSnapshot)
-                val resolution = RawCraftCostResolver(source).resolveAll(build.cancelled::get)
+                val costs = RawCraftCostResolver(source).resolveAll(build.cancelled::get)
                 SkysoftErrorBoundary.onClientThread("Raw Craft Cost preparation completion") {
                     if (activeBuild !== build || !isActive()) return@onClientThread
                     activeBuild = null
                     failedBuildKey = null
-                    publishedCosts = PreparedRawCraftCosts(buildKey, resolution.costs)
+                    publishedCosts = PreparedRawCraftCosts(buildKey, costs)
                 }
             } catch (_: CancellationException) {
                 return@submit
