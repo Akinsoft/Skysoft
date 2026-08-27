@@ -20,22 +20,6 @@ internal interface RawCraftPriceSource {
     fun lowestBin(itemId: String): Double?
 }
 
-internal data class RawCraftCostResolution(
-    val costs: Map<String, Double>,
-    val stats: RawCraftCostResolutionStats,
-)
-
-internal data class RawCraftCostResolutionStats(
-    val requestedItems: Int,
-    val visitedItems: Int,
-    val candidateRecipes: Int,
-    val excludedRecipes: Int,
-    val recipeEvaluations: Int,
-    val unavailableIngredients: Int,
-    val invalidRecipes: Int,
-    val passes: Int,
-)
-
 internal class RawCraftCostResolver(
     private val source: RawCraftPriceSource,
 ) {
@@ -52,7 +36,7 @@ internal class RawCraftCostResolver(
         return cachedCosts[itemId]
     }
 
-    fun resolveAll(isCancelled: () -> Boolean = { false }): RawCraftCostResolution {
+    fun resolveAll(isCancelled: () -> Boolean = { false }): Map<String, Double> {
         invalidateIfNeeded()
         val roots = source.recipeKeys.filterTo(linkedSetOf()) { it.kind == ItemListEntryKind.SKYBLOCK }
         return resolve(roots, isCancelled)
@@ -71,9 +55,8 @@ internal class RawCraftCostResolver(
     private fun resolve(
         roots: Set<ItemListEntryKey>,
         isCancelled: () -> Boolean,
-    ): RawCraftCostResolution {
-        val stats = MutableRawCraftCostResolutionStats(roots.size)
-        val recipesByResult = collectReachableRecipes(roots, stats, isCancelled)
+    ): Map<String, Double> {
+        val recipesByResult = collectReachableRecipes(roots, isCancelled)
         val keys = recipesByResult.keys
         val directMarketCosts = keys.mapNotNull { key ->
             directMarketCost(key)?.let { key to it }
@@ -88,10 +71,10 @@ internal class RawCraftCostResolver(
             val nextShopCosts = shopCosts.toMutableMap()
             recipesByResult.forEach { (key, recipes) ->
                 checkCancellation(isCancelled)
-                cheapestRecipeCost(recipes, PRODUCTION_RECIPE_TYPES, acquisitionCosts, stats)?.let { cost ->
+                cheapestRecipeCost(recipes, PRODUCTION_RECIPE_TYPES, acquisitionCosts)?.let { cost ->
                     nextProductionCosts.putCheaper(key, cost)
                 }
-                cheapestRecipeCost(recipes, SHOP_RECIPE_TYPES, acquisitionCosts, stats)?.let { cost ->
+                cheapestRecipeCost(recipes, SHOP_RECIPE_TYPES, acquisitionCosts)?.let { cost ->
                     nextShopCosts.putCheaper(key, cost)
                 }
             }
@@ -102,7 +85,6 @@ internal class RawCraftCostResolver(
                     nextShopCosts[key],
                 ).minOrNull()?.let { key to it }
             }.toMap()
-            stats.passes++
             val isStable = nextProductionCosts == productionCosts &&
                 nextShopCosts == shopCosts &&
                 nextAcquisitionCosts == acquisitionCosts
@@ -117,12 +99,11 @@ internal class RawCraftCostResolver(
         val costs = roots.mapNotNull { key ->
             productionCosts[key]?.positivePrice()?.let { key.id to it }
         }.toMap()
-        return RawCraftCostResolution(costs, stats.snapshot(recipesByResult))
+        return costs
     }
 
     private fun collectReachableRecipes(
         roots: Set<ItemListEntryKey>,
-        stats: MutableRawCraftCostResolutionStats,
         isCancelled: () -> Boolean,
     ): Map<ItemListEntryKey, List<SkyBlockRecipe>> {
         val pending = ArrayDeque(roots)
@@ -132,9 +113,8 @@ internal class RawCraftCostResolver(
             checkCancellation(isCancelled)
             val key = pending.removeFirst()
             if (!visited.add(key)) continue
-            val allRecipes = cachedRecipes.getOrPut(key) { source.recipesFor(key) }
-            val recipes = allRecipes.filter { it.type in ALL_ACQUISITION_RECIPE_TYPES }
-            stats.excludedRecipes += allRecipes.size - recipes.size
+            val recipes = cachedRecipes.getOrPut(key) { source.recipesFor(key) }
+                .filter { it.type in ALL_ACQUISITION_RECIPE_TYPES }
             recipesByResult[key] = recipes
             recipes.asSequence()
                 .flatMap { it.ingredients.asSequence() }
@@ -143,7 +123,6 @@ internal class RawCraftCostResolver(
                 .filterNot(visited::contains)
                 .forEach(pending::addLast)
         }
-        stats.visitedItems = visited.size
         return recipesByResult
     }
 
@@ -151,43 +130,24 @@ internal class RawCraftCostResolver(
         recipes: List<SkyBlockRecipe>,
         allowedTypes: Set<SkyBlockRecipeType>,
         acquisitionCosts: Map<ItemListEntryKey, Double>,
-        stats: MutableRawCraftCostResolutionStats,
     ): Double? = recipes.asSequence()
         .filter { it.type in allowedTypes }
-        .mapNotNull { recipe -> recipeCost(recipe, acquisitionCosts, stats) }
+        .mapNotNull { recipe -> recipeCost(recipe, acquisitionCosts) }
         .minOrNull()
 
     private fun recipeCost(
         recipe: SkyBlockRecipe,
         acquisitionCosts: Map<ItemListEntryKey, Double>,
-        stats: MutableRawCraftCostResolutionStats,
     ): Double? {
-        stats.recipeEvaluations++
         val outputCount = recipe.result.count
-        if (outputCount <= 0L) {
-            stats.invalidRecipes++
-            return null
-        }
+        if (outputCount <= 0L) return null
         var total = (recipe as? SkyBlockRecipe.Process)?.coins?.toDouble() ?: 0.0
-        if (!total.isFinite() || total < 0.0) {
-            stats.invalidRecipes++
-            return null
-        }
+        if (!total.isFinite() || total < 0.0) return null
         recipe.ingredients.forEach { ingredient ->
-            val ingredientCost = ingredientCost(ingredient, acquisitionCosts)
-            if (ingredientCost == null) {
-                stats.unavailableIngredients++
-                return null
-            }
-            total += ingredientCost
-            if (!total.isFinite()) {
-                stats.invalidRecipes++
-                return null
-            }
+            total += ingredientCost(ingredient, acquisitionCosts) ?: return null
+            if (!total.isFinite()) return null
         }
-        return (total / outputCount).positivePrice().also {
-            if (it == null) stats.invalidRecipes++
-        }
+        return (total / outputCount).positivePrice()
     }
 
     private fun ingredientCost(
@@ -230,27 +190,6 @@ internal class RawCraftCostResolver(
 
     private fun checkCancellation(isCancelled: () -> Boolean) {
         if (isCancelled() || Thread.currentThread().isInterrupted) throw CancellationException()
-    }
-
-    private class MutableRawCraftCostResolutionStats(
-        val requestedItems: Int,
-        var visitedItems: Int = 0,
-        var excludedRecipes: Int = 0,
-        var recipeEvaluations: Int = 0,
-        var unavailableIngredients: Int = 0,
-        var invalidRecipes: Int = 0,
-        var passes: Int = 0,
-    ) {
-        fun snapshot(recipesByResult: Map<ItemListEntryKey, List<SkyBlockRecipe>>) = RawCraftCostResolutionStats(
-            requestedItems = requestedItems,
-            visitedItems = visitedItems,
-            candidateRecipes = recipesByResult.values.sumOf(List<SkyBlockRecipe>::size),
-            excludedRecipes = excludedRecipes,
-            recipeEvaluations = recipeEvaluations,
-            unavailableIngredients = unavailableIngredients,
-            invalidRecipes = invalidRecipes,
-            passes = passes,
-        )
     }
 
     companion object {
