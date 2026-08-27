@@ -1,5 +1,7 @@
 package com.skysoft.data
 
+import com.skysoft.utils.ChangeResult
+
 internal object SlotBindingGraph {
     fun isValidPair(firstSlot: Int, secondSlot: Int): Boolean =
         firstSlot != secondSlot &&
@@ -7,16 +9,14 @@ internal object SlotBindingGraph {
             secondSlot in PLAYER_SLOT_RANGE &&
             (isHotbarSlot(firstSlot) || isHotbarSlot(secondSlot))
 
-    fun repair(bindings: MutableList<ProfileStorage.SlotBindingData>): SlotBindingRepairResult {
+    fun repair(bindings: MutableList<ProfileStorage.SlotBindingData>): ChangeResult {
         val repaired = mutableListOf<ProfileStorage.SlotBindingData>()
         val anchorSlots = mutableSetOf<Int>()
         val secondarySlots = mutableSetOf<Int>()
         val pairs = mutableSetOf<Pair<Int, Int>>()
-        var normalizedCount = 0
 
         for (binding in bindings) {
             val normalized = normalizeStoredBinding(binding) ?: continue
-            if (normalized != binding) normalizedCount++
             val pair = normalized.firstSlot to normalized.secondSlot
             if (
                 pair in pairs ||
@@ -32,13 +32,10 @@ internal object SlotBindingGraph {
             secondarySlots += normalized.secondSlot
         }
 
-        val removedCount = bindings.size - repaired.size
-        val changed = bindings != repaired
-        if (changed) {
-            bindings.clear()
-            bindings.addAll(repaired)
-        }
-        return SlotBindingRepairResult(changed, removedCount, normalizedCount)
+        if (bindings == repaired) return ChangeResult.UNCHANGED
+        bindings.clear()
+        bindings.addAll(repaired)
+        return ChangeResult.CHANGED
     }
 
     fun additionDecision(
@@ -131,12 +128,6 @@ internal object SlotBindingGraph {
     private val PLAYER_SLOT_RANGE = 0..39
     private val HOTBAR_SLOT_RANGE = 0..8
 }
-
-internal data class SlotBindingRepairResult(
-    val changed: Boolean,
-    val removedCount: Int,
-    val normalizedCount: Int,
-)
 
 internal enum class SlotBindingAdditionDecision {
     ADD,
