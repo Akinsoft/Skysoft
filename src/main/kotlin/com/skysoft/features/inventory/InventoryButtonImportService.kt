@@ -12,10 +12,6 @@ internal object InventoryButtonImportService {
         private set
     var pendingPlan: InventoryButtonImportPlan? = null
         private set
-    var lastOutcome = "none"
-        private set
-    var lastError: String? = null
-        private set
     private var undoSnapshot: InventoryButtonImportSnapshot? = null
 
     fun discover(): List<InventoryButtonImportSource> = recordDiscovery(discoverInventoryButtonImportSources())
@@ -26,15 +22,9 @@ internal object InventoryButtonImportService {
     fun prepare(source: InventoryButtonImportSource): InventoryButtonImportPlan {
         return try {
             val read = InventoryButtonImportParser.read(source)
-            planInventoryButtonImport(read, config().buttons).also {
-                pendingPlan = it
-                lastError = null
-                lastOutcome = "prepared:${source.kind.name}:imported=${it.imported}:duplicates=${it.duplicates}:conflicts=${it.conflicts}"
-            }
+            planInventoryButtonImport(read, config().buttons).also { pendingPlan = it }
         } catch (exception: Exception) {
             pendingPlan = null
-            lastError = exception.message ?: exception.javaClass.simpleName
-            lastOutcome = "prepare_failed:${source.kind.name}"
             throw exception
         }
     }
@@ -42,14 +32,12 @@ internal object InventoryButtonImportService {
     fun confirmMerge(): InventoryButtonImportPlan? {
         val plan = pendingPlan ?: return null
         applyPlan(plan, plan.mergedButtons)
-        lastOutcome = "merged:${plan.read.source.kind.name}:imported=${plan.imported}"
         return plan
     }
 
     fun replaceWithImportedLayout(): InventoryButtonImportPlan? {
         val plan = pendingPlan?.takeIf(InventoryButtonImportPlan::canReplace) ?: return null
         applyPlan(plan, inventoryButtonsWithEditorSlots(plan.read.buttons))
-        lastOutcome = "replaced:${plan.read.source.kind.name}:buttons=${plan.read.buttons.size}"
         return plan
     }
 
@@ -63,23 +51,18 @@ internal object InventoryButtonImportService {
         SkysoftConfigGui.config().saveNow()
         InventoryButtonManager.clearIconCache()
         undoSnapshot = null
-        lastError = null
-        lastOutcome = "undone"
         return snapshot
     }
 
     fun cancelPendingImport(): InventoryButtonImportPlan? {
         val plan = pendingPlan ?: return null
         pendingPlan = null
-        lastOutcome = "cancelled"
         return plan
     }
 
     private fun recordDiscovery(sources: List<InventoryButtonImportSource>): List<InventoryButtonImportSource> {
         discoveredSources = sources
         pendingPlan = null
-        lastError = null
-        lastOutcome = "discovered:${sources.size}"
         return sources
     }
 
@@ -100,7 +83,6 @@ internal object InventoryButtonImportService {
         SkysoftConfigGui.config().saveNow()
         InventoryButtonManager.clearIconCache()
         pendingPlan = null
-        lastError = null
     }
 
     private fun config() = SkysoftConfigGui.config().inventory.inventoryButtons

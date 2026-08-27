@@ -24,8 +24,6 @@ internal var storageSettingsPanelProgress = 0f
     private set
 internal var draggedStorageVisualSetting: StorageVisualSetting? = null
     private set
-internal var lastStorageSettingsOutcome = "none"
-    private set
 
 private val storageSettingsTransition = SmoothFloatTransition(0f, STORAGE_SETTINGS_ANIMATION_NANOS)
 
@@ -122,7 +120,7 @@ internal fun processStorageSettingsRelease(click: MouseButtonEvent): InputHandli
     val setting = draggedStorageVisualSetting ?: return InputHandlingResult.IGNORED
     if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
     draggedStorageVisualSetting = null
-    saveStorageSettings("${setting.name.lowercase()}=${setting.displayValue()}")
+    saveStorageSettings()
     return InputHandlingResult.CONSUMED
 }
 
@@ -130,7 +128,6 @@ internal fun processStorageSettingsKey(key: Int): InputHandlingResult {
     if (!isStorageSettingsPanelOpen || key != GLFW.GLFW_KEY_ESCAPE) return InputHandlingResult.IGNORED
     isStorageSettingsPanelOpen = false
     draggedStorageVisualSetting = null
-    lastStorageSettingsOutcome = "closed:escape"
     return InputHandlingResult.CONSUMED
 }
 
@@ -182,7 +179,6 @@ private fun processClosedStorageSettingsClick(
     SoundUtilities.playClickSound()
     storageSearchField.focused = false
     finishTitleEdit()
-    lastStorageSettingsOutcome = "opened"
     return InputHandlingResult.CONSUMED
 }
 
@@ -196,7 +192,6 @@ private fun processOpenStorageSettingsClick(
     if (layout.close.contains(mouseX, mouseY)) {
         isStorageSettingsPanelOpen = false
         draggedStorageVisualSetting = null
-        lastStorageSettingsOutcome = "closed"
         SoundUtilities.playClickSound()
         return InputHandlingResult.CONSUMED
     }
@@ -204,14 +199,14 @@ private fun processOpenStorageSettingsClick(
         SoundUtilities.playClickSound()
         val theme = StorageVisualSetting.THEME
         theme.set(if (theme.value() == 0) 1 else 0)
-        saveStorageSettings("${theme.name.lowercase()}=${theme.displayValue()}")
+        saveStorageSettings()
         return InputHandlingResult.CONSUMED
     }
     val setting = layout.settingAt(mouseX, mouseY) ?: return InputHandlingResult.CONSUMED
     SoundUtilities.playClickSound()
     if (setting.isToggle) {
         setting.set(if (setting.value() == 0) 1 else 0)
-        saveStorageSettings("${setting.name.lowercase()}=${setting.displayValue()}")
+        saveStorageSettings()
         storageOverlayLayoutScreen(screen, shouldReadScreen = false)
     } else {
         draggedStorageVisualSetting = setting
@@ -242,7 +237,6 @@ private fun updateStorageSettingFromPointer(
             setting.step(),
         ),
     )
-    lastStorageSettingsOutcome = "dragging:${setting.name.lowercase()}=${setting.displayValue()}"
     storageOverlayLayoutScreen(screen, shouldReadScreen = false)
 }
 
@@ -319,8 +313,7 @@ private fun drawStorageSettingsButton(
     if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eStorage Settings"), mouseX, mouseY)
 }
 
-private fun saveStorageSettings(outcome: String) {
-    lastStorageSettingsOutcome = outcome
+private fun saveStorageSettings() {
     SkysoftConfigGui.config().saveNow()
 }
 

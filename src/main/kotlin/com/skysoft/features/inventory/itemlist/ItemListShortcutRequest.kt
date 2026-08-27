@@ -16,8 +16,6 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
-internal var lastItemListShortcutOutcome = "none"
-
 internal data class ItemListShortcutRequest(
     val mode: ItemListViewMode,
     val key: ItemListEntryKey,
@@ -38,25 +36,11 @@ internal fun resolveItemListShortcut(
     hoveredListKey: ItemListEntryKey?,
 ): ItemListShortcutRequest? {
     val mode = itemListShortcutMode(pressedKey, config.settings) ?: return null
-    if (screen.focused is EditBox) {
-        lastItemListShortcutOutcome = "$mode rejected:text-input-focused"
-        return null
-    }
-    val source = when {
-        hoveredListKey != null -> "item-list"
-        StorageOverlayController.isActive(screen) -> "storage"
-        else -> "container"
-    }
+    if (screen.focused is EditBox) return null
     val target = if (config.enabled && HypixelLocationState.onHypixel) {
         hoveredListKey ?: hoveredItemListKey(screen)
     } else {
         null
-    }
-    lastItemListShortcutOutcome = when {
-        !config.enabled -> "$mode rejected:item-list-disabled"
-        !HypixelLocationState.onHypixel -> "$mode rejected:not-on-hypixel"
-        target == null -> "$mode rejected:no-supported-item source:$source"
-        else -> "$mode opened:${target.serialized()} source:$source"
     }
     return target?.let { ItemListShortcutRequest(mode, it) }
 }

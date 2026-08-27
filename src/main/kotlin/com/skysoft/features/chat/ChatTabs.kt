@@ -122,9 +122,6 @@ object ChatTabs {
         }
     }
 
-    internal fun debugSummary(): String =
-        "enabled=${isEnabled()} selected=${activeChannel()} position=${position()} channels=${channels().joinToString()}"
-
     private fun updateFilter(minecraft: Minecraft) {
         updateFilter(minecraft, isForced = false)
     }
