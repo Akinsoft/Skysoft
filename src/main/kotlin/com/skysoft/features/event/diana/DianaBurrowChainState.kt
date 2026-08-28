@@ -27,9 +27,9 @@ internal object DianaBurrowChainState {
         now: Long = System.currentTimeMillis(),
     ) {
         progress ?: return
-        val changed = removeStateForTarget(completedTarget) == ChangeResult.CHANGED ||
-            pruneExpiredStates(now) == ChangeResult.CHANGED
-        if (changed) savePersistentStates(now)
+        val removed = removeStateForTarget(completedTarget) == ChangeResult.CHANGED
+        val pruned = pruneExpiredStates(now) == ChangeResult.CHANGED
+        if (removed || pruned) savePersistentStates(now)
     }
 
     fun onNextTargetAssigned(
