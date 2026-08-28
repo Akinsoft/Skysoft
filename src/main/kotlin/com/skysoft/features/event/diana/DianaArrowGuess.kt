@@ -35,7 +35,7 @@ internal object DianaArrowGuess {
         val distanceHint = DianaParticleClassifier.arrowDistance(event) ?: return
         val ray = detectors.getOrPut(distanceHint) { DianaArrowShapeDetector() }
             .add(event.location, distanceHint, now) ?: return
-        val pending = pendingRay(ray, session.anchor, DianaArrowCandidateResolver.resolve(ray, HUB_BOUNDS)) ?: return
+        val pending = pendingRay(ray, session.anchor, DianaArrowCandidateResolver.resolve(ray, dianaHubBounds)) ?: return
         pendingSession = null
         trackPendingRay(pending, session.anchor, now, session.progress)
     }
@@ -382,10 +382,6 @@ internal object DianaArrowGuess {
     private const val MISSING_BURROW_PARTICLES_SECOND_CHECK_MILLIS = 500L
     private const val MISSING_BURROW_PARTICLES_RADIUS = 30.0
     private const val CURRENT_GUESS_CLEAR_RADIUS = 50.0
-    private val HUB_BOUNDS = DianaArrowBounds(
-        min = WorldVec(-283.0, 0.0, -208.0),
-        max = WorldVec(175.0, 256.0, 205.0),
-    )
 }
 
 private fun WorldVec.toRestoredCandidate(index: Int): ResolvedArrowCandidate =
