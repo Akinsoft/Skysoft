@@ -200,7 +200,6 @@ internal object DianaArrowGuess {
         var result = ArrowGuessActionResult.IGNORED
         activeSequences.values.toList().forEach { sequence ->
             val target = activeSequences.currentGuessForSequence(sequence.targetId, sequence) ?: return@forEach
-            if (DianaBurrowInteractions.hasPendingClick(target)) return@forEach
             val rejectionCandidates = sequence.candidates
                 .withIndex()
                 .drop(sequence.currentIndex)
@@ -381,7 +380,7 @@ internal object DianaArrowGuess {
     private const val CROSS_SIGNAL_REPLACEMENT_MILLIS = 10_000L
     private const val BURROW_PARTICLE_VISIBILITY_MILLIS = 1_000L
     private const val MISSING_BURROW_PARTICLES_SECOND_CHECK_MILLIS = 500L
-    private const val MISSING_BURROW_PARTICLES_RADIUS = 22.0
+    private const val MISSING_BURROW_PARTICLES_RADIUS = 30.0
     private const val CURRENT_GUESS_CLEAR_RADIUS = 50.0
     private val HUB_BOUNDS = DianaArrowBounds(
         min = WorldVec(-283.0, 0.0, -208.0),
