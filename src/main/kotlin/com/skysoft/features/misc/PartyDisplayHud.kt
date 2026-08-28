@@ -43,7 +43,6 @@ import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 
 private val partyDisplayConfig get() = SkysoftConfigGui.config().gui.partyDisplay
-private val title = Component.literal("Party").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
 private val cancelLabel = Component.literal("[Cancel]").withStyle(ChatFormatting.RED)
 private val confirmLabel = Component.literal("[Confirm]").withStyle(ChatFormatting.GREEN)
 private var hoveredControl: OverlayControlArea<PartyDisplayControl>? = null
@@ -254,6 +253,11 @@ private class PartyDisplayRenderable(
     private val controls: PartyDisplayHudControls,
 ) : GuiRenderable {
     private val font get() = Minecraft.getInstance().font
+    private val title = Component.literal("Party").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
+        .append(
+            Component.literal(" (${members.count { !it.invited && it.leavingAtMillis == null }})")
+                .withStyle(ChatFormatting.GRAY),
+        )
     private val renderedAtMillis = System.currentTimeMillis()
     private val padding = if (background) OverlayPanelStyle.PADDING else 0
     private val commands = buildList {
