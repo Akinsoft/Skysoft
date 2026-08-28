@@ -72,7 +72,7 @@ internal object DianaArrowGuess {
         if (matches.size > 1) {
             activeSequences.invalidateAmbiguousNonWinners(bestMatch, matches)
         }
-        activeSequences.confirmMatch(bestMatch, detected, now)
+        activeSequences.confirmMatch(bestMatch, now)
         return bestMatch.currentGuess
     }
 
@@ -165,8 +165,8 @@ internal object DianaArrowGuess {
         playerLocation: WorldVec?,
         particlesShouldBeVisible: Boolean,
         now: Long = System.currentTimeMillis(),
-        hasRecentBurrowNear: (WorldVec) -> Boolean = { location ->
-            DianaBurrowParticleDetector.hasRecentBurrowNear(location, CURRENT_GUESS_CONFIRM_RADIUS, now)
+        hasRecentBurrowAt: (WorldVec) -> Boolean = { location ->
+            DianaBurrowParticleDetector.hasRecentBurrowAt(location, now)
         },
     ): ArrowGuessActionResult {
         if (!particlesShouldBeVisible || playerLocation == null) return ArrowGuessActionResult.IGNORED
@@ -181,7 +181,7 @@ internal object DianaArrowGuess {
                 .filter { (_, candidate) ->
                     candidate.location.blockCenter().distance(playerLocation) <= MISSING_BURROW_PARTICLES_RADIUS
                 }
-                .filter { (_, candidate) -> !hasRecentBurrowNear(candidate.location) }
+                .filter { (_, candidate) -> !hasRecentBurrowAt(candidate.location) }
             if (rejectionCandidates.isEmpty()) {
                 activeSequences[sequence.targetId] = sequence.copy(missingParticlesFirstCheckAtMillis = null)
                 return@forEach

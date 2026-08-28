@@ -72,9 +72,8 @@ internal object DianaBurrowInteractions {
                     val current = click.target.currentExactTarget() ?: return@forEach
                     if (current.type != DianaBurrowType.MOB) return@forEach
                     if (current.targetId in activeMobIds) return@forEach
-                    if (DianaBurrowParticleDetector.hasRecentBurrowNear(
+                    if (DianaBurrowParticleDetector.hasRecentBurrowAt(
                             current.location,
-                            EXACT_BURROW_PARTICLE_DISTANCE,
                             now,
                         )
                     ) {
@@ -323,7 +322,6 @@ private val MOB_SPAWN_PATTERN =
     Regex("""^(?:Oh|Uh oh|Yikes|Oi|Good Grief|Danger|Woah)! You dug out (?:a )?.+!.*$""")
 private val TREASURE_PATTERN =
     Regex("""^(?:RARE DROP!|Wow!) You dug out(?: a)? .+!.*$""")
-private const val EXACT_BURROW_PARTICLE_DISTANCE = 0.1
 private const val UNMATCHED_CHAT_TARGET_DISTANCE = 8.0
 private val MOB_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.MOB, DianaBurrowType.GUESS)
 private val TREASURE_MESSAGE_TARGET_TYPES = setOf(DianaBurrowType.TREASURE, DianaBurrowType.GUESS)
