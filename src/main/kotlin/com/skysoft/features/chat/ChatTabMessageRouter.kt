@@ -29,6 +29,9 @@ internal object ChatTabMessageRouter {
             "You have joined .+'s party!|" +
             "You'll be partying with: .+|" +
             ".+ joined the party\\.|" +
+            ".+ has disconnected, they have \\d+ minutes to rejoin before " +
+            "(?:they are removed from the party|the party is disbanded)\\.|" +
+            ".+ has rejoined\\.|" +
             "You left the party\\.|" +
             ".+ has left the party\\.|" +
             "You have been (?:removed|kicked) from the party.*|" +
