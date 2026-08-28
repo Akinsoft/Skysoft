@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.SkysoftConfigFiles
+import com.skysoft.data.BackgroundSave
 import com.skysoft.data.hypixel.SkyBlockProfileId
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.MayorPerkApi
@@ -9,9 +10,13 @@ internal object MythologicalRitualTrackerRepository {
     private val store = MythologicalRitualTrackerStore(SkysoftConfigFiles.mythologicalRitualTracker)
     private val sessionStats = mutableMapOf<SkyBlockProfileId, MythologicalRitualStats>()
     private var data = MythologicalRitualTrackerData()
+    private val saves = BackgroundSave(
+        name = "Mythological Ritual tracker data",
+        prepare = { store.serialize(data) },
+        write = store::saveSerialized,
+    )
     private var loaded = false
     private var lastKnownProfileId: SkyBlockProfileId? = null
-    private var lastSaveAtMillis = 0L
 
     fun displayStateOrNull(): MythologicalRitualTrackerState? {
         ensureLoaded()
@@ -29,10 +34,11 @@ internal object MythologicalRitualTrackerRepository {
         )
     }
 
-    fun update(now: Long = System.currentTimeMillis(), action: (MythologicalRitualTrackerState) -> Unit) {
+    fun update(action: (MythologicalRitualTrackerState) -> Unit) {
         val trackerState = writableStateOrNull() ?: return
         action(trackerState)
-        saveNow(now)
+        saves.markDirty()
+        saves.saveIfDue()
     }
 
     fun recordActiveAt(now: Long) {
@@ -40,13 +46,16 @@ internal object MythologicalRitualTrackerRepository {
         trackerState.event.recordActiveAt(now)
         trackerState.total.recordActiveAt(now)
         trackerState.session.recordActiveAt(now)
-        if (now - lastSaveAtMillis >= ACTIVE_SAVE_INTERVAL_MILLIS) saveNow(now)
+        saves.markDirty()
+        saves.saveIfDue()
     }
 
-    fun saveNow(now: Long = System.currentTimeMillis()) {
-        if (!loaded) return
-        store.save(data)
-        lastSaveAtMillis = now
+    fun saveInBackground() {
+        if (loaded) saves.saveInBackground()
+    }
+
+    fun flush() {
+        if (loaded) saves.flush()
     }
 
     private fun ensureLoaded() {
@@ -79,8 +88,6 @@ internal object MythologicalRitualTrackerRepository {
 
     private fun currentEventKey(): String =
         MayorPerkApi.mythologicalRitualEventKey ?: UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
-
-    private const val ACTIVE_SAVE_INTERVAL_MILLIS = 30_000L
 }
 
 internal const val UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY = "unresolved-current-event"

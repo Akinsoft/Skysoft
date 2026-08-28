@@ -25,8 +25,16 @@ internal class MythologicalRitualTrackerStore(
     }
 
     fun save(data: MythologicalRitualTrackerData) {
+        saveSerialized(serialize(data))
+    }
+
+    fun serialize(data: MythologicalRitualTrackerData): String {
         data.repairLoadedValues()
-        fileIo.writeStringSafely(path, gson.toJson(data))
+        return gson.toJson(data)
+    }
+
+    fun saveSerialized(json: String) {
+        fileIo.writeStringSafely(path, json)
     }
 }
 

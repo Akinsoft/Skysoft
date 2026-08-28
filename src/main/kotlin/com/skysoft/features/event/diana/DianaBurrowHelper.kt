@@ -43,6 +43,9 @@ object DianaBurrowHelper {
             isActive = { isEnabled() || quickWarps.enabled || hasRuntimeState() },
         ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Burrow Helper disconnect reset", ::clearSession)
+        SkysoftClientEvents.onClientStopping("Diana Hub Surface Cache save") {
+            DianaHubSurfaceCache.flush()
+        }
         SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", { burrowHelper.enabled }) { profile ->
             DianaBurrowStorage.saveCurrentTargets()
             clearTargets(persistTargets = false)
@@ -100,7 +103,7 @@ object DianaBurrowHelper {
                 wasOnHub = true
                 DianaBurrowStorage.restoreCurrentProfile(now)
                 DianaBurrowChainState.restoreCurrentProfile(now)
-                DianaHubSurfaceCache.onTick(now)
+                DianaHubSurfaceCache.onTick()
                 DianaBurrowParticleDetector.prune(now)
                 DianaArrowGuess.prune(now)
                 DianaBurrowTargetTracker.prune(now)
@@ -226,7 +229,7 @@ object DianaBurrowHelper {
 
     private fun clearSession() {
         DianaBurrowStorage.saveCurrentTargets()
-        DianaHubSurfaceCache.saveNow()
+        DianaHubSurfaceCache.saveInBackground()
         clearTargets(persistTargets = false)
         DianaBurrowStorage.resetLoadedProfile()
         DianaBurrowChainState.resetLoadedProfile()
@@ -240,7 +243,7 @@ object DianaBurrowHelper {
     private fun suspendTargets(now: Long) {
         if (wasOnHub || DianaBurrowTargetTracker.snapshot().isNotEmpty()) {
             DianaBurrowStorage.saveCurrentTargets(now)
-            DianaHubSurfaceCache.saveNow()
+            DianaHubSurfaceCache.saveInBackground()
             clearTargets(persistTargets = false)
             DianaBurrowStorage.resetLoadedProfile()
             DianaBurrowChainState.resetLoadedProfile()
