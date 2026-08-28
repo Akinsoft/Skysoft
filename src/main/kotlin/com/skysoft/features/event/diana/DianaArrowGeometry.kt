@@ -175,7 +175,6 @@ internal object DianaArrowProjector {
                 compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
                     .thenBy { candidate -> candidate.distanceFromOrigin },
             )
-            .take(MAX_PROJECTED_CANDIDATES)
     }
 
     fun scoreBlock(ray: DianaArrowRay, block: WorldVec): DianaArrowCandidate? =
@@ -195,7 +194,6 @@ internal object DianaArrowProjector {
     }
 }
 
-private const val MAX_PROJECTED_CANDIDATES = 64
 private const val EXISTING_TARGET_RAY_TOLERANCE = 4.0
 private const val SCALED_DISTANCE_FACTOR = 500_000.0
 private const val ROUNDING_SCALE = 100.0
