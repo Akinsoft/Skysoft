@@ -37,13 +37,8 @@ internal data class DianaArrowCandidate(
 
 internal class DianaArrowShapeDetector {
     private val points = mutableListOf<TimedArrowPoint>()
-    private var activeDistanceHint: DianaArrowDistance? = null
 
     fun add(location: WorldVec, distanceHint: DianaArrowDistance, now: Long = System.currentTimeMillis()): DianaArrowRay? {
-        if (activeDistanceHint != distanceHint) {
-            points.clear()
-            activeDistanceHint = distanceHint
-        }
         prune(now)
         if (points.none { it.location.distanceSq(location) <= DUPLICATE_POINT_DISTANCE_SQ }) {
             points += TimedArrowPoint(location, now)
@@ -55,11 +50,6 @@ internal class DianaArrowShapeDetector {
 
     fun prune(now: Long = System.currentTimeMillis()) {
         points.removeAll { point -> now - point.seenAtMillis > POINT_MEMORY_MILLIS }
-    }
-
-    fun clear() {
-        points.clear()
-        activeDistanceHint = null
     }
 
     private fun detect(distanceHint: DianaArrowDistance): DianaArrowRay? {
