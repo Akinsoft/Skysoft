@@ -25,6 +25,7 @@ object PartyDisplay {
     private val profileFutures = mutableMapOf<String, CompletableFuture<GameProfile?>>()
     private val skinLookups = mutableMapOf<UUID, Supplier<PlayerSkin>>()
     private val pendingInvites = linkedMapOf<String, PendingInvite>()
+    private val disconnectedMembers = mutableSetOf<String>()
     private var displayedMembers: List<PartyDisplayMember> = emptyList()
     private var requestedParty: Set<UUID>? = null
     private var pendingPartyList: PendingPartyList? = null
@@ -62,7 +63,7 @@ object PartyDisplay {
         }
         wasEnabled = true
         if (!HypixelLocationState.inSkyBlock) {
-            clearPartyState()
+            clearDisplayedParty()
             lastApiInParty = null
             return
         }
@@ -70,7 +71,7 @@ object PartyDisplay {
         if (!HypixelPartyApi.isInParty) {
             if (HypixelPartyApi.state.updatedAtMillis > optimisticPartyAtMillis) {
                 val memberIsFading = displayedMembers.any { member -> member.leavingAtMillis != null }
-                if (lastApiInParty == true && pendingInvites.isEmpty() && !memberIsFading) clearPartyState()
+                if (lastApiInParty == true && pendingInvites.isEmpty() && !memberIsFading) clearDisplayedParty()
                 if (pendingInvites.isEmpty() && !memberIsFading) lastApiInParty = false
                 requestedParty = null
             }
@@ -130,6 +131,8 @@ object PartyDisplay {
         val youJoined = YOU_JOINED_PARTY_PATTERN.matchEntire(text)
         val partyingWith = PARTYING_WITH_PATTERN.matchEntire(text)
         val memberJoined = MEMBER_JOINED_PATTERNS.firstNotNullOfOrNull { it.matchEntire(text) }
+        val memberDisconnected = MEMBER_DISCONNECTED_PATTERN.matchEntire(text)
+        val memberRejoined = MEMBER_REJOINED_PATTERN.matchEntire(text)
         val memberRemoved = MEMBER_REMOVED_PATTERNS.firstNotNullOfOrNull { it.matchEntire(text) }
         val transfer = TRANSFER_PATTERN.matchEntire(text)
         when {
@@ -175,6 +178,18 @@ object PartyDisplay {
                 currentPlayerMember()?.let(::addPartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
+            memberDisconnected != null -> partyMember(
+                component,
+                rawText,
+                text,
+                memberDisconnected.groups["member"],
+            )?.let { member -> setPartyMemberDisconnected(member, true) }
+            memberRejoined != null -> partyMember(
+                component,
+                rawText,
+                text,
+                memberRejoined.groups["member"],
+            )?.let { member -> setPartyMemberDisconnected(member, false) }
             memberRemoved != null -> {
                 playerName(memberRemoved.groups["member"])?.let(::removePartyMember)
                 HypixelPartyApi.requestPartyInfo()
@@ -269,8 +284,15 @@ object PartyDisplay {
         if (first) displayedMembers = displayedMembers.sortedBy { playerKey(it.name) != key }
     }
 
+    private fun setPartyMemberDisconnected(member: PartyDisplayMember, disconnected: Boolean) {
+        addPartyMember(member)
+        val key = playerKey(member.name)
+        if (disconnected) disconnectedMembers += key else disconnectedMembers -= key
+    }
+
     private fun removePartyMember(name: String) {
         val key = playerKey(name)
+        disconnectedMembers -= key
         val now = System.currentTimeMillis()
         displayedMembers = displayedMembers.map { member ->
             if (playerKey(member.name) == key && member.leavingAtMillis == null) {
@@ -295,7 +317,7 @@ object PartyDisplay {
         pendingInvites.keys.removeAll(latestMembers.keys)
     }
 
-    private fun clearPartyState() {
+    private fun clearDisplayedParty() {
         displayedMembers = emptyList()
         pendingInvites.clear()
         requestedParty = null
@@ -303,8 +325,15 @@ object PartyDisplay {
         optimisticPartyAtMillis = 0L
     }
 
+    private fun clearPartyState() {
+        clearDisplayedParty()
+        disconnectedMembers.clear()
+    }
+
     internal fun currentMembers(): List<PartyDisplayMember> =
-        displayedMembers + pendingInvites.values.map(PendingInvite::member)
+        (displayedMembers + pendingInvites.values.map(PendingInvite::member)).map { member ->
+            member.copy(disconnected = playerKey(member.name) in disconnectedMembers)
+        }
 
     internal fun face(member: PartyDisplayMember): PartyDisplayFace? {
         val minecraft = Minecraft.getInstance()
@@ -327,6 +356,7 @@ object PartyDisplay {
     private fun reset() {
         displayedMembers = emptyList()
         pendingInvites.clear()
+        disconnectedMembers.clear()
         requestedParty = null
         pendingPartyList = null
         profileFutures.clear()
@@ -389,6 +419,11 @@ object PartyDisplay {
         Regex("""Party Finder > (?<member>$PARTY_PLAYER) joined the group! \(Combat Level \d+\)"""),
         Regex("""Party Finder > (?<member>$PARTY_PLAYER) joined the dungeon group! \(.+ Level \d+\)"""),
     )
+    private val MEMBER_DISCONNECTED_PATTERN = Regex(
+        """(?:The party leader, )?(?<member>$PARTY_PLAYER) has disconnected, they have \d+ minutes """ +
+            """to rejoin before (?:they are removed from the party|the party is disbanded)\.""",
+    )
+    private val MEMBER_REJOINED_PATTERN = Regex("""(?<member>$PARTY_PLAYER) has rejoined\.""")
     private val MEMBER_REMOVED_PATTERNS = listOf(
         Regex("""(?<member>$PARTY_PLAYER) has left the party\."""),
         Regex("""(?<member>$PARTY_PLAYER) has been removed from the party\."""),
@@ -413,6 +448,7 @@ internal data class PartyDisplayMember(
     val name: String,
     val component: Component,
     val invited: Boolean = false,
+    val disconnected: Boolean = false,
     val leavingAtMillis: Long? = null,
 )
 
