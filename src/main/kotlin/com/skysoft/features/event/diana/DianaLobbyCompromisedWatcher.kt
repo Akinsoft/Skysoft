@@ -20,7 +20,8 @@ import kotlin.time.Duration.Companion.seconds
 internal object DianaLobbyCompromisedWatcher {
     const val MESSAGE = "Lobby compromised!"
 
-    private val feature get() = SkysoftConfigGui.config().events.diana.lobbyCompromised
+    private val config get() = SkysoftConfigGui.config().events.diana
+    private val feature get() = config.lobbyCompromised
     private val settings get() = feature.settings
     private val alertState = DianaLobbyCompromisedState(REQUIRED_COMPROMISED_STABLE_MILLIS)
     private val friendlyPresenceTracker = DianaLobbyFriendlyPresenceTracker()
@@ -110,13 +111,13 @@ internal object DianaLobbyCompromisedWatcher {
     private fun handlePartyMessage(message: ChatMessage): ChatMessageVisibility {
         if (!message.body.equals(MESSAGE, ignoreCase = true)) return ChatMessageVisibility.SHOW
         val sender = DianaRareMobRuntime.senderFor(message, MESSAGE) ?: return ChatMessageVisibility.SHOW
-        return if (DianaRareMobPartyEcho.shouldHideRecentlySent(
-                message,
-                sender,
-                DianaRareMobRuntime.localPlayerName(),
-                System.currentTimeMillis(),
-            )
-        ) {
+        val isOwnEcho = DianaRareMobPartyEcho.shouldHideRecentlySent(
+            message,
+            sender,
+            DianaRareMobRuntime.localPlayerName(),
+            System.currentTimeMillis(),
+        )
+        return if (isOwnEcho && !config.showPartyMessages) {
             ChatMessageVisibility.HIDE
         } else {
             ChatMessageVisibility.SHOW
