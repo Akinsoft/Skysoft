@@ -32,7 +32,6 @@ internal data class DianaArrowCandidate(
     val block: WorldVec,
     val scaledDistanceToRay: Double,
     val distanceFromOrigin: Double,
-    val distanceToRay: Double,
 )
 
 internal class DianaArrowShapeDetector {
@@ -170,11 +169,10 @@ internal object DianaArrowProjector {
             .toList()
         if (inRange.isEmpty()) return emptyList()
 
-        return inRange
-            .sortedWith(
-                compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
-                    .thenBy { candidate -> candidate.distanceFromOrigin },
-            )
+        return inRange.sortedWith(
+            compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
+                .thenBy { candidate -> candidate.distanceFromOrigin },
+        )
     }
 
     fun scoreBlock(ray: DianaArrowRay, block: WorldVec): DianaArrowCandidate? =
@@ -189,7 +187,6 @@ internal object DianaArrowProjector {
             block = this,
             scaledDistanceToRay = scaleRayDistance(distanceToRay, alongRay),
             distanceFromOrigin = alongRay,
-            distanceToRay = distanceToRay,
         )
     }
 }
@@ -272,7 +269,6 @@ private fun WorldVec.toProjectedArrowCandidate(ray: DianaArrowRay, pointOnRay: W
         block = this,
         scaledDistanceToRay = scaleRayDistance(distanceToRay, distanceFromOrigin),
         distanceFromOrigin = distanceFromOrigin,
-        distanceToRay = distanceToRay,
     )
 }
 
