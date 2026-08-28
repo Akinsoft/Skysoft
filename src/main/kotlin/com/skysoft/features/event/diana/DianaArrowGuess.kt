@@ -206,11 +206,10 @@ internal object DianaArrowGuess {
     internal fun trackResolvedCandidates(
         candidates: List<ResolvedArrowCandidate>,
         now: Long,
-        distanceHint: DianaArrowDistance? = null,
         progress: DianaBurrowProgress? = null,
     ): DianaBurrowTarget? {
         pruneExpiredSequences()
-        val orderedCandidates = DianaArrowCandidateResolver.rank(candidates, distanceHint)
+        val orderedCandidates = DianaArrowCandidateResolver.rank(candidates)
         if (orderedCandidates.isEmpty()) return null
         for ((index, candidate) in orderedCandidates.withIndex()) {
             val target = DianaBurrowTargetTracker.trackGuess(candidate.location, now) ?: continue
@@ -286,7 +285,7 @@ internal object DianaArrowGuess {
         progress: DianaBurrowProgress?,
     ): DianaBurrowTarget? {
         if (!pending.ray.isFromAnchor(anchor)) return null
-        return trackResolvedCandidates(pending.candidates, now, pending.ray.distanceHint, progress)
+        return trackResolvedCandidates(pending.candidates, now, progress)
     }
 
     private fun pruneExpiredSequences() {

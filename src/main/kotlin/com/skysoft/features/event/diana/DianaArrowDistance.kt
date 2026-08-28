@@ -11,7 +11,4 @@ internal enum class DianaArrowDistance(
     YELLOW(WorldVec(0.0, 128.0, 0.0), 0, 117),
     RED(WorldVec(255.0, 255.0, 0.0), 112, 282),
     BLACK(WorldVec(255.0, 0.0, 0.0), 281, 600),
-    ;
-
-    val midpoint: Double get() = (minDistance + maxDistance) / 2.0
 }
