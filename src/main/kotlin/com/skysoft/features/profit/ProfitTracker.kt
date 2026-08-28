@@ -250,7 +250,6 @@ object ProfitTracker {
             }
         }
         target.slayerType?.let { SlayerTimeToKill.reset(it, period) }
-        if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.saveNow()
     }
 
     internal fun modifyItemAmount(target: ProfitTrackerTarget, itemId: String, amount: Long) {
@@ -270,7 +269,6 @@ object ProfitTracker {
             }
             if (updated == 0L) stats.itemCounts.remove(itemId) else stats.itemCounts[itemId] = updated
         }
-        ProfileStorageApi.saveNow()
     }
 
     internal fun deleteCustomTrackerData(target: ProfitTrackerTarget) {
@@ -290,7 +288,6 @@ object ProfitTracker {
             }
         }
         ProfileStorageApi.markDirty()
-        ProfileStorageApi.saveNow()
     }
 
     private fun recordFarmingBlock(block: Block) {

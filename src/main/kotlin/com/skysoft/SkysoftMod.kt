@@ -46,7 +46,7 @@ class SkysoftMod : ClientModInitializer {
         SkysoftFeatureRegistrations.registerAll()
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             SkysoftErrorBoundary.run("Config save") { SkysoftConfigGui.config().saveNow() }
-            SkysoftErrorBoundary.run("Profile storage save") { ProfileStorageApi.saveNow() }
+            SkysoftErrorBoundary.run("Profile storage save") { ProfileStorageApi.flush() }
         }
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
             SkysoftErrorBoundary.run("Command registration") { registerCommands(dispatcher) }

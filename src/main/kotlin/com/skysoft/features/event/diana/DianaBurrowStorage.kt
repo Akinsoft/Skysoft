@@ -11,7 +11,6 @@ internal object DianaBurrowStorage {
     private var storageKeyProvider: () -> SkyBlockProfileId? = { SkyBlockProfileApi.currentProfileId }
     private var persistentStorageProvider: () -> ProfileStorage.ProfileSpecific? = { ProfileStorageApi.storage }
     private var persistentDirtyMarker: () -> Unit = { ProfileStorageApi.markDirty() }
-    private var persistentSaver: () -> Unit = { ProfileStorageApi.saveNow() }
 
     fun register() {
         DianaBurrowTargetTracker.setChangeListener { targets, now -> saveTargets(targets, now) }
@@ -29,7 +28,6 @@ internal object DianaBurrowStorage {
     fun saveCurrentTargets(now: Long = System.currentTimeMillis()) {
         if (loadedStorageKey == null) return
         saveTargets(DianaBurrowTargetTracker.snapshot(), now)
-        persistentSaver()
     }
 
     fun resetLoadedProfile() {
