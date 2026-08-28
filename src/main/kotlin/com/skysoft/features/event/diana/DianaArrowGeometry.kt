@@ -23,6 +23,11 @@ internal data class DianaArrowBounds(
             point.z >= min.z && point.z <= max.z
 }
 
+internal val dianaHubBounds = DianaArrowBounds(
+    min = WorldVec(-283.0, 0.0, -208.0),
+    max = WorldVec(175.0, 256.0, 205.0),
+)
+
 internal data class DianaArrowCandidate(
     val block: WorldVec,
     val scaledDistanceToRay: Double,
