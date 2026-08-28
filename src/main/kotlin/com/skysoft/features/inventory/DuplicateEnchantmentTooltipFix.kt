@@ -14,7 +14,10 @@ object DuplicateEnchantmentTooltipFix {
                 if (!stack.getOrDefault(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay.DEFAULT)
                         .shows(DataComponents.ENCHANTMENTS)
                 ) return@run
-                val lore = stack.get(DataComponents.LORE)?.lines()?.mapTo(hashSetOf()) { it.string } ?: return@run
+                val lore = stack.get(DataComponents.LORE)
+                    ?.lines()
+                    ?.mapNotNullTo(hashSetOf()) { it.string.takeIf(String::isNotBlank) }
+                    ?: return@run
                 for (line in lore) {
                     val first = (1 until tooltip.size).firstOrNull { tooltip[it].string == line } ?: continue
                     if ((first + 1 until tooltip.size).any { tooltip[it].string == line }) tooltip.removeAt(first)
