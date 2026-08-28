@@ -201,7 +201,6 @@ internal object DianaArrowProjector {
 }
 
 private const val MAX_PROJECTED_CANDIDATES = 64
-private const val DISTANCE_BAND_TOLERANCE = 12
 private const val EXISTING_TARGET_RAY_TOLERANCE = 4.0
 private const val SCALED_DISTANCE_FACTOR = 500_000.0
 private const val ROUNDING_SCALE = 100.0
@@ -288,7 +287,7 @@ private fun scaleRayDistance(distanceToRay: Double, distanceFromOrigin: Double):
     (distanceToRay * SCALED_DISTANCE_FACTOR / distanceFromOrigin * ROUNDING_SCALE).roundToInt() / ROUNDING_SCALE
 
 private fun DianaArrowDistance.includes(distance: Double): Boolean =
-    distance.toInt() in (minDistance - DISTANCE_BAND_TOLERANCE).coerceAtLeast(0)..maxDistance + DISTANCE_BAND_TOLERANCE
+    distance.toInt() in minDistance..maxDistance
 
 private fun WorldVec.axis(axis: Int): Double = when (axis) {
     X_AXIS -> x
