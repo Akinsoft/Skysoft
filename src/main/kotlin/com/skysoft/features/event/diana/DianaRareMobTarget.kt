@@ -70,8 +70,22 @@ internal class DianaRareMobTarget(
         this.expiresAtMillis = maxOf(this.expiresAtMillis, expiresAtMillis)
     }
 
-    fun markPendingCocoonHatch(untilMillis: Long) {
+    fun prepareForCocoonHatch(untilMillis: Long) {
+        entity = null
+        nameplate = null
+        currentHealth = null
+        maxHealth = null
+        localDamage = 0
+        lootshareEligible = false
+        lastLocalAttack = null
+        lastLocalAttackCanDamage = false
+        lastHealthChangeAtMillis = null
+        lastSeenAtMillis = null
+        nearbyWithoutSignalSinceMillis = null
+        trackedEntityDeathSinceMillis = null
         pendingCocoonHatchUntilMillis = untilMillis
+        glowColor = null
+        processedDamageSplashIds.clear()
     }
 
     fun isAwaitingCocoonHatch(now: Long): Boolean =
