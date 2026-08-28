@@ -90,7 +90,7 @@ internal fun MutableMap<Long, ArrowCandidateSequence>.invalidateAmbiguousNonWinn
 }
 
 internal fun ArrowCandidateSequence.remainingCandidates(): List<WorldVec> =
-    (listOf(current) + candidates.drop(currentIndex))
+    candidates.drop(currentIndex)
         .filter { candidate -> candidate.location.blockKey() !in invalidatedBlockKeys }
         .distinctBy { candidate -> candidate.location.blockKey() }
         .map { candidate -> candidate.location }

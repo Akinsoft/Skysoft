@@ -37,7 +37,7 @@ internal object DianaArrowGuess {
             .add(event.location, distanceHint, now) ?: return
         val pending = pendingRay(ray, session.anchor, DianaArrowCandidateResolver.resolve(ray, dianaHubBounds)) ?: return
         pendingSession = null
-        trackPendingRay(pending, session.anchor, now, session.progress)
+        trackPendingRay(pending, now, session.progress)
     }
 
     private fun pendingRay(
@@ -235,20 +235,18 @@ internal object DianaArrowGuess {
         progress: DianaBurrowProgress? = null,
     ): DianaBurrowTarget? {
         pruneExpiredSequences()
-        val orderedCandidates = DianaArrowCandidateResolver.rank(candidates)
-        if (orderedCandidates.isEmpty()) return null
-        for ((index, candidate) in orderedCandidates.withIndex()) {
+        for ((index, candidate) in candidates.withIndex()) {
             val target = DianaBurrowTargetTracker.trackGuess(
                 location = candidate.location,
                 now = now,
-                candidates = orderedCandidates.drop(index).map { remaining -> remaining.location },
+                candidates = candidates.drop(index).map { remaining -> remaining.location },
             ) ?: continue
             if (target.source == DianaBurrowSource.GUESS) {
                 val sequenceId = ++nextSequenceId
                 activeSequences[target.targetId] = ArrowCandidateSequence(
                     sequenceId = sequenceId,
                     targetId = target.targetId,
-                    candidates = orderedCandidates,
+                    candidates = candidates,
                     current = candidate,
                     currentIndex = index,
                     currentTrackedAtMillis = now,
@@ -317,13 +315,9 @@ internal object DianaArrowGuess {
 
     private fun trackPendingRay(
         pending: PendingArrowRay,
-        anchor: WorldVec,
         now: Long,
         progress: DianaBurrowProgress?,
-    ): DianaBurrowTarget? {
-        if (!pending.ray.isFromAnchor(anchor)) return null
-        return trackResolvedCandidates(pending.candidates, now, progress)
-    }
+    ): DianaBurrowTarget? = trackResolvedCandidates(pending.candidates, now, progress)
 
     private fun pruneExpiredSequences() {
         activeSequences.entries.removeIf { (_, sequence) ->
