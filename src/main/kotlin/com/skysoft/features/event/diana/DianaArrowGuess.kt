@@ -35,18 +35,11 @@ internal object DianaArrowGuess {
         val distanceHint = DianaParticleClassifier.arrowDistance(event) ?: return
         val ray = detectors.getOrPut(distanceHint) { DianaArrowShapeDetector() }
             .add(event.location, distanceHint, now) ?: return
-        val pending = pendingRay(ray, session.anchor, DianaArrowCandidateResolver.resolve(ray, dianaHubBounds)) ?: return
+        if (!ray.isFromAnchor(session.anchor)) return
+        val candidates = DianaArrowCandidateResolver.resolve(ray, dianaHubBounds)
+        if (candidates.isEmpty()) return
         pendingSession = null
-        trackPendingRay(pending, now, session.progress)
-    }
-
-    private fun pendingRay(
-        ray: DianaArrowRay,
-        anchor: WorldVec,
-        candidates: List<ResolvedArrowCandidate>,
-    ): PendingArrowRay? {
-        if (!ray.isFromAnchor(anchor) || candidates.isEmpty()) return null
-        return PendingArrowRay(ray, candidates)
+        trackResolvedCandidates(candidates, now, session.progress)
     }
 
     fun prune(now: Long = System.currentTimeMillis()) {
@@ -167,7 +160,7 @@ internal object DianaArrowGuess {
             .forEach { target ->
                 val candidates = target.guessCandidates
                     .ifEmpty { listOf(target.location) }
-                    .mapIndexed { index, location -> location.toRestoredCandidate(index) }
+                    .map { location -> location.toRestoredCandidate() }
                 activeSequences[target.targetId] = ArrowCandidateSequence(
                     sequenceId = ++nextSequenceId,
                     targetId = target.targetId,
@@ -313,12 +306,6 @@ internal object DianaArrowGuess {
         pendingSession = null
     }
 
-    private fun trackPendingRay(
-        pending: PendingArrowRay,
-        now: Long,
-        progress: DianaBurrowProgress?,
-    ): DianaBurrowTarget? = trackResolvedCandidates(pending.candidates, now, progress)
-
     private fun pruneExpiredSequences() {
         activeSequences.entries.removeIf { (_, sequence) ->
             DianaBurrowTargetTracker.targetAt(sequence.current.location)?.targetId != sequence.targetId
@@ -365,11 +352,6 @@ internal object DianaArrowGuess {
         val progress: DianaBurrowProgress?,
     )
 
-    internal data class PendingArrowRay(
-        val ray: DianaArrowRay,
-        val candidates: List<ResolvedArrowCandidate>,
-    )
-
     private const val ARROW_COLLECTION_WINDOW_MILLIS = 3_000L
     private const val CROSS_SIGNAL_REPLACEMENT_MILLIS = 10_000L
     private const val BURROW_PARTICLE_VISIBILITY_MILLIS = 1_000L
@@ -378,16 +360,8 @@ internal object DianaArrowGuess {
     private const val CURRENT_GUESS_CLEAR_RADIUS = 50.0
 }
 
-private fun WorldVec.toRestoredCandidate(index: Int): ResolvedArrowCandidate =
-    ResolvedArrowCandidate(
-        raw = roundToBlock(),
-        location = roundToBlock(),
-        distanceFromOrigin = index.toDouble(),
-        distanceToRay = 0.0,
-        scaledDistanceToRay = 0.0,
-        order = index,
-        surfaceSource = DianaArrowCandidateSurfaceSource.UNKNOWN,
-    )
+private fun WorldVec.toRestoredCandidate(): ResolvedArrowCandidate =
+    ResolvedArrowCandidate(roundToBlock(), 0.0)
 
 internal fun DianaArrowRay.isFromAnchor(anchor: WorldVec): Boolean =
     origin.roundToBlock() == anchor.roundToBlock()
