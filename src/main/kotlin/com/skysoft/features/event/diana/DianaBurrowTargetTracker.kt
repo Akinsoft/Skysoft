@@ -46,6 +46,7 @@ internal object DianaBurrowTargetTracker {
         location: WorldVec,
         now: Long = System.currentTimeMillis(),
         replacing: DianaBurrowTarget? = null,
+        candidates: List<WorldVec> = emptyList(),
     ): DianaBurrowTarget? {
         DianaRemovedBurrows.prune(now)
         val block = location.roundToBlock()
@@ -62,7 +63,25 @@ internal object DianaBurrowTargetTracker {
             source = DianaBurrowSource.GUESS,
             now = now,
             createdAtMillis = replacementCreatedAtMillis,
+            guessCandidates = candidates,
         )
+    }
+
+    fun updateGuessCandidates(
+        target: DianaBurrowTarget,
+        candidates: List<WorldVec>,
+        now: Long = System.currentTimeMillis(),
+    ) {
+        val current = targetAt(target.location) ?: return
+        if (current.targetId != target.targetId || current.source != DianaBurrowSource.GUESS) return
+        val normalizedCandidates = normalizeGuessCandidates(current.location, candidates)
+        if (current.guessCandidates == normalizedCandidates) return
+        val updated = current.copy(
+            updatedAtMillis = now,
+            guessCandidates = normalizedCandidates,
+        )
+        targets[current.key()] = updated
+        notifyChanged(now)
     }
 
     fun currentTarget(playerLocation: WorldVec?): DianaBurrowTarget? {
@@ -121,6 +140,7 @@ internal object DianaBurrowTargetTracker {
         source: DianaBurrowSource,
         now: Long,
         createdAtMillis: Long? = null,
+        guessCandidates: List<WorldVec> = emptyList(),
     ): DianaBurrowTarget {
         val block = location.roundToBlock()
         val key = block.blockKey()
@@ -133,9 +153,19 @@ internal object DianaBurrowTargetTracker {
             source = source,
             createdAtMillis = createdAtMillis ?: oldTarget?.takeIf { sameLogicalTarget }?.createdAtMillis ?: now,
             updatedAtMillis = now,
+            guessCandidates = if (source == DianaBurrowSource.GUESS) {
+                normalizeGuessCandidates(block, guessCandidates)
+            } else {
+                emptyList()
+            },
         )
         targets[key] = target
-        if (oldTarget == null || oldTarget.type != type || oldTarget.source != source) {
+        if (
+            oldTarget == null ||
+            oldTarget.type != type ||
+            oldTarget.source != source ||
+            oldTarget.guessCandidates != target.guessCandidates
+        ) {
             notifyChanged(now)
         }
         return target
@@ -165,6 +195,11 @@ internal object DianaBurrowTargetTracker {
     private fun notifyChanged(now: Long) {
         changeListener?.invoke(snapshot(), now)
     }
+
+    private fun normalizeGuessCandidates(current: WorldVec, candidates: List<WorldVec>): List<WorldVec> =
+        (listOf(current) + candidates)
+            .map { candidate -> candidate.roundToBlock() }
+            .distinctBy { candidate -> candidate.blockKey() }
 
     private const val DETECTED_REFRESH_MILLIS = 1_000L
 }
