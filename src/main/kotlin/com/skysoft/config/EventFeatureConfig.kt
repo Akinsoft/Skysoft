@@ -43,6 +43,15 @@ class SkysoftDianaConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Show Party Messages",
+        desc = "Show Diana party messages such as rare mob coordinates and lootshare secured updates.",
+    )
+    @field:ConfigEditorBoolean
+    var showPartyMessages = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Burrow Helper", desc = "Find and display Diana burrows.")
     @field:Accordion
     val burrowHelper = DianaBurrowHelperConfig()

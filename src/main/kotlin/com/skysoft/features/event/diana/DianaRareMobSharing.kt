@@ -161,6 +161,7 @@ internal object DianaRareMobSharing {
                 localPlayerName = DianaRareMobRuntime.localPlayerName(),
                 now = now,
                 showMarker = lootshareSettings.partyCheckmarks && targets.isNotEmpty(),
+                showMessage = config.showPartyMessages,
             )
         }
         if (!isEnabledOnHub) return ChatMessageVisibility.SHOW
@@ -207,6 +208,7 @@ internal object DianaRareMobSharing {
             localPlayerName = DianaRareMobRuntime.localPlayerName(),
             receivedRareMobs = settings.receivedRareMobs.get(),
             showRareMobSharing = feature.enabled,
+            showPartyMessages = config.showPartyMessages,
             now = now,
         )
         val cocoon = DianaRareMobShareParser.parseCocoon(message.body)
