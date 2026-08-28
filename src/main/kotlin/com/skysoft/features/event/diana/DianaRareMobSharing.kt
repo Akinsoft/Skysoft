@@ -248,7 +248,7 @@ internal object DianaRareMobSharing {
         val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(cocoon.mob, location)
         val target = rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, null, now)
-        target.markPendingCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
+        target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.format(share))
     }
 
@@ -364,9 +364,11 @@ internal object DianaRareMobSharing {
 
     private fun linkTargets(signals: List<DianaRareMobSignal>, now: Long) {
         targets.values.toList().forEach { target ->
+            val awaitingCocoonHatch = target.isAwaitingCocoonHatch(now)
             val signal = signals
                 .asSequence()
                 .filter { it.mob == target.mob }
+                .filter { !awaitingCocoonHatch || it.health?.current?.let { health -> health > 0L } != false }
                 .filter { it.location.distance(target.lineLocation()) <= REMOTE_LINK_DISTANCE }
                 .minByOrNull { it.location.distanceSq(target.lineLocation()) }
             if (signal != null) updateTargetFromSignal(target, signal, now)
@@ -558,9 +560,9 @@ internal fun refreshRemoteCocoonTargets(
         .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
         .filter { target -> target.mob == mob && target.sharedBy.name.equals(sender.name, ignoreCase = true) }
         .onEach { target ->
-            target.nearbyWithoutSignalSinceMillis = null
+            target.entity?.let(EntityHighlightRenderer::removeEntityColor)
             target.extendExpiry(now + TARGET_LIFETIME_MILLIS)
-            target.markPendingCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
+            target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         }
         .mapTo(mutableSetOf()) { target -> target.key }
     pendingClears.removeIf { pending ->
