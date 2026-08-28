@@ -75,13 +75,22 @@ internal fun MutableMap<Long, ArrowCandidateSequence>.confirmMatch(
 internal fun MutableMap<Long, ArrowCandidateSequence>.invalidateAmbiguousNonWinners(
     bestMatch: ArrowSequenceMatch,
     matches: List<ArrowSequenceMatch>,
+    now: Long,
 ) {
     matches
         .filter { match -> match.targetId != bestMatch.targetId }
         .forEach { match ->
-            this[match.targetId] = match.sequence.copy(
+            val updated = match.sequence.copy(
                 invalidatedBlockKeys = match.sequence.invalidatedBlockKeys + match.matchCandidate.location.blockKey(),
                 missingParticlesFirstCheckAtMillis = null,
             )
+            this[match.targetId] = updated
+            DianaBurrowTargetTracker.updateGuessCandidates(match.currentGuess, updated.remainingCandidates(), now)
         }
 }
+
+internal fun ArrowCandidateSequence.remainingCandidates(): List<WorldVec> =
+    (listOf(current) + candidates.drop(currentIndex))
+        .filter { candidate -> candidate.location.blockKey() !in invalidatedBlockKeys }
+        .distinctBy { candidate -> candidate.location.blockKey() }
+        .map { candidate -> candidate.location }

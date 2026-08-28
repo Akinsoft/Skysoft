@@ -371,6 +371,7 @@ data class ProfileStorage(
     ) {
         fun repairLoadedValues() {
             if (savedAtMillis < 0L) savedAtMillis = 0L
+            targets.forEach { target -> target.repairLoadedValues() }
             targets.removeIf { target -> !target.isUsable() }
         }
 
@@ -388,13 +389,26 @@ data class ProfileStorage(
         @Expose var type: String = "",
         @Expose var createdAtMillis: Long = 0L,
         @Expose var updatedAtMillis: Long = 0L,
+        @Expose val guessCandidates: MutableList<DianaBurrowGuessCandidateData> = mutableListOf(),
     ) {
+        fun repairLoadedValues() {
+            guessCandidates.removeIf { candidate -> !candidate.isUsable() }
+        }
+
         fun isUsable(): Boolean =
             targetId > 0L &&
                 type.isNotBlank() &&
                 x.isFinite() &&
                 y.isFinite() &&
                 z.isFinite()
+    }
+
+    data class DianaBurrowGuessCandidateData(
+        @Expose var x: Double = 0.0,
+        @Expose var y: Double = 0.0,
+        @Expose var z: Double = 0.0,
+    ) {
+        fun isUsable(): Boolean = x.isFinite() && y.isFinite() && z.isFinite()
     }
 
     data class DianaBurrowChainData(
