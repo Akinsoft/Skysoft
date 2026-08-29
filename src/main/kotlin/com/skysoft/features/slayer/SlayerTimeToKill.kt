@@ -5,12 +5,15 @@ import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.skyblock.SkyBlockPlayerDeathParser
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.SlayerQuestSnapshot
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.features.profit.ProfitTrackingPeriod
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.chat.ChatEvents
+import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
 import java.time.LocalDate
 import java.util.Locale
@@ -31,6 +34,10 @@ object SlayerTimeToKill {
         SlayerQuestState.onBossSpawn(::onBossSpawn)
         SlayerQuestState.onQuestStarted(::onQuestStarted)
         SlayerQuestState.onQuestComplete(::onQuestComplete)
+        ChatEvents.onVisibleMessage("Slayer Time to Kill player death", { activeBoss != null }) { message ->
+            if (message.isSystemLike && SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText)) activeBoss = null
+            ChatMessageVisibility.SHOW
+        }
         SkysoftClientEvents.onDisconnect("Slayer Time to Kill disconnect reset", ::clearTransientState)
         SkyBlockProfileApi.onProfileChange("Slayer Time to Kill profile reset", { true }) { clearTransientState() }
     }
