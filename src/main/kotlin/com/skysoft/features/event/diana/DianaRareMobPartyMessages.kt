@@ -22,7 +22,6 @@ internal object DianaRareMobPartyMessages {
         cocoon: DianaRareMobCocoon,
         context: Context,
         targets: Collection<DianaRareMobTarget>,
-        pendingRemoteClears: MutableList<PendingRemoteRareMobClear>,
     ): ChatMessageVisibility {
         val sender = DianaRareMobRuntime.senderFor(message, cocoon.marker)
             ?: return ChatMessageVisibility.SHOW
@@ -33,7 +32,7 @@ internal object DianaRareMobPartyMessages {
             sender.isLocalPlayer(context.localPlayerName) -> ChatMessageVisibility.SHOW
             cocoon.mob !in context.receivedRareMobs -> ChatMessageVisibility.SHOW
             else -> {
-                refreshRemoteCocoonTargets(targets, pendingRemoteClears, cocoon.mob, sender, context.now)
+                refreshRemoteCocoonTargets(targets, cocoon.mob, sender, context.now)
                 if (context.showRareMobSharing) {
                     if (!context.showPartyMessages) {
                         SkysoftPartyShare.showCocoonReplacement(
