@@ -48,7 +48,7 @@ object SlayerTargetHighlighting {
         val playerName = Minecraft.getInstance().player?.gameProfile?.name ?: return
         val entities = SkyBlockMobEntityMatcher.allEntities()
         val ownerLabels = entities.filterIsInstance<ArmorStand>().mapNotNull(ArmorStand::slayerBossOwnerLabel)
-        targets = SkyBlockMobEntityMatcher.visibleSignals(SlayerQuestState.targetNames(), entities).mapNotNull { signal ->
+        targets = SkyBlockMobEntityMatcher.visibleSignals(SlayerQuestState.targetNames()).mapNotNull { signal ->
             val entity = signal.entity
             val kind = if (bossNames.any { bossName -> signal.label.equals(bossName, ignoreCase = true) }) {
                 SlayerTargetKind.BOSS

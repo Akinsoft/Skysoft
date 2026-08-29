@@ -8,7 +8,6 @@ import java.util.UUID
 import kotlin.math.sqrt
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
-import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 
@@ -16,10 +15,10 @@ internal object BetterShurikenReminderMarkers {
     val hasState: Boolean
         get() = mobs.isNotEmpty()
 
-    fun update(clientTick: Int, entities: List<Entity>, labels: Collection<String>) {
+    fun update(clientTick: Int, labels: Collection<String>) {
         if (clientTick != 1 && clientTick % SCAN_INTERVAL_TICKS != 0) return
         mobs.clear()
-        SkyBlockMobEntityMatcher.visibleSignals(labels, entities).forEach { signal ->
+        SkyBlockMobEntityMatcher.visibleSignals(labels).forEach { signal ->
             val entity = signal.entity?.takeIf { mob -> mob.isShurikenTarget } ?: return@forEach
             mobs[entity.uuid] = entity
         }

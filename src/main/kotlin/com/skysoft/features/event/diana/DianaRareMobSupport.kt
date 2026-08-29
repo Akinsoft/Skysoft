@@ -24,8 +24,8 @@ internal object DianaRareMobRuntime {
     fun localPlayerName(): String? =
         minecraftOrNull()?.player?.gameProfile?.name
 
-    fun shareKey(sender: String, share: DianaRareMobShare): String =
-        "${sender.lowercase()}:${share.mob.name}:${share.location.blockKey()}"
+    fun shareKey(serverName: String, sender: String, share: DianaRareMobShare): String =
+        "$serverName:${sender.lowercase()}:${share.mob.name}:${share.location.blockKey()}"
 
     fun senderFor(message: ChatMessage, share: DianaRareMobShare): ChatMessageSender? =
         senderFor(message, share.marker)
