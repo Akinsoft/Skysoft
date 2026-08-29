@@ -2,7 +2,7 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaRareMobOption
 import com.skysoft.features.combat.DamageSplashAttackContext
-import com.skysoft.features.combat.SkyBlockMobHealth
+import com.skysoft.features.combat.SkyBlockMob
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.toWorldVec
@@ -15,6 +15,7 @@ import java.util.UUID
 internal class DianaRareMobTarget(
     val targetId: Long,
     val key: String,
+    val serverName: String,
     val mob: DianaRareMobOption,
     var sharedBy: ChatMessageSender,
     val source: DianaRareMobTargetSource,
@@ -27,16 +28,23 @@ internal class DianaRareMobTarget(
         private set
     var location: WorldVec = location.roundToBlock()
         private set
-    var entity: LivingEntity? = null
-        private set
-    var entityUuid: UUID? = null
-        private set
-    var nameplate: ArmorStand? = null
-        private set
-    var currentHealth: Long? = null
-        private set
-    var maxHealth: Long? = null
-        private set
+    private var trackedMob: SkyBlockMob? = null
+    private var trackedAttachmentVersion = Long.MIN_VALUE
+    private var observedMaxHealth: Long? = null
+    val entity: LivingEntity?
+        get() = trackedMob?.entity
+    val entityUuid: UUID?
+        get() = trackedMob?.entityUuid
+    val nameplate: ArmorStand?
+        get() = trackedMob?.nameplate
+    val nameplateUuid: UUID?
+        get() = trackedMob?.nameplateUuid
+    val currentHealth: Long?
+        get() = trackedMob?.health?.current
+    val maxHealth: Long?
+        get() = trackedMob?.health?.max ?: observedMaxHealth
+    val deathConfirmed: Boolean
+        get() = trackedMob?.deathConfirmed == true
     var localDamage: Long = 0
         private set
     var lootshareEligible = false
@@ -44,10 +52,10 @@ internal class DianaRareMobTarget(
     var lastLocalAttack: DamageSplashAttackContext? = null
         private set
     private var lastLocalAttackCanDamage = false
-    var lastHealthChangeAtMillis: Long? = null
-        private set
-    var lastSeenAtMillis: Long? = null
-        private set
+    val lastHealthChangeAtMillis: Long?
+        get() = trackedMob?.lastHealthChangeAtMillis
+    val lastSeenAtMillis: Long?
+        get() = trackedMob?.lastSeenAtMillis
     var nearbyWithoutSignalSinceMillis: Long? = null
     private var pendingCocoonHatchUntilMillis: Long? = null
     var glowColor: Color? = null
@@ -56,15 +64,15 @@ internal class DianaRareMobTarget(
     fun hasVisibleSignal(): Boolean =
         entity != null || nameplate != null
 
-    fun updateFromSignal(signal: DianaRareMobSignal, now: Long) {
+    fun updateFromSignal(signal: DianaRareMobSignal) {
         location = signal.location.roundToBlock()
-        if (entityUuid == null) entityUuid = signal.entity?.uuid
-        entity = signal.entity?.takeIf { it.uuid == entityUuid }
-        nameplate = signal.nameplate
-        lastSeenAtMillis = now
+        val nextMob = signal.trackedMob
+        if (trackedMob !== nextMob || trackedAttachmentVersion != nextMob.attachmentVersion) glowColor = null
+        trackedMob = nextMob
+        trackedAttachmentVersion = nextMob.attachmentVersion
+        signal.health?.let { health -> observedMaxHealth = health.max ?: maxOf(observedMaxHealth ?: 0L, health.current) }
         nearbyWithoutSignalSinceMillis = null
         pendingCocoonHatchUntilMillis = null
-        signal.health?.let { health -> updateHealth(health, now) }
     }
 
     fun extendExpiry(expiresAtMillis: Long) {
@@ -72,17 +80,13 @@ internal class DianaRareMobTarget(
     }
 
     fun prepareForCocoonHatch(untilMillis: Long) {
-        entity = null
-        entityUuid = null
-        nameplate = null
-        currentHealth = null
-        maxHealth = null
+        trackedMob = null
+        trackedAttachmentVersion = Long.MIN_VALUE
+        observedMaxHealth = null
         localDamage = 0
         lootshareEligible = false
         lastLocalAttack = null
         lastLocalAttackCanDamage = false
-        lastHealthChangeAtMillis = null
-        lastSeenAtMillis = null
         nearbyWithoutSignalSinceMillis = null
         pendingCocoonHatchUntilMillis = untilMillis
         glowColor = null
@@ -91,11 +95,6 @@ internal class DianaRareMobTarget(
 
     fun isAwaitingCocoonHatch(now: Long): Boolean =
         pendingCocoonHatchUntilMillis?.let { now < it } == true
-
-    fun clearEntity(uuid: UUID) {
-        if (entityUuid == uuid) entity = null
-        if (nameplate?.uuid == uuid) nameplate = null
-    }
 
     fun lineLocation(): WorldVec =
         entity?.position()?.toWorldVec()
@@ -159,16 +158,7 @@ internal class DianaRareMobTarget(
         listOfNotNull(lineLocation(), lastLocalAttack?.targetLocation)
 
     fun targetEntityUuids(): Set<UUID> =
-        listOfNotNull(entityUuid, nameplate?.uuid).toSet()
-
-    private fun updateHealth(health: SkyBlockMobHealth, now: Long) {
-        val oldHealth = currentHealth
-        currentHealth = health.current
-        maxHealth = health.max ?: maxOf(maxHealth ?: 0L, health.current)
-        if (oldHealth != null && oldHealth != currentHealth) {
-            lastHealthChangeAtMillis = now
-        }
-    }
+        listOfNotNull(entityUuid, nameplateUuid).toSet()
 
     private companion object {
         const val LOOTSHARE_DAMAGE_FRACTION = 0.01

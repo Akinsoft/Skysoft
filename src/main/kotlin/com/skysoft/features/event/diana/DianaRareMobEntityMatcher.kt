@@ -4,6 +4,7 @@ import com.skysoft.config.DianaRareMobOption
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
+import com.skysoft.features.combat.SkyBlockMob
 import com.skysoft.features.combat.SkyBlockMobHealth
 import com.skysoft.features.misc.StaleSkyBlockMobPlayerModels
 import com.skysoft.utils.EntityUtilities.cleanName
@@ -11,17 +12,18 @@ import com.skysoft.utils.WorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.player.Player
 
 internal data class DianaRareMobSignal(
     val mob: DianaRareMobOption,
-    val location: WorldVec,
-    val entity: LivingEntity?,
-    val nameplate: ArmorStand?,
-    val health: SkyBlockMobHealth?,
-)
+    val trackedMob: SkyBlockMob,
+) {
+    val location: WorldVec
+        get() = trackedMob.location
+    val health: SkyBlockMobHealth?
+        get() = trackedMob.health
+}
 
 internal object DianaRareMobEntityMatcher {
     private var checkedLevel: ClientLevel? = null
@@ -33,10 +35,7 @@ internal object DianaRareMobEntityMatcher {
             val rareMob = DianaRareMobOption.fromLabel(signal.label) ?: return@mapNotNull null
             DianaRareMobSignal(
                 mob = rareMob,
-                location = signal.location,
-                entity = signal.entity,
-                nameplate = signal.nameplate,
-                health = signal.health,
+                trackedMob = signal.trackedMob,
             )
         }
 

@@ -32,6 +32,7 @@ import com.skysoft.features.chat.PlayerBadges
 import com.skysoft.features.combat.BetterShurikens
 import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.combat.HealingPoolLine
+import com.skysoft.features.combat.SkyBlockMobTracker
 import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.event.diana.DianaBurrowInteractions
 import com.skysoft.features.event.diana.DianaBurrowStorage
@@ -144,6 +145,7 @@ internal object SkysoftFeatureRegistrations {
         register("Cookie Buff API", SkyBlockCookieBuffApi::register)
         register("SkyBlock Profile API", SkyBlockProfileApi::register)
         registerSkyBlockTrackingApis()
+        register("SkyBlock Mob Tracker", SkyBlockMobTracker::register)
         register("Entity Lifecycle Events", EntityLifecycleEvents::register)
         register("Profile Storage", ProfileStorageApi::register)
         register("SkyBlock Sack Contents", SkyBlockSackContents::register)

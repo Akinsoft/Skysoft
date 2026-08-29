@@ -82,7 +82,6 @@ object BetterShurikens {
         updateTaggedMobs(level, entities)
         BetterShurikenReminderMarkers.update(
             clientTick,
-            entities,
             SkysoftConfigGui.config().combat.betterShurikens.settings.reminderMobs.get().flatMap { it.matchLabels },
         )
         recentItemDisplays.entries.removeIf { (uuid, display) ->
