@@ -80,7 +80,7 @@ internal object DianaRareMobLootshare {
                 lastAttack = target.lastLocalAttack,
                 processedSplashIds = target.processedDamageSplashIds,
                 attributionLocations = target.damageAttributionLocations(),
-                targetEntityIds = target.targetEntityIds(),
+                targetEntityUuids = target.targetEntityUuids(),
                 lastHealthChangeAtMillis = target.lastHealthChangeAtMillis,
             )
         } ?: return true

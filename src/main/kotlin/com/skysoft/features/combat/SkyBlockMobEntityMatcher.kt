@@ -27,9 +27,9 @@ internal object SkyBlockMobEntityMatcher {
         if (preparedLabels.isEmpty()) return emptyList()
         val nameplateSignals = entities.filterIsInstance<ArmorStand>()
             .mapNotNull { armorStand -> armorStand.signal(entities, preparedLabels) }
-        val nameplateEntityIds = nameplateSignals.mapNotNullTo(mutableSetOf()) { it.entity?.id }
+        val nameplateEntityUuids = nameplateSignals.mapNotNullTo(mutableSetOf()) { it.entity?.uuid }
         val physicalSignals = entities.filterIsInstance<LivingEntity>()
-            .filter { entity -> entity.id !in nameplateEntityIds }
+            .filter { entity -> entity.uuid !in nameplateEntityUuids }
             .mapNotNull { entity -> entity.physicalSignal(preparedLabels) }
         return nameplateSignals + physicalSignals
     }
@@ -45,7 +45,7 @@ internal object SkyBlockMobEntityMatcher {
             val nameplate = candidate as? ArmorStand ?: continue
             if (
                 canPairWithNameplate(entity, nameplate) &&
-                nameplate.signal(entities, preparedLabels)?.entity?.id == entity.id
+                nameplate.signal(entities, preparedLabels)?.entity?.uuid == entity.uuid
             ) {
                 return true
             }

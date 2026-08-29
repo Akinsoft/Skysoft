@@ -6,6 +6,7 @@ import com.skysoft.events.entity.ClientEntityMetadataEvents
 import com.skysoft.events.entity.EntityInteractionEvent
 import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.events.entity.EntityLifecycleEvents
+import com.skysoft.data.skyblock.SkyBlockPlayerDeathParser
 import com.skysoft.features.pets.ActivePetTracker
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
@@ -19,7 +20,9 @@ import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
+import java.util.UUID
 
 internal object DianaRareMobSharing {
     private val config get() = SkysoftConfigGui.config().events.diana
@@ -30,8 +33,7 @@ internal object DianaRareMobSharing {
     private val lootshareDetails get() = lootshareFeature.details
     private val targets = mutableMapOf<String, DianaRareMobTarget>()
     private val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
-    private val pendingLocalClears = mutableListOf<PendingLocalRareMobClear>()
-    private val pendingRemoteClears = mutableListOf<PendingRemoteRareMobClear>()
+    private val recentLocalDeaths = mutableListOf<RecentLocalRareMobDeath>()
     private var nextTargetId = 0L
     private var ticks = 0
 
@@ -73,8 +75,7 @@ internal object DianaRareMobSharing {
         get() = lootshareFeature.enabled && DianaEventState.isOnHub()
 
     private val hasRuntimeState: Boolean
-        get() = targets.isNotEmpty() || pendingLocalSpawns.isNotEmpty() ||
-            pendingLocalClears.isNotEmpty() || pendingRemoteClears.isNotEmpty()
+        get() = targets.isNotEmpty() || pendingLocalSpawns.isNotEmpty() || recentLocalDeaths.isNotEmpty()
 
     val hasActiveTarget: Boolean
         get() = targets.isNotEmpty()
@@ -93,7 +94,7 @@ internal object DianaRareMobSharing {
     val likelyRemoteRareLoot: Boolean
         get() = targets.values.any { target -> target.source == DianaRareMobTargetSource.REMOTE } &&
             targets.values.none { target -> target.source == DianaRareMobTargetSource.LOCAL } &&
-            pendingLocalClears.isEmpty()
+            recentLocalDeaths.isEmpty()
 
     val remotePriorityTarget: DianaRareMobPriorityTarget?
         get() = targets.values
@@ -110,7 +111,7 @@ internal object DianaRareMobSharing {
         }
         if (!feature.enabled) {
             pendingLocalSpawns.clear()
-            pendingLocalClears.clear()
+            recentLocalDeaths.clear()
             DianaRareMobTitleRenderer.clear()
             targets.values
                 .filter { target -> target.source == DianaRareMobTargetSource.LOCAL }
@@ -136,10 +137,7 @@ internal object DianaRareMobSharing {
             DianaLootshareReadyMarkers.clear()
         }
         pruneTargets(now)
-        if (feature.enabled) flushPendingLocalRareMobClears(pendingLocalClears, now)
-        flushPendingRemoteRareMobClears(targets, pendingRemoteClears, now) { target, reason ->
-            clearTarget(target, reason, broadcast = false, deferRemoteDeathClear = false)
-        }
+        if (feature.enabled) recentLocalDeaths.removeIf { death -> now >= death.expiresAtMillis }
         DianaRareMobGlow.apply(
             targets.values,
             DianaRareMobRuntime.localPlayerName(),
@@ -184,7 +182,7 @@ internal object DianaRareMobSharing {
                     .toList()
                     .forEach { target -> clearTarget(target, "burrow progressed") }
             }
-            if (message.cleanText.isOwnDianaDeathMessage()) {
+            if (SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText)) {
                 targets.values
                     .filter { target -> target.source == DianaRareMobTargetSource.LOCAL }
                     .toList()
@@ -220,7 +218,6 @@ internal object DianaRareMobSharing {
                 cocoon,
                 context,
                 targets.values,
-                pendingRemoteClears,
             )
             clear != null -> DianaRareMobPartyMessages.handleClear(message, clear, context, targets.values) { target ->
                 clearTarget(target, "shared clear", broadcast = false)
@@ -235,14 +232,18 @@ internal object DianaRareMobSharing {
     private fun handleLocalCocoon(cocoon: DianaRareMobCocoon, now: Long) {
         if (!settings.shareMobs || cocoon.mob !in settings.sharedRareMobs.get()) return
         val localPlayerName = DianaRareMobRuntime.localPlayerName() ?: return
-        val location = localCocoonLocation(cocoon.mob, targets.values, pendingLocalClears)
+        val location = localCocoonLocation(cocoon.mob, targets.values, recentLocalDeaths)
             ?: DianaRareMobRuntime.playerLocation()?.down()?.roundToBlock()
         pendingLocalSpawns.removeIf { pending -> pending.mob == cocoon.mob }
-        pendingLocalClears.removeIf { pending -> pending.mob == cocoon.mob }
-        targets.values
+        recentLocalDeaths.removeIf { death -> death.mob == cocoon.mob }
+        val localTargets = targets.values
             .filter { target -> target.source == DianaRareMobTargetSource.LOCAL && target.mob == cocoon.mob }
-            .toList()
-            .forEach { target -> clearTarget(target, "cocooned", broadcast = false) }
+        val cocoonedTarget = localTargets.maxWithOrNull(
+            compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId },
+        )
+        localTargets.forEach { target ->
+            clearTarget(target, if (target === cocoonedTarget) "mob died" else "cocooned")
+        }
 
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatCocoon(cocoon.mob))
         if (settings.ownMobAlerts) DianaRareMobTitleRenderer.showOwnCocoon(cocoon.mob)
@@ -275,31 +276,27 @@ internal object DianaRareMobSharing {
 
     private fun onEntityUnload(entity: Entity) {
         if (!isEnabledOnHub) return
-        val now = System.currentTimeMillis()
         targets.values
-            .filter { target -> target.entity?.id == entity.id || target.nameplate?.id == entity.id }
+            .filter { target -> target.entityUuid == entity.uuid || target.nameplate?.uuid == entity.uuid }
             .toList()
             .forEach { target ->
-                val trackedMobUnloaded = target.entity?.id == entity.id
-                val clearReason = if (target.currentHealth == 0L) {
-                    HEALTH_REACHED_ZERO_REASON
-                } else {
-                    null
+                val trackedMobUnloaded = target.entityUuid == entity.uuid
+                val clearReason = when {
+                    target.currentHealth == 0L -> HEALTH_REACHED_ZERO_REASON
+                    trackedMobUnloaded && entity is LivingEntity && entity.isDeadOrDying -> "mob died"
+                    else -> null
                 }
                 if (clearReason != null) {
                     clearTarget(target, clearReason)
-                    return@forEach
+                } else {
+                    target.detachEntity(entity.uuid)
                 }
-                if (trackedMobUnloaded && target.entity?.isAlive == false) {
-                    target.markTrackedEntityDeath(now)
-                }
-                target.detachEntity(entity.id)
             }
     }
 
     private fun onEntityClick(event: EntityInteractionEvent) {
         if (event.action != EntityInteractionEvent.ActionType.ATTACK) return
-        val target = targets.values.firstOrNull { rareMob -> rareMob.entity?.id == event.clickedEntity.id } ?: return
+        val target = targets.values.firstOrNull { rareMob -> rareMob.entityUuid == event.clickedEntity.uuid } ?: return
         val activePet = ActivePetTracker.currentPet
         val canDamage = DianaMythologicalPetRequirement.canDamageRareMob(activePet)
         target.recordLocalAttack(
@@ -385,7 +382,7 @@ internal object DianaRareMobSharing {
         }
         val previousEntity = target.entity
         target.updateFromSignal(signal, now)
-        if (previousEntity?.id != target.entity?.id) {
+        if (previousEntity?.uuid != target.entity?.uuid) {
             previousEntity?.let(EntityHighlightRenderer::removeEntityColor)
             target.glowColor = null
         }
@@ -397,14 +394,7 @@ internal object DianaRareMobSharing {
                 now >= target.expiresAtMillis -> clearTarget(target, "expired")
                 target.isAwaitingCocoonHatch(now) -> Unit
                 target.currentHealth == 0L -> clearTarget(target, HEALTH_REACHED_ZERO_REASON)
-                target.hasConfirmedTrackedEntityDeath(now, TRACKED_ENTITY_DEATH_CONFIRM_MILLIS) -> {
-                    clearTarget(target, "mob died")
-                }
-                target.entity?.isAlive == false -> {
-                    val entityId = target.entity?.id
-                    target.markTrackedEntityDeath(now)
-                    entityId?.let { target.detachEntity(it) }
-                }
+                target.entity?.isDeadOrDying == true -> clearTarget(target, "mob died")
             }
         }
     }
@@ -444,32 +434,24 @@ internal object DianaRareMobSharing {
         target: DianaRareMobTarget,
         reason: String,
         broadcast: Boolean = target.source == DianaRareMobTargetSource.LOCAL && reason in BROADCAST_CLEAR_REASONS,
-        deferRemoteDeathClear: Boolean = true,
     ) {
-        if (deferRemoteDeathClear && shouldDeferRemoteRareMobClear(target, reason, broadcast)) {
-            rememberPendingRemoteRareMobClear(pendingRemoteClears, target, reason, System.currentTimeMillis())
-            return
-        }
         targets.remove(target.key)
-        pendingRemoteClears.removeIf { pending -> pending.key == target.key }
         target.entity?.let(EntityHighlightRenderer::removeEntityColor)
-        if (shouldDeferLocalRareMobClear(target, reason, broadcast)) {
-            pendingLocalClears += PendingLocalRareMobClear(
+        if (shouldRememberLocalRareMobDeath(target, reason, broadcast)) {
+            recentLocalDeaths += RecentLocalRareMobDeath(
                 target.mob,
                 target.lineLocation().roundToBlock(),
-                System.currentTimeMillis() + LOCAL_COCOON_CLEAR_GRACE_MILLIS,
+                System.currentTimeMillis() + LOCAL_DEATH_LOCATION_MILLIS,
             )
-        } else if (broadcast) {
-            SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatClear(target.mob))
         }
+        if (broadcast) SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatClear(target.mob))
     }
 
     private fun clear() {
         targets.values.forEach { target -> target.entity?.let(EntityHighlightRenderer::removeEntityColor) }
         targets.clear()
         pendingLocalSpawns.clear()
-        pendingLocalClears.clear()
-        pendingRemoteClears.clear()
+        recentLocalDeaths.clear()
         nextTargetId = 0L
         ticks = 0
         DianaRareMobTitleRenderer.clear()
@@ -509,7 +491,7 @@ private fun recordLocalSpawn(
 private fun localCocoonLocation(
     mob: DianaRareMobOption,
     targets: Collection<DianaRareMobTarget>,
-    pendingClears: Collection<PendingLocalRareMobClear>,
+    recentDeaths: Collection<RecentLocalRareMobDeath>,
 ): WorldVec? =
     targets
         .asSequence()
@@ -517,84 +499,32 @@ private fun localCocoonLocation(
         .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
         ?.lineLocation()
         ?.roundToBlock()
-        ?: pendingClears
-            .filter { pending -> pending.mob == mob }
-            .maxByOrNull { pending -> pending.expiresAtMillis }
+        ?: recentDeaths
+            .filter { death -> death.mob == mob }
+            .maxByOrNull { death -> death.expiresAtMillis }
             ?.location
-
-private fun flushPendingLocalRareMobClears(pendingClears: MutableList<PendingLocalRareMobClear>, now: Long) {
-    val iterator = pendingClears.iterator()
-    while (iterator.hasNext()) {
-        val pending = iterator.next()
-        if (now < pending.expiresAtMillis) continue
-        SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatClear(pending.mob))
-        iterator.remove()
-    }
-}
-
-internal fun flushPendingRemoteRareMobClears(
-    targets: Map<String, DianaRareMobTarget>,
-    pendingClears: MutableList<PendingRemoteRareMobClear>,
-    now: Long,
-    clearTarget: (DianaRareMobTarget, String) -> Unit,
-) {
-    val iterator = pendingClears.iterator()
-    while (iterator.hasNext()) {
-        val pending = iterator.next()
-        if (now < pending.expiresAtMillis) continue
-        val target = targets[pending.key]
-        iterator.remove()
-        if (target != null) {
-            if (target.isAwaitingCocoonHatch(now)) continue
-            clearTarget(target, pending.reason)
-        }
-    }
-}
 
 internal fun refreshRemoteCocoonTargets(
     targets: Collection<DianaRareMobTarget>,
-    pendingClears: MutableList<PendingRemoteRareMobClear>,
     mob: DianaRareMobOption,
     sender: ChatMessageSender,
     now: Long,
 ) {
-    val refreshedKeys = targets
+    targets
         .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
         .filter { target -> target.mob == mob && target.sharedBy.name.equals(sender.name, ignoreCase = true) }
-        .onEach { target ->
+        .forEach { target ->
             target.entity?.let(EntityHighlightRenderer::removeEntityColor)
             target.extendExpiry(now + TARGET_LIFETIME_MILLIS)
             target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         }
-        .mapTo(mutableSetOf()) { target -> target.key }
-    pendingClears.removeIf { pending ->
-        pending.key in refreshedKeys ||
-            (pending.mob == mob && pending.sharedBy.equals(sender.name, ignoreCase = true))
-    }
 }
 
-internal fun shouldDeferLocalRareMobClear(target: DianaRareMobTarget, reason: String, broadcast: Boolean): Boolean =
-    broadcast && target.source == DianaRareMobTargetSource.LOCAL && reason in LOCAL_DEATH_CLEAR_REASONS
-
-internal fun shouldDeferRemoteRareMobClear(target: DianaRareMobTarget, reason: String, broadcast: Boolean): Boolean =
-    !broadcast && target.source == DianaRareMobTargetSource.REMOTE && reason in REMOTE_DEATH_CLEAR_REASONS
-
-internal fun rememberPendingRemoteRareMobClear(
-    pendingClears: MutableList<PendingRemoteRareMobClear>,
+internal fun shouldRememberLocalRareMobDeath(
     target: DianaRareMobTarget,
     reason: String,
-    now: Long,
-) {
-    val expiresAtMillis = now + REMOTE_COCOON_CLEAR_GRACE_MILLIS
-    if (pendingClears.any { pending -> pending.key == target.key }) return
-    pendingClears += PendingRemoteRareMobClear(
-        key = target.key,
-        mob = target.mob,
-        sharedBy = target.sharedBy.name,
-        reason = reason,
-        expiresAtMillis = expiresAtMillis,
-    )
-}
+    broadcast: Boolean,
+): Boolean = broadcast && target.source == DianaRareMobTargetSource.LOCAL && reason in LOCAL_DEATH_REASONS
 
 internal fun clearRemoteTargetForPlayerDeath(
     targets: Collection<DianaRareMobTarget>,
@@ -638,12 +568,12 @@ private fun staleRemoteClearReason(target: DianaRareMobTarget, playerLocation: W
     return if (target.lastSeenAtMillis == null) "not found after arrival" else "lost after arrival"
 }
 
-private fun DianaRareMobTarget.detachEntity(entityId: Int) {
-    if (entity?.id == entityId) {
+private fun DianaRareMobTarget.detachEntity(entityUuid: UUID) {
+    if (this.entityUuid == entityUuid) {
         entity?.let(EntityHighlightRenderer::removeEntityColor)
         glowColor = null
     }
-    clearEntity(entityId)
+    clearEntity(entityUuid)
 }
 
 private fun DianaRareMobTarget.remoteMissingGraceMillis(): Long =
@@ -665,16 +595,13 @@ internal fun ChatMessageSender.isLocalPlayer(localPlayerName: String?): Boolean 
 private const val HEALTH_REACHED_ZERO_REASON = "health reached zero"
 private const val TARGET_LIFETIME_MILLIS = 75_000L
 private const val LOCAL_SPAWN_LINK_MILLIS = 30_000L
-private const val LOCAL_COCOON_CLEAR_GRACE_MILLIS = 2_000L
-private const val REMOTE_COCOON_CLEAR_GRACE_MILLIS = 2_000L
+private const val LOCAL_DEATH_LOCATION_MILLIS = 2_000L
 private const val COCOON_HATCH_ATTACH_MILLIS = 12_000L
 private const val REMOTE_MISSING_CLEAR_DISTANCE = 50.0
-private const val TRACKED_ENTITY_DEATH_CONFIRM_MILLIS = 2_000L
 private const val REMOTE_MISSING_GRACE_MILLIS = 10_000L
 private const val REMOTE_LOST_GRACE_MILLIS = 3_000L
 private const val REMOTE_KING_MINOS_LOST_GRACE_MILLIS = 30_000L
-private val LOCAL_DEATH_CLEAR_REASONS = setOf(HEALTH_REACHED_ZERO_REASON, "mob died")
-private val REMOTE_DEATH_CLEAR_REASONS = setOf(HEALTH_REACHED_ZERO_REASON, "mob died")
+private val LOCAL_DEATH_REASONS = setOf(HEALTH_REACHED_ZERO_REASON, "mob died")
 
 private data class PendingRareMobSpawn(
     val mob: DianaRareMobOption,
@@ -686,18 +613,10 @@ private enum class LocalRareMobShareResult {
     PLAYER_UNAVAILABLE,
 }
 
-private data class PendingLocalRareMobClear(
+private data class RecentLocalRareMobDeath(
     val mob: DianaRareMobOption,
     val location: WorldVec,
     val expiresAtMillis: Long,
-)
-
-internal data class PendingRemoteRareMobClear(
-    val key: String,
-    val mob: DianaRareMobOption,
-    val sharedBy: String,
-    val reason: String,
-    var expiresAtMillis: Long,
 )
 
 internal data class DianaRareMobPriorityTarget(

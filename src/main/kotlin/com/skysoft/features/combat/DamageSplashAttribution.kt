@@ -1,6 +1,7 @@
 package com.skysoft.features.combat
 
 import com.skysoft.utils.WorldVec
+import java.util.UUID
 import kotlin.math.abs
 
 internal data class DamageSplash(
@@ -24,7 +25,7 @@ internal data class DamageSplashAttributionConfig(
 
 internal data class DamageSplashAttackContext(
     val atMillis: Long,
-    val entityId: Int,
+    val entityUuid: UUID,
     val targetLocation: WorldVec,
     val playerLocation: WorldVec?,
 )
@@ -34,7 +35,7 @@ internal data class DamageSplashTargetView(
     val lastAttack: DamageSplashAttackContext?,
     val processedSplashIds: MutableSet<Int>,
     val attributionLocations: List<WorldVec>,
-    val targetEntityIds: Set<Int> = emptySet(),
+    val targetEntityUuids: Set<UUID> = emptySet(),
     val lastHealthChangeAtMillis: Long? = null,
 )
 
@@ -98,7 +99,7 @@ internal object DamageSplashAttribution {
         val bestDistance = minOf(targetDistance, attackDistance)
         if (bestDistance > config.maxSplashDistance) return null
 
-        val exactEntity = attack.entityId in targetEntityIds
+        val exactEntity = attack.entityUuid in targetEntityUuids
         val healthConfirmed = lastHealthChangeAtMillis
             ?.let { changedAt -> abs(now - changedAt) <= config.healthChangeWindowMillis }
             ?: false

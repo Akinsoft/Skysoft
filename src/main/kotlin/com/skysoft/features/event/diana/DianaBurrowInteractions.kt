@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.skyblock.SkyBlockPlayerDeathParser
 import com.skysoft.events.input.BlockInteractionEvent
 import com.skysoft.events.input.BlockInteractionEvents
 import com.skysoft.features.event.diana.DianaEventState.isDianaSpade
@@ -56,7 +57,7 @@ internal object DianaBurrowInteractions {
                 val completed = completeTreasureBurrow(now, currentPlayerLocation())
                 DianaBurrowChainState.onTreasureCompleted(completed, now)
             }
-            message.cleanText.isOwnDianaDeathMessage() ->
+            SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText) ->
                 removeActiveMobBurrow(System.currentTimeMillis(), currentPlayerLocation())
         }
     }
@@ -344,11 +345,5 @@ private fun DianaBurrowTarget.requiredClicks(): Int? =
         DianaBurrowType.GUESS,
         -> null
     }
-
-internal fun String.isOwnDianaDeathMessage(): Boolean =
-    startsWith("You died") ||
-        startsWith("You were killed by ") ||
-        startsWith("☠ You died") ||
-        startsWith("☠ You were killed by ")
 
 private const val MOB_REQUIRED_CLICKS = 2

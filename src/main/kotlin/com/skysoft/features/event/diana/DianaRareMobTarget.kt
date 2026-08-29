@@ -10,6 +10,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
 import java.awt.Color
+import java.util.UUID
 
 internal class DianaRareMobTarget(
     val targetId: Long,
@@ -27,6 +28,8 @@ internal class DianaRareMobTarget(
     var location: WorldVec = location.roundToBlock()
         private set
     var entity: LivingEntity? = null
+        private set
+    var entityUuid: UUID? = null
         private set
     var nameplate: ArmorStand? = null
         private set
@@ -46,8 +49,6 @@ internal class DianaRareMobTarget(
     var lastSeenAtMillis: Long? = null
         private set
     var nearbyWithoutSignalSinceMillis: Long? = null
-    var trackedEntityDeathSinceMillis: Long? = null
-        private set
     private var pendingCocoonHatchUntilMillis: Long? = null
     var glowColor: Color? = null
     val processedDamageSplashIds = mutableSetOf<Int>()
@@ -57,11 +58,11 @@ internal class DianaRareMobTarget(
 
     fun updateFromSignal(signal: DianaRareMobSignal, now: Long) {
         location = signal.location.roundToBlock()
-        entity = signal.entity
+        if (entityUuid == null) entityUuid = signal.entity?.uuid
+        entity = signal.entity?.takeIf { it.uuid == entityUuid }
         nameplate = signal.nameplate
         lastSeenAtMillis = now
         nearbyWithoutSignalSinceMillis = null
-        trackedEntityDeathSinceMillis = null
         pendingCocoonHatchUntilMillis = null
         signal.health?.let { health -> updateHealth(health, now) }
     }
@@ -72,6 +73,7 @@ internal class DianaRareMobTarget(
 
     fun prepareForCocoonHatch(untilMillis: Long) {
         entity = null
+        entityUuid = null
         nameplate = null
         currentHealth = null
         maxHealth = null
@@ -82,7 +84,6 @@ internal class DianaRareMobTarget(
         lastHealthChangeAtMillis = null
         lastSeenAtMillis = null
         nearbyWithoutSignalSinceMillis = null
-        trackedEntityDeathSinceMillis = null
         pendingCocoonHatchUntilMillis = untilMillis
         glowColor = null
         processedDamageSplashIds.clear()
@@ -91,9 +92,9 @@ internal class DianaRareMobTarget(
     fun isAwaitingCocoonHatch(now: Long): Boolean =
         pendingCocoonHatchUntilMillis?.let { now < it } == true
 
-    fun clearEntity(entityId: Int) {
-        if (entity?.id == entityId) entity = null
-        if (nameplate?.id == entityId) nameplate = null
+    fun clearEntity(uuid: UUID) {
+        if (entityUuid == uuid) entity = null
+        if (nameplate?.uuid == uuid) nameplate = null
     }
 
     fun lineLocation(): WorldVec =
@@ -130,7 +131,7 @@ internal class DianaRareMobTarget(
 
     fun recordLocalAttack(entity: Entity, playerLocation: WorldVec?, now: Long, canDamage: Boolean) {
         recordLocalAttack(
-            entityId = entity.id,
+            entityUuid = entity.uuid,
             targetLocation = entity.position().toWorldVec(),
             playerLocation = playerLocation,
             now = now,
@@ -139,7 +140,7 @@ internal class DianaRareMobTarget(
     }
 
     fun recordLocalAttack(
-        entityId: Int,
+        entityUuid: UUID,
         targetLocation: WorldVec,
         playerLocation: WorldVec?,
         now: Long,
@@ -147,7 +148,7 @@ internal class DianaRareMobTarget(
     ) {
         lastLocalAttack = DamageSplashAttackContext(
             atMillis = now,
-            entityId = entityId,
+            entityUuid = entityUuid,
             targetLocation = targetLocation,
             playerLocation = playerLocation,
         )
@@ -157,15 +158,8 @@ internal class DianaRareMobTarget(
     fun damageAttributionLocations(): List<WorldVec> =
         listOfNotNull(lineLocation(), lastLocalAttack?.targetLocation)
 
-    fun targetEntityIds(): Set<Int> =
-        listOfNotNull(entity?.id, nameplate?.id).toSet()
-
-    fun markTrackedEntityDeath(now: Long) {
-        trackedEntityDeathSinceMillis = trackedEntityDeathSinceMillis ?: now
-    }
-
-    fun hasConfirmedTrackedEntityDeath(now: Long, confirmationMillis: Long): Boolean =
-        trackedEntityDeathSinceMillis?.let { since -> now - since >= confirmationMillis } == true
+    fun targetEntityUuids(): Set<UUID> =
+        listOfNotNull(entityUuid, nameplate?.uuid).toSet()
 
     private fun updateHealth(health: SkyBlockMobHealth, now: Long) {
         val oldHealth = currentHealth
