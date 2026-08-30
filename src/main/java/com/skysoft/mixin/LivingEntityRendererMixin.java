@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,7 +31,11 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     private void skysoftPrepareRenderState(LivingEntity entity, S state, float partialTicks, CallbackInfo ci) {
         PlayerHeadSkinFix.setOwner(state, entity);
         Integer fillColor = EntityHighlightRenderer.getEntityFillColor(entity);
-        ((EntityHighlightRenderState) state).skysoftSetEntityFillColor(fillColor != null ? fillColor : 0);
+        EntityHighlightRenderState highlightState = (EntityHighlightRenderState) state;
+        highlightState.skysoftSetEntityFillColor(fillColor != null ? fillColor : 0);
+        highlightState.skysoftSetEquipmentOnlyOutline(
+            entity instanceof ArmorStand && EntityHighlightRenderer.getEntityGlowColor(entity) != null
+        );
     }
 
     @Inject(

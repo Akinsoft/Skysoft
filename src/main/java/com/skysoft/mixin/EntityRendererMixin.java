@@ -7,7 +7,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -49,9 +48,6 @@ public class EntityRendererMixin {
     }
 
     private Integer skysoftGetGlowColor(Entity entity) {
-        if (!(entity instanceof LivingEntity livingEntity)) {
-            return null;
-        }
-        return EntityHighlightRenderer.getEntityGlowColor(livingEntity);
+        return EntityHighlightRenderer.getEntityGlowColor(entity);
     }
 }

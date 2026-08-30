@@ -9,6 +9,13 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 class SafariFeatureConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Highlight Critters", desc = "Highlight visible critters using their rarity color.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var highlightCritters = false
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Capsule Helper", desc = "Prepare for critters that escape Critter Capsules.")
     val capsuleHelper = CapsuleHelperConfig()
 

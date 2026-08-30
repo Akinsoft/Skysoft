@@ -5,6 +5,7 @@
   "client": [
     "HeartLayoutMixin",
     "AnimatedDyeArmorInventoryMixin",
+    "ArmorStandRendererMixin",
     "AbstractContainerMenuMixin",
     "AbstractSignEditScreenMixin",
     "AbstractContainerScreenMixin",
