@@ -9,8 +9,36 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 class SafariFeatureConfig {
     @JvmField
     @field:Expose
+    @field:Category(name = "Capsule Helper", desc = "Prepare for critters that escape Critter Capsules.")
+    val capsuleHelper = CapsuleHelperConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Honeybug Helper", desc = "Find Honeybugs in the Critter Safari.")
     val honeybugHelper = HoneybugHelperConfig()
+}
+
+class CapsuleHelperConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Mark where captured critters may reappear.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Capsule Helper appearance.")
+    @field:Accordion
+    val details = CapsuleHelperDetailsConfig()
+}
+
+class CapsuleHelperDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Crosshair Line", desc = "Draw a line to active capture locations.")
+    @field:ConfigEditorBoolean
+    var crosshairLine = false
 }
 
 class HoneybugHelperConfig {
