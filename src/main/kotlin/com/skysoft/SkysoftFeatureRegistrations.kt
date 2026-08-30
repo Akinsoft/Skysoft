@@ -9,6 +9,7 @@ import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.data.skyblock.MayorPerkApi
+import com.skysoft.data.skyblock.SafariZoneState
 import com.skysoft.data.skyblock.SkyBlockAreaState
 import com.skysoft.data.skyblock.SkyBlockCurrencyChanges
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -170,6 +171,7 @@ internal object SkysoftFeatureRegistrations {
 
     private fun registerSkyBlockTrackingApis() {
         register("SkyBlock Area State", SkyBlockAreaState::register)
+        register("Safari Zone State", SafariZoneState::register)
         register("SkyBlock Inventory Changes", SkyBlockInventoryChanges::register)
         register("SkyBlock Dropped Items", SkyBlockDroppedItems::register)
         register("SkyBlock Sack Transfers", SkyBlockSackTransfers::register)

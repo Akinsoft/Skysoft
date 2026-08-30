@@ -14,7 +14,7 @@ class SafariFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Honeybug Helper", desc = "Find Honeybugs in the Critter Safari.")
+    @field:Category(name = "Honeybug Helper", desc = "Find Honeybugs in the Forest.")
     val honeybugHelper = HoneybugHelperConfig()
 }
 
@@ -44,7 +44,7 @@ class CapsuleHelperDetailsConfig {
 class HoneybugHelperConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Highlight unsearched beehives in the Critter Safari.")
+    @field:ConfigOption(name = "Enabled", desc = "Highlight unsearched beehives in the Forest.")
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false
