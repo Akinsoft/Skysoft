@@ -109,6 +109,7 @@ import com.skysoft.features.profit.ProfitTracker
 import com.skysoft.features.ravengard.RavengardItemComparisonTooltip
 import com.skysoft.features.ravengard.RavengardLootBagCheckmarks
 import com.skysoft.features.ravengard.RavengardWeaponDpsTooltip
+import com.skysoft.features.safari.CapsuleHelper
 import com.skysoft.features.safari.HoneybugHelper
 import com.skysoft.features.screenshot.ScreenshotCapturePreview
 import com.skysoft.features.screenshot.ScreenshotManager
@@ -267,6 +268,7 @@ internal object SkysoftFeatureRegistrations {
         register("Queen Ant Warning", QueenAntWarning::register)
         register("Throwing Axe Helper", ThrowingAxeHelper::register)
         register("Hide Axe Particles", ThrowingAxeParticleHider::register)
+        register("Capsule Helper", CapsuleHelper::register)
         register("Honeybug Helper", HoneybugHelper::register)
         register("Rare Loot Features", RareLootChatFeatures::register)
         register("Keep Terrain Loaded", KeepTerrainLoaded::register)
