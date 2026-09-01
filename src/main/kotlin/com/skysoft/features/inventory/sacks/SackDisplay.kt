@@ -9,7 +9,6 @@ import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.isSackContentsMenu
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
 import com.skysoft.features.profit.profitTrackerSourcePrice
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
@@ -47,7 +46,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 object SackDisplay {
     fun register() = registerSackDisplay()
@@ -150,23 +148,7 @@ private fun wasSackItemClickHandled(
     screen: AbstractContainerScreen<*>,
     item: SackDisplayItem,
     button: Int,
-): Boolean = when (button) {
-    GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
-        val connection = Minecraft.getInstance().connection ?: return false
-        val key = SkyBlockDataRepository.itemKey(item.itemId)
-        val itemName = SkyBlockDataRepository.entry(key)?.displayName ?: item.name.cleanSkyBlockText()
-        connection.sendCommand("bz $itemName")
-        MinecraftClient.setScreen(null)
-        true
-    }
-    GLFW.GLFW_MOUSE_BUTTON_RIGHT -> if (SkysoftConfigGui.config().inventory.itemList.enabled) {
-        MinecraftClient.setScreen(ItemListViewerScreen(screen, SkyBlockDataRepository.itemKey(item.itemId)))
-        true
-    } else {
-        false
-    }
-    else -> false
-}
+): Boolean = wasSackItemClickHandled(screen, item.itemId, item.name, button)
 
 private fun wasSackDisplayScrollHandled(verticalAmount: Double): Boolean {
     if (!isSackDisplayVisible() || !isDisplayHovered || verticalAmount == 0.0) return false
@@ -254,12 +236,7 @@ private fun renderSackDisplay(context: GuiGraphicsExtractor) {
                 item.name,
                 screenMouseX,
                 screenMouseY,
-                actionLines = buildList {
-                    add("§eLeft-click §7to open Bazaar")
-                    if (SkysoftConfigGui.config().inventory.itemList.enabled) {
-                        add("§eRight-click §7to open Item List Info")
-                    }
-                },
+                actionLines = sackItemActionLines(),
             )
         } else {
             SkysoftNativeTooltip.setForNextFrame(
