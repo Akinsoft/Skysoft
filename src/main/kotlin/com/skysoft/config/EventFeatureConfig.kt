@@ -17,6 +17,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.GetSetter
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
+import java.util.Locale
 
 class EventFeatureConfig : ConfigRepairable {
     @JvmField
@@ -30,6 +31,25 @@ class EventFeatureConfig : ConfigRepairable {
 }
 
 class SkysoftDianaConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Particle Quality",
+        desc = "Burrow Helper requires the highest particle quality to work properly. " +
+            "Press this button to set it, or use §c/pq extreme§r.",
+    )
+    @field:ConfigEditorParticleQuality
+    val particleQuality = DianaParticleQualityConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Show Party Messages",
+        desc = "Show Diana party messages such as rare mob coordinates and lootshare secured updates.",
+    )
+    @field:ConfigEditorBoolean
+    var showPartyMessages = false
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Burrow Helper", desc = "Find and display Diana burrows.")
@@ -82,7 +102,31 @@ class SkysoftDianaConfig {
             quickWarps.enabled
 
     fun repairLoadedValues() {
+        particleQuality.repairLoadedValues()
         lobbyCompromised.settings.repairLoadedValues()
+    }
+}
+
+class DianaParticleQualityConfig {
+    @JvmField
+    @field:Expose
+    var maximumParticlesPerTick: Int? = null
+
+    @JvmField
+    @field:Expose
+    var automaticMigrationAttemptsRemaining = 0
+
+    fun repairLoadedValues() {
+        if (maximumParticlesPerTick !in PARTICLE_COUNTS) maximumParticlesPerTick = null
+        automaticMigrationAttemptsRemaining = automaticMigrationAttemptsRemaining.coerceIn(
+            0,
+            MAX_AUTOMATIC_MIGRATION_ATTEMPTS,
+        )
+    }
+
+    companion object {
+        const val MAX_AUTOMATIC_MIGRATION_ATTEMPTS = 2
+        private val PARTICLE_COUNTS = setOf(5, 15, 30, 50)
     }
 }
 
@@ -134,6 +178,11 @@ class DianaBurrowDetailsConfig {
 
         override fun set(value: Boolean) = Unit
     })
+    val distanceHideRadiusVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
+        override fun get(): Boolean = showDistance && hideDistanceWithin
+
+        override fun set(value: Boolean) = Unit
+    })
 
     @JvmField
     @field:Expose
@@ -146,6 +195,40 @@ class DianaBurrowDetailsConfig {
     @field:ConfigOption(name = "Hide Guess Arrows", desc = "Hide burrow arrow particles.")
     @field:ConfigEditorBoolean
     var hideGuessArrows = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Beacon Beam", desc = "Show a beacon beam above burrows.")
+    @field:ConfigEditorBoolean
+    var beaconBeam = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Start Beam Color", desc = "Color used for Start burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val startBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Mob Beam Color", desc = "Color used for Mob burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val mobBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 85, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Treasure Beam Color", desc = "Color used for Treasure burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val treasureBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 170, 0, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Guess Beam Color", desc = "Color used for Guess burrow beams.")
+    @field:ConfigVisibleIf("beaconBeam")
+    @field:ConfigEditorColour
+    val guessBeamColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
 
     @JvmField
     @field:Expose
@@ -171,6 +254,54 @@ Guess""",
     )
     @field:ConfigEditorDropdown
     var labelFormat = WaypointLabelFormat.CAPS
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Burrow Distance", desc = "Show distance next to burrow labels.")
+    @field:ConfigEditorBoolean
+    var showDistance = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Bold", desc = "Show burrow distance in bold.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorBoolean
+    var distanceBold = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Position", desc = "Choose where distance appears around burrow labels.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorDropdown
+    var distancePosition = DianaBurrowDistancePosition.RIGHT
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Distance Within", desc = "Hide distance when close to a burrow.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorBoolean
+    var hideDistanceWithin = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Hide Within Blocks", desc = "Distance at which burrow labels stop showing distance.")
+    @field:ConfigVisibleIf("distanceHideRadiusVisible")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 255f, minStep = 1f)
+    var distanceHideRadius = 25
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Format", desc = "How to display burrow distances.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorDropdown
+    var distanceFormat = DianaBurrowDistanceFormat.DECIMAL_METERS
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Distance Color", desc = "Color used for burrow distances.")
+    @field:ConfigVisibleIf("showDistance")
+    @field:ConfigEditorColour
+    val distanceColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
 
     @JvmField
     @field:Expose
@@ -221,6 +352,13 @@ class DianaRareMobSharingSettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Own Mob Alerts", desc = "Show title alerts for rare mobs you share.")
+    @field:ConfigVisibleIf("shareMobs")
+    @field:ConfigEditorBoolean
+    var ownMobAlerts = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Shared Mobs", desc = "Rare mobs Skysoft should share.")
     @field:ConfigVisibleIf("shareMobs")
     @field:ConfigEditorDraggableList
@@ -266,7 +404,10 @@ class DianaLootshareSettingsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Party Checkmarks", desc = "Show a checkmark above party members who have secured lootshare.")
+    @field:ConfigOption(
+        name = "Party Checkmarks",
+        desc = "Show checkmarks above party members who secured loot or spawned the rare mob.",
+    )
     @field:ConfigEditorBoolean
     var partyCheckmarks = true
 }
@@ -339,7 +480,7 @@ class DianaLobbyCompromisedSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Stranger Limit", desc = "Non-party players before alerting.")
-    @field:ConfigEditorSlider(minValue = 1f, maxValue = 6f, minStep = 1f)
+    @field:ConfigEditorSlider(minValue = 2f, maxValue = 12f, minStep = 1f)
     var strangerLimit = DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT
 
     @JvmField
@@ -450,6 +591,31 @@ enum class DianaClickCounterPosition(private val displayName: String) {
     override fun toString(): String = displayName
 }
 
+enum class DianaBurrowDistancePosition(private val displayName: String) {
+    RIGHT("Right"),
+    ABOVE("Above"),
+    LEFT("Left"),
+    BELOW("Below"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class DianaBurrowDistanceFormat(
+    private val displayName: String,
+    private val pattern: String,
+) {
+    DECIMAL_METERS("50.2m", "%.1fm"),
+    DECIMAL("50.2", "%.1f"),
+    WHOLE_METERS("50m", "%.0fm"),
+    WHOLE("50", "%.0f"),
+    ;
+
+    fun format(distance: Double): String = String.format(Locale.ROOT, pattern, distance)
+
+    override fun toString(): String = displayName
+}
+
 enum class DianaBurrowBoxColorMode(private val displayName: String) {
     DEFAULT("Match Text"),
     CUSTOM("Custom"),
@@ -511,6 +677,6 @@ enum class DianaRareMobOption(
 private fun defaultDianaRareMobs(): MutableList<DianaRareMobOption> =
     mutableListOf(DianaRareMobOption.MINOS_INQUISITOR, DianaRareMobOption.KING_MINOS)
 
-const val MIN_LOBBY_COMPROMISED_STRANGER_LIMIT = 1
-const val MAX_LOBBY_COMPROMISED_STRANGER_LIMIT = 6
-const val DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT = 3
+const val MIN_LOBBY_COMPROMISED_STRANGER_LIMIT = 2
+const val MAX_LOBBY_COMPROMISED_STRANGER_LIMIT = 12
+const val DEFAULT_LOBBY_COMPROMISED_STRANGER_LIMIT = 10

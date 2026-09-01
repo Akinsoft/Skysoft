@@ -8,10 +8,7 @@ internal data class ArrowCandidateSequence(
     val candidates: List<ResolvedArrowCandidate>,
     val current: ResolvedArrowCandidate,
     val currentIndex: Int,
-    val distanceHint: DianaArrowDistance?,
-    val createdAtMillis: Long,
     val currentTrackedAtMillis: Long,
-    val firstGuess: WorldVec,
     val invalidatedBlockKeys: Set<String>,
     val missingParticlesFirstCheckAtMillis: Long?,
 )
@@ -22,11 +19,7 @@ internal data class ArrowSequenceMatch(
     val currentGuess: DianaBurrowTarget,
     val matchIndex: Int,
     val matchCandidate: ResolvedArrowCandidate,
-    val matchDistance: Double,
-    val currentDistance: Double,
-) {
-    val currentMatches: Boolean = currentDistance <= CURRENT_GUESS_CONFIRM_RADIUS
-}
+)
 
 internal fun MutableMap<Long, ArrowCandidateSequence>.currentGuessForSequence(
     targetId: Long,
@@ -46,11 +39,7 @@ internal fun ArrowCandidateSequence.matchDetectedBurrow(
 ): ArrowSequenceMatch? {
     val match = candidates
         .withIndex()
-        .filter { (_, candidate) -> candidate.location.distance(detected) <= CURRENT_GUESS_CONFIRM_RADIUS }
-        .minWithOrNull(
-            compareBy<IndexedValue<ResolvedArrowCandidate>> { (_, candidate) -> candidate.location.distance(detected) }
-                .thenBy { (index, _) -> index },
-        )
+        .firstOrNull { (_, candidate) -> candidate.location == detected }
         ?: return null
     return ArrowSequenceMatch(
         targetId = targetId,
@@ -58,16 +47,12 @@ internal fun ArrowCandidateSequence.matchDetectedBurrow(
         currentGuess = currentGuess,
         matchIndex = match.index,
         matchCandidate = match.value,
-        matchDistance = match.value.location.distance(detected),
-        currentDistance = currentGuess.location.distance(detected),
     )
 }
 
 internal fun List<ArrowSequenceMatch>.bestConfirmMatch(): ArrowSequenceMatch? =
     sortedWith(
-        compareBy<ArrowSequenceMatch> { match -> !match.currentMatches }
-            .thenBy { match -> match.currentDistance }
-            .thenBy { match -> match.matchDistance }
+        compareBy<ArrowSequenceMatch> { match -> match.currentGuess.location != match.matchCandidate.location }
             .thenBy { match -> match.matchIndex }
             .thenByDescending { match -> match.sequence.currentTrackedAtMillis }
             .thenByDescending { match -> match.sequence.sequenceId },
@@ -75,11 +60,10 @@ internal fun List<ArrowSequenceMatch>.bestConfirmMatch(): ArrowSequenceMatch? =
 
 internal fun MutableMap<Long, ArrowCandidateSequence>.confirmMatch(
     match: ArrowSequenceMatch,
-    detected: WorldVec,
     now: Long,
 ) {
     remove(match.targetId)
-    if (match.currentGuess.location != detected) {
+    if (match.currentGuess.location != match.matchCandidate.location) {
         DianaBurrowTargetTracker.removeIfCurrent(
             target = match.currentGuess,
             now = now,
@@ -91,15 +75,22 @@ internal fun MutableMap<Long, ArrowCandidateSequence>.confirmMatch(
 internal fun MutableMap<Long, ArrowCandidateSequence>.invalidateAmbiguousNonWinners(
     bestMatch: ArrowSequenceMatch,
     matches: List<ArrowSequenceMatch>,
+    now: Long,
 ) {
     matches
         .filter { match -> match.targetId != bestMatch.targetId }
         .forEach { match ->
-            this[match.targetId] = match.sequence.copy(
+            val updated = match.sequence.copy(
                 invalidatedBlockKeys = match.sequence.invalidatedBlockKeys + match.matchCandidate.location.blockKey(),
                 missingParticlesFirstCheckAtMillis = null,
             )
+            this[match.targetId] = updated
+            DianaBurrowTargetTracker.updateGuessCandidates(match.currentGuess, updated.remainingCandidates(), now)
         }
 }
 
-internal const val CURRENT_GUESS_CONFIRM_RADIUS = 8.0
+internal fun ArrowCandidateSequence.remainingCandidates(): List<WorldVec> =
+    candidates.drop(currentIndex)
+        .filter { candidate -> candidate.location.blockKey() !in invalidatedBlockKeys }
+        .distinctBy { candidate -> candidate.location.blockKey() }
+        .map { candidate -> candidate.location }

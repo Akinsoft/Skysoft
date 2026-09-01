@@ -22,8 +22,14 @@ internal class MythologicalRitualLootShareWindow {
 }
 
 internal object MythologicalRitualMessageTracker {
-    fun track(message: String, state: MythologicalRitualTrackerState, lootShareWindow: MythologicalRitualLootShareWindow, now: Long) {
-        trackNonRareLoot(message, state, lootShareWindow, now)
+    fun track(
+        message: String,
+        state: MythologicalRitualTrackerState,
+        lootShareWindow: MythologicalRitualLootShareWindow,
+        now: Long,
+        lootShareMob: DianaRareMobOption? = null,
+    ) {
+        trackNonRareLoot(message, state, lootShareWindow, now, lootShareMob)
         val chatDrop = RareLootChatParser.parse(message.trim()) ?: return
         val lootshare = lootShareWindow.isActive(now) || DianaRareMobSharing.likelyRemoteRareLoot
         trackRareLoot(chatDrop, state, lootshare)
@@ -34,14 +40,12 @@ internal object MythologicalRitualMessageTracker {
         state: MythologicalRitualTrackerState,
         lootShareWindow: MythologicalRitualLootShareWindow,
         now: Long,
+        lootShareMob: DianaRareMobOption? = null,
     ) {
         val clean = message.trim()
-        val receiptMob = DianaLootShareReceipt.parseMob(clean)
-        if (receiptMob != null) {
+        if (RareLootShareReceipt.isReceipt(clean)) {
             lootShareWindow.recordReceipt(now)
-            state.addLootShareMob(receiptMob)
-        } else if (RareLootShareReceipt.isReceipt(clean)) {
-            lootShareWindow.recordReceipt(now)
+            lootShareMob?.let(state::addLootShareMob)
         }
         when {
             isBurrowMessage(clean) -> state.addItem(MythologicalRitualItemKey.TOTAL_BURROWS)

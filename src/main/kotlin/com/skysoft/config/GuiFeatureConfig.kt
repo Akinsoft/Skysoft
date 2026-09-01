@@ -79,6 +79,12 @@ class GuiFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Party Display", desc = "Show your current party on screen.")
+    val partyDisplay = PartyDisplayConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Day Display", desc = "Show the current Minecraft day.")
     val dayDisplay = DayDisplayConfig()
 

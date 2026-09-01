@@ -37,14 +37,20 @@ internal object SkyBlockMobEntityMatcher {
     fun hasVisibleNameplateFor(
         entity: LivingEntity,
         labels: Collection<String>,
-        entities: List<Entity> = allEntities(),
+        entities: Iterable<Entity> = Minecraft.getInstance().level?.entitiesForRendering() ?: emptyList(),
     ): Boolean {
         val preparedLabels = prepareMobLabels(labels)
         if (preparedLabels.isEmpty()) return false
-        return entities.filterIsInstance<ArmorStand>().any { nameplate ->
-            canPairWithNameplate(entity, nameplate) &&
+        for (candidate in entities) {
+            val nameplate = candidate as? ArmorStand ?: continue
+            if (
+                canPairWithNameplate(entity, nameplate) &&
                 nameplate.signal(entities, preparedLabels)?.entity?.id == entity.id
+            ) {
+                return true
+            }
         }
+        return false
     }
 
     fun canPairWithNameplate(entity: LivingEntity, nameplate: ArmorStand): Boolean =
@@ -55,11 +61,11 @@ internal object SkyBlockMobEntityMatcher {
 
     fun physicalEntityFor(
         nameplate: ArmorStand,
-        entities: List<Entity> = allEntities(),
+        entities: Iterable<Entity> = Minecraft.getInstance().level?.entitiesForRendering() ?: emptyList(),
         isCandidate: (LivingEntity) -> Boolean = { true },
     ): LivingEntity? = nameplate.linkedPhysicalEntity(entities, isCandidate)
 
-    private fun ArmorStand.signal(entities: List<Entity>, labels: List<String>): SkyBlockMobSignal? {
+    private fun ArmorStand.signal(entities: Iterable<Entity>, labels: List<String>): SkyBlockMobSignal? {
         if (!hasCustomName()) return null
         val name = cleanName()
         val label = matchingPreparedMobLabel(name, labels) ?: return null
@@ -87,16 +93,22 @@ internal object SkyBlockMobEntityMatcher {
     }
 
     private fun ArmorStand.linkedPhysicalEntity(
-        entities: List<Entity>,
+        entities: Iterable<Entity>,
         isCandidate: (LivingEntity) -> Boolean,
     ): LivingEntity? {
-        val byId = entities.firstOrNull { entity -> entity.id == id - 1 && entity is LivingEntity } as? LivingEntity
-        if (byId != null && byId.isPossibleSkyBlockMob() && isCandidate(byId) && byId.isTightPair(this)) return byId
-        return entities.filterIsInstance<LivingEntity>()
-            .filter { entity ->
-                entity.isPossibleSkyBlockMob() && isCandidate(entity) && entity.isTightPair(this)
+        var closest: LivingEntity? = null
+        var closestDistance = Double.MAX_VALUE
+        for (candidate in entities) {
+            val entity = candidate as? LivingEntity ?: continue
+            if (!entity.isPossibleSkyBlockMob() || !isCandidate(entity) || !entity.isTightPair(this)) continue
+            if (entity.id == id - 1) return entity
+            val distance = entity.distanceToSqr(this)
+            if (distance < closestDistance) {
+                closest = entity
+                closestDistance = distance
             }
-            .minByOrNull { entity -> entity.distanceToSqr(this) }
+        }
+        return closest
     }
 
     private fun LivingEntity.isTightPair(nameplate: ArmorStand): Boolean {

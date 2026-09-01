@@ -4,13 +4,13 @@ import com.google.gson.GsonBuilder
 import com.google.gson.annotations.Expose
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
+import com.skysoft.data.BackgroundSave
 import com.skysoft.utils.WorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
 import java.nio.file.Files
 import kotlin.math.floor
-import kotlin.time.Duration.Companion.seconds
 
 internal enum class DianaCachedSurfaceStatus {
     VALID,
@@ -29,14 +29,17 @@ internal object DianaHubSurfaceCache {
         .create()
     private val cachePath = SkysoftConfigFiles.dianaHubSurfaceCache
     private val data = load()
+    private val saves = BackgroundSave(
+        name = "Diana Hub surface cache",
+        prepare = data::snapshot,
+        write = { snapshot -> SkysoftConfigFiles.writeStringSafely(cachePath, gson.toJson(snapshot)) },
+    )
     private val pendingChunks = ArrayDeque<ChunkKey>()
     private val queuedChunks = mutableSetOf<ChunkKey>()
     private var activeScan: ChunkScan? = null
-    private var dirty = false
-    private var lastSavedAtMillis = 0L
     private var lastEnqueuedAround: ChunkKey? = null
 
-    fun onTick(now: Long = System.currentTimeMillis()) {
+    fun onTick() {
         val level = Minecraft.getInstance().level ?: return
         val player = Minecraft.getInstance().player ?: return
         val playerChunk = ChunkKey.fromBlock(floor(player.x).toInt(), floor(player.z).toInt())
@@ -45,7 +48,7 @@ internal object DianaHubSurfaceCache {
             lastEnqueuedAround = playerChunk
         }
         scanColumns(level)
-        if (dirty && now - lastSavedAtMillis >= SAVE_INTERVAL_MILLIS) saveNow()
+        saves.saveIfDue()
     }
 
     fun cachedSurface(location: WorldVec): DianaCachedSurface {
@@ -62,15 +65,12 @@ internal object DianaHubSurfaceCache {
         }
     }
 
-    fun saveNow() {
-        if (!dirty) return
-        try {
-            SkysoftConfigFiles.writeStringSafely(cachePath, gson.toJson(data))
-            dirty = false
-            lastSavedAtMillis = System.currentTimeMillis()
-        } catch (e: Exception) {
-            SkysoftMod.LOGGER.warn("Failed to save Diana Hub surface cache to {}", cachePath, e)
-        }
+    fun saveInBackground() {
+        saves.saveInBackground()
+    }
+
+    fun flush() {
+        saves.flush()
     }
 
     private fun enqueueAround(center: ChunkKey) {
@@ -94,7 +94,7 @@ internal object DianaHubSurfaceCache {
             remaining -= scanNextColumns(level, scan, remaining)
             if (scan.nextColumnIndex >= COLUMNS_PER_CHUNK) {
                 val changed = data.observedChunks.add(scan.chunk.key) || scan.changed
-                if (changed) dirty = true
+                if (changed) saves.markDirty()
                 activeScan = null
             }
         }
@@ -186,7 +186,12 @@ internal object DianaHubSurfaceCache {
         @Expose val schemaVersion: Int = SCHEMA_VERSION,
         @Expose val observedChunks: MutableSet<String> = mutableSetOf(),
         @Expose val validColumns: MutableMap<String, Int> = mutableMapOf(),
-    )
+    ) {
+        fun snapshot(): SurfaceCacheData = copy(
+            observedChunks = observedChunks.toMutableSet(),
+            validColumns = validColumns.toMutableMap(),
+        )
+    }
 
     private const val SCHEMA_VERSION = 1
     private const val CHUNK_SIZE = 16
@@ -196,7 +201,6 @@ internal object DianaHubSurfaceCache {
     private const val CACHE_CHUNK_RADIUS = 8
     private const val HUB_MIN_Y = 0
     private const val HUB_MAX_Y = 254
-    private val SAVE_INTERVAL_MILLIS = 30.seconds.inWholeMilliseconds
 }
 
 private fun columnKey(x: Int, z: Int): String = "$x:$z"

@@ -7,6 +7,7 @@ import com.skysoft.features.loot.RareLootChatDrop
 import com.skysoft.features.loot.RareLootContextContributor
 import com.skysoft.features.loot.RareLootContextRegistry
 import com.skysoft.features.loot.RareLootDropCount
+import com.skysoft.features.loot.RareLootShareReceipt
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -27,7 +28,7 @@ internal object MythologicalRitualTracker {
         ) { onTick() }
         SkysoftClientEvents.onDisconnect("Mythological Ritual Tracker disconnect reset", ::clearSession)
         SkysoftClientEvents.onClientStopping("Mythological Ritual Tracker save") {
-            MythologicalRitualTrackerRepository.saveNow()
+            MythologicalRitualTrackerRepository.flush()
         }
         RareLootContextRegistry.register(rareLootContextContributor)
         ChatEvents.onVisibleMessage("Mythological Ritual tracker chat", ::isEnabled) { message ->
@@ -54,8 +55,10 @@ internal object MythologicalRitualTracker {
         if (!isEnabled() || !message.isSystemLike || !DianaEventState.isOnHub()) return
         if (RareLootChatParser.parse(message.cleanText) != null) return
         val now = System.currentTimeMillis()
-        MythologicalRitualTrackerRepository.update(now) { state ->
-            MythologicalRitualMessageTracker.trackNonRareLoot(message.cleanText, state, lootShareWindow, now)
+        val lootShareMob = RareLootShareReceipt.assistedPlayer(message.cleanText)
+            ?.let(DianaRareMobSharing::remoteMobSharedBy)
+        MythologicalRitualTrackerRepository.update { state ->
+            MythologicalRitualMessageTracker.trackNonRareLoot(message.cleanText, state, lootShareWindow, now, lootShareMob)
         }
     }
 
@@ -83,7 +86,7 @@ internal object MythologicalRitualTracker {
         lootShareWindow.clear()
         partyCommandCooldown.clear()
         ticks = 0
-        MythologicalRitualTrackerRepository.saveNow()
+        MythologicalRitualTrackerRepository.saveInBackground()
     }
 
     private val rareLootContextContributor = object : RareLootContextContributor {
@@ -96,7 +99,7 @@ internal object MythologicalRitualTracker {
             if (!isEnabled() || !DianaEventState.isOnHub()) return null
             val isLootShareDrop = lootshare || lootShareWindow.isActive(now)
             var dropCount: RareLootDropCount? = null
-            MythologicalRitualTrackerRepository.update(now) { state ->
+            MythologicalRitualTrackerRepository.update { state ->
                 dropCount = MythologicalRitualMessageTracker.trackRareLoot(drop, state, isLootShareDrop)
             }
             return dropCount

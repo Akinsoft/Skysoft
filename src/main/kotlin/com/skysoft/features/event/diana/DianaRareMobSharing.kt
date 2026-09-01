@@ -76,8 +76,19 @@ internal object DianaRareMobSharing {
         get() = targets.isNotEmpty() || pendingLocalSpawns.isNotEmpty() ||
             pendingLocalClears.isNotEmpty() || pendingRemoteClears.isNotEmpty()
 
-    fun hasActiveTarget(): Boolean =
-        targets.isNotEmpty()
+    val hasActiveTarget: Boolean
+        get() = targets.isNotEmpty()
+
+    val activeSpawnerNames: Set<String>
+        get() = targets.values.mapTo(mutableSetOf()) { target -> target.sharedBy.name }
+
+    fun remoteMobSharedBy(playerName: String): DianaRareMobOption? =
+        targets.values
+            .asSequence()
+            .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
+            .filter { target -> target.sharedBy.name.equals(playerName, ignoreCase = true) }
+            .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
+            ?.mob
 
     val likelyRemoteRareLoot: Boolean
         get() = targets.values.any { target -> target.source == DianaRareMobTargetSource.REMOTE } &&
@@ -150,6 +161,7 @@ internal object DianaRareMobSharing {
                 localPlayerName = DianaRareMobRuntime.localPlayerName(),
                 now = now,
                 showMarker = lootshareSettings.partyCheckmarks && targets.isNotEmpty(),
+                showMessage = config.showPartyMessages,
             )
         }
         if (!isEnabledOnHub) return ChatMessageVisibility.SHOW
@@ -196,6 +208,7 @@ internal object DianaRareMobSharing {
             localPlayerName = DianaRareMobRuntime.localPlayerName(),
             receivedRareMobs = settings.receivedRareMobs.get(),
             showRareMobSharing = feature.enabled,
+            showPartyMessages = config.showPartyMessages,
             now = now,
         )
         val cocoon = DianaRareMobShareParser.parseCocoon(message.body)
@@ -232,11 +245,12 @@ internal object DianaRareMobSharing {
             .forEach { target -> clearTarget(target, "cocooned", broadcast = false) }
 
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatCocoon(cocoon.mob))
+        if (settings.ownMobAlerts) DianaRareMobTitleRenderer.showOwnCocoon(cocoon.mob)
         if (location == null) return
         val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(cocoon.mob, location)
         val target = rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, null, now)
-        target.markPendingCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
+        target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.format(share))
     }
 
@@ -319,6 +333,7 @@ internal object DianaRareMobSharing {
         val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(pending.mob, signal.location.roundToBlock())
         rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, signal, now)
+        if (settings.ownMobAlerts) DianaRareMobTitleRenderer.showOwn(pending.mob)
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.format(share))
         return LocalRareMobShareResult.SHARED
     }
@@ -351,9 +366,11 @@ internal object DianaRareMobSharing {
 
     private fun linkTargets(signals: List<DianaRareMobSignal>, now: Long) {
         targets.values.toList().forEach { target ->
+            val awaitingCocoonHatch = target.isAwaitingCocoonHatch(now)
             val signal = signals
                 .asSequence()
                 .filter { it.mob == target.mob }
+                .filter { !awaitingCocoonHatch || it.health?.current?.let { health -> health > 0L } != false }
                 .filter { it.location.distance(target.lineLocation()) <= REMOTE_LINK_DISTANCE }
                 .minByOrNull { it.location.distanceSq(target.lineLocation()) }
             if (signal != null) updateTargetFromSignal(target, signal, now)
@@ -417,6 +434,7 @@ internal object DianaRareMobSharing {
             DianaLootshareReadyMarkers.renderWorld(
                 context,
                 DianaRareMobRuntime.localPlayerName(),
+                activeSpawnerNames,
                 System.currentTimeMillis(),
             )
         }
@@ -544,9 +562,9 @@ internal fun refreshRemoteCocoonTargets(
         .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
         .filter { target -> target.mob == mob && target.sharedBy.name.equals(sender.name, ignoreCase = true) }
         .onEach { target ->
-            target.nearbyWithoutSignalSinceMillis = null
+            target.entity?.let(EntityHighlightRenderer::removeEntityColor)
             target.extendExpiry(now + TARGET_LIFETIME_MILLIS)
-            target.markPendingCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
+            target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         }
         .mapTo(mutableSetOf()) { target -> target.key }
     pendingClears.removeIf { pending ->

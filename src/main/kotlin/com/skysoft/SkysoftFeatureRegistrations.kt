@@ -36,6 +36,7 @@ import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.event.diana.DianaBurrowInteractions
 import com.skysoft.features.event.diana.DianaBurrowStorage
 import com.skysoft.features.event.diana.DianaLobbyCompromisedWatcher
+import com.skysoft.features.event.diana.DianaParticleQuality
 import com.skysoft.features.event.diana.DianaRareMobSharing
 import com.skysoft.features.event.diana.MythologicalRitualTracker
 import com.skysoft.features.farming.NoCropRotation
@@ -78,6 +79,7 @@ import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.ForIntrests
 import com.skysoft.features.misc.KeepTerrainLoaded
 import com.skysoft.features.misc.MouseLock
+import com.skysoft.features.misc.PartyDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
 import com.skysoft.features.misc.ScoreboardPositionEditor
@@ -214,6 +216,7 @@ internal object SkysoftFeatureRegistrations {
         register("Custom Bars", CustomBars::register)
         register("Inventory HUD", InventoryHud::register)
         register("Better TAB", BetterTab::register)
+        register("Party Display", PartyDisplay::register)
         register("Day Display", DayDisplay::register)
         register("Real Time Display", RealTimeDisplay::register)
         register("Server TPS Provider", ServerTpsProvider::register)
@@ -266,6 +269,7 @@ internal object SkysoftFeatureRegistrations {
         register("Rare Loot Features", RareLootChatFeatures::register)
         register("Keep Terrain Loaded", KeepTerrainLoaded::register)
         register("Diana Burrow Storage", DianaBurrowStorage::register)
+        register("Diana Particle Quality", DianaParticleQuality::register)
         register("Diana Burrow Helper", DianaBurrowHelper::register)
         register("Diana Burrow Interactions", DianaBurrowInteractions::register)
         register("Diana Lobby Compromised Watcher", DianaLobbyCompromisedWatcher::register)

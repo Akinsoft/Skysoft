@@ -23,39 +23,21 @@ internal data class DianaArrowBounds(
             point.z >= min.z && point.z <= max.z
 }
 
-internal data class DianaArrowProjection(
-    val candidates: List<WorldVec>,
-    val scoredCandidates: List<DianaArrowCandidate> = emptyList(),
-    val failure: DianaArrowProjectionFailure? = null,
-    val details: String = "",
+internal val dianaHubBounds = DianaArrowBounds(
+    min = WorldVec(-283.0, 0.0, -208.0),
+    max = WorldVec(175.0, 256.0, 205.0),
 )
 
 internal data class DianaArrowCandidate(
     val block: WorldVec,
     val scaledDistanceToRay: Double,
     val distanceFromOrigin: Double,
-    val distanceToRay: Double,
 )
-
-internal enum class DianaArrowProjectionFailure(
-    val message: String,
-) {
-    ORIGIN_OUTSIDE_BOUNDS("origin outside Hub bounds"),
-    MISSED_BOUNDS("ray missed Hub bounds"),
-    NO_SCAN_AXIS("ray had no usable Hub scan axis"),
-    NO_VALID_BLOCKS("no Hub blocks on ray"),
-    NO_BLOCKS_IN_RANGE("no Hub blocks in arrow distance range"),
-}
 
 internal class DianaArrowShapeDetector {
     private val points = mutableListOf<TimedArrowPoint>()
-    private var activeDistanceHint: DianaArrowDistance? = null
 
     fun add(location: WorldVec, distanceHint: DianaArrowDistance, now: Long = System.currentTimeMillis()): DianaArrowRay? {
-        if (activeDistanceHint != distanceHint) {
-            points.clear()
-            activeDistanceHint = distanceHint
-        }
         prune(now)
         if (points.none { it.location.distanceSq(location) <= DUPLICATE_POINT_DISTANCE_SQ }) {
             points += TimedArrowPoint(location, now)
@@ -67,11 +49,6 @@ internal class DianaArrowShapeDetector {
 
     fun prune(now: Long = System.currentTimeMillis()) {
         points.removeAll { point -> now - point.seenAtMillis > POINT_MEMORY_MILLIS }
-    }
-
-    fun clear() {
-        points.clear()
-        activeDistanceHint = null
     }
 
     private fun detect(distanceHint: DianaArrowDistance): DianaArrowRay? {
@@ -163,24 +140,10 @@ internal object DianaArrowProjector {
     fun project(
         ray: DianaArrowRay,
         bounds: DianaArrowBounds,
-    ): WorldVec? = projectCandidates(ray, bounds).firstOrNull()
-
-    fun projectCandidates(
-        ray: DianaArrowRay,
-        bounds: DianaArrowBounds,
-    ): List<WorldVec> = projectDetailed(ray, bounds).candidates
-
-    fun projectDetailed(
-        ray: DianaArrowRay,
-        bounds: DianaArrowBounds,
-    ): DianaArrowProjection {
-        if (!bounds.contains(ray.origin)) {
-            return DianaArrowProjection(candidates = emptyList(), failure = DianaArrowProjectionFailure.ORIGIN_OUTSIDE_BOUNDS)
-        }
-        val exitPoint = ray.intersect(bounds)
-            ?: return DianaArrowProjection(candidates = emptyList(), failure = DianaArrowProjectionFailure.MISSED_BOUNDS)
-        val axis = ray.bestProjectionAxis(exitPoint)
-            ?: return DianaArrowProjection(candidates = emptyList(), failure = DianaArrowProjectionFailure.NO_SCAN_AXIS)
+    ): List<DianaArrowCandidate> {
+        if (!bounds.contains(ray.origin)) return emptyList()
+        val exitPoint = ray.intersect(bounds) ?: return emptyList()
+        val axis = ray.bestProjectionAxis(exitPoint) ?: return emptyList()
         val candidates = linkedMapOf<String, DianaArrowCandidate>()
         val originAxis = ray.origin.axis(axis)
         val endAxis = exitPoint.axis(axis)
@@ -199,30 +162,16 @@ internal object DianaArrowProjector {
             }
         }
 
-        if (candidates.isEmpty()) {
-            return DianaArrowProjection(candidates = emptyList(), failure = DianaArrowProjectionFailure.NO_VALID_BLOCKS)
-        }
+        if (candidates.isEmpty()) return emptyList()
         val inRange = candidates.values
             .asSequence()
             .filter { candidate -> ray.distanceHint.includes(candidate.distanceFromOrigin) }
             .toList()
-        if (inRange.isEmpty()) {
-            return DianaArrowProjection(
-                candidates = emptyList(),
-                failure = DianaArrowProjectionFailure.NO_BLOCKS_IN_RANGE,
-                details = candidates.values.distanceRangeDetails(ray.distanceHint),
-            )
-        }
+        if (inRange.isEmpty()) return emptyList()
 
-        val sortedCandidates = inRange
-            .sortedWith(
-                compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
-                    .thenBy { candidate -> candidate.distanceFromOrigin },
-            )
-            .take(MAX_PROJECTED_CANDIDATES)
-        return DianaArrowProjection(
-            candidates = sortedCandidates.map { candidate -> candidate.block },
-            scoredCandidates = sortedCandidates,
+        return inRange.sortedWith(
+            compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
+                .thenBy { candidate -> candidate.distanceFromOrigin },
         )
     }
 
@@ -238,13 +187,10 @@ internal object DianaArrowProjector {
             block = this,
             scaledDistanceToRay = scaleRayDistance(distanceToRay, alongRay),
             distanceFromOrigin = alongRay,
-            distanceToRay = distanceToRay,
         )
     }
 }
 
-private const val MAX_PROJECTED_CANDIDATES = 64
-private const val DISTANCE_BAND_TOLERANCE = 12
 private const val EXISTING_TARGET_RAY_TOLERANCE = 4.0
 private const val SCALED_DISTANCE_FACTOR = 500_000.0
 private const val ROUNDING_SCALE = 100.0
@@ -323,7 +269,6 @@ private fun WorldVec.toProjectedArrowCandidate(ray: DianaArrowRay, pointOnRay: W
         block = this,
         scaledDistanceToRay = scaleRayDistance(distanceToRay, distanceFromOrigin),
         distanceFromOrigin = distanceFromOrigin,
-        distanceToRay = distanceToRay,
     )
 }
 
@@ -331,14 +276,7 @@ private fun scaleRayDistance(distanceToRay: Double, distanceFromOrigin: Double):
     (distanceToRay * SCALED_DISTANCE_FACTOR / distanceFromOrigin * ROUNDING_SCALE).roundToInt() / ROUNDING_SCALE
 
 private fun DianaArrowDistance.includes(distance: Double): Boolean =
-    distance.toInt() in (minDistance - DISTANCE_BAND_TOLERANCE).coerceAtLeast(0)..maxDistance + DISTANCE_BAND_TOLERANCE
-
-private fun Collection<DianaArrowCandidate>.distanceRangeDetails(distance: DianaArrowDistance): String {
-    val distances = map { candidate -> candidate.distanceFromOrigin.toInt() }
-    val range = "${distances.minOrNull()}-${distances.maxOrNull()}"
-    val distanceRange = "${distance.minDistance}-${distance.maxDistance}+/-$DISTANCE_BAND_TOLERANCE"
-    return "candidates=$size, range=$range, distance=$distanceRange"
-}
+    distance.toInt() in minDistance..maxDistance
 
 private fun WorldVec.axis(axis: Int): Double = when (axis) {
     X_AXIS -> x

@@ -80,6 +80,11 @@ configure(targetProjects) {
         rootProject.file("src/main/kotlin"),
         rootProject.file("src/$targetSourceSet/kotlin"),
     )
+    val detektSourceDirectories = if (minecraftVersion == defaultMinecraftVersion) {
+        kotlinSourceDirectories
+    } else {
+        listOf(rootProject.file("src/$targetSourceSet/kotlin"))
+    }
     group = rootProject.group
     version = rootProject.version
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("targets/$name"))
@@ -200,9 +205,10 @@ configure(targetProjects) {
     }
 
     extensions.configure<DetektExtension> {
+        parallel = true
         buildUponDefaultConfig = true
         config.setFrom(rootProject.layout.projectDirectory.file("detekt/detekt.yml"))
-        source.setFrom(files(kotlinSourceDirectories))
+        source.setFrom(files(detektSourceDirectories))
     }
 
     tasks.withType<AbstractArchiveTask>().configureEach {

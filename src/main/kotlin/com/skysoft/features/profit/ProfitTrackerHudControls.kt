@@ -157,7 +157,6 @@ internal class ProfitTrackerHudControls(
             val next = OverlayControlCycle.next(periods, ProfitTracker.displayPeriod(target), backwards)
             ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
             ProfileStorageApi.markDirty()
-            ProfileStorageApi.saveNow()
         }
 
     private fun wasTrackerPriceSourceCycled(target: ProfitTrackerTarget, button: Int): Boolean =

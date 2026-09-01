@@ -13,6 +13,7 @@ internal object DianaRareMobPartyMessages {
         val localPlayerName: String?,
         val receivedRareMobs: Collection<DianaRareMobOption>,
         val showRareMobSharing: Boolean,
+        val showPartyMessages: Boolean,
         val now: Long,
     )
 
@@ -26,7 +27,7 @@ internal object DianaRareMobPartyMessages {
         val sender = DianaRareMobRuntime.senderFor(message, cocoon.marker)
             ?: return ChatMessageVisibility.SHOW
         if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, context.localPlayerName, context.now)) {
-            return ChatMessageVisibility.HIDE
+            return context.messageVisibility
         }
         return when {
             sender.isLocalPlayer(context.localPlayerName) -> ChatMessageVisibility.SHOW
@@ -34,13 +35,15 @@ internal object DianaRareMobPartyMessages {
             else -> {
                 refreshRemoteCocoonTargets(targets, pendingRemoteClears, cocoon.mob, sender, context.now)
                 if (context.showRareMobSharing) {
-                    SkysoftPartyShare.showCocoonReplacement(
-                        sender = sender,
-                        label = Component.literal(cocoon.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
-                    )
+                    if (!context.showPartyMessages) {
+                        SkysoftPartyShare.showCocoonReplacement(
+                            sender = sender,
+                            label = Component.literal(cocoon.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
+                        )
+                    }
                     DianaRareMobTitleRenderer.showCocoon(cocoon.mob, sender)
                 }
-                ChatMessageVisibility.HIDE
+                context.messageVisibility
             }
         }
     }
@@ -55,7 +58,7 @@ internal object DianaRareMobPartyMessages {
         val sender = DianaRareMobRuntime.senderFor(message, clear.marker)
             ?: return ChatMessageVisibility.SHOW
         if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, context.localPlayerName, context.now)) {
-            return ChatMessageVisibility.HIDE
+            return context.messageVisibility
         }
         val clearedTargets = targets
             .filter { target ->
@@ -68,7 +71,7 @@ internal object DianaRareMobPartyMessages {
                 clearTarget(target)
             }
         }
-        return ChatMessageVisibility.HIDE
+        return context.messageVisibility
     }
 
     fun handleShare(
@@ -80,7 +83,7 @@ internal object DianaRareMobPartyMessages {
         val sender = DianaRareMobRuntime.senderFor(message, share)
             ?: return ChatMessageVisibility.SHOW
         if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, context.localPlayerName, context.now)) {
-            return ChatMessageVisibility.HIDE
+            return context.messageVisibility
         }
         return when {
             share.mob !in context.receivedRareMobs -> ChatMessageVisibility.SHOW
@@ -88,15 +91,20 @@ internal object DianaRareMobPartyMessages {
             else -> {
                 rememberShare(share, sender)
                 if (context.showRareMobSharing) {
-                    SkysoftPartyShare.showFoundReplacement(
-                        sender = sender,
-                        label = Component.literal(share.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
-                        location = share.location,
-                    )
+                    if (!context.showPartyMessages) {
+                        SkysoftPartyShare.showFoundReplacement(
+                            sender = sender,
+                            label = Component.literal(share.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
+                            location = share.location,
+                        )
+                    }
                     DianaRareMobTitleRenderer.show(share.mob, sender)
                 }
-                ChatMessageVisibility.HIDE
+                context.messageVisibility
             }
         }
     }
+
+    private val Context.messageVisibility: ChatMessageVisibility
+        get() = if (showPartyMessages) ChatMessageVisibility.SHOW else ChatMessageVisibility.HIDE
 }

@@ -10,7 +10,7 @@ internal object DianaBurrowParticleDetector {
     fun handle(event: ClientParticleEvent, now: Long = System.currentTimeMillis()): DianaBurrowDetectionChange? {
         val kind = DianaParticleClassifier.classify(event) ?: return null
         val location = event.location.down().roundToBlock()
-        val partial = partialBurrows.getOrPut(location.blockKey()) { PartialBurrow(location) }
+        val partial = partialBurrows.getOrPut(location.blockKey()) { PartialBurrow() }
 
         when (kind) {
             DianaBurrowParticleKind.ENCHANT -> partial.enchantSamples++
@@ -42,17 +42,12 @@ internal object DianaBurrowParticleDetector {
         return DianaBurrowDetectionChange.CONFIRMED
     }
 
-    fun hasRecentBurrowNear(
+    fun hasRecentBurrowAt(
         location: WorldVec,
-        maxDistance: Double,
         now: Long = System.currentTimeMillis(),
     ): Boolean {
-        val block = location.roundToBlock()
-        return partialBurrows.values.any { partial ->
-            now - partial.lastSeenMillis <= PARTICLE_MEMORY_MILLIS &&
-                partial.hasSignal() &&
-                partial.location.distance(block) <= maxDistance
-        }
+        val partial = partialBurrows[location.roundToBlock().blockKey()] ?: return false
+        return now - partial.lastSeenMillis <= PARTICLE_MEMORY_MILLIS && partial.hasSignal()
     }
 
     fun prune(now: Long = System.currentTimeMillis()) {
@@ -63,8 +58,7 @@ internal object DianaBurrowParticleDetector {
         partialBurrows.clear()
     }
 
-    private data class PartialBurrow(
-        val location: WorldVec,
+    private class PartialBurrow(
         var enchantSamples: Int = 0,
         var type: DianaBurrowType? = null,
         var typeSamples: Int = 0,

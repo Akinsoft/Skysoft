@@ -53,12 +53,7 @@ object ProfitTracker {
     private var previousPreset: ProfitTrackerPreset? = null
     private var previousPresetLeftAtMillis = 0L
     private val uptime = ProfitUptimeTracker<ProfitTrackerTarget>(
-        pauseAfterMillis = { target ->
-            target.config.settings.pauseAfterSeconds.coerceIn(
-                MINIMUM_PAUSE_AFTER_SECONDS,
-                MAXIMUM_PAUSE_AFTER_SECONDS,
-            ) * MILLIS_PER_SECOND
-        },
+        pauseAfterMillis = { target -> target.config.pauseAfterMillis },
         onUptimeChanged = { target, change ->
             update(target) { stats ->
                 stats.activeMillis = (stats.activeMillis + change).coerceAtLeast(0L)
@@ -197,16 +192,12 @@ object ProfitTracker {
         get() {
             val preset = ProfitTrackerPreset.FISHING
             val config = presetConfig(preset)
-            val pauseAfterMillis = config.settings.pauseAfterSeconds.coerceIn(
-                MINIMUM_PAUSE_AFTER_SECONDS,
-                MAXIMUM_PAUSE_AFTER_SECONDS,
-            ) * MILLIS_PER_SECOND
             return preset.takeIf {
                 config.enabled &&
                     isProfitTimerActive(
                         uptime.lastActivityAt(ProfitTrackerTarget.preset(preset)),
                         System.currentTimeMillis(),
-                        pauseAfterMillis,
+                        config.pauseAfterMillis,
                     )
             }
         }
@@ -259,7 +250,6 @@ object ProfitTracker {
             }
         }
         target.slayerType?.let { SlayerTimeToKill.reset(it, period) }
-        if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.saveNow()
     }
 
     internal fun modifyItemAmount(target: ProfitTrackerTarget, itemId: String, amount: Long) {
@@ -279,7 +269,6 @@ object ProfitTracker {
             }
             if (updated == 0L) stats.itemCounts.remove(itemId) else stats.itemCounts[itemId] = updated
         }
-        ProfileStorageApi.saveNow()
     }
 
     internal fun deleteCustomTrackerData(target: ProfitTrackerTarget) {
@@ -299,7 +288,6 @@ object ProfitTracker {
             }
         }
         ProfileStorageApi.markDirty()
-        ProfileStorageApi.saveNow()
     }
 
     private fun recordFarmingBlock(block: Block) {
@@ -581,6 +569,11 @@ internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
             ProfitTrackerPreset.VAMPIRE -> vampire
         }
     }
+
+private val ProfitTrackerConfig.pauseAfterMillis: Int?
+    get() = settings.pauseAfterSeconds.coerceIn(MINIMUM_PAUSE_AFTER_SECONDS, MAXIMUM_PAUSE_AFTER_SECONDS)
+        .times(MILLIS_PER_SECOND)
+        .takeIf { settings.pauseAfter }
 
 private fun newProfitTrackerStats() = ProfileStorage.ProfitTrackerStats()
 

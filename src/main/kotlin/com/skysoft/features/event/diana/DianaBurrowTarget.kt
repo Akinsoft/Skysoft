@@ -9,6 +9,7 @@ internal data class DianaBurrowTarget(
     val source: DianaBurrowSource,
     val createdAtMillis: Long,
     val updatedAtMillis: Long,
+    val guessCandidates: List<WorldVec> = emptyList(),
 )
 
 internal enum class DianaBurrowSource {
