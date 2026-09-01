@@ -9,19 +9,14 @@ import com.mojang.blaze3d.vertex.VertexFormatElement
 import org.lwjgl.system.MemoryUtil
 
 object SkysoftVertexFormats {
-    private val lastRegisteredId by lazy {
-        (0 until VertexFormatElement.MAX_COUNT).filter { VertexFormatElement.byId(it) != null }.max()
-    }
-
     enum class VertexElement {
         ROUNDED_PARAMS_0,
         ROUNDED_PARAMS_1,
         CONTOUR_UV_BOUNDS,
         ;
 
-        private val registrationId: Int by lazy { lastRegisteredId + ordinal + 1 }
         val element: VertexFormatElement by lazy {
-            safeRegister(registrationId)
+            safeRegister()
         }
     }
 
@@ -43,8 +38,8 @@ object SkysoftVertexFormats {
             .build()
     }
 
-    private fun safeRegister(desiredId: Int): VertexFormatElement {
-        val id = (desiredId until VertexFormatElement.MAX_COUNT).first { VertexFormatElement.byId(it) == null }
+    private fun safeRegister(): VertexFormatElement {
+        val id = (0 until VertexFormatElement.MAX_COUNT).first { VertexFormatElement.byId(it) == null }
         return VertexFormatElement.register(id, 0, VertexFormatElement.Type.FLOAT, false, PARAMETER_COMPONENT_COUNT)
     }
 
