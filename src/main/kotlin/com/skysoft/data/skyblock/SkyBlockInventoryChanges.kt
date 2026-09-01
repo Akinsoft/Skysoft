@@ -5,13 +5,13 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockMenuItem.SKYBLOCK_MENU_SLOT
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
 
 object SkyBlockInventoryChanges {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockInventoryChange) -> Unit>()
     private val cachedCounts = mutableMapOf<InventoryOwner, Map<String, Int>>()
     private var previousCounts: Map<String, Int>? = null
     private var previousSignature: List<Int>? = null
@@ -37,7 +37,7 @@ object SkyBlockInventoryChanges {
         isActive: () -> Boolean,
         listener: (SkyBlockInventoryChange) -> Unit,
     ) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     private fun update(minecraft: Minecraft) {
@@ -129,11 +129,7 @@ object SkyBlockInventoryChanges {
     private fun dispatch(changes: Map<String, Int>) {
         if (changes.isEmpty()) return
         val observation = SkyBlockInventoryChange(changes)
-        listeners.forEach { registered ->
-            if (registered.isActive()) {
-                SkysoftErrorBoundary.run(registered.boundary) { registered.listener(observation) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(observation) }
     }
 
     private fun reset() {
@@ -144,12 +140,6 @@ object SkyBlockInventoryChanges {
         reportSettlingChanges = false
         settlingTicks = 0
     }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockInventoryChange) -> Unit,
-    )
 
     private data class InventoryOwner(
         val playerId: String,

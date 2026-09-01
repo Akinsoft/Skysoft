@@ -3,7 +3,7 @@ package com.skysoft.features.helditem
 import com.skysoft.config.HeldItemConfig
 import com.skysoft.config.HeldItemCustomizationSnapshot
 import com.skysoft.utils.ChangeResult
-import java.util.ArrayDeque
+import com.skysoft.utils.SnapshotHistory
 import java.util.Locale
 
 internal data class HeldItemHistoryKey(val itemId: String?) {
@@ -38,43 +38,35 @@ internal class HeldItemHistoryStore(
         val after = config.snapshotCustomization(edit.key.itemId)
         if (after == edit.before) return ChangeResult.UNCHANGED
         val history = histories.getOrPut(edit.key) { ContextHistory() }
-        history.undo.addLast(edit.before)
-        history.undo.trimToLimit()
-        history.redo.clear()
+        history.snapshots.record(edit.before, after)
         history.lastTouchedAtNanos = clockNanos()
         return ChangeResult.CHANGED
     }
 
     fun canUndo(key: HeldItemHistoryKey): Boolean {
         expireInactiveHistories()
-        return histories[key]?.undo?.isNotEmpty() == true
+        return histories[key]?.snapshots?.canUndo == true
     }
 
     fun canRedo(key: HeldItemHistoryKey): Boolean {
         expireInactiveHistories()
-        return histories[key]?.redo?.isNotEmpty() == true
+        return histories[key]?.snapshots?.canRedo == true
     }
 
     fun undo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult {
         expireInactiveHistories()
         val history = histories[key] ?: return ChangeResult.UNCHANGED
-        val snapshot = history.undo.pollLast() ?: return ChangeResult.UNCHANGED
-        history.redo.addLast(config.snapshotCustomization(key.itemId))
-        history.redo.trimToLimit()
-        config.restoreCustomization(key.itemId, snapshot)
-        history.lastTouchedAtNanos = clockNanos()
-        return ChangeResult.CHANGED
+        val result = history.snapshots.undo { snapshot -> config.restoreCustomization(key.itemId, snapshot) }
+        if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = clockNanos()
+        return result
     }
 
     fun redo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult {
         expireInactiveHistories()
         val history = histories[key] ?: return ChangeResult.UNCHANGED
-        val snapshot = history.redo.pollLast() ?: return ChangeResult.UNCHANGED
-        history.undo.addLast(config.snapshotCustomization(key.itemId))
-        history.undo.trimToLimit()
-        config.restoreCustomization(key.itemId, snapshot)
-        history.lastTouchedAtNanos = clockNanos()
-        return ChangeResult.CHANGED
+        val result = history.snapshots.redo { snapshot -> config.restoreCustomization(key.itemId, snapshot) }
+        if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = clockNanos()
+        return result
     }
 
     private fun expireInactiveHistories() {
@@ -84,13 +76,8 @@ internal class HeldItemHistoryStore(
         }
     }
 
-    private fun <T> ArrayDeque<T>.trimToLimit() {
-        while (size > HistoryLimits.MAX_STEPS) removeFirst()
-    }
-
     private data class ContextHistory(
-        val undo: ArrayDeque<HeldItemCustomizationSnapshot> = ArrayDeque(),
-        val redo: ArrayDeque<HeldItemCustomizationSnapshot> = ArrayDeque(),
+        val snapshots: SnapshotHistory<HeldItemCustomizationSnapshot> = SnapshotHistory(HistoryLimits.MAX_STEPS),
         var lastTouchedAtNanos: Long = 0L,
     )
 }

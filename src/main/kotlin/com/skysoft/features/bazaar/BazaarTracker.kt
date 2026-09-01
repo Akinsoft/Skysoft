@@ -2,6 +2,7 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -402,8 +403,3 @@ internal const val PARTIAL_SOUND_PITCH = 0.35f
 internal const val OUTBID_SOUND_VOLUME = 0.65f
 internal const val OUTBID_SOUND_PITCH = 0.7f
 internal val WHITE_TEXT_COLOR = 0xFFFFFFFF.toInt()
-
-enum class BazaarOrderType(val label: String) {
-    BUY("BUY"),
-    SELL("SELL"),
-}

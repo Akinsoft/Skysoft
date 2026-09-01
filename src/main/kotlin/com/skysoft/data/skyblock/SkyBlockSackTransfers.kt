@@ -1,13 +1,13 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 
 object SkyBlockSackTransfers {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockSackTransfer) -> Unit>()
     private var insertInventoryUntilMillis = 0L
 
     fun register() {
@@ -39,24 +39,14 @@ object SkyBlockSackTransfers {
     }
 
     fun onTransfer(boundary: String, isActive: () -> Boolean, listener: (SkyBlockSackTransfer) -> Unit) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     private fun dispatch(transfer: SkyBlockSackTransfer) {
-        listeners.forEach { registered ->
-            if (registered.isActive()) {
-                SkysoftErrorBoundary.run(registered.boundary) { registered.listener(transfer) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(transfer) }
     }
 
-    private fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockSackTransfer) -> Unit,
-    )
+    private fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 }
 
 data class SkyBlockSackTransfer(

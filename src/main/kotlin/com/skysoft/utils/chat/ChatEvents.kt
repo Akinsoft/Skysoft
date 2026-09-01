@@ -1,5 +1,6 @@
 package com.skysoft.utils.chat
 
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
@@ -7,10 +8,10 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.network.chat.Component
 
 object ChatEvents {
-    private var visibleListeners: List<Listener<ChatMessage, ChatMessageVisibility>> = emptyList()
-    private var actionBarListeners: List<Listener<SkysoftMessage, ChatMessageVisibility>> = emptyList()
-    private var visibleGameModifiers: List<Listener<ChatMessage, Component>> = emptyList()
-    private var actionBarModifiers: List<Listener<SkysoftMessage, Component>> = emptyList()
+    private val visibleListeners = ActiveListenerRegistry<(ChatMessage) -> ChatMessageVisibility>()
+    private val actionBarListeners = ActiveListenerRegistry<(SkysoftMessage) -> ChatMessageVisibility>()
+    private val visibleGameModifiers = ActiveListenerRegistry<(ChatMessage) -> Component>()
+    private val actionBarModifiers = ActiveListenerRegistry<(SkysoftMessage) -> Component>()
     private var registered = false
 
     fun onVisibleMessage(
@@ -19,7 +20,7 @@ object ChatEvents {
         listener: (ChatMessage) -> ChatMessageVisibility,
     ) {
         register()
-        visibleListeners += Listener(boundary, isActive, listener)
+        visibleListeners.register(boundary, isActive, listener)
     }
 
     private fun onMessageType(
@@ -47,7 +48,7 @@ object ChatEvents {
         listener: (SkysoftMessage) -> ChatMessageVisibility,
     ) {
         register()
-        actionBarListeners += Listener(boundary, isActive, listener)
+        actionBarListeners.register(boundary, isActive, listener)
     }
 
     fun onVisibleGameMessageModify(
@@ -56,7 +57,7 @@ object ChatEvents {
         modifier: (ChatMessage) -> Component,
     ) {
         register()
-        visibleGameModifiers += Listener(boundary, isActive, modifier)
+        visibleGameModifiers.register(boundary, isActive, modifier)
     }
 
     fun onActionBarModify(
@@ -65,7 +66,7 @@ object ChatEvents {
         modifier: (SkysoftMessage) -> Component,
     ) {
         register()
-        actionBarModifiers += Listener(boundary, isActive, modifier)
+        actionBarModifiers.register(boundary, isActive, modifier)
     }
 
     private fun register() {
@@ -91,9 +92,9 @@ object ChatEvents {
     }
 
     private fun dispatchIncoming(message: SkysoftMessage): ChatMessageVisibility = when {
-        message.source == SkysoftMessageSource.GAME && message.overlay && actionBarListeners.hasActiveListeners() ->
+        message.source == SkysoftMessageSource.GAME && message.overlay && actionBarListeners.hasActiveListeners ->
             dispatchActionBar(message)
-        !message.overlay && visibleListeners.hasActiveListeners() -> dispatchVisible(ChatMessageClassifier.classify(message))
+        !message.overlay && visibleListeners.hasActiveListeners -> dispatchVisible(ChatMessageClassifier.classify(message))
         else -> ChatMessageVisibility.SHOW
     }
 
@@ -105,16 +106,10 @@ object ChatEvents {
 
     private fun <T> modifyGameMessage(
         message: SkysoftMessage,
-        modifiers: List<Listener<T, Component>>,
+        modifiers: ActiveListenerRegistry<(T) -> Component>,
         prepare: (SkysoftMessage) -> T,
-    ): Component = modifiers.fold(message.component) { component, modifier ->
-        if (modifier.isActive()) {
-            SkysoftErrorBoundary.value(modifier.boundary, component) {
-                modifier.callback(prepare(SkysoftMessage(component, message.source, message.overlay)))
-            }
-        } else {
-            component
-        }
+    ): Component = modifiers.foldActive(message.component) { component, modifier ->
+        modifier(prepare(SkysoftMessage(component, message.source, message.overlay)))
     }
 
     private fun dispatchVisible(message: ChatMessage): ChatMessageVisibility =
@@ -125,28 +120,14 @@ object ChatEvents {
 
     private fun <T> dispatch(
         message: T,
-        listeners: List<Listener<T, ChatMessageVisibility>>,
+        listeners: ActiveListenerRegistry<(T) -> ChatMessageVisibility>,
     ): ChatMessageVisibility =
-        listeners.fold(ChatMessageVisibility.SHOW) { result, listener ->
-            if (listener.isActive()) {
-                SkysoftErrorBoundary.value(listener.boundary, result) {
-                    listener.callback(message).combine(result)
-                }
-            } else {
-                result
-            }
+        listeners.foldActive(ChatMessageVisibility.SHOW) { result, listener ->
+            listener(message).combine(result)
         }
-
-    private fun <T, R> List<Listener<T, R>>.hasActiveListeners(): Boolean = any { it.isActive() }
 
     private fun ChatMessageVisibility.combine(previous: ChatMessageVisibility): ChatMessageVisibility =
         if (this == ChatMessageVisibility.HIDE) this else previous
-
-    private data class Listener<T, R>(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val callback: (T) -> R,
-    )
 }
 
 enum class ChatMessageVisibility {

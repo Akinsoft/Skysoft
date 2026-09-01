@@ -6,6 +6,7 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -17,9 +18,7 @@ internal fun handleBazaarTrackerMouseButtonPress(button: Int): InputHandlingResu
     ) return InputHandlingResult.IGNORED
     val minecraft = Minecraft.getInstance()
     val screen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*> ?: return InputHandlingResult.IGNORED
-    val window = minecraft.window
-    val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
-    val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
+    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
     val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
     if (InventoryOverlayInput.isPointCovered(screen, screenMouseX.toDouble(), screenMouseY.toDouble())) {
         return InputHandlingResult.IGNORED

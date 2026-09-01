@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthRow
 import kotlin.math.abs

@@ -1,6 +1,7 @@
 package com.skysoft.features.screenshot
 
 import com.skysoft.utils.EasingUtilities
+import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
 
@@ -15,20 +16,20 @@ internal class ScreenshotFocusTransition {
     private var kind = ScreenshotFocusTransitionKind.NONE
     private var sourceBounds: Rect? = null
     private var navigationDirection = 0
-    private var startedAtNanos = 0L
+    private val clock = AnimationClock()
 
     fun startExpansion(source: Rect) {
         kind = ScreenshotFocusTransitionKind.EXPANSION
         sourceBounds = source
         navigationDirection = 0
-        startedAtNanos = System.nanoTime()
+        clock.restart()
     }
 
     fun startNavigation(direction: Int) {
         kind = ScreenshotFocusTransitionKind.NAVIGATION
         sourceBounds = null
         navigationDirection = direction.coerceIn(-1, 1)
-        startedAtNanos = System.nanoTime()
+        clock.restart()
     }
 
     fun visuals(target: Rect): ScreenshotFocusVisuals {
@@ -65,7 +66,7 @@ internal class ScreenshotFocusTransition {
         kind = ScreenshotFocusTransitionKind.NONE
         sourceBounds = null
         navigationDirection = 0
-        startedAtNanos = 0L
+        clock.stop()
     }
 
     private fun progress(): Double {
@@ -75,7 +76,7 @@ internal class ScreenshotFocusTransition {
             ScreenshotFocusTransitionKind.NAVIGATION -> NAVIGATION_DURATION_NANOS
             ScreenshotFocusTransitionKind.NONE -> return 1.0
         }
-        return ((System.nanoTime() - startedAtNanos) / duration.toDouble()).coerceIn(0.0, 1.0)
+        return clock.progressNanos(duration).toDouble()
     }
 
     private companion object {

@@ -1,7 +1,7 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryCell
 import net.minecraft.client.Minecraft
-import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
 private val bazaarOrderOwnerPattern = Regex("""^By: (?:\[[^]]+] )*([A-Za-z0-9_]{1,16})$""")
@@ -29,8 +29,8 @@ internal fun isLocalCoopBazaarOrder(stack: ItemStack): Boolean {
     return isLocalBazaarOrder(stack, playerName) == true
 }
 
-internal fun parseBazaarOrderScan(title: String, slots: List<Slot>): BazaarOrderScan? {
-    if (!ordersMenuLoaded(slots)) return null
+internal fun parseBazaarOrderScan(title: String, cells: List<SkyBlockOpenInventoryCell>): BazaarOrderScan? {
+    if (!ordersMenuLoaded(cells.asSequence().map { cell -> cell.item })) return null
     val playerName = if (title == COOP_BAZAAR_ORDERS_TITLE) {
         Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank) ?: return null
     } else {
@@ -38,11 +38,11 @@ internal fun parseBazaarOrderScan(title: String, slots: List<Slot>): BazaarOrder
     }
     val orders = mutableListOf<PendingOrder>()
     val localOrderSlots = mutableSetOf<Int>()
-    for (slot in slots) {
-        val parsed = parseOrdersStack(slot.item)?.copy(guiSlot = slot.containerSlot) ?: continue
+    for (cell in cells) {
+        val parsed = parseOrdersStack(cell.item)?.copy(guiSlot = cell.index) ?: continue
         orders += parsed
-        val isLocal = playerName?.let { isLocalBazaarOrder(slot.item, it) ?: return null } ?: true
-        if (isLocal) localOrderSlots += slot.containerSlot
+        val isLocal = playerName?.let { isLocalBazaarOrder(cell.item, it) ?: return null } ?: true
+        if (isLocal) localOrderSlots += cell.index
     }
     return BazaarOrderScan(orders, localOrderSlots)
 }

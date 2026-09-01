@@ -1,8 +1,8 @@
 package com.skysoft.features.combat
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.events.sound.ClientSoundEvent
 import com.skysoft.events.sound.ClientSoundEvents
-import net.minecraft.client.Minecraft
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
@@ -78,16 +78,14 @@ internal object BetterShurikenSoundCorrelation {
         targetConsumer?.invoke(SoundTargetResolution(target, replacedMobUuid))
     }
 
-    private fun closestTarget(location: Vec3): LivingEntity? {
-        val level = Minecraft.getInstance().level ?: return null
-        return level.entitiesForRendering()
+    private fun closestTarget(location: Vec3): LivingEntity? =
+        ClientEntitySnapshot.entities()
             .filterIsInstance<LivingEntity>()
             .filter { entity -> entity.isAlive && entity !is ArmorStand && entity !is Player }
             .map { entity -> entity to entity.boundingBox.distanceToSqr(location) }
             .minByOrNull { (_, distance) -> distance }
             ?.takeIf { (_, distance) -> distance <= MAX_SOUND_TARGET_DISTANCE_SQUARED }
             ?.first
-    }
 
     private val ClientSoundEvent.isShurikenConfirmation: Boolean
         get() = sound.location().toString() == SHURIKEN_CONFIRMATION_SOUND &&

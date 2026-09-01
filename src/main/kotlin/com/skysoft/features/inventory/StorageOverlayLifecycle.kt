@@ -3,11 +3,8 @@ package com.skysoft.features.inventory
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.nonPlayerSlots
 import com.skysoft.utils.input.InputHandlingResult
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -18,6 +15,10 @@ import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
 
 internal fun registerStorageOverlay() {
+    InventoryOverlayInput.registerCoverageProvider("Storage Overlay coverage", { isStorageOverlayEnabled }) {
+            screen, mouseX, mouseY ->
+        StorageOverlayController.isClickInsideOverlay(screen, mouseX, mouseY)
+    }
     StorageCache.registerConsumer("Storage Overlay") { isStorageOverlayEnabled }
     SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset", { isStorageOverlayEnabled }) { resetTransientState() }
     SkysoftClientEvents.onDisconnect("Storage Overlay disconnect reset", ::resetTransientState)
@@ -35,17 +36,8 @@ internal fun registerStorageOverlay() {
 }
 
 private fun registerMouseClickInterceptor() {
-    ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (!isStorageOverlayEnabled) return@register
-        SkysoftErrorBoundary.run("Storage Overlay screen initialization") {
-            if (screen is AbstractContainerScreen<*>) {
-                ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-                    SkysoftErrorBoundary.value("Storage Overlay mouse click", true) {
-                        handlePreScreenMouseClick(screen, click) == InputHandlingResult.IGNORED
-                    }
-                }
-            }
-        }
+    InventoryOverlayInput.registerClickHandler("Storage Overlay mouse click", { isStorageOverlayEnabled }) { screen, click ->
+        handlePreScreenMouseClick(screen, click)
     }
 }
 
@@ -55,13 +47,11 @@ internal fun storageOverlayIsActive(screen: AbstractContainerScreen<*>?): Boolea
 
 internal fun storageOverlayLayoutScreen(
     screen: AbstractContainerScreen<*>,
-    shouldReadScreen: Boolean = true,
 ): StorageOverlayLayoutState? {
     val handle = handleFor(screen) ?: run {
         restoreStorageOverlaySlots(screen)
         return null
     }
-    if (shouldReadScreen) readScreen(screen, handle)
     rememberActivePage(handle)
     redirectToRememberedPage(screen, handle)
     synchronizeModernFocus(screen, handle)
@@ -120,7 +110,7 @@ internal fun renderStorageOverlayBackground(
 }
 
 private fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-    val layoutState = storageOverlayLayoutScreen(screen, shouldReadScreen = false) ?: return
+    val layoutState = storageOverlayLayoutScreen(screen) ?: return
     SmoothSwapping.beginFrame(screen)
     val handle = layoutState.handle
     val measurements = layoutState.measurements
@@ -201,7 +191,7 @@ internal fun handleStorageOverlayMouseClick(
         processModernFocusCollapse(click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY) ==
         InputHandlingResult.CONSUMED
     ) {
-        storageOverlayLayoutScreen(screen, shouldReadScreen = false)
+        storageOverlayLayoutScreen(screen)
         return InputHandlingResult.CONSUMED
     }
     routeModernForegroundClick(click, measurements, pageLayoutResult.pages, activePage, mouseX, mouseY)

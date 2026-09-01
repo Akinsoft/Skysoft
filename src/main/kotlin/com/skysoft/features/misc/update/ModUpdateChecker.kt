@@ -7,6 +7,7 @@ import com.skysoft.utils.BrowserUtilities
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.SkysoftHttp
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.Version
@@ -14,7 +15,7 @@ import net.fabricmc.loader.api.metadata.CustomValue
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.concurrent.CompletableFuture
+import net.minecraft.client.Minecraft
 
 object ModUpdateChecker {
     private const val API = "https://api.modrinth.com/v2/project"
@@ -29,7 +30,7 @@ object ModUpdateChecker {
         private set
 
     private var registered = false
-    private var activeRequest: CompletableFuture<*>? = null
+    private val requestSlot = AsyncRequestSlot<SkysoftUpdate?>(completionExecutor = Minecraft.getInstance())
     private var announcedVersion: String? = null
 
     fun register() {
@@ -42,6 +43,7 @@ object ModUpdateChecker {
         SkysoftClientEvents.onDisconnect("Mod Update disconnect reset") {
             announcedVersion = null
         }
+        SkysoftClientEvents.onClientStopping("Mod Update request cancellation") { requestSlot.cancel() }
     }
 
     fun check(force: Boolean = false, announce: Boolean = false) {
@@ -58,24 +60,26 @@ object ModUpdateChecker {
         }
 
         status = UpdateStatus(UpdateState.CHECKING)
-        activeRequest?.cancel(true)
-        activeRequest = SkysoftHttp.getString(metadata.url(), Duration.ofSeconds(UPDATE_REQUEST_TIMEOUT_SECONDS))
-            .thenApply { response -> latestUpdate(response, metadata.project) }
-            .whenComplete { update, error ->
-                SkysoftErrorBoundary.onClientThread("Mod Update async completion") {
-                    if (error != null) {
-                        fail(error, chat = force)
-                        return@onClientThread
-                    }
-                    if (update == null) {
-                        status = UpdateStatus(UpdateState.CURRENT)
-                        if (force) SkysoftChat.success("Skysoft is up to date.")
-                        return@onClientThread
-                    }
-                    status = UpdateStatus(UpdateState.AVAILABLE, update)
-                    if (force || announce) announceUpdate()
+        requestSlot.startIfIdle(
+            requestFactory = {
+                SkysoftHttp.getString(metadata.url(), Duration.ofSeconds(UPDATE_REQUEST_TIMEOUT_SECONDS))
+                    .thenApply { response -> latestUpdate(response, metadata.project) }
+            },
+        ) { update, error ->
+            SkysoftErrorBoundary.run("Mod Update async completion") {
+                if (error != null) {
+                    fail(error, chat = force)
+                    return@run
                 }
+                if (update == null) {
+                    status = UpdateStatus(UpdateState.CURRENT)
+                    if (force) SkysoftChat.success("Skysoft is up to date.")
+                    return@run
+                }
+                status = UpdateStatus(UpdateState.AVAILABLE, update)
+                if (force || announce) announceUpdate()
             }
+        }
     }
 
     fun openDownload(): DownloadOpenResult {

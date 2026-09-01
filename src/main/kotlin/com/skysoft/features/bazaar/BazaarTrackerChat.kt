@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.buyClaimPattern

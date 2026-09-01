@@ -1,5 +1,6 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.features.pets.display.text.PetTextDisplaySettings
 import com.skysoft.config.features.pets.display.text.PetTextConfig
 import com.skysoft.data.StoredPetData

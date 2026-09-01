@@ -1,20 +1,41 @@
 package com.skysoft.gui
 
 import com.skysoft.config.core.HudPosition
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object HudEditorRegistry {
     private val elements = linkedMapOf<String, HudEditorElement>()
+    private val providers = linkedMapOf<String, () -> List<HudEditorElement>>()
 
     fun register(element: HudEditorElement) {
+        requireCanRegister(element)
         elements[element.id] = element
     }
 
-    fun visibleElements(hasInventoryScreen: Boolean = false): List<HudEditorElement> =
-        elements.values.filter {
-            it.isVisible() && (hasInventoryScreen || !it.requiresInventoryScreen)
+    internal fun requireCanRegister(element: HudEditorElement) {
+        require(element.id !in elements) { "Duplicate HUD editor element id: ${element.id}" }
+    }
+
+    fun registerProvider(id: String, provider: () -> List<HudEditorElement>) {
+        require(id !in providers) { "Duplicate HUD editor provider id: $id" }
+        providers[id] = provider
+    }
+
+    fun visibleElements(hasInventoryScreen: Boolean = false): List<HudEditorElement> {
+        val providedElements = providers.flatMap { (id, provider) ->
+            SkysoftErrorBoundary.value("HUD editor provider $id", emptyList(), provider)
         }
+        val allElements = elements.values + providedElements
+        val duplicateId = allElements.groupingBy(HudEditorElement::id).eachCount().entries
+            .firstOrNull { (_, count) -> count > 1 }
+            ?.key
+        require(duplicateId == null) { "Duplicate HUD editor element id: $duplicateId" }
+        return allElements.filter { element ->
+            element.isVisible() && (hasInventoryScreen || !element.requiresInventoryScreen)
+        }
+    }
 }
 
 interface HudEditorElement {

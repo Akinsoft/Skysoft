@@ -3,7 +3,7 @@ package com.skysoft.features.ravengard
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.ravengard.RAVENGARD_NAMESPACE
-import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
+import com.skysoft.utils.ItemTooltipEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -12,8 +12,8 @@ import net.minecraft.world.item.ItemStack
 
 object RavengardWeaponDpsTooltip {
     fun register() {
-        ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            if (!isEnabled() || !isRavengardWeapon(stack)) return@register
+        ItemTooltipEvents.register("Ravengard weapon DPS", ::isEnabled) tooltip@{ stack, _, _, tooltip ->
+            if (!isRavengardWeapon(stack)) return@tooltip
             addRavengardWeaponDps(tooltip)
         }
     }

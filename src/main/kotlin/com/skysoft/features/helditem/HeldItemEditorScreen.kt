@@ -5,9 +5,11 @@ import com.skysoft.config.HeldItemSwingStyle
 import com.skysoft.config.HeldItemTransformConfig
 import com.skysoft.config.HeldItemTransformLimits
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.gui.SkysoftEditorScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ColorUtilities.withAlpha
+import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelControlColors
@@ -16,6 +18,7 @@ import com.skysoft.utils.gui.PixelSliderRenderer
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.gui.elide
 import java.util.Locale
 import kotlin.math.max
@@ -53,7 +56,7 @@ object HeldItemEditorScreen {
             null
         }
 
-    class EditorScreen(private val parent: Screen?) : Screen(Component.literal("Skysoft Held Item")) {
+    class EditorScreen(parent: Screen?) : SkysoftEditorScreen(Component.literal("Skysoft Held Item"), parent) {
         private val config: HeldItemConfig
             get() = SkysoftConfigGui.config().gui.heldItem
 
@@ -253,10 +256,9 @@ object HeldItemEditorScreen {
             }
         }
 
-        override fun onClose() {
+        protected override fun beforeEditorClose() {
             historyController.flushPending()
             saveChanges()
-            MinecraftClient.setScreen(parent)
         }
 
         override fun isPauseScreen(): Boolean = false
@@ -407,10 +409,10 @@ private fun historyActionAt(
 }
 
 private class HeldItemEditorOpeningAnimation {
-    private var startedAtNanos = 0L
+    private val clock = AnimationClock()
 
     fun start() {
-        if (startedAtNanos == 0L) startedAtNanos = System.nanoTime()
+        if (!clock.hasStarted()) clock.restart()
     }
 
     fun isComplete(): Boolean = progress() >= 1f
@@ -422,12 +424,12 @@ private class HeldItemEditorOpeningAnimation {
             return
         }
         if (progress < EditorAnimation.LINE_PHASE_END) {
-            val lineProgress = easeOutCubic(progress / EditorAnimation.LINE_PHASE_END)
+            val lineProgress = EasingUtilities.easeOutCubic(progress / EditorAnimation.LINE_PHASE_END)
             drawLine(context, bounds, lineProgress, 1f)
             return
         }
 
-        val unfoldProgress = easeOutCubic(
+        val unfoldProgress = EasingUtilities.easeOutCubic(
             (progress - EditorAnimation.LINE_PHASE_END) / (1f - EditorAnimation.LINE_PHASE_END),
         )
         val visibleHeight = (bounds.height * unfoldProgress).roundToInt().coerceAtLeast(1)
@@ -442,8 +444,8 @@ private class HeldItemEditorOpeningAnimation {
     }
 
     private fun progress(): Float {
-        check(startedAtNanos != 0L) { "Held item editor animation was not started" }
-        return ((System.nanoTime() - startedAtNanos) / EditorAnimation.DURATION_NANOS.toFloat()).coerceIn(0f, 1f)
+        check(clock.hasStarted()) { "Held item editor animation was not started" }
+        return clock.progressNanos(EditorAnimation.DURATION_NANOS)
     }
 
     private fun drawLine(
@@ -460,10 +462,6 @@ private class HeldItemEditorOpeningAnimation {
         context.fill(lineX, lineY, lineX + lineWidth, lineY + EditorAnimation.LINE_HEIGHT, color)
     }
 
-    private fun easeOutCubic(progress: Float): Float {
-        val remaining = 1f - progress.coerceIn(0f, 1f)
-        return 1f - remaining * remaining * remaining
-    }
 }
 
 internal class HeldItemEditorState(

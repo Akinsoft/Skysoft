@@ -13,7 +13,6 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
@@ -49,7 +48,7 @@ private fun registerSackHud() {
         clearSackHudInteraction()
     }
     registerSackHudInput()
-    GuiOverlayRegistry.register(
+    GuiOverlayRegistry.registerHud(
         GuiOverlay(
             id = "sack_hud",
             layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -57,31 +56,31 @@ private fun registerSackHud() {
             screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderSackHud(context) },
         ),
+        object : HudEditorElement {
+            override val id: String = "sack_hud"
+            override val label: String = "Sacks Tracker"
+            override val position get() = sackHudConfig.position
+            override val hasEditorBackground: Boolean get() = !sackHudConfig.details.showBackground
+            override fun width(): Int = buildSackHudRenderable(inventoryOpen = false).width
+            override fun height(): Int = buildSackHudRenderable(inventoryOpen = false).height
+            override fun isVisible(): Boolean = isSackHudVisible()
+            override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
+            override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
+            override fun renderEditor(context: GuiGraphicsExtractor) =
+                buildSackHudRenderable(inventoryOpen = false).render(context)
+            override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
+                val targetX = position.getAbsX0AllowingOverflow(0) + deltaX
+                val targetY = position.getAbsY0AllowingOverflow(0) + deltaY
+                position.moveToAbsoluteAllowingOverflow(targetX, targetY, 0, 0)
+                return InputHandlingResult.CONSUMED
+            }
+            override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
+                position.scale += if (scrollY > 0.0) SACK_HUD_EDITOR_SCALE_STEP else -SACK_HUD_EDITOR_SCALE_STEP
+                return InputHandlingResult.CONSUMED
+            }
+            override fun openConfig() = SkysoftConfigGui.open("Sacks Tracker")
+        },
     )
-    HudEditorRegistry.register(object : HudEditorElement {
-        override val id: String = "sack_hud"
-        override val label: String = "Sacks Tracker"
-        override val position get() = sackHudConfig.position
-        override val hasEditorBackground: Boolean get() = !sackHudConfig.details.showBackground
-        override fun width(): Int = buildSackHudRenderable(inventoryOpen = false).width
-        override fun height(): Int = buildSackHudRenderable(inventoryOpen = false).height
-        override fun isVisible(): Boolean = isSackHudVisible()
-        override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
-        override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
-        override fun renderEditor(context: GuiGraphicsExtractor) =
-            buildSackHudRenderable(inventoryOpen = false).render(context)
-        override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-            val targetX = position.getAbsX0AllowingOverflow(0) + deltaX
-            val targetY = position.getAbsY0AllowingOverflow(0) + deltaY
-            position.moveToAbsoluteAllowingOverflow(targetX, targetY, 0, 0)
-            return InputHandlingResult.CONSUMED
-        }
-        override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-            position.scale += if (scrollY > 0.0) SACK_HUD_EDITOR_SCALE_STEP else -SACK_HUD_EDITOR_SCALE_STEP
-            return InputHandlingResult.CONSUMED
-        }
-        override fun openConfig() = SkysoftConfigGui.open("Sacks Tracker")
-    })
 }
 
 private fun highlightSackChanges(batch: SkyBlockSackChangeBatch) {

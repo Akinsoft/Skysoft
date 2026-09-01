@@ -5,10 +5,9 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.ravengard.RAVENGARD_NAMESPACE
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer
 import com.skysoft.mixin.AbstractContainerScreenAccessor
-import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.ItemTooltipEvents
 import java.math.BigDecimal
 import java.util.Optional
-import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -23,12 +22,9 @@ import net.minecraft.world.item.ItemStack
 
 object RavengardItemComparisonTooltip {
     fun register() {
-        ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            SkysoftErrorBoundary.run("Ravengard item comparison deltas") {
-                if (!isEnabled()) return@run
-                val equipped = comparedEquippedItem(stack) ?: return@run
-                addRavengardStatDeltas(tooltip, equipped.get(DataComponents.LORE)?.lines().orEmpty())
-            }
+        ItemTooltipEvents.register("Ravengard item comparison deltas", ::isEnabled) tooltip@{ stack, _, _, tooltip ->
+            val equipped = comparedEquippedItem(stack) ?: return@tooltip
+            addRavengardStatDeltas(tooltip, equipped.get(DataComponents.LORE)?.lines().orEmpty())
         }
     }
 

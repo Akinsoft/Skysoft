@@ -40,7 +40,7 @@ object ServerInfoDisplay {
         ) { minecraft -> updateMetrics(minecraft) }
         SkysoftClientEvents.onJoin("Server Info join reset", ::resetMeasurements)
         SkysoftClientEvents.onDisconnect("Server Info disconnect reset", ::resetMeasurements)
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "server_info_display",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -48,23 +48,23 @@ object ServerInfoDisplay {
                 visible = { canRenderLive() },
                 render = { context, _ -> renderHud(context) },
             ),
+            object : HudEditorElement {
+                override val id: String = "server_info_display"
+                override val label: String = "Server Info Display"
+                override val position get() = config.position
+                override val hasEditorBackground: Boolean get() = !config.details.background
+                override fun width(): Int = currentSimpleRenderable()?.width ?: 0
+                override fun height(): Int = currentSimpleRenderable()?.height ?: 0
+                override fun isVisible(): Boolean =
+                    config.enabled &&
+                        config.details.style == ServerInfoDisplayStyle.SIMPLE &&
+                        configuredMetrics().isNotEmpty()
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    currentSimpleRenderable()?.render(context)
+                }
+                override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "server_info_display"
-            override val label: String = "Server Info Display"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean get() = !config.details.background
-            override fun width(): Int = currentSimpleRenderable()?.width ?: 0
-            override fun height(): Int = currentSimpleRenderable()?.height ?: 0
-            override fun isVisible(): Boolean =
-                config.enabled &&
-                    config.details.style == ServerInfoDisplayStyle.SIMPLE &&
-                    configuredMetrics().isNotEmpty()
-            override fun renderEditor(context: GuiGraphicsExtractor) {
-                currentSimpleRenderable()?.render(context)
-            }
-            override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
-        })
         ServerInfoMetric.entries.forEach { metric ->
             HudEditorRegistry.register(object : HudEditorElement {
                 override val id: String = "server_info_display_${metric.name.lowercase(Locale.ROOT)}"

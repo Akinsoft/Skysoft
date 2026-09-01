@@ -1,7 +1,6 @@
 package com.skysoft.data.skyblock
 
 import com.google.gson.annotations.SerializedName
-import com.skysoft.features.pets.PetItemStacks
 import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.world.item.ItemStack
 
@@ -34,7 +33,7 @@ internal object SkyBlockItemCatalog {
                 rarity = classification?.rarity,
                 lore = lore,
             )
-            providers[key] = { PetItemStacks.fromLocalItem(item) }
+            providers[key] = { SkyBlockItemStacks.fromLocalItem(item) }
         }
     }
 
@@ -52,6 +51,14 @@ internal object SkyBlockItemCatalog {
         "(VERY SPECIAL|ULTIMATE|LEGENJERRY|COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC|DIVINE|SPECIAL|ADMIN|ERAR)(?: (.+))?",
     )
 }
+
+internal data class NeuItemJson(
+    @SerializedName("itemid") val itemId: String = "minecraft:stone",
+    @SerializedName("displayname") val displayName: String? = null,
+    @SerializedName("nbttag") val nbtTag: String? = null,
+    val lore: List<String> = emptyList(),
+    @SerializedName("internalname") val internalName: String = "",
+)
 
 internal data class SkyBlockItemJson(
     val id: String = "minecraft:stone",

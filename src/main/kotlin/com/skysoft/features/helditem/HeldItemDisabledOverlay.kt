@@ -1,6 +1,8 @@
 package com.skysoft.features.helditem
 
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
+import com.skysoft.utils.EasingUtilities
+import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
@@ -10,10 +12,10 @@ import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.resources.Identifier
 
 internal class HeldItemDisabledOverlay(
-    private val nanoTime: () -> Long = System::nanoTime,
+    nanoTime: () -> Long = System::nanoTime,
 ) {
     private var phase = DisabledOverlayPhase.HIDDEN
-    private var fadeStartedAtNanos = 0L
+    private val fadeClock = AnimationClock(nanoTime)
     private var isInitialized = false
 
     fun initialize(isFeatureEnabled: Boolean) {
@@ -22,14 +24,14 @@ internal class HeldItemDisabledOverlay(
             return
         }
         phase = if (isFeatureEnabled) DisabledOverlayPhase.HIDDEN else DisabledOverlayPhase.SHOWN
-        fadeStartedAtNanos = 0L
+        fadeClock.stop()
         isInitialized = true
     }
 
     fun beginEnableTransition() {
         if (phase == DisabledOverlayPhase.HIDDEN) return
         phase = DisabledOverlayPhase.FADING
-        fadeStartedAtNanos = nanoTime()
+        fadeClock.restart()
     }
 
     fun isEditingBlocked(isFeatureEnabled: Boolean): Boolean {
@@ -43,15 +45,16 @@ internal class HeldItemDisabledOverlay(
         if (phase == DisabledOverlayPhase.HIDDEN) return HeldItemDisabledOverlayVisuals.HIDDEN
         if (phase == DisabledOverlayPhase.SHOWN) return HeldItemDisabledOverlayVisuals.DISABLED
 
-        val elapsed = nanoTime() - fadeStartedAtNanos
-        val fadeProgress = progress(elapsed, DisabledOverlayAnimation.FADE_DURATION_NANOS)
-        val toggleProgress = smoothStep(progress(elapsed, DisabledOverlayAnimation.TOGGLE_DURATION_NANOS))
+        val fadeProgress = fadeClock.progressNanos(DisabledOverlayAnimation.FADE_DURATION_NANOS)
+        val toggleProgress = EasingUtilities.smoothStep(
+            fadeClock.progressNanos(DisabledOverlayAnimation.TOGGLE_DURATION_NANOS),
+        )
         if (fadeProgress >= 1f) {
             phase = DisabledOverlayPhase.HIDDEN
             return HeldItemDisabledOverlayVisuals.HIDDEN
         }
         return HeldItemDisabledOverlayVisuals(
-            opacity = 1f - smoothStep(fadeProgress),
+            opacity = 1f - EasingUtilities.smoothStep(fadeProgress),
             toggleProgress = toggleProgress,
         )
     }
@@ -59,7 +62,7 @@ internal class HeldItemDisabledOverlay(
     private fun synchronize(isFeatureEnabled: Boolean) {
         if (!isFeatureEnabled) {
             phase = DisabledOverlayPhase.SHOWN
-            fadeStartedAtNanos = 0L
+            fadeClock.stop()
         } else if (phase == DisabledOverlayPhase.SHOWN) {
             beginEnableTransition()
         }
@@ -68,7 +71,7 @@ internal class HeldItemDisabledOverlay(
     private fun completeFadeIfNeeded() {
         if (
             phase == DisabledOverlayPhase.FADING &&
-            nanoTime() - fadeStartedAtNanos >= DisabledOverlayAnimation.FADE_DURATION_NANOS
+            fadeClock.isCompleteNanos(DisabledOverlayAnimation.FADE_DURATION_NANOS)
         ) {
             phase = DisabledOverlayPhase.HIDDEN
         }
@@ -197,21 +200,11 @@ private enum class DisabledOverlayPhase {
     FADING,
 }
 
-private fun progress(elapsedNanos: Long, durationNanos: Long): Float =
-    (elapsedNanos / durationNanos.toFloat()).coerceIn(0f, 1f)
-
-private fun smoothStep(progress: Float): Float {
-    val remainingCoefficient = DisabledOverlayAnimation.SMOOTH_STEP_LINEAR_COEFFICIENT -
-        DisabledOverlayAnimation.SMOOTH_STEP_CUBIC_COEFFICIENT * progress
-    return progress * progress * remainingCoefficient
-}
 
 private object DisabledOverlayAnimation {
     const val FADE_DURATION_NANOS = 300_000_000L
     const val TOGGLE_DURATION_NANOS = 200_000_000L
     const val KNOB_TEXTURE_THRESHOLD = 0.5f
-    const val SMOOTH_STEP_LINEAR_COEFFICIENT = 3f
-    const val SMOOTH_STEP_CUBIC_COEFFICIENT = 2f
 }
 
 private object DisabledOverlayLayout {

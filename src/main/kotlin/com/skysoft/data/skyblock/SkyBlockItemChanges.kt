@@ -1,11 +1,11 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 
 object SkyBlockItemChanges {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockItemChangeBatch) -> Unit>()
     private val pendingChanges = SkyBlockItemChangeAccumulator()
 
     fun register() {
@@ -53,24 +53,14 @@ object SkyBlockItemChanges {
         isActive: () -> Boolean,
         listener: (SkyBlockItemChangeBatch) -> Unit,
     ) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     private fun dispatch(batch: SkyBlockItemChangeBatch) {
-        listeners.forEach { registered ->
-            if (registered.isActive()) {
-                SkysoftErrorBoundary.run(registered.boundary) { registered.listener(batch) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(batch) }
     }
 
-    private fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockItemChangeBatch) -> Unit,
-    )
+    private fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 }
 
 internal class SkyBlockItemChangeAccumulator {

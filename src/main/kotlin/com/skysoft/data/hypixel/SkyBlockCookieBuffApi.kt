@@ -15,15 +15,17 @@ import net.minecraft.network.chat.Component
 object SkyBlockCookieBuffApi {
     private val consumers = ActiveConsumerRegistry()
     private var ticks = 0
-    private var lastTabContentVersion = Long.MIN_VALUE
 
-    @Volatile
     var status = CookieBuffStatus(CookieBuffState.LOADING)
         private set
 
     fun register() {
         ProfileStorageApi.registerConsumer("Cookie Buff API") { consumers.hasActiveConsumers }
-        TabListApi.registerConsumer("Cookie Buff API") { consumers.hasActiveConsumers }
+        TabListApi.onChange(
+            "Cookie Buff API",
+            isActive = { consumers.hasActiveConsumers },
+            listener = { updateStatusFromTab() },
+        )
         ChatEvents.onVisibleMessage(
             "Cookie Buff chat",
             isActive = { consumers.hasActiveConsumers },
@@ -43,13 +45,11 @@ object SkyBlockCookieBuffApi {
                     reset()
                     return@onEndTick
                 }
-                ConsumerActivity.ACTIVATED -> {
-                    updateStatus()
-                    return@onEndTick
-                }
-                ConsumerActivity.ACTIVE -> Unit
+                ConsumerActivity.ACTIVATED,
+                ConsumerActivity.ACTIVE,
+                -> Unit
             }
-            if (++ticks % STATUS_INTERVAL_TICKS == 0) updateStatus()
+            if (++ticks % STATUS_INTERVAL_TICKS == 0) updateElapsedStatus()
         }
         SkysoftClientEvents.onDisconnect("Cookie Buff reset", ::reset)
     }
@@ -58,38 +58,32 @@ object SkyBlockCookieBuffApi {
         consumers.register(id, isActive)
     }
 
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
+    private fun updateStatusFromTab(now: Long = System.currentTimeMillis()) {
+        val tabStatus = parseCookieBuffStatus(
+            TabListApi.isSkyBlockDataLoaded,
+            TabListApi.skyBlockLines,
+            TabListApi.skyBlockFooter,
+        )
+        when (tabStatus.state) {
+            CookieBuffState.ACTIVE -> updateExpiryFromTab(tabStatus, now)
+            CookieBuffState.INACTIVE -> clearRememberedExpiry()
+            CookieBuffState.LOADING,
+            CookieBuffState.UNKNOWN,
+            -> status = rememberedStatus(now).takeIf { it.state == CookieBuffState.ACTIVE } ?: tabStatus
+        }
+    }
 
-    private fun updateStatus(now: Long = System.currentTimeMillis()) {
-        val contentChanged = lastTabContentVersion != TabListApi.contentVersion
-        if (contentChanged) {
-            lastTabContentVersion = TabListApi.contentVersion
-            val footer = TabListApi.skyBlockFooter
-            val tabStatus = parseCookieBuffStatus(
-                TabListApi.isSkyBlockDataLoaded,
-                TabListApi.skyBlockLines,
-                footer,
-            )
-            when (tabStatus.state) {
-                CookieBuffState.ACTIVE -> updateExpiryFromTab(tabStatus, now)
-                CookieBuffState.INACTIVE -> clearRememberedExpiry()
-                CookieBuffState.LOADING,
-                CookieBuffState.UNKNOWN,
-                -> setStatus(rememberedStatus(now).takeIf { it.state == CookieBuffState.ACTIVE } ?: tabStatus)
-            }
-        } else {
-            val remembered = rememberedStatus(now)
-            if (status.state == CookieBuffState.ACTIVE || remembered.state == CookieBuffState.ACTIVE) {
-                setStatus(remembered)
-            }
+    private fun updateElapsedStatus(now: Long = System.currentTimeMillis()) {
+        val remembered = rememberedStatus(now)
+        if (status.state == CookieBuffState.ACTIVE || remembered.state == CookieBuffState.ACTIVE) {
+            status = remembered
         }
     }
 
     private fun updateExpiryFromTab(tabStatus: CookieBuffStatus, now: Long) {
         val expiry = tabStatus.remaining?.let { cookieBuffExpiryFromDuration(it, now) }
         if (expiry == null) {
-            setStatus(CookieBuffStatus(CookieBuffState.UNKNOWN))
+            status = CookieBuffStatus(CookieBuffState.UNKNOWN)
             return
         }
         val storage = ProfileStorageApi.playerStorage
@@ -97,14 +91,14 @@ object SkyBlockCookieBuffApi {
             storage.cookieBuffExpiresAtMillis = expiry
             ProfileStorageApi.markDirty()
         }
-        setStatus(tabStatus)
+        status = tabStatus
     }
 
     private fun recordConsumedCookie(now: Long = System.currentTimeMillis()) {
         val storage = ProfileStorageApi.playerStorage
         storage.cookieBuffExpiresAtMillis = maxOf(now, storage.cookieBuffExpiresAtMillis) + COOKIE_DURATION_MILLIS
         ProfileStorageApi.markDirty()
-        setStatus(rememberedStatus(now))
+        status = rememberedStatus(now)
     }
 
     private fun clearRememberedExpiry() {
@@ -113,7 +107,7 @@ object SkyBlockCookieBuffApi {
             storage.cookieBuffExpiresAtMillis = 0L
             ProfileStorageApi.markDirty()
         }
-        setStatus(CookieBuffStatus(CookieBuffState.INACTIVE))
+        status = CookieBuffStatus(CookieBuffState.INACTIVE)
     }
 
     private fun rememberedStatus(now: Long): CookieBuffStatus {
@@ -125,14 +119,8 @@ object SkyBlockCookieBuffApi {
         }
     }
 
-    private fun setStatus(next: CookieBuffStatus) {
-        if (next == status) return
-        status = next
-    }
-
     private fun reset() {
         ticks = 0
-        lastTabContentVersion = Long.MIN_VALUE
         status = CookieBuffStatus(CookieBuffState.LOADING)
         consumers.resetActivity()
     }

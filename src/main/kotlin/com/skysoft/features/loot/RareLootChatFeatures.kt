@@ -1,11 +1,11 @@
 package com.skysoft.features.loot
 
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.RareLootShareChannel
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
-import com.skysoft.features.pets.PetRepository
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage

@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.config.BazaarTrackerSound
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
@@ -7,29 +8,32 @@ import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
+import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
+import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
-import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.sounds.SoundEvents
 
 internal fun registerBazaarTracker() {
     ProfileStorageApi.registerConsumer("Bazaar Tracker") { config.enabled }
     SkyBlockDataRepository.Demand.register("Bazaar Tracker") { config.enabled }
+    PetRepository.registerConsumer("Bazaar Tracker") { config.enabled }
+    SkyBlockOpenInventoryApi.onChange(
+        "Bazaar Tracker inventory",
+        isActive = { config.enabled },
+        listener = { snapshot -> openInventorySnapshot = snapshot },
+    )
     registerChatListeners()
     registerMouseClickCapture()
     SkysoftClientEvents.onEndTick(
@@ -41,7 +45,7 @@ internal fun registerBazaarTracker() {
     }
     SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset") { resetTransientState(false) }
     SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset", { config.enabled }) { resetTransientState(false) }
-    GuiOverlayRegistry.register(
+    GuiOverlayRegistry.registerHud(
         GuiOverlay(
             id = "bazaar_tracker",
             layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -49,19 +53,19 @@ internal fun registerBazaarTracker() {
             screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderHud(context) },
         ),
+        object : HudEditorElement {
+            override val id: String = "bazaar_tracker"
+            override val label: String = "Bazaar Tracker"
+            override val position get() = config.position
+            override val hasEditorBackground: Boolean get() = !config.details.showBackground
+            override fun width(): Int = buildRenderable(false).width
+            override fun height(): Int = buildRenderable(false).height
+            override fun isVisible(): Boolean = config.enabled
+            override fun renderEditor(context: GuiGraphicsExtractor) =
+                buildRenderable(false).render(context)
+            override fun openConfig() = SkysoftConfigGui.open("Bazaar Tracker")
+        },
     )
-    HudEditorRegistry.register(object : HudEditorElement {
-        override val id: String = "bazaar_tracker"
-        override val label: String = "Bazaar Tracker"
-        override val position get() = config.position
-        override val hasEditorBackground: Boolean get() = !config.details.showBackground
-        override fun width(): Int = buildRenderable(false).width
-        override fun height(): Int = buildRenderable(false).height
-        override fun isVisible(): Boolean = config.enabled
-        override fun renderEditor(context: GuiGraphicsExtractor) =
-            buildRenderable(false).render(context)
-        override fun openConfig() = SkysoftConfigGui.open("Bazaar Tracker")
-    })
 }
 
 internal fun resetBazaarTrackerDisplayedProfit() {
@@ -83,22 +87,12 @@ private fun registerChatListeners() {
 }
 
 private fun registerMouseClickCapture() {
-    ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (!config.enabled) return@register
-        SkysoftErrorBoundary.run("Bazaar Tracker screen initialization") {
-            if (screen is AbstractContainerScreen<*>) {
-                ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-                    SkysoftErrorBoundary.value("Bazaar Tracker mouse click", true) {
-                        if (!config.enabled) return@value true
-                        recordClickedOrder(screen, click)
-                        true
-                    }
-                }
-            }
-        }
+    InventoryOverlayInput.registerClickObserver("Bazaar Tracker mouse click", { config.enabled }) { screen, click ->
+        recordClickedOrder(screen, click)
     }
 }
 
+private var openInventorySnapshot: SkyBlockOpenInventorySnapshot? = null
 private var wasBazaarTrackerEnabled = false
 
 internal fun onClientTick() {
@@ -108,18 +102,17 @@ internal fun onClientTick() {
     }
     checkStatusAlerts()
     tickBazaarFillEstimator()
-    val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
+    val snapshot = openInventorySnapshot ?: run {
         lastOrdersInventoryKey = null
         pendingOrdersInventoryKey = null
         pendingOrdersInventoryStableTicks = 0
         return
     }
-    val title = screen.title.cleanSkyBlockText()
     when {
-        title == "Confirm Buy Order" -> readConfirmScreen(screen, BazaarOrderType.BUY)
-        title == "Confirm Sell Offer" -> readConfirmScreen(screen, BazaarOrderType.SELL)
-        title.contains("Bazaar Orders") -> readOrdersScreen(screen)
-        title == "Order options" -> readOrderOptionsScreen(screen)
+        snapshot.title == "Confirm Buy Order" -> readConfirmInventory(snapshot, BazaarOrderType.BUY)
+        snapshot.title == "Confirm Sell Offer" -> readConfirmInventory(snapshot, BazaarOrderType.SELL)
+        snapshot.title.contains("Bazaar Orders") -> readOrdersInventory(snapshot)
+        snapshot.title == "Order options" -> readOrderOptionsInventory(snapshot)
         else -> {
             lastOrdersInventoryKey = null
             pendingOrdersInventoryKey = null

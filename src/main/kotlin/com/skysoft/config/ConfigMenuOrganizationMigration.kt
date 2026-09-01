@@ -113,28 +113,4 @@ internal object ConfigMenuOrganizationMigration {
         blockOverlayJson.getObjectOrNull("settings")
             ?.moveFieldInto(blockOverlayJson.getOrCreateObject("details"), "color")
     }
-
-    private fun JsonObject.moveFieldsInto(targetName: String, vararg fieldNames: String) {
-        moveFieldsInto(getOrCreateObject(targetName), *fieldNames)
-    }
-
-    private fun JsonObject.moveFieldsInto(target: JsonObject, vararg fieldNames: String) {
-        fieldNames.forEach { fieldName -> moveFieldInto(target, fieldName) }
-    }
-
-    private fun JsonObject.moveFieldInto(
-        target: JsonObject,
-        fieldName: String,
-        targetFieldName: String = fieldName,
-    ) {
-        val legacyValue = get(fieldName) ?: return
-        if (!target.has(targetFieldName)) target.add(targetFieldName, legacyValue.deepCopy())
-        remove(fieldName)
-    }
-
-    private fun JsonObject.getObjectOrNull(name: String): JsonObject? =
-        get(name)?.takeIf { it.isJsonObject }?.asJsonObject
-
-    private fun JsonObject.getOrCreateObject(name: String): JsonObject =
-        getObjectOrNull(name) ?: JsonObject().also { add(name, it) }
 }

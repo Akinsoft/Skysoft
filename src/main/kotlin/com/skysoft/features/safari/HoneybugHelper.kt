@@ -1,6 +1,7 @@
 package com.skysoft.features.safari
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SafariZone
@@ -30,10 +31,13 @@ object HoneybugHelper {
     private val availableHives = mutableSetOf<BlockPos>()
     private val searchedHives = mutableSetOf<BlockPos>()
     private val seenHives = mutableSetOf<BlockPos>()
-    private var locationVersion = Long.MIN_VALUE
     private var scanTicks = 0
 
     fun register() {
+        HypixelLocationState.onChange(
+            "Honeybug Helper location",
+            isActive = { config.enabled || availableHives.isNotEmpty() || searchedHives.isNotEmpty() },
+        ) { clear() }
         BlockInteractionEvents.register(
             "Honeybug Helper block interaction",
             isActive = ::isEnabled,
@@ -50,7 +54,6 @@ object HoneybugHelper {
     }
 
     private fun tick() {
-        resetForLocationChange()
         if (!SkyBlockIsland.SAFARI.isInIsland()) {
             clear()
             return
@@ -110,7 +113,6 @@ object HoneybugHelper {
     }
 
     private fun markSearched(position: BlockPos) {
-        resetForLocationChange()
         val level = Minecraft.getInstance().level ?: return
         if (level.getBlockState(position).block != Blocks.BEE_NEST) return
         searchedHives += position
@@ -131,12 +133,10 @@ object HoneybugHelper {
         }
         if (!config.details.crosshairLine) return
         val player = Minecraft.getInstance().player ?: return
-        val honeybug = Minecraft.getInstance().level
-            ?.entitiesForRendering()
-            ?.asSequence()
-            ?.filterIsInstance<ArmorStand>()
-            ?.filter { stand -> stand.isAlive && stand.cleanName().contains(HONEYBUG_NAME) }
-            ?.minByOrNull { stand -> stand.distanceToSqr(player) }
+        val honeybug = ClientEntitySnapshot.entities().asSequence()
+            .filterIsInstance<ArmorStand>()
+            .filter { stand -> stand.isAlive && stand.cleanName().contains(HONEYBUG_NAME) }
+            .minByOrNull { stand -> stand.distanceToSqr(player) }
             ?: return
         context.drawLineToCrosshair(
             honeybug.getPosition(context.partialTicks).toWorldVec(),
@@ -171,12 +171,6 @@ object HoneybugHelper {
 
     private fun isEnabled(): Boolean =
         config.enabled && SkyBlockIsland.SAFARI.isInIsland() && SafariZoneState.currentZone == SafariZone.FOREST
-
-    private fun resetForLocationChange() {
-        if (locationVersion == HypixelLocationState.locationVersion) return
-        clear()
-        locationVersion = HypixelLocationState.locationVersion
-    }
 
     private fun clear() {
         availableHives.clear()

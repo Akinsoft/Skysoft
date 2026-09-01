@@ -2,7 +2,6 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.skysoft.features.pets.SkysoftNeuItemJson
 
 internal object AttributeShardItemCatalog {
     private val gson = Gson()
@@ -99,7 +98,7 @@ internal object AttributeShardItemCatalog {
 }
 
 internal data class BundledAttributeShard(
-    val item: SkysoftNeuItemJson,
+    val item: NeuItemJson,
     val attributeName: String = "",
     val shardName: String = "",
     val effect: String = "",

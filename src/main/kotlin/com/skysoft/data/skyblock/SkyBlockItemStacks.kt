@@ -1,7 +1,5 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock
 
-import com.skysoft.data.skyblock.SkyBlockItemJson
-import com.skysoft.data.skyblock.SkyBlockStackFactory
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
@@ -13,7 +11,7 @@ import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.DyedItemColor
 import net.minecraft.world.item.component.ItemLore
 
-internal object PetItemStacks {
+internal object SkyBlockItemStacks {
     fun placeholder(internalName: String, displayName: String): ItemStack {
         val stack = ItemStack(Items.STONE)
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(displayName))
@@ -21,7 +19,7 @@ internal object PetItemStacks {
         return stack
     }
 
-    fun fromNeuItem(item: SkysoftNeuItemJson): ItemStack {
+    fun fromNeuItem(item: NeuItemJson): ItemStack {
         val texture = item.nbtTag?.let { textureValuePattern.find(it)?.groupValues?.get(1) }
         val signature = item.nbtTag?.let { textureSignaturePattern.find(it)?.groupValues?.get(1) }
         val name = Component.literal(item.displayName ?: item.internalName)
@@ -61,10 +59,10 @@ internal object PetItemStacks {
         return stack
     }
 
-    private fun resolveMinecraftItem(item: SkysoftNeuItemJson) =
+    private fun resolveMinecraftItem(item: NeuItemJson) =
         minecraftItemFromId(itemModelFromNbt(item) ?: normalizeLegacyItemId(item.itemId))
 
-    private fun itemModelFromNbt(item: SkysoftNeuItemJson): String? =
+    private fun itemModelFromNbt(item: NeuItemJson): String? =
         item.nbtTag?.let { itemModelPattern.find(it)?.groupValues?.get(1) }
 
     private fun setItemModel(stack: ItemStack, itemModel: String?) {

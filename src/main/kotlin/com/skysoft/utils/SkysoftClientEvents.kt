@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.Minecraft
 
 internal object SkysoftClientEvents {
-    private var endTickListeners: List<EndTickListener> = emptyList()
+    private val endTickListeners = ActiveListenerRegistry<(Minecraft) -> Unit>()
     private var isEndTickRegistered = false
 
     fun onEndTick(
@@ -14,7 +14,7 @@ internal object SkysoftClientEvents {
         isActive: () -> Boolean,
         action: (Minecraft) -> Unit,
     ) {
-        endTickListeners += EndTickListener(boundary, isActive, action)
+        endTickListeners.register(boundary, isActive, action)
         if (isEndTickRegistered) return
         isEndTickRegistered = true
         ClientTickEvents.END_CLIENT_TICK.register(::dispatchEndTick)
@@ -45,16 +45,6 @@ internal object SkysoftClientEvents {
     }
 
     private fun dispatchEndTick(minecraft: Minecraft) {
-        endTickListeners.forEach { listener ->
-            if (SkysoftErrorBoundary.value("${listener.boundary} activity", false, listener.isActive)) {
-                SkysoftErrorBoundary.run(listener.boundary) { listener.action(minecraft) }
-            }
-        }
+        endTickListeners.forEachActive { listener -> listener(minecraft) }
     }
-
-    private data class EndTickListener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val action: (Minecraft) -> Unit,
-    )
 }

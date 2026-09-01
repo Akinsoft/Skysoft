@@ -1,5 +1,6 @@
 package com.skysoft.features.profit
 
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.ProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
@@ -29,7 +30,6 @@ import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.event.diana.DianaEventState
 import com.skysoft.features.event.diana.MythologicalRitualMessageTracker
 import com.skysoft.features.event.diana.UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
-import com.skysoft.features.pets.PetRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
@@ -103,10 +103,10 @@ object ProfitTracker {
             }
             ChatMessageVisibility.SHOW
         }
-        SlayerQuestState.onQuestStarted {
+        SlayerQuestState.onQuestStarted("Profit Tracker quest start") {
             if (configs.isAnyEnabled()) questCostCapture.questStarted()
         }
-        SlayerQuestState.onQuestComplete { quest ->
+        SlayerQuestState.onQuestComplete("Profit Tracker quest completion") { quest ->
             questCostCapture.clear()
             if (!configs.isAnyEnabled()) return@onQuestComplete
             val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)

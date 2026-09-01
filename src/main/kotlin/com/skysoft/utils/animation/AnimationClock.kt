@@ -6,6 +6,7 @@ class AnimationClock internal constructor(
     private val nanoTime: LongSupplier,
 ) {
     constructor() : this(LongSupplier(System::nanoTime))
+    internal constructor(nanoTime: () -> Long) : this(LongSupplier(nanoTime))
 
     private var startedAtNanos = Long.MIN_VALUE
 
@@ -19,12 +20,18 @@ class AnimationClock internal constructor(
 
     fun hasStarted(): Boolean = startedAtNanos != Long.MIN_VALUE
 
-    fun progress(durationMillis: Int): Float {
-        if (!hasStarted() || durationMillis <= 0) return 1.0f
-        val durationNanos = durationMillis.toLong() * NANOS_PER_MILLISECOND
-        val elapsedNanos = (nanoTime.getAsLong() - startedAtNanos).coerceAtLeast(0L)
-        return (elapsedNanos / durationNanos.toFloat()).coerceAtMost(1.0f)
+    fun elapsedNanos(): Long =
+        if (hasStarted()) (nanoTime.getAsLong() - startedAtNanos).coerceAtLeast(0L) else Long.MAX_VALUE
+
+    fun progress(durationMillis: Int): Float =
+        progressNanos(durationMillis.toLong() * NANOS_PER_MILLISECOND)
+
+    fun progressNanos(durationNanos: Long): Float {
+        if (!hasStarted() || durationNanos <= 0L) return 1.0f
+        return (elapsedNanos() / durationNanos.toFloat()).coerceAtMost(1.0f)
     }
+
+    fun isCompleteNanos(durationNanos: Long): Boolean = progressNanos(durationNanos) >= 1.0f
 
     private companion object {
         const val NANOS_PER_MILLISECOND = 1_000_000L

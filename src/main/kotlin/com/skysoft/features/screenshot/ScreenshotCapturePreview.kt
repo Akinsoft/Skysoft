@@ -19,6 +19,7 @@ import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.net.AsyncRequestSlot
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.math.min
@@ -30,6 +31,10 @@ import org.lwjgl.glfw.GLFW
 
 internal object ScreenshotCapturePreview {
     private val contexts = GuiOverlayContextType.entries.toSet()
+    private val imageRequest = AsyncRequestSlot(
+        completionExecutor = Minecraft.getInstance(),
+        disposeStaleResult = NativeImage::close,
+    )
     private var presentation: CapturePresentation? = null
     private var imageBounds: Rect? = null
     private var shareBounds: Rect? = null
@@ -51,12 +56,13 @@ internal object ScreenshotCapturePreview {
 
     fun present(path: Path) {
         if (!SkysoftConfigGui.config().gui.screenshotManager.enabled) return
-        loadScaledScreenshotImage(path, MAXIMUM_TEXTURE_WIDTH, MAXIMUM_TEXTURE_HEIGHT).whenComplete { image, failure ->
-            Minecraft.getInstance().execute {
-                if (failure != null || image == null || !SkysoftConfigGui.config().gui.screenshotManager.enabled) {
-                    image?.close()
-                    return@execute
-                }
+        clear()
+        imageRequest.replace(
+            loadScaledScreenshotImage(path, MAXIMUM_TEXTURE_WIDTH, MAXIMUM_TEXTURE_HEIGHT),
+        ) { image, failure ->
+            if (failure != null || image == null || !SkysoftConfigGui.config().gui.screenshotManager.enabled) {
+                image?.close()
+            } else {
                 replacePresentation(path, image)
             }
         }
@@ -237,6 +243,7 @@ internal object ScreenshotCapturePreview {
     }
 
     private fun clear() {
+        imageRequest.invalidate()
         val current = presentation
         presentation = null
         imageBounds = null

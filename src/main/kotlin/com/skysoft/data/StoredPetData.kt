@@ -3,10 +3,10 @@ package com.skysoft.data
 import com.google.gson.annotations.Expose
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockStackFactory
-import com.skysoft.features.pets.PetInternalNames
-import com.skysoft.features.pets.PetItemFrame
-import com.skysoft.features.pets.PetRepository
-import com.skysoft.features.pets.isDragonEggStagePet
+import com.skysoft.data.skyblock.pets.PetInternalNames
+import com.skysoft.data.skyblock.pets.PetItemFrame
+import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.pets.isDragonEggStagePet
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import java.util.UUID

@@ -4,18 +4,17 @@ import com.skysoft.SkysoftMod
 import com.skysoft.data.ProfileStorage
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.ScreenSlotLayout
 import com.skysoft.utils.input.InputHandlingResult
-import java.util.IdentityHashMap
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.world.inventory.Slot
 import org.lwjgl.glfw.GLFW
 
-private val movedOffhandSlots = IdentityHashMap<AbstractContainerScreen<*>, MovedSlot>()
+private val inventoryEquipmentSlotLayout = ScreenSlotLayout()
 private var warnedMissingOffhandSlot = false
 
 internal fun updateInventoryEquipmentSlotLayout(screen: AbstractContainerScreen<*>) {
@@ -28,10 +27,8 @@ internal fun updateInventoryEquipmentSlotLayout(screen: AbstractContainerScreen<
         warnMissingOffhandSlot()
         return
     }
-    val original = movedOffhandSlots.getOrPut(screen) {
-        MovedSlot(offhandSlot, offhandSlot.x, offhandSlot.y)
-    }
-    setSlotPosition(
+    inventoryEquipmentSlotLayout.move(
+        screen,
         offhandSlot,
         InventoryEquipmentLayout.HIDDEN_SLOT_X,
         InventoryEquipmentLayout.HIDDEN_SLOT_Y,
@@ -39,13 +36,12 @@ internal fun updateInventoryEquipmentSlotLayout(screen: AbstractContainerScreen<
 }
 
 internal fun restoreInventoryEquipmentSlotLayout(screen: AbstractContainerScreen<*>) {
-    movedOffhandSlots.remove(screen)?.restore()
+    inventoryEquipmentSlotLayout.restore(screen)
     restoreInventoryEquipmentSlots(screen)
 }
 
 internal fun restoreAllInventoryEquipmentSlotLayouts() {
-    movedOffhandSlots.values.toList().forEach(MovedSlot::restore)
-    movedOffhandSlots.clear()
+    inventoryEquipmentSlotLayout.restore()
     clearInventoryEquipmentSlots()
 }
 
@@ -174,14 +170,6 @@ private fun warnMissingOffhandSlot() {
     if (warnedMissingOffhandSlot) return
     warnedMissingOffhandSlot = true
     SkysoftMod.LOGGER.warn("Inventory equipment could not move the offhand slot because slot 45 is missing.")
-}
-
-private data class MovedSlot(
-    val slot: Slot,
-    val x: Int,
-    val y: Int,
-) {
-    fun restore() = setSlotPosition(slot, x, y)
 }
 
 internal object InventoryEquipmentLayout {

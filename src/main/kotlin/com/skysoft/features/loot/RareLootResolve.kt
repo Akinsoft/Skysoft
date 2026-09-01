@@ -1,6 +1,6 @@
 package com.skysoft.features.loot
 
-import com.skysoft.features.pets.PetRepository
+import com.skysoft.data.skyblock.pets.PetRepository
 
 internal fun RareLootChatDrop.toRareLootDrop(): RareLootDrop {
     val resolvedItemId = bestItemId()

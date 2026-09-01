@@ -76,13 +76,15 @@
     "SelectedItemNameMixin",
     "ScoreboardHudAccessor",
     "ScoreboardHudMixin",
+    "ScoreboardPacketMixin",
     "ScreenshotCaptureMixin",
     "ServerPackDataAccessor",
     "ServerPackManagerMixin",
     "ServerPackReloadCallbacksMixin",
     "ServerInfoPacketMixin",
     "SoundPacketMixin",
-    "StatusEffectHudMixin"
+    "StatusEffectHudMixin",
+    "TabListPacketMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -4,13 +4,12 @@ import com.google.gson.Gson
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ConsumerActivity
-import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.minutes
 
 object MayorPerkApi {
     private const val ELECTION_URL = "https://api.hypixel.net/v2/resources/skyblock/election"
@@ -25,8 +24,8 @@ object MayorPerkApi {
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
-    private val loading = AtomicBoolean(false)
-    private var lastUpdate = ElapsedTimeMark.farPast()
+    private val requestSlot = AsyncRequestSlot<ElectionResponse>()
+    private val refreshSchedule = RefreshSchedule()
     private var ticks = 0
 
     @Volatile
@@ -79,52 +78,49 @@ object MayorPerkApi {
                 ConsumerActivity.ACTIVE -> Unit
             }
             if (++ticks % REFRESH_CHECK_INTERVAL_TICKS != 0) return@tick
-            if (lastUpdate.passedSince() < 20.minutes) return@tick
-            refresh()
+            if (refreshSchedule.isDue(System.currentTimeMillis())) refresh()
         }
         SkysoftClientEvents.onClientStopping("Mayor Perk request cancellation") {
+            requestSlot.cancel()
             requests.cancelAll()
         }
     }
 
     private fun refresh() {
-        if (!loading.compareAndSet(false, true)) return
-        lastUpdate = ElapsedTimeMark.now()
-        requests.getString(ELECTION_URL)
-            .thenApply { response -> gson.fromJson(response, ElectionResponse::class.java) }
-            .whenComplete { response, error ->
-                SkysoftErrorBoundary.run("Mayor Perk async completion") {
-                    try {
-                        if (error == null && response != null) {
-                            currentMinister = response.currentMinister()
-                            sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING)
-                            petXpBuffActive = response.hasPerk(PET_XP_BUFF)
-                            mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL)
-                            carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL)
-                            fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
-                            miningFiestaActive = response.hasPerk(MINING_FIESTA)
-                            mythologicalRitualEventKey = response.mythologicalRitualEventKey()
-                        } else if (error?.isCancellationFailure() != true) {
-                            SkysoftMod.LOGGER.warn("Failed to refresh mayor perks", error)
-                        }
-                    } finally {
-                        loading.set(false)
-                    }
+        requestSlot.startIfIdle(
+            requestFactory = {
+                requests.getString(ELECTION_URL)
+                    .thenApply { response -> gson.fromJson(response, ElectionResponse::class.java) }
+            },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("Mayor Perk async completion") {
+                val now = System.currentTimeMillis()
+                if (error == null && response != null) {
+                    currentMinister = response.currentMinister()
+                    sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING)
+                    petXpBuffActive = response.hasPerk(PET_XP_BUFF)
+                    mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL)
+                    carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL)
+                    fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
+                    miningFiestaActive = response.hasPerk(MINING_FIESTA)
+                    mythologicalRitualEventKey = response.mythologicalRitualEventKey()
+                    refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
+                } else if (error?.isCancellationFailure() != true) {
+                    refreshSchedule.schedule(now, FAILURE_RETRY_MILLIS)
+                    SkysoftMod.LOGGER.warn("Failed to refresh mayor perks", error)
                 }
             }
+        }
     }
 
     fun registerConsumer(id: String, isActive: () -> Boolean) {
         consumers.register(id, isActive)
     }
 
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
-
     private fun reset() {
+        requestSlot.cancel()
         requests.cancelAll()
-        loading.set(false)
-        lastUpdate = ElapsedTimeMark.farPast()
+        refreshSchedule.reset()
         ticks = 0
         currentMinister = null
         sharingIsCaringActive = false
@@ -172,6 +168,9 @@ object MayorPerkApi {
 
     private fun Minister.stableName(): String =
         key?.takeIf { it.isNotBlank() } ?: name?.takeIf { it.isNotBlank() } ?: "unknown"
+
+    private const val REFRESH_INTERVAL_MILLIS = 20L * 60L * 1_000L
+    private const val FAILURE_RETRY_MILLIS = 60_000L
 
     private data class ElectionResponse(
         val mayor: MayorEntry?,

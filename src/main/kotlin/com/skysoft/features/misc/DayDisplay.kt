@@ -6,7 +6,6 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
@@ -21,7 +20,7 @@ object DayDisplay {
     private val config get() = SkysoftConfigGui.config().gui.dayDisplay
 
     fun register() {
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "day_display",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -29,20 +28,20 @@ object DayDisplay {
                 visible = TabDataOverlays::canRender,
                 render = { context, _ -> renderHud(context) },
             ),
+            object : HudEditorElement {
+                override val id: String = "day_display"
+                override val label: String = "Day Display"
+                override val position get() = config.position
+                override val hasEditorBackground: Boolean get() = !config.details.background
+                override fun width(): Int = currentRenderable()?.width ?: 0
+                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun isVisible(): Boolean = config.enabled && currentDay() != null
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    currentRenderable()?.render(context)
+                }
+                override fun openConfig() = SkysoftConfigGui.open("Day Display")
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "day_display"
-            override val label: String = "Day Display"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean get() = !config.details.background
-            override fun width(): Int = currentRenderable()?.width ?: 0
-            override fun height(): Int = currentRenderable()?.height ?: 0
-            override fun isVisible(): Boolean = config.enabled && currentDay() != null
-            override fun renderEditor(context: GuiGraphicsExtractor) {
-                currentRenderable()?.render(context)
-            }
-            override fun openConfig() = SkysoftConfigGui.open("Day Display")
-        })
     }
 
     private fun renderHud(context: GuiGraphicsExtractor) {

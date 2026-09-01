@@ -50,9 +50,6 @@ object ProfileStorageApi {
         consumers.register(id, isActive)
     }
 
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
-
     fun importLegacyStorage(legacy: ProfileStorage) {
         if (state.loadedFromDisk) return
         state.storageData.importFrom(legacy)

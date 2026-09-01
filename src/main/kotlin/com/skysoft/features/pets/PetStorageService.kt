@@ -4,6 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.AccessoryBagData
+import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.hypixel.TabListApi
@@ -21,8 +22,6 @@ object PetStorageService {
     internal val petStorage get() = ProfileStorageApi.storage
 
     internal var lastExactPetMenuClick = ElapsedTimeMark.farPast()
-    internal var ticks = 0
-    internal var lastInventoryKey: String? = null
 
     internal val petDisplayDataSource: PetDisplayDataSource
         get() = PetWidgetStateTracker.displayDataSource
@@ -31,14 +30,18 @@ object PetStorageService {
         get() = PetWidgetStateTracker.displayMessage
 
     fun register() {
+        AttributeShardCatalog.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
         ProfileStorageApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
-        TabListApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
+        TabListApi.onChange(
+            "Pet Storage",
+            isActive = PetFeatureDemand::isActive,
+            listener = PetStorageInventoryReader::readPetTabWidget,
+        )
         MayorPerkApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
         SkyBlockProfileApi.onProfileChange("Pet Storage profile reset", PetFeatureDemand::isActive) {
             PetWidgetStateTracker.reset()
-            lastInventoryKey = null
         }
-        SkyBlockOpenInventoryApi.onUpdate(
+        SkyBlockOpenInventoryApi.onChange(
             "Pet Storage open inventory",
             isActive = PetFeatureDemand::isActive,
             listener = PetStorageInventoryReader::readOpenInventory,
@@ -49,15 +52,8 @@ object PetStorageService {
         ) { message ->
             PetStorageChat.handleIncomingMessage(message.component)
         }
-        SkysoftClientEvents.onEndTick(
-            "Pet Storage update",
-            isActive = PetFeatureDemand::isActive,
-        ) {
-            PetStorageInventoryReader.onClientTick()
-        }
         SkysoftClientEvents.onDisconnect("Pet Storage disconnect reset") {
             PetWidgetStateTracker.reset()
-            lastInventoryKey = null
         }
     }
 

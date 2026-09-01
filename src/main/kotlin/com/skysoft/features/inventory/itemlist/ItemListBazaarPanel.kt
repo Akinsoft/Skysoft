@@ -19,6 +19,8 @@ import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.net.AsyncRequestSlot
+import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -29,8 +31,10 @@ internal class ItemListBazaarPanel {
     private var depthState = BazaarDepthState.NOT_LOADED
     private var depthProduct: SkysoftBazaarDepthProduct? = null
     private var depthError: String? = null
-    private var nextDepthRequestAt = 0L
-    private var depthRequestInFlight = false
+    private val depthRequest = AsyncRequestSlot<Map<String, SkysoftBazaarDepthProduct>>(
+        completionExecutor = Minecraft.getInstance(),
+    )
+    private val depthRefreshSchedule = RefreshSchedule()
     private var playerMarketSnapshot = BazaarPlayerMarketSnapshot()
     private var nextPlayerMarketRefreshAt = 0L
     private val graph = ItemListBazaarGraph()
@@ -166,8 +170,8 @@ internal class ItemListBazaarPanel {
         depthState = BazaarDepthState.NOT_LOADED
         depthProduct = null
         depthError = null
-        nextDepthRequestAt = 0L
-        depthRequestInFlight = false
+        depthRequest.cancel()
+        depthRefreshSchedule.reset()
         graph.reset()
         playerMarketSnapshot = BazaarPlayerMarketSnapshot()
         nextPlayerMarketRefreshAt = 0L
@@ -193,32 +197,30 @@ internal class ItemListBazaarPanel {
     private fun requestDepthWhenReady(key: ItemListEntryKey) {
         if (SkyBlockPriceData.bazaarAvailability(key.id) != BazaarProductAvailability.AVAILABLE) return
         val now = System.currentTimeMillis()
-        if (depthRequestInFlight || now < nextDepthRequestAt) return
-        depthRequestInFlight = true
+        if (!depthRefreshSchedule.isDue(now) || depthRequest.isPending) return
         if (depthProduct == null) depthState = BazaarDepthState.LOADING
         val future = SkyBlockPriceData.refreshBazaarDepth(
             listOf(key.id),
             now - BazaarGraphWindow.TWENTY_FOUR_HOURS.durationMillis,
         )
         if (future == null) {
-            depthRequestInFlight = false
             depthState = if (depthProduct == null) BazaarDepthState.NOT_LOADED else BazaarDepthState.READY
-            nextDepthRequestAt = now + DEPTH_BUSY_RETRY_MILLIS
+            depthRefreshSchedule.schedule(now, DEPTH_BUSY_RETRY_MILLIS)
             return
         }
-        future.whenComplete { products, error ->
-            SkysoftErrorBoundary.onClientThread("Item List Bazaar async completion") {
-                if (currentKey != key) return@onClientThread
-                depthRequestInFlight = false
+        depthRequest.startIfIdle({ future }) { products, error ->
+            SkysoftErrorBoundary.run("Item List Bazaar async completion") {
+                if (currentKey != key) return@run
+                val completedAt = System.currentTimeMillis()
                 if (error == null) {
                     depthProduct = products?.get(key.id)
                     depthState = BazaarDepthState.READY
                     depthError = null
-                    nextDepthRequestAt = System.currentTimeMillis() + DEPTH_REFRESH_MILLIS
+                    depthRefreshSchedule.schedule(completedAt, DEPTH_REFRESH_MILLIS)
                 } else {
                     depthState = if (depthProduct == null) BazaarDepthState.FAILED else BazaarDepthState.READY
                     depthError = error.message ?: "Bazaar depth request failed"
-                    nextDepthRequestAt = System.currentTimeMillis() + DEPTH_FAILURE_RETRY_MILLIS
+                    depthRefreshSchedule.schedule(completedAt, DEPTH_FAILURE_RETRY_MILLIS)
                 }
             }
         }

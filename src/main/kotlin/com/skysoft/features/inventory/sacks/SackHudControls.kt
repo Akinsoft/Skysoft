@@ -4,36 +4,23 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.mixin.AbstractContainerScreenAccessor
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputHandlingResult
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import org.lwjgl.glfw.GLFW
 
 internal fun registerSackHudInput() {
-    ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (screen !is AbstractContainerScreen<*>) return@register
-        ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-            SkysoftErrorBoundary.value("Sacks Tracker mouse click", true) {
-                shouldAllowSackHudClick(screen, click)
-            }
-        }
-        ScreenMouseEvents.allowMouseScroll(screen).register { _, mouseX, mouseY, _, verticalAmount ->
-            SkysoftErrorBoundary.value("Sacks Tracker mouse scroll", true) {
-                InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
-                    !wasSackHudScrollHandled(verticalAmount)
-            }
-        }
-        ScreenKeyboardEvents.allowKeyPress(screen).register { _, event ->
-            SkysoftErrorBoundary.value("Sacks Tracker key input", true) {
-                SackHudInput.handleKeyPress(event) != InputHandlingResult.CONSUMED
-            }
-        }
+    val isActive = { sackHudConfig.enabled }
+    InventoryOverlayInput.registerClickHandler("Sacks Tracker mouse click", isActive) { screen, click ->
+        if (shouldAllowSackHudClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
+    }
+    InventoryOverlayInput.registerScrollHandler("Sacks Tracker mouse scroll", isActive) {
+            screen, mouseX, mouseY, verticalAmount ->
+        val allowed = InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
+            !wasSackHudScrollHandled(verticalAmount)
+        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
     }
 }
 

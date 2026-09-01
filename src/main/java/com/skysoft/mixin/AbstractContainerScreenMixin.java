@@ -1,27 +1,11 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.skysoft.features.bazaar.BazaarTracker;
-import com.skysoft.features.inventory.AnimatedDyeArmorCache;
-import com.skysoft.features.inventory.ExperimentationTableHelper;
-import com.skysoft.features.inventory.InventoryButtonManager;
-import com.skysoft.features.inventory.InventoryEquipment;
-import com.skysoft.features.inventory.InventoryDropSelectionGuard;
-import com.skysoft.features.inventory.InventoryOverlayInput;
-import com.skysoft.features.inventory.ItemProtectionManager;
-import com.skysoft.features.inventory.MinisterCalendarTooltip;
-import com.skysoft.features.inventory.SkyBlockMenuInventoryDropFix;
-import com.skysoft.features.inventory.SlotBindingManager;
-import com.skysoft.features.inventory.SlotLockManager;
-import com.skysoft.features.inventory.StorageOverlayController;
-import com.skysoft.features.inventory.itemlist.ItemListController;
-import com.skysoft.features.pets.PetStorageService;
-import com.skysoft.features.ravengard.RavengardItemComparisonTooltip;
-import com.skysoft.gui.scale.InventoryCursorMemory;
-import com.skysoft.gui.tooltip.AdjacentTooltipRenderer;
-import com.skysoft.utils.input.InputHandlingResult;
+import com.skysoft.integration.ContainerInputHooks;
+import com.skysoft.integration.ContainerLifecycleHooks;
+import com.skysoft.integration.ContainerSlotInputHooks;
+import com.skysoft.integration.ContainerTooltipHooks;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
@@ -40,111 +24,58 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractContainerScreen.class)
 public class AbstractContainerScreenMixin {
     @Inject(method = "init()V", at = @At("TAIL"))
-    private void skysoftLayoutStorageOverlay(CallbackInfo ci) {
-        StorageOverlayController.layoutScreen((AbstractContainerScreen<?>) (Object) this);
-        InventoryEquipment.layoutScreen((AbstractContainerScreen<?>) (Object) this);
+    private void skysoftLayoutContainerScreen(CallbackInfo ci) {
+        ContainerLifecycleHooks.layout((AbstractContainerScreen<?>) (Object) this);
     }
 
     @Inject(method = "removed", at = @At("TAIL"))
     private void skysoftCleanUpContainerScreen(CallbackInfo ci) {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        MixinErrorBoundary.run("Inventory cursor screen removal", InventoryCursorMemory::prepareForMouseGrab);
-        MixinErrorBoundary.run("Bazaar Tracker screen cleanup", () -> BazaarTracker.restoreOrderMenu(screen));
-        MixinErrorBoundary.run("Inventory Equipment screen cleanup", () -> InventoryEquipment.restoreScreen(screen));
-        MixinErrorBoundary.run("Slot Lock screen cleanup", SlotLockManager::clearInputState);
-        MixinErrorBoundary.run("Item Protection screen cleanup", ItemProtectionManager::clearInputState);
-        MixinErrorBoundary.run("Experimentation Table helper cleanup", () -> ExperimentationTableHelper.INSTANCE.onScreenRemoved(screen));
+        ContainerLifecycleHooks.removed((AbstractContainerScreen<?>) (Object) this);
     }
 
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
-    private void skysoftSuppressTooltipDuringSlotBinding(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
-        AdjacentTooltipRenderer.INSTANCE.clear();
+    private void skysoftPrepareTooltip(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        boolean suppress = MixinErrorBoundary.value("Slot Binding tooltip suppression", false, () -> SlotBindingManager.shouldSuppressRegularTooltips(screen));
-        if (suppress) {
+        if (ContainerTooltipHooks.shouldSuppressTooltip(screen)) {
             ci.cancel();
-            return;
+        } else {
+            ContainerTooltipHooks.prepareTooltip(screen, context);
         }
-        MixinErrorBoundary.run("Minister in Calendar tooltip preparation", () -> MinisterCalendarTooltip.INSTANCE.prepare(screen, context));
-        MixinErrorBoundary.run("Ravengard item comparison tooltip preparation", () -> RavengardItemComparisonTooltip.INSTANCE.prepare(screen, context));
     }
 
     @WrapOperation(method = "extractTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;getItem()Lnet/minecraft/world/item/ItemStack;"))
-    private ItemStack skysoftShowRememberedTooltip(Slot slot, Operation<ItemStack> original) {
+    private ItemStack skysoftTransformTooltipStack(Slot slot, Operation<ItemStack> original) {
         ItemStack stack = original.call(slot);
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        ItemStack armorStack = MixinErrorBoundary.value(
-            "Animated dye armor tooltip",
-            stack,
-            () -> AnimatedDyeArmorCache.displayStack(screen, slot, stack)
-        );
-        return MixinErrorBoundary.value(
-            "Experimentation Table remembered tooltip",
-            armorStack,
-            () -> ExperimentationTableHelper.INSTANCE.displayStack(screen, slot, armorStack)
-        );
+        return ContainerTooltipHooks.tooltipStack((AbstractContainerScreen<?>) (Object) this, slot, stack);
     }
 
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
-    private void skysoftSuppressStorageOverlayLabels(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
-        if (StorageOverlayController.shouldSuppressContainerLabels((AbstractContainerScreen<?>) (Object) this)) {
-            ci.cancel();
-        }
+    private void skysoftSuppressContainerLabels(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
+        if (ContainerTooltipHooks.shouldSuppressLabels((AbstractContainerScreen<?>) (Object) this)) ci.cancel();
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void skysoftClickStorageOverlay(
-        MouseButtonEvent click,
-        boolean doubled,
-        CallbackInfoReturnable<Boolean> cir
-    ) {
-        if (ItemListController.handleMouseClick((AbstractContainerScreen<?>) (Object) this, click, doubled)
-            == InputHandlingResult.CONSUMED
-        ) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (StorageOverlayController.handleMouseClick((AbstractContainerScreen<?>) (Object) this, click) == InputHandlingResult.CONSUMED) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (BazaarTracker.handleMouseClick((AbstractContainerScreen<?>) (Object) this, click) == InputHandlingResult.CONSUMED) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (InventoryEquipment.handleMouseClick((AbstractContainerScreen<?>) (Object) this, click) == InputHandlingResult.CONSUMED) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (InventoryButtonManager.handleMouseClick((AbstractContainerScreen<?>) (Object) this, click) == InputHandlingResult.CONSUMED) {
+    private void skysoftClickContainerOverlay(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (ContainerInputHooks.didConsumeMouseClick((AbstractContainerScreen<?>) (Object) this, click, doubled)) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
-    private void skysoftReleaseOverlayInput(
-        MouseButtonEvent click,
-        CallbackInfoReturnable<Boolean> cir
-    ) {
-        if (StorageOverlayController.handleMouseRelease(click) == InputHandlingResult.CONSUMED) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (InventoryButtonManager.handleMouseRelease((AbstractContainerScreen<?>) (Object) this, click) == InputHandlingResult.CONSUMED) {
+    private void skysoftReleaseContainerOverlay(MouseButtonEvent click, CallbackInfoReturnable<Boolean> cir) {
+        if (ContainerInputHooks.didConsumeMouseRelease((AbstractContainerScreen<?>) (Object) this, click)) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
-    private void skysoftDragStorageOverlay(
+    private void skysoftDragContainerOverlay(
         MouseButtonEvent click,
         double deltaX,
         double deltaY,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (StorageOverlayController.handleMouseDrag((AbstractContainerScreen<?>) (Object) this, click)
-            == InputHandlingResult.CONSUMED
-        ) {
+        if (ContainerInputHooks.didConsumeMouseDrag((AbstractContainerScreen<?>) (Object) this, click)) {
             cir.setReturnValue(true);
         }
     }
@@ -156,16 +87,13 @@ public class AbstractContainerScreenMixin {
             target = "Lnet/minecraft/client/gui/screens/Screen;mouseClicked(Lnet/minecraft/client/input/MouseButtonEvent;Z)Z"
         )
     )
-    private boolean isSkysoftStorageOverlayWidgetClickHandled(
+    private boolean isSkysoftContainerWidgetClickHandled(
         AbstractContainerScreen<?> screen,
         MouseButtonEvent click,
         boolean doubled,
         Operation<Boolean> original
     ) {
-        if (StorageOverlayController.isActive(screen)) {
-            return false;
-        }
-        return original.call(screen, click, doubled);
+        return !ContainerInputHooks.shouldSuppressScreenWidgets(screen) && original.call(screen, click, doubled);
     }
 
     @WrapOperation(
@@ -175,17 +103,14 @@ public class AbstractContainerScreenMixin {
             target = "Lnet/minecraft/client/gui/screens/Screen;mouseDragged(Lnet/minecraft/client/input/MouseButtonEvent;DD)Z"
         )
     )
-    private boolean isSkysoftStorageOverlayWidgetDragHandled(
+    private boolean isSkysoftContainerWidgetDragHandled(
         AbstractContainerScreen<?> screen,
         MouseButtonEvent click,
         double deltaX,
         double deltaY,
         Operation<Boolean> original
     ) {
-        if (StorageOverlayController.isActive(screen)) {
-            return false;
-        }
-        return original.call(screen, click, deltaX, deltaY);
+        return !ContainerInputHooks.shouldSuppressScreenWidgets(screen) && original.call(screen, click, deltaX, deltaY);
     }
 
     @WrapOperation(
@@ -201,7 +126,7 @@ public class AbstractContainerScreenMixin {
         ItemStack stack,
         Operation<Boolean> original
     ) {
-        return SlotLockManager.canQuickCraftInto(slot) && original.call(screen, slot, stack);
+        return ContainerSlotInputHooks.canQuickCraftInto(slot) && original.call(screen, slot, stack);
     }
 
     @WrapOperation(
@@ -211,51 +136,32 @@ public class AbstractContainerScreenMixin {
             target = "Lnet/minecraft/client/gui/screens/Screen;mouseReleased(Lnet/minecraft/client/input/MouseButtonEvent;)Z"
         )
     )
-    private boolean isSkysoftStorageOverlayWidgetReleaseHandled(
+    private boolean isSkysoftContainerWidgetReleaseHandled(
         AbstractContainerScreen<?> screen,
         MouseButtonEvent click,
         Operation<Boolean> original
     ) {
-        if (StorageOverlayController.isActive(screen)) {
-            return false;
-        }
-        return original.call(screen, click);
+        return !ContainerInputHooks.shouldSuppressScreenWidgets(screen) && original.call(screen, click);
     }
 
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    private void skysoftScrollStorageOverlay(
+    private void skysoftScrollContainerOverlay(
         double mouseX,
         double mouseY,
         double horizontalAmount,
         double verticalAmount,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (ItemListController.handleMouseScroll(
-            (AbstractContainerScreen<?>) (Object) this,
-            mouseX,
-            mouseY,
-            verticalAmount
-        ) == InputHandlingResult.CONSUMED) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (StorageOverlayController.handleMouseScroll((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY, verticalAmount)
-            == InputHandlingResult.CONSUMED
-        ) {
+        if (ContainerInputHooks.didConsumeMouseScroll((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY, verticalAmount)) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    protected void skysoftKeyStorageOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        InputHandlingResult storage = MixinErrorBoundary.value("Storage Overlay key input", InputHandlingResult.IGNORED, () -> StorageOverlayController.handleKeyPress(screen, event));
-        if (storage == InputHandlingResult.CONSUMED) { cir.setReturnValue(true); return; }
-        InputHandlingResult itemList = MixinErrorBoundary.value("Item List key input", InputHandlingResult.IGNORED, () -> ItemListController.INSTANCE.handleKeyPress(screen, event));
-        if (itemList == InputHandlingResult.CONSUMED) { cir.setReturnValue(true); return; }
-        InputHandlingResult slotLock = MixinErrorBoundary.value("Slot Lock key input", InputHandlingResult.IGNORED, () -> SlotLockManager.handleKeyPress(screen, event));
-        InputHandlingResult protection = MixinErrorBoundary.value("Item Protection key input", InputHandlingResult.IGNORED, () -> ItemProtectionManager.handleKeyPress(screen, event));
-        if (slotLock == InputHandlingResult.CONSUMED || protection == InputHandlingResult.CONSUMED) cir.setReturnValue(true);
+    protected void skysoftKeyContainerOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (ContainerInputHooks.didConsumeKeyPress((AbstractContainerScreen<?>) (Object) this, event)) {
+            cir.setReturnValue(true);
+        }
     }
 
     @WrapOperation(
@@ -265,7 +171,7 @@ public class AbstractContainerScreenMixin {
             target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;handleContainerInput(IIILnet/minecraft/world/inventory/ContainerInput;Lnet/minecraft/world/entity/player/Player;)V"
         )
     )
-    private void skysoftPreventSkyBlockMenuOpeningOnInventoryDrop(
+    private void skysoftHandleContainerInput(
         MultiPlayerGameMode gameMode,
         int containerId,
         int slotId,
@@ -274,45 +180,32 @@ public class AbstractContainerScreenMixin {
         Player player,
         Operation<Void> original
     ) {
-        if (BazaarTracker.shouldBlockOrderInteraction((AbstractContainerScreen<?>) (Object) this, slotId)) {
-            return;
-        }
-        InventoryDropSelectionGuard guard = SkyBlockMenuInventoryDropFix.beginContainerThrow(player, slotId, action);
-        try {
-            original.call(gameMode, containerId, slotId, button, action, player);
-        } finally {
-            SkyBlockMenuInventoryDropFix.finishContainerThrow(guard);
-        }
+        ContainerSlotInputHooks.handleContainerInput(
+            (AbstractContainerScreen<?>) (Object) this,
+            slotId,
+            action,
+            player,
+            () -> original.call(gameMode, containerId, slotId, button, action, player)
+        );
     }
 
     @Inject(method = "hasClickedOutside", at = @At("HEAD"), cancellable = true)
-    private void skysoftKeepStorageOverlayClicksInside(
+    private void skysoftKeepOverlayClicksInside(
         double mouseX,
         double mouseY,
         int left,
         int top,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (InventoryOverlayInput.isPointCovered((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY)) {
+        if (ContainerInputHooks.isPointCovered((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY)) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
     protected void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        MixinErrorBoundary.run("Animated dye armor Wardrobe selection", () -> AnimatedDyeArmorCache.observeWardrobeSelection(screen, slot, button, action));
-        InputHandlingResult protection = MixinErrorBoundary.value("Item Protection slot click", InputHandlingResult.IGNORED, () -> ItemProtectionManager.handleSlotClick(screen, slot, slotId, action));
-        if (protection == InputHandlingResult.CONSUMED) { ci.cancel(); return; }
-        InputHandlingResult binding = MixinErrorBoundary.value("Slot Binding slot click", InputHandlingResult.IGNORED, () -> SlotBindingManager.handleSlotClick(screen, slot, action));
-        if (binding == InputHandlingResult.CONSUMED) {
-            MixinErrorBoundary.run("Pet Storage slot click", () -> PetStorageService.INSTANCE.onSlotClick(slot, slotId, button));
+        if (ContainerSlotInputHooks.didConsumeSlotClick((AbstractContainerScreen<?>) (Object) this, slot, slotId, button, action)) {
             ci.cancel();
-            return;
         }
-        InputHandlingResult lock = MixinErrorBoundary.value("Slot Lock slot click", InputHandlingResult.IGNORED, () -> SlotLockManager.handleSlotClick(screen, slot, button, action));
-        if (lock == InputHandlingResult.CONSUMED) { ci.cancel(); return; }
-        MixinErrorBoundary.run("Experimentation Table helper slot click", () -> ExperimentationTableHelper.INSTANCE.onSlotClick(screen, slot, action));
-        MixinErrorBoundary.run("Pet Storage slot click", () -> PetStorageService.INSTANCE.onSlotClick(slot, slotId, button));
     }
 }

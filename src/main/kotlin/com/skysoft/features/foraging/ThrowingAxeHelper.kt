@@ -41,12 +41,14 @@ import net.minecraft.world.phys.Vec3
 object ThrowingAxeHelper {
     private var highlights = HighlightSnapshot()
     private val throwTracker = ThrowingAxeThrowTracker()
-    private var tabSession = Long.MIN_VALUE
-    private var tabVersion = Long.MIN_VALUE
     private var sweep: Double? = null
 
     fun register() {
-        TabListApi.registerConsumer("Throwing Axe Helper") { config.enabled }
+        TabListApi.onChange(
+            "Throwing Axe Helper",
+            isActive = { config.enabled },
+            listener = ::updateSweep,
+        )
         ClientParticleEvents.register(
             "Throwing Axe Helper throw confirmation",
             isActive = { config.enabled && config.settings.highlightThrownLogs },
@@ -93,7 +95,7 @@ object ThrowingAxeHelper {
             return
         }
 
-        val baseSweep = currentSweep() ?: run {
+        val baseSweep = sweep ?: run {
             highlights = HighlightSnapshot()
             return
         }
@@ -150,17 +152,13 @@ object ThrowingAxeHelper {
         )
     }
 
-    private fun currentSweep(): Double? {
-        if (tabSession == TabListApi.sessionId && tabVersion == TabListApi.contentVersion) return sweep
-        tabSession = TabListApi.sessionId
-        tabVersion = TabListApi.contentVersion
+    private fun updateSweep() {
         sweep = TabListApi.skyBlockLines.asSequence()
             .map { it.cleanSkyBlockText() }
             .firstOrNull { it.startsWith(SWEEP_PREFIX) }
             ?.substringAfter(SWEEP_PREFIX)
             ?.replace(",", "")
             ?.let { SWEEP_VALUE.find(it)?.value?.toDoubleOrNull() }
-        return sweep
     }
 
     private fun aimedLog(level: ClientLevel, island: SkyBlockIsland, eye: Vec3, look: Vec3): BlockPos? {
@@ -168,7 +166,7 @@ object ThrowingAxeHelper {
             val position = BlockPos.containing(throwingAxePosition(eye, look, tick))
             val state = level.getBlockState(position)
             if (treeKind(island, state) != null) return position
-            if (!isThrowingAxePassable(state)) return null
+            if (!isThrowingAxePassable(level, position, state)) return null
         }
         return null
     }
@@ -414,9 +412,8 @@ internal fun stronkArmSweep(rarity: SkyBlockRarity, level: Int): Double {
     return level * sweepPerLevel
 }
 
-@Suppress("DEPRECATION")
-internal fun isThrowingAxePassable(state: BlockState): Boolean =
-    !state.blocksMotion() || state.block is LeavesBlock
+internal fun isThrowingAxePassable(level: ClientLevel, position: BlockPos, state: BlockState): Boolean =
+    state.block is LeavesBlock || state.getCollisionShape(level, position).isEmpty
 
 internal fun throwingAxePosition(origin: Vec3, look: Vec3, tick: Int): Vec3 {
     val elapsed = tick.toDouble()

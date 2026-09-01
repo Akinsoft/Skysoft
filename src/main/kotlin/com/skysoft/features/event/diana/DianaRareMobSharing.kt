@@ -24,7 +24,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
 
-@Suppress("TooManyFunctions")
 internal object DianaRareMobSharing {
     private val config get() = SkysoftConfigGui.config().events.diana
     private val feature get() = config.rareMobSharing
@@ -32,9 +31,9 @@ internal object DianaRareMobSharing {
     private val lootshareFeature get() = config.lootshare
     private val lootshareSettings get() = lootshareFeature.settings
     private val lootshareDetails get() = lootshareFeature.details
-    private val targets = mutableMapOf<String, DianaRareMobTarget>()
-    private val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
-    private val recentLocalDeaths = mutableListOf<RecentLocalRareMobDeath>()
+    private val targets get() = DianaRareMobSharingState.targets
+    private val pendingLocalSpawns get() = DianaRareMobSharingState.pendingLocalSpawns
+    private val recentLocalDeaths get() = DianaRareMobSharingState.recentLocalDeaths
     private var nextTargetId = 0L
     private var ticks = 0
 
@@ -305,7 +304,7 @@ internal object DianaRareMobSharing {
                 if (clearReason != null) {
                     clearTarget(target, clearReason)
                 } else if (trackedMobUnloaded && entity is LivingEntity) {
-                    EntityHighlightRenderer.removeEntityColor(entity)
+                    EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow)
                     target.glowColor = null
                 }
             }
@@ -465,7 +464,7 @@ internal object DianaRareMobSharing {
             reason in BROADCAST_CLEAR_REASONS,
     ) {
         targets.remove(target.key)
-        target.entity?.let(EntityHighlightRenderer::removeEntityColor)
+        target.entity?.let { entity -> EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow) }
         if (shouldRememberLocalRareMobDeath(target, reason, broadcast)) {
             recentLocalDeaths += RecentLocalRareMobDeath(
                 target.serverName,
@@ -478,7 +477,9 @@ internal object DianaRareMobSharing {
     }
 
     private fun clear() {
-        targets.values.forEach { target -> target.entity?.let(EntityHighlightRenderer::removeEntityColor) }
+        targets.values.forEach { target ->
+            target.entity?.let { entity -> EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow) }
+        }
         targets.clear()
         pendingLocalSpawns.clear()
         recentLocalDeaths.clear()
@@ -486,26 +487,6 @@ internal object DianaRareMobSharing {
         ticks = 0
         DianaRareMobTitleRenderer.clear()
         DianaLootshareReadyMarkers.clear()
-    }
-
-    private fun currentTargets(): List<DianaRareMobTarget> {
-        val serverName = HypixelLocationState.currentServerName ?: return emptyList()
-        return targets.values.filter { target -> target.serverName == serverName }
-    }
-
-    private fun currentPendingLocalSpawns(): List<PendingRareMobSpawn> {
-        val serverName = HypixelLocationState.currentServerName ?: return emptyList()
-        return pendingLocalSpawns.filter { pending -> pending.serverName == serverName }
-    }
-
-    private fun currentRecentLocalDeaths(): List<RecentLocalRareMobDeath> {
-        val serverName = HypixelLocationState.currentServerName ?: return emptyList()
-        return recentLocalDeaths.filter { death -> death.serverName == serverName }
-    }
-
-    private fun currentTarget(): DianaRareMobTarget? {
-        val playerLocation = DianaRareMobRuntime.playerLocation() ?: return null
-        return currentTargets().minByOrNull { target -> target.lineLocation().distanceSq(playerLocation) }
     }
 
     private const val REMOTE_LINK_DISTANCE = 40.0
@@ -517,6 +498,32 @@ internal object DianaRareMobSharing {
         "player died",
         "burrow progressed",
     )
+}
+
+private object DianaRareMobSharingState {
+    val targets = mutableMapOf<String, DianaRareMobTarget>()
+    val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
+    val recentLocalDeaths = mutableListOf<RecentLocalRareMobDeath>()
+}
+
+private fun currentTargets(): List<DianaRareMobTarget> {
+    val serverName = HypixelLocationState.currentServerName ?: return emptyList()
+    return DianaRareMobSharingState.targets.values.filter { target -> target.serverName == serverName }
+}
+
+private fun currentPendingLocalSpawns(): List<PendingRareMobSpawn> {
+    val serverName = HypixelLocationState.currentServerName ?: return emptyList()
+    return DianaRareMobSharingState.pendingLocalSpawns.filter { pending -> pending.serverName == serverName }
+}
+
+private fun currentRecentLocalDeaths(): List<RecentLocalRareMobDeath> {
+    val serverName = HypixelLocationState.currentServerName ?: return emptyList()
+    return DianaRareMobSharingState.recentLocalDeaths.filter { death -> death.serverName == serverName }
+}
+
+private fun currentTarget(): DianaRareMobTarget? {
+    val playerLocation = DianaRareMobRuntime.playerLocation() ?: return null
+    return currentTargets().minByOrNull { target -> target.lineLocation().distanceSq(playerLocation) }
 }
 
 private fun recordLocalSpawn(
@@ -560,7 +567,7 @@ internal fun refreshRemoteCocoonTargets(
         .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
         .filter { target -> target.mob == mob && target.sharedBy.name.equals(sender.name, ignoreCase = true) }
         .forEach { target ->
-            target.entity?.let(EntityHighlightRenderer::removeEntityColor)
+            target.entity?.let { entity -> EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow) }
             target.extendExpiry(now + TARGET_LIFETIME_MILLIS)
             target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         }

@@ -1,11 +1,11 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
+import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ConsumerActivity
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -22,21 +22,16 @@ internal object StorageCache {
             { resetCacheTransientState() },
         )
         SkysoftClientEvents.onDisconnect("Storage Cache disconnect reset", ::resetCacheTransientState)
+        SkyBlockOpenInventoryApi.onChange(
+            "Storage Cache inventory",
+            isActive = { consumers.hasActiveConsumers },
+            listener = ::updateCurrentSnapshot,
+        )
         SkysoftClientEvents.onEndTick(
-            "Storage Cache tick",
+            "Storage Cache activity",
             isActive = { consumers.isActiveOrDeactivating },
         ) {
-            when (consumers.activity()) {
-                ConsumerActivity.INACTIVE -> return@onEndTick
-                ConsumerActivity.DEACTIVATED -> {
-                    resetCacheTransientState()
-                    return@onEndTick
-                }
-                ConsumerActivity.ACTIVATED,
-                ConsumerActivity.ACTIVE,
-                -> Unit
-            }
-            updateCurrentScreen()
+            if (consumers.activity() == ConsumerActivity.DEACTIVATED) resetCacheTransientState()
         }
     }
 
@@ -44,16 +39,8 @@ internal object StorageCache {
         consumers.register(id, isActive)
     }
 
-    private fun updateCurrentScreen() {
-        if (!HypixelLocationState.inSkyBlock) {
-            lastInventoryKey = null
-            return
-        }
-        val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
-            lastInventoryKey = null
-            return
-        }
-        val handle = storageHandleFor(screen) ?: run {
+    private fun updateCurrentSnapshot(snapshot: SkyBlockOpenInventorySnapshot?) {
+        val handle = snapshot?.let(::storageHandleFor) ?: run {
             lastInventoryKey = null
             return
         }
@@ -61,7 +48,7 @@ internal object StorageCache {
             lastInventoryKey = null
             return
         }
-        readScreen(screen, handle)
+        readSnapshot(snapshot, handle)
     }
 
     private fun resetCacheTransientState() {
@@ -74,13 +61,20 @@ internal object StorageCache {
 
 internal fun storageHandleFor(screen: AbstractContainerScreen<*>): StorageHandle? {
     if (screen !is ContainerScreen) return null
-    val menu = screen.menu
-    val title = screen.title.cleanSkyBlockText()
+    return storageHandleFor(screen.title.cleanSkyBlockText(), screen.menu.rowCount)
+}
+
+internal fun storageHandleFor(snapshot: SkyBlockOpenInventorySnapshot): StorageHandle? {
+    val rows = snapshot.menuRows ?: return null
+    return storageHandleFor(snapshot.title, rows)
+}
+
+private fun storageHandleFor(title: String, rows: Int): StorageHandle? {
     if (title == "Storage") return StorageHandle.Overview
     val riftPageNumber = riftStorageTitlePattern.matchEntire(title)?.groupValues?.get(1)?.toIntOrNull()
     if (riftPageNumber != null) {
-        return StorageHandle.Rift(riftStoragePageIndex(riftPageNumber - 1), menu.rowCount - 1)
+        return StorageHandle.Rift(riftStoragePageIndex(riftPageNumber - 1), rows - 1)
     }
-    ToolkitType.fromTitle(title)?.let { return StorageHandle.Toolkit(it, menu.rowCount) }
-    return storagePageHandle(title, menu.rowCount)
+    ToolkitType.fromTitle(title)?.let { return StorageHandle.Toolkit(it, rows) }
+    return storagePageHandle(title, rows)
 }

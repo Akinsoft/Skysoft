@@ -1,24 +1,12 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
-import com.skysoft.features.bazaar.BazaarTracker;
-import com.skysoft.features.inventory.StorageOverlayController;
-import com.skysoft.features.misc.MouseLock;
-import com.skysoft.features.misc.Zoom;
-import com.skysoft.features.screenshot.ScreenshotCapturePreview;
-import com.skysoft.gui.scale.GuiScaleController;
-import com.skysoft.gui.scale.InventoryCursorMemory;
-import com.skysoft.gui.tooltip.TooltipScrollPriorityScreen;
-import com.skysoft.gui.tooltip.TooltipViewport;
-import com.skysoft.utils.MinecraftClient;
-import com.skysoft.utils.input.InputHandlingResult;
+import com.skysoft.integration.MouseInputHooks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.player.LocalPlayer;
 import org.lwjgl.glfw.GLFW;
@@ -37,19 +25,12 @@ public class MouseHandlerMixin {
 
     @Inject(method = "grabMouse", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MouseHandler;mouseGrabbed:Z", opcode = Opcodes.PUTFIELD))
     protected void skysoftRememberInventoryCursorGrab(CallbackInfo ci) {
-        MixinErrorBoundary.run(
-            "Inventory cursor mouse grab",
-            () -> InventoryCursorMemory.beginMouseGrab(Minecraft.getInstance().getWindow())
-        );
+        MouseInputHooks.beginMouseGrab(Minecraft.getInstance().getWindow());
     }
 
     @Inject(method = "handleAccumulatedMovement", at = @At("TAIL"))
     protected void skysoftRestoreInventoryCursorAfterInput(CallbackInfo ci) {
-        InventoryCursorMemory.CursorPoint cursor = MixinErrorBoundary.value(
-            "Inventory cursor restoration",
-            null,
-            () -> InventoryCursorMemory.cursorAfterInput(MinecraftClient.INSTANCE.screen())
-        );
+        var cursor = MouseInputHooks.cursorAfterInput();
         if (cursor == null) return;
         xpos = cursor.x();
         ypos = cursor.y();
@@ -57,57 +38,42 @@ public class MouseHandlerMixin {
     }
 
     @WrapOperation(method = "turnPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;turn(DD)V"))
-    protected void skysoftApplyMouseLock(LocalPlayer player, double x, double y, Operation<Void> original) {
-        original.call(player, Zoom.applyMouseMovement(MouseLock.apply(x)), Zoom.applyMouseMovement(MouseLock.apply(y)));
+    protected void skysoftApplyMouseMovement(LocalPlayer player, double x, double y, Operation<Void> original) {
+        original.call(player, MouseInputHooks.applyMovement(x), MouseInputHooks.applyMovement(y));
     }
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
-    protected void skysoftAdjustZoom(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
-        if (MixinErrorBoundary.value("Zoom mouse scrolling", false, () -> Zoom.didHandleScroll(verticalAmount))) ci.cancel();
+    protected void skysoftProcessGlobalScroll(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
+        if (MouseInputHooks.shouldConsumeScroll(verticalAmount)) ci.cancel();
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
-    protected void skysoftProcessOverlayMouseControl(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
-        boolean consumed = MixinErrorBoundary.value("Overlay mouse control", false, () -> action == GLFW.GLFW_PRESS &&
-            (ScreenshotCapturePreview.INSTANCE.processMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED || BazaarTracker.handleMouseButtonPress(buttonInfo.button()) == InputHandlingResult.CONSUMED));
-        if (consumed) ci.cancel();
+    protected void skysoftProcessGlobalMouseButton(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
+        if (MouseInputHooks.shouldConsumeButton(buttonInfo.button(), action)) ci.cancel();
     }
 
     @WrapOperation(method = "onScroll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;mouseScrolled(DDDD)Z"))
-    protected boolean doesSkysoftHandleTooltipScroll(Screen screen, double mouseX, double mouseY, double horizontalAmount, double verticalAmount, Operation<Boolean> original) {
-        boolean handled = MixinErrorBoundary.value("Tooltip mouse scrolling", false, () -> {
-            boolean overStorage = screen instanceof AbstractContainerScreen<?> container
-                && StorageOverlayController.shouldPreferMouseScroll(container, mouseX, mouseY, verticalAmount);
-            boolean screenPrioritizesScroll = verticalAmount != 0.0
-                && screen instanceof TooltipScrollPriorityScreen prioritized
-                && prioritized.getMouseScrollPriorityAreas().stream()
-                    .anyMatch(area -> area.contains((int) mouseX, (int) mouseY));
-            if (!overStorage && !screenPrioritizesScroll) {
-                return TooltipViewport.didHandleMouseScroll(horizontalAmount, verticalAmount);
-            }
-            return TooltipViewport.isCompetingScrollKeyDown()
-                && TooltipViewport.didHandleCompetingMouseScroll(horizontalAmount, verticalAmount);
-        });
-        return handled || original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount);
+    protected boolean doesSkysoftHandleTooltipScroll(
+        Screen screen,
+        double mouseX,
+        double mouseY,
+        double horizontalAmount,
+        double verticalAmount,
+        Operation<Boolean> original
+    ) {
+        return MouseInputHooks.didHandleTooltipScroll(screen, mouseX, mouseY, horizontalAmount, verticalAmount)
+            || original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Inject(method = "getScaledXPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("HEAD"), cancellable = true)
     private static void skysoftGetInventoryScaledX(Window window, double xPosition, CallbackInfoReturnable<Double> cir) {
-        Double scaled = MixinErrorBoundary.value("Inventory GUI scaled mouse X", null, () -> {
-            Screen screen = MinecraftClient.INSTANCE.screen();
-            if (!GuiScaleController.usesSeparateInventoryScale(screen) || GuiScaleController.areOverlaysUsingNormalCoordinates()) return null;
-            try (var ignored = GuiScaleController.useInventoryScale(screen, window)) { return xPosition * window.getGuiScaledWidth() / (double) window.getScreenWidth(); }
-        });
+        Double scaled = MouseInputHooks.inventoryScaledX(window, xPosition);
         if (scaled != null) cir.setReturnValue(scaled);
     }
 
     @Inject(method = "getScaledYPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("HEAD"), cancellable = true)
     private static void skysoftGetInventoryScaledY(Window window, double yPosition, CallbackInfoReturnable<Double> cir) {
-        Double scaled = MixinErrorBoundary.value("Inventory GUI scaled mouse Y", null, () -> {
-            Screen screen = MinecraftClient.INSTANCE.screen();
-            if (!GuiScaleController.usesSeparateInventoryScale(screen) || GuiScaleController.areOverlaysUsingNormalCoordinates()) return null;
-            try (var ignored = GuiScaleController.useInventoryScale(screen, window)) { return yPosition * window.getGuiScaledHeight() / (double) window.getScreenHeight(); }
-        });
+        Double scaled = MouseInputHooks.inventoryScaledY(window, yPosition);
         if (scaled != null) cir.setReturnValue(scaled);
     }
 }

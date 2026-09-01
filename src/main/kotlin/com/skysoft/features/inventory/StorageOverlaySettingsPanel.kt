@@ -107,7 +107,7 @@ internal fun processStorageSettingsDrag(
 ): InputHandlingResult {
     val setting = draggedStorageVisualSetting ?: return InputHandlingResult.IGNORED
     if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
-    val layoutState = storageOverlayLayoutScreen(screen, shouldReadScreen = false) ?: run {
+    val layoutState = storageOverlayLayoutScreen(screen) ?: run {
         draggedStorageVisualSetting = null
         return InputHandlingResult.IGNORED
     }
@@ -207,7 +207,7 @@ private fun processOpenStorageSettingsClick(
     if (setting.isToggle) {
         setting.set(if (setting.value() == 0) 1 else 0)
         saveStorageSettings()
-        storageOverlayLayoutScreen(screen, shouldReadScreen = false)
+        storageOverlayLayoutScreen(screen)
     } else {
         draggedStorageVisualSetting = setting
         updateStorageSettingFromPointer(screen, measurements, layout, setting, mouseX)
@@ -237,7 +237,7 @@ private fun updateStorageSettingFromPointer(
             setting.step(),
         ),
     )
-    storageOverlayLayoutScreen(screen, shouldReadScreen = false)
+    storageOverlayLayoutScreen(screen)
 }
 
 private fun drawStorageVisualSetting(

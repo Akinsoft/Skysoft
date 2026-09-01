@@ -1,5 +1,6 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock.pets
 
+import com.skysoft.data.skyblock.SkyBlockItemStacks
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.world.item.ItemStack
@@ -39,7 +40,7 @@ internal object PetIconSearch {
         PetRepoCache.localItemsByInternalName.forEach { (internalName, item) ->
             val displayName = item.displayName ?: internalName
             if (matches(internalName, displayName, words)) {
-                yield(ItemIconMatch(internalName, displayName) { PetItemStacks.fromLocalItem(item) })
+                yield(ItemIconMatch(internalName, displayName) { SkyBlockItemStacks.fromLocalItem(item) })
             }
         }
     }
@@ -73,7 +74,7 @@ internal object PetIconSearch {
                 yield(
                     ItemIconMatch(internalName, displayName) {
                         PetRepository.itemStackOrNull(internalName)
-                            ?: PetItemStacks.placeholder(internalName, displayName)
+                            ?: SkyBlockItemStacks.placeholder(internalName, displayName)
                     },
                 )
             }

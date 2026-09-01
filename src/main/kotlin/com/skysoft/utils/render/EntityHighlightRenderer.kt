@@ -9,7 +9,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 
 object EntityHighlightRenderer {
-    private val defaultSource = Any()
     private val highlights = ConcurrentHashMap<Entity, ConcurrentHashMap<Any, EntityHighlight>>()
 
     fun register() {
@@ -28,7 +27,7 @@ object EntityHighlightRenderer {
     fun setEntityColor(
         entity: Entity,
         color: Color,
-        source: Any = defaultSource,
+        source: Any,
         fillOpacity: Float = 0f,
         priority: Int = 0,
         visibilityEntity: Entity = entity,
@@ -39,7 +38,7 @@ object EntityHighlightRenderer {
             EntityHighlight(color.rgb, fillColor, priority, visibilityEntity, condition)
     }
 
-    fun removeEntityColor(entity: Entity, source: Any = defaultSource) {
+    fun removeEntityColor(entity: Entity, source: Any) {
         val entityHighlights = highlights[entity] ?: return
         entityHighlights.remove(source)
         if (entityHighlights.isEmpty()) highlights.remove(entity, entityHighlights)

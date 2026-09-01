@@ -11,6 +11,7 @@ import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.EntityHighlightRenderer
+import com.skysoft.utils.render.EntityHighlightTracker
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.toWorldVec
@@ -21,7 +22,7 @@ import net.minecraft.world.entity.decoration.ArmorStand
 object SlayerTargetHighlighting {
     private val config get() = SkysoftConfigGui.config().slayer.targetHighlighting
     private var targets = emptyList<SlayerHighlightTarget>()
-    private val highlightedEntities = mutableSetOf<LivingEntity>()
+    private val highlightedEntities = EntityHighlightTracker<LivingEntity>(this)
     private var ticks = 0
 
     fun register() {
@@ -70,15 +71,11 @@ object SlayerTargetHighlighting {
             .asSequence()
             .filter(::shouldHighlight)
             .mapNotNullTo(mutableSetOf()) { target -> target.entity }
-        highlightedEntities
-            .filter { entity -> entity !in nextEntities }
-            .forEach(EntityHighlightRenderer::removeEntityColor)
-        highlightedEntities.clear()
-        highlightedEntities += nextEntities
+        highlightedEntities.replaceWith(nextEntities)
 
         val color = config.details.highlightColor.get().toColor()
         nextEntities.forEach { entity ->
-            EntityHighlightRenderer.setEntityColor(entity, color) {
+            EntityHighlightRenderer.setEntityColor(entity, color, source = this) {
                 isActive() && entity in highlightedEntities
             }
         }
@@ -101,7 +98,6 @@ object SlayerTargetHighlighting {
     }
 
     private fun clear() {
-        highlightedEntities.forEach(EntityHighlightRenderer::removeEntityColor)
         highlightedEntities.clear()
         targets = emptyList()
         ticks = 0

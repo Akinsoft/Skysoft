@@ -1,13 +1,18 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock.pets
 
 import com.google.gson.reflect.TypeToken
 import com.skysoft.SkysoftMod
+import com.skysoft.data.skyblock.NeuItemJson
 import com.skysoft.data.skyblock.SkyBlockItemJson
+import com.skysoft.data.skyblock.SkyBlockItemStacks
 import com.skysoft.data.skyblock.SkyBlockCatalogCacheFiles
 import com.skysoft.data.skyblock.SkyBlockPetInfo
 import com.skysoft.data.skyblock.SkyBlockStackFactory
-import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.data.skyblock.setSkyBlockId
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.net.AsyncRequestSlot
+import com.skysoft.utils.net.KeyedAsyncRequestSlots
+import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.network.chat.Component
@@ -15,9 +20,6 @@ import net.minecraft.world.item.ItemStack
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
-import kotlin.time.Duration.Companion.seconds
-
-private val LOCAL_REPO_CACHE_RETRY_DELAY = 30.seconds
 
 internal object PetRepoConstants {
     fun load() {
@@ -33,40 +35,42 @@ internal object PetRepoConstants {
 }
 
 internal object LocalSkyBlockCatalog {
+    private val requestSlot = AsyncRequestSlot<LocalRepoSnapshot>()
+    private val failureSchedule = RefreshSchedule()
+
     fun load() {
-        if (PetRepoCache.localRepoCacheLoaded) return
-        if (PetRepoCache.localRepoCacheLastFailure.passedSince() < LOCAL_REPO_CACHE_RETRY_DELAY) return
-        if (!PetRepoCache.loadingLocalRepoCache.compareAndSet(false, true)) return
-        val request = CompletableFuture.supplyAsync {
-            val items = readLocalItems(SkyBlockCatalogCacheFiles.resolve("items.min.json"))
-            val itemNameResolution = buildItemNameResolution(items)
-            val pets = readLocalPets(SkyBlockCatalogCacheFiles.resolve("pets.min.json"))
-            LocalRepoSnapshot(items, itemNameResolution, pets)
-        }
-        PetRepoCache.localRepoLoadFuture = request
-        request.whenComplete { snapshot, error ->
+        if (PetRepoCache.localRepoCacheLoaded || !failureSchedule.isDue(System.currentTimeMillis())) return
+        requestSlot.startIfIdle(
+            requestFactory = {
+                CompletableFuture.supplyAsync {
+                    val items = readLocalItems(SkyBlockCatalogCacheFiles.resolve("items.min.json"))
+                    val itemNameResolution = buildItemNameResolution(items)
+                    val pets = readLocalPets(SkyBlockCatalogCacheFiles.resolve("pets.min.json"))
+                    LocalRepoSnapshot(items, itemNameResolution, pets)
+                }
+            },
+        ) { snapshot, error ->
             SkysoftErrorBoundary.run("Local Pet Repository async completion") {
-                if (PetRepoCache.localRepoLoadFuture !== request) return@run
-                PetRepoCache.localRepoLoadFuture = null
-                try {
-                    if (error != null) {
-                        SkysoftMod.LOGGER.warn("Failed to load local SkyBlock repo cache", error)
-                        PetRepoCache.localRepoCacheLastFailure = ElapsedTimeMark.now()
-                    } else {
-                        PetRepoCache.localItemsByInternalName = snapshot.items
-                        PetRepoCache.localItemNameResolution = snapshot.itemNameResolution
-                        PetRepoCache.localPets = snapshot.pets
-                        PetRepoCache.localRepoCacheLoaded = true
-                    }
-                } finally {
-                    PetRepoCache.loadingLocalRepoCache.set(false)
+                if (error != null || snapshot == null) {
+                    SkysoftMod.LOGGER.warn("Failed to load local SkyBlock repo cache", error)
+                    failureSchedule.schedule(System.currentTimeMillis(), LOCAL_REPO_CACHE_RETRY_DELAY_MILLIS)
+                } else {
+                    PetRepoCache.localItemsByInternalName = snapshot.items
+                    PetRepoCache.localItemNameResolution = snapshot.itemNameResolution
+                    PetRepoCache.localPets = snapshot.pets
+                    PetRepoCache.localRepoCacheLoaded = true
+                    failureSchedule.reset()
                 }
             }
         }
     }
 
+    fun cancelPending() {
+        requestSlot.cancel()
+    }
+
     fun itemStackOrNull(internalName: String): ItemStack? =
-        PetRepoCache.localItemsByInternalName[internalName]?.let(PetItemStacks::fromLocalItem)
+        PetRepoCache.localItemsByInternalName[internalName]?.let(SkyBlockItemStacks::fromLocalItem)
             ?: petStackOrNull(internalName)
 
     fun petStackOrNull(internalName: String): ItemStack? {
@@ -132,49 +136,55 @@ internal object LocalSkyBlockCatalog {
         val itemNameResolution: Map<String, String>,
         val pets: Map<String, SkyBlockPetInfo>,
     )
+
+    private const val LOCAL_REPO_CACHE_RETRY_DELAY_MILLIS = 30_000L
 }
 
 internal object RemoteSkyBlockCatalog {
+    private val itemRequests = KeyedAsyncRequestSlots<String, NeuItemJson>()
+    private val itemIndexRequest = AsyncRequestSlot<GithubTreeJson>()
+
     fun requestItem(internalName: String) {
-        if (!PetRepoCache.requestedItems.add(internalName)) return
         val encoded = internalName.replace(";", "%3B")
-        request("${PetRepoCache.RAW_BASE}/items/$encoded.json")
-            .thenApply { PetRepoCache.gson.fromJson(it, SkysoftNeuItemJson::class.java) }
-            .whenComplete { item, error ->
-                SkysoftErrorBoundary.run("Pet Repository item async completion") {
-                    if (error == null && item != null) {
-                        PetRepoCache.itemNames[internalName] = item.displayName ?: internalName
-                        PetRepoCache.itemStacks[internalName] = PetItemStacks.fromNeuItem(item)
-                    } else {
-                        PetRepoCache.requestedItems.remove(internalName)
-                        if (error?.isCancellationFailure() != true) {
-                            SkysoftMod.LOGGER.warn("Failed to request SkyBlock repo item $internalName", error)
-                        }
-                    }
+        itemRequests.startIfIdle(
+            internalName,
+            requestFactory = {
+                request("${PetRepoCache.RAW_BASE}/items/$encoded.json")
+                    .thenApply { PetRepoCache.gson.fromJson(it, NeuItemJson::class.java) }
+            },
+        ) { item, error ->
+            SkysoftErrorBoundary.run("Pet Repository item async completion") {
+                if (error == null && item != null) {
+                    PetRepoCache.itemNames[internalName] = item.displayName ?: internalName
+                    PetRepoCache.itemStacks[internalName] = SkyBlockItemStacks.fromNeuItem(item)
+                } else if (error?.isCancellationFailure() != true) {
+                    SkysoftMod.LOGGER.warn("Failed to request SkyBlock repo item $internalName", error)
                 }
             }
+        }
     }
 
     fun loadItemIndexes() {
-        if (!PetRepoCache.loadingItemIndexes.compareAndSet(false, true)) return
-        request(PetRepoCache.GITHUB_TREE_URL)
-            .thenApply { PetRepoCache.gson.fromJson(it, GithubTreeJson::class.java) }
-            .whenComplete { tree, error ->
-                SkysoftErrorBoundary.run("Pet Repository index async completion") {
-                    try {
-                        if (error == null && tree != null) {
-                            PetRepoCache.petSkinInternalNames =
-                                tree.tree.mapNotNull { it.petSkinInternalNameOrNull() }.toSet()
-                            PetRepoCache.itemInternalNames =
-                                tree.tree.mapNotNull { it.itemInternalNameOrNull() }.toSet()
-                        } else if (error?.isCancellationFailure() != true) {
-                            SkysoftMod.LOGGER.warn("Failed to load SkyBlock item indexes", error)
-                        }
-                    } finally {
-                        PetRepoCache.loadingItemIndexes.set(false)
-                    }
+        itemIndexRequest.startIfIdle(
+            requestFactory = {
+                request(PetRepoCache.GITHUB_TREE_URL)
+                    .thenApply { PetRepoCache.gson.fromJson(it, GithubTreeJson::class.java) }
+            },
+        ) { tree, error ->
+            SkysoftErrorBoundary.run("Pet Repository index async completion") {
+                if (error == null && tree != null) {
+                    PetRepoCache.petSkinInternalNames = tree.tree.mapNotNull { it.petSkinInternalNameOrNull() }.toSet()
+                    PetRepoCache.itemInternalNames = tree.tree.mapNotNull { it.itemInternalNameOrNull() }.toSet()
+                } else if (error?.isCancellationFailure() != true) {
+                    SkysoftMod.LOGGER.warn("Failed to load SkyBlock item indexes", error)
                 }
             }
+        }
+    }
+
+    fun cancelPending() {
+        itemRequests.cancelAll()
+        itemIndexRequest.cancel()
     }
 
     fun request(url: String): CompletableFuture<String> = PetRepoCache.requests.getString(url)

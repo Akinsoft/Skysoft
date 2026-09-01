@@ -1,20 +1,20 @@
 package com.skysoft.features.ravengard
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.InteractionClick
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.ravengard.RAVENGARD_NAMESPACE
 import com.skysoft.events.entity.EntityInteractionEvent
 import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.utils.ElapsedTimeMark
-import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.SkysoftScreenEvents
 import com.skysoft.utils.render.EntityLabelRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelStyle
 import com.skysoft.utils.render.WorldRenderDispatcher
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.screens.Screen
@@ -36,12 +36,11 @@ object RavengardLootBagCheckmarks {
             trackInteraction(event)
             false
         }
-        ScreenEvents.BEFORE_INIT.register { minecraft, screen, _, _ ->
-            if (!isEnabled()) return@register
-            SkysoftErrorBoundary.run("Ravengard loot bag container opening") {
-                onScreenOpened(minecraft, screen)
-            }
-        }
+        SkysoftScreenEvents.onBeforeInit(
+            "Ravengard loot bag container opening",
+            isActive = ::isEnabled,
+            listener = ::onScreenOpened,
+        )
         WorldRenderDispatcher.registerHandler("Ravengard loot bag checkmarks", ::isEnabled, ::renderWorld)
     }
 
@@ -57,7 +56,7 @@ object RavengardLootBagCheckmarks {
         val interaction = event.clickedEntity as? Interaction ?: return
         val level = Minecraft.getInstance().level ?: return
         syncLevel(level)
-        val display = level.entitiesForRendering().asSequence()
+        val display = ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<Display.ItemDisplay>()
             .filter { candidate -> isRavengardLootBag(candidate.itemStack.get(DataComponents.ITEM_MODEL)) }
             .minByOrNull { candidate -> candidate.distanceToSqr(interaction) }
@@ -79,7 +78,7 @@ object RavengardLootBagCheckmarks {
     private fun renderWorld(context: SkysoftRenderContext) {
         val level = Minecraft.getInstance().level ?: return
         syncLevel(level)
-        level.entitiesForRendering().asSequence()
+        ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<Display.ItemDisplay>()
             .filter { display -> display.uuid in locallyOpenedBags }
             .filter { display -> isOpenedRavengardLootBag(display.itemStack.get(DataComponents.ITEM_MODEL)) }

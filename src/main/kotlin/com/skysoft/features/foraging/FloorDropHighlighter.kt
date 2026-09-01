@@ -1,6 +1,7 @@
 package com.skysoft.features.foraging
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.SkysoftClientEvents
@@ -36,7 +37,7 @@ object FloorDropHighlighter {
             return
         }
         floorDropLevel = level
-        val stringDisplayBlocks = level.entitiesForRendering().asSequence()
+        val stringDisplayBlocks = ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<Display.ItemDisplay>()
             .filter { display -> display.isAlive && display.itemStack.item == Items.STRING }
             .map { display -> display.blockPosition() }

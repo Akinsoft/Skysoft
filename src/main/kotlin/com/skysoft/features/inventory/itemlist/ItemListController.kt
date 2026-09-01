@@ -15,6 +15,7 @@ import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.ContainerSearchHighlighter
 import com.skysoft.features.inventory.InventoryItemSearchHighlight
+import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
@@ -79,6 +80,10 @@ object ItemListController {
 
     @JvmStatic
     fun register() {
+        InventoryOverlayInput.registerCoverageProvider("Item List coverage", ::isItemListActive) {
+                screen, mouseX, mouseY ->
+            isClickInside(screen, mouseX, mouseY)
+        }
         SkyBlockDataRepository.Demand.register("Item List", ::isItemListActive)
         SkyBlockCookieBuffApi.registerConsumer("Item List", ::isItemListViewerOpen)
         HudEditorRegistry.register(object : HudEditorElement {

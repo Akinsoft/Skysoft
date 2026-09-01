@@ -31,9 +31,9 @@ object SlayerTimeToKill {
         HypixelPartyApi.registerConsumer("Slayer Personal Best Sharing") {
             config.enabled && config.settings.sharePersonalBests
         }
-        SlayerQuestState.onBossSpawn(::onBossSpawn)
-        SlayerQuestState.onQuestStarted(::onQuestStarted)
-        SlayerQuestState.onQuestComplete(::onQuestComplete)
+        SlayerQuestState.onBossSpawn("Slayer Time to Kill boss spawn", ::onBossSpawn)
+        SlayerQuestState.onQuestStarted("Slayer Time to Kill quest start", ::onQuestStarted)
+        SlayerQuestState.onQuestComplete("Slayer Time to Kill quest completion", ::onQuestComplete)
         ChatEvents.onVisibleMessage("Slayer Time to Kill player death", { activeBoss != null }) { message ->
             if (message.isSystemLike && SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText)) activeBoss = null
             ChatMessageVisibility.SHOW

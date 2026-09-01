@@ -1,6 +1,5 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.features.pets.setSkyBlockId
 import com.skysoft.utils.boundedAccessOrderMap
 import kotlin.math.floor
 import net.minecraft.core.component.DataComponents

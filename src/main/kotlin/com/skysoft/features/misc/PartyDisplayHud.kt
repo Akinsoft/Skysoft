@@ -12,7 +12,6 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.TabDataOverlays
@@ -20,19 +19,18 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -50,7 +48,7 @@ private val hudControls = PartyDisplayHudControls()
 
 internal fun registerPartyDisplayHud() {
     registerPartyDisplayInput()
-    GuiOverlayRegistry.register(
+    GuiOverlayRegistry.registerHud(
         GuiOverlay(
             id = "party_display",
             layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -58,28 +56,23 @@ internal fun registerPartyDisplayHud() {
             screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderPartyDisplayHud(context) },
         ),
+        object : HudEditorElement {
+            override val id: String = "party_display"
+            override val label: String = "Party Display"
+            override val position get() = partyDisplayConfig.position
+            override val hasEditorBackground: Boolean get() = !partyDisplayConfig.details.background
+            override fun width(): Int = editorRenderable()?.width ?: 0
+            override fun height(): Int = editorRenderable()?.height ?: 0
+            override fun isVisible(): Boolean = partyDisplayConfig.enabled && PartyDisplay.currentMembers().isNotEmpty()
+            override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
+            override fun openConfig() = SkysoftConfigGui.open("Party Display")
+        },
     )
-    HudEditorRegistry.register(object : HudEditorElement {
-        override val id: String = "party_display"
-        override val label: String = "Party Display"
-        override val position get() = partyDisplayConfig.position
-        override val hasEditorBackground: Boolean get() = !partyDisplayConfig.details.background
-        override fun width(): Int = editorRenderable()?.width ?: 0
-        override fun height(): Int = editorRenderable()?.height ?: 0
-        override fun isVisible(): Boolean = partyDisplayConfig.enabled && PartyDisplay.currentMembers().isNotEmpty()
-        override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
-        override fun openConfig() = SkysoftConfigGui.open("Party Display")
-    })
 }
 
 private fun registerPartyDisplayInput() {
-    ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (screen !is AbstractContainerScreen<*>) return@register
-        ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-            SkysoftErrorBoundary.value("Party Display mouse click", true) {
-                shouldAllowPartyDisplayClick(screen, click)
-            }
-        }
+    InventoryOverlayInput.registerClickHandler("Party Display mouse click", isActive = { true }) { screen, click ->
+        if (shouldAllowPartyDisplayClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
     }
 }
 
@@ -132,8 +125,7 @@ private fun renderInteractive(
 ) {
     val minecraft = Minecraft.getInstance()
     val window = minecraft.window
-    val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
-    val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
+    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
     val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
     val interactive = !InventoryOverlayInput.isPointCovered(

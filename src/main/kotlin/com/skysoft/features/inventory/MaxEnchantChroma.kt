@@ -7,13 +7,12 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
 import com.skysoft.data.skyblock.itemCategoryFromLore
+import com.skysoft.utils.ItemTooltipEvents
 import com.skysoft.utils.NumberUtilities.romanNumeral
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.render.ChromaTextRendering
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import java.util.Locale
 import java.util.Optional
-import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 
@@ -22,20 +21,20 @@ object MaxEnchantChroma {
     private val enchantments by lazy(::loadGeneratedMaxEnchantments)
 
     fun register() {
-        ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            SkysoftErrorBoundary.run("Max Enchant Chroma tooltip") {
-                if (!config.enabled || !HypixelLocationState.inSkyBlock) return@run
-                val extraAttributes = stack.extraAttributes()
-                val labels = maxedEnchantmentLabels(
-                    extraAttributes?.skyBlockEnchantments().orEmpty(),
-                    enchantments,
-                    config.settings.includeUltimateEnchantments,
-                    maximumEfficiencyLevel(extraAttributes?.getStringOrNull("id"), itemCategoryFromLore(tooltip)),
-                )
-                if (labels.isEmpty()) return@run
-                tooltip.indices.forEach { index ->
-                    tooltip[index] = applyMaxEnchantChroma(tooltip[index], labels, MAX_ENCHANT_CHROMA)
-                }
+        ItemTooltipEvents.register(
+            "Max Enchant Chroma tooltip",
+            isActive = { config.enabled && HypixelLocationState.inSkyBlock },
+        ) tooltip@{ stack, _, _, tooltip ->
+            val extraAttributes = stack.extraAttributes()
+            val labels = maxedEnchantmentLabels(
+                extraAttributes?.skyBlockEnchantments().orEmpty(),
+                enchantments,
+                config.settings.includeUltimateEnchantments,
+                maximumEfficiencyLevel(extraAttributes?.getStringOrNull("id"), itemCategoryFromLore(tooltip)),
+            )
+            if (labels.isEmpty()) return@tooltip
+            tooltip.indices.forEach { index ->
+                tooltip[index] = applyMaxEnchantChroma(tooltip[index], labels, MAX_ENCHANT_CHROMA)
             }
         }
     }

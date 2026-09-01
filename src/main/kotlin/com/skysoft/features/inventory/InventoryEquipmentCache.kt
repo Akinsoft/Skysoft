@@ -2,22 +2,17 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
+import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ChangeResult
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
-import com.skysoft.utils.gui.nonPlayerInventoryKey
-import com.skysoft.utils.gui.nonPlayerSlots
 import java.util.Locale
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
 
 internal object InventoryEquipmentCache {
@@ -25,46 +20,21 @@ internal object InventoryEquipmentCache {
 
     fun register() {
         ProfileStorageApi.registerConsumer("Inventory Equipment Cache") { consumers.hasActiveConsumers }
-        SkysoftClientEvents.onEndTick(
-            "Inventory Equipment Cache tick",
-            isActive = { consumers.hasActiveConsumers || lastEquipmentInventoryKey != null },
-        ) { tick() }
+        SkyBlockOpenInventoryApi.onChange(
+            "Inventory Equipment Cache inventory",
+            isActive = { consumers.hasActiveConsumers },
+            listener = ::readInventoryEquipmentSnapshot,
+        )
         SkysoftClientEvents.onDisconnect("Inventory Equipment Cache reset", ::reset)
         SkyBlockProfileApi.onProfileChange(
             "Inventory Equipment Cache profile reset",
             { consumers.hasActiveConsumers },
         ) { reset() }
-        registerCloseFlush()
-    }
-
-    private fun registerCloseFlush() {
-        ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-            if (consumers.hasActiveConsumers && screen is AbstractContainerScreen<*>) {
-                ScreenEvents.remove(screen).register {
-                    if (!consumers.hasActiveConsumers || !HypixelLocationState.inSkyBlock) return@register
-                    SkysoftErrorBoundary.run("Inventory Equipment Cache close flush") {
-                        readInventoryEquipmentScreen(screen)
-                    }
-                }
-            }
-        }
     }
 
     fun registerConsumer(id: String, isActive: () -> Boolean) = consumers.register(id, isActive)
 
     fun stacks(): List<ItemStack> = inventoryEquipmentStorage.map(::stackFor)
-
-    private fun tick() {
-        if (!consumers.hasActiveConsumers || !HypixelLocationState.inSkyBlock) {
-            reset()
-            return
-        }
-        val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
-            reset()
-            return
-        }
-        readInventoryEquipmentScreen(screen)
-    }
 
     private fun reset() {
         lastEquipmentInventoryKey = null
@@ -76,26 +46,24 @@ private val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStorag
 
 internal var lastEquipmentInventoryKey: String? = null
 
-private fun readInventoryEquipmentScreen(screen: AbstractContainerScreen<*>): ChangeResult {
-    val inventoryName = screen.title.cleanSkyBlockText()
-    if (!isInventoryEquipmentMenuName(inventoryName)) {
+private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapshot?): ChangeResult {
+    if (snapshot == null || !isInventoryEquipmentMenuName(snapshot.title)) {
         lastEquipmentInventoryKey = null
         return ChangeResult.UNCHANGED
     }
 
-    val key = screen.nonPlayerInventoryKey(inventoryName)
-    if (key == lastEquipmentInventoryKey) return ChangeResult.UNCHANGED
-    lastEquipmentInventoryKey = key
+    if (snapshot.key == lastEquipmentInventoryKey) return ChangeResult.UNCHANGED
+    lastEquipmentInventoryKey = snapshot.key
 
     val items = selectEquipmentMenuItems(
-        inventoryName,
-        screen.nonPlayerSlots().map { slot ->
+        snapshot.title,
+        snapshot.cells.map { cell ->
             EquipmentMenuCell(
-                index = slot.containerSlot,
-                item = slot.item.copy(),
-                cleanName = slot.item.formattedHoverName().cleanSkyBlockText(),
-                isFiller = slot.item.item in MinecraftItems.stainedGlassPanes(),
-                isEquippedSelector = slot.item.item == MinecraftItems.limeDye(),
+                index = cell.index,
+                item = cell.item,
+                cleanName = cell.item.formattedHoverName().cleanSkyBlockText(),
+                isFiller = cell.item.item in MinecraftItems.stainedGlassPanes(),
+                isEquippedSelector = cell.item.item == MinecraftItems.limeDye(),
             )
         },
         emptyItem = ItemStack.EMPTY,

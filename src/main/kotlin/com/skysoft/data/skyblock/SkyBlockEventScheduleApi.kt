@@ -5,21 +5,22 @@ import com.skysoft.SkysoftMod
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ConsumerActivity
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
-import java.util.concurrent.atomic.AtomicBoolean
 
 object SkyBlockEventScheduleApi {
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
-    private val loading = AtomicBoolean(false)
+    private val requestSlot = AsyncRequestSlot<SkyBlockEventSchedule>()
+    private val refreshSchedule = RefreshSchedule()
 
     @Volatile
     private var schedule = SkyBlockEventSchedule()
-    private var ticksUntilRefresh = 0
 
     fun register() {
         SkysoftClientEvents.onEndTick(
@@ -37,14 +38,13 @@ object SkyBlockEventScheduleApi {
                 -> Unit
             }
             if (!HypixelLocationState.inSkyBlock) {
-                ticksUntilRefresh = 0
+                refreshSchedule.reset()
                 return@tick
             }
-            if (ticksUntilRefresh-- > 0) return@tick
-            ticksUntilRefresh = REFRESH_INTERVAL_TICKS
-            refresh()
+            if (refreshSchedule.isDue(System.currentTimeMillis())) refresh()
         }
         SkysoftClientEvents.onClientStopping("SkyBlock Event Schedule request cancellation") {
+            requestSlot.cancel()
             requests.cancelAll()
         }
     }
@@ -52,9 +52,6 @@ object SkyBlockEventScheduleApi {
     fun registerConsumer(id: String, isActive: () -> Boolean) {
         consumers.register(id, isActive)
     }
-
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
 
     fun activeEvents(nowMillis: Long): Set<SkyBlockEvent> {
         val current = schedule
@@ -79,34 +76,36 @@ object SkyBlockEventScheduleApi {
     )
 
     private fun refresh() {
-        if (!loading.compareAndSet(false, true)) return
-        requests.getString(EVENTS_URL)
-            .thenApply { gson.fromJson(it, SkyBlockEventScheduleResponse::class.java) }
-            .thenApply(::normalizeSchedule)
-            .whenComplete { response, error ->
-                SkysoftErrorBoundary.run("SkyBlock Event Schedule async completion") {
-                    try {
-                        if (error == null && response != null) {
-                            schedule = response
-                        } else if (error?.isCancellationFailure() != true) {
-                            SkysoftMod.LOGGER.warn("Failed to refresh SkyBlock event schedule", error)
-                        }
-                    } finally {
-                        loading.set(false)
-                    }
+        requestSlot.startIfIdle(
+            requestFactory = {
+                requests.getString(EVENTS_URL)
+                    .thenApply { gson.fromJson(it, SkyBlockEventScheduleResponse::class.java) }
+                    .thenApply(::normalizeSchedule)
+            },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("SkyBlock Event Schedule async completion") {
+                val now = System.currentTimeMillis()
+                if (error == null && response != null) {
+                    schedule = response
+                    refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
+                } else if (error?.isCancellationFailure() != true) {
+                    refreshSchedule.schedule(now, FAILURE_RETRY_MILLIS)
+                    SkysoftMod.LOGGER.warn("Failed to refresh SkyBlock event schedule", error)
                 }
             }
+        }
     }
 
     private fun reset() {
+        requestSlot.cancel()
         requests.cancelAll()
-        loading.set(false)
         schedule = SkyBlockEventSchedule()
-        ticksUntilRefresh = 0
+        refreshSchedule.reset()
     }
 
     private const val EVENTS_URL = "https://api.findthesoft.com/skyblock/events"
-    private const val REFRESH_INTERVAL_TICKS = 20 * 60 * 5
+    private const val REFRESH_INTERVAL_MILLIS = 5L * 60L * 1_000L
+    private const val FAILURE_RETRY_MILLIS = 60_000L
     private const val MAX_SCHEDULE_AGE_MILLIS = 30 * 60 * 1_000L
 }
 

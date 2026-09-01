@@ -1,11 +1,11 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 
 object SkyBlockBazaarTransfers {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockBazaarTransfer) -> Unit>()
     private var registered = false
 
     fun onTransfer(
@@ -14,28 +14,18 @@ object SkyBlockBazaarTransfers {
         listener: (SkyBlockBazaarTransfer) -> Unit,
     ) {
         if (!registered) register()
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     private fun register() {
         registered = true
-        ChatEvents.onVisibleMessage("SkyBlock Bazaar transfers", { listeners.any { it.isActive() } }) { message ->
+        ChatEvents.onVisibleMessage("SkyBlock Bazaar transfers", { listeners.hasActiveListeners }) { message ->
             parseSkyBlockBazaarTransfer(message.cleanText)?.let { transfer ->
-                listeners.forEach { registered ->
-                    if (registered.isActive()) {
-                        SkysoftErrorBoundary.run(registered.boundary) { registered.listener(transfer) }
-                    }
-                }
+                listeners.forEachActive { listener -> listener(transfer) }
             }
             ChatMessageVisibility.SHOW
         }
     }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockBazaarTransfer) -> Unit,
-    )
 }
 
 data class SkyBlockBazaarTransfer(

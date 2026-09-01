@@ -1,13 +1,13 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.hoverTextComponents
 
 object SkyBlockSackChanges {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockSackChangeBatch) -> Unit>()
 
     fun register() {
         ChatEvents.onVisibleMessage(
@@ -36,25 +36,15 @@ object SkyBlockSackChanges {
         isActive: () -> Boolean,
         listener: (SkyBlockSackChangeBatch) -> Unit,
     ) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     private fun dispatch(batch: SkyBlockSackChangeBatch) {
-        listeners.forEach { registered ->
-            if (registered.isActive()) {
-                SkysoftErrorBoundary.run(registered.boundary) { registered.listener(batch) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(batch) }
     }
 
-    private fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
+    private fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
     private val config get() = SkysoftConfigGui.config().chat.messageFiltering
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockSackChangeBatch) -> Unit,
-    )
 }
 
 data class SkyBlockSackChangeBatch(

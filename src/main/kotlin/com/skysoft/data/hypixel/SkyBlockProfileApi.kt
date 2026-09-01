@@ -2,18 +2,17 @@ package com.skysoft.data.hypixel
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import net.minecraft.client.Minecraft
 import java.util.Locale
 
 object SkyBlockProfileApi {
-    private val profileChangeListeners = mutableListOf<ProfileChangeListener>()
+    private val profileChangeListeners = ActiveListenerRegistry<(String?) -> Unit>()
     private val consumers = ActiveConsumerRegistry()
-    private var ticks = 0
 
     var currentProfileName: String? = null
         private set
@@ -30,7 +29,11 @@ object SkyBlockProfileApi {
     }
 
     fun register() {
-        TabListApi.registerConsumer("SkyBlock Profile API") { consumers.hasActiveConsumers }
+        TabListApi.onChange(
+            "SkyBlock Profile API",
+            isActive = { consumers.hasActiveConsumers },
+            listener = ::readTabProfile,
+        )
         ChatEvents.onVisibleMessage(
             "SkyBlock Profile chat",
             isActive = { consumers.hasActiveConsumers },
@@ -46,23 +49,16 @@ object SkyBlockProfileApi {
                 ConsumerActivity.INACTIVE -> return@onEndTick
                 ConsumerActivity.DEACTIVATED -> {
                     setProfile(null)
-                    ticks = 0
                     return@onEndTick
                 }
                 ConsumerActivity.ACTIVATED,
                 ConsumerActivity.ACTIVE,
                 -> Unit
             }
-            if (!HypixelLocationState.inSkyBlock) {
-                setProfile(null)
-                ticks = 0
-                return@onEndTick
-            }
-            if (++ticks % TAB_PROFILE_READ_INTERVAL_TICKS == 0) readTabProfile()
+            if (!HypixelLocationState.inSkyBlock) setProfile(null)
         }
         SkysoftClientEvents.onDisconnect("SkyBlock Profile reset") {
             setProfile(null)
-            ticks = 0
             consumers.resetActivity()
         }
     }
@@ -71,15 +67,12 @@ object SkyBlockProfileApi {
         consumers.register(id, isActive)
     }
 
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
-
     fun onProfileChange(
         boundary: String,
         isActive: () -> Boolean,
         listener: (String?) -> Unit,
     ) {
-        profileChangeListeners += ProfileChangeListener(boundary, isActive, listener)
+        profileChangeListeners.register(boundary, isActive, listener)
     }
 
     private fun handleChat(message: String) {
@@ -97,7 +90,7 @@ object SkyBlockProfileApi {
     }
 
     private fun readTabProfile() {
-        for (component in TabListApi.lines) {
+        for (component in TabListApi.skyBlockLines) {
             val line = component.cleanSkyBlockText()
             val profile = profileTabPattern.matchEntire(line)?.groupValues?.get(1) ?: continue
             setProfile(profile)
@@ -109,25 +102,14 @@ object SkyBlockProfileApi {
         val normalized = profileName?.normalizeProfileName()?.takeIf { it.isNotBlank() }
         if (currentProfileName == normalized) return
         currentProfileName = normalized
-        profileChangeListeners.forEach { listener ->
-            if (listener.isActive()) {
-                SkysoftErrorBoundary.run(listener.boundary) { listener.callback(normalized) }
-            }
-        }
+        profileChangeListeners.forEachActive { listener -> listener(normalized) }
     }
 
     private fun String.normalizeProfileName(): String =
         trim().lowercase(Locale.US)
 
     private val profileTabPattern = Regex("""Profile: ([\w\s]+)(?:[ ♲Ⓑ☀]+)?""")
-    private const val TAB_PROFILE_READ_INTERVAL_TICKS = 20
 }
-
-private data class ProfileChangeListener(
-    val boundary: String,
-    val isActive: () -> Boolean,
-    val callback: (String?) -> Unit,
-)
 
 data class SkyBlockProfileId(
     val playerKey: String,

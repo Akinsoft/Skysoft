@@ -4,14 +4,14 @@ import com.skysoft.data.StoredPetData
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import kotlin.time.Duration.Companion.seconds
 
 object ActivePetTracker {
     private val storage get() = ProfileStorageApi.storage
-    private val changeListeners = mutableListOf<PetChangeListener>()
+    private val changeListeners = ActiveListenerRegistry<(StoredPetData?) -> Unit>()
     private val lastAssertion = mutableMapOf<PetDataAssertionSource, ElapsedTimeMark>()
     private var currentPetSnapshot: StoredPetData? = null
     private var pendingTabPetData: StoredPetData? = null
@@ -52,7 +52,7 @@ object ActivePetTracker {
         isActive: () -> Boolean,
         listener: (StoredPetData?) -> Unit,
     ) {
-        changeListeners += PetChangeListener(boundary, isActive, listener)
+        changeListeners.register(boundary, isActive, listener)
     }
 
     fun assertFoundCurrentData(petData: StoredPetData, source: PetDataAssertionSource) {
@@ -107,11 +107,7 @@ object ActivePetTracker {
     }
 
     private fun notifyChange(petData: StoredPetData?) {
-        changeListeners.forEach { listener ->
-            if (listener.isActive()) {
-                SkysoftErrorBoundary.run(listener.boundary) { listener.callback(petData) }
-            }
-        }
+        changeListeners.forEachActive { listener -> listener(petData) }
     }
 
     fun handleChat(message: String) {
@@ -161,12 +157,6 @@ object ActivePetTracker {
 
     private const val TAB_ASSERTION_INTERVAL_TICKS = 20
 }
-
-private data class PetChangeListener(
-    val boundary: String,
-    val isActive: () -> Boolean,
-    val callback: (StoredPetData?) -> Unit,
-)
 
 private val TAB_DELAY_SOURCES = setOf(
     ActivePetTracker.PetDataAssertionSource.AUTOPET,

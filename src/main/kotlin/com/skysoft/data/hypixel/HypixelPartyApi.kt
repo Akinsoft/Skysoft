@@ -2,6 +2,7 @@ package com.skysoft.data.hypixel
 
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ActiveStatePublisher
 import com.skysoft.utils.SkysoftClientEvents
 import net.hypixel.modapi.HypixelModAPI
 import net.hypixel.modapi.packet.impl.clientbound.ClientboundHelloPacket
@@ -12,29 +13,28 @@ import java.util.UUID
 
 object HypixelPartyApi {
     private val consumers = ActiveConsumerRegistry()
+    private val publisher = ActiveStatePublisher("Hypixel Party API", HypixelPartyState.EMPTY)
     private var isRegistered = false
     private var isBackgroundActive = false
     private var lastRequestAtMillis = 0L
     private var nextRefreshAtMillis = 0L
 
-    var state: HypixelPartyState = HypixelPartyState.EMPTY
-        private set
-
     val isLoaded: Boolean
-        get() = state.isLoaded
+        get() = publisher.state.isLoaded
 
     val isInParty: Boolean
-        get() = state.isInParty
+        get() = publisher.state.isInParty
 
     val leaderUuid: UUID?
-        get() = state.leaderUuid
+        get() = publisher.state.leaderUuid
 
     val memberUuids: Set<UUID>
-        get() = state.memberUuids
+        get() = publisher.state.memberUuids
 
     fun register() {
         if (isRegistered) return
         isRegistered = true
+        publisher.register()
 
         val modApi = HypixelModAPI.getInstance()
         modApi.createHandler(ClientboundHelloPacket::class.java) {
@@ -42,6 +42,11 @@ object HypixelPartyApi {
         }
         modApi.createHandler(ClientboundPartyInfoPacket::class.java, ::onPartyInfoPacket)
 
+        TabListApi.onChange(
+            "Hypixel Party member identities",
+            isActive = { hasActiveConsumers },
+            listener = { enrichMemberIdentities() },
+        )
         SkysoftClientEvents.onEndTick(
             "Hypixel Party refresh",
             isActive = { hasActiveConsumers || isBackgroundActive },
@@ -56,6 +61,15 @@ object HypixelPartyApi {
 
     fun registerConsumer(id: String, isActive: () -> Boolean) {
         consumers.register(id, isActive)
+    }
+
+    fun onChange(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: (HypixelPartyState) -> Unit,
+    ) {
+        registerConsumer(boundary, isActive)
+        publisher.onChange(boundary, isActive, listener)
     }
 
     private fun onTick() {
@@ -104,23 +118,36 @@ object HypixelPartyApi {
     }
 
     internal fun acceptPartyInfo(packet: ClientboundPartyInfoPacket, now: Long) {
+        val names = TabListApi.playerProfiles.associate { profile -> profile.uuid to profile.profileName }
         val members = if (packet.isInParty) {
             packet.memberMap.values.associate { member ->
-                member.uuid to HypixelPartyMember(member.uuid, member.role.toSkysoftRole())
+                member.uuid to HypixelPartyMember(member.uuid, member.role.toSkysoftRole(), names[member.uuid])
             }
         } else {
             emptyMap()
         }
-        state = HypixelPartyState(
-            isInParty = packet.isInParty,
-            members = members,
-            updatedAtMillis = now,
+        publisher.update(
+            HypixelPartyState(
+                isInParty = packet.isInParty,
+                members = members,
+                updatedAtMillis = now,
+            ),
         )
+    }
+
+    private fun enrichMemberIdentities() {
+        val current = publisher.state
+        if (!current.isInParty) return
+        val names = TabListApi.playerProfiles.associate { profile -> profile.uuid to profile.profileName }
+        val updatedMembers = current.members.mapValues { (uuid, member) ->
+            member.copy(profileName = names[uuid] ?: member.profileName)
+        }
+        if (updatedMembers != current.members) publisher.update(current.copy(members = updatedMembers))
     }
 
     private fun reset() {
         isBackgroundActive = false
-        state = HypixelPartyState.EMPTY
+        publisher.update(HypixelPartyState.EMPTY)
         lastRequestAtMillis = 0L
         nextRefreshAtMillis = 0L
     }
@@ -169,6 +196,7 @@ data class HypixelPartyState(
 data class HypixelPartyMember(
     val uuid: UUID,
     val role: HypixelPartyRole,
+    val profileName: String? = null,
 )
 
 enum class HypixelPartyRole {

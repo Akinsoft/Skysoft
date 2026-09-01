@@ -6,18 +6,14 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
 object SkyBlockSackContents {
     fun register() {
         ProfileStorageApi.registerConsumer("SkyBlock Sack Contents") { HypixelLocationState.inSkyBlock }
-        SkyBlockOpenInventoryApi.onUpdate(
+        SkyBlockOpenInventoryApi.onChange(
             "SkyBlock Sack Contents inventory",
-            isActive = {
-                HypixelLocationState.inSkyBlock && MinecraftClient.screen() is AbstractContainerScreen<*>
-            },
+            isActive = { HypixelLocationState.inSkyBlock },
             listener = ::readOpenInventory,
         )
         SkyBlockSackChanges.onChange(

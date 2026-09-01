@@ -1,6 +1,6 @@
 package com.skysoft.events.entity
 
-import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.ActiveListenerRegistry
 import net.minecraft.network.syncher.SynchedEntityData
 
 class ClientEntityMetadataEvent(
@@ -13,29 +13,19 @@ fun interface ReceiveEntityMetadataCallback {
 }
 
 object ClientEntityMetadataEvents {
-    private var listeners: List<ActiveMetadataListener> = emptyList()
+    private val listeners = ActiveListenerRegistry<ReceiveEntityMetadataCallback>()
 
     fun register(
         boundary: String,
         isActive: () -> Boolean,
         listener: ReceiveEntityMetadataCallback,
     ) {
-        listeners += ActiveMetadataListener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
-    fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
+    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 
     fun dispatch(metadata: ClientEntityMetadataEvent) {
-        listeners.forEach { listener ->
-            if (listener.isActive()) {
-                SkysoftErrorBoundary.run(listener.boundary) { listener.callback.onReceiveEntityMetadata(metadata) }
-            }
-        }
+        listeners.forEachActive { listener -> listener.onReceiveEntityMetadata(metadata) }
     }
-
-    private data class ActiveMetadataListener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val callback: ReceiveEntityMetadataCallback,
-    )
 }

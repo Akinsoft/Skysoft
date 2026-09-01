@@ -1,6 +1,7 @@
 package com.skysoft.data.hypixel
 
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.utils.ActiveStatePublisher
 import com.skysoft.utils.SkysoftClientEvents
 import net.hypixel.data.type.GameType
 import net.hypixel.data.type.ServerType
@@ -9,11 +10,13 @@ import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacke
 import kotlin.jvm.optionals.getOrNull
 
 object HypixelLocationState {
-    var onHypixel: Boolean = false
-        private set
+    private val publisher = ActiveStatePublisher("Hypixel Location State", HypixelLocationSnapshot())
 
-    var game: SkysoftGame? = null
-        private set
+    val onHypixel: Boolean
+        get() = publisher.state.onHypixel
+
+    val game: SkysoftGame?
+        get() = publisher.state.game
 
     val inSkyBlock: Boolean
         get() = game == SkysoftGame.SKYBLOCK
@@ -21,26 +24,27 @@ object HypixelLocationState {
     val inRavengard: Boolean
         get() = game == SkysoftGame.RAVENGARD
 
-    var currentIsland: SkyBlockIsland? = null
-        private set
+    val currentIsland: SkyBlockIsland?
+        get() = publisher.state.currentIsland
 
-    var currentMode: String? = null
-        private set
+    val currentMode: String?
+        get() = publisher.state.currentMode
 
-    var currentServerName: String? = null
-        private set
+    val currentServerName: String?
+        get() = publisher.state.currentServerName
 
-    var currentLobbyName: String? = null
-        private set
+    val currentLobbyName: String?
+        get() = publisher.state.currentLobbyName
 
-    var locationVersion: Long = 0
-        private set
+    val locationVersion: Long
+        get() = publisher.version
 
     private var registered = false
 
     fun register() {
         if (registered) return
         registered = true
+        publisher.register()
 
         val modApi = HypixelModAPI.getInstance()
         modApi.subscribeToEventPacket(ClientboundLocationPacket::class.java)
@@ -53,41 +57,45 @@ object HypixelLocationState {
         acceptLocation(packet)
     }
 
+    fun onChange(
+        boundary: String,
+        isActive: () -> Boolean,
+        listener: (HypixelLocationSnapshot) -> Unit,
+    ) {
+        publisher.onChange(boundary, isActive, listener)
+    }
+
     internal fun acceptLocation(packet: ClientboundLocationPacket) {
-        val wasOnHypixel = onHypixel
-        onHypixel = true
         val mode = packet.mode.getOrNull()
-        val newGame = skysoftGame(packet.serverType.getOrNull(), mode)
-        val serverName = packet.serverName?.takeIf { it.isNotBlank() }
-        val lobbyName = packet.lobbyName.getOrNull()
+        val game = skysoftGame(packet.serverType.getOrNull(), mode)
         val map = packet.map.getOrNull()
-        val newIsland = if (newGame == SkysoftGame.SKYBLOCK) SkyBlockIsland.getByLocation(mode, map) else null
-        if (
-            !wasOnHypixel ||
-            game != newGame ||
-            currentIsland != newIsland ||
-            currentMode != mode ||
-            currentServerName != serverName ||
-            currentLobbyName != lobbyName
-        ) {
-            locationVersion++
-        }
-        game = newGame
-        currentIsland = newIsland
-        currentMode = mode
-        currentServerName = serverName
-        currentLobbyName = lobbyName
+        publisher.update(
+            HypixelLocationSnapshot(
+                onHypixel = true,
+                game = game,
+                currentIsland = if (game == SkysoftGame.SKYBLOCK) SkyBlockIsland.getByLocation(mode, map) else null,
+                currentMode = mode,
+                currentServerName = packet.serverName?.takeIf { it.isNotBlank() },
+                currentLobbyName = packet.lobbyName.getOrNull(),
+            ),
+        )
     }
 
     private fun reset() {
-        if (onHypixel || game != null || currentIsland != null) locationVersion++
-        onHypixel = false
-        game = null
-        currentIsland = null
-        currentMode = null
-        currentServerName = null
-        currentLobbyName = null
+        publisher.update(HypixelLocationSnapshot())
     }
+}
+
+data class HypixelLocationSnapshot(
+    val onHypixel: Boolean = false,
+    val game: SkysoftGame? = null,
+    val currentIsland: SkyBlockIsland? = null,
+    val currentMode: String? = null,
+    val currentServerName: String? = null,
+    val currentLobbyName: String? = null,
+) {
+    val inSkyBlock: Boolean
+        get() = game == SkysoftGame.SKYBLOCK
 }
 
 enum class SkysoftGame {

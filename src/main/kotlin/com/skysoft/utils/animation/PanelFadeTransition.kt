@@ -1,11 +1,13 @@
 package com.skysoft.utils.animation
 
+import com.skysoft.utils.EasingUtilities
+
 internal class PanelFadeTransition(
-    private val nanoTime: () -> Long = System::nanoTime,
+    nanoTime: () -> Long = System::nanoTime,
     private val durationNanos: Long = DEFAULT_DURATION_NANOS,
 ) {
     private var phase = Phase.HIDDEN
-    private var transitionStartedAt = 0L
+    private val clock = AnimationClock(nanoTime)
 
     val isVisible: Boolean
         get() = phase != Phase.HIDDEN
@@ -18,22 +20,22 @@ internal class PanelFadeTransition(
 
     fun show() {
         phase = Phase.OPENING
-        transitionStartedAt = nanoTime()
+        clock.restart()
     }
 
     fun hide() {
         if (!isVisible || isClosing) return
         phase = Phase.CLOSING
-        transitionStartedAt = nanoTime()
+        clock.restart()
     }
 
     fun reset() {
         phase = Phase.HIDDEN
-        transitionStartedAt = 0L
+        clock.stop()
     }
 
     fun opacity(): Double {
-        val progress = ((nanoTime() - transitionStartedAt).toDouble() / durationNanos).coerceIn(0.0, 1.0)
+        val progress = clock.progressNanos(durationNanos).toDouble()
         val linearOpacity = when (phase) {
             Phase.HIDDEN -> return 0.0
             Phase.SHOWN -> return 1.0
@@ -43,7 +45,7 @@ internal class PanelFadeTransition(
         if (progress >= 1.0) {
             phase = if (phase == Phase.OPENING) Phase.SHOWN else Phase.HIDDEN
         }
-        return smoothStep(linearOpacity)
+        return EasingUtilities.smoothStep(linearOpacity)
     }
 
     private enum class Phase {
@@ -57,8 +59,3 @@ internal class PanelFadeTransition(
         const val DEFAULT_DURATION_NANOS = 160_000_000L
     }
 }
-
-private fun smoothStep(value: Double): Double = value * value * (SMOOTH_STEP_MAX - SMOOTH_STEP_FACTOR * value)
-
-private const val SMOOTH_STEP_MAX = 3.0
-private const val SMOOTH_STEP_FACTOR = 2.0

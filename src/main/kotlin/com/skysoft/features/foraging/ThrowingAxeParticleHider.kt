@@ -1,6 +1,7 @@
 package com.skysoft.features.foraging
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.events.particle.ClientParticleEvent
 import com.skysoft.events.particle.ClientParticleEvents
 import com.skysoft.utils.toWorldVec
@@ -21,13 +22,12 @@ object ThrowingAxeParticleHider {
         if (!isThrowingAxeTrailPacket(event)) return false
         val minecraft = Minecraft.getInstance()
         if (minecraft.player?.mainHandItem?.isThrowingAxe() == true) return true
-        return minecraft.level?.entitiesForRendering()
-            ?.asSequence()
-            ?.filterIsInstance<ArmorStand>()
-            ?.any { armorStand ->
+        return ClientEntitySnapshot.entities().asSequence()
+            .filterIsInstance<ArmorStand>()
+            .any { armorStand ->
                 armorStand.isInvisible && armorStand.mainHandItem.isThrowingAxe() &&
                     armorStand.position().toWorldVec().distanceSq(event.location) <= AXE_PARTICLE_DISTANCE_SQUARED
-            } == true
+            }
     }
 
     private const val AXE_PARTICLE_DISTANCE_SQUARED = 16.0

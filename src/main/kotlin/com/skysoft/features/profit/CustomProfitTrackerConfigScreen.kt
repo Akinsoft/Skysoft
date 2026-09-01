@@ -81,7 +81,6 @@ object CustomProfitTrackerConfigScreen {
         val tracker = CustomProfitTrackerConfig(name = name)
         customTrackers() += tracker
         repairAndSave()
-        registerProfitTrackerHudEditor(ProfitTrackerTarget.custom(tracker.id))
         addTrackerCategory(tracker)
     }
 
@@ -93,7 +92,6 @@ object CustomProfitTrackerConfigScreen {
         }
         customTrackers() += tracker
         repairAndSave()
-        registerProfitTrackerHudEditor(ProfitTrackerTarget.custom(tracker.id))
         addTrackerCategory(tracker)
     }
 
