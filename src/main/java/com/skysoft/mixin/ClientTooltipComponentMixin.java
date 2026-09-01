@@ -1,27 +1,24 @@
 package com.skysoft.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.skysoft.gui.tooltip.SkysoftTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ClientTooltipComponent.class)
 public interface ClientTooltipComponentMixin {
-    @Inject(
+    @WrapMethod(
         method = "create(Lnet/minecraft/world/inventory/tooltip/TooltipComponent;)" +
-            "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipComponent;",
-        at = @At("HEAD"),
-        cancellable = true
+            "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipComponent;"
     )
-    private static void skysoftCreateTooltipComponent(
+    private static ClientTooltipComponent skysoftCreateTooltipComponent(
         TooltipComponent component,
-        CallbackInfoReturnable<ClientTooltipComponent> cir
+        Operation<ClientTooltipComponent> original
     ) {
-        if (component instanceof SkysoftTooltipComponent skysoftComponent) {
-            cir.setReturnValue(skysoftComponent.clientComponent());
-        }
+        return component instanceof SkysoftTooltipComponent skysoftComponent
+            ? skysoftComponent.clientComponent()
+            : original.call(component);
     }
 }

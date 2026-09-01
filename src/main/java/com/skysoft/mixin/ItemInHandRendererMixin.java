@@ -1,5 +1,6 @@
 package com.skysoft.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.helditem.HeldItemSwingVisuals;
@@ -18,14 +19,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ItemInHandRenderer.class)
 public class ItemInHandRendererMixin {
-    @Inject(method = "shouldInstantlyReplaceVisibleItem", at = @At("RETURN"), cancellable = true)
-    protected void skysoftKeepSameUpdatedItemVisible(ItemStack currentlyVisibleItem, ItemStack expectedItem, CallbackInfoReturnable<Boolean> cir) {
+    @ModifyReturnValue(method = "shouldInstantlyReplaceVisibleItem", at = @At("RETURN"))
+    protected boolean skysoftKeepSameUpdatedItemVisible(boolean original, ItemStack currentlyVisibleItem, ItemStack expectedItem) {
         boolean preserve = MixinErrorBoundary.value("Held Item visible item update", false, () -> HeldItemUpdateFix.INSTANCE.shouldPreserveUpdate(currentlyVisibleItem, expectedItem));
-        if (!cir.getReturnValue() && preserve) cir.setReturnValue(true);
+        return original || preserve;
     }
 
     @Inject(method = "renderItem", at = @At("HEAD"))

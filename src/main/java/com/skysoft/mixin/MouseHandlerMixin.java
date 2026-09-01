@@ -1,5 +1,6 @@
 package com.skysoft.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
@@ -16,7 +17,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MouseHandler.class)
 public class MouseHandlerMixin {
@@ -65,15 +65,15 @@ public class MouseHandlerMixin {
             || original.call(screen, mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
-    @Inject(method = "getScaledXPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("HEAD"), cancellable = true)
-    private static void skysoftGetInventoryScaledX(Window window, double xPosition, CallbackInfoReturnable<Double> cir) {
+    @ModifyReturnValue(method = "getScaledXPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("RETURN"))
+    private static double skysoftGetInventoryScaledX(double original, Window window, double xPosition) {
         Double scaled = MouseInputHooks.inventoryScaledX(window, xPosition);
-        if (scaled != null) cir.setReturnValue(scaled);
+        return scaled != null ? scaled : original;
     }
 
-    @Inject(method = "getScaledYPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("HEAD"), cancellable = true)
-    private static void skysoftGetInventoryScaledY(Window window, double yPosition, CallbackInfoReturnable<Double> cir) {
+    @ModifyReturnValue(method = "getScaledYPos(Lcom/mojang/blaze3d/platform/Window;D)D", at = @At("RETURN"))
+    private static double skysoftGetInventoryScaledY(double original, Window window, double yPosition) {
         Double scaled = MouseInputHooks.inventoryScaledY(window, yPosition);
-        if (scaled != null) cir.setReturnValue(scaled);
+        return scaled != null ? scaled : original;
     }
 }

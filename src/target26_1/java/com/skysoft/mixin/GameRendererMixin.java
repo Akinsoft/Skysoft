@@ -1,5 +1,6 @@
 package com.skysoft.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
@@ -25,13 +26,12 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
-    @Inject(method = "shouldRenderBlockOutline", at = @At("RETURN"), cancellable = true)
-    private void skysoftReplaceBlockOutline(CallbackInfoReturnable<Boolean> cir) {
-        cir.setReturnValue(BlockOverlay.selectBlockOutline(cir.getReturnValue()).getRendersVanilla());
+    @ModifyReturnValue(method = "shouldRenderBlockOutline", at = @At("RETURN"))
+    private boolean skysoftReplaceBlockOutline(boolean original) {
+        return BlockOverlay.selectBlockOutline(original).getRendersVanilla();
     }
 
     @Shadow
