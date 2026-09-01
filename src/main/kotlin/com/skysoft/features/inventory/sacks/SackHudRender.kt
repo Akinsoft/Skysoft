@@ -10,7 +10,9 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.TextUtilities.truncateLegacyText
+import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
@@ -197,7 +199,7 @@ internal class SackHudRenderable(
         }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
     }
     private val addLine = if (addingItem) "§a§l[+ Click Inventory Item]" else "§e[+ Add Item]"
-    private val titleText = "§e§lSacks Tracker"
+    private val titleText = OverlayTextStyle.title("Sacks Tracker")
     private val contentWidth = maxOf(
         if (compactRows) COMPACT_MINIMUM_WIDTH else MINIMUM_WIDTH,
         if (showTitle) LegacyTextRenderer.width(titleText) else 0,
@@ -208,9 +210,9 @@ internal class SackHudRenderable(
 
     override val width: Int = contentWidth + padding * 2
     override val height: Int = padding * 2 +
-        (if (showTitle) TITLE_HEIGHT else 0) +
-        (if (rows.isEmpty()) TEXT_ROW_HEIGHT else rows.size * ITEM_ROW_HEIGHT) +
-        (if (indicatorText.isEmpty()) 0 else TEXT_ROW_HEIGHT) +
+        (if (showTitle) OverlayTextStyle.TITLE_HEIGHT else 0) +
+        (if (rows.isEmpty()) OverlayTextStyle.ROW_HEIGHT else rows.size * OverlayItemRowStyle.HEIGHT) +
+        (if (indicatorText.isEmpty()) 0 else OverlayTextStyle.ROW_HEIGHT) +
         (if (inventoryOpen) CONTROL_ROW_HEIGHT else 0)
 
     override fun render(context: GuiGraphicsExtractor) {
@@ -222,21 +224,21 @@ internal class SackHudRenderable(
         var y = padding
         if (showTitle) {
             LegacyTextRenderer.draw(context, titleText, padding, y)
-            y += TITLE_HEIGHT
+            y += OverlayTextStyle.TITLE_HEIGHT
         }
         var hovered: LocalSackHudControl? = null
         if (rows.isEmpty()) {
             LegacyTextRenderer.draw(context, emptyText, padding, y)
-            y += TEXT_ROW_HEIGHT
+            y += OverlayTextStyle.ROW_HEIGHT
         } else {
             rows.forEach { row ->
                 hovered = row.renderInteractive(context, padding, width - padding, y, mouseX, mouseY) ?: hovered
-                y += ITEM_ROW_HEIGHT
+                y += OverlayItemRowStyle.HEIGHT
             }
         }
         if (indicatorText.isNotEmpty()) {
             LegacyTextRenderer.draw(context, indicatorText, padding, y)
-            y += TEXT_ROW_HEIGHT
+            y += OverlayTextStyle.ROW_HEIGHT
         }
         if (inventoryOpen) {
             hovered = renderAddControl(context, y, mouseX, mouseY) ?: hovered
@@ -252,9 +254,7 @@ internal class SackHudRenderable(
     ): LocalSackHudControl? {
         val bounds = Rect(padding, y, LegacyTextRenderer.width(addLine), CONTROL_ROW_HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
-        if (hovered) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
-        }
+        if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         LegacyTextRenderer.draw(context, addLine, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
         return LocalSackHudControl(
             action = SackHudControl.AddItem,
@@ -278,7 +278,7 @@ private data class SackHudRow(
     val reserveIcon: Boolean,
     val compact: Boolean,
 ) {
-    private val iconWidth = if (reserveIcon) ITEM_TEXT_OFFSET else 0
+    private val iconWidth = if (reserveIcon) OverlayItemRowStyle.ICON_TEXT_OFFSET else 0
     private val nameWidth = if (name.isEmpty()) 0 else LegacyTextRenderer.width(name)
     private val valueWidth = LegacyTextRenderer.width(value)
     private val afterIconGap = when {
@@ -286,7 +286,7 @@ private data class SackHudRow(
         compact || name.isEmpty() -> COMPACT_ICON_VALUE_GAP
         else -> 0
     }
-    private val nameValueGap = if (name.isNotEmpty()) COLUMN_GAP else 0
+    private val nameValueGap = if (name.isNotEmpty()) OverlayItemRowStyle.QUANTITY_COLUMN_GAP else 0
     private val valueXOffset = iconWidth + afterIconGap + nameWidth + nameValueGap
     val width: Int = valueXOffset + valueWidth
 
@@ -298,17 +298,17 @@ private data class SackHudRow(
         mouseX: Int?,
         mouseY: Int?,
     ): LocalSackHudControl? {
-        val bounds = Rect(left, y, (right - left).coerceAtLeast(1), ITEM_ROW_HEIGHT)
+        val bounds = Rect(left, y, (right - left).coerceAtLeast(1), OverlayItemRowStyle.HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
-        if (hovered) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
+        if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
+        if (reserveIcon) {
+            stack?.let { ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y) }
         }
-        if (reserveIcon) stack?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, left, y) }
         if (name.isNotEmpty()) {
-            LegacyTextRenderer.draw(context, name, left + iconWidth, y + ITEM_TEXT_Y_OFFSET)
+            LegacyTextRenderer.draw(context, name, left + iconWidth, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
         }
         // Amounts are left-flowing after the icon/name so extra digits grow to the right.
-        LegacyTextRenderer.draw(context, value, left + valueXOffset, y + ITEM_TEXT_Y_OFFSET)
+        LegacyTextRenderer.draw(context, value, left + valueXOffset, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
         return LocalSackHudControl(SackHudControl.Item(item.itemId), bounds, emptyList()).takeIf { hovered }
     }
 }
@@ -342,14 +342,6 @@ internal data class LocalSackHudControl(
 private const val MAXIMUM_ITEM_NAME_LENGTH = 30
 private const val MINIMUM_WIDTH = 160
 private const val COMPACT_MINIMUM_WIDTH = 36
-private const val TITLE_HEIGHT = 13
-private const val TEXT_ROW_HEIGHT = 11
-private const val ITEM_ROW_HEIGHT = 14
 private const val CONTROL_ROW_HEIGHT = 13
 private const val CONTROL_TEXT_Y_OFFSET = 1
-private const val ITEM_TEXT_Y_OFFSET = 2
-private const val ICON_SCALE = 0.75
-private const val ITEM_TEXT_OFFSET = 14
-private const val COLUMN_GAP = 8
 private const val COMPACT_ICON_VALUE_GAP = 2
-private const val CONTROL_HOVER_COLOR = 0x20FFFFFF
