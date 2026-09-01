@@ -33,6 +33,7 @@ import com.skysoft.features.event.diana.UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.animation.TimedHighlightTracker
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import java.time.LocalDate
@@ -66,6 +67,7 @@ object ProfitTracker {
     private var trackedItems = emptyMap<ProfitTrackerPreset, Set<String>>()
     private val pendingReplenishCosts = mutableMapOf<ReplenishCrop, Int>()
     private val foragingTreeGiftParser = ForagingTreeGiftParser()
+    internal val itemQuantityHighlights = TimedHighlightTracker<Pair<String, String>>()
 
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
@@ -260,7 +262,7 @@ object ProfitTracker {
             }
             if (itemId !in trackedItemIds(target)) ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
         }
-        update(target) { stats ->
+        update(target, listOf(itemId)) { stats ->
             val current = stats.itemCounts.getOrDefault(itemId, 0L)
             val updated = if (amount > 0L) {
                 current + amount.coerceAtMost(Long.MAX_VALUE - current)
@@ -325,7 +327,7 @@ object ProfitTracker {
             itemTracking.suppressGain(itemId, it.amount)
             targets.forEach { target ->
                 uptime.markActivity(target)
-                update(target) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
+                update(target, listOf(itemId)) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
             }
         }
         val actionOccurred = when (preset) {
@@ -372,7 +374,7 @@ object ProfitTracker {
                 .withReplenishCosts(target)
             if (changes.isEmpty()) return@forEach
             uptime.markActivity(target)
-            update(target) { stats -> applyTrackedItemChanges(stats, changes) }
+            update(target, changes.keys) { stats -> applyTrackedItemChanges(stats, changes) }
         }
     }
 
@@ -386,13 +388,20 @@ object ProfitTracker {
         }.filterValues { it != 0 }
     }
 
-    private fun update(target: ProfitTrackerTarget, action: (ProfileStorage.ProfitTrackerStats) -> Unit) {
+    private fun update(
+        target: ProfitTrackerTarget,
+        changedItemIds: Iterable<String> = emptyList(),
+        action: (ProfileStorage.ProfitTrackerStats) -> Unit,
+    ) {
         action(sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats))
         action(todayStats(target))
         mythologicalRitualMayorStats(target)?.let(action)
         action(ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
         target.preset?.let { ProfileStorageApi.storage.profitTracker.lastPreset = it.name }
         ProfileStorageApi.markDirty()
+        if (target.config.details.highlightChanges) {
+            changedItemIds.forEach { itemId -> itemQuantityHighlights.highlight(target.storageKey to itemId) }
+        }
     }
 
     private fun todayStats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats {
@@ -459,6 +468,7 @@ object ProfitTracker {
         craftingReconciliation.clear()
         pendingReplenishCosts.clear()
         foragingTreeGiftParser.clear()
+        itemQuantityHighlights.clear()
     }
 }
 

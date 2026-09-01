@@ -27,6 +27,7 @@ internal object CustomProfitTrackerSharing {
             maximumItems = tracker.config.settings.maximumItems,
             showItemIcons = tracker.config.details.showItemIcons,
             quantityPosition = tracker.config.details.quantityPosition.name,
+            highlightChanges = tracker.config.details.highlightChanges,
             summaryLines = tracker.config.details.summaryLines.get().map(ProfitTrackerSummaryLine::name),
             showBackground = tracker.config.details.showBackground,
         )
@@ -66,6 +67,7 @@ internal object CustomProfitTrackerSharing {
         with(tracker.config.details) {
             showItemIcons = shared.showItemIcons
             quantityPosition = quantity
+            highlightChanges = shared.highlightChanges
             summaryLines.set(summary.toMutableList())
             showBackground = shared.showBackground
         }
@@ -85,6 +87,7 @@ internal object CustomProfitTrackerSharing {
         val maximumItems: Int = 8,
         val showItemIcons: Boolean = true,
         val quantityPosition: String = ProfitTrackerQuantityPosition.RIGHT.name,
+        val highlightChanges: Boolean = true,
         val summaryLines: List<String> = emptyList(),
         val showBackground: Boolean = false,
     )
