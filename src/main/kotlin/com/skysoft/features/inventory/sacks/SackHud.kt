@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockSackChangeBatch
 import com.skysoft.data.skyblock.SkyBlockSackChanges
+import com.skysoft.features.inventory.TrackedItemSelectionAction
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
@@ -16,6 +17,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.animation.TimedHighlightTracker
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -26,11 +28,11 @@ object SackHud {
 }
 
 internal val sackHudConfig get() = SkysoftConfigGui.config().inventory.sackHud
-internal var sackHudAddingItem = false
+internal val sackHudItemPanel = SackHudItemPanel()
 internal var sackHudScrollOffset = 0
 internal var sackHudHoveredControl: OverlayControlArea<SackHudControl>? = null
 internal var sackHudHovered = false
-internal val sackHudChangeHighlights = mutableMapOf<String, Long>()
+internal val sackHudChangeHighlights = TimedHighlightTracker<String>()
 
 private fun registerSackHud() {
     ProfileStorageApi.registerConsumer("Sacks Tracker") { sackHudConfig.enabled }
@@ -41,9 +43,9 @@ private fun registerSackHud() {
         listener = ::highlightSackChanges,
     )
     SkysoftClientEvents.onDisconnect("Sacks Tracker reset") {
-        sackHudAddingItem = false
         sackHudScrollOffset = 0
         sackHudChangeHighlights.clear()
+        sackHudItemPanel.clear()
         clearSackHudInteraction()
     }
     registerSackHudInput()
@@ -64,7 +66,6 @@ private fun registerSackHud() {
         override fun width(): Int = buildSackHudRenderable(inventoryOpen = false).width
         override fun height(): Int = buildSackHudRenderable(inventoryOpen = false).height
         override fun isVisible(): Boolean = isSackHudVisible()
-        // Pin the left edge so growing quantities expand rightward only.
         override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
         override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
         override fun renderEditor(context: GuiGraphicsExtractor) =
@@ -86,7 +87,6 @@ private fun registerSackHud() {
 private fun highlightSackChanges(batch: SkyBlockSackChangeBatch) {
     val tracked = sackHudConfig.trackedItems.toSet()
     if (tracked.isEmpty()) return
-    val now = System.currentTimeMillis()
     batch.changes.forEach { change ->
         val itemId = ProfileStorageApi.storage.sackContents.entries
             .singleOrNull { (_, data) -> data.displayName == change.displayName }
@@ -94,7 +94,7 @@ private fun highlightSackChanges(batch: SkyBlockSackChangeBatch) {
             ?: SkyBlockItemNames.itemId(change.displayName)
             ?: return@forEach
         if (itemId in tracked) {
-            sackHudChangeHighlights[itemId] = now + SACK_HUD_CHANGE_HIGHLIGHT_MILLIS
+            sackHudChangeHighlights.highlight(itemId)
         }
     }
 }
@@ -104,7 +104,6 @@ internal fun isSackHudVisible(): Boolean {
     val minecraft = Minecraft.getInstance()
     if (MinecraftClient.isGuiHidden(minecraft)) return false
     val inInventory = MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
-    // Keep the HUD in inventories when empty so Hide When Empty does not remove Add Item.
     if (sackHudConfig.settings.hideWhenEmpty && sackHudConfig.trackedItems.isEmpty() && !inInventory) {
         return false
     }
@@ -124,10 +123,12 @@ internal fun sackHudMaximumScrollOffset(itemCount: Int): Int =
         .coerceAtLeast(0)
 
 internal sealed interface SackHudControl {
-    data object AddItem : SackHudControl
+    data object More : SackHudControl
+    data object AddItems : SackHudControl
+    data object RemoveItems : SackHudControl
+    data class ItemSelection(val action: TrackedItemSelectionAction) : SackHudControl
     data class Item(val itemId: String) : SackHudControl
 }
 
 internal const val SACK_HUD_MAXIMUM_DISPLAY_ITEMS = 20
-internal const val SACK_HUD_CHANGE_HIGHLIGHT_MILLIS = 3_000L
 private const val SACK_HUD_EDITOR_SCALE_STEP = 0.1f

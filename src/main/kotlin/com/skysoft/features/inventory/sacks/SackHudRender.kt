@@ -1,6 +1,5 @@
 package com.skysoft.features.inventory.sacks
 
-import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -18,6 +17,7 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
+import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.floor
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
@@ -27,14 +27,14 @@ import net.minecraft.world.item.ItemStack
 
 internal fun renderSackHud(context: GuiGraphicsExtractor) {
     if (!isSackHudVisible()) {
-        if (!sackHudConfig.enabled) sackHudAddingItem = false
+        sackHudItemPanel.clear()
         clearSackHudInteraction()
         return
     }
     val minecraft = Minecraft.getInstance()
     val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
     val inventoryOpen = inventoryScreen != null
-    if (!inventoryOpen) sackHudAddingItem = false
+    if (!inventoryOpen) sackHudItemPanel.clear()
     val renderable = buildSackHudRenderable(inventoryOpen)
     if (renderable.width <= 0 || renderable.height <= 0) {
         clearSackHudInteraction()
@@ -48,23 +48,30 @@ internal fun renderSackHud(context: GuiGraphicsExtractor) {
     val interactive = inventoryScreen != null &&
         !InventoryOverlayInput.isPointCovered(inventoryScreen, screenMouseX.toDouble(), screenMouseY.toDouble())
     val scale = sackHudConfig.position.effectiveScale
-    val scaledHeight = (renderable.height * scale).roundToInt()
-    // Use width 0 so the stored X is the left edge; wider amounts grow to the right.
     val x = sackHudConfig.position.getAbsX0AllowingOverflow(0)
-    val y = sackHudConfig.position.getAbsY0AllowingOverflow(scaledHeight)
+    val y = sackHudConfig.position.getAbsY0AllowingOverflow(0)
     val localMouseX = floor((normalMouseX - x) / scale).toInt()
     val localMouseY = floor((normalMouseY - y) / scale).toInt()
+    val placePanelRight = x + ((renderable.width + SIDE_PANEL_ESTIMATED_WIDTH) * scale).roundToInt() <=
+        window.guiScaledWidth
 
     context.nextStratum()
-    context.pose().pushMatrix()
-    context.pose().translate(x.toFloat(), y.toFloat())
-    context.pose().scale(scale, scale)
-    val localControl = renderable.renderInteractive(
-        context,
-        localMouseX.takeIf { interactive },
-        localMouseY.takeIf { interactive },
-    )
-    context.pose().popMatrix()
+    val localControl = context.withIsolatedPose {
+        pose().translate(x.toFloat(), y.toFloat())
+        pose().scale(scale, scale)
+        val trackerControl = renderable.renderInteractive(
+            context,
+            localMouseX.takeIf { interactive },
+            localMouseY.takeIf { interactive },
+        )
+        sackHudItemPanel.render(
+            context,
+            renderable.width,
+            placePanelRight,
+            localMouseX.takeIf { interactive } ?: Int.MIN_VALUE,
+            localMouseY.takeIf { interactive } ?: Int.MIN_VALUE,
+        ) ?: trackerControl
+    }
 
     sackHudHovered = interactive &&
         localMouseX in 0 until renderable.width &&
@@ -86,20 +93,15 @@ internal fun renderSackHud(context: GuiGraphicsExtractor) {
         val itemId = (control.action as? SackHudControl.Item)?.itemId
         if (itemId != null) {
             val entry = trackedSackHudItem(itemId)
+            val removingItems = sackHudItemPanel.isRemovingItems()
             SkysoftNativeTooltip.setItemActionForNextFrame(
                 context,
                 entry.stack ?: ItemStack.EMPTY,
-                null,
+                "§eRemove".takeIf { removingItems },
                 entry.name,
                 screenMouseX,
                 screenMouseY,
-                actionLines = buildList {
-                    add("§eLeft-click §7to open Bazaar")
-                    add("§eRight-click §7to remove from Sacks Tracker")
-                    if (SkysoftConfigGui.config().inventory.itemList.enabled) {
-                        add("§eMiddle-click §7to open Item List")
-                    }
-                },
+                actionLines = sackItemActionLines().takeUnless { removingItems }.orEmpty(),
             )
         } else {
             SkysoftNativeTooltip.setForNextFrame(
@@ -132,7 +134,6 @@ internal fun buildSackHudRenderable(inventoryOpen: Boolean): SackHudRenderable {
         showIcons = sackHudConfig.details.showItemIcons,
         background = sackHudConfig.details.showBackground,
         inventoryOpen = inventoryOpen,
-        addingItem = sackHudAddingItem && inventoryOpen,
     )
 }
 
@@ -154,14 +155,8 @@ internal fun trackedSackHudItem(itemId: String): SackHudItem {
     )
 }
 
-private fun isSackHudAmountHighlighted(itemId: String): Boolean {
-    val expiresAt = sackHudChangeHighlights[itemId] ?: return false
-    if (System.currentTimeMillis() >= expiresAt) {
-        sackHudChangeHighlights.remove(itemId)
-        return false
-    }
-    return true
-}
+private fun isSackHudAmountHighlighted(itemId: String): Boolean =
+    sackHudChangeHighlights.isHighlighted(itemId)
 
 internal class SackHudRenderable(
     items: List<SackHudItem>,
@@ -172,14 +167,18 @@ internal class SackHudRenderable(
     private val showIcons: Boolean,
     private val background: Boolean,
     private val inventoryOpen: Boolean,
-    private val addingItem: Boolean,
 ) : GuiRenderable {
     private val padding = if (background) OverlayPanelStyle.PADDING else 0
     private val compactRows = !showItemNames
-    private val rows = items.map { item ->
+    private val itemNames = items.map { item ->
+        item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH).takeIf { showItemNames }.orEmpty()
+    }
+    private val itemNameColumnWidth = itemNames.maxOfOrNull(LegacyTextRenderer::width) ?: 0
+    private val rows = items.zip(itemNames) { item, name ->
         SackHudRow(
             item = item,
-            name = item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH).takeIf { showItemNames }.orEmpty(),
+            name = name,
+            nameColumnWidth = itemNameColumnWidth,
             value = item.displayAmount(),
             stack = item.stack,
             reserveIcon = showIcons,
@@ -198,14 +197,14 @@ internal class SackHudRenderable(
             if (hiddenBelow > 0) add("$hiddenBelow more")
         }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
     }
-    private val addLine = if (addingItem) "§a§l[+ Click Inventory Item]" else "§e[+ Add Item]"
+    private val moreLine = "§7..."
     private val titleText = OverlayTextStyle.title("Sacks Tracker")
     private val contentWidth = maxOf(
         if (compactRows) COMPACT_MINIMUM_WIDTH else MINIMUM_WIDTH,
         if (showTitle) LegacyTextRenderer.width(titleText) else 0,
         rows.maxOfOrNull(SackHudRow::width) ?: LegacyTextRenderer.width(emptyText),
         LegacyTextRenderer.width(indicatorText),
-        if (inventoryOpen) LegacyTextRenderer.width(addLine) else 0,
+        if (inventoryOpen) LegacyTextRenderer.width(moreLine) else 0,
     )
 
     override val width: Int = contentWidth + padding * 2
@@ -241,31 +240,26 @@ internal class SackHudRenderable(
             y += OverlayTextStyle.ROW_HEIGHT
         }
         if (inventoryOpen) {
-            hovered = renderAddControl(context, y, mouseX, mouseY) ?: hovered
+            hovered = renderMoreControl(context, y, mouseX, mouseY) ?: hovered
         }
         return hovered
     }
 
-    private fun renderAddControl(
+    private fun renderMoreControl(
         context: GuiGraphicsExtractor,
         y: Int,
         mouseX: Int?,
         mouseY: Int?,
     ): LocalSackHudControl? {
-        val bounds = Rect(padding, y, LegacyTextRenderer.width(addLine), CONTROL_ROW_HEIGHT)
+        val width = LegacyTextRenderer.width(moreLine)
+        val bounds = Rect(this.width - padding - width, y, width, CONTROL_ROW_HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
-        LegacyTextRenderer.draw(context, addLine, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
+        LegacyTextRenderer.draw(context, moreLine, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
         return LocalSackHudControl(
-            action = SackHudControl.AddItem,
+            action = SackHudControl.More,
             bounds = bounds,
-            tooltipLines = listOf(
-                if (addingItem) {
-                    "§7Click an inventory item to track its sack amount."
-                } else {
-                    "§7Click, then click an inventory item to add it."
-                },
-            ),
+            tooltipLines = listOf("§7Manage tracked items."),
         ).takeIf { hovered }
     }
 }
@@ -273,21 +267,24 @@ internal class SackHudRenderable(
 private data class SackHudRow(
     val item: SackHudItem,
     val name: String,
+    val nameColumnWidth: Int,
     val value: String,
     val stack: ItemStack?,
     val reserveIcon: Boolean,
     val compact: Boolean,
 ) {
     private val iconWidth = if (reserveIcon) OverlayItemRowStyle.ICON_TEXT_OFFSET else 0
-    private val nameWidth = if (name.isEmpty()) 0 else LegacyTextRenderer.width(name)
-    private val valueWidth = LegacyTextRenderer.width(value)
+    private val valueWidth = maxOf(
+        LegacyTextRenderer.width(value),
+        LegacyTextRenderer.width(item.displayAmount(showHighlight = true)),
+    )
     private val afterIconGap = when {
         !reserveIcon -> 0
         compact || name.isEmpty() -> COMPACT_ICON_VALUE_GAP
         else -> 0
     }
-    private val nameValueGap = if (name.isNotEmpty()) OverlayItemRowStyle.QUANTITY_COLUMN_GAP else 0
-    private val valueXOffset = iconWidth + afterIconGap + nameWidth + nameValueGap
+    private val nameValueGap = if (nameColumnWidth > 0) OverlayItemRowStyle.QUANTITY_COLUMN_GAP else 0
+    private val valueXOffset = iconWidth + afterIconGap + nameColumnWidth + nameValueGap
     val width: Int = valueXOffset + valueWidth
 
     fun renderInteractive(
@@ -307,16 +304,15 @@ private data class SackHudRow(
         if (name.isNotEmpty()) {
             LegacyTextRenderer.draw(context, name, left + iconWidth, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
         }
-        // Amounts are left-flowing after the icon/name so extra digits grow to the right.
         LegacyTextRenderer.draw(context, value, left + valueXOffset, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
         return LocalSackHudControl(SackHudControl.Item(item.itemId), bounds, emptyList()).takeIf { hovered }
     }
 }
 
-private fun SackHudItem.displayAmount(): String {
+private fun SackHudItem.displayAmount(showHighlight: Boolean = highlighted): String {
     val amountText = when {
         !known -> "§8?"
-        highlighted -> "§a§l${amount.addSeparators()}"
+        showHighlight -> "§a§l${amount.addSeparators()}"
         !exact -> "§e~${amount.addSeparators()}"
         else -> "§e${amount.addSeparators()}"
     }
@@ -345,3 +341,4 @@ private const val COMPACT_MINIMUM_WIDTH = 36
 private const val CONTROL_ROW_HEIGHT = 13
 private const val CONTROL_TEXT_Y_OFFSET = 1
 private const val COMPACT_ICON_VALUE_GAP = 2
+private const val SIDE_PANEL_ESTIMATED_WIDTH = 190
