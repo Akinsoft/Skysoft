@@ -32,6 +32,12 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Sacks Tracker", desc = "Show selected sack item quantities on a movable HUD.")
+    val sackHud = SackHudConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Tooltip Scroll", desc = "Move oversized item tooltips.")
     val tooltipScroll = TooltipScrollConfig()
 
@@ -156,6 +162,7 @@ class InventoryFeatureConfig : ConfigRepairable {
         itemList,
         bazaar,
         sackDisplay,
+        sackHud,
         tooltipScroll,
         priceTooltips,
         smoothSwapping,
