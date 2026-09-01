@@ -2,6 +2,7 @@ package com.skysoft.mixin;
 
 import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -33,7 +34,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChatComponent.class)
 public abstract class ChatComponentMixin {
@@ -47,8 +47,8 @@ public abstract class ChatComponentMixin {
     @ModifyVariable(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("HEAD"), argsOnly = true)
     protected ChatComponent.DisplayMode skysoftExpandChatDisplayMode(ChatComponent.DisplayMode displayMode) { return ChatPeek.INSTANCE.displayMode(displayMode); }
 
-    @Inject(method = "getHeight()I", at = @At("HEAD"), cancellable = true)
-    protected void skysoftExpandChatHeight(CallbackInfoReturnable<Integer> cir) { Integer height = ChatPeek.INSTANCE.expandedHeight(); if (height != null) cir.setReturnValue(height); }
+    @ModifyReturnValue(method = "getHeight()I", at = @At("RETURN"))
+    protected int skysoftExpandChatHeight(int original) { Integer height = ChatPeek.INSTANCE.expandedHeight(); return height != null ? height : original; }
 
     @WrapOperation(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/ChatComponent;extractRenderState(Lnet/minecraft/client/gui/components/ChatComponent$ChatGraphicsAccess;IILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;)V"))
     protected void skysoftAnimateNewMessages(ChatComponent chat, ChatComponent.ChatGraphicsAccess graphicsAccess, int screenHeight, int ticks, ChatComponent.DisplayMode displayMode, Operation<Void> original, @Local(argsOnly = true) GuiGraphicsExtractor graphics) {
