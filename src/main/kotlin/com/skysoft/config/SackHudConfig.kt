@@ -53,8 +53,8 @@ class SackHudSettingsConfig {
     @JvmField
     @field:ConfigOption(
         name = "Tracked Items",
-        desc = "Open any inventory, then use §e[+ Add Item]§7 on the HUD and click an inventory item.\n" +
-            "§eRight-click§7 a row to remove it. Amounts update from sack menus and §e[Sacks]§7 chat messages.",
+        desc = "Open any inventory, then use ... on the HUD to add or remove items.\n" +
+            "Amounts update from sack menus and [Sacks] chat messages.",
     )
     @field:ConfigEditorInfoText
     val trackedItemsHelp: Unit = Unit
@@ -91,7 +91,7 @@ class SackHudSettingsConfig {
 class SackHudDetailsConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Show Title", desc = "Show the §eSacks Tracker§7 title above tracked items.")
+    @field:ConfigOption(name = "Show Title", desc = "Show the Sacks Tracker title above tracked items.")
     @field:ConfigEditorBoolean
     var showTitle = true
 
@@ -111,13 +111,13 @@ class SackHudDetailsConfig {
     @field:Expose
     @field:ConfigOption(name = "Show Background", desc = "Draw a dark background behind the Sacks Tracker.")
     @field:ConfigEditorBoolean
-    var showBackground = true
+    var showBackground = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(
         name = "Highlight Changes",
-        desc = "Briefly highlight amounts when §e[Sacks]§7 chat updates them.",
+        desc = "Briefly highlight amounts when [Sacks] chat updates them.",
     )
     @field:ConfigEditorBoolean
     var highlightChanges = true

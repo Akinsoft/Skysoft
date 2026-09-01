@@ -1,15 +1,14 @@
 package com.skysoft.features.inventory.sacks
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
 import com.skysoft.mixin.AbstractContainerScreenAccessor
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SoundUtilities
+import com.skysoft.utils.input.InputHandlingResult
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -30,6 +29,11 @@ internal fun registerSackHudInput() {
                     !wasSackHudScrollHandled(verticalAmount)
             }
         }
+        ScreenKeyboardEvents.allowKeyPress(screen).register { _, event ->
+            SkysoftErrorBoundary.value("Sacks Tracker key input", true) {
+                SackHudInput.handleKeyPress(event) != InputHandlingResult.CONSUMED
+            }
+        }
     }
 }
 
@@ -40,64 +44,52 @@ private fun shouldAllowSackHudClick(
     if (!isSackHudVisible()) return true
     if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) return true
     val control = sackHudHoveredControl?.action
-    val handled = when (control) {
-        SackHudControl.AddItem -> if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            sackHudAddingItem = !sackHudAddingItem
-            true
-        } else {
-            false
+    if (control is SackHudControl.Item && sackHudItemPanel.isRemovingItems()) {
+        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            removeSackHudTrackedItem(control.itemId)
+            SoundUtilities.playClickSound()
         }
-        is SackHudControl.Item -> wasSackHudItemClickHandled(screen, control.itemId, click.button())
-        null -> wasInventoryItemAdded(screen, click.button())
+        return false
+    }
+    val handled = when (control) {
+        SackHudControl.More -> wasLeftClickHandled(click.button(), sackHudItemPanel::toggleOverview)
+        SackHudControl.AddItems -> wasLeftClickHandled(click.button(), sackHudItemPanel::beginAddingItems)
+        SackHudControl.RemoveItems -> wasLeftClickHandled(click.button(), sackHudItemPanel::beginRemovingItems)
+        is SackHudControl.ItemSelection -> sackHudItemPanel.wasSelectionClickHandled(control.action, click.button())
+        is SackHudControl.Item -> wasSackItemClickHandled(
+            screen,
+            control.itemId,
+            trackedSackHudItem(control.itemId).name,
+            click.button(),
+        )
+        null -> wasInventoryItemSelected(screen, click.button())
     }
     if (handled) SoundUtilities.playClickSound()
     return !handled
 }
 
-private fun wasInventoryItemAdded(screen: AbstractContainerScreen<*>, button: Int): Boolean {
-    if (!sackHudAddingItem || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+private fun wasInventoryItemSelected(screen: AbstractContainerScreen<*>, button: Int): Boolean {
+    if (!sackHudItemPanel.isSelectingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
     val player = Minecraft.getInstance().player ?: return false
     val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
     val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
-    addSackHudTrackedItem(itemId)
-    sackHudAddingItem = false
-    return true
-}
-
-private fun wasSackHudItemClickHandled(
-    screen: AbstractContainerScreen<*>,
-    itemId: String,
-    button: Int,
-): Boolean = when (button) {
-    GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
-        val connection = Minecraft.getInstance().connection ?: return false
-        val key = SkyBlockDataRepository.itemKey(itemId)
-        val itemName = SkyBlockDataRepository.entry(key)?.displayName
-            ?: com.skysoft.data.ProfileStorageApi.storage.sackContents[itemId]?.displayName
-            ?: return false
-        connection.sendCommand("bz $itemName")
-        MinecraftClient.setScreen(null)
-        true
-    }
-    GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
-        removeSackHudTrackedItem(itemId)
-        true
-    }
-    GLFW.GLFW_MOUSE_BUTTON_MIDDLE -> if (SkysoftConfigGui.config().inventory.itemList.enabled) {
-        MinecraftClient.setScreen(ItemListViewerScreen(screen, SkyBlockDataRepository.itemKey(itemId)))
-        true
-    } else {
-        false
-    }
-    else -> false
+    return sackHudItemPanel.wasInventoryItemSelected(itemId)
 }
 
 private fun wasSackHudScrollHandled(verticalAmount: Double): Boolean {
-    if (!isSackHudVisible() || !sackHudHovered || verticalAmount == 0.0) return false
+    if (!isSackHudVisible() || verticalAmount == 0.0) return false
+    if (sackHudItemPanel.wasSearchScrollHandled(verticalAmount)) return true
+    if (!sackHudHovered) return false
     val maximumOffset = sackHudMaximumScrollOffset(sackHudConfig.trackedItems.size)
     if (maximumOffset == 0) return false
     sackHudScrollOffset = (sackHudScrollOffset + if (verticalAmount < 0.0) 1 else -1)
         .coerceIn(0, maximumOffset)
+    return true
+}
+
+private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
+    if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+    action()
     return true
 }
 

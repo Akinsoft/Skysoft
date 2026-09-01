@@ -4,6 +4,8 @@ import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.features.inventory.TrackedItemSelectionAction
+import com.skysoft.features.inventory.TrackedItemSelectionMode
 import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SoundUtilities
@@ -124,20 +126,28 @@ internal class ProfitTrackerHudControls(
         }
         ProfitTrackerControl.AddItem -> wasLeftClickHandled(button, itemPanel::beginAddingItem)
         ProfitTrackerControl.ManageItems -> wasLeftClickHandled(button, itemPanel::beginManagingItem)
-        ProfitTrackerControl.AddItemInventory -> wasLeftClickHandled(button) {
-            itemPanel.selectAddItemMode(AddItemMode.INVENTORY)
-        }
-        ProfitTrackerControl.AddItemSearch -> wasLeftClickHandled(button) {
-            itemPanel.selectAddItemMode(AddItemMode.SEARCH)
-        }
-        is ProfitTrackerControl.AddItemSearchField -> wasLeftClickHandled(button) {
-            itemPanel.focusSearch(action.localMouseX)
-        }
-        is ProfitTrackerControl.AddItemSearchResult -> wasLeftClickHandled(button) {
-            selectSearchedItem(target, action.itemId)
-        }
+        is ProfitTrackerControl.ItemSelection -> wasItemSelectionHandled(target, action.action, button)
         ProfitTrackerControl.ResetCustomizations -> wasLeftClickHandled(button) {
             ProfitTrackerItemCustomizations.reset(target)
+        }
+    }
+
+    private fun wasItemSelectionHandled(
+        target: ProfitTrackerTarget,
+        action: TrackedItemSelectionAction,
+        button: Int,
+    ): Boolean = when (action) {
+        TrackedItemSelectionAction.Inventory -> wasLeftClickHandled(button) {
+            itemPanel.selectAddItemMode(TrackedItemSelectionMode.INVENTORY)
+        }
+        TrackedItemSelectionAction.Search -> wasLeftClickHandled(button) {
+            itemPanel.selectAddItemMode(TrackedItemSelectionMode.SEARCH)
+        }
+        is TrackedItemSelectionAction.SearchField -> wasLeftClickHandled(button) {
+            itemPanel.focusSearch(action.localMouseX)
+        }
+        is TrackedItemSelectionAction.SearchResult -> wasLeftClickHandled(button) {
+            selectSearchedItem(target, action.itemId)
         }
     }
 
