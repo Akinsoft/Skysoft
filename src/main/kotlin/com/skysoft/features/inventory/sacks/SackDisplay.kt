@@ -28,7 +28,9 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.truncateLegacyText
+import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -305,10 +307,11 @@ private class SackDisplayRenderable(
     private val modeLine = "§7Mode: §a§l[${mode.displayName}]"
     private val priceSourceLine = "§7Price Source: §e§l[$priceSource]"
     private val totalText = totalValue?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
-    private val totalWidth = LegacyTextRenderer.width("§7Total") + COLUMN_GAP + LegacyTextRenderer.width(totalText)
+    private val totalWidth = LegacyTextRenderer.width("§7Total") + OverlayItemRowStyle.VALUE_COLUMN_GAP +
+        LegacyTextRenderer.width(totalText)
     private val contentWidth = maxOf(
         MINIMUM_WIDTH,
-        LegacyTextRenderer.width("§e§l$title"),
+        LegacyTextRenderer.width(OverlayTextStyle.title(title)),
         rows.maxOfOrNull(SackDisplayRow::width) ?: LegacyTextRenderer.width(emptyText),
         LegacyTextRenderer.width(indicatorText),
         LegacyTextRenderer.width(modeLine),
@@ -317,10 +320,10 @@ private class SackDisplayRenderable(
     )
 
     override val width: Int = contentWidth + padding * 2
-    override val height: Int = padding * 2 + TITLE_HEIGHT +
-        (if (rows.isEmpty()) TEXT_ROW_HEIGHT else rows.size * ITEM_ROW_HEIGHT) +
-        (if (indicatorText.isEmpty()) 0 else TEXT_ROW_HEIGHT) +
-        (if (mode == SackDisplayMode.TOTAL_VALUE) TEXT_ROW_HEIGHT + CONTROL_ROW_HEIGHT else 0) +
+    override val height: Int = padding * 2 + OverlayTextStyle.TITLE_HEIGHT +
+        (if (rows.isEmpty()) OverlayTextStyle.ROW_HEIGHT else rows.size * OverlayItemRowStyle.HEIGHT) +
+        (if (indicatorText.isEmpty()) 0 else OverlayTextStyle.ROW_HEIGHT) +
+        (if (mode == SackDisplayMode.TOTAL_VALUE) OverlayTextStyle.ROW_HEIGHT + CONTROL_ROW_HEIGHT else 0) +
         CONTROL_ROW_HEIGHT
 
     override fun render(context: GuiGraphicsExtractor) {
@@ -330,28 +333,28 @@ private class SackDisplayRenderable(
     fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): LocalSackControl? {
         if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
         var y = padding
-        LegacyTextRenderer.draw(context, "§e§l$title", padding, y)
-        y += TITLE_HEIGHT
+        LegacyTextRenderer.draw(context, OverlayTextStyle.title(title), padding, y)
+        y += OverlayTextStyle.TITLE_HEIGHT
         var hoveredItem: LocalSackControl? = null
         if (rows.isEmpty()) {
             LegacyTextRenderer.draw(context, emptyText, padding, y)
-            y += TEXT_ROW_HEIGHT
+            y += OverlayTextStyle.ROW_HEIGHT
         } else {
             rows.forEach { row ->
                 hoveredItem = row.renderInteractive(context, padding, width - padding, y, mouseX, mouseY)
                     ?: hoveredItem
-                y += ITEM_ROW_HEIGHT
+                y += OverlayItemRowStyle.HEIGHT
             }
         }
         if (indicatorText.isNotEmpty()) {
             LegacyTextRenderer.draw(context, indicatorText, (width - LegacyTextRenderer.width(indicatorText)) / 2, y)
-            y += TEXT_ROW_HEIGHT
+            y += OverlayTextStyle.ROW_HEIGHT
         }
         var hoveredPriceSource: LocalSackControl? = null
         if (mode == SackDisplayMode.TOTAL_VALUE) {
             LegacyTextRenderer.draw(context, "§7Total", padding, y)
             LegacyTextRenderer.draw(context, totalText, width - padding - LegacyTextRenderer.width(totalText), y)
-            y += TEXT_ROW_HEIGHT
+            y += OverlayTextStyle.ROW_HEIGHT
             hoveredPriceSource = renderControl(
                 context,
                 y,
@@ -394,9 +397,7 @@ private class SackDisplayRenderable(
     ): LocalSackControl? {
         val bounds = Rect(padding, y, LegacyTextRenderer.width(line), CONTROL_ROW_HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
-        if (hovered) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
-        }
+        if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         LegacyTextRenderer.draw(context, line, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
         return LocalSackControl(action, bounds, tooltipLines).takeIf { hovered }
     }
@@ -409,8 +410,9 @@ private data class SackDisplayRow(
     val stack: ItemStack?,
     val reserveIcon: Boolean,
 ) {
-    private val contentOffset = if (reserveIcon) ITEM_TEXT_OFFSET else 0
-    val width: Int = contentOffset + LegacyTextRenderer.width(name) + COLUMN_GAP + LegacyTextRenderer.width(value)
+    private val contentOffset = if (reserveIcon) OverlayItemRowStyle.ICON_TEXT_OFFSET else 0
+    val width: Int = contentOffset + LegacyTextRenderer.width(name) + OverlayItemRowStyle.VALUE_COLUMN_GAP +
+        LegacyTextRenderer.width(value)
 
     fun renderInteractive(
         context: GuiGraphicsExtractor,
@@ -420,14 +422,19 @@ private data class SackDisplayRow(
         mouseX: Int?,
         mouseY: Int?,
     ): LocalSackControl? {
-        val bounds = Rect(left, y, right - left, ITEM_ROW_HEIGHT)
+        val bounds = Rect(left, y, right - left, OverlayItemRowStyle.HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
-        if (hovered) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, CONTROL_HOVER_COLOR)
+        if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
+        if (reserveIcon) {
+            stack?.let { ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y) }
         }
-        if (reserveIcon) stack?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, left, y) }
-        LegacyTextRenderer.draw(context, name, left + contentOffset, y + ITEM_TEXT_Y_OFFSET)
-        LegacyTextRenderer.draw(context, value, right - LegacyTextRenderer.width(value), y + ITEM_TEXT_Y_OFFSET)
+        LegacyTextRenderer.draw(context, name, left + contentOffset, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
+        LegacyTextRenderer.draw(
+            context,
+            value,
+            right - LegacyTextRenderer.width(value),
+            y + OverlayItemRowStyle.TEXT_Y_OFFSET,
+        )
         return LocalSackControl(SackDisplayControl.Item(item), bounds, emptyList()).takeIf { hovered }
     }
 }
@@ -494,14 +501,6 @@ private sealed interface SackDisplayControl {
 private const val MAXIMUM_DISPLAY_ITEMS = 30
 private const val MAXIMUM_ITEM_NAME_LENGTH = 30
 private const val MINIMUM_WIDTH = 190
-private const val TITLE_HEIGHT = 13
-private const val TEXT_ROW_HEIGHT = 11
-private const val ITEM_ROW_HEIGHT = 14
 private const val CONTROL_ROW_HEIGHT = 13
 private const val CONTROL_TEXT_Y_OFFSET = 1
-private const val ITEM_TEXT_Y_OFFSET = 2
-private const val ICON_SCALE = 0.75
-private const val ITEM_TEXT_OFFSET = 14
-private const val COLUMN_GAP = 8
-private const val CONTROL_HOVER_COLOR = 0x20FFFFFF
 private const val HUD_SCALE_STEP = 0.1f

@@ -21,6 +21,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
+import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
@@ -459,18 +460,20 @@ private class ProfitTrackerRenderable(
         line.leading?.let {
             LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset, defaultColor = textColor)
         }
-        line.icon?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, padding + line.contentOffset, y) }
+        line.icon?.let {
+            ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, padding + line.contentOffset, y)
+        }
         val textX = if (line.centered) {
             (width - LegacyTextRenderer.width(line.left)) / 2
         } else {
-            padding + line.contentOffset + if (line.icon == null) 0 else ITEM_TEXT_OFFSET
+            padding + line.contentOffset + if (line.icon == null) 0 else OverlayItemRowStyle.ICON_TEXT_OFFSET
         }
         LegacyTextRenderer.draw(context, line.left, textX, y + line.textYOffset, defaultColor = textColor)
         line.middle?.let { middle ->
             LegacyTextRenderer.draw(
                 context,
                 middle,
-                textX + line.leftColumnWidth + ITEM_COLUMN_GAP,
+                textX + line.leftColumnWidth + OverlayItemRowStyle.QUANTITY_COLUMN_GAP,
                 y + line.textYOffset,
                 defaultColor = textColor,
             )
@@ -492,7 +495,7 @@ private class ProfitTrackerRenderable(
     private fun buildLines(): List<ProfitLine> = buildList {
         val itemRows = displayedItems.map { item -> item to item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH) }
         val itemNameColumnWidth = itemRows.maxOfOrNull { (_, name) -> LegacyTextRenderer.width(name) } ?: 0
-        add(ProfitLine("§e§l${target.displayName} Profit", height = OverlayTextStyle.TITLE_HEIGHT))
+        add(ProfitLine(OverlayTextStyle.title("${target.displayName} Profit"), height = OverlayTextStyle.TITLE_HEIGHT))
         if (displayedItems.isEmpty()) {
             add(ProfitLine("§7No tracked drops yet."))
         } else {
@@ -507,8 +510,8 @@ private class ProfitTrackerRenderable(
                         leftColumnWidth = if (quantityLeft) LegacyTextRenderer.width(name) else itemNameColumnWidth,
                         right = value,
                         icon = item.stack.takeIf { renderItemIcons },
-                        height = ITEM_ROW_HEIGHT,
-                        textYOffset = 2,
+                        height = OverlayItemRowStyle.HEIGHT,
+                        textYOffset = OverlayItemRowStyle.TEXT_Y_OFFSET,
                         leading = count.takeIf { quantityLeft },
                         control = ProfitTrackerControl.ManageItem(item.itemId, item.stack, item.name)
                             .takeIf { inventoryOpen },
@@ -600,10 +603,11 @@ private data class ProfitLine(
     val leftColumnWidth: Int = LegacyTextRenderer.width(left),
 ) {
     val leadingWidth: Int = leading?.let(LegacyTextRenderer::width) ?: 0
-    val contentOffset: Int = leadingWidth + if (leading == null) 0 else ITEM_COLUMN_GAP
-    val width: Int = contentOffset + (if (icon == null) 0 else ITEM_TEXT_OFFSET) + leftColumnWidth +
-        (middle?.let { LegacyTextRenderer.width(it) + ITEM_COLUMN_GAP } ?: 0) +
-        (right?.let { LegacyTextRenderer.width(it) + COLUMN_GAP } ?: 0)
+    val contentOffset: Int = leadingWidth + if (leading == null) 0 else OverlayItemRowStyle.QUANTITY_COLUMN_GAP
+    val width: Int = contentOffset + (if (icon == null) 0 else OverlayItemRowStyle.ICON_TEXT_OFFSET) +
+        leftColumnWidth +
+        (middle?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.QUANTITY_COLUMN_GAP } ?: 0) +
+        (right?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.VALUE_COLUMN_GAP } ?: 0)
 
     fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {
         control is ProfitTrackerControl.ManageItem -> totalWidth - padding * 2
@@ -668,10 +672,5 @@ private const val MILLIS_PER_HOUR = 3_600_000.0
 private const val MAXIMUM_ITEMS = 15
 private const val MAXIMUM_ITEM_NAME_LENGTH = 20
 private const val MINIMUM_WIDTH = 145
-private const val ITEM_ROW_HEIGHT = 13
-private const val ICON_SCALE = 0.75
-private const val ITEM_TEXT_OFFSET = 14
-private const val COLUMN_GAP = 8
-private const val ITEM_COLUMN_GAP = 4
 private const val SIDE_PANEL_ESTIMATED_WIDTH = 310
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
