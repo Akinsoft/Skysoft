@@ -1,7 +1,7 @@
 package com.skysoft.features.profit
 
 internal class ProfitUptimeTracker<T : Any>(
-    private val pauseAfterMillis: (T) -> Int,
+    private val pauseAfterMillis: (T) -> Int?,
     private val onUptimeChanged: (T, Long) -> Unit,
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
 ) {
@@ -41,14 +41,18 @@ internal class ProfitUptimeTracker<T : Any>(
 
     fun tick(activeTargets: Collection<T>, isWindowActive: Boolean) {
         val now = currentTimeMillis()
-        unconfirmedUptimeMillis.keys
-            .filter { trackedPreset ->
-                !isProfitTimerActive(lastActivityAtMillis[trackedPreset], now, pauseAfterMillis(trackedPreset))
+        unconfirmedUptimeMillis.keys.toList().forEach { trackedPreset ->
+            val pauseAfter = pauseAfterMillis(trackedPreset)
+            if (pauseAfter == null) {
+                unconfirmedUptimeMillis.remove(trackedPreset)
+            } else if (!isProfitTimerActive(lastActivityAtMillis[trackedPreset], now, pauseAfter)) {
+                rewind(trackedPreset)
             }
-            .forEach(::rewind)
+        }
         durationTicks.keys.retainAll(activeTargets.toSet())
         activeTargets.forEach { target ->
-            if (!isProfitTimerActive(lastActivityAtMillis[target], now, pauseAfterMillis(target))) {
+            val pauseAfter = pauseAfterMillis(target)
+            if (!isProfitTimerActive(lastActivityAtMillis[target], now, pauseAfter)) {
                 durationTicks.remove(target)
                 return@forEach
             }
@@ -59,7 +63,9 @@ internal class ProfitUptimeTracker<T : Any>(
                 return@forEach
             }
             durationTicks.remove(target)
-            unconfirmedUptimeMillis.merge(target, DURATION_UPDATE_MILLIS, Long::plus)
+            if (pauseAfter != null) {
+                unconfirmedUptimeMillis.merge(target, DURATION_UPDATE_MILLIS, Long::plus)
+            }
             onUptimeChanged(target, DURATION_UPDATE_MILLIS)
         }
     }
@@ -86,8 +92,10 @@ internal class ProfitUptimeTracker<T : Any>(
     }
 }
 
-internal fun isProfitTimerActive(lastActivityAtMillis: Long?, now: Long, pauseAfterMillis: Int): Boolean =
-    lastActivityAtMillis != null && now - lastActivityAtMillis in 0..pauseAfterMillis.toLong()
+internal fun isProfitTimerActive(lastActivityAtMillis: Long?, now: Long, pauseAfterMillis: Int?): Boolean =
+    lastActivityAtMillis != null && (now - lastActivityAtMillis).let { elapsed ->
+        elapsed >= 0 && (pauseAfterMillis == null || elapsed <= pauseAfterMillis)
+    }
 
 private const val DURATION_UPDATE_TICKS = 20
 private const val DURATION_UPDATE_MILLIS = 1_000L

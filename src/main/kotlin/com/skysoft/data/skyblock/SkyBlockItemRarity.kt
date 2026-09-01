@@ -1,7 +1,6 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.utils.ColorUtilities.RGB_MASK
-import com.skysoft.utils.ItemStackComponentCache
 import java.util.Optional
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -10,8 +9,6 @@ import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemStack
 
 object SkyBlockItemRarity {
-    private val rarityCache = ItemStackComponentCache<SkyBlockRarity?>()
-
     fun fromInternalName(internalName: String?): SkyBlockRarity? {
         val cleanInternalName = internalName?.trim()?.takeIf(String::isNotEmpty) ?: return null
         val rarityName = SkyBlockDataRepository.info(SkyBlockDataRepository.itemKey(cleanInternalName))?.rarity
@@ -21,10 +18,8 @@ object SkyBlockItemRarity {
 
     fun from(stack: ItemStack): SkyBlockRarity? {
         if (stack.isEmpty) return null
-        return rarityCache.getOrPut(stack) {
-            rarityFromTooltipStyle(stack.get(DataComponents.TOOLTIP_STYLE))
-                ?: rarityFromLore(stack.get(DataComponents.LORE)?.lines().orEmpty())
-        }
+        return rarityFromTooltipStyle(stack.get(DataComponents.TOOLTIP_STYLE))
+            ?: rarityFromLore(stack.get(DataComponents.LORE)?.lines().orEmpty())
     }
 }
 

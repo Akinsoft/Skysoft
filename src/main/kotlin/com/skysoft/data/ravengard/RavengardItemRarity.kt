@@ -1,6 +1,5 @@
 package com.skysoft.data.ravengard
 
-import com.skysoft.utils.ItemStackComponentCache
 import java.util.Optional
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -9,17 +8,13 @@ import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemStack
 
 object RavengardItemRarity {
-    private val colorCache = ItemStackComponentCache<Int?>()
-
     fun color(stack: ItemStack): Int? {
         if (stack.isEmpty) return null
-        return colorCache.getOrPut(stack) {
-            ravengardRarityColor(
-                stack.get(DataComponents.TOOLTIP_STYLE),
-                stack.get(DataComponents.ITEM_MODEL),
-                stack.hoverName,
-            )
-        }
+        return ravengardRarityColor(
+            stack.get(DataComponents.TOOLTIP_STYLE),
+            stack.get(DataComponents.ITEM_MODEL),
+            stack.hoverName,
+        )
     }
 }
 

@@ -33,7 +33,8 @@ internal object DianaSpadeGuess {
         if (estimator.count() == 1) stabilizer.reset()
         val estimate = estimator.estimate() ?: return
         val guessLocation = stabilizer.accept(estimate.down(BURROW_GUESS_Y_OFFSET)) ?: return
-        if (DianaBurrowSurfaceValidator.check(guessLocation).status == DianaBurrowSurfaceStatus.INVALID) return
+        if (!dianaHubBounds.contains(guessLocation.roundToBlock())) return
+        if (DianaBurrowSurfaceValidator.check(guessLocation) == DianaBurrowSurfaceStatus.INVALID) return
         val replacement = activeGuess ?: DianaArrowGuess.recentGuessForReplacement(guessLocation, now)
         val tracked = DianaBurrowTargetTracker.trackGuess(guessLocation, now, replacing = replacement)
         DianaBurrowChainState.onTargetReplaced(replacement, tracked, now)

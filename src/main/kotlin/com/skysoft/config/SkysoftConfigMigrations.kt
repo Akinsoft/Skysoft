@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 19
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 20
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -75,6 +75,7 @@ internal object SkysoftConfigMigrations {
         if (migrationVersion < SPOTIFY_LYRICS_MODE_VERSION) migrateSpotifyLyricsMode(json)
         if (migrationVersion < SERVER_INFO_METRIC_COLORS_VERSION) migrateServerInfoMetricColors(json)
         migrateCursorPositionPreservation(json, migrationVersion)
+        migrateDianaParticleQualitySetup(json, migrationVersion)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 

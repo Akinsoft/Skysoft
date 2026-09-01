@@ -43,6 +43,9 @@ object DianaBurrowHelper {
             isActive = { isEnabled() || quickWarps.enabled || hasRuntimeState() },
         ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Burrow Helper disconnect reset", ::clearSession)
+        SkysoftClientEvents.onClientStopping("Diana Hub Surface Cache save") {
+            DianaHubSurfaceCache.flush()
+        }
         SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", { burrowHelper.enabled }) { profile ->
             DianaBurrowStorage.saveCurrentTargets()
             clearTargets(persistTargets = false)
@@ -77,6 +80,16 @@ object DianaBurrowHelper {
         DianaWarpTitleRenderer.register(::activeWarpSuggestion)
     }
 
+    fun didClearBurrows(): Boolean {
+        if (SkyBlockProfileApi.currentProfileId == null) return false
+        DianaBurrowStorage.restoreCurrentProfile()
+        DianaBurrowChainState.restoreCurrentProfile()
+        clearTargets(persistTargets = true)
+        DianaBurrowChainState.clear(persist = true)
+        DianaBurrowStorage.saveCurrentTargets()
+        return true
+    }
+
     private fun isEnabled(): Boolean = burrowHelper.enabled
 
     private fun hasRuntimeState(): Boolean =
@@ -90,8 +103,7 @@ object DianaBurrowHelper {
                 wasOnHub = true
                 DianaBurrowStorage.restoreCurrentProfile(now)
                 DianaBurrowChainState.restoreCurrentProfile(now)
-                DianaBurrowStorage.refreshCurrentTargets(now)
-                DianaHubSurfaceCache.onTick(now)
+                DianaHubSurfaceCache.onTick()
                 DianaBurrowParticleDetector.prune(now)
                 DianaArrowGuess.prune(now)
                 DianaBurrowTargetTracker.prune(now)
@@ -138,19 +150,22 @@ object DianaBurrowHelper {
     }
 
     internal fun renderTargets(context: SkysoftRenderContext, targets: Collection<DianaBurrowTarget>) {
-        val playerLocation = currentPlayerLocation()
+        val playerLocation = currentPlayerLocation() ?: return
         val target = targets.currentTarget(playerLocation) ?: return
         val labelColors = details.burrowLabelColors()
         DianaBurrowRenderer.renderWorld(
             context = context,
             targets = targets,
             currentTarget = target,
+            playerLocation = playerLocation,
             drawCrosshairLine = settings.crosshairLine &&
-                (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget()),
+                (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget),
             boldLabels = details.boldText,
             labelFormat = details.labelFormat,
             labelColors = labelColors,
+            beamColors = if (details.beaconBeam) details.burrowBeamColors() else null,
             boxStyle = details.burrowBoxStyle(labelColors),
+            distanceStyle = if (details.showDistance) details.burrowDistanceStyle() else null,
             showClickCounter = settings.clickCounter,
             clickCounterPosition = settings.clickCounterPosition,
             visualAlphaScale = if (
@@ -214,7 +229,7 @@ object DianaBurrowHelper {
 
     private fun clearSession() {
         DianaBurrowStorage.saveCurrentTargets()
-        DianaHubSurfaceCache.saveNow()
+        DianaHubSurfaceCache.saveInBackground()
         clearTargets(persistTargets = false)
         DianaBurrowStorage.resetLoadedProfile()
         DianaBurrowChainState.resetLoadedProfile()
@@ -228,7 +243,7 @@ object DianaBurrowHelper {
     private fun suspendTargets(now: Long) {
         if (wasOnHub || DianaBurrowTargetTracker.snapshot().isNotEmpty()) {
             DianaBurrowStorage.saveCurrentTargets(now)
-            DianaHubSurfaceCache.saveNow()
+            DianaHubSurfaceCache.saveInBackground()
             clearTargets(persistTargets = false)
             DianaBurrowStorage.resetLoadedProfile()
             DianaBurrowChainState.resetLoadedProfile()

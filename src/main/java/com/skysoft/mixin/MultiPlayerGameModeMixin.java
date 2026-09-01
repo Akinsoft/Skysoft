@@ -9,9 +9,13 @@ import com.skysoft.data.skyblock.SkyBlockDroppedItems;
 import com.skysoft.data.skyblock.SkyBlockSackTransfers;
 import com.skysoft.features.helditem.HeldItemUpdateFix;
 import com.skysoft.utils.MinecraftClient;
+import com.skysoft.utils.input.InputEventInterceptor;
+import com.skysoft.utils.input.InputHandlingResult;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -52,6 +56,12 @@ public class MultiPlayerGameModeMixin {
     protected boolean isSkysoftSameDestroyTargetAfterItemUpdate(ItemStack current, ItemStack previous, Operation<Boolean> original) {
         if (original.call(current, previous)) return true;
         return MixinErrorBoundary.value("Held Item destroy target update", false, () -> HeldItemUpdateFix.INSTANCE.shouldPreserveUpdate(previous, current));
+    }
+
+    @WrapOperation(method = "continueDestroyBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;startDestroyBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/Direction;)Z"))
+    protected boolean skysoftHandleContinuedBlockClick(MultiPlayerGameMode gameMode, BlockPos position, Direction direction, Operation<Boolean> original) {
+        if (InputEventInterceptor.processContinuedLeftBlockClick(position) == InputHandlingResult.CONSUMED) return false;
+        return original.call(gameMode, position, direction);
     }
 
     @WrapOperation(method = "handleContainerInput", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/AbstractContainerMenu;clicked(IILnet/minecraft/world/inventory/ContainerInput;Lnet/minecraft/world/entity/player/Player;)V"))

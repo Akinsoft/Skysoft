@@ -74,7 +74,6 @@ internal object ProfitTrackerItemCustomizations {
             com.skysoft.config.SkysoftConfigGui.config().saveNow()
         } else {
             ProfileStorageApi.markDirty()
-            ProfileStorageApi.saveNow()
         }
     }
 }
