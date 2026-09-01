@@ -500,7 +500,8 @@ private class ProfitTrackerRenderable(
             add(ProfitLine("§7No tracked drops yet."))
         } else {
             itemRows.forEach { (item, name) ->
-                val count = "§7x${item.amount.addSeparators()}"
+                val count = itemQuantity(item)
+                val countWidth = LegacyTextRenderer.width("§7x§a§l${item.amount.addSeparators()}")
                 val value = item.value?.let { "§6${it.coinFormat()}" } ?: "§8Unknown"
                 val quantityLeft = config.details.quantityPosition == ProfitTrackerQuantityPosition.LEFT
                 add(
@@ -513,6 +514,7 @@ private class ProfitTrackerRenderable(
                         height = OverlayItemRowStyle.HEIGHT,
                         textYOffset = OverlayItemRowStyle.TEXT_Y_OFFSET,
                         leading = count.takeIf { quantityLeft },
+                        reservedColumnWidth = countWidth,
                         control = ProfitTrackerControl.ManageItem(item.itemId, item.stack, item.name)
                             .takeIf { inventoryOpen },
                     ),
@@ -568,6 +570,13 @@ private class ProfitTrackerRenderable(
         }
     }
 
+    private fun itemQuantity(item: ProfitDisplayItem): String {
+        val highlighted = config.details.highlightChanges &&
+            ProfitTracker.itemQuantityHighlights.isHighlighted(target.storageKey to item.itemId)
+        val style = if (highlighted) "§a§l" else ""
+        return "§7x$style${item.amount.addSeparators()}"
+    }
+
     private fun controlTooltip(action: ProfitTrackerControl): List<String> = when (action) {
         ProfitTrackerControl.Period -> OverlayControlTooltips.cycle(
             "Display Mode",
@@ -600,13 +609,14 @@ private data class ProfitLine(
     val centered: Boolean = false,
     val leading: String? = null,
     val middle: String? = null,
+    val reservedColumnWidth: Int? = null,
     val leftColumnWidth: Int = LegacyTextRenderer.width(left),
 ) {
-    val leadingWidth: Int = leading?.let(LegacyTextRenderer::width) ?: 0
+    val leadingWidth: Int = leading?.let { reservedColumnWidth ?: LegacyTextRenderer.width(it) } ?: 0
+    private val middleWidth: Int = middle?.let { reservedColumnWidth ?: LegacyTextRenderer.width(it) } ?: 0
     val contentOffset: Int = leadingWidth + if (leading == null) 0 else OverlayItemRowStyle.QUANTITY_COLUMN_GAP
     val width: Int = contentOffset + (if (icon == null) 0 else OverlayItemRowStyle.ICON_TEXT_OFFSET) +
-        leftColumnWidth +
-        (middle?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.QUANTITY_COLUMN_GAP } ?: 0) +
+        leftColumnWidth + (middle?.let { middleWidth + OverlayItemRowStyle.QUANTITY_COLUMN_GAP } ?: 0) +
         (right?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.VALUE_COLUMN_GAP } ?: 0)
 
     fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {

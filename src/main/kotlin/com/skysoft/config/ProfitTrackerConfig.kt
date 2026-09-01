@@ -169,6 +169,12 @@ class ProfitTrackerDetailsConfig(defaultSummaryLines: List<ProfitTrackerSummaryL
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Highlight Changes", desc = "Briefly highlight item quantities when they change.")
+    @field:ConfigEditorBoolean
+    var highlightChanges = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Summary Lines", desc = "Choose and reorder the summary lines shown by the tracker.")
     @field:ConfigEditorDraggableList
     val summaryLines: Property<MutableList<ProfitTrackerSummaryLine>> =
