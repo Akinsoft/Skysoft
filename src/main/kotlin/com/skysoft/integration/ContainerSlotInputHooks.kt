@@ -20,7 +20,7 @@ object ContainerSlotInputHooks {
     @JvmStatic
     fun didConsumeSlotClick(
         screen: AbstractContainerScreen<*>,
-        slot: Slot,
+        slot: Slot?,
         slotId: Int,
         button: Int,
         action: ContainerInput,
