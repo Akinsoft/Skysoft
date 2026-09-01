@@ -7,17 +7,21 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.render.EntityHighlightRenderer
+import com.skysoft.utils.render.EntityHighlightTracker
 import java.util.UUID
 import net.minecraft.world.entity.Entity
 
 object HighlightCritters {
     private val config get() = SkysoftConfigGui.config().safari
     private val trackedCritters = mutableListOf<TrackedCritter>()
-    private val highlightedEntities = mutableSetOf<Entity>()
-    private var locationVersion = Long.MIN_VALUE
+    private val highlightedEntities = EntityHighlightTracker<Entity>(this)
     private var ticks = 0L
 
     fun register() {
+        HypixelLocationState.onChange(
+            "Highlight Critters location",
+            isActive = { isEnabled() || trackedCritters.isNotEmpty() || highlightedEntities.isNotEmpty() },
+        ) { clear() }
         SkysoftClientEvents.onEndTick(
             "Highlight Critters tick",
             isActive = { isEnabled() || trackedCritters.isNotEmpty() || highlightedEntities.isNotEmpty() },
@@ -30,7 +34,6 @@ object HighlightCritters {
             clear()
             return
         }
-        resetForLocationChange()
         if (++ticks % SCAN_INTERVAL_TICKS != 0L) return
 
         val loadedEntities = SkyBlockMobEntityMatcher.allEntities()
@@ -83,11 +86,7 @@ object HighlightCritters {
     }
 
     private fun updateHighlights(nextHighlights: Map<Entity, CritterHighlight>) {
-        highlightedEntities
-            .filter { entity -> entity !in nextHighlights }
-            .forEach { entity -> EntityHighlightRenderer.removeEntityColor(entity, this) }
-        highlightedEntities.clear()
-        highlightedEntities += nextHighlights.keys
+        highlightedEntities.replaceWith(nextHighlights.keys)
         nextHighlights.forEach { (entity, highlight) ->
             EntityHighlightRenderer.setEntityColor(
                 entity = entity,
@@ -98,18 +97,9 @@ object HighlightCritters {
         }
     }
 
-    private fun resetForLocationChange() {
-        val currentLocationVersion = HypixelLocationState.locationVersion
-        if (locationVersion == currentLocationVersion) return
-        clear()
-        locationVersion = currentLocationVersion
-    }
-
     private fun clear() {
-        highlightedEntities.forEach { entity -> EntityHighlightRenderer.removeEntityColor(entity, this) }
-        trackedCritters.clear()
         highlightedEntities.clear()
-        locationVersion = Long.MIN_VALUE
+        trackedCritters.clear()
         ticks = 0L
     }
 

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.config.SpotifyLyricsMode
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
+import com.skysoft.utils.DurationParts
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelControlColors
@@ -261,12 +262,12 @@ internal class SpotifyHudRenderable(
     private fun hasLyrics(): Boolean = lyricsMode != SpotifyLyricsMode.OFF && lyrics.isNotEmpty()
 
     private fun formatTime(milliseconds: Long): String {
-        val totalSeconds = milliseconds / MILLIS_PER_SECOND
-        val hours = totalSeconds / SECONDS_PER_HOUR
-        val minutes = totalSeconds / SECONDS_PER_MINUTE % MINUTES_PER_HOUR
-        val seconds = totalSeconds % SECONDS_PER_MINUTE
-        return if (hours > 0) "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}" else {
-            "$minutes:${seconds.toString().padStart(2, '0')}"
+        val duration = DurationParts.fromMilliseconds(milliseconds)
+        return if (duration.totalHours > 0L) {
+            "${duration.totalHours}:${duration.minutes.toString().padStart(2, '0')}:" +
+                duration.seconds.toString().padStart(2, '0')
+        } else {
+            "${duration.minutes}:${duration.seconds.toString().padStart(2, '0')}"
         }
     }
 
@@ -295,10 +296,6 @@ internal class SpotifyHudRenderable(
         const val LYRICS_LINE_HEIGHT = 9
         const val TRANSITION_MIDPOINT = 0.5
         const val PRELUDE_LYRIC_INDEX = -1
-        const val MILLIS_PER_SECOND = 1_000L
-        const val SECONDS_PER_MINUTE = 60L
-        const val SECONDS_PER_HOUR = 3_600L
-        const val MINUTES_PER_HOUR = 60L
         const val ADJACENT_LYRIC_ALPHA = 0.5
         const val ARTWORK_ALPHA_THRESHOLD = 0.95
         const val TEXT_COLOR = 0xFFFFFFFF.toInt()

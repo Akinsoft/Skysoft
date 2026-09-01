@@ -9,13 +9,21 @@ import net.minecraft.resources.Identifier
 
 object SkyBlockLevelBar {
     private val isEnabled get() = SkysoftConfigGui.config().gui.isSkyBlockLevelBarEnabled
-    private var cachedTabVersion = Long.MIN_VALUE
     private var cachedLevel: SkyBlockLevelProgress? = null
 
     internal val isReplacingExperience: Boolean get() = currentLevel() != null
 
     fun register() {
-        TabListApi.registerConsumer("SkyBlock Level Bar") { isEnabled }
+        TabListApi.onChange(
+            "SkyBlock Level Bar",
+            isActive = { isEnabled },
+        ) {
+            cachedLevel = if (TabListApi.isSkyBlockDataLoaded) {
+                parseSkyBlockLevelProgress(TabListApi.skyBlockLines)
+            } else {
+                null
+            }
+        }
     }
 
     internal fun displayedExperienceProgress(original: Float): Float = currentLevel()?.progress ?: original
@@ -57,14 +65,8 @@ object SkyBlockLevelBar {
         drawVanillaExperienceProgress(context, x, y, width, color)
     }
 
-    private fun currentLevel(): SkyBlockLevelProgress? {
-        if (!isEnabled || !TabListApi.isSkyBlockDataLoaded) return null
-        if (cachedTabVersion != TabListApi.contentVersion) {
-            cachedTabVersion = TabListApi.contentVersion
-            cachedLevel = parseSkyBlockLevelProgress(TabListApi.skyBlockLines)
-        }
-        return cachedLevel
-    }
+    private fun currentLevel(): SkyBlockLevelProgress? =
+        cachedLevel.takeIf { isEnabled && TabListApi.isSkyBlockDataLoaded }
 }
 
 internal data class SkyBlockLevelProgress(

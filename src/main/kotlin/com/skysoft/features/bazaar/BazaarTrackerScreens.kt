@@ -1,7 +1,9 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputHandlingResult
@@ -13,20 +15,20 @@ import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
-internal fun readConfirmScreen(screen: AbstractContainerScreen<*>, expectedType: BazaarOrderType) {
+internal fun readConfirmInventory(snapshot: SkyBlockOpenInventorySnapshot, expectedType: BazaarOrderType) {
     lastOrdersInventoryKey = null
     pendingOrdersInventoryKey = null
     pendingOrdersInventoryStableTicks = 0
-    for (slot in nonPlayerSlots(screen)) {
-        val parsed = parseConfirmStack(slot.item, expectedType) ?: continue
+    for (cell in snapshot.cells) {
+        val parsed = parseConfirmStack(cell.item, expectedType) ?: continue
         pendingSetup = parsed
         parsed.taxPercent?.let { updateTax(it) }
         return
     }
 }
 
-internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
-    val key = buildInventoryKey(screen)
+internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
+    val key = snapshot.key
     if (key == lastOrdersInventoryKey && missingFromOrdersGuiScans.isEmpty()) return
     if (key != pendingOrdersInventoryKey) {
         pendingOrdersInventoryKey = key
@@ -39,15 +41,15 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
     pendingOrdersInventoryKey = null
     pendingOrdersInventoryStableTicks = 0
 
-    val slots = nonPlayerSlots(screen)
-    val scan = parseBazaarOrderScan(screen.title.cleanSkyBlockText(), slots) ?: return
+    val cells = snapshot.cells
+    val scan = parseBazaarOrderScan(snapshot.title, cells) ?: return
     val allParsedOrders = scan.orders
     val localOrderSlots = scan.localOrderSlots
     if (
         allParsedOrders.isEmpty() &&
         !isBazaarOrderAreaEmpty(
-            slots.map { it.containerSlot },
-            slots.filterNot { it.item.isEmpty }.mapTo(mutableSetOf()) { it.containerSlot },
+            cells.map { it.index },
+            cells.filterNot { it.item.isEmpty }.mapTo(mutableSetOf()) { it.index },
         )
     ) {
         return
@@ -89,21 +91,21 @@ internal fun readOrdersScreen(screen: AbstractContainerScreen<*>) {
     }
 }
 
-internal fun ordersMenuLoaded(slots: List<Slot>): Boolean {
-    val names = slots.asSequence()
-        .filter { !it.item.isEmpty }
-        .mapNotNull { it.item.textLines().firstOrNull()?.clean() }
+internal fun ordersMenuLoaded(items: Sequence<ItemStack>): Boolean {
+    val names = items
+        .filterNot(ItemStack::isEmpty)
+        .mapNotNull { item -> item.textLines().firstOrNull()?.clean() }
         .toSet()
     return "Go Back" in names && "Claim All Coins" in names
 }
 
-internal fun readOrderOptionsScreen(screen: AbstractContainerScreen<*>) {
+internal fun readOrderOptionsInventory(snapshot: SkyBlockOpenInventorySnapshot) {
     lastOrdersInventoryKey = null
     pendingOrdersInventoryKey = null
     pendingOrdersInventoryStableTicks = 0
     val order = pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
-    for (slot in nonPlayerSlots(screen)) {
-        val parsed = parseCancelStack(slot.item, order) ?: continue
+    for (cell in snapshot.cells) {
+        val parsed = parseCancelStack(cell.item, order) ?: continue
         pendingCancel = parsed
         return
     }

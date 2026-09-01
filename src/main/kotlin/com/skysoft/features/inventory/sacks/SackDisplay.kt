@@ -15,7 +15,6 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.gui.OverlayControlMouse
@@ -26,21 +25,19 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.truncateLegacyText
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import kotlin.math.floor
 import kotlin.math.roundToInt
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -60,14 +57,14 @@ private var isDisplayHovered = false
 
 private fun registerSackDisplay() {
     SkyBlockDataRepository.Demand.register("Sack Display") { config.enabled }
-    SkyBlockOpenInventoryApi.onUpdate(
+    SkyBlockOpenInventoryApi.onChange(
         "Sack Display inventory",
         isActive = { config.enabled && HypixelLocationState.inSkyBlock },
         listener = ::updateOpenSack,
     )
     SkysoftClientEvents.onDisconnect("Sack Display reset", ::clearSackDisplay)
     registerSackDisplayInput()
-    GuiOverlayRegistry.register(
+    GuiOverlayRegistry.registerHud(
         GuiOverlay(
             id = "sack_display",
             layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -75,47 +72,42 @@ private fun registerSackDisplay() {
             screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderSackDisplay(context) },
         ),
-    )
-    HudEditorRegistry.register(object : HudEditorElement {
-        override val id: String = "sack_display"
-        override val label: String = "Sack Display"
-        override val position get() = config.position
-        override val hasEditorBackground: Boolean get() = !config.details.showBackground
+        object : HudEditorElement {
+            override val id: String = "sack_display"
+            override val label: String = "Sack Display"
+            override val position get() = config.position
+            override val hasEditorBackground: Boolean get() = !config.details.showBackground
 
-        override fun width(): Int = editorRenderable()?.width ?: 0
-        override fun height(): Int = editorRenderable()?.height ?: 0
-        override fun isVisible(): Boolean = isSackDisplayVisible()
-        override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
-        override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
-        override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
-        override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-            val targetX = position.getAbsX0AllowingOverflow(0) + deltaX
-            val targetY = position.getAbsY0AllowingOverflow(0) + deltaY
-            position.moveToAbsoluteAllowingOverflow(targetX, targetY, 0, 0)
-            return InputHandlingResult.CONSUMED
-        }
-        override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-            position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
-            return InputHandlingResult.CONSUMED
-        }
-        override fun openConfig() = SkysoftConfigGui.open("Sack Display")
-    })
+            override fun width(): Int = editorRenderable()?.width ?: 0
+            override fun height(): Int = editorRenderable()?.height ?: 0
+            override fun isVisible(): Boolean = isSackDisplayVisible()
+            override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
+            override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
+            override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
+            override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
+                val targetX = position.getAbsX0AllowingOverflow(0) + deltaX
+                val targetY = position.getAbsY0AllowingOverflow(0) + deltaY
+                position.moveToAbsoluteAllowingOverflow(targetX, targetY, 0, 0)
+                return InputHandlingResult.CONSUMED
+            }
+            override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
+                position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
+                return InputHandlingResult.CONSUMED
+            }
+            override fun openConfig() = SkysoftConfigGui.open("Sack Display")
+        },
+    )
 }
 
 private fun registerSackDisplayInput() {
-    ScreenEvents.BEFORE_INIT.register { _, screen, _, _ ->
-        if (screen !is AbstractContainerScreen<*>) return@register
-        ScreenMouseEvents.allowMouseClick(screen).register { _, click ->
-            SkysoftErrorBoundary.value("Sack Display mouse click", true) {
-                shouldAllowSackDisplayClick(screen, click)
-            }
-        }
-        ScreenMouseEvents.allowMouseScroll(screen).register { _, mouseX, mouseY, _, verticalAmount ->
-            SkysoftErrorBoundary.value("Sack Display mouse scroll", true) {
-                InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
-                    !wasSackDisplayScrollHandled(verticalAmount)
-            }
-        }
+    InventoryOverlayInput.registerClickHandler("Sack Display mouse click", isActive = { true }) { screen, click ->
+        if (shouldAllowSackDisplayClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
+    }
+    InventoryOverlayInput.registerScrollHandler("Sack Display mouse scroll", isActive = { true }) {
+            screen, mouseX, mouseY, verticalAmount ->
+        val allowed = InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
+            !wasSackDisplayScrollHandled(verticalAmount)
+        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
     }
 }
 
@@ -189,9 +181,7 @@ private fun renderSackDisplay(context: GuiGraphicsExtractor) {
     val renderable = buildRenderable(sack)
     val minecraft = Minecraft.getInstance()
     val screen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*> ?: return
-    val window = minecraft.window
-    val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
-    val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
+    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
     val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
     val interactive = !InventoryOverlayInput.isPointCovered(screen, screenMouseX.toDouble(), screenMouseY.toDouble())

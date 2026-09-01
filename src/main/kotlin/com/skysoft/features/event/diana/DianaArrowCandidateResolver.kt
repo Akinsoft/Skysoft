@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 
@@ -66,8 +67,6 @@ internal object DianaArrowCandidateResolver {
             offset < 0 -> below(-offset)
             else -> this
         }
-
-    private fun BlockPos.toWorldVec(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
 
     private const val VERTICAL_SURFACE_SCAN_RADIUS = 12
     private val VERTICAL_SURFACE_SCAN_OFFSETS = (0..VERTICAL_SURFACE_SCAN_RADIUS).flatMap { offset ->

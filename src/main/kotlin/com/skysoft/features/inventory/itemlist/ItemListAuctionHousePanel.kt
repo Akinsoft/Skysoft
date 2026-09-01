@@ -1,6 +1,8 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.data.MinecraftProfileLookup
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
@@ -10,12 +12,14 @@ import com.skysoft.data.skyblock.price.SkysoftAuctionHouseResponse
 import com.skysoft.data.skyblock.price.SkysoftAuctionListing
 import com.skysoft.features.inventory.registryOps
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.DurationParts
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.TextUtilities.parseUUIDOrNull
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.net.AsyncRequestSlot
+import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.render.LegacyTextRenderer
-import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -34,9 +38,8 @@ internal class ItemListAuctionHousePanel {
     private var listings: List<AuctionListingView> = emptyList()
     private var page = 0
     private var pageCount = 0
-    private var nextRequestAt = 0L
-    private var requestInFlight = false
-    private var requestToken = 0L
+    private val requestSlot = AsyncRequestSlot<DecodedAuctionResponse>(completionExecutor = Minecraft.getInstance())
+    private val refreshSchedule = RefreshSchedule()
     private var lastError: String? = null
     private val sellerNames = AuctionSellerNames()
 
@@ -80,9 +83,8 @@ internal class ItemListAuctionHousePanel {
         page = nextPage
         listings = emptyList()
         state = AuctionHousePanelState.LOADING
-        nextRequestAt = 0L
-        requestInFlight = false
-        requestToken++
+        requestSlot.cancel()
+        refreshSchedule.reset()
         return ViewerInputResult.page(delta)
     }
 
@@ -93,37 +95,37 @@ internal class ItemListAuctionHousePanel {
         listings = emptyList()
         page = 0
         pageCount = 0
-        nextRequestAt = 0L
-        requestInFlight = false
-        requestToken++
+        requestSlot.cancel()
+        refreshSchedule.reset()
         lastError = null
         sellerNames.clear()
     }
 
     private fun requestWhenReady(key: ItemListEntryKey) {
         val now = System.currentTimeMillis()
-        if (requestInFlight || now < nextRequestAt) return
-        requestInFlight = true
+        if (!refreshSchedule.isDue(now)) return
         if (listings.isEmpty()) state = AuctionHousePanelState.LOADING
         val requestedPage = page
-        val token = ++requestToken
         val ops = registryOps()
-        SkyBlockPriceData.refreshAuctionHouse(key.id, requestedPage)
-            .thenApplyAsync { response -> decodedResponse(response, key, ops) }
-            .whenComplete { response, error ->
-                SkysoftErrorBoundary.onClientThread("Item List Auction House async completion") {
-                    if (currentKey != key || token != requestToken) return@onClientThread
-                    requestInFlight = false
-                    if (error == null && response != null) {
-                        applyResponse(response)
-                        nextRequestAt = System.currentTimeMillis() + REFRESH_MILLIS
-                    } else {
-                        lastError = errorMessage(error)
-                        state = if (listings.isEmpty()) AuctionHousePanelState.FAILED else AuctionHousePanelState.READY
-                        nextRequestAt = System.currentTimeMillis() + FAILURE_RETRY_MILLIS
-                    }
+        requestSlot.startIfIdle(
+            requestFactory = {
+                SkyBlockPriceData.refreshAuctionHouse(key.id, requestedPage)
+                    .thenApplyAsync { response -> decodedResponse(response, key, ops) }
+            },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("Item List Auction House async completion") {
+                if (currentKey != key || page != requestedPage) return@run
+                val completedAt = System.currentTimeMillis()
+                if (error == null && response != null) {
+                    applyResponse(response)
+                    refreshSchedule.schedule(completedAt, REFRESH_MILLIS)
+                } else {
+                    lastError = errorMessage(error)
+                    state = if (listings.isEmpty()) AuctionHousePanelState.FAILED else AuctionHousePanelState.READY
+                    refreshSchedule.schedule(completedAt, FAILURE_RETRY_MILLIS)
                 }
             }
+        }
     }
 
     private fun applyResponse(response: DecodedAuctionResponse) {
@@ -233,12 +235,12 @@ internal fun auctionHouseCategoryAvailable(
 ): Boolean = isSkyBlockItem && availability != BazaarProductAvailability.UNAVAILABLE
 
 private fun auctionRemainingTime(endMillis: Long, nowMillis: Long): String {
-    val seconds = Math.ceilDiv((endMillis - nowMillis).coerceAtLeast(0L), MILLIS_PER_SECOND)
+    val duration = DurationParts.fromMilliseconds(endMillis - nowMillis, roundUp = true)
     return when {
-        seconds >= SECONDS_PER_DAY -> "${seconds / SECONDS_PER_DAY}d"
-        seconds >= SECONDS_PER_HOUR -> "${seconds / SECONDS_PER_HOUR}h"
-        seconds >= SECONDS_PER_MINUTE -> "${seconds / SECONDS_PER_MINUTE}m"
-        else -> "${seconds}s"
+        duration.days > 0L -> "${duration.days}d"
+        duration.totalHours > 0L -> "${duration.totalHours}h"
+        duration.totalMinutes > 0L -> "${duration.totalMinutes}m"
+        else -> "${duration.seconds}s"
     }
 }
 
@@ -324,7 +326,6 @@ internal enum class AuctionSellerState {
 
 private class AuctionSellerNames {
     private val names = mutableMapOf<String, AuctionSellerName>()
-    private var queue: CompletableFuture<*> = CompletableFuture.completedFuture(null)
     private var generation = 0
 
     fun clear() {
@@ -334,24 +335,22 @@ private class AuctionSellerNames {
 
     fun prefetch(value: String) {
         if (value in names) return
-        val uuid = parseAuctionSellerUuid(value)
+        val uuid = value.parseUUIDOrNull()
         if (uuid == null) {
             names[value] = AuctionSellerName("Unavailable", AuctionSellerState.FAILED)
             return
         }
-        val visibleName = Minecraft.getInstance().connection?.getPlayerInfo(uuid)?.profile?.name
+        val visibleName = TabListApi.playerProfile(uuid)?.profileName
         if (!visibleName.isNullOrBlank()) {
             names[value] = AuctionSellerName(visibleName, AuctionSellerState.RESOLVED)
             return
         }
         names[value] = AuctionSellerName("Loading...", AuctionSellerState.LOADING)
         val requestedGeneration = generation
-        queue = queue.handle { _, _ -> null }.thenRunAsync {
-            val name = runCatching {
-                Minecraft.getInstance().services().profileResolver().fetchById(uuid).orElse(null)?.name
-            }.getOrNull()
+        MinecraftProfileLookup.byId(uuid).whenComplete { profile, _ ->
             SkysoftErrorBoundary.onClientThread("Auction seller name async completion") {
                 if (requestedGeneration != generation) return@onClientThread
+                val name = profile?.name
                 names[value] = if (name.isNullOrBlank()) {
                     AuctionSellerName("Unavailable", AuctionSellerState.FAILED)
                 } else {
@@ -366,22 +365,6 @@ private class AuctionSellerNames {
 
 }
 
-internal fun parseAuctionSellerUuid(value: String): UUID? {
-    val compact = value.replace("-", "")
-    if (compact.length != UUID_HEX_LENGTH || compact.any { it.digitToIntOrNull(HEX_RADIX) == null }) return null
-    val dashed = buildString(UUID_STRING_LENGTH) {
-        append(compact, 0, UUID_TIME_LOW_END)
-        append('-')
-        append(compact, UUID_TIME_LOW_END, UUID_TIME_MID_END)
-        append('-')
-        append(compact, UUID_TIME_MID_END, UUID_TIME_HIGH_END)
-        append('-')
-        append(compact, UUID_TIME_HIGH_END, UUID_CLOCK_SEQUENCE_END)
-        append('-')
-        append(compact, UUID_CLOCK_SEQUENCE_END, UUID_HEX_LENGTH)
-    }
-    return runCatching { UUID.fromString(dashed) }.getOrNull()
-}
 
 private fun errorMessage(error: Throwable?): String = generateSequence(error) { it.cause }
     .lastOrNull()
@@ -406,15 +389,3 @@ private enum class AuctionHousePanelState {
     READY,
     FAILED,
 }
-
-private const val UUID_HEX_LENGTH = 32
-private const val UUID_STRING_LENGTH = 36
-private const val UUID_TIME_LOW_END = 8
-private const val UUID_TIME_MID_END = 12
-private const val UUID_TIME_HIGH_END = 16
-private const val UUID_CLOCK_SEQUENCE_END = 20
-private const val HEX_RADIX = 16
-private const val MILLIS_PER_SECOND = 1_000L
-private const val SECONDS_PER_MINUTE = 60L
-private const val SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE
-private const val SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR

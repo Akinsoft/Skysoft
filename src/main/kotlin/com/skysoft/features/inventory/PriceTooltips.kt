@@ -7,13 +7,12 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
+import com.skysoft.utils.ItemTooltipEvents
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.romanToDecimal
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputUtilities
 import java.util.Locale
-import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -27,18 +26,15 @@ object PriceTooltips {
         SkyBlockDataRepository.Demand.register("Price Tooltips") {
             config.enabled && config.settings.priceLines.get().isNotEmpty()
         }
-        ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            SkysoftErrorBoundary.run("Price Tooltip rendering") tooltip@{
-                if (!shouldShow()) return@tooltip
-                if (config.settings.priceLines.get().isEmpty()) return@tooltip
+        ItemTooltipEvents.register("Price Tooltip rendering", ::shouldShow) tooltip@{ stack, _, _, tooltip ->
+            if (config.settings.priceLines.get().isEmpty()) return@tooltip
 
-                val itemId = priceItemId(stack) ?: return@tooltip
-                val priceLines = createPriceLines(itemId, stack.count)
-                if (priceLines.isEmpty()) return@tooltip
+            val itemId = priceItemId(stack) ?: return@tooltip
+            val priceLines = createPriceLines(itemId, stack.count)
+            if (priceLines.isEmpty()) return@tooltip
 
-                tooltip.add(Component.literal(""))
-                tooltip.addAll(priceLines)
-            }
+            tooltip.add(Component.literal(""))
+            tooltip.addAll(priceLines)
         }
     }
 

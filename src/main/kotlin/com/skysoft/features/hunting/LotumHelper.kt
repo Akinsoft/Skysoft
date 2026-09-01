@@ -1,6 +1,7 @@
 package com.skysoft.features.hunting
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.utils.ColorUtilities.addAlpha
@@ -8,6 +9,7 @@ import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.getWorldVec
 import com.skysoft.utils.render.EntityHighlightRenderer
+import com.skysoft.utils.render.EntityHighlightTracker
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.SkysoftClientEvents
@@ -29,7 +31,7 @@ object LotumHelper {
     private val LOTUM_COLOR = Color(85, 255, 85)
 
     private val trackedLotums = mutableSetOf<ArmorStand>()
-    private val highlightedLotums = mutableSetOf<Int>()
+    private val highlightedLotums = EntityHighlightTracker<Frog>(this)
     private var ticks = 0
 
     fun register() {
@@ -59,14 +61,9 @@ object LotumHelper {
             val frogs = entities.filterIsInstance<Frog>()
             val nameTags = entities.filterIsInstance<ArmorStand>().filter { armorStand -> armorStand.isLotumName() }
             val liveNameTags = nameTags.filter { armorStand -> armorStand.isAlive }
-            val confirmedLotumIds = frogs
-                .filter { frog -> frog.isConfirmedLotum(liveNameTags, frogs) }
-                .mapTo(mutableSetOf()) { frog -> frog.id }
-            highlightedLotums.removeIf { lotumId -> lotumId !in confirmedLotumIds }
-
-            nameTags
-                .mapNotNull { armorStand -> armorStand.findLotumFrog(frogs) }
-                .forEach(::highlightLotum)
+            val confirmedLotums = frogs
+                .filterTo(mutableSetOf()) { frog -> frog.isConfirmedLotum(liveNameTags, frogs) }
+            highlightedLotums.replaceWith(confirmedLotums).forEach(::highlightLotum)
         }
     }
 
@@ -91,9 +88,16 @@ object LotumHelper {
     }
 
     private fun highlightLotum(lotum: Frog) {
-        if (!highlightedLotums.add(lotum.id)) return
-        EntityHighlightRenderer.setEntityColor(lotum, LOTUM_COLOR.addAlpha(LOTUM_HIGHLIGHT_ALPHA)) {
-            config.enabled && config.settings.highlightLotums && SkyBlockIsland.LOTUS_ATOLL.isInIsland() && lotum.isAlive
+        EntityHighlightRenderer.setEntityColor(
+            lotum,
+            LOTUM_COLOR.addAlpha(LOTUM_HIGHLIGHT_ALPHA),
+            source = this,
+        ) {
+            config.enabled &&
+                config.settings.highlightLotums &&
+                SkyBlockIsland.LOTUS_ATOLL.isInIsland() &&
+                lotum.isAlive &&
+                lotum in highlightedLotums
         }
     }
 
@@ -127,10 +131,7 @@ object LotumHelper {
 
     private fun Entity.isLotumName(): Boolean = cleanName().contains(LOTUM_NAME)
 
-    private fun allEntities(): List<Entity> = Minecraft.getInstance().level
-        ?.entitiesForRendering()
-        ?.toList()
-        .orEmpty()
+    private fun allEntities(): List<Entity> = ClientEntitySnapshot.entities()
 
     private fun clear() {
         trackedLotums.clear()

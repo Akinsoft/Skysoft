@@ -9,6 +9,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.AttributeShardCatalog
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.PendingHttpRequests
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.ActiveConsumerRegistry
@@ -43,10 +44,10 @@ object SkyBlockPriceData {
     private val bazaarRequests = PendingHttpRequests()
     private val lowestBinRequests = PendingHttpRequests()
     private val npcSellPriceRequests = PendingHttpRequests()
-    private val fetchingBazaar = AtomicBoolean(false)
-    private val fetchingBazaarDepth = AtomicBoolean(false)
-    private val fetchingLowestBins = AtomicBoolean(false)
-    private val fetchingNpcSellPrices = AtomicBoolean(false)
+    private val bazaarRequest = AsyncRequestSlot<SkysoftBazaarResponse>()
+    private val bazaarDepthRequest = AsyncRequestSlot<Map<String, SkysoftBazaarDepthProduct>>()
+    private val lowestBinRequest = AsyncRequestSlot<LowestBinsResponse>()
+    private val npcSellPriceRequest = AsyncRequestSlot<HypixelSkyBlockItemsResponse>()
     private val bazaarConsumers = ActiveConsumerRegistry()
     private val lowestBinConsumers = ActiveConsumerRegistry()
     private val npcSellPriceConsumers = ActiveConsumerRegistry()
@@ -96,6 +97,7 @@ object SkyBlockPriceData {
 
     fun register() {
         registerConsumers()
+        AttributeShardCatalog.registerConsumer("SkyBlock Price Data", ::hasDemand)
         ProfileStorageApi.registerConsumer("SkyBlock Price Data") {
             SkysoftConfigGui.config().inventory.bazaar.enabled
         }
@@ -119,7 +121,7 @@ object SkyBlockPriceData {
                     refreshBazaar()
                 }
             } else {
-                if (wasBazaarDemanded) cancelPriceSourceRequests(bazaarRequests, fetchingBazaar)
+                if (wasBazaarDemanded) cancelPriceSourceRequests(bazaarRequests, bazaarRequest)
                 ticksUntilBazaarRefresh = 0
             }
             wasBazaarDemanded = needsBazaar
@@ -133,7 +135,7 @@ object SkyBlockPriceData {
                     refreshLowestBins()
                 }
             } else {
-                if (wasLowestBinDemanded) cancelPriceSourceRequests(lowestBinRequests, fetchingLowestBins)
+                if (wasLowestBinDemanded) cancelPriceSourceRequests(lowestBinRequests, lowestBinRequest)
                 ticksUntilLowestBinsRefresh = 0
             }
             wasLowestBinDemanded = needsLowestBins
@@ -145,13 +147,17 @@ object SkyBlockPriceData {
                 if (npcSellPriceRequestSchedule.shouldRequest(System.nanoTime())) refreshNpcSellPrices()
             } else if (
                 wasNpcSellPriceDemanded &&
-                cancelPriceSourceRequests(npcSellPriceRequests, fetchingNpcSellPrices)
+                cancelPriceSourceRequests(npcSellPriceRequests, npcSellPriceRequest)
             ) {
                 npcSellPriceRequestSchedule.recordCancellation()
             }
             wasNpcSellPriceDemanded = needsNpcSellPrices
         }
         SkysoftClientEvents.onClientStopping("SkyBlock Price request cancellation") {
+            bazaarRequest.cancel()
+            bazaarDepthRequest.cancel()
+            lowestBinRequest.cancel()
+            npcSellPriceRequest.cancel()
             directRequests.cancelAll()
             bazaarRequests.cancelAll()
             lowestBinRequests.cancelAll()
@@ -233,155 +239,148 @@ object SkyBlockPriceData {
             .filter { it.isNotEmpty() }
             .distinct()
             .take(BAZAAR_DEPTH_PRODUCT_LIMIT)
-        if (requestedIds.isEmpty() || !fetchingBazaarDepth.compareAndSet(false, true)) return null
+        if (requestedIds.isEmpty()) return null
         val requestedIdByProductId = requestedIds.associateBy(::bazaarProductId)
         val products = requestedIdByProductId.keys.joinToString(",") { URLEncoder.encode(it, StandardCharsets.UTF_8) }
-        return directRequests.getString("$BAZAAR_DEPTH_URL?products=$products&since=${sinceMillis.coerceAtLeast(0L)}")
-            .thenApply { gson.fromJson(it, SkysoftBazaarDepthResponse::class.java) }
-            .thenApply { response ->
-                if (!response.success) {
-                    throw IllegalStateException("Skysoft bazaar depth response failed: ${response.cause}")
-                }
-                response.products.mapKeys { (productId, _) -> requestedIdByProductId[productId] ?: productId }
-            }
-            .whenComplete { _, error ->
-                SkysoftErrorBoundary.run("Bazaar depth async completion") {
-                    try {
-                        if (error != null && !error.isCancellationFailure()) {
-                            SkysoftMod.LOGGER.warn("Failed to refresh bazaar depth", error)
+        return bazaarDepthRequest.startIfIdleFuture(
+            requestFactory = {
+                directRequests.getString("$BAZAAR_DEPTH_URL?products=$products&since=${sinceMillis.coerceAtLeast(0L)}")
+                    .thenApply { gson.fromJson(it, SkysoftBazaarDepthResponse::class.java) }
+                    .thenApply { response ->
+                        if (!response.success) {
+                            throw IllegalStateException("Skysoft bazaar depth response failed: ${response.cause}")
                         }
-                    } finally {
-                        fetchingBazaarDepth.set(false)
+                        response.products.mapKeys { (productId, _) -> requestedIdByProductId[productId] ?: productId }
                     }
+            },
+        ) { _, error ->
+            SkysoftErrorBoundary.run("Bazaar depth async completion") {
+                if (error != null && !error.isCancellationFailure()) {
+                    SkysoftMod.LOGGER.warn("Failed to refresh bazaar depth", error)
                 }
             }
+        }
     }
 
     private fun refreshBazaar() {
-        if (!fetchingBazaar.compareAndSet(false, true)) return
+        if (bazaarRequest.isPending) return
         if (bazaar.products.isEmpty()) bazaarStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
-
-        bazaarRequests.getString(BAZAAR_URL)
-            .thenApply { gson.fromJson(it, SkysoftBazaarResponse::class.java) }
-            .thenApply { response ->
-                if (!response.success) {
-                    throw IllegalStateException("Skysoft bazaar response failed: ${response.cause}")
-                }
-                response
-            }
-            .whenComplete { response, error ->
-                SkysoftErrorBoundary.run("Bazaar price async completion") {
-                    try {
-                        if (error == null && response != null) {
-                            bazaar = BazaarProducts(response.products, response.updatedAtMillis())
-                            bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis())
-                            updateRawCraftMarketSnapshot()
-                            marketSnapshotVersion.incrementAndGet()
-                        } else if (error?.isCancellationFailure() != true) {
-                            SkysoftMod.LOGGER.warn("Failed to refresh bazaar prices", error)
-                            bazaarStatus = if (bazaar.products.isEmpty()) {
-                                BazaarDataStatus(
-                                    BazaarDataLoadState.FAILED,
-                                    message = error?.message ?: "Bazaar request failed",
-                                )
-                            } else {
-                                BazaarDataStatus(
-                                    BazaarDataLoadState.READY,
-                                    bazaar.updatedAtMillis,
-                                    error?.message ?: "Bazaar refresh failed",
-                                )
-                            }
+        bazaarRequest.startIfIdle(
+            requestFactory = {
+                bazaarRequests.getString(BAZAAR_URL)
+                    .thenApply { gson.fromJson(it, SkysoftBazaarResponse::class.java) }
+                    .thenApply { response ->
+                        if (!response.success) {
+                            throw IllegalStateException("Skysoft bazaar response failed: ${response.cause}")
                         }
-                    } finally {
-                        fetchingBazaar.set(false)
+                        response
+                    }
+            },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("Bazaar price async completion") {
+                if (error == null && response != null) {
+                    bazaar = BazaarProducts(response.products, response.updatedAtMillis())
+                    bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis())
+                    updateRawCraftMarketSnapshot()
+                    marketSnapshotVersion.incrementAndGet()
+                } else if (error?.isCancellationFailure() != true) {
+                    SkysoftMod.LOGGER.warn("Failed to refresh bazaar prices", error)
+                    bazaarStatus = if (bazaar.products.isEmpty()) {
+                        BazaarDataStatus(
+                            BazaarDataLoadState.FAILED,
+                            message = error?.message ?: "Bazaar request failed",
+                        )
+                    } else {
+                        BazaarDataStatus(
+                            BazaarDataLoadState.READY,
+                            bazaar.updatedAtMillis,
+                            error?.message ?: "Bazaar refresh failed",
+                        )
                     }
                 }
             }
+        }
     }
 
     private fun refreshLowestBins() {
-        if (!fetchingLowestBins.compareAndSet(false, true)) return
+        if (lowestBinRequest.isPending) return
         if (lowestBins.isEmpty()) lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
-
-        lowestBinRequests.getString(LOWEST_BINS_URL)
-            .thenApply { gson.fromJson(it, LowestBinsResponse::class.java) }
-            .thenApply { response ->
-                if (!response.success) {
-                    throw IllegalStateException("Skysoft lowest BIN response failed: ${response.cause}")
-                }
-                response
-            }
-            .whenComplete { response, error ->
-                SkysoftErrorBoundary.run("Lowest BIN async completion") {
-                    try {
-                        if (error == null && response != null) {
-                            lowestBins = response.prices
-                            lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt)
-                            updateRawCraftMarketSnapshot()
-                            marketSnapshotVersion.incrementAndGet()
-                        } else if (error?.isCancellationFailure() != true) {
-                            SkysoftMod.LOGGER.warn("Failed to refresh lowest BIN prices", error)
-                            lowestBinsStatus = if (lowestBins.isEmpty()) {
-                                BazaarDataStatus(
-                                    BazaarDataLoadState.FAILED,
-                                    message = error?.message ?: "Lowest BIN request failed",
-                                )
-                            } else {
-                                BazaarDataStatus(
-                                    BazaarDataLoadState.READY,
-                                    lowestBinsStatus.updatedAtMillis,
-                                    error?.message ?: "Lowest BIN refresh failed",
-                                )
-                            }
+        lowestBinRequest.startIfIdle(
+            requestFactory = {
+                lowestBinRequests.getString(LOWEST_BINS_URL)
+                    .thenApply { gson.fromJson(it, LowestBinsResponse::class.java) }
+                    .thenApply { response ->
+                        if (!response.success) {
+                            throw IllegalStateException("Skysoft lowest BIN response failed: ${response.cause}")
                         }
-                    } finally {
-                        fetchingLowestBins.set(false)
+                        response
+                    }
+            },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("Lowest BIN async completion") {
+                if (error == null && response != null) {
+                    lowestBins = response.prices
+                    lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt)
+                    updateRawCraftMarketSnapshot()
+                    marketSnapshotVersion.incrementAndGet()
+                } else if (error?.isCancellationFailure() != true) {
+                    SkysoftMod.LOGGER.warn("Failed to refresh lowest BIN prices", error)
+                    lowestBinsStatus = if (lowestBins.isEmpty()) {
+                        BazaarDataStatus(
+                            BazaarDataLoadState.FAILED,
+                            message = error?.message ?: "Lowest BIN request failed",
+                        )
+                    } else {
+                        BazaarDataStatus(
+                            BazaarDataLoadState.READY,
+                            lowestBinsStatus.updatedAtMillis,
+                            error?.message ?: "Lowest BIN refresh failed",
+                        )
                     }
                 }
             }
+        }
     }
 
     private fun refreshNpcSellPrices() {
-        if (!fetchingNpcSellPrices.compareAndSet(false, true)) return
+        if (npcSellPriceRequest.isPending) return
         npcSellPriceRequestSchedule.recordAttempt(System.nanoTime())
         if (npcSellPrices.isEmpty()) npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
-
-        npcSellPriceRequests.getString(NPC_SELL_PRICES_URL)
-            .thenApply { gson.fromJson(it, HypixelSkyBlockItemsResponse::class.java) }
-            .thenApply { response ->
-                if (!response.success) error("Hypixel SkyBlock items response failed")
-                response
-            }
-            .whenComplete { response, error ->
-                SkysoftErrorBoundary.run("NPC sell price async completion") {
-                    try {
-                        if (error == null && response != null) {
-                            npcSellPrices = npcSellPrices(response)
-                            motesSellPrices = motesSellPrices(response)
-                            npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.lastUpdated)
-                            npcSellPriceRequestSchedule.recordSuccess(System.nanoTime())
-                            marketSnapshotVersion.incrementAndGet()
-                        } else if (error?.isCancellationFailure() != true) {
-                            npcSellPriceRequestSchedule.recordFailure(System.nanoTime())
-                            SkysoftMod.LOGGER.warn("Failed to refresh NPC sell prices", error)
-                            npcSellPricesStatus = if (npcSellPrices.isEmpty()) {
-                                BazaarDataStatus(
-                                    BazaarDataLoadState.FAILED,
-                                    message = error?.message ?: "NPC sell price request failed",
-                                )
-                            } else {
-                                BazaarDataStatus(
-                                    BazaarDataLoadState.READY,
-                                    npcSellPricesStatus.updatedAtMillis,
-                                    error?.message ?: "NPC sell price refresh failed",
-                                )
-                            }
-                        }
-                    } finally {
-                        fetchingNpcSellPrices.set(false)
+        npcSellPriceRequest.startIfIdle(
+            requestFactory = {
+                npcSellPriceRequests.getString(NPC_SELL_PRICES_URL)
+                    .thenApply { gson.fromJson(it, HypixelSkyBlockItemsResponse::class.java) }
+                    .thenApply { response ->
+                        if (!response.success) error("Hypixel SkyBlock items response failed")
+                        response
+                    }
+            },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("NPC sell price async completion") {
+                if (error == null && response != null) {
+                    npcSellPrices = npcSellPrices(response)
+                    motesSellPrices = motesSellPrices(response)
+                    npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.lastUpdated)
+                    npcSellPriceRequestSchedule.recordSuccess(System.nanoTime())
+                    marketSnapshotVersion.incrementAndGet()
+                } else if (error?.isCancellationFailure() != true) {
+                    npcSellPriceRequestSchedule.recordFailure(System.nanoTime())
+                    SkysoftMod.LOGGER.warn("Failed to refresh NPC sell prices", error)
+                    npcSellPricesStatus = if (npcSellPrices.isEmpty()) {
+                        BazaarDataStatus(
+                            BazaarDataLoadState.FAILED,
+                            message = error?.message ?: "NPC sell price request failed",
+                        )
+                    } else {
+                        BazaarDataStatus(
+                            BazaarDataLoadState.READY,
+                            npcSellPricesStatus.updatedAtMillis,
+                            error?.message ?: "NPC sell price refresh failed",
+                        )
                     }
                 }
             }
+        }
     }
 
     private val hasDemand: Boolean
@@ -392,11 +391,11 @@ object SkyBlockPriceData {
         }
 
     private fun stopBackgroundWork() {
+        bazaarDepthRequest.cancel()
         directRequests.cancelAll()
-        cancelPriceSourceRequests(bazaarRequests, fetchingBazaar)
-        cancelPriceSourceRequests(lowestBinRequests, fetchingLowestBins)
-        val wasFetchingNpcSellPrices = cancelPriceSourceRequests(npcSellPriceRequests, fetchingNpcSellPrices)
-        fetchingBazaarDepth.set(false)
+        cancelPriceSourceRequests(bazaarRequests, bazaarRequest)
+        cancelPriceSourceRequests(lowestBinRequests, lowestBinRequest)
+        val wasFetchingNpcSellPrices = cancelPriceSourceRequests(npcSellPriceRequests, npcSellPriceRequest)
         ticksUntilBazaarRefresh = 0
         ticksUntilLowestBinsRefresh = 0
         if (wasFetchingNpcSellPrices) npcSellPriceRequestSchedule.recordCancellation()
@@ -469,9 +468,10 @@ private fun hasCurrentBazaarTrackerOrders(): Boolean {
 
 private fun cancelPriceSourceRequests(
     requests: PendingHttpRequests,
-    fetching: AtomicBoolean,
+    requestSlot: AsyncRequestSlot<*>,
 ): Boolean {
-    val wasFetching = fetching.get()
+    val wasFetching = requestSlot.isPending
+    requestSlot.cancel()
     requests.cancelAll()
     return wasFetching
 }

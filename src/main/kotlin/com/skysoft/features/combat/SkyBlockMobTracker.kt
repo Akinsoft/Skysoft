@@ -1,5 +1,6 @@
 package com.skysoft.features.combat
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.utils.SkysoftClientEvents
@@ -136,7 +137,7 @@ internal object SkyBlockMobTracker {
             return
         }
         scannedTick = level.gameTime
-        val observations = SkyBlockMobEntityMatcher.detectedMobs(level.entitiesForRendering().toList())
+        val observations = SkyBlockMobEntityMatcher.detectedMobs(ClientEntitySnapshot.entities())
         val seen = observations.mapTo(mutableSetOf()) { observation ->
             val key = SkyBlockMobKey(serverName, observation.entity.uuid)
             mobs.getOrPut(key) {

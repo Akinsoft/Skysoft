@@ -1,10 +1,10 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
-import com.skysoft.features.pets.PetRepository
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.world.item.ItemStack
 import java.util.Locale

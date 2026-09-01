@@ -5,7 +5,9 @@ import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.boundedAccessOrderMap
+import com.skysoft.utils.net.AsyncRequestSlot
 import java.util.concurrent.CompletableFuture
+import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
 
 object SkyBlockDataRepository {
@@ -15,7 +17,9 @@ object SkyBlockDataRepository {
 
     @Volatile
     private var snapshot: SkyBlockDataSnapshot? = null
-    private var loadingFuture: CompletableFuture<SkyBlockDataUpdater.CachedCatalog>? = null
+    private val loadingRequest = AsyncRequestSlot<SkyBlockDataUpdater.CachedCatalog>(
+        completionExecutor = Minecraft.getInstance(),
+    )
     private var wasDemanded = false
     @Volatile
     var snapshotVersion = 0L
@@ -30,8 +34,7 @@ object SkyBlockDataRepository {
     fun register() {
         MinecraftRecipeAdapter.register()
         SkysoftClientEvents.onClientStopping("SkyBlock data request cancellation") {
-            loadingFuture?.cancel(true)
-            loadingFuture = null
+            loadingRequest.cancel()
             SkyBlockDataUpdater.cancel()
         }
         SkysoftClientEvents.onEndTick(
@@ -40,8 +43,7 @@ object SkyBlockDataRepository {
         ) {
             if (!Demand.hasActiveConsumers) {
                 if (wasDemanded) {
-                    loadingFuture?.cancel(true)
-                    loadingFuture = null
+                    loadingRequest.cancel()
                     if (status.state == SkyBlockDataLoadState.LOADING) {
                         status = SkyBlockDataStatus(SkyBlockDataLoadState.NOT_LOADED)
                     }
@@ -65,14 +67,15 @@ object SkyBlockDataRepository {
 
     private fun load() {
         status = SkyBlockDataStatus(SkyBlockDataLoadState.LOADING, message = "Loading item data")
-        val request = CompletableFuture.supplyAsync {
-            SkyBlockDataUpdater.loadCached() ?: SkyBlockDataUpdater.CachedCatalog("bundled", SkyBlockDataLoader.loadBundled())
-        }
-        loadingFuture = request
-        request.whenComplete { loaded, error ->
-            SkysoftErrorBoundary.onClientThread("Item List data load async completion") {
-                if (loadingFuture !== request) return@onClientThread
-                loadingFuture = null
+        loadingRequest.startIfIdle(
+            requestFactory = {
+                CompletableFuture.supplyAsync {
+                    SkyBlockDataUpdater.loadCached()
+                        ?: SkyBlockDataUpdater.CachedCatalog("bundled", SkyBlockDataLoader.loadBundled())
+                }
+            },
+        ) { loaded, error ->
+            SkysoftErrorBoundary.run("Item List data load async completion") {
                 if (error != null || loaded == null) {
                     status = SkyBlockDataStatus(
                         SkyBlockDataLoadState.FAILED,

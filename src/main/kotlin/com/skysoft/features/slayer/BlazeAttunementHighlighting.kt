@@ -8,6 +8,7 @@ import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.render.EntityHighlightRenderer
+import com.skysoft.utils.render.EntityHighlightTracker
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.monster.Blaze
@@ -17,7 +18,7 @@ import java.awt.Color
 
 object BlazeAttunementHighlighting {
     private val config get() = SkysoftConfigGui.config().slayer
-    private val highlightedEntities = mutableSetOf<LivingEntity>()
+    private val highlightedEntities = EntityHighlightTracker<LivingEntity>(this)
     private var ticks = 0
 
     fun register() {
@@ -44,11 +45,7 @@ object BlazeAttunementHighlighting {
             entity to attunement.color
         }.toMap()
 
-        highlightedEntities
-            .filter { entity -> entity !in nextHighlights }
-            .forEach { entity -> EntityHighlightRenderer.removeEntityColor(entity, this) }
-        highlightedEntities.clear()
-        highlightedEntities += nextHighlights.keys
+        highlightedEntities.replaceWith(nextHighlights.keys)
 
         nextHighlights.forEach { (entity, color) ->
             EntityHighlightRenderer.setEntityColor(
@@ -62,7 +59,6 @@ object BlazeAttunementHighlighting {
     }
 
     private fun clear() {
-        highlightedEntities.forEach { entity -> EntityHighlightRenderer.removeEntityColor(entity, this) }
         highlightedEntities.clear()
         ticks = 0
     }

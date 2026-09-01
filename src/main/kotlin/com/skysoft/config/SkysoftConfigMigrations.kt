@@ -312,15 +312,6 @@ internal object SkysoftConfigMigrations {
         miscJson.remove("fixes")
     }
 
-    private fun JsonObject.moveFieldsInto(targetName: String, fieldNames: List<String>) {
-        val targetJson = getOrCreateObject(targetName)
-        fieldNames.forEach { fieldName ->
-            val legacyValue = get(fieldName) ?: return@forEach
-            if (!targetJson.has(fieldName)) targetJson.add(fieldName, legacyValue.deepCopy())
-            remove(fieldName)
-        }
-    }
-
     private fun JsonObject.copyFieldInto(target: JsonObject, fieldName: String) {
         val value = get(fieldName) ?: return
         if (!target.has(fieldName)) target.add(fieldName, value.deepCopy())
@@ -526,15 +517,6 @@ private fun migrateDianaAndTerrainSettings(json: JsonObject) {
     }
 }
 
-private fun JsonObject.moveFieldsInto(target: JsonObject, fieldNames: List<String>) {
-    fieldNames.forEach { fieldName -> moveFieldInto(target, fieldName, fieldName) }
-}
-
-private fun JsonObject.moveFieldInto(target: JsonObject, fieldName: String, targetName: String) {
-    val value = remove(fieldName) ?: return
-    if (!target.has(targetName)) target.add(targetName, value.deepCopy())
-}
-
 private fun com.google.gson.JsonElement?.booleanPrimitiveOrNull(): com.google.gson.JsonPrimitive? =
     this?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asJsonPrimitive
 
@@ -642,12 +624,6 @@ private fun JsonObject.moveBooleanToDisplayMode(target: JsonObject, fieldName: S
     }
     remove(fieldName)
 }
-
-private fun JsonObject.getObjectOrNull(name: String): JsonObject? =
-    get(name)?.takeIf { it.isJsonObject }?.asJsonObject
-
-private fun JsonObject.getOrCreateObject(name: String): JsonObject =
-    getObjectOrNull(name) ?: JsonObject().also { add(name, it) }
 
 private fun migratePriceTooltipCustomization(json: JsonObject) {
     val settingsJson = json.get("inventory")?.takeIf { it.isJsonObject }?.asJsonObject

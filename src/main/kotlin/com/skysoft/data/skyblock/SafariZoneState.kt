@@ -15,9 +15,6 @@ object SafariZoneState {
     var currentBiomeId: Identifier? = null
         private set
 
-    var stateVersion: Long = 0
-        private set
-
     fun register() {
         SkysoftClientEvents.onEndTick(
             "Safari zone state",
@@ -39,13 +36,9 @@ object SafariZoneState {
     }
 
     private fun setBiome(biomeId: Identifier?) {
-        val biome = SafariBiome.fromId(biomeId)
-        val zone = biome?.zone
-        if (currentBiomeId == biomeId && currentBiome == biome && currentZone == zone) return
         currentBiomeId = biomeId
-        currentBiome = biome
-        currentZone = zone
-        stateVersion++
+        currentBiome = SafariBiome.fromId(biomeId)
+        currentZone = currentBiome?.zone
     }
 }
 

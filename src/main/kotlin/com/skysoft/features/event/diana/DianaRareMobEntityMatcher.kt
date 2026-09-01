@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaRareMobOption
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
@@ -64,7 +65,7 @@ internal object DianaRareMobEntityMatcher {
         return stalePlayerModels.getOrPut(player.id) {
             val label = labelFromName(player.cleanName(), ALL_RARE_MOB_LABELS) ?: return@getOrPut false
             val labels = DianaRareMobOption.fromLabel(label)?.matchLabels ?: setOf(label)
-            !SkyBlockMobEntityMatcher.hasVisibleNameplateFor(player, labels, level.entitiesForRendering())
+            !SkyBlockMobEntityMatcher.hasVisibleNameplateFor(player, labels, ClientEntitySnapshot.entities())
         }
     }
 

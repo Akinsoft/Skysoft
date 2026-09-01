@@ -2,6 +2,7 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaPartyCommand
 import com.skysoft.features.loot.RareLootValueResolver
+import com.skysoft.utils.DurationParts
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
 import java.util.Locale
@@ -247,19 +248,12 @@ internal object MythologicalRitualPartyCommands {
         String.format(Locale.US, "%.2f", this)
 
     private fun Long.formatTime(): String {
-        if (this <= 0L) return "0s"
-        val totalSeconds = (this / MILLIS_PER_SECOND).toInt()
-        val totalMinutes = totalSeconds / SECONDS_PER_MINUTE
-        val totalHours = totalMinutes / MINUTES_PER_HOUR
-        val days = totalHours / HOURS_PER_DAY
-        val hours = totalHours % HOURS_PER_DAY
-        val minutes = totalMinutes % MINUTES_PER_HOUR
-        val seconds = totalSeconds % SECONDS_PER_MINUTE
+        val duration = DurationParts.fromMilliseconds(this)
         return buildList {
-            if (days > 0) add("${days}d")
-            if (hours > 0 || days > 0) add("${hours}h")
-            if (minutes > 0 || hours > 0 || days > 0) add("${minutes}m")
-            if (isEmpty()) add("${seconds}s")
+            if (duration.days > 0L) add("${duration.days}d")
+            if (duration.hours > 0L || duration.days > 0L) add("${duration.hours}h")
+            if (duration.minutes > 0L || duration.hours > 0L || duration.days > 0L) add("${duration.minutes}m")
+            if (isEmpty()) add("${duration.seconds}s")
         }.joinToString(" ")
     }
 
@@ -281,8 +275,4 @@ internal object MythologicalRitualPartyCommands {
         "!sessionstat",
     )
     private const val PERCENT_MULTIPLIER = 100.0
-    private const val MILLIS_PER_SECOND = 1_000L
-    private const val SECONDS_PER_MINUTE = 60
-    private const val MINUTES_PER_HOUR = 60
-    private const val HOURS_PER_DAY = 24
 }

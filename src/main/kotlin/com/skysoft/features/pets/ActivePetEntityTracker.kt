@@ -1,5 +1,6 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
@@ -49,7 +50,7 @@ internal object ActivePetEntityTracker {
         val identity = context.currentPet.observationIdentity()
         val previous = observation
         if (previous != null && previous.identity != identity) clear()
-        val entities = context.level.entitiesForRendering().toList()
+        val entities = ClientEntitySnapshot.entities()
 
         val trackedEntity = observation?.entity?.id?.let(context.level::getEntity)
         val trackedCandidate = trackedEntity?.petCandidate(context.expectedTextures, context.player)

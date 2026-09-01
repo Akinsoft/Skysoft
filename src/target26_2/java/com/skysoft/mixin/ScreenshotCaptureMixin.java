@@ -1,6 +1,6 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinFeatureAdapters;
+import com.skysoft.integration.MixinFeatureAdapters;
 import java.util.function.Consumer;
 import net.minecraft.client.Screenshot;
 import net.minecraft.network.chat.Component;

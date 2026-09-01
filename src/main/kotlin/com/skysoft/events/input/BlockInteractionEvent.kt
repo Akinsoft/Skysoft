@@ -1,10 +1,8 @@
 package com.skysoft.events.input
 
 import com.skysoft.data.InteractionClick
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.SkysoftErrorBoundary
-import net.fabricmc.fabric.api.event.Event
-import net.fabricmc.fabric.api.event.EventFactory
 import net.minecraft.world.item.ItemStack
 
 class BlockInteractionEvent(
@@ -18,25 +16,18 @@ fun interface BlockClickCallback {
 }
 
 object BlockInteractionEvents {
-    private val event: Event<BlockClickCallback> = EventFactory.createArrayBacked(BlockClickCallback::class.java) { listeners ->
-        BlockClickCallback { event ->
-            listeners.any { it.shouldCancelBlockClick(event) }
-        }
-    }
-    private var activePredicates: List<() -> Boolean> = emptyList()
+    private val listeners = ActiveListenerRegistry<BlockClickCallback>()
 
     fun register(
         boundary: String,
         isActive: () -> Boolean,
         listener: BlockClickCallback,
     ) {
-        activePredicates += isActive
-        event.register { event ->
-            isActive() && SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelBlockClick(event) }
-        }
+        listeners.register(boundary, isActive, listener)
     }
 
-    fun hasActiveListeners(): Boolean = activePredicates.any { it() }
+    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 
-    fun shouldCancelBlockClick(blockClick: BlockInteractionEvent): Boolean = event.invoker().shouldCancelBlockClick(blockClick)
+    fun shouldCancelBlockClick(blockClick: BlockInteractionEvent): Boolean =
+        listeners.anyActive { listener -> listener.shouldCancelBlockClick(blockClick) }
 }

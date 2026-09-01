@@ -1,13 +1,14 @@
 package com.skysoft.gui
 
 import com.skysoft.utils.ChangeResult
-import java.util.ArrayDeque
+import com.skysoft.utils.SnapshotHistory
 
 internal class HudEditorHistory(
     private val clockNanos: () -> Long = System::nanoTime,
 ) {
-    private val undo = ArrayDeque<Edit>()
-    private val redo = ArrayDeque<Edit>()
+    private val history = SnapshotHistory<HudEditorSnapshot>(MAXIMUM_STEPS) { first, second ->
+        first.hasSameValue(second)
+    }
     private var pendingScroll: PendingScroll? = null
 
     fun record(before: HudEditorSnapshot, after: HudEditorSnapshot) {
@@ -41,34 +42,17 @@ internal class HudEditorHistory(
 
     fun undo(): ChangeResult {
         flushPending()
-        val edit = undo.pollLast() ?: return ChangeResult.UNCHANGED
-        edit.before.restore()
-        redo.addLast(edit)
-        redo.trimToLimit()
-        return ChangeResult.CHANGED
+        return history.undo(HudEditorSnapshot::restore)
     }
 
     fun redo(): ChangeResult {
         flushPending()
-        val edit = redo.pollLast() ?: return ChangeResult.UNCHANGED
-        edit.after.restore()
-        undo.addLast(edit)
-        undo.trimToLimit()
-        return ChangeResult.CHANGED
+        return history.redo(HudEditorSnapshot::restore)
     }
 
     private fun commit(before: HudEditorSnapshot, after: HudEditorSnapshot) {
-        if (before.hasSameValue(after)) return
-        undo.addLast(Edit(before, after))
-        undo.trimToLimit()
-        redo.clear()
+        history.record(before, after)
     }
-
-    private fun <T> ArrayDeque<T>.trimToLimit() {
-        while (size > MAXIMUM_STEPS) removeFirst()
-    }
-
-    private data class Edit(val before: HudEditorSnapshot, val after: HudEditorSnapshot)
 
     private data class PendingScroll(
         val key: String,

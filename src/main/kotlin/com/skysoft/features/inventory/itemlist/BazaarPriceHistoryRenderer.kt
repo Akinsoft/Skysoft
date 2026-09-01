@@ -5,6 +5,7 @@ import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.data.skyblock.price.SkysoftBazaarPriceSnapshot
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
+import com.skysoft.utils.IdentityRefreshCache
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.GuiLineRenderer
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -15,7 +16,9 @@ import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object BazaarPriceHistoryRenderer {
-    private var rowsCache = BazaarPriceHistoryRowsCache()
+    private val rowsCache = IdentityRefreshCache<PriceRowsCriteria, List<SkysoftBazaarPriceSnapshot>>(
+        PriceHistoryLayout.CACHE_MILLIS,
+    )
 
     fun render(
         context: GuiGraphicsExtractor,
@@ -57,17 +60,14 @@ internal object BazaarPriceHistoryRenderer {
         maximumPoints: Int,
         now: Long,
     ): List<SkysoftBazaarPriceSnapshot> {
-        val refreshBucket = now / PriceHistoryLayout.CACHE_MILLIS
-        val current = rowsCache
-        if (current.matches(product, window, maximumPoints, refreshBucket)) return current.rows
-        val cutoff = now - window.durationMillis
-        return compactBazaarPriceHistory(
-            product?.priceHistory.orEmpty()
-                .filter { it.at >= cutoff }
-                .sortedBy(SkysoftBazaarPriceSnapshot::at),
-            maximumPoints,
-        ).also { rows ->
-            rowsCache = BazaarPriceHistoryRowsCache(product, window, maximumPoints, refreshBucket, rows)
+        return rowsCache.value(product, PriceRowsCriteria(window, maximumPoints), now) {
+            val cutoff = now - window.durationMillis
+            compactBazaarPriceHistory(
+                product?.priceHistory.orEmpty()
+                    .filter { it.at >= cutoff }
+                    .sortedBy(SkysoftBazaarPriceSnapshot::at),
+                maximumPoints,
+            )
         }
     }
 
@@ -229,24 +229,10 @@ private data class BazaarPricePlot(
     val priceRange = maximumPrice - minimumPrice
 }
 
-private data class BazaarPriceHistoryRowsCache(
-    val product: SkysoftBazaarDepthProduct? = null,
-    val window: BazaarGraphWindow = BazaarGraphWindow.ONE_HOUR,
-    val maximumPoints: Int = 0,
-    val refreshBucket: Long = Long.MIN_VALUE,
-    val rows: List<SkysoftBazaarPriceSnapshot> = emptyList(),
-) {
-    fun matches(
-        candidateProduct: SkysoftBazaarDepthProduct?,
-        candidateWindow: BazaarGraphWindow,
-        candidateMaximumPoints: Int,
-        candidateRefreshBucket: Long,
-    ): Boolean =
-        product === candidateProduct &&
-            window == candidateWindow &&
-            maximumPoints == candidateMaximumPoints &&
-            refreshBucket == candidateRefreshBucket
-}
+private data class PriceRowsCriteria(
+    val window: BazaarGraphWindow,
+    val maximumPoints: Int,
+)
 
 private enum class BazaarPriceSeries(
     val coloredLabel: String,

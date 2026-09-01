@@ -1,6 +1,6 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinFeatureAdapters;
+import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import java.util.ArrayList;
 import net.minecraft.client.multiplayer.ClientPacketListener;

@@ -2,7 +2,6 @@ package com.skysoft.features.chat
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.SkysoftMod
@@ -17,14 +16,13 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.image.AsyncImageTextureCache
 import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import java.net.URI
 import java.nio.file.Files
-import java.util.LinkedHashMap
 import java.util.Locale
-import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
@@ -38,13 +36,16 @@ internal const val MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH = 1024
 internal const val MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT = 576
 
 object ImageLinkPreview {
-    private val textures = LinkedHashMap<String, RegisteredImageTexture>(CACHE_SIZE, 0.75f, true)
-    private val failures = mutableSetOf<String>()
-    private var pendingUrl: String? = null
-    private var pendingRequest: CompletableFuture<*>? = null
-    private var pendingRemoteRequest: RemoteImageRequest? = null
-    private var candidate: ImageLinkCandidate? = null
     private var nextTextureId = 0
+    private val textures = AsyncImageTextureCache<String>(
+        minecraft = Minecraft.getInstance(),
+        maximumSize = CACHE_SIZE,
+        maximumPending = 1,
+    ) { _, image ->
+        val id = SkysoftMod.id("image_preview/remote_${nextTextureId++}")
+        RegisteredImageTexture.register(id, "Skysoft Image Preview", image)
+    }
+    private var candidate: ImageLinkCandidate? = null
 
     fun register() {
         GuiOverlayRegistry.register(
@@ -60,13 +61,13 @@ object ImageLinkPreview {
 
     fun updateHoveredLink(mouseX: Int, mouseY: Int, displayMode: ChatComponent.DisplayMode) {
         if (!SkysoftConfigGui.config().chat.previewImage.enabled) {
-            if (candidate != null || textures.isNotEmpty() || pendingRequest != null) clear()
+            if (candidate != null || !textures.isEmpty || textures.hasPending) clear()
             return
         }
         val link = hoveredImageLink(mouseX, mouseY, displayMode)
         if (link == null) {
-            candidate = null
             cancelPendingRequest()
+            candidate = null
             return
         }
         val current = candidate
@@ -84,7 +85,7 @@ object ImageLinkPreview {
     }
 
     fun endChatSession() {
-        if (candidate != null || textures.isNotEmpty() || pendingRequest != null) clear()
+        if (candidate != null || !textures.isEmpty || textures.hasPending) clear()
     }
 
     fun processTrustClick(button: Int): InputHandlingResult {
@@ -113,53 +114,18 @@ object ImageLinkPreview {
 
     private fun requestCandidateImage() {
         val current = candidate ?: return
-        if (
-            !current.isTrusted ||
-            !isImageRevealRequested() ||
-            current.url in textures ||
-            current.url in failures ||
-            pendingUrl == current.url
-        ) {
-            return
-        }
-        pendingUrl = current.url
-        val localScreenshot = ScreenshotUploadMetadataStore.screenshotForUrl(current.url)
-        val remoteRequest = if (localScreenshot == null) RemoteImageLoader.load(current.requestUri) else null
-        val request = remoteRequest?.future ?: loadScaledScreenshotImage(
-            requireNotNull(localScreenshot),
-            MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH,
-            MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT,
-        )
-        pendingRequest = request
-        pendingRemoteRequest = remoteRequest
-        request.whenComplete { image, failure ->
-            Minecraft.getInstance().execute {
-                val isCurrentRequest = pendingRequest === request
-                if (isCurrentRequest) {
-                    pendingUrl = null
-                    pendingRequest = null
-                    pendingRemoteRequest = null
-                }
-                when {
-                    image != null && isCurrentRequest && SkysoftConfigGui.config().chat.previewImage.enabled -> {
-                        installTexture(current.url, image)
-                    }
-                    image != null -> image.close()
-                    failure != null && isCurrentRequest &&
-                        SkysoftConfigGui.config().chat.previewImage.enabled -> failures += current.url
-                }
+        if (!current.isTrusted || !isImageRevealRequested()) return
+        textures.request(current.url) {
+            val localScreenshot = ScreenshotUploadMetadataStore.screenshotForUrl(current.url)
+            if (localScreenshot == null) {
+                RemoteImageLoader.load(current.requestUri).future
+            } else {
+                loadScaledScreenshotImage(
+                    localScreenshot,
+                    MAXIMUM_IMAGE_PREVIEW_TEXTURE_WIDTH,
+                    MAXIMUM_IMAGE_PREVIEW_TEXTURE_HEIGHT,
+                )
             }
-        }
-    }
-
-    private fun installTexture(url: String, image: NativeImage) {
-        textures.remove(url)?.let(::release)
-        val id = SkysoftMod.id("image_preview/remote_${nextTextureId++}")
-        textures[url] = RegisteredImageTexture.register(id, "Skysoft Image Preview", image)
-        while (textures.size > CACHE_SIZE) {
-            val eldest = textures.entries.iterator().next()
-            textures.remove(eldest.key)
-            release(eldest.value)
         }
     }
 
@@ -167,13 +133,13 @@ object ImageLinkPreview {
         requestCandidateImage()
         val current = candidate ?: return
         val isImageRevealRequested = isImageRevealRequested()
-        val texture = textures[current.url]?.takeIf { isImageRevealRequested }
+        val texture = textures.texture(current.url)?.takeIf { isImageRevealRequested }
         val lines = wrappedLines(current.url, context.guiWidth() - URL_HORIZONTAL_INSET)
         val imageBounds = texture?.let { previewImageBounds(it) }
         val instruction = when {
             !current.isTrusted -> "Shift-click the link to trust ${current.host}"
             !isImageRevealRequested -> "Hold ${previewKeyName()} to show the image"
-            current.url in failures -> "Image preview unavailable"
+            textures.isFailed(current.url) -> "Image preview unavailable"
             texture == null -> "Loading image..."
             else -> "Click to open"
         }
@@ -268,22 +234,14 @@ object ImageLinkPreview {
     }
 
     private fun cancelPendingRequest() {
-        pendingRemoteRequest?.cancel()
-        pendingRequest?.cancel(true)
-        pendingRequest = null
-        pendingRemoteRequest = null
-        pendingUrl = null
+        candidate?.url?.let(textures::cancelPending)
     }
 
     private fun clear() {
-        candidate = null
         cancelPendingRequest()
-        textures.values.forEach(::release)
+        candidate = null
         textures.clear()
-        failures.clear()
     }
-
-    private fun release(texture: RegisteredImageTexture) = texture.release()
 
     private const val CACHE_SIZE = 8
     private const val MAXIMUM_RENDER_WIDTH = 420

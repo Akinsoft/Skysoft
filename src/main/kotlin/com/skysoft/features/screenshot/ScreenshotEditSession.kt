@@ -1,6 +1,6 @@
 package com.skysoft.features.screenshot
 
-import java.util.ArrayDeque
+import com.skysoft.utils.SnapshotHistory
 import kotlin.math.hypot
 
 internal enum class ScreenshotEditorTool(val label: String) {
@@ -86,14 +86,13 @@ internal class ScreenshotEditSession {
 
     private var crop = ScreenshotCrop.FULL
     private val strokes = mutableListOf<ScreenshotStroke>()
-    private val undo = ArrayDeque<ScreenshotEditSnapshot>()
-    private val redo = ArrayDeque<ScreenshotEditSnapshot>()
+    private val history = SnapshotHistory<ScreenshotEditSnapshot>(MAXIMUM_HISTORY_STEPS)
 
     val snapshot: ScreenshotEditSnapshot
         get() = ScreenshotEditSnapshot(crop, strokes.toList())
     val hasEdits: Boolean get() = snapshot.hasEdits
-    val canUndo: Boolean get() = undo.isNotEmpty()
-    val canRedo: Boolean get() = redo.isNotEmpty()
+    val canUndo: Boolean get() = history.canUndo
+    val canRedo: Boolean get() = history.canRedo
 
     fun selectTool(tool: ScreenshotEditorTool) {
         if (this.tool == tool) return
@@ -147,24 +146,15 @@ internal class ScreenshotEditSession {
     }
 
     fun commitEdit(before: ScreenshotEditSnapshot) {
-        if (snapshot == before) return
-        undo.addLast(before)
-        undo.trimToLimit()
-        redo.clear()
+        history.record(before, snapshot)
     }
 
     fun undo() {
-        val previous = undo.pollLast() ?: return
-        redo.addLast(snapshot)
-        redo.trimToLimit()
-        restore(previous)
+        history.undo(::restore)
     }
 
     fun redo() {
-        val next = redo.pollLast() ?: return
-        undo.addLast(snapshot)
-        undo.trimToLimit()
-        restore(next)
+        history.redo(::restore)
     }
 
     fun reset() {
@@ -188,10 +178,6 @@ internal class ScreenshotEditSession {
         strokes.clear()
         strokes.addAll(snapshot.strokes)
         fit()
-    }
-
-    private fun <T> ArrayDeque<T>.trimToLimit() {
-        while (size > MAXIMUM_HISTORY_STEPS) removeFirst()
     }
 
     private companion object {

@@ -1,6 +1,7 @@
 package com.skysoft.utils.input
 
 import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.utils.gui.Point
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
@@ -17,6 +18,14 @@ object InputUtilities {
 
     fun isShiftDown(): Boolean =
         isBindingDown(GLFW.GLFW_KEY_LEFT_SHIFT) || isBindingDown(GLFW.GLFW_KEY_RIGHT_SHIFT)
+
+    fun scaledMousePosition(minecraft: Minecraft): Point {
+        val window = minecraft.window
+        return Point(
+            minecraft.mouseHandler.getScaledXPos(window).toInt(),
+            minecraft.mouseHandler.getScaledYPos(window).toInt(),
+        )
+    }
 
     fun bindingName(binding: Int): String =
         if (binding == GLFW.GLFW_KEY_UNKNOWN) {

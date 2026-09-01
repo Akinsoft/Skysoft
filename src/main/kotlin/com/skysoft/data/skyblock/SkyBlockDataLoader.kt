@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.skysoft.data.SkyBlockIsland
-import com.skysoft.features.pets.PetItemStacks
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.WorldVec
 import java.io.StringReader
@@ -490,19 +489,10 @@ internal object SkyBlockDataLoader {
     }
 
     private fun recipeKey(ingredient: RecipeIngredient): ItemListEntryKey =
-        recipeKeyOrNull(ingredient) ?: ItemListEntryKey(ItemListEntryKind.SKYBLOCK, ingredient.id)
+        requireNotNull(ingredient.itemListKey(RecipeIngredientKeyContext.CATALOG_RESULT))
 
     private fun recipeKeyOrNull(ingredient: RecipeIngredient): ItemListEntryKey? =
-        when (ingredient.kind) {
-            RecipeIngredientKind.ITEM -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, ingredient.id)
-            RecipeIngredientKind.REGISTRY_ITEM -> ItemListEntryKey(ItemListEntryKind.REGISTRY, ingredient.id)
-            RecipeIngredientKind.PET -> petItemKey(ingredient.id)
-            RecipeIngredientKind.CURRENCY,
-            RecipeIngredientKind.ESSENCE,
-            RecipeIngredientKind.SPECIAL,
-            RecipeIngredientKind.POTION,
-            -> null
-        }
+        ingredient.itemListKey(RecipeIngredientKeyContext.CATALOG_USAGE)
 
     private fun resourceText(path: String): String =
         requireNotNull(SkyBlockDataLoader::class.java.getResourceAsStream(path)) {
@@ -594,7 +584,7 @@ private fun addAttributeShards(
             rarity = item.lore.lastOrNull { it.isNotBlank() }?.removeColor(),
             lore = item.lore,
         )
-        providers[key] = { PetItemStacks.fromNeuItem(item) }
+        providers[key] = { SkyBlockItemStacks.fromNeuItem(item) }
     }
     wiki.putIfAbsent(
         key,

@@ -3,10 +3,12 @@ package com.skysoft.features.inventory
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.RecipeIngredient
+import com.skysoft.data.skyblock.RecipeIngredientKeyContext
 import com.skysoft.data.skyblock.RecipeIngredientKind
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockRecipeType
 import com.skysoft.data.skyblock.expandedOptions
+import com.skysoft.data.skyblock.itemListKey
 import java.util.ArrayDeque
 import java.util.concurrent.CancellationException
 
@@ -119,7 +121,7 @@ internal class RawCraftCostResolver(
             recipes.asSequence()
                 .flatMap { it.ingredients.asSequence() }
                 .flatMap { it.expandedOptions() }
-                .mapNotNull { it.itemKey() }
+                .mapNotNull { it.itemListKey(RecipeIngredientKeyContext.MARKET_COST) }
                 .filterNot(visited::contains)
                 .forEach(pending::addLast)
         }
@@ -157,7 +159,7 @@ internal class RawCraftCostResolver(
         if (option.count <= 0L) return@mapNotNull null
         val unitCost = when (option.kind) {
             RecipeIngredientKind.CURRENCY -> if (option.id == COIN_CURRENCY_ID) 1.0 else null
-            else -> option.itemKey()?.let(acquisitionCosts::get)
+            else -> option.itemListKey(RecipeIngredientKeyContext.MARKET_COST)?.let(acquisitionCosts::get)
         }
         unitCost?.let { (it * option.count).positivePrice() }
     }.minOrNull()
@@ -168,17 +170,6 @@ internal class RawCraftCostResolver(
             source.bazaarInstantBuy(key.id).positivePrice(),
             source.lowestBin(key.id).positivePrice(),
         ).minOrNull()
-    }
-
-    private fun RecipeIngredient.itemKey(): ItemListEntryKey? = when (kind) {
-        RecipeIngredientKind.ITEM -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id)
-        RecipeIngredientKind.REGISTRY_ITEM -> ItemListEntryKey(ItemListEntryKind.REGISTRY, id)
-        RecipeIngredientKind.PET,
-        RecipeIngredientKind.CURRENCY,
-        RecipeIngredientKind.ESSENCE,
-        RecipeIngredientKind.SPECIAL,
-        RecipeIngredientKind.POTION,
-        -> null
     }
 
     private fun MutableMap<ItemListEntryKey, Double>.putCheaper(key: ItemListEntryKey, price: Double) {

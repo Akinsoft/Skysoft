@@ -7,7 +7,6 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
@@ -26,7 +25,7 @@ object MouseLock {
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Mouse Lock reset") { locked = false }
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "mouse_lock",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -36,18 +35,18 @@ object MouseLock {
                 },
                 render = { context, _ -> config.position.renderRenderable(context, renderable()) },
             ),
+            object : HudEditorElement {
+                override val id: String = "mouse_lock"
+                override val label: String = "Mouse Lock"
+                override val position get() = config.position
+                override val hasEditorBackground: Boolean get() = !config.details.background
+                override fun width(): Int = renderable().width
+                override fun height(): Int = renderable().height
+                override fun isVisible(): Boolean = config.settings.showDisplay
+                override fun renderEditor(context: GuiGraphicsExtractor) = renderable().render(context)
+                override fun openConfig() = SkysoftConfigGui.open("Mouse Lock")
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "mouse_lock"
-            override val label: String = "Mouse Lock"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean get() = !config.details.background
-            override fun width(): Int = renderable().width
-            override fun height(): Int = renderable().height
-            override fun isVisible(): Boolean = config.settings.showDisplay
-            override fun renderEditor(context: GuiGraphicsExtractor) = renderable().render(context)
-            override fun openConfig() = SkysoftConfigGui.open("Mouse Lock")
-        })
     }
 
     fun toggle(source: FabricClientCommandSource): Int {

@@ -1,5 +1,6 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.features.pets.display.text.PetTextDisplaySettings
 import com.skysoft.config.features.pets.display.text.PetTextConfig
@@ -16,7 +17,6 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
@@ -24,8 +24,8 @@ import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.ColorUtilities.withOpacity
+import com.skysoft.utils.ItemTooltipEvents
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.GuiAlignment
 import com.skysoft.utils.renderables.AnchoredRenderable
@@ -41,7 +41,6 @@ import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderAt
 import com.skysoft.utils.renderables.renderRenderable
 import io.github.notenoughupdates.moulconfig.ChromaColour
-import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -85,7 +84,7 @@ object ActivePetOverlay {
     fun register() {
         PetRepository.registerConsumer("Pet Features", PetFeatureDemand::isActive)
         ActivePetEntityTracker.registerConsumer("Pet Display", PetFeatureDemand::isDisplayActive)
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "pet_display",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -93,20 +92,20 @@ object ActivePetOverlay {
                 visible = TabDataOverlays::canRender,
                 render = { context, _ -> renderHud(context) },
             ),
+            object : HudEditorElement {
+                override val id: String = "pet_display"
+                override val label: String = "Pet Display"
+                override val position get() = config.general.position
+                override val hasEditorBackground: Boolean get() = !config.general.settings.background.get()
+                override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
+                override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
+                override fun isVisible(): Boolean = PetFeatureDemand.isDisplayActive()
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    previewRenderable()?.render(context)
+                }
+                override fun openConfig() = PetOverlayConfigScreen.open()
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "pet_display"
-            override val label: String = "Pet Display"
-            override val position get() = config.general.position
-            override val hasEditorBackground: Boolean get() = !config.general.settings.background.get()
-            override fun width(): Int = previewRenderable()?.width ?: PREVIEW_WIDTH
-            override fun height(): Int = previewRenderable()?.height ?: PREVIEW_HEIGHT
-            override fun isVisible(): Boolean = PetFeatureDemand.isDisplayActive()
-            override fun renderEditor(context: GuiGraphicsExtractor) {
-                previewRenderable()?.render(context)
-            }
-            override fun openConfig() = PetOverlayConfigScreen.open()
-        })
         ActivePetTracker.onChange("Active Pet Overlay state change", PetFeatureDemand::isDisplayActive) { petData ->
             displayRenderableFrame = Long.MIN_VALUE
             if (petData == null) lastDisplayState = null
@@ -116,25 +115,23 @@ object ActivePetOverlay {
                 invalidateAnimations()
             }
         }
-        ItemTooltipCallback.EVENT.register { stack, _, _, tooltip ->
-            SkysoftErrorBoundary.run("Active Pet Tooltip rendering") tooltip@{
-                val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: return@tooltip
-                if (!PetStorageService.isExpSharingInventory(screen.title.cleanSkyBlockText())) return@tooltip
-                val slot = screen.menu.slots.firstOrNull { it.item === stack }
-                    ?: screen.menu.slots.firstOrNull {
-                        it.item == stack && PetStorageService.isExpShareSlotDisabled(it.containerSlot)
-                    }
-                    ?: return@tooltip
-                if (!PetStorageService.isExpShareSlotDisabled(slot.containerSlot)) return@tooltip
+        ItemTooltipEvents.register("Active Pet Tooltip rendering", isActive = { true }) tooltip@{ stack, _, _, tooltip ->
+            val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: return@tooltip
+            if (!PetStorageService.isExpSharingInventory(screen.title.cleanSkyBlockText())) return@tooltip
+            val slot = screen.menu.slots.firstOrNull { it.item === stack }
+                ?: screen.menu.slots.firstOrNull {
+                    it.item == stack && PetStorageService.isExpShareSlotDisabled(it.containerSlot)
+                }
+                ?: return@tooltip
+            if (!PetStorageService.isExpShareSlotDisabled(slot.containerSlot)) return@tooltip
 
-                tooltip.add(Component.literal(""))
-                tooltip.add(Component.literal("This Exp Share slot is disabled.").withStyle(ChatFormatting.RED))
-                tooltip.add(
-                    Component.literal("Diana's ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal("Sharing is Caring").withStyle(ChatFormatting.LIGHT_PURPLE))
-                        .append(Component.literal(" perk is not active.").withStyle(ChatFormatting.GRAY)),
-                )
-            }
+            tooltip.add(Component.literal(""))
+            tooltip.add(Component.literal("This Exp Share slot is disabled.").withStyle(ChatFormatting.RED))
+            tooltip.add(
+                Component.literal("Diana's ").withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal("Sharing is Caring").withStyle(ChatFormatting.LIGHT_PURPLE))
+                    .append(Component.literal(" perk is not active.").withStyle(ChatFormatting.GRAY)),
+            )
         }
     }
 

@@ -1,5 +1,6 @@
 package com.skysoft.features.fishing
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
@@ -44,10 +45,7 @@ internal object FishingHotspotDetector {
     private fun String.isHotspotStatLine(): Boolean =
         startsWith("+") && length <= MAX_STAT_LINE_LENGTH && any { it.isLetter() }
 
-    private fun allEntities(): List<Entity> = Minecraft.getInstance().level
-        ?.entitiesForRendering()
-        ?.toList()
-        .orEmpty()
+    private fun allEntities(): List<Entity> = ClientEntitySnapshot.entities()
 
     private const val HOTSPOT_NAME = "HOTSPOT"
     private const val STAT_PAIR_DISTANCE_SQ = 1.0

@@ -1,4 +1,4 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock.pets
 
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataLoadState
@@ -24,10 +24,7 @@ object PetRepository {
             when (consumers.activity()) {
                 ConsumerActivity.INACTIVE -> return@onEndTick
                 ConsumerActivity.DEACTIVATED -> {
-                    PetRepoCache.requests.cancelAll()
-                    PetRepoCache.localRepoLoadFuture?.cancel(true)
-                    PetRepoCache.localRepoLoadFuture = null
-                    PetRepoCache.loadingLocalRepoCache.set(false)
+                    cancelPendingRequests()
                     return@onEndTick
                 }
                 ConsumerActivity.ACTIVATED,
@@ -36,9 +33,13 @@ object PetRepository {
             }
             ensureLoaded()
         }
-        SkysoftClientEvents.onClientStopping("Pet Repository request cancellation") {
-            PetRepoCache.requests.cancelAll()
-        }
+        SkysoftClientEvents.onClientStopping("Pet Repository request cancellation") { cancelPendingRequests() }
+    }
+
+    private fun cancelPendingRequests() {
+        LocalSkyBlockCatalog.cancelPending()
+        RemoteSkyBlockCatalog.cancelPending()
+        PetRepoCache.requests.cancelAll()
     }
 
     fun registerConsumer(id: String, isActive: () -> Boolean) {
@@ -262,13 +263,13 @@ object PetRepository {
         return levelToXp(1, "$properName;${rarityAbove.id}") != null
     }
 
-    private fun ensureLoaded() {
-        PetSkins.load()
-        if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockCatalog.load()
-        if (PetRepoCache.petsJson == null) PetRepoConstants.load()
-    }
-
     private val colorCodePattern = Regex("""§.""")
+}
+
+private fun ensureLoaded() {
+    PetSkins.load()
+    if (!PetRepoCache.localRepoCacheLoaded) LocalSkyBlockCatalog.load()
+    if (PetRepoCache.petsJson == null) PetRepoConstants.load()
 }
 
 internal fun isDragonEggStagePet(petInternalName: String, exp: Double?): Boolean {

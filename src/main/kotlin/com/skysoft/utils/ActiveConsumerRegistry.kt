@@ -1,17 +1,19 @@
 package com.skysoft.utils
 
 internal class ActiveConsumerRegistry {
-    private val consumers = linkedMapOf<String, () -> Boolean>()
+    private val consumers = ActiveListenerRegistry<Unit>()
+    private val consumerIds = mutableSetOf<String>()
     private var wasActive = false
 
     val hasActiveConsumers: Boolean
-        get() = consumers.values.any { it() }
+        get() = consumers.hasActiveListeners
 
     val isActiveOrDeactivating: Boolean
         get() = hasActiveConsumers || wasActive
 
     fun register(id: String, isActive: () -> Boolean) {
-        check(consumers.putIfAbsent(id, isActive) == null) { "Consumer is already registered: $id" }
+        check(consumerIds.add(id)) { "Consumer is already registered: $id" }
+        consumers.register(id, isActive, Unit)
     }
 
     fun activity(): ConsumerActivity {

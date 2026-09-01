@@ -1,6 +1,6 @@
 package com.skysoft.features.loot
 
-import com.skysoft.features.pets.PetRepository
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.utils.NumberUtilities.romanNumeral
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.util.Locale

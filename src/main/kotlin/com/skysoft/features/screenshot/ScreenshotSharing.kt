@@ -3,9 +3,9 @@ package com.skysoft.features.screenshot
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.net.KeyedAsyncRequestSlots
 import java.net.URI
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ConfirmScreen
@@ -15,17 +15,18 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 
 internal object ScreenshotSharing {
-    private val statuses = ConcurrentHashMap<String, ScreenshotShareStatus>()
+    private val statuses = mutableMapOf<String, ScreenshotShareStatus>()
+    private val uploadRequests = KeyedAsyncRequestSlots<String, ScreenshotUpload>(Minecraft.getInstance())
 
-    fun status(path: Path): ScreenshotShareStatus {
+    fun status(path: Path): ScreenshotShareStatus = synchronized(statuses) {
         val key = path.normalizedScreenshotPath()
-        statuses[key]?.let { return it }
-        val stored = ScreenshotUploadMetadataStore.uploadFor(path)
-        return if (stored == null) {
-            ScreenshotShareStatus(ScreenshotShareState.READY)
-        } else {
-            ScreenshotShareStatus(ScreenshotShareState.UPLOADED, stored)
-        }.also { statuses[key] = it }
+        statuses[key] ?: ScreenshotUploadMetadataStore.uploadFor(path).let { stored ->
+            if (stored == null) {
+                ScreenshotShareStatus(ScreenshotShareState.READY)
+            } else {
+                ScreenshotShareStatus(ScreenshotShareState.UPLOADED, stored)
+            }.also { statuses[key] = it }
+        }
     }
 
     fun request(path: Path, parent: Screen?) {
@@ -54,28 +55,20 @@ internal object ScreenshotSharing {
     }
 
     fun share(path: Path) {
-        val current = status(path)
-        if (current.state == ScreenshotShareState.UPLOADED) {
-            current.upload?.let(::copyLink)
-            return
-        }
-        if (current.state == ScreenshotShareState.UPLOADING) return
-
         val key = path.normalizedScreenshotPath()
-        statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADING)
-        SkysoftScreenshotUploadProvider.upload(path).whenComplete { upload, failure ->
-            Minecraft.getInstance().execute {
-                if (failure != null || upload == null) {
-                    statuses[key] = ScreenshotShareStatus(ScreenshotShareState.FAILED)
-                    SkysoftMod.LOGGER.warn("Screenshot upload failed", failure)
-                    SkysoftChat.error("Could not upload the screenshot. See the log for details.")
-                } else {
-                    ScreenshotUploadMetadataStore.remember(path, upload)
-                    statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADED, upload)
-                    copyLink(upload)
-                    announce(upload)
-                }
+        synchronized(statuses) {
+            val current = status(path)
+            if (current.state == ScreenshotShareState.UPLOADED) {
+                current.upload?.let(::copyLink)
+                return
             }
+            if (current.state == ScreenshotShareState.UPLOADING) return
+
+            statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADING)
+            uploadRequests.startIfIdle(
+                key,
+                { SkysoftScreenshotUploadProvider.upload(path) },
+            ) { upload, failure -> completeUpload(path, key, upload, failure) }
         }
     }
 
@@ -88,8 +81,28 @@ internal object ScreenshotSharing {
         }
 
     fun invalidate(path: Path) {
-        statuses.remove(path.normalizedScreenshotPath())
-        ScreenshotUploadMetadataStore.forget(path)
+        val key = path.normalizedScreenshotPath()
+        synchronized(statuses) {
+            uploadRequests.cancel(key)
+            statuses.remove(key)
+            ScreenshotUploadMetadataStore.forget(path)
+        }
+    }
+
+    private fun completeUpload(path: Path, key: String, upload: ScreenshotUpload?, failure: Throwable?) {
+        synchronized(statuses) {
+            if (statuses[key]?.state != ScreenshotShareState.UPLOADING) return
+            if (failure != null || upload == null) {
+                statuses[key] = ScreenshotShareStatus(ScreenshotShareState.FAILED)
+                SkysoftMod.LOGGER.warn("Screenshot upload failed", failure)
+                SkysoftChat.error("Could not upload the screenshot. See the log for details.")
+            } else {
+                ScreenshotUploadMetadataStore.remember(path, upload)
+                statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADED, upload)
+                copyLink(upload)
+                announce(upload)
+            }
+        }
     }
 
     private fun copyLink(upload: ScreenshotUpload) {

@@ -40,7 +40,7 @@ object SlayerBossAlerts {
             }
             ChatMessageVisibility.SHOW
         }
-        SlayerQuestState.onBossSpawn {
+        SlayerQuestState.onBossSpawn("Slayer Boss Alerts boss spawn") {
             if (shouldTrackBossSpawn()) {
                 showAlert(
                     title = BOSS_SPAWNED_TITLE,

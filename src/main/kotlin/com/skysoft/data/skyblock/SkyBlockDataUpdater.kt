@@ -5,6 +5,7 @@ import com.google.gson.JsonParser
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.CancellableRequestGroup
 import com.skysoft.utils.net.SkysoftHttp
 import com.skysoft.utils.net.isCancellationFailure
@@ -13,12 +14,13 @@ import java.nio.file.Path
 import java.time.Duration
 import java.util.Comparator
 import java.util.concurrent.CompletableFuture
+import net.minecraft.client.Minecraft
 
 internal object SkyBlockDataUpdater {
     private val cacheDirectory by lazy { SkysoftConfigFiles.directory.resolve("item-list-data") }
     private val activeRevisionFile by lazy { cacheDirectory.resolve(ACTIVE_REVISION_FILE) }
     private val lastCheckFile by lazy { cacheDirectory.resolve("last-check.txt") }
-    private var activeRequest: CompletableFuture<*>? = null
+    private val requestSlot = AsyncRequestSlot<CachedCatalog?>(completionExecutor = Minecraft.getInstance())
 
     fun loadCached(cacheRoot: Path = cacheDirectory): CachedCatalog? {
         val result = runCatching {
@@ -42,7 +44,7 @@ internal object SkyBlockDataUpdater {
     }
 
     fun check(force: Boolean = false) {
-        if (activeRequest?.isDone == false) return
+        if (requestSlot.isPending) return
         if (!force && !isCheckDue()) return
         recordCheckAttempt()
         SkyBlockDataRepository.markUpdateChecking()
@@ -82,12 +84,11 @@ internal object SkyBlockDataUpdater {
                 }
             }
             .thenApply { downloaded -> downloaded?.let(::validateAndStore) }
-        val request = requests.result(operation)
-        activeRequest = request
-        request.whenComplete { cached, error ->
-            SkysoftErrorBoundary.onClientThread("Item List update async completion") {
-                if (activeRequest === request) activeRequest = null
-                if (error?.isCancellationFailure() == true) return@onClientThread
+        requestSlot.startIfIdle(
+            requestFactory = { requests.result(operation) },
+        ) { cached, error ->
+            SkysoftErrorBoundary.run("Item List update async completion") {
+                if (error?.isCancellationFailure() == true) return@run
                 when {
                     error != null -> {
                         SkyBlockDataRepository.markUpdateFailed(error.cause?.message ?: error.message ?: "Update failed")
@@ -101,8 +102,7 @@ internal object SkyBlockDataUpdater {
     }
 
     fun cancel() {
-        activeRequest?.cancel(true)
-        activeRequest = null
+        requestSlot.cancel()
     }
 
     private fun validateAndStore(downloaded: DownloadedCatalog): CachedCatalog {

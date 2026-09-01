@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.Window
 import com.skysoft.config.InventoryScreenConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -86,7 +87,7 @@ class GuiScaleController private constructor() {
             }
             val inventory = capStorageOverlayScale(
                 minOf(configuredInventory, inventoryScaleLimit(screen)),
-                StorageOverlayController.isActive(screen as? AbstractContainerScreen<*>),
+                isStorageOverlayActive(screen),
             )
             return ResolvedScales(normal, inventory.coerceAtLeast(1), tooltip)
         }
@@ -158,7 +159,7 @@ class GuiScaleController private constructor() {
             val normalScale = resolve(minecraft.window, minecraft.options.guiScale().get())
             return capStorageOverlayScale(
                 normalScale,
-                StorageOverlayController.isActive(screen as? AbstractContainerScreen<*>),
+                isStorageOverlayActive(screen),
             ) != normalScale
         }
 
@@ -167,9 +168,14 @@ class GuiScaleController private constructor() {
             return shouldUseConfiguredInventoryScale(
                 config.separateInventoryGuiScale,
                 config.settings.isInventoryGuiScaleStorageOnly,
-                StorageOverlayController.isActive(screen as? AbstractContainerScreen<*>),
+                isStorageOverlayActive(screen),
             )
         }
+
+        private fun isStorageOverlayActive(screen: Screen?): Boolean =
+            SkysoftErrorBoundary.value("Storage Overlay presentation", false) {
+                StorageOverlayController.isActive(screen as? AbstractContainerScreen<*>)
+            }
 
         private fun config(): InventoryScreenConfig = SkysoftConfigGui.config().gui.inventoryScreen
     }

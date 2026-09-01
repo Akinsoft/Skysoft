@@ -1,4 +1,4 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock.pets
 
 import net.minecraft.world.item.ItemStack
 

@@ -1,11 +1,11 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.world.item.ItemStack
 
 object AttributeShardTransfers {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockAttributeShardTransfer) -> Unit>()
     private val removalIntents = mutableMapOf<String, Long>()
 
     fun register() {
@@ -24,7 +24,7 @@ object AttributeShardTransfers {
     }
 
     fun onTransfer(boundary: String, isActive: () -> Boolean, listener: (SkyBlockAttributeShardTransfer) -> Unit) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     fun recordDeposit(itemId: String, amount: Int) {
@@ -37,21 +37,11 @@ object AttributeShardTransfers {
         removalIntents[itemId] = System.currentTimeMillis() + HUNTING_BOX_REMOVAL_MILLIS
     }
 
-    fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
+    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 
     private fun dispatch(transfer: SkyBlockAttributeShardTransfer) {
-        listeners.forEach { registered ->
-            if (registered.isActive()) {
-                SkysoftErrorBoundary.run(registered.boundary) { registered.listener(transfer) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(transfer) }
     }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockAttributeShardTransfer) -> Unit,
-    )
 }
 
 data class SkyBlockAttributeShardTransfer(

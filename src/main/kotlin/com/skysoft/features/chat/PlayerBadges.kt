@@ -2,7 +2,6 @@ package com.skysoft.features.chat
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.TabListApi
-import com.skysoft.data.hypixel.TabListEntry
 import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
 import com.skysoft.utils.chat.ChatMessageClassifier
@@ -10,25 +9,26 @@ import com.skysoft.utils.chat.PrivateMessageDirection
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.util.StringDecomposer
+import java.util.Locale
 
 object PlayerBadges {
+    private var badgesByPlayerName: Map<String, Component> = emptyMap()
+
     fun register() {
-        TabListApi.registerConsumer("Player Badges", ::isEnabled)
+        TabListApi.onChange(
+            "Player Badges",
+            isActive = ::isEnabled,
+            listener = ::updateBadges,
+        )
     }
 
-    fun decorate(content: Component): Component =
-        if (isEnabled()) decorate(content, TabListApi.entries) else content
-
-    internal fun decorate(content: Component, entries: List<TabListEntry>): Component {
+    fun decorate(content: Component): Component {
+        if (!isEnabled()) return content
         val message = ChatMessageClassifier.classify(SkysoftMessage(content, SkysoftMessageSource.GAME))
         val sender = message.sender
             ?.takeUnless { message.privateMessageDirection == PrivateMessageDirection.TO }
             ?: return content
-        val badges = entries.firstOrNull { it.skyBlockPlayerName.equals(sender.name, ignoreCase = true) }
-            ?.displayName
-            ?.badges()
-            ?.takeUnless { it.string.isEmpty() }
-            ?: return content
+        val badges = badgesByPlayerName[playerKey(sender.name)] ?: return content
         val separator = content.string.indexOf(": ").takeIf { it >= 0 } ?: return content
         val senderEnd = content.string.lastIndexOf(sender.name, separator)
             .takeIf { it >= 0 }
@@ -41,7 +41,22 @@ object PlayerBadges {
         }
     }
 
+    private fun updateBadges() {
+        val next = mutableMapOf<String, Component>()
+        val seenPlayerNames = mutableSetOf<String>()
+        for (entry in TabListApi.entries) {
+            val playerName = entry.skyBlockPlayerName ?: continue
+            val key = playerKey(playerName)
+            if (!seenPlayerNames.add(key)) continue
+            val badges = entry.displayName.badges().takeUnless { it.string.isEmpty() } ?: continue
+            next[key] = badges
+        }
+        badgesByPlayerName = next
+    }
+
     private fun isEnabled(): Boolean = SkysoftConfigGui.config().chat.playerBadges.enabled
+
+    private fun playerKey(name: String): String = name.lowercase(Locale.ROOT)
 
     private fun Component.badges(): Component = Component.empty().also { result ->
         StringDecomposer.iterateFormatted(this, Style.EMPTY) { _, style, codePoint ->

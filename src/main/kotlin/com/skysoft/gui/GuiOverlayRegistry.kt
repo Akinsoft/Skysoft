@@ -1,8 +1,8 @@
 package com.skysoft.gui
 
 import com.skysoft.SkysoftMod
-import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
@@ -30,8 +30,22 @@ object GuiOverlayRegistry {
     }
 
     fun register(overlay: GuiOverlay) {
-        require(overlays.none { it.id == overlay.id }) { "Duplicate GUI overlay id: ${overlay.id}" }
+        requireCanRegister(overlay)
         overlays += overlay
+    }
+
+    fun registerHud(overlay: GuiOverlay, editorElement: HudEditorElement) {
+        require(overlay.id == editorElement.id) {
+            "HUD overlay and editor element ids must match: ${overlay.id} != ${editorElement.id}"
+        }
+        requireCanRegister(overlay)
+        HudEditorRegistry.requireCanRegister(editorElement)
+        overlays += overlay
+        HudEditorRegistry.register(editorElement)
+    }
+
+    private fun requireCanRegister(overlay: GuiOverlay) {
+        require(overlays.none { it.id == overlay.id }) { "Duplicate GUI overlay id: ${overlay.id}" }
     }
 
     @JvmStatic
@@ -120,7 +134,10 @@ object GuiOverlayRegistry {
             screen = screen,
             type = when {
                 screen == null -> GuiOverlayContextType.WORLD
-                screen is AbstractContainerScreen<*> && StorageOverlayController.isActive(screen) -> GuiOverlayContextType.STORAGE
+                screen is AbstractContainerScreen<*> && SkysoftErrorBoundary.value(
+                    "Storage Overlay presentation",
+                    false,
+                ) { StorageOverlayController.isActive(screen) } -> GuiOverlayContextType.STORAGE
                 screen is AbstractContainerScreen<*> -> GuiOverlayContextType.INVENTORY
                 screen is AbstractSignEditScreen -> GuiOverlayContextType.SIGN_INPUT
                 screen is ChatScreen -> GuiOverlayContextType.CHAT

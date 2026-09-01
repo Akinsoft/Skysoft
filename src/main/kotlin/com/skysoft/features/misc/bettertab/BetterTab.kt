@@ -349,7 +349,7 @@ object BetterTab {
         if (
             arePlayerHeadsShown &&
             row.playerName != null &&
-            drawPlayerHead(context, minecraft, row.playerName, x, y) == PlayerHeadRenderResult.DRAWN
+            drawPlayerHead(context, row.playerName, x, y) == PlayerHeadRenderResult.DRAWN
         ) {
             textX += HEAD_SIZE + HEAD_GAP
         }
@@ -358,19 +358,18 @@ object BetterTab {
 
     private fun drawPlayerHead(
         context: GuiGraphicsExtractor,
-        minecraft: Minecraft,
         playerName: String,
         x: Int,
         y: Int,
     ): PlayerHeadRenderResult {
-        val playerInfo = minecraft.connection?.getPlayerInfo(playerName) ?: return PlayerHeadRenderResult.UNAVAILABLE
+        val playerProfile = TabListApi.playerProfile(playerName) ?: return PlayerHeadRenderResult.UNAVAILABLE
         PlayerFaceExtractor.extractRenderState(
             context,
-            playerInfo.skin.body().texturePath(),
+            playerProfile.skin().body().texturePath(),
             x,
             y,
             HEAD_SIZE,
-            playerInfo.showHat(),
+            playerProfile.showHat,
             false,
             TEXT_COLOR,
         )

@@ -2,21 +2,21 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.utils.SidebarScoreboard
+import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 
 object SkyBlockCurrencyChanges {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockCurrencyChange) -> Unit>()
     private var previousBalances = emptyMap<String, Double>()
     private var previousContext: CurrencyContext? = null
 
     fun register() {
-        SkysoftClientEvents.onEndTick(
+        SidebarScoreboardState.onChange(
             "SkyBlock currency changes",
-            isActive = { HypixelLocationState.inSkyBlock && listeners.any { it.isActive() } },
-            action = ::update,
+            isActive = { HypixelLocationState.inSkyBlock },
+            listener = ::update,
         )
         SkysoftClientEvents.onDisconnect("SkyBlock currency changes reset", ::reset)
         SkyBlockProfileApi.onProfileChange(
@@ -27,10 +27,11 @@ object SkyBlockCurrencyChanges {
     }
 
     fun onChange(boundary: String, isActive: () -> Boolean, listener: (SkyBlockCurrencyChange) -> Unit) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
-    private fun update(minecraft: Minecraft) {
+    private fun update(lines: List<String>) {
+        val minecraft = Minecraft.getInstance()
         val player = minecraft.player ?: return reset()
         val context = CurrencyContext(
             HypixelLocationState.locationVersion,
@@ -38,7 +39,7 @@ object SkyBlockCurrencyChanges {
             SkyBlockProfileApi.currentProfileKey,
             minecraft.level,
         )
-        val balances = SidebarScoreboard.currentLines()
+        val balances = lines
             .mapNotNull(::parseSkyBlockCurrency)
             .associate { it.currency to it.amount }
         if (balances.isEmpty()) return
@@ -53,11 +54,7 @@ object SkyBlockCurrencyChanges {
             val change = balance - (oldBalances[currency] ?: return@forEach)
             if (change == 0.0) return@forEach
             val observation = SkyBlockCurrencyChange(currency, change, balance)
-            listeners.forEach { registered ->
-                if (registered.isActive()) {
-                    SkysoftErrorBoundary.run(registered.boundary) { registered.listener(observation) }
-                }
-            }
+            listeners.forEachActive { listener -> listener(observation) }
         }
     }
 
@@ -65,12 +62,6 @@ object SkyBlockCurrencyChanges {
         previousBalances = emptyMap()
         previousContext = null
     }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockCurrencyChange) -> Unit,
-    )
 
     private data class CurrencyContext(
         val locationVersion: Long,

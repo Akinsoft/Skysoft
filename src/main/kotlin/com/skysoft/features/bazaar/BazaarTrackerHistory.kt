@@ -1,9 +1,8 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
-import com.skysoft.utils.gui.nonPlayerInventoryKey
 import com.skysoft.utils.gui.nonPlayerSlotAt
-import com.skysoft.utils.gui.nonPlayerSlots as screenNonPlayerSlots
+import com.skysoft.utils.trimStartToSize
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
 
@@ -46,7 +45,7 @@ internal fun rememberResolvedOrder(order: ProfileStorage.BazaarOrderData) {
             timestampMillis = System.currentTimeMillis(),
         ),
     )
-    while (recentResolvedOrders.size > MAX_RECENT_RESOLVED_ORDERS) recentResolvedOrders.removeFirst()
+    recentResolvedOrders.trimStartToSize(MAX_RECENT_RESOLVED_ORDERS)
 }
 
 internal fun discardTrackedOrder(order: ProfileStorage.BazaarOrderData) {
@@ -91,9 +90,6 @@ internal fun pruneRecentResolvedOrders() {
     while (recentResolvedOrders.firstOrNull()?.timestampMillis?.let { it < cutoff } == true) recentResolvedOrders.removeFirst()
 }
 
-internal fun buildInventoryKey(screen: AbstractContainerScreen<*>): String = screen.nonPlayerInventoryKey()
-
-internal fun nonPlayerSlots(screen: AbstractContainerScreen<*>): List<Slot> = screen.screenNonPlayerSlots()
-
-internal fun slotAt(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int): Slot? = screen.nonPlayerSlotAt(mouseX, mouseY)
+internal fun slotAt(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int): Slot? =
+    screen.nonPlayerSlotAt(mouseX, mouseY)
 

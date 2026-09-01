@@ -8,6 +8,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.BrowserUtilities
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.sun.net.httpserver.HttpExchange
 import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
@@ -19,12 +20,15 @@ object SpotifyAuthentication {
     private var storedLoaded = false
     private var storedAuthorization: StoredAuthorization? = null
     private var accessToken: AccessToken? = null
-    private var refreshFuture: CompletableFuture<String?>? = null
+    private val refreshRequest = AsyncRequestSlot<String?>(completionExecutor = Minecraft.getInstance())
     private var pendingAuthorization: PendingAuthorization? = null
     private var sessionVersion = 0
 
     fun register() {
-        SkysoftClientEvents.onClientStopping("Spotify authentication cleanup") { stopPendingAuthorization() }
+        SkysoftClientEvents.onClientStopping("Spotify authentication cleanup") {
+            refreshRequest.cancel()
+            stopPendingAuthorization()
+        }
     }
 
     fun openDashboard() {
@@ -81,8 +85,7 @@ object SpotifyAuthentication {
         synchronized(lock) {
             sessionVersion++
             accessToken = null
-            refreshFuture?.cancel(true)
-            refreshFuture = null
+            refreshRequest.cancel()
             storedLoaded = true
             storedAuthorization = null
         }
@@ -98,7 +101,7 @@ object SpotifyAuthentication {
         if (current != null && current.expiresAtMillis > System.currentTimeMillis() + EXPIRY_MARGIN_MILLIS) {
             return@synchronized CompletableFuture.completedFuture(current.value)
         }
-        refreshFuture?.let { return@synchronized it.consumerView() }
+        refreshRequest.pendingFuture()?.let { return@synchronized it }
         val stored = loadStoredAuthorization()
         if (stored == null || stored.clientId != settings().clientId.trim()) {
             return@synchronized CompletableFuture.completedFuture(null)
@@ -110,18 +113,17 @@ object SpotifyAuthentication {
                 installToken(stored.clientId, stored.refreshToken, response)
             }
         }
-        refreshFuture = request
-        request.whenComplete { _, failure ->
-            synchronized(lock) {
-                if (refreshFuture === request) refreshFuture = null
-            }
-            val cause = failure?.unwrap() as? SpotifyAuthenticationException ?: return@whenComplete
+        val started = refreshRequest.startIfIdleFuture(
+            requestFactory = { request },
+        ) { _, failure ->
+            if (synchronized(lock) { version != sessionVersion }) return@startIfIdleFuture
+            val cause = failure?.unwrap() as? SpotifyAuthenticationException ?: return@startIfIdleFuture
             if (cause.statusCode in CLIENT_AUTHENTICATION_FAILURES) {
                 clearStoredAuthorization()
-                Minecraft.getInstance().execute { SkysoftChat.error("Spotify needs to be connected again.") }
+                SkysoftChat.error("Spotify needs to be connected again.")
             }
         }
-        request.consumerView()
+        checkNotNull(started) { "Spotify refresh request ownership changed while authentication was locked" }.copy()
     }
 
     internal fun invalidateAccessToken() {
@@ -248,12 +250,6 @@ object SpotifyAuthentication {
     }
 
     private fun settings() = SkysoftConfigGui.config().gui.spotifyDisplay.settings
-
-    private fun <T> CompletableFuture<T>.consumerView(): CompletableFuture<T> = CompletableFuture<T>().also { view ->
-        whenComplete { value, failure ->
-            if (failure == null) view.complete(value) else view.completeExceptionally(failure)
-        }
-    }
 
     private fun Throwable.unwrap(): Throwable = (this as? java.util.concurrent.CompletionException)?.cause ?: this
 

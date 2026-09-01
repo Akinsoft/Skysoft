@@ -5,9 +5,9 @@ import com.google.gson.annotations.SerializedName
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockSlayerType
-import com.skysoft.features.bazaar.BazaarOrderType
-import com.skysoft.features.pets.SkillExpGainApi
-import com.skysoft.features.pets.SkyBlockSkill
+import com.skysoft.data.skyblock.BazaarOrderType
+import com.skysoft.data.skyblock.SkyBlockSkill
+import com.skysoft.data.skyblock.SkyBlockSkillInfo
 import java.util.UUID
 import kotlin.math.ceil
 
@@ -21,7 +21,7 @@ data class ProfileStorage(
     @Expose private val expSharePets: MutableList<UUID?> = mutableListOf()
     @Expose private var currentPetUuid: UUID? = null
     @Expose private var beastmasterPetXpMultiplier: Double? = null
-    @Expose private val skillData: MutableMap<SkyBlockSkill, SkillExpGainApi.SkillInfo> = mutableMapOf()
+    @Expose private val skillData: MutableMap<SkyBlockSkill, SkyBlockSkillInfo> = mutableMapOf()
     @Expose private val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf()
 
     @Transient
@@ -138,7 +138,7 @@ data class ProfileStorage(
         @Expose val skyBlockToolkits: MutableMap<String, SkyBlockStoragePageData> = mutableMapOf(),
         @Expose var skyBlockToolkitIcon: String = "",
         @Expose val inventoryEquipment: MutableList<SkyBlockStorageItemData> = mutableListOf(),
-        @Expose val skillData: MutableMap<SkyBlockSkill, SkillExpGainApi.SkillInfo> = mutableMapOf(),
+        @Expose val skillData: MutableMap<SkyBlockSkill, SkyBlockSkillInfo> = mutableMapOf(),
         @Expose val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf(),
         @Expose val slotBindings: MutableList<SlotBindingData> = mutableListOf(),
         @Expose val slotLocks: MutableList<Int> = mutableListOf(),
@@ -491,10 +491,7 @@ data class ProfileStorage(
             }
             if (removedLegacyLots) totalKnownProfit = 0.0
             transactions.removeIf { !it.isUsable() }
-            if (transactions.size > MAX_TRANSACTIONS) {
-                transactions.sortByDescending(BazaarTransactionData::atMillis)
-                transactions.subList(MAX_TRANSACTIONS, transactions.size).clear()
-            }
+            normalizeTransactions()
             activeOrders.forEach { order ->
                 if ((order.flipBatchId ?: 0L) <= 0L) order.flipBatchId = null
             }
@@ -505,6 +502,19 @@ data class ProfileStorage(
             }.max()
             nextFlipBatchId = nextFlipBatchId.coerceAtLeast(highestBatchId + 1L).coerceAtLeast(1L)
             if (activeFlipBatchId < 0L) activeFlipBatchId = 0L
+        }
+
+        internal fun recordTransaction(transaction: BazaarTransactionData) {
+            require(transaction.isUsable()) { "Bazaar transaction must contain an item, amount, total, and timestamp" }
+            transactions += transaction
+            normalizeTransactions()
+        }
+
+        private fun normalizeTransactions() {
+            transactions.sortByDescending(BazaarTransactionData::atMillis)
+            if (transactions.size > MAX_TRANSACTIONS) {
+                transactions.subList(MAX_TRANSACTIONS, transactions.size).clear()
+            }
         }
 
         companion object {

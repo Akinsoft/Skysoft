@@ -1,4 +1,4 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock.pets
 
 import com.google.gson.annotations.SerializedName
 import com.skysoft.data.skyblock.SkyBlockRarity
@@ -36,12 +36,4 @@ internal data class GithubTreeJson(
 internal data class GithubTreeEntry(
     val path: String = "",
     val type: String = "",
-)
-
-internal data class SkysoftNeuItemJson(
-    @SerializedName("itemid") val itemId: String = "minecraft:stone",
-    @SerializedName("displayname") val displayName: String? = null,
-    @SerializedName("nbttag") val nbtTag: String? = null,
-    val lore: List<String> = emptyList(),
-    @SerializedName("internalname") val internalName: String = "",
 )

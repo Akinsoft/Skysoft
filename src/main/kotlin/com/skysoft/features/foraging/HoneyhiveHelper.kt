@@ -1,6 +1,7 @@
 package com.skysoft.features.foraging
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.SkyBlockIsland
@@ -80,7 +81,7 @@ object HoneyhiveHelper {
 
     private fun didReconcileVisibleHives(data: ProfileStorage.HoneyhiveTrackerData, now: Long): Boolean {
         val level = Minecraft.getInstance().level ?: return false
-        val armorStands = level.entitiesForRendering().filterIsInstance<ArmorStand>().filter { it.isAlive }.toList()
+        val armorStands = ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>().filter { it.isAlive }
         val statuses = armorStands.mapNotNull { stand ->
             stand.cleanName().takeIf(String::isHoneyhiveStatus)?.let { status -> stand to status }
         }

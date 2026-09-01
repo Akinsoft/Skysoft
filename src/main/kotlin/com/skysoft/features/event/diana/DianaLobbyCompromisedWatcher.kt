@@ -6,8 +6,6 @@ import com.skysoft.config.MIN_LOBBY_COMPROMISED_STRANGER_LIMIT
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.hypixel.TabListApi
-import com.skysoft.data.hypixel.TabListEntry
-import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -25,10 +23,15 @@ internal object DianaLobbyCompromisedWatcher {
     private val settings get() = feature.settings
     private val alertState = DianaLobbyCompromisedState(REQUIRED_COMPROMISED_STABLE_MILLIS)
     private val friendlyPresenceTracker = DianaLobbyFriendlyPresenceTracker()
+    private var tabState = DianaLobbyTabState.EMPTY
     private var lastTabSessionId = Long.MIN_VALUE
 
     fun register() {
-        TabListApi.registerConsumer("Diana Lobby Compromised", ::isConfigured)
+        TabListApi.onChange(
+            "Diana Lobby Compromised",
+            isActive = ::isConfigured,
+            listener = ::updateTabState,
+        )
         SkysoftClientEvents.onEndTick(
             "Diana Lobby Compromised tick",
             isActive = { isConfigured() || lastTabSessionId != Long.MIN_VALUE },
@@ -43,7 +46,7 @@ internal object DianaLobbyCompromisedWatcher {
             return
         }
         val now = System.currentTimeMillis()
-        val population = currentPopulation(now) ?: run {
+        val strangerCount = currentStrangerCount(now) ?: run {
             alertState.reset()
             return
         }
@@ -56,7 +59,7 @@ internal object DianaLobbyCompromisedWatcher {
             MIN_LOBBY_COMPROMISED_STRANGER_LIMIT,
             MAX_LOBBY_COMPROMISED_STRANGER_LIMIT,
         )
-        val result = alertState.update(population.strangerCount, threshold, now)
+        val result = alertState.update(strangerCount, threshold, now)
         if (result == DianaLobbyCompromisedUpdate.BECAME_COMPROMISED) {
             sendAlerts(settings.alerts.get())
         }
@@ -69,33 +72,32 @@ internal object DianaLobbyCompromisedWatcher {
 
     private fun isConfigured(): Boolean = feature.enabled
 
-    private fun currentPopulation(now: Long): DianaLobbyPopulation? {
+    private fun currentStrangerCount(now: Long): Int? {
         if (
             !HypixelPartyApi.isLoaded ||
             !TabListApi.isSkyBlockDataLoaded ||
             !TabListApi.hasWaitedForSkyBlockData(TAB_BASELINE_DELAY)
         ) return null
-        val localProfile = Minecraft.getInstance().player?.gameProfile
-        val tabEntries = TabListApi.entries
-        val tabParse = tabEntries.parseDianaLobbyTab()
-        val reportedPlayerCount = tabParse.reportedPlayerCount ?: return null
-        val tabEntryUuids = tabEntries.map { entry -> entry.uuid }
-        val friendlyPlayerUuids = friendlyPresenceTracker.friendlyUuids(
-            visibleUuids = tabEntryUuids,
+        val localPlayerUuid = Minecraft.getInstance().player?.uuid
+        val reportedPlayerCount = tabState.reportedPlayerCount ?: return null
+        val friendlyPlayerCount = friendlyPresenceTracker.friendlyUuids(
+            visibleUuids = tabState.visibleUuids,
             partyMemberUuids = HypixelPartyApi.memberUuids,
-            localPlayerUuid = localProfile?.id,
+            localPlayerUuid = localPlayerUuid,
             reportedPlayerCount = reportedPlayerCount,
             sessionId = TabListApi.sessionId,
             now = now,
-        )
-        return dianaLobbyPopulation(
-            players = tabParse.players,
-            partyMemberUuids = HypixelPartyApi.memberUuids,
-            localPlayerUuid = localProfile?.id,
-            localPlayerName = localProfile?.name,
-            reportedPlayerCount = reportedPlayerCount,
-            tabEntryUuids = tabEntryUuids,
-            friendlyPlayerUuids = friendlyPlayerUuids,
+        ).size
+        return (reportedPlayerCount - friendlyPlayerCount).coerceAtLeast(0)
+    }
+
+    private fun updateTabState() {
+        val entries = TabListApi.entries
+        tabState = DianaLobbyTabState(
+            reportedPlayerCount = entries.firstNotNullOfOrNull { entry ->
+                entry.cleanDisplayName.playerCountFromTabDisplay()
+            },
+            visibleUuids = entries.map { entry -> entry.uuid },
         )
     }
 
@@ -197,17 +199,6 @@ internal enum class DianaLobbyCompromisedUpdate {
     BECAME_COMPROMISED,
 }
 
-internal data class DianaLobbyPopulation(
-    val strangerCount: Int,
-    val playerCount: Int,
-    val friendlyPlayerCount: Int,
-)
-
-internal data class DianaLobbyPlayer(
-    val uuid: UUID,
-    val name: String,
-)
-
 internal class DianaLobbyFriendlyPresenceTracker(
     private val graceMillis: Long = FRIENDLY_PRESENCE_GRACE_MILLIS,
 ) {
@@ -252,103 +243,22 @@ internal class DianaLobbyFriendlyPresenceTracker(
     }
 }
 
-internal fun dianaLobbyPopulation(
-    players: Collection<DianaLobbyPlayer>,
-    partyMemberUuids: Set<UUID>,
-    localPlayerUuid: UUID?,
-    localPlayerName: String?,
-    reportedPlayerCount: Int? = null,
-    tabEntryUuids: Collection<UUID> = players.map { player -> player.uuid },
-    friendlyPlayerUuids: Collection<UUID>? = null,
-): DianaLobbyPopulation {
-    val distinctPlayers = players.distinctBy { player -> player.uuid }
-    val parsedStrangerCount = distinctPlayers
-        .asSequence()
-        .filterNot { player -> player.isLocalPlayer(localPlayerUuid, localPlayerName) }
-        .filterNot { player -> player.uuid in partyMemberUuids }
-        .count()
-    val friendlyPlayerCount = if (reportedPlayerCount != null) {
-        val friendlyUuids = friendlyPlayerUuids?.toSet()
-            ?: knownFriendlyUuids(tabEntryUuids, partyMemberUuids, localPlayerUuid, reportedPlayerCount)
-        friendlyUuids.take(reportedPlayerCount).size
-    } else {
-        distinctPlayers.size - parsedStrangerCount
-    }
-    val strangerCount = if (reportedPlayerCount != null) {
-        (reportedPlayerCount - friendlyPlayerCount).coerceAtLeast(0)
-    } else {
-        parsedStrangerCount
-    }
-    return DianaLobbyPopulation(
-        strangerCount = strangerCount,
-        playerCount = reportedPlayerCount ?: distinctPlayers.size,
-        friendlyPlayerCount = friendlyPlayerCount,
-    )
-}
-
-internal fun Collection<TabListEntry>.parseDianaLobbyTab(): DianaLobbyTabParse {
-    val players = mutableListOf<DianaLobbyPlayer>()
-    var reportedPlayerCount: Int? = null
-    for (entry in this) {
-        val cleanDisplayName = entry.displayName.cleanSkyBlockText()
-        reportedPlayerCount = reportedPlayerCount ?: cleanDisplayName.playerCountFromTabDisplay()
-        entry.parseDianaLobbyTabRow(cleanDisplayName)?.let(players::add)
-    }
-    return DianaLobbyTabParse(
-        players = players.distinctBy { player -> player.uuid },
-        reportedPlayerCount = reportedPlayerCount,
-    )
-}
-
-private fun TabListEntry.parseDianaLobbyTabRow(cleanDisplayName: String): DianaLobbyPlayer? {
-    val profilePlayerName = profileName.takeIf { it.isMinecraftPlayerName() }
-        ?: return null
-    val displayedName = cleanDisplayName.playerNameFromTabDisplay()
-        ?: return null
-    if (!displayedName.equals(profilePlayerName, ignoreCase = true)) {
-        return null
-    }
-    return DianaLobbyPlayer(uuid, profilePlayerName)
-}
-
-private fun DianaLobbyPlayer.isLocalPlayer(localPlayerUuid: UUID?, localPlayerName: String?): Boolean =
-    uuid == localPlayerUuid || name.equals(localPlayerName, ignoreCase = true)
-
-private fun String.playerNameFromTabDisplay(): String? {
-    val match = playerRowPattern.matchEntire(this) ?: return null
-    return match.groups["name"]?.value
-}
-
 private fun String.playerCountFromTabDisplay(): Int? {
     val match = playerCountPattern.matchEntire(this) ?: return null
     return match.groups["count"]?.value?.toIntOrNull()
 }
 
-private fun String.isMinecraftPlayerName(): Boolean =
-    minecraftPlayerNamePattern.matchEntire(this) != null
-
-private fun knownFriendlyUuids(
-    tabEntryUuids: Collection<UUID>,
-    partyMemberUuids: Set<UUID>,
-    localPlayerUuid: UUID?,
-    reportedPlayerCount: Int,
-): Set<UUID> {
-    val friendlyUuids = tabEntryUuids
-        .asSequence()
-        .filter { uuid -> uuid in partyMemberUuids || uuid == localPlayerUuid }
-        .toMutableSet()
-    if (localPlayerUuid != null && reportedPlayerCount > 0) {
-        friendlyUuids += localPlayerUuid
+private data class DianaLobbyTabState(
+    val reportedPlayerCount: Int?,
+    val visibleUuids: List<UUID>,
+) {
+    companion object {
+        val EMPTY = DianaLobbyTabState(
+            reportedPlayerCount = null,
+            visibleUuids = emptyList(),
+        )
     }
-    return friendlyUuids.take(reportedPlayerCount).toSet()
 }
 
-internal data class DianaLobbyTabParse(
-    val players: List<DianaLobbyPlayer>,
-    val reportedPlayerCount: Int?,
-)
-
-private val minecraftPlayerNamePattern = Regex("""[A-Za-z0-9_]{1,16}""")
-private val playerRowPattern = Regex("""\[\d+]\s+(?:\[[^]]+]\s+)*(?<name>[A-Za-z0-9_]{1,16})(?:\s+\[[^]]+])?""")
 private val playerCountPattern = Regex("""Players \((?<count>\d+)\)""")
 private const val FRIENDLY_PRESENCE_GRACE_MILLIS = 15_000L

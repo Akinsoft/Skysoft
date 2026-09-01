@@ -1,4 +1,6 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock
+
+import com.google.gson.annotations.Expose
 
 enum class SkyBlockSkill(val displayName: String, val maxLevel: Int) {
     COMBAT("Combat", 60),
@@ -20,3 +22,15 @@ enum class SkyBlockSkill(val displayName: String, val maxLevel: Int) {
             entries.firstOrNull { it.displayName.equals(name, ignoreCase = true) }
     }
 }
+
+data class SkyBlockSkillInfo(
+    @Expose var level: Int = 0,
+    @Expose var lastGain: String = "",
+    @Expose var totalXp: Long = 0,
+    @Expose var currentXp: Long = 0,
+    @Expose var currentXpMax: Long = 0,
+    @Expose var overflowLevel: Int = 0,
+    @Expose var overflowTotalXp: Long = 0,
+    @Expose var overflowCurrentXp: Long = 0,
+    @Expose var overflowCurrentXpMax: Long = 0,
+)

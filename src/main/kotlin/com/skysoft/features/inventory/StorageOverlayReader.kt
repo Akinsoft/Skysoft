@@ -4,14 +4,12 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
+import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.utils.ChangeResult
-import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.gui.nonPlayerInventoryKey
-import com.skysoft.utils.gui.nonPlayerSlots
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
 internal fun onClientTick() {
@@ -62,33 +60,24 @@ internal fun resetTransientState() {
     StorageSearchIndex.clear()
 }
 
-internal fun handleFor(screen: AbstractContainerScreen<*>?): StorageHandle? {
-    if (screen == null || !HypixelLocationState.inSkyBlock || !isStorageOverlayEnabled) return null
-    return storageHandleFor(screen)
+internal fun readSnapshot(snapshot: SkyBlockOpenInventorySnapshot, handle: StorageHandle) {
+    readStorageInventory(
+        StorageInventoryView(
+            key = snapshot.key,
+            cells = snapshot.cells.map { cell -> StorageInventoryCell(cell.index, cell.item) },
+        ),
+        handle,
+    )
 }
 
-internal fun storagePageHandle(title: String, rows: Int): StorageHandle.Page? {
-    val enderChestPage = enderChestTitlePattern.matchEntire(title)?.groupValues?.get(1)?.toIntOrNull()
-    if (enderChestPage != null && enderChestPage in 1..ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES) {
-        return StorageHandle.Page(enderChestPage - 1, rows - 1)
-    }
-    val backpackPage = backpackTitlePattern.matchEntire(title)?.groupValues?.get(1)?.toIntOrNull()
-    return if (backpackPage != null && backpackPage in 1..ProfileStorage.SKYBLOCK_STORAGE_BACKPACK_PAGES) {
-        StorageHandle.Page(ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + backpackPage - 1, rows - 1)
-    } else {
-        null
-    }
-}
-
-internal fun readScreen(screen: AbstractContainerScreen<*>, handle: StorageHandle) {
-    val key = buildInventoryKey(screen)
-    if (key == lastInventoryKey) return
-    lastInventoryKey = key
+private fun readStorageInventory(inventory: StorageInventoryView, handle: StorageHandle) {
+    if (inventory.key == lastInventoryKey) return
+    lastInventoryKey = inventory.key
     if (isStorageOverlayEnabled) StorageSearchIndex.invalidatePages()
     when (handle) {
-        StorageHandle.Overview -> readOverview(screen)
+        StorageHandle.Overview -> readOverview(inventory.cells)
         is StorageHandle.Page -> readStoragePage(
-            screen,
+            inventory.cells,
             handle.pageIndex,
             handle.pageIndex,
             handle.rows,
@@ -104,7 +93,7 @@ internal fun readScreen(screen: AbstractContainerScreen<*>, handle: StorageHandl
                 }
             }
             readStoragePage(
-                screen,
+                inventory.cells,
                 handle.pageIndex,
                 riftStoragePageNumber(handle.pageIndex),
                 handle.rows,
@@ -113,24 +102,22 @@ internal fun readScreen(screen: AbstractContainerScreen<*>, handle: StorageHandl
                 changed,
             )
         }
-        is StorageHandle.Toolkit -> readToolkit(screen, handle)
+        is StorageHandle.Toolkit -> readToolkit(inventory.cells, handle)
     }
 }
 
-internal fun buildInventoryKey(screen: AbstractContainerScreen<*>): String = screen.nonPlayerInventoryKey()
-
-private fun readOverview(screen: AbstractContainerScreen<*>) {
+private fun readOverview(cells: List<StorageInventoryCell>) {
     var changed = false
-    for (slot in screen.nonPlayerSlots()) {
-        changed = readOverviewSlot(slot) == ChangeResult.CHANGED || changed
+    for (cell in cells) {
+        changed = readOverviewCell(cell) == ChangeResult.CHANGED || changed
     }
     if (changed) ProfileStorageApi.markDirty()
 }
 
-private fun readOverviewSlot(slot: Slot): ChangeResult {
-    val pageIndex = StorageOverviewSlots.pageIndexForSlot(slot.containerSlot)
-        ?: return if (isStorageOverlayEnabled) readToolkitOverviewSlot(slot) else ChangeResult.UNCHANGED
-    val stack = slot.item
+private fun readOverviewCell(cell: StorageInventoryCell): ChangeResult {
+    val pageIndex = StorageOverviewSlots.pageIndexForSlot(cell.index)
+        ?: return if (isStorageOverlayEnabled) readToolkitOverviewCell(cell) else ChangeResult.UNCHANGED
+    val stack = cell.item
     if (stack.isEmpty) {
         if (isStorageOverlayEnabled) emptyOverviewStacks.remove(pageIndex)
         return ChangeResult.UNCHANGED
@@ -142,8 +129,8 @@ private fun readOverviewSlot(slot: Slot): ChangeResult {
     }
 }
 
-private fun readToolkitOverviewSlot(slot: Slot): ChangeResult {
-    val stack = slot.item
+private fun readToolkitOverviewCell(cell: StorageInventoryCell): ChangeResult {
+    val stack = cell.item
     if (stack.isEmpty || stack.formattedHoverName().cleanSkyBlockText() != "Toolkits") return ChangeResult.UNCHANGED
     val overviewIcon = encodeItem(stack).encodedStack
     var changed = false
@@ -191,7 +178,7 @@ private fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeRes
 }
 
 private fun readStoragePage(
-    screen: AbstractContainerScreen<*>,
+    cells: List<StorageInventoryCell>,
     pageIndex: Int,
     storedPageIndex: Int,
     menuRows: Int,
@@ -212,10 +199,10 @@ private fun readStoragePage(
     }
     page.repairLoadedValues()
     val items = page.items
-    for (slot in screen.nonPlayerSlots()) {
-        val pageSlot = slot.containerSlot - slotOffset
+    for (cell in cells) {
+        val pageSlot = cell.index - slotOffset
         if (pageSlot !in 0 until rows * StoragePages.COLUMNS) continue
-        val itemData = encodeItem(slot.item)
+        val itemData = encodeItem(cell.item)
         if (items[pageSlot].encodedStack != itemData.encodedStack) {
             items[pageSlot] = itemData
             changed = true
@@ -224,7 +211,7 @@ private fun readStoragePage(
     if (changed) ProfileStorageApi.markDirty()
 }
 
-private fun readToolkit(screen: AbstractContainerScreen<*>, handle: StorageHandle.Toolkit) {
+private fun readToolkit(cells: List<StorageInventoryCell>, handle: StorageHandle.Toolkit) {
     val rows = handle.rows.coerceIn(1, ProfileStorage.SKYBLOCK_CONTAINER_MAX_ROWS)
     var changed = false
     val page = storage.skyBlockToolkits.getOrPut(handle.type.storageKey) {
@@ -238,10 +225,10 @@ private fun readToolkit(screen: AbstractContainerScreen<*>, handle: StorageHandl
     }
     page.repairLoadedValues()
     val items = page.items
-    for (slot in screen.nonPlayerSlots()) {
-        val pageSlot = slot.containerSlot
+    for (cell in cells) {
+        val pageSlot = cell.index
         if (pageSlot !in 0 until rows * StoragePages.COLUMNS) continue
-        val itemData = encodeItem(slot.item)
+        val itemData = encodeItem(cell.item)
         if (items[pageSlot].encodedStack != itemData.encodedStack) {
             items[pageSlot] = itemData
             changed = true
@@ -249,3 +236,13 @@ private fun readToolkit(screen: AbstractContainerScreen<*>, handle: StorageHandl
     }
     if (changed) ProfileStorageApi.markDirty()
 }
+
+private data class StorageInventoryView(
+    val key: String,
+    val cells: List<StorageInventoryCell>,
+)
+
+private data class StorageInventoryCell(
+    val index: Int,
+    val item: ItemStack,
+)

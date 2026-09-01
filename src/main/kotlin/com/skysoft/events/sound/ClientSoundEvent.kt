@@ -1,7 +1,7 @@
 package com.skysoft.events.sound
 
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundSource
 
@@ -20,29 +20,19 @@ fun interface ReceiveSoundCallback {
 }
 
 object ClientSoundEvents {
-    private var listeners: List<ActiveSoundListener> = emptyList()
+    private val listeners = ActiveListenerRegistry<ReceiveSoundCallback>()
 
     fun register(
         boundary: String,
         isActive: () -> Boolean,
         listener: ReceiveSoundCallback,
     ) {
-        listeners += ActiveSoundListener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
-    fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
+    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 
     fun dispatch(sound: ClientSoundEvent) {
-        listeners.forEach { listener ->
-            if (listener.isActive()) {
-                SkysoftErrorBoundary.run(listener.boundary) { listener.callback.onReceiveSound(sound) }
-            }
-        }
+        listeners.forEachActive { listener -> listener.onReceiveSound(sound) }
     }
-
-    private data class ActiveSoundListener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val callback: ReceiveSoundCallback,
-    )
 }

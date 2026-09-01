@@ -19,7 +19,6 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
@@ -40,7 +39,7 @@ object SkysoftHudEditor {
     }
 
     class EditorScreen(private val oldScreen: AbstractContainerScreen<*>? = null) :
-        Screen(Component.literal("Skysoft Position Editor")),
+        SkysoftEditorScreen(Component.literal("Skysoft Position Editor"), oldScreen),
         InventoryScaledScreen,
         TooltipScrollExcludedScreen {
         override fun usesInventoryScale(): Boolean = oldScreen != null
@@ -652,15 +651,10 @@ object SkysoftHudEditor {
             snapper.confirmPosition(element, actualWidth, actualHeight)
         }
 
-        override fun onClose() {
+        protected override fun beforeEditorClose() {
             history.flushPending()
             ScreenTitleRenderer.endPositionEditing()
             SkysoftConfigGui.config().saveNow()
-            if (oldScreen != null) {
-                MinecraftClient.setScreen(oldScreen)
-            } else {
-                super.onClose()
-            }
         }
     }
 }

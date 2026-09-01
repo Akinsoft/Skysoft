@@ -1,5 +1,7 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.skyblock.pets.AnimatedSkinJson
+import com.skysoft.data.skyblock.pets.PetSkins
 import com.skysoft.SkysoftMod
 import com.skysoft.utils.SkysoftClientEvents
 

@@ -1,6 +1,6 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinFeatureAdapters;
+import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import java.util.Optional;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;

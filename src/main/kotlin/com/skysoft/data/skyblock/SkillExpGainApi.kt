@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: LGPL-2.1-only
 // Adapted from SkyHanni; see credits.md for attribution and source details.
 
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock
 
-import com.google.gson.annotations.Expose
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.ElapsedTimeMark
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.removeColor
@@ -27,22 +26,22 @@ import kotlin.time.Duration.Companion.seconds
 
 object SkillExpGainApi {
     private val storage get() = ProfileStorageApi.storage.skillData
-    private val listeners = mutableListOf<Listener>()
+    private val listeners = ActiveListenerRegistry<(SkillExpGain) -> Unit>()
     private var lastLilySplosion = ElapsedTimeMark.farPast()
 
     fun register() {
-        ProfileStorageApi.registerConsumer("Skill Experience API", ::hasActiveListeners)
-        TabListApi.registerConsumer("Skill Experience API", ::hasActiveListeners)
+        ProfileStorageApi.registerConsumer("Skill Experience API", hasActiveListeners)
+        TabListApi.registerConsumer("Skill Experience API", hasActiveListeners)
         ChatEvents.onActionBar(
             "Skill Experience action bar",
-            isActive = ::hasActiveListeners,
+            isActive = hasActiveListeners,
         ) { message ->
             if (HypixelLocationState.inSkyBlock) handleActionBar(message.component)
             ChatMessageVisibility.SHOW
         }
         ChatEvents.onVisibleMessage(
             "Skill Experience chat",
-            isActive = ::hasActiveListeners,
+            isActive = hasActiveListeners,
         ) { message ->
             if (HypixelLocationState.inSkyBlock) handleChat(message.formattedText)
             ChatMessageVisibility.SHOW
@@ -57,10 +56,10 @@ object SkillExpGainApi {
         isActive: () -> Boolean,
         listener: (SkillExpGain) -> Unit,
     ) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
-    fun getSkillInfo(skill: SkyBlockSkill): SkillInfo? = storage[skill]
+    fun getSkillInfo(skill: SkyBlockSkill): SkyBlockSkillInfo? = storage[skill]
 
     internal fun xpRequiredForMaxLevel(skill: SkyBlockSkill): Long = xpRequiredForLevel(skill.maxLevel)
 
@@ -305,14 +304,10 @@ object SkillExpGainApi {
     }
 
     private fun post(event: SkillExpGain) {
-        listeners.forEach { listener ->
-            if (listener.isActive()) {
-                SkysoftErrorBoundary.run(listener.boundary) { listener.callback(event) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(event) }
     }
 
-    private fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
+    private val hasActiveListeners: () -> Boolean = { listeners.hasActiveListeners }
 
     data class SkillExpGain(
         val skill: SkyBlockSkill,
@@ -324,38 +319,20 @@ object SkillExpGainApi {
         internal val isFromActionBar: Boolean get() = source == ACTIONBAR_SOURCE
     }
 
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val callback: (SkillExpGain) -> Unit,
-    )
-
-    data class SkillInfo(
-        @Expose var level: Int = 0,
-        @Expose var lastGain: String = "",
-        @Expose var totalXp: Long = 0,
-        @Expose var currentXp: Long = 0,
-        @Expose var currentXpMax: Long = 0,
-        @Expose var overflowLevel: Int = 0,
-        @Expose var overflowTotalXp: Long = 0,
-        @Expose var overflowCurrentXp: Long = 0,
-        @Expose var overflowCurrentXpMax: Long = 0,
+    private fun SkillInfo.update(
+        displayed: DisplayedSkillProgress,
+        overflow: ParsedSkillLevel,
+        gainText: String = lastGain,
     ) {
-        internal fun update(
-            displayed: DisplayedSkillProgress,
-            overflow: ParsedSkillLevel,
-            gainText: String = lastGain,
-        ) {
-            level = displayed.level
-            totalXp = displayed.totalXp
-            currentXp = displayed.currentXp
-            currentXpMax = displayed.nextLevelXp
-            overflowLevel = overflow.level
-            overflowTotalXp = overflow.overflowXp
-            overflowCurrentXp = overflow.xpCurrent
-            overflowCurrentXpMax = overflow.xpForNext
-            lastGain = gainText
-        }
+        level = displayed.level
+        totalXp = displayed.totalXp
+        currentXp = displayed.currentXp
+        currentXpMax = displayed.nextLevelXp
+        overflowLevel = overflow.level
+        overflowTotalXp = overflow.overflowXp
+        overflowCurrentXp = overflow.xpCurrent
+        overflowCurrentXpMax = overflow.xpForNext
+        lastGain = gainText
     }
 
     private val skillNamePattern = SkyBlockSkill.entries.joinToString("|") { Regex.escape(it.displayName) }
@@ -375,6 +352,8 @@ object SkillExpGainApi {
     private val lilySplosionSkillXpPattern = Regex("""\+(?<gained>[\d,]+) (?<skillName>\w+) Experience""")
 
 }
+
+private typealias SkillInfo = SkyBlockSkillInfo
 
 private fun getLevelExact(neededXp: Long, skillType: SkyBlockSkill): Int =
     exactLevelingMap[neededXp.toInt()] ?: skillType.maxLevel

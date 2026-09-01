@@ -1,6 +1,7 @@
-package com.skysoft.utils.mixin
+package com.skysoft.integration
 
 import com.skysoft.config.ChatTabPosition
+import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.chat.ChatCompactor
 import com.skysoft.features.chat.ChatNotifier
@@ -17,6 +18,7 @@ import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.WarpAliases
 import com.skysoft.features.misc.custombars.CustomBars
 import com.skysoft.features.screenshot.ScreenshotManager
+import com.skysoft.utils.SidebarScoreboardState
 import java.util.function.Consumer
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -26,6 +28,12 @@ import net.minecraft.world.inventory.tooltip.TooltipComponent
 import net.minecraft.world.item.ItemStack
 
 object MixinFeatureAdapters {
+    @JvmStatic
+    fun markSidebarScoreboardDirty() = SidebarScoreboardState.markDirty()
+
+    @JvmStatic
+    fun markTabListDirty() = TabListApi.markDirty()
+
     @JvmStatic
     fun isBlankChatMessage(contents: Component): Boolean = ChatCompactor.isBlank(contents)
 

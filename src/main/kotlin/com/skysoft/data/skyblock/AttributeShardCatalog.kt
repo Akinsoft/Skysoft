@@ -11,8 +11,9 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getCompoundOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.NumberUtilities.formatInt
-import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
@@ -23,8 +24,9 @@ import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import com.skysoft.features.pets.PetFeatureDemand
+import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.network.chat.Component
@@ -32,33 +34,31 @@ import net.minecraft.world.item.ItemStack
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.seconds
 
 object AttributeShardCatalog {
     private val storage get() = ProfileStorageApi.storage.attributeShards
+    private val consumers = ActiveConsumerRegistry()
     private var wasActive = false
-    private var gainListeners: List<GainListener> = emptyList()
+    private val gainListeners = ActiveListenerRegistry<(SkyBlockAttributeShardGain) -> Unit>()
 
     fun register() {
-        ProfileStorageApi.registerConsumer("Attribute Shard Catalog", ::isActive)
+        ProfileStorageApi.registerConsumer("Attribute Shard Catalog", isCatalogActive)
         SkysoftClientEvents.onEndTick(
             "Attribute Shard loading",
-            isActive = { isActive() || !AttributeShardConstants.remoteConstantsLoaded || wasActive },
+            isActive = { isCatalogActive() || !AttributeShardConstants.remoteConstantsLoaded || wasActive },
         ) {
             AttributeShardConstants.ensureLoaded()
-            if (!isActive()) {
+            if (!isCatalogActive()) {
                 if (wasActive) AttributeShardConstants.cancelAll()
                 wasActive = false
                 return@onEndTick
             }
             wasActive = true
-            AttributeShardConstants.ensureLoaded()
         }
         AttributeShardTransfers.register()
         ChatEvents.onVisibleMessage(
             "Attribute Shard chat",
-            isActive = ::isActive,
+            isActive = isCatalogActive,
         ) { message ->
             handleIncomingMessage(message.component)
             ChatMessageVisibility.SHOW
@@ -68,8 +68,13 @@ object AttributeShardCatalog {
         }
     }
 
+    fun registerConsumer(id: String, isActive: () -> Boolean) {
+        consumers.register(id, isActive)
+    }
+
     fun onGain(boundary: String, isActive: () -> Boolean, listener: (SkyBlockAttributeShardGain) -> Unit) {
-        gainListeners += GainListener(boundary, isActive, listener)
+        registerConsumer(boundary, isActive)
+        gainListeners.register(boundary, isActive, listener)
     }
 
     fun readOpenInventory(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
@@ -248,13 +253,8 @@ object AttributeShardCatalog {
         parseAttributeShardGain(message)?.let { gain ->
             val internalName = AttributeShardConstants.internalNameByDisplayName(gain.displayName) ?: return
             updateAmountInBoxDelta(internalName, gain.amount)
-            gainListeners.forEach { registered ->
-                if (registered.isActive()) {
-                    SkysoftErrorBoundary.run(registered.boundary) {
-                        registered.listener(SkyBlockAttributeShardGain(internalName, gain.amount))
-                    }
-                }
-            }
+            val observation = SkyBlockAttributeShardGain(internalName, gain.amount)
+            gainListeners.forEachActive { listener -> listener(observation) }
             return
         }
         parseHuntingBoxDeposit(message)?.let { deposit ->
@@ -281,14 +281,9 @@ object AttributeShardCatalog {
         }
     }
 
-    private fun isActive(): Boolean =
-        PetFeatureDemand.isActive() || gainListeners.any { it.isActive() } || AttributeShardTransfers.hasActiveListeners()
-
-    private data class GainListener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockAttributeShardGain) -> Unit,
-    )
+    private val isCatalogActive: () -> Boolean = {
+        consumers.hasActiveConsumers || gainListeners.hasActiveListeners || AttributeShardTransfers.hasActiveListeners()
+    }
 
     private const val SHARD_BOX_BOOTSTRAP_LIMIT = 30
 }
@@ -371,8 +366,8 @@ private object AttributeShardConstants {
 
     private val gson = Gson()
     private val requests = PendingHttpRequests()
-    private val loadingConstants = AtomicBoolean(false)
-    private var constantsLastFailure = ElapsedTimeMark.farPast()
+    private val requestSlot = AsyncRequestSlot<SkysoftAttributeShardRepoJson>()
+    private val failureSchedule = RefreshSchedule()
 
     @Volatile
     var remoteConstantsLoaded = false
@@ -397,6 +392,7 @@ private object AttributeShardConstants {
     private var unconsumableAttributes = emptySet<String>()
 
     fun cancelAll() {
+        requestSlot.cancel()
         requests.cancelAll()
     }
 
@@ -472,25 +468,25 @@ private object AttributeShardConstants {
     }
 
     private fun loadConstants() {
-        if (constantsLastFailure.passedSince() < CONSTANTS_RETRY_DELAY) return
-        if (!loadingConstants.compareAndSet(false, true)) return
-        request(ATTRIBUTE_SHARDS_URL)
-            .thenApply { gson.fromJson(it, SkysoftAttributeShardRepoJson::class.java) }
-            .whenComplete { data, error ->
-                SkysoftErrorBoundary.run("Attribute Shard constants async completion") {
-                    try {
-                        if (error == null && data != null) {
-                            applyConstants(data)
-                            remoteConstantsLoaded = true
-                        } else if (error?.isCancellationFailure() != true) {
-                            constantsLastFailure = ElapsedTimeMark.now()
-                            SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
-                        }
-                    } finally {
-                        loadingConstants.set(false)
-                    }
+        val now = System.currentTimeMillis()
+        if (!failureSchedule.isDue(now)) return
+        requestSlot.startIfIdle(
+            requestFactory = {
+                request(ATTRIBUTE_SHARDS_URL)
+                    .thenApply { gson.fromJson(it, SkysoftAttributeShardRepoJson::class.java) }
+            },
+        ) { data, error ->
+            SkysoftErrorBoundary.run("Attribute Shard constants async completion") {
+                if (error == null && data != null) {
+                    applyConstants(data)
+                    remoteConstantsLoaded = true
+                    failureSchedule.reset()
+                } else if (error?.isCancellationFailure() != true) {
+                    failureSchedule.schedule(System.currentTimeMillis(), CONSTANTS_RETRY_DELAY_MILLIS)
+                    SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
                 }
             }
+        }
     }
 
     private fun loadLocalConstants() {
@@ -530,7 +526,7 @@ private object AttributeShardConstants {
 
     private fun request(url: String) = requests.getString(url)
 
-    private val CONSTANTS_RETRY_DELAY = 30.seconds
+    private const val CONSTANTS_RETRY_DELAY_MILLIS = 30_000L
 
     private fun String.normalizeAttributeShardInternalName(): String {
         val normalized = uppercase(Locale.US).replace(':', '-')

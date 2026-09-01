@@ -11,7 +11,21 @@ import net.minecraft.world.scores.PlayerScoreEntry
 import net.minecraft.world.scores.PlayerTeam
 
 object SidebarScoreboard {
-    fun currentObjective(): Objective? {
+    internal fun readCurrent(): SidebarScoreboardSnapshot {
+        val objective = currentObjective() ?: return SidebarScoreboardSnapshot()
+        val scoreboard = objective.scoreboard
+        val entries = visibleEntries(objective)
+        return SidebarScoreboardSnapshot(
+            objective = objective,
+            entries = entries,
+            lines = entries.map { entry ->
+                PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), Component.empty())
+                    .cleanSkyBlockText()
+            },
+        )
+    }
+
+    private fun currentObjective(): Objective? {
         val minecraft = Minecraft.getInstance()
         val level = minecraft.level ?: return null
         val player = minecraft.player ?: return null
@@ -24,16 +38,7 @@ object SidebarScoreboard {
             ?: scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR)
     }
 
-    fun currentLines(): List<String> {
-        val objective = currentObjective() ?: return emptyList()
-        val scoreboard = objective.scoreboard
-        return visibleEntries(objective).map { entry ->
-            PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), Component.empty())
-                .cleanSkyBlockText()
-        }
-    }
-
-    fun visibleEntries(objective: Objective): List<PlayerScoreEntry> =
+    private fun visibleEntries(objective: Objective): List<PlayerScoreEntry> =
         objective.scoreboard.listPlayerScores(objective)
             .asSequence()
             .filterNot { it.isHidden }
@@ -41,7 +46,7 @@ object SidebarScoreboard {
             .take(MAX_ENTRIES)
             .toList()
 
-    fun render(context: GuiGraphicsExtractor, objective: Objective) {
+    internal fun render(context: GuiGraphicsExtractor, objective: Objective) {
         (Minecraft.getInstance().gui.hud as ScoreboardHudAccessor)
             .skysoftDisplayScoreboardSidebar(context, objective)
     }

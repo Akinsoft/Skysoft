@@ -1,9 +1,11 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -23,9 +25,7 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
         hoveredControlArea = null
         return
     }
-    val window = minecraft.window
-    val mouseX = minecraft.mouseHandler.getScaledXPos(window).toInt()
-    val mouseY = minecraft.mouseHandler.getScaledYPos(window).toInt()
+    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
     val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
     val interactive = inventoryScreen != null &&

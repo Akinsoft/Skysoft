@@ -27,18 +27,26 @@ enum class SkyBlockEvent(val displayName: String) {
 
 object SkyBlockEventState {
     private val consumers = ActiveConsumerRegistry()
-    @Volatile
-    private var snapshot = SkyBlockEventSnapshot()
+    private var currentEvents: Set<SkyBlockEvent> = emptySet()
+    private var tabEvents: Set<SkyBlockEvent> = emptySet()
     private var ticks = 0
 
-    @Volatile
-    var version: Long = 0
+    var version: Long = 0L
         private set
 
     fun register() {
-        TabListApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
+        TabListApi.onChange(
+            "SkyBlock Event State",
+            isActive = { consumers.hasActiveConsumers },
+            listener = ::updateTabEvents,
+        )
         MayorPerkApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
         SkyBlockEventScheduleApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
+        SkysoftClientEvents.onDisconnect("SkyBlock Event State reset") {
+            clear()
+            ticks = 0
+            consumers.resetActivity()
+        }
         SkysoftClientEvents.onEndTick(
             "SkyBlock Event state refresh",
             isActive = { consumers.isActiveOrDeactivating },
@@ -50,11 +58,9 @@ object SkyBlockEventState {
                     ticks = 0
                     return@onEndTick
                 }
-                ConsumerActivity.ACTIVATED -> {
-                    refresh()
-                    return@onEndTick
-                }
-                ConsumerActivity.ACTIVE -> Unit
+                ConsumerActivity.ACTIVATED,
+                ConsumerActivity.ACTIVE,
+                -> Unit
             }
             if (++ticks % REFRESH_INTERVAL_TICKS != 0) return@onEndTick
             refresh()
@@ -65,16 +71,13 @@ object SkyBlockEventState {
         consumers.register(id, isActive)
     }
 
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
-
-    fun activeEvents(): Set<SkyBlockEvent> = snapshot.activeEvents
+    fun activeEvents(): Set<SkyBlockEvent> = currentEvents
 
     internal fun availability(
         availability: SkyBlockNpcAvailability,
         nowMillis: Long = System.currentTimeMillis(),
     ): SkyBlockEventAvailability {
-        if (availability.event in snapshot.activeEvents) return SkyBlockEventAvailability.ACTIVE
+        if (availability.event in currentEvents) return SkyBlockEventAvailability.ACTIVE
         SkyBlockEventScheduleApi.availability(
             availability.event,
             nowMillis,
@@ -98,17 +101,25 @@ object SkyBlockEventState {
                 isFishingFestivalPerkActive = MayorPerkApi.fishingFestivalActive,
                 isMiningFiestaPerkActive = MayorPerkApi.miningFiestaActive,
                 backendActiveEvents = SkyBlockEventScheduleApi.activeEvents(nowMillis),
-                tabLines = TabListApi.skyBlockLines.map { it.cleanSkyBlockText() },
+                tabEvents = tabEvents,
             ),
         )
-        if (next == snapshot) return
-        snapshot = next
-        version++
+        setEvents(next)
+    }
+
+    private fun updateTabEvents() {
+        tabEvents = parseTabEvents(TabListApi.skyBlockLines.map { it.cleanSkyBlockText() })
+        refresh()
     }
 
     private fun clear() {
-        if (snapshot == SkyBlockEventSnapshot()) return
-        snapshot = SkyBlockEventSnapshot()
+        setEvents(emptySet())
+        tabEvents = emptySet()
+    }
+
+    private fun setEvents(next: Set<SkyBlockEvent>) {
+        if (currentEvents == next) return
+        currentEvents = next
         version++
     }
 
@@ -123,20 +134,8 @@ internal data class SkyBlockEventSignals(
     val isFishingFestivalPerkActive: Boolean = false,
     val isMiningFiestaPerkActive: Boolean = false,
     val backendActiveEvents: Set<SkyBlockEvent> = emptySet(),
-    val tabLines: List<String> = emptyList(),
+    val tabEvents: Set<SkyBlockEvent> = emptySet(),
 )
-
-internal data class SkyBlockEventSnapshot(
-    val activeEvents: Set<SkyBlockEvent> = emptySet(),
-    val sources: Map<SkyBlockEvent, Set<SkyBlockEventSource>> = emptyMap(),
-)
-
-internal enum class SkyBlockEventSource {
-    MAYOR_PERK,
-    SKYBLOCK_CALENDAR,
-    TAB_LIST,
-    BACKEND_SCHEDULE,
-}
 
 internal enum class SkyBlockEventAvailability {
     ACTIVE,
@@ -144,47 +143,36 @@ internal enum class SkyBlockEventAvailability {
     UNKNOWN,
 }
 
-internal fun resolveSkyBlockEvents(signals: SkyBlockEventSignals): SkyBlockEventSnapshot {
-    if (!signals.isInSkyBlock) return SkyBlockEventSnapshot()
-    val sources = mutableMapOf<SkyBlockEvent, MutableSet<SkyBlockEventSource>>()
+internal fun resolveSkyBlockEvents(signals: SkyBlockEventSignals): Set<SkyBlockEvent> {
+    if (!signals.isInSkyBlock) return emptySet()
+    val events = mutableSetOf<SkyBlockEvent>()
 
-    fun activate(event: SkyBlockEvent, source: SkyBlockEventSource) {
-        sources.getOrPut(event, ::mutableSetOf) += source
-    }
-
-    if (signals.isMythologicalRitualPerkActive) {
-        activate(SkyBlockEvent.MYTHOLOGICAL_RITUAL, SkyBlockEventSource.MAYOR_PERK)
-    }
-    if (signals.isCarnivalPerkActive) {
-        activate(SkyBlockEvent.CARNIVAL, SkyBlockEventSource.MAYOR_PERK)
-    }
+    if (signals.isMythologicalRitualPerkActive) events += SkyBlockEvent.MYTHOLOGICAL_RITUAL
+    if (signals.isCarnivalPerkActive) events += SkyBlockEvent.CARNIVAL
 
     val date = SkyBlockCalendar.dateAt(signals.nowMillis)
     if (signals.isFishingFestivalPerkActive && date.day in FISHING_FESTIVAL_DAYS) {
-        activate(SkyBlockEvent.FISHING_FESTIVAL, SkyBlockEventSource.SKYBLOCK_CALENDAR)
+        events += SkyBlockEvent.FISHING_FESTIVAL
     }
     if (
         signals.isMiningFiestaPerkActive &&
         date.month in MINING_FIESTA_MONTHS &&
         date.day in MINING_FIESTA_DAYS
     ) {
-        activate(SkyBlockEvent.MINING_FIESTA, SkyBlockEventSource.SKYBLOCK_CALENDAR)
+        events += SkyBlockEvent.MINING_FIESTA
     }
     if (date.month == SPOOKY_FESTIVAL_MONTH && date.day in SPOOKY_FESTIVAL_DAYS) {
-        activate(SkyBlockEvent.SPOOKY_FESTIVAL, SkyBlockEventSource.SKYBLOCK_CALENDAR)
+        events += SkyBlockEvent.SPOOKY_FESTIVAL
     }
     when (date.year % YEAR_EVENT_CYCLE) {
-        YEAR_OF_THE_PIG_OFFSET -> activate(SkyBlockEvent.YEAR_OF_THE_PIG, SkyBlockEventSource.SKYBLOCK_CALENDAR)
-        YEAR_OF_THE_SEAL_OFFSET -> activate(SkyBlockEvent.YEAR_OF_THE_SEAL, SkyBlockEventSource.SKYBLOCK_CALENDAR)
-        YEAR_OF_THE_WITCH_OFFSET -> activate(SkyBlockEvent.YEAR_OF_THE_WITCH, SkyBlockEventSource.SKYBLOCK_CALENDAR)
+        YEAR_OF_THE_PIG_OFFSET -> events += SkyBlockEvent.YEAR_OF_THE_PIG
+        YEAR_OF_THE_SEAL_OFFSET -> events += SkyBlockEvent.YEAR_OF_THE_SEAL
+        YEAR_OF_THE_WITCH_OFFSET -> events += SkyBlockEvent.YEAR_OF_THE_WITCH
     }
 
-    signals.backendActiveEvents.forEach { activate(it, SkyBlockEventSource.BACKEND_SCHEDULE) }
-    activeTabEvents(signals.tabLines).forEach { activate(it, SkyBlockEventSource.TAB_LIST) }
-    return SkyBlockEventSnapshot(
-        activeEvents = sources.keys.toSet(),
-        sources = sources.mapValues { it.value.toSet() },
-    )
+    events += signals.backendActiveEvents
+    events += signals.tabEvents
+    return events
 }
 
 internal object SkyBlockCalendar {
@@ -249,12 +237,12 @@ private fun localAvailability(availability: SkyBlockNpcAvailability, nowMillis: 
         SkyBlockEvent.YEAR_OF_THE_WITCH,
         -> availability.event in resolveSkyBlockEvents(
             SkyBlockEventSignals(isInSkyBlock = true, nowMillis = nowMillis),
-        ).activeEvents
+        )
         else -> null
     }
 }
 
-private fun activeTabEvents(lines: List<String>): Set<SkyBlockEvent> = buildSet {
+private fun parseTabEvents(lines: List<String>): Set<SkyBlockEvent> = buildSet {
     lines.forEachIndexed { index, line ->
         val cleanLine = line.trim()
         val eventName = cleanLine.removePrefix(EVENT_PREFIX)

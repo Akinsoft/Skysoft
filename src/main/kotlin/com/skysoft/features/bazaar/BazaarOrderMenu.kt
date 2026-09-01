@@ -92,7 +92,7 @@ internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSn
             "unsupported container row count"
         slots.map { slot -> slot.containerSlot } != (0 until containerRows * BazaarOrderMenuLayout.MENU_COLUMNS).toList() ->
             "unsupported container slots"
-        !ordersMenuLoaded(slots) -> "menu contents are not loaded"
+        !ordersMenuLoaded(slots.asSequence().map { slot -> slot.item }) -> "menu contents are not loaded"
         playerName == null -> "local player name is unavailable"
         slots.any { slot ->
             slot.containerSlot !in orderSlotRange && parseOrdersStack(slot.item) != null

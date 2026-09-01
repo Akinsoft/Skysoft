@@ -1,5 +1,7 @@
 package com.skysoft.features.combat
 
+import com.skysoft.data.ClientEntitySnapshot
+import com.skysoft.data.skyblock.withoutSkyBlockMobModifierPrefix
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.toWorldVec
@@ -36,7 +38,7 @@ internal object SkyBlockMobEntityMatcher {
     fun hasVisibleNameplateFor(
         entity: LivingEntity,
         labels: Collection<String>,
-        entities: Iterable<Entity> = Minecraft.getInstance().level?.entitiesForRendering() ?: emptyList(),
+        entities: Iterable<Entity> = ClientEntitySnapshot.entities(),
     ): Boolean {
         val preparedLabels = prepareMobLabels(labels)
         if (preparedLabels.isEmpty()) return false
@@ -53,12 +55,11 @@ internal object SkyBlockMobEntityMatcher {
     fun canPairWithNameplate(entity: LivingEntity, nameplate: ArmorStand): Boolean =
         entity.isTightPair(nameplate)
 
-    fun allEntities(): List<Entity> =
-        Minecraft.getInstance().level?.entitiesForRendering()?.toList().orEmpty()
+    fun allEntities(): List<Entity> = ClientEntitySnapshot.entities()
 
     fun physicalEntityFor(
         nameplate: ArmorStand,
-        entities: Iterable<Entity> = Minecraft.getInstance().level?.entitiesForRendering() ?: emptyList(),
+        entities: Iterable<Entity> = ClientEntitySnapshot.entities(),
         isCandidate: (LivingEntity) -> Boolean = { true },
     ): LivingEntity? = nameplate.linkedPhysicalEntity(entities, isCandidate)
 
@@ -145,7 +146,8 @@ internal fun LivingEntity.isPossibleSkyBlockMob(): Boolean {
 
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
     if (labels.none { label -> name.contains(label, ignoreCase = true) }) return null
-    val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name).withoutMobPrefix()
+    val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name)
+        .withoutSkyBlockMobModifierPrefix(ignoreCase = true)
     return labels.firstOrNull { label -> normalizedName.equals(label, ignoreCase = true) }
 }
 
@@ -157,11 +159,5 @@ private fun prepareMobLabels(labels: Collection<String>): List<String> = labels.
 
 private fun normalizeMobName(name: String): String = name.replace(TIER_SUFFIX, "").trim()
 
-private fun String.withoutMobPrefix(): String {
-    val prefix = MOB_PREFIXES.firstOrNull { prefix -> startsWith("$prefix ", ignoreCase = true) } ?: return this
-    return substring(prefix.length + 1)
-}
-
 private val TIER_SUFFIX = Regex("""\s+[IVX]+$""")
-private val MOB_PREFIXES = setOf("Empyrean", "Exalted", "Runic", "Venerable", "Stalwart", "Blessed")
 private const val REAL_PLAYER_UUID_VERSION = 4

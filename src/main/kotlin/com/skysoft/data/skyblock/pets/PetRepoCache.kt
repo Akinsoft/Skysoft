@@ -1,14 +1,11 @@
-package com.skysoft.features.pets
+package com.skysoft.data.skyblock.pets
 
 import com.google.gson.Gson
 import com.skysoft.data.skyblock.SkyBlockItemJson
 import com.skysoft.data.skyblock.SkyBlockPetInfo
-import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.net.PendingHttpRequests
 import net.minecraft.world.item.ItemStack
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal object PetRepoCache {
     const val RAW_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master"
@@ -17,10 +14,6 @@ internal object PetRepoCache {
 
     val gson = Gson()
     val requests = PendingHttpRequests()
-    val loadingLocalRepoCache = AtomicBoolean(false)
-    var localRepoLoadFuture: CompletableFuture<*>? = null
-    val requestedItems = ConcurrentHashMap.newKeySet<String>()
-    val loadingItemIndexes = AtomicBoolean(false)
     val itemStacks = ConcurrentHashMap<String, ItemStack>()
     val itemNames = ConcurrentHashMap<String, String>()
     val skinStacks = ConcurrentHashMap<String, ItemStack>()
@@ -31,9 +24,6 @@ internal object PetRepoCache {
 
     @Volatile
     var localRepoCacheLoaded = false
-
-    @Volatile
-    var localRepoCacheLastFailure = ElapsedTimeMark.farPast()
 
     @Volatile
     var localItemsByInternalName: Map<String, SkyBlockItemJson> = emptyMap()

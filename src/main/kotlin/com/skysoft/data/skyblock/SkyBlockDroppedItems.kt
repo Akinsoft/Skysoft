@@ -2,13 +2,13 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.world.item.ItemStack
 import kotlin.math.min
 
 object SkyBlockDroppedItems {
-    private var listeners: List<Listener> = emptyList()
+    private val listeners = ActiveListenerRegistry<(SkyBlockDroppedItem) -> Unit>()
     private val intents = SkyBlockDropIntents()
 
     fun register() {
@@ -22,7 +22,7 @@ object SkyBlockDroppedItems {
     }
 
     fun onDrop(boundary: String, isActive: () -> Boolean, listener: (SkyBlockDroppedItem) -> Unit) {
-        listeners += Listener(boundary, isActive, listener)
+        listeners.register(boundary, isActive, listener)
     }
 
     fun recordIntent(stack: ItemStack, amount: Int) {
@@ -32,20 +32,10 @@ object SkyBlockDroppedItems {
     }
 
     private fun dispatch(drop: SkyBlockDroppedItem) {
-        listeners.forEach { registered ->
-            if (registered.isActive()) {
-                SkysoftErrorBoundary.run(registered.boundary) { registered.listener(drop) }
-            }
-        }
+        listeners.forEachActive { listener -> listener(drop) }
     }
 
-    private fun hasActiveListeners(): Boolean = listeners.any { it.isActive() }
-
-    private data class Listener(
-        val boundary: String,
-        val isActive: () -> Boolean,
-        val listener: (SkyBlockDroppedItem) -> Unit,
-    )
+    private fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 }
 
 internal class SkyBlockDropIntents(

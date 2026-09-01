@@ -104,7 +104,9 @@ internal object DianaRareMobGlow {
             val color = target.glowColor(localPlayerName, lootshareEnabled, lootshareColors)
             if (target.glowColor == color) return@forEach
             target.glowColor = color
-            EntityHighlightRenderer.setEntityColor(entity, color) { target in targets && entity.isAlive }
+            EntityHighlightRenderer.setEntityColor(entity, color, source = this) {
+                target in targets && entity.isAlive
+            }
         }
     }
 

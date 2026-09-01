@@ -1,5 +1,8 @@
 package com.skysoft.features.misc
 
+import com.skysoft.utils.trimStartToSize
+import java.util.ArrayDeque
+
 internal class ServerTpsEstimator(private val sampleLimit: Int = DEFAULT_SAMPLE_LIMIT) {
     private val samples = ArrayDeque<Double>()
     private var previousGameTime: Long? = null
@@ -47,7 +50,7 @@ internal class ServerTpsEstimator(private val sampleLimit: Int = DEFAULT_SAMPLE_
         }
 
         samples.addLast(rawTps.coerceAtMost(targetTps))
-        while (samples.size > sampleLimit) samples.removeFirst()
+        samples.trimStartToSize(sampleLimit)
         return TpsSampleResult.ACCEPTED
     }
 

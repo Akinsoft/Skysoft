@@ -1,9 +1,7 @@
 package com.skysoft.events.input
 
 import com.skysoft.data.InteractionClick
-import com.skysoft.utils.SkysoftErrorBoundary
-import net.fabricmc.fabric.api.event.Event
-import net.fabricmc.fabric.api.event.EventFactory
+import com.skysoft.utils.ActiveListenerRegistry
 import net.minecraft.world.item.ItemStack
 
 class ItemUseEvent(
@@ -16,25 +14,18 @@ fun interface ItemUseCallback {
 }
 
 object ItemUseEvents {
-    private val event: Event<ItemUseCallback> = EventFactory.createArrayBacked(ItemUseCallback::class.java) { listeners ->
-        ItemUseCallback { event ->
-            listeners.any { it.shouldCancelItemUse(event) }
-        }
-    }
-    private var activePredicates: List<() -> Boolean> = emptyList()
+    private val listeners = ActiveListenerRegistry<ItemUseCallback>()
 
     fun register(
         boundary: String,
         isActive: () -> Boolean,
         listener: ItemUseCallback,
     ) {
-        activePredicates += isActive
-        event.register { event ->
-            isActive() && SkysoftErrorBoundary.value(boundary, false) { listener.shouldCancelItemUse(event) }
-        }
+        listeners.register(boundary, isActive, listener)
     }
 
-    fun hasActiveListeners(): Boolean = activePredicates.any { it() }
+    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 
-    fun shouldCancelItemUse(itemUse: ItemUseEvent): Boolean = event.invoker().shouldCancelItemUse(itemUse)
+    fun shouldCancelItemUse(itemUse: ItemUseEvent): Boolean =
+        listeners.anyActive { listener -> listener.shouldCancelItemUse(itemUse) }
 }

@@ -1,5 +1,8 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.skyblock.SkillExpGainApi
+import com.skysoft.data.skyblock.SkyBlockSkill
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi

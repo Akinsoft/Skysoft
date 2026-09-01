@@ -6,6 +6,7 @@ import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.ItemListTierFamily
 import com.skysoft.data.skyblock.ItemListTierFamilyKind
 import com.skysoft.data.skyblock.RecipeIngredient
+import com.skysoft.data.skyblock.RecipeIngredientKeyContext
 import com.skysoft.data.skyblock.RecipeIngredientKind
 import com.skysoft.data.skyblock.SkyBlockCurrencyStacks
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -15,7 +16,7 @@ import com.skysoft.data.skyblock.SkyBlockProgressionRequirement
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockRecipeType
 import com.skysoft.data.skyblock.entityItemKey
-import com.skysoft.data.skyblock.petItemKey
+import com.skysoft.data.skyblock.itemListKey
 import com.skysoft.data.skyblock.recipeIngredientStack
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -549,7 +550,7 @@ internal class ItemListViewerScreen(
         context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
         if (ingredient == null) return null
         val displayedIngredient = displayedOverride ?: displayedRecipeIngredient(ingredient)
-        val key = displayedIngredient.itemKey()
+        val key = displayedIngredient.itemListKey(RecipeIngredientKeyContext.VIEWER)
         val petLevelKey = if (displayedIngredient.kind == RecipeIngredientKind.PET) {
             recipePetLevelKey(recipe, displayedIngredient.id)
         } else {
@@ -858,20 +859,6 @@ private fun renderInfoLinks(
         layout.wiki.contains(mouseX, mouseY),
         link != null,
     )
-}
-
-private fun RecipeIngredient.itemKey(): ItemListEntryKey? = when (kind) {
-    RecipeIngredientKind.ITEM -> SkyBlockDataRepository.itemKey(id)
-    RecipeIngredientKind.REGISTRY_ITEM -> ItemListEntryKey(com.skysoft.data.skyblock.ItemListEntryKind.REGISTRY, id)
-    RecipeIngredientKind.POTION -> ItemListEntryKey(
-        com.skysoft.data.skyblock.ItemListEntryKind.REGISTRY,
-        id.substringBefore('|'),
-    )
-    RecipeIngredientKind.PET -> petItemKey(id)
-    RecipeIngredientKind.CURRENCY,
-    RecipeIngredientKind.ESSENCE,
-    RecipeIngredientKind.SPECIAL,
-    -> null
 }
 
 private fun drawViewerCentered(

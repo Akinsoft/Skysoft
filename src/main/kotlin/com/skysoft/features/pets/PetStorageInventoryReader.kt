@@ -1,11 +1,12 @@
 package com.skysoft.features.pets
 
 import com.skysoft.data.StoredPetData
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.AccessoryBagData
 import com.skysoft.data.skyblock.AttributeShardCatalog
+import com.skysoft.data.skyblock.SkillExpGainApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
@@ -25,30 +26,13 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 
 internal object PetStorageInventoryReader {
-    fun onClientTick() {
-        val inSkyBlock = HypixelLocationState.inSkyBlock
-        PetWidgetStateTracker.syncLoadingState()
-
-        if (inSkyBlock) {
-            if (++PetStorageService.ticks % PET_TAB_WIDGET_READ_INTERVAL_TICKS == 0) readPetTabWidget()
-        } else {
-            PetStorageService.ticks = 0
-        }
-    }
-
     fun readOpenInventory(snapshot: SkyBlockOpenInventorySnapshot?) {
-        if (snapshot == null) {
-            PetStorageService.lastInventoryKey = null
-            return
-        }
+        if (snapshot == null) return
         val inventoryName = snapshot.title
         val inventoryItems = snapshot.items
         AttributeShardCatalog.readOpenInventory(inventoryName, inventoryItems)
         SkillExpGainApi.readOpenInventory(inventoryName, inventoryItems)
         AccessoryBagData.readOpenInventory(inventoryName, inventoryItems, snapshot.containerId)
-
-        if (snapshot.key == PetStorageService.lastInventoryKey) return
-        PetStorageService.lastInventoryKey = snapshot.key
 
         val exactPetMenuUuids = readPetsMenuItems(inventoryName, inventoryItems)
         readEquipmentPetData(inventoryName, inventoryItems)
@@ -166,7 +150,8 @@ internal object PetStorageInventoryReader {
         }
     }
 
-    private fun readPetTabWidget() {
+    fun readPetTabWidget() {
+        PetWidgetStateTracker.syncLoadingState()
         val widget = petTabWidgetLinesOrNull() ?: return
         val component = widget.pet
         val match = petTabWidgetNamePattern.matchEntire(component.string) ?: run {
@@ -267,7 +252,6 @@ internal object PetStorageInventoryReader {
     }
 
     private val PetExpRead?.exactValue get() = this?.takeIf { it.exact }?.value
-    private const val PET_TAB_WIDGET_READ_INTERVAL_TICKS = 10
 }
 
 internal data class PetTabWidgetLines(

@@ -1,7 +1,7 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.utils.SidebarScoreboard
+import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.SkysoftClientEvents
 
 object SkyBlockAreaState {
@@ -9,15 +9,11 @@ object SkyBlockAreaState {
         private set
 
     fun register() {
-        SkysoftClientEvents.onEndTick(
+        SidebarScoreboardState.onChange(
             "SkyBlock area state",
             isActive = { HypixelLocationState.inSkyBlock || currentArea != null },
-        ) {
-            currentArea = if (HypixelLocationState.inSkyBlock) {
-                parseSkyBlockScoreboardArea(SidebarScoreboard.currentLines())
-            } else {
-                null
-            }
+        ) { lines ->
+            currentArea = if (HypixelLocationState.inSkyBlock) parseSkyBlockScoreboardArea(lines) else null
         }
         SkysoftClientEvents.onDisconnect("SkyBlock area state reset") { currentArea = null }
     }

@@ -3,15 +3,14 @@ package com.skysoft.features.misc.actionbar
 import com.skysoft.config.SkillExpProgressFormat
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.features.pets.SkillActionBarMatch
-import com.skysoft.features.pets.SkillExpGainApi
-import com.skysoft.features.pets.SkyBlockSkill
+import com.skysoft.data.skyblock.SkillActionBarMatch
+import com.skysoft.data.skyblock.SkillExpGainApi
+import com.skysoft.data.skyblock.SkyBlockSkill
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -41,7 +40,7 @@ object SkillExpDisplay {
         SkillExpGainApi.onSkillExpGain("Skill EXP Display tracking", ::isActive, ::onSkillExpGain)
         ChatEvents.onActionBarModify("Skill EXP Display action bar", ::isActive, ::separateFromActionBar)
         SkysoftClientEvents.onDisconnect("Skill EXP Display reset") { current = null }
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "skill_exp_display",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -49,18 +48,18 @@ object SkillExpDisplay {
                 visible = { context -> TabDataOverlays.canRender(context) && canRenderLive() },
                 render = { context, _ -> renderHud(context) },
             ),
+            object : HudEditorElement {
+                override val id: String = "skill_exp_display"
+                override val label: String = "Skill EXP Display"
+                override val position get() = config.position
+                override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
+                override fun width(): Int = previewRenderable().width
+                override fun height(): Int = previewRenderable().height
+                override fun isVisible(): Boolean = config.enabled
+                override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
+                override fun openConfig() = SkysoftConfigGui.open("Skill EXP Display")
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "skill_exp_display"
-            override val label: String = "Skill EXP Display"
-            override val position get() = config.position
-            override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
-            override fun width(): Int = previewRenderable().width
-            override fun height(): Int = previewRenderable().height
-            override fun isVisible(): Boolean = config.enabled
-            override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
-            override fun openConfig() = SkysoftConfigGui.open("Skill EXP Display")
-        })
     }
 
     private fun onSkillExpGain(event: SkillExpGainApi.SkillExpGain) {

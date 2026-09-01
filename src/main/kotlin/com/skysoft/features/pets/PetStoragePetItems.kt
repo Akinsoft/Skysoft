@@ -1,5 +1,7 @@
 package com.skysoft.features.pets
 
+import com.skysoft.data.skyblock.pets.PetInternalNames
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId

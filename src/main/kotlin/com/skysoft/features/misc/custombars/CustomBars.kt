@@ -29,6 +29,7 @@ import com.skysoft.features.misc.actionbar.NormalizedActionBar
 import com.skysoft.features.misc.actionbar.actionBarSegmentRange
 import com.skysoft.features.misc.actionbar.withoutRanges
 import com.skysoft.utils.ColorUtilities.toColor
+import com.skysoft.utils.DurationParts
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.formatInt
@@ -71,7 +72,6 @@ object CustomBars {
     private var vitality: BarValue? = null
     private var defense: Int? = null
     private var riftDamage: Int? = null
-    private var riftDamageVersion = Long.MIN_VALUE
     private var trackedRiftState: Boolean? = null
     private val textElements by lazy {
         CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextEditorElement)
@@ -90,9 +90,13 @@ object CustomBars {
             )
         }
         SkysoftClientEvents.onDisconnect("Custom Bars reset", ::reset)
-        TabListApi.registerConsumer("Custom Bars") {
-            isActive() && inRift && config.settings.displays.defense == CustomBarDisplayMode.CUSTOM
-        }
+        TabListApi.onChange(
+            "Custom Bars",
+            isActive = {
+                isActive() && inRift && config.settings.displays.defense == CustomBarDisplayMode.CUSTOM
+            },
+            listener = ::updateRiftDamage,
+        )
         registerVanillaReplacements()
         GuiOverlayRegistry.register(
             GuiOverlay(
@@ -350,7 +354,6 @@ object CustomBars {
         vitality = null
         defense = null
         riftDamage = null
-        riftDamageVersion = Long.MIN_VALUE
     }
 
     private fun displayedHealth(): BarValue? {
@@ -362,14 +365,11 @@ object CustomBars {
         )
     }
 
-    private fun displayedDefense(): Int? {
-        if (!inRift) return defense
-        if (riftDamageVersion != TabListApi.contentVersion) {
-            riftDamageVersion = TabListApi.contentVersion
-            riftDamage = RiftCustomBarValues.parseDamage(TabListApi.lines.map { it.cleanSkyBlockText() })
-        }
-        return riftDamage
+    private fun updateRiftDamage() {
+        riftDamage = RiftCustomBarValues.parseDamage(TabListApi.skyBlockLines.map { it.cleanSkyBlockText() })
     }
+
+    private fun displayedDefense(): Int? = if (inRift) riftDamage else defense
 
     private enum class CustomBarPart(val label: String) {
         HEALTH("Health Bar"),
@@ -952,11 +952,13 @@ internal object RiftCustomBarValues {
         "${it.displayedCurrent.toHearts()}/${it.maximum.toHearts()}"
     } ?: "---/---"
 
-    fun formatTime(seconds: Int): String = if (seconds < SECONDS_PER_MINUTE) {
-        "${seconds}s"
-    } else {
-        val remainder = (seconds % SECONDS_PER_MINUTE).toString().padStart(SECOND_DIGITS, '0')
-        "${seconds / SECONDS_PER_MINUTE}m${remainder}s"
+    fun formatTime(seconds: Int): String {
+        val duration = DurationParts.fromSeconds(seconds.toLong())
+        return if (duration.totalMinutes == 0L) {
+            "${duration.seconds}s"
+        } else {
+            "${duration.totalMinutes}m${duration.seconds.toString().padStart(SECOND_DIGITS, '0')}s"
+        }
     }
 
     private fun Int.toHearts(): String = if (this % HEALTH_POINTS_PER_HEART == 0) {

@@ -1,7 +1,7 @@
 package com.skysoft.mixin;
 
 import com.skysoft.utils.mixin.MixinErrorBoundary;
-import com.skysoft.utils.mixin.MixinFeatureAdapters;
+import com.skysoft.integration.MixinFeatureAdapters;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

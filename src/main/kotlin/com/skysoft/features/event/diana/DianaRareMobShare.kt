@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaRareMobOption
+import com.skysoft.data.skyblock.withoutSkyBlockMobModifierPrefix
 import com.skysoft.features.combat.CocoonMessageParser
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.WorldVec
@@ -172,12 +173,8 @@ internal object DianaRareMobShareParser {
     private fun mobFromDeathKiller(text: String): DianaRareMobOption? {
         val cleaned = text.trim().removeSuffix(".").trim()
         DianaRareMobOption.fromLabel(cleaned)?.let { return it }
-        return DIANA_DEATH_MOB_PREFIXES
-            .asSequence()
-            .mapNotNull { prefix -> cleaned.removePrefix("$prefix ").takeIf { it != cleaned } }
-            .mapNotNull(DianaRareMobOption::fromLabel)
-            .firstOrNull()
+        return cleaned.withoutSkyBlockMobModifierPrefix()
+            .takeIf { it != cleaned }
+            ?.let(DianaRareMobOption::fromLabel)
     }
-
-    private val DIANA_DEATH_MOB_PREFIXES = setOf("Empyrean", "Exalted", "Runic", "Venerable", "Stalwart", "Blessed")
 }

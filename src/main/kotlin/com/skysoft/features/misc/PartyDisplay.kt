@@ -1,10 +1,11 @@
 package com.skysoft.features.misc
 
-import com.mojang.authlib.GameProfile
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.MinecraftProfileLookup
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
-import com.skysoft.data.hypixel.toTabListEntry
+import com.skysoft.data.hypixel.HypixelPartyState
+import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
@@ -12,18 +13,13 @@ import com.skysoft.utils.chat.ChatMessageVisibility
 import java.util.Locale
 import java.util.Optional
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
-import java.util.function.Supplier
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
-import net.minecraft.world.entity.player.PlayerSkin
 
 object PartyDisplay {
     private val config get() = SkysoftConfigGui.config().gui.partyDisplay
-    private val profileFutures = mutableMapOf<String, CompletableFuture<GameProfile?>>()
-    private val skinLookups = mutableMapOf<UUID, Supplier<PlayerSkin>>()
     private val pendingInvites = linkedMapOf<String, PendingInvite>()
     private val disconnectedMembers = mutableSetOf<String>()
     private var displayedMembers: List<PartyDisplayMember> = emptyList()
@@ -34,7 +30,20 @@ object PartyDisplay {
     private var wasEnabled = false
 
     fun register() {
-        HypixelPartyApi.registerConsumer("Party Display") { config.enabled }
+        HypixelPartyApi.onChange(
+            "Party Display",
+            isActive = { config.enabled },
+            listener = ::onPartyState,
+        )
+        HypixelLocationState.onChange(
+            "Party Display location",
+            isActive = { config.enabled || wasEnabled },
+        ) { location ->
+            if (!location.inSkyBlock) {
+                clearDisplayedParty()
+                lastApiInParty = null
+            }
+        }
         SkysoftClientEvents.onEndTick(
             "Party Display update",
             isActive = { config.enabled || wasEnabled || pendingPartyList != null },
@@ -62,14 +71,12 @@ object PartyDisplay {
             return
         }
         wasEnabled = true
-        if (!HypixelLocationState.inSkyBlock) {
-            clearDisplayedParty()
-            lastApiInParty = null
-            return
-        }
-        if (!HypixelPartyApi.isLoaded) return
-        if (!HypixelPartyApi.isInParty) {
-            if (HypixelPartyApi.state.updatedAtMillis > optimisticPartyAtMillis) {
+    }
+
+    private fun onPartyState(state: HypixelPartyState) {
+        if (!config.enabled || !HypixelLocationState.inSkyBlock || !state.isLoaded) return
+        if (!state.isInParty) {
+            if (state.updatedAtMillis > optimisticPartyAtMillis) {
                 val memberIsFading = displayedMembers.any { member -> member.leavingAtMillis != null }
                 if (lastApiInParty == true && pendingInvites.isEmpty() && !memberIsFading) clearDisplayedParty()
                 if (pendingInvites.isEmpty() && !memberIsFading) lastApiInParty = false
@@ -78,11 +85,17 @@ object PartyDisplay {
             return
         }
         lastApiInParty = true
-        val party = HypixelPartyApi.memberUuids.toSet()
+        state.members.values
+            .sortedBy { member -> member.uuid != state.leaderUuid }
+            .forEach { member ->
+                member.profileName?.let { name ->
+                    addPartyMember(apiPartyMember(member.uuid, name), first = member.uuid == state.leaderUuid)
+                }
+            }
+        val party = state.memberUuids
         if (party == requestedParty || pendingPartyList != null) return
         requestedParty = party
-        pendingPartyList = PendingPartyList(expiresAtMillis = now + PARTY_LIST_TIMEOUT_MILLIS)
-        // TODO Replace chat and /party list rank resolution with the Skysoft backend.
+        pendingPartyList = PendingPartyList(expiresAtMillis = System.currentTimeMillis() + PARTY_LIST_TIMEOUT_MILLIS)
         if (Minecraft.getInstance().connection?.sendCommand("party list") == null) {
             pendingPartyList = null
             requestedParty = null
@@ -263,11 +276,14 @@ object PartyDisplay {
     private fun currentPlayerMember(): PartyDisplayMember? {
         val minecraft = Minecraft.getInstance()
         val player = minecraft.player ?: return null
-        val name = player.gameProfile.name
-        val displayName = minecraft.connection?.getPlayerInfo(player.uuid)?.toTabListEntry()?.displayName
+        return apiPartyMember(player.uuid, player.gameProfile.name)
+    }
+
+    private fun apiPartyMember(uuid: UUID, name: String): PartyDisplayMember {
+        val displayName = TabListApi.playerProfile(uuid)?.displayName
         val index = displayName?.string?.lastIndexOf(name) ?: -1
         val style = if (displayName != null && index >= 0) displayName.styleAt(index) else Style.EMPTY
-        return PartyDisplayMember(name, Component.literal(name).withStyle(style))
+        return PartyDisplayMember(name, Component.literal(name).withStyle(style), uuid = uuid)
     }
 
     private fun addPartyMember(member: PartyDisplayMember, first: Boolean = false) {
@@ -276,9 +292,14 @@ object PartyDisplay {
         val index = displayedMembers.indexOfFirst { playerKey(it.name) == key }
         if (index < 0) {
             displayedMembers += member.copy(invited = false)
-        } else if (displayedMembers[index].leavingAtMillis != null) {
+        } else {
+            val existing = displayedMembers[index]
             displayedMembers = displayedMembers.toMutableList().also { members ->
-                members[index] = members[index].copy(leavingAtMillis = null)
+                members[index] = member.copy(
+                    invited = false,
+                    uuid = member.uuid ?: existing.uuid,
+                    leavingAtMillis = null,
+                )
             }
         }
         if (first) displayedMembers = displayedMembers.sortedBy { playerKey(it.name) != key }
@@ -309,7 +330,9 @@ object PartyDisplay {
         val existingNames = displayedMembers.mapTo(mutableSetOf()) { playerKey(it.name) }
         val now = System.currentTimeMillis()
         displayedMembers = displayedMembers.map { existing ->
-            latestMembers[playerKey(existing.name)]
+            latestMembers[playerKey(existing.name)]?.let { latest ->
+                latest.copy(uuid = latest.uuid ?: existing.uuid)
+            }
                 ?: existing.takeIf { it.leavingAtMillis != null }
                 ?: existing.copy(leavingAtMillis = now)
         } + members.filterNot { playerKey(it.name) in existingNames }
@@ -336,20 +359,18 @@ object PartyDisplay {
         }
 
     internal fun face(member: PartyDisplayMember): PartyDisplayFace? {
-        val minecraft = Minecraft.getInstance()
-        minecraft.connection?.getPlayerInfo(member.name)?.let { playerInfo ->
-            return PartyDisplayFace(playerInfo.skin.body().texturePath(), playerInfo.showHat())
+        val tabProfile = if (member.uuid != null) {
+            TabListApi.playerProfile(member.uuid)
+        } else {
+            TabListApi.playerProfile(member.name)
         }
-        val profile = profileFutures.getOrPut(member.name.lowercase(Locale.ROOT)) {
-            CompletableFuture.supplyAsync<GameProfile?> {
-                runCatching {
-                    minecraft.services().profileResolver().fetchByName(member.name).orElse(null)
-                }.getOrNull()
-            }
-        }.getNow(null) ?: return null
-        val skin = skinLookups.getOrPut(profile.id) {
-            minecraft.skinManager.createLookup(profile, false)
-        }.get()
+        if (tabProfile != null) return PartyDisplayFace(tabProfile.skin().body().texturePath(), tabProfile.showHat)
+        val profile = if (member.uuid != null) {
+            MinecraftProfileLookup.byId(member.uuid).getNow(null)
+        } else {
+            MinecraftProfileLookup.byName(member.name).getNow(null)
+        } ?: return null
+        val skin = MinecraftProfileLookup.skin(profile)
         return PartyDisplayFace(skin.body().texturePath(), true)
     }
 
@@ -359,8 +380,6 @@ object PartyDisplay {
         disconnectedMembers.clear()
         requestedParty = null
         pendingPartyList = null
-        profileFutures.clear()
-        skinLookups.clear()
         lastApiInParty = null
         optimisticPartyAtMillis = 0L
         wasEnabled = false
@@ -374,22 +393,6 @@ object PartyDisplay {
         var started: Boolean = false,
         var discard: Boolean = false,
     )
-
-    private fun Component.styleAt(index: Int): Style {
-        var offset = 0
-        var result = Style.EMPTY
-        visit({ style: Style, segment: String ->
-            val end = offset + segment.length
-            if (index in offset until end) {
-                result = style
-                Optional.of(Unit)
-            } else {
-                offset = end
-                Optional.empty()
-            }
-        }, Style.EMPTY)
-        return result
-    }
 
     private const val PARTY_PLAYER = """(?:\[[^]]+] )?[A-Za-z0-9_]{1,16}"""
     private const val PARTY_LIST_TIMEOUT_MILLIS = 3_000L
@@ -448,6 +451,7 @@ internal data class PartyDisplayMember(
     val name: String,
     val component: Component,
     val invited: Boolean = false,
+    val uuid: UUID? = null,
     val disconnected: Boolean = false,
     val leavingAtMillis: Long? = null,
 )
@@ -455,6 +459,22 @@ internal data class PartyDisplayMember(
 internal data class PartyDisplayFace(val texture: Identifier, val showHat: Boolean)
 
 internal const val MEMBER_LEAVE_FADE_MILLIS = 750L
+
+private fun Component.styleAt(index: Int): Style {
+    var offset = 0
+    var result = Style.EMPTY
+    visit({ style: Style, segment: String ->
+        val end = offset + segment.length
+        if (index in offset until end) {
+            result = style
+            Optional.of(Unit)
+        } else {
+            offset = end
+            Optional.empty()
+        }
+    }, Style.EMPTY)
+    return result
+}
 
 private val PLAYER_NAME_PATTERN = Regex("""[A-Za-z0-9_]{1,16}""")
 

@@ -1,7 +1,7 @@
 package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.skysoft.utils.mixin.MixinFeatureAdapters;
+import com.skysoft.integration.MixinFeatureAdapters;
 import net.minecraft.client.gui.Gui;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

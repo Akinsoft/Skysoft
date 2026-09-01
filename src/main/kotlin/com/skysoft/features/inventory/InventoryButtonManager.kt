@@ -10,9 +10,10 @@ import com.skysoft.config.MAX_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.MIN_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockStackFactory
-import com.skysoft.features.pets.PetRepository
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
@@ -63,6 +64,7 @@ object InventoryButtonManager {
 
     fun register() {
         SkyBlockDataRepository.Demand.register("Inventory Buttons") { config.enabled }
+        TabListApi.registerConsumer("Inventory Buttons") { config.enabled }
         PetRepository.registerConsumer("Inventory Buttons") { config.enabled }
         InventoryButtonIcons.registerPlayerHeadCacheRefresh({ config.enabled }) {
             config.buttons.asSequence()
@@ -667,12 +669,10 @@ private object InventoryButtonIcons {
             results.putIfAbsent(candidate.id.lowercase(Locale.ROOT), candidate)
         }
 
-        Minecraft.getInstance().connection?.listedOnlinePlayers.orEmpty()
-            .asSequence()
-            .map { it.profile }
-            .filter { profile -> profile.name.isNotBlank() && matchesPlayerQuery(profile.name, words) }
+        TabListApi.playerProfiles.asSequence()
+            .filter { player -> player.profileName.isNotBlank() && matchesPlayerQuery(player.profileName, words) }
             .take(limit)
-            .forEach { profile -> add(playerHeadCandidate(profile.name, profile)) }
+            .forEach { player -> add(playerHeadCandidate(player.profileName, player.profile)) }
 
         typedPlayerNameQuery(trimmed)?.let { playerName ->
             add(playerHeadCandidate(playerName))

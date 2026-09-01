@@ -2,6 +2,7 @@ package com.skysoft.features.combat
 
 import com.skysoft.config.DianaRareMobOption
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
 import com.skysoft.data.skyblock.SlayerMessageParser
@@ -137,15 +138,13 @@ object CocoonTracker {
     }
 
     private fun updateMissingMobNames() {
-        val level = Minecraft.getInstance().level ?: return
         val unknownCocoons = cocoons.filter { cocoon ->
             cocoon.mobName == null && cocoon.isVisibleToPlayer()
         }
         if (unknownCocoons.isEmpty()) return
 
         val matches = arrayOfNulls<CocoonNameMatch>(unknownCocoons.size)
-        level.entitiesForRendering()
-            .asSequence()
+        ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<ArmorStand>()
             .forEach { entity ->
                 val entityLocation = entity.position().toWorldVec()

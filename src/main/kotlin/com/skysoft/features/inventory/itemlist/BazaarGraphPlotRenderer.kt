@@ -8,6 +8,7 @@ import com.skysoft.data.skyblock.price.SkysoftBazaarFlowDelta
 import com.skysoft.features.bazaar.BazaarInvestmentPosition
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
+import com.skysoft.utils.IdentityRefreshCache
 import com.skysoft.utils.NumberUtilities.coinFormat
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.GuiLineRenderer
@@ -22,7 +23,9 @@ import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object BazaarGraphPlotRenderer {
-    private var tradeVolumeRowsCache = BazaarTradeVolumeRowsCache()
+    private val tradeVolumeRowsCache = IdentityRefreshCache<TradeVolumeRowsCriteria, BazaarTradeVolumeRows>(
+        PlotLayout.TRADE_VOLUME_CACHE_MILLIS,
+    )
     private var depthPlotCache = BazaarDepthPlotCache()
 
     fun renderPrice(
@@ -158,23 +161,17 @@ internal object BazaarGraphPlotRenderer {
         window: BazaarGraphWindow,
         maximumPoints: Int,
         now: Long,
-    ): BazaarTradeVolumeRowsCache {
-        val refreshBucket = now / PlotLayout.TRADE_VOLUME_CACHE_MILLIS
-        val current = tradeVolumeRowsCache
-        if (current.matches(product, window, maximumPoints, refreshBucket)) return current
-        val cutoff = now - window.durationMillis
-        return BazaarTradeVolumeRowsCache(
-            product = product,
-            window = window,
-            maximumPoints = maximumPoints,
-            refreshBucket = refreshBucket,
-            cutoff = cutoff,
-            rows = compactBazaarTradeVolumeRows(
-                product?.flowDeltas.orEmpty().filter { it.at >= cutoff }.sortedBy(SkysoftBazaarFlowDelta::at),
-                maximumPoints,
-            ),
-        ).also { tradeVolumeRowsCache = it }
-    }
+    ): BazaarTradeVolumeRows =
+        tradeVolumeRowsCache.value(product, TradeVolumeRowsCriteria(window, maximumPoints), now) {
+            val cutoff = now - window.durationMillis
+            BazaarTradeVolumeRows(
+                cutoff = cutoff,
+                rows = compactBazaarTradeVolumeRows(
+                    product?.flowDeltas.orEmpty().filter { it.at >= cutoff }.sortedBy(SkysoftBazaarFlowDelta::at),
+                    maximumPoints,
+                ),
+            )
+        }
 
     fun renderInvestment(
         context: GuiGraphicsExtractor,
@@ -757,25 +754,15 @@ private data class TransactionGraphPoint(
     val transaction: ProfileStorage.BazaarTransactionData,
 )
 
-private data class BazaarTradeVolumeRowsCache(
-    val product: SkysoftBazaarDepthProduct? = null,
-    val window: BazaarGraphWindow = BazaarGraphWindow.ONE_HOUR,
-    val maximumPoints: Int = 0,
-    val refreshBucket: Long = Long.MIN_VALUE,
-    val cutoff: Long = 0L,
-    val rows: List<SkysoftBazaarFlowDelta> = emptyList(),
-) {
-    fun matches(
-        candidateProduct: SkysoftBazaarDepthProduct?,
-        candidateWindow: BazaarGraphWindow,
-        candidateMaximumPoints: Int,
-        candidateRefreshBucket: Long,
-    ): Boolean =
-        product === candidateProduct &&
-            window == candidateWindow &&
-            maximumPoints == candidateMaximumPoints &&
-            refreshBucket == candidateRefreshBucket
-}
+private data class TradeVolumeRowsCriteria(
+    val window: BazaarGraphWindow,
+    val maximumPoints: Int,
+)
+
+private data class BazaarTradeVolumeRows(
+    val cutoff: Long,
+    val rows: List<SkysoftBazaarFlowDelta>,
+)
 
 private data class BazaarDepthPlotCache(
     val product: SkysoftBazaarDepthProduct? = null,

@@ -45,7 +45,7 @@ Credit to HiZe, hannibal2, NopoTheGamer, and J10a1n15 for the original and updat
 
 - Sources: `at/hannibal2/skyhanni/api/SkillApi.kt`, `at/hannibal2/skyhanni/features/skillprogress/SkillUtil.kt`
 - Commits: `8dfbcf2a6` (`Feature: Skill progress display`), `2f2d5ffc3` (`Fix: Skill Overflow`), `4f83de935` (`Fix: Skill Overflow For Hunting And Foraging`)
-- Skysoft file: `src/main/kotlin/com/skysoft/features/pets/SkillExpGainApi.kt`
+- Skysoft file: `src/main/kotlin/com/skysoft/data/skyblock/SkillExpGainApi.kt`
 - License: GNU Lesser General Public License v2.1 only
 
 ## Deferred Circle Rendering

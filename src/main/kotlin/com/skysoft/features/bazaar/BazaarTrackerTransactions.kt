@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.instantBuyPattern
 import com.skysoft.data.skyblock.instantSellPattern
@@ -15,12 +16,7 @@ internal fun recordBazaarTransaction(
     data: ProfileStorage.BazaarTrackerData,
     transaction: ProfileStorage.BazaarTransactionData,
 ) {
-    require(transaction.isUsable()) { "Bazaar transaction must contain an item, amount, total, and timestamp" }
-    data.transactions += transaction
-    data.transactions.sortByDescending(ProfileStorage.BazaarTransactionData::atMillis)
-    if (data.transactions.size > ProfileStorage.BazaarTrackerData.MAX_TRANSACTIONS) {
-        data.transactions.subList(ProfileStorage.BazaarTrackerData.MAX_TRANSACTIONS, data.transactions.size).clear()
-    }
+    data.recordTransaction(transaction)
 }
 
 internal fun bazaarTransactionsFor(

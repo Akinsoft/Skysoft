@@ -9,10 +9,10 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.toPackedArgb
+import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.SkysoftClientEvents
@@ -54,7 +54,7 @@ object ItemChangeLog {
             wasEnabled = config.enabled
         }
         SkysoftClientEvents.onDisconnect("Item Change Log reset", state::clear)
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "item_change_log",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -62,57 +62,57 @@ object ItemChangeLog {
                 visible = TabDataOverlays::canRender,
                 render = { context, _ -> renderHud(context) },
             ),
-        )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "item_change_log"
-            override val label: String = "Item Change Log"
-            override val position get() = config.position
-            private var dragWidth = 0
-            private var dragHeight = 0
+            object : HudEditorElement {
+                override val id: String = "item_change_log"
+                override val label: String = "Item Change Log"
+                override val position get() = config.position
+                private var dragWidth = 0
+                private var dragHeight = 0
 
-            override fun width(): Int {
-                currentRenderable()
-                return retainedEditorWidth
-            }
-            override fun height(): Int = itemChangeLogHeight(config.settings.maximumLines)
-            override fun isVisible(): Boolean = config.enabled
-            override fun absoluteX(width: Int): Int {
-                ensureFixedHorizontalAnchor(width)
-                return position.getAbsX0AllowingOverflow(0) - config.details.alignment.anchorOffset(width)
-            }
-            override fun absoluteY(height: Int): Int = itemChangeLogY(
-                anchorY = position.getAbsY0AllowingOverflow(0),
-                height = height,
-                growsDownward = config.settings.invertDirection,
-            )
-            override fun renderEditor(context: GuiGraphicsExtractor) {
-                val renderable = currentRenderable() ?: return
-                val x = config.details.alignment.anchorOffset(retainedEditorWidth) -
-                    config.details.alignment.anchorOffset(renderable.width)
-                val y = if (config.settings.invertDirection) 0 else height() - renderable.height
-                context.withIsolatedPose {
-                    pose().translate(x.toFloat(), y.toFloat())
-                    renderable.render(context)
+                override fun width(): Int {
+                    currentRenderable()
+                    return retainedEditorWidth
                 }
-            }
-            override fun beginEditorDrag(localX: Int, localY: Int, width: Int, height: Int) {
-                dragWidth = width
-                dragHeight = height
-            }
-            override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-                val targetX = absoluteX(dragWidth) + deltaX
-                val targetY = absoluteY(dragHeight) + deltaY
-                val anchorX = targetX + config.details.alignment.anchorOffset(dragWidth)
-                val anchorY = if (config.settings.invertDirection) targetY else targetY + dragHeight
-                position.moveToAbsoluteAllowingOverflow(anchorX, anchorY, 0, 0)
-                return InputHandlingResult.CONSUMED
-            }
-            override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
-                return InputHandlingResult.CONSUMED
-            }
-            override fun openConfig() = SkysoftConfigGui.open("Item Change Log")
-        })
+                override fun height(): Int = itemChangeLogHeight(config.settings.maximumLines)
+                override fun isVisible(): Boolean = config.enabled
+                override fun absoluteX(width: Int): Int {
+                    ensureFixedHorizontalAnchor(width)
+                    return position.getAbsX0AllowingOverflow(0) - config.details.alignment.anchorOffset(width)
+                }
+                override fun absoluteY(height: Int): Int = itemChangeLogY(
+                    anchorY = position.getAbsY0AllowingOverflow(0),
+                    height = height,
+                    growsDownward = config.settings.invertDirection,
+                )
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    val renderable = currentRenderable() ?: return
+                    val x = config.details.alignment.anchorOffset(retainedEditorWidth) -
+                        config.details.alignment.anchorOffset(renderable.width)
+                    val y = if (config.settings.invertDirection) 0 else height() - renderable.height
+                    context.withIsolatedPose {
+                        pose().translate(x.toFloat(), y.toFloat())
+                        renderable.render(context)
+                    }
+                }
+                override fun beginEditorDrag(localX: Int, localY: Int, width: Int, height: Int) {
+                    dragWidth = width
+                    dragHeight = height
+                }
+                override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
+                    val targetX = absoluteX(dragWidth) + deltaX
+                    val targetY = absoluteY(dragHeight) + deltaY
+                    val anchorX = targetX + config.details.alignment.anchorOffset(dragWidth)
+                    val anchorY = if (config.settings.invertDirection) targetY else targetY + dragHeight
+                    position.moveToAbsoluteAllowingOverflow(anchorX, anchorY, 0, 0)
+                    return InputHandlingResult.CONSUMED
+                }
+                override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
+                    position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
+                    return InputHandlingResult.CONSUMED
+                }
+                override fun openConfig() = SkysoftConfigGui.open("Item Change Log")
+            },
+        )
     }
 
     private fun renderHud(context: GuiGraphicsExtractor) {
@@ -253,8 +253,10 @@ internal class ItemChangeLogState(
         return visibleEntries.map { entry ->
             val age = (now - entry.createdAtMillis).coerceAtLeast(0L)
             val remaining = (lifetime - (now - entry.updatedAtMillis)).coerceAtLeast(0L)
-            val fadeIn = smoothStep((age.toFloat() / min(FADE_IN_MILLIS, lifetime).coerceAtLeast(1L)).coerceIn(0f, 1f))
-            val fadeOut = smoothStep(
+            val fadeIn = EasingUtilities.smoothStep(
+                (age.toFloat() / min(FADE_IN_MILLIS, lifetime).coerceAtLeast(1L)).coerceIn(0f, 1f),
+            )
+            val fadeOut = EasingUtilities.smoothStep(
                 (remaining.toFloat() / min(FADE_OUT_MILLIS, lifetime).coerceAtLeast(1L)).coerceIn(0f, 1f),
             )
             ItemChangeVisual(entry.itemId, entry.amount, min(fadeIn, fadeOut))
@@ -275,8 +277,6 @@ internal data class ItemChangeVisual(
     val opacity: Float,
 )
 
-private fun smoothStep(value: Float): Float = value * value * (SMOOTH_STEP_END - SMOOTH_STEP_SCALE * value)
-
 private const val MILLIS_PER_SECOND = 1_000
 private const val FADE_IN_MILLIS = 200L
 private const val FADE_OUT_MILLIS = 500L
@@ -286,5 +286,3 @@ private const val ICON_SCALE = 0.75
 private const val ITEM_ROW_HEIGHT = 12
 private const val EDITOR_MINIMUM_WIDTH = 120
 private const val HUD_SCALE_STEP = 0.1f
-private const val SMOOTH_STEP_END = 3f
-private const val SMOOTH_STEP_SCALE = 2f

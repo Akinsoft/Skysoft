@@ -11,7 +11,6 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EasingUtilities
@@ -36,8 +35,6 @@ import net.minecraft.util.ARGB
 object MiningAbilityCooldownDisplay {
     private val config get() = SkysoftConfigGui.config().mining.abilityCooldown
     private val conditions = FeatureConditionState()
-    private var cachedSessionId = Long.MIN_VALUE
-    private var cachedTabVersion = Long.MIN_VALUE
     private var widget = MiningAbilityWidgetState(false, null)
     private var currentStatus: MiningAbilityStatus? = null
     private var cooldownStartedAtNanos = 0L
@@ -48,12 +45,16 @@ object MiningAbilityCooldownDisplay {
     fun register() {
         conditions.startSession(config.settings.locations)
         SkyBlockEventState.registerConsumer("Mining Ability Cooldown") { config.enabled }
-        TabListApi.registerConsumer("Mining Ability Cooldown", ::isActive)
+        TabListApi.onChange(
+            "Mining Ability Cooldown",
+            isActive = ::isActive,
+            listener = { updateTabState() },
+        )
         ChatEvents.onVisibleMessage("Mining Ability Cooldown use", ::isActive) { message ->
             if (isMiningAbilityUse(message.cleanText)) recordAbilityUse()
             ChatMessageVisibility.SHOW
         }
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "mining_ability_cooldown",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -65,18 +66,18 @@ object MiningAbilityCooldownDisplay {
                 },
                 render = { context, _ -> renderHud(context) },
             ),
+            object : HudEditorElement {
+                override val id: String = "mining_ability_cooldown"
+                override val label: String = "Mining Ability Cooldown"
+                override val position get() = config.position
+                override val hasEditorBackground: Boolean = false
+                override fun width(): Int = previewRenderable().width
+                override fun height(): Int = previewRenderable().height
+                override fun isVisible(): Boolean = config.enabled
+                override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
+                override fun openConfig() = SkysoftConfigGui.open("Mining Ability Cooldown")
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "mining_ability_cooldown"
-            override val label: String = "Mining Ability Cooldown"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean = false
-            override fun width(): Int = previewRenderable().width
-            override fun height(): Int = previewRenderable().height
-            override fun isVisible(): Boolean = config.enabled
-            override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
-            override fun openConfig() = SkysoftConfigGui.open("Mining Ability Cooldown")
-        })
     }
 
     internal fun markConditionsChanged() = conditions.markChanged()
@@ -88,7 +89,6 @@ object MiningAbilityCooldownDisplay {
 
     private fun recordAbilityUse() {
         val nowNanos = System.nanoTime()
-        syncTabState(nowNanos)
         if (!widget.isVisible || currentStatus == null) return
         currentStatus = MiningAbilityStatus(remainingSeconds = 0)
         cooldownStartedAtNanos = nowNanos
@@ -98,20 +98,11 @@ object MiningAbilityCooldownDisplay {
     }
 
     private fun renderHud(context: GuiGraphicsExtractor) {
-        syncTabState()
         val renderable = currentRenderable() ?: return
         config.position.renderRenderable(context, renderable)
     }
 
-    private fun syncTabState(nowNanos: Long = System.nanoTime()) {
-        if (cachedSessionId != TabListApi.sessionId) {
-            cachedSessionId = TabListApi.sessionId
-            cachedTabVersion = Long.MIN_VALUE
-            widget = MiningAbilityWidgetState(false, null)
-            updateStatus(null, nowNanos)
-        }
-        if (cachedTabVersion == TabListApi.contentVersion) return
-        cachedTabVersion = TabListApi.contentVersion
+    private fun updateTabState(nowNanos: Long = System.nanoTime()) {
         widget = parseMiningAbilityWidget(TabListApi.lines.map { it.cleanSkyBlockText() })
         updateStatus(widget.status, nowNanos)
     }

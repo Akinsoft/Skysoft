@@ -1,6 +1,8 @@
 package com.skysoft.data.hypixel
 
+import com.mojang.authlib.GameProfile
 import com.skysoft.utils.ActiveConsumerRegistry
+import com.skysoft.utils.ActiveStatePublisher
 import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
@@ -9,6 +11,7 @@ import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.world.entity.player.PlayerSkin
 import net.minecraft.network.chat.Component
 import net.minecraft.world.level.GameType
 import net.minecraft.world.scores.PlayerTeam
@@ -20,52 +23,63 @@ object TabListApi {
     private const val SKYBLOCK_DATA_READY_READS = 2
     private val skyBlockAreaPattern = Regex("""Area: .+""")
 
-    private var cachedLines: List<Component> = emptyList()
-    private var cachedEntries: List<TabListEntry> = emptyList()
-    private var cachedHeader: Component? = null
-    private var cachedFooter: Component? = null
-    private var loaded = false
-    private var skyBlockDataLoaded = false
     private var skyBlockDataReads = 0
-    private var lastLocationVersion = Long.MIN_VALUE
-    private var ticks = 0
+    private var dirty = false
+    private var stabilityTicks = 0
     private var skyBlockDataLoadStartedAt = ElapsedTimeMark.farPast()
     private val consumers = ActiveConsumerRegistry()
+    private val publisher = ActiveStatePublisher("Tab List API", TabListSnapshot())
 
-    var sessionId: Long = 0
-        private set
+    val sessionId: Long
+        get() = publisher.state.sessionId
 
-    var contentVersion: Long = 0
-        private set
+    val contentVersion: Long
+        get() = publisher.version
 
     val isLoaded: Boolean
-        get() = HypixelLocationState.inSkyBlock && loaded
+        get() = HypixelLocationState.inSkyBlock && publisher.state.loaded
 
     val lines: List<Component>
-        get() = if (isLoaded) cachedLines else emptyList()
+        get() = if (isLoaded) publisher.state.lines else emptyList()
 
     val entries: List<TabListEntry>
-        get() = if (isLoaded) cachedEntries else emptyList()
+        get() = if (isLoaded) publisher.state.entries else emptyList()
+
+    val playerProfiles: List<TabListPlayerProfile>
+        get() = if (isLoaded) publisher.state.playerProfiles else emptyList()
+
+    fun playerProfile(uuid: UUID): TabListPlayerProfile? = playerProfiles.firstOrNull { it.uuid == uuid }
+
+    fun playerProfile(profileName: String): TabListPlayerProfile? =
+        playerProfiles.firstOrNull { it.profileName.equals(profileName, ignoreCase = true) }
 
     val header: Component?
-        get() = if (isLoaded) cachedHeader else null
+        get() = if (isLoaded) publisher.state.header else null
 
     val footer: Component?
-        get() = if (isLoaded) cachedFooter else null
+        get() = if (isLoaded) publisher.state.footer else null
 
     val isSkyBlockDataLoaded: Boolean
-        get() = isLoaded && skyBlockDataLoaded
+        get() = isLoaded && publisher.state.skyBlockDataLoaded
 
     val skyBlockLines: List<Component>
-        get() = if (isSkyBlockDataLoaded) cachedLines else emptyList()
+        get() = if (isSkyBlockDataLoaded) publisher.state.lines else emptyList()
 
     val skyBlockFooter: Component?
-        get() = if (isSkyBlockDataLoaded) cachedFooter else null
+        get() = if (isSkyBlockDataLoaded) publisher.state.footer else null
 
     val skyBlockAreaName: String?
         get() = parseSkyBlockTabArea(skyBlockLines.map { it.cleanSkyBlockText() })
 
     fun register() {
+        publisher.register()
+        HypixelLocationState.onChange(
+            "Tab List location",
+            isActive = { consumers.hasActiveConsumers },
+        ) {
+            resetSession()
+            dirty = true
+        }
         SkysoftClientEvents.onEndTick(
             "Tab List update",
             isActive = { consumers.isActiveOrDeactivating },
@@ -82,8 +96,14 @@ object TabListApi {
         consumers.register(id, isActive)
     }
 
-    internal val hasActiveConsumers: Boolean
-        get() = consumers.hasActiveConsumers
+    fun onChange(boundary: String, isActive: () -> Boolean, listener: () -> Unit) {
+        registerConsumer(boundary, isActive)
+        publisher.onChange(boundary, isActive) { listener() }
+    }
+
+    internal fun markDirty() {
+        dirty = true
+    }
 
     fun hasWaitedForSkyBlockData(duration: Duration): Boolean =
         HypixelLocationState.inSkyBlock && skyBlockDataLoadStartedAt.passedSince() >= duration
@@ -95,93 +115,142 @@ object TabListApi {
                 resetSession()
                 return
             }
-            ConsumerActivity.ACTIVATED -> resetSession()
+            ConsumerActivity.ACTIVATED -> dirty = true
             ConsumerActivity.ACTIVE -> Unit
         }
-        if (!HypixelLocationState.inSkyBlock) {
-            ticks = 0
-            return
-        }
 
-        if (lastLocationVersion != HypixelLocationState.locationVersion) {
-            resetSession()
-            lastLocationVersion = HypixelLocationState.locationVersion
-        }
+        if (!HypixelLocationState.inSkyBlock) return
 
-        if (++ticks % READ_INTERVAL_TICKS != 0) return
-        val nextEntries = readTabList()
-        if (nextEntries.isEmpty()) {
+        val shouldRefresh = when {
+            dirty -> {
+                dirty = false
+                stabilityTicks = 0
+                true
+            }
+            publisher.state.skyBlockDataLoaded -> false
+            ++stabilityTicks >= STABILITY_READ_INTERVAL_TICKS -> {
+                stabilityTicks = 0
+                true
+            }
+            else -> false
+        }
+        if (shouldRefresh) refresh()
+    }
+
+    private fun refresh() {
+        val next = readTabList()
+        if (next.entries.isEmpty()) {
             clearLoadedLines()
             return
         }
 
+        val nextEntries = next.entries
         val nextLines = nextEntries.map { it.displayName }
         val minecraft = Minecraft.getInstance()
         val nextHeader = TabListOverlay.readHeader(minecraft)
         val nextFooter = TabListOverlay.readFooter(minecraft)
-        if (nextLines != cachedLines || nextHeader != cachedHeader || nextFooter != cachedFooter) contentVersion++
-        cachedEntries = Collections.unmodifiableList(nextEntries)
-        cachedLines = Collections.unmodifiableList(nextLines)
-        cachedHeader = nextHeader
-        cachedFooter = nextFooter
-        loaded = true
-        updateSkyBlockDataLoadState(nextLines)
+        updateSkyBlockDataLoadState(nextEntries)
+        publisher.update(
+            TabListSnapshot(
+                sessionId = sessionId,
+                loaded = true,
+                skyBlockDataLoaded = skyBlockDataReads >= SKYBLOCK_DATA_READY_READS,
+                lines = Collections.unmodifiableList(nextLines),
+                entries = Collections.unmodifiableList(nextEntries),
+                playerProfiles = Collections.unmodifiableList(next.playerProfiles),
+                header = nextHeader,
+                footer = nextFooter,
+            ),
+        )
     }
 
     private fun resetSession() {
-        sessionId++
-        if (cachedLines.isNotEmpty() || cachedHeader != null || cachedFooter != null) contentVersion++
-        cachedLines = emptyList()
-        cachedEntries = emptyList()
-        cachedHeader = null
-        cachedFooter = null
-        loaded = false
-        skyBlockDataLoaded = false
+        val nextSessionId = sessionId + 1
         skyBlockDataReads = 0
-        ticks = 0
+        dirty = false
+        stabilityTicks = 0
         skyBlockDataLoadStartedAt = ElapsedTimeMark.now()
+        publisher.update(TabListSnapshot(sessionId = nextSessionId))
     }
 
     private fun clearLoadedLines() {
-        if (!loaded) return
-        contentVersion++
-        cachedLines = emptyList()
-        cachedEntries = emptyList()
-        cachedHeader = null
-        cachedFooter = null
-        loaded = false
+        if (!publisher.state.loaded) return
         resetSkyBlockDataLoad()
+        publisher.update(TabListSnapshot(sessionId = sessionId))
     }
 
-    private fun updateSkyBlockDataLoadState(lines: List<Component>) {
-        if (!hasSkyBlockData(lines)) {
+    private fun updateSkyBlockDataLoadState(entries: List<TabListEntry>) {
+        if (!hasSkyBlockData(entries)) {
             resetSkyBlockDataLoad()
             return
         }
         skyBlockDataReads = (skyBlockDataReads + 1).coerceAtMost(SKYBLOCK_DATA_READY_READS)
-        skyBlockDataLoaded = skyBlockDataReads >= SKYBLOCK_DATA_READY_READS
     }
 
     private fun resetSkyBlockDataLoad() {
-        if (skyBlockDataLoaded || skyBlockDataReads > 0) {
+        if (publisher.state.skyBlockDataLoaded || skyBlockDataReads > 0) {
             skyBlockDataLoadStartedAt = ElapsedTimeMark.now()
         }
-        skyBlockDataLoaded = false
         skyBlockDataReads = 0
     }
 
-    private fun hasSkyBlockData(lines: List<Component>): Boolean {
-        val cleanLines = lines.map { it.cleanSkyBlockText() }
-        return cleanLines.any { it == "Info" } && cleanLines.any { skyBlockAreaPattern.matches(it) }
+    private fun hasSkyBlockData(entries: List<TabListEntry>): Boolean =
+        entries.any { it.cleanDisplayName == "Info" } &&
+            entries.any { skyBlockAreaPattern.matches(it.cleanDisplayName) }
+
+    private fun readTabList(): TabListReadResult {
+        val connection = Minecraft.getInstance().connection ?: return TabListReadResult()
+        val players = connection.listedOnlinePlayers
+        val playerProfiles = players.map { player ->
+            val entry = player.toTabListEntry()
+            TabListPlayerProfile(
+                uuid = player.profile.id,
+                profileName = player.profile.name,
+                profile = player.profile,
+                entry = entry,
+                playerInfo = player,
+            )
+        }
+        return TabListReadResult(
+            entries = playerProfiles.map(TabListPlayerProfile::entry).sortedForDisplay(),
+            playerProfiles = playerProfiles,
+        )
     }
 
-    private fun readTabList(): List<TabListEntry> {
-        val connection = Minecraft.getInstance().connection ?: return emptyList()
-        return connection.listedOnlinePlayers.map { it.toTabListEntry() }.sortedForDisplay()
-    }
-
-    private const val READ_INTERVAL_TICKS = 5
+    private const val STABILITY_READ_INTERVAL_TICKS = 5
 }
+
+private data class TabListSnapshot(
+    val sessionId: Long = 0L,
+    val loaded: Boolean = false,
+    val skyBlockDataLoaded: Boolean = false,
+    val lines: List<Component> = emptyList(),
+    val entries: List<TabListEntry> = emptyList(),
+    val playerProfiles: List<TabListPlayerProfile> = emptyList(),
+    val header: Component? = null,
+    val footer: Component? = null,
+)
+
+data class TabListPlayerProfile(
+    val uuid: UUID,
+    val profileName: String,
+    val profile: GameProfile,
+    internal val entry: TabListEntry,
+    private val playerInfo: PlayerInfo,
+) {
+    val displayName: Component
+        get() = entry.displayName
+
+    val showHat: Boolean
+        get() = playerInfo.showHat()
+
+    fun skin(): PlayerSkin = playerInfo.skin
+}
+
+private data class TabListReadResult(
+    val entries: List<TabListEntry> = emptyList(),
+    val playerProfiles: List<TabListPlayerProfile> = emptyList(),
+)
 
 internal fun parseSkyBlockTabArea(lines: Iterable<String>): String? = lines.firstNotNullOfOrNull { line ->
     line.trim().takeIf { it.startsWith(SKYBLOCK_AREA_PREFIX) }
@@ -212,8 +281,9 @@ data class TabListEntry(
     val isSpectator: Boolean = false,
     val teamName: String = "",
 ) {
+    internal val cleanDisplayName: String = displayName.cleanSkyBlockText()
     val skyBlockPlayerName: String?
-        get() = skyBlockPlayerPattern.find(displayName.cleanSkyBlockText())?.groups?.get("name")?.value
+        get() = skyBlockPlayerPattern.find(cleanDisplayName)?.groups?.get("name")?.value
 }
 
 internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =

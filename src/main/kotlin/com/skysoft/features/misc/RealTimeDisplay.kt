@@ -7,7 +7,6 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
-import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
@@ -23,7 +22,7 @@ object RealTimeDisplay {
     private val config get() = SkysoftConfigGui.config().gui.realTimeDisplay
 
     fun register() {
-        GuiOverlayRegistry.register(
+        GuiOverlayRegistry.registerHud(
             GuiOverlay(
                 id = "real_time_display",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
@@ -31,18 +30,18 @@ object RealTimeDisplay {
                 visible = { canRenderLive() },
                 render = { context, _ -> renderHud(context) },
             ),
+            object : HudEditorElement {
+                override val id: String = "real_time_display"
+                override val label: String = "Real Time Display"
+                override val position get() = config.position
+                override val hasEditorBackground: Boolean get() = !config.details.background
+                override fun width(): Int = currentRenderable().width
+                override fun height(): Int = currentRenderable().height
+                override fun isVisible(): Boolean = config.enabled
+                override fun renderEditor(context: GuiGraphicsExtractor) = currentRenderable().render(context)
+                override fun openConfig() = SkysoftConfigGui.open("Real Time Display")
+            },
         )
-        HudEditorRegistry.register(object : HudEditorElement {
-            override val id: String = "real_time_display"
-            override val label: String = "Real Time Display"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean get() = !config.details.background
-            override fun width(): Int = currentRenderable().width
-            override fun height(): Int = currentRenderable().height
-            override fun isVisible(): Boolean = config.enabled
-            override fun renderEditor(context: GuiGraphicsExtractor) = currentRenderable().render(context)
-            override fun openConfig() = SkysoftConfigGui.open("Real Time Display")
-        })
     }
 
     private fun renderHud(context: GuiGraphicsExtractor) {

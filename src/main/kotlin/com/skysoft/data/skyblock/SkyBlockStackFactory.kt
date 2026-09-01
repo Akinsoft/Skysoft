@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMultimap
 import com.mojang.authlib.GameProfile
 import com.mojang.authlib.properties.Property
 import com.mojang.authlib.properties.PropertyMap
-import com.skysoft.features.pets.setSkyBlockId
 import java.util.Base64
 import java.util.UUID
 import net.minecraft.core.component.DataComponents
