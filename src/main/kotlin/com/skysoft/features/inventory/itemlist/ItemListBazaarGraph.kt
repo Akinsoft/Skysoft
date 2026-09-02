@@ -399,6 +399,8 @@ internal enum class BazaarGraphWindow(val label: String, val durationMillis: Lon
     ONE_HOUR("1h", 60 * 60_000L),
     SIX_HOURS("6h", 6 * 60 * 60_000L),
     TWENTY_FOUR_HOURS("24h", 24 * 60 * 60_000L),
+    SEVEN_DAYS("7d", 7 * 24 * 60 * 60_000L),
+    THIRTY_DAYS("30d", 30 * 24 * 60 * 60_000L),
 }
 
 internal fun isBazaarGraphModeFilter(index: Int): Boolean = index in

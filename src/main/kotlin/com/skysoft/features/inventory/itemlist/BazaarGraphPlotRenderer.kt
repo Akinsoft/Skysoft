@@ -18,7 +18,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -113,11 +112,7 @@ internal object BazaarGraphPlotRenderer {
     ) {
         val now = System.currentTimeMillis()
         val window = preferences.graphWindow()
-        val maximumPoints = (bounds.width / PlotLayout.TRADE_VOLUME_POINT_SPACING).coerceIn(
-            PlotLayout.MIN_TRADE_VOLUME_POINTS,
-            PlotLayout.MAX_TRADE_VOLUME_POINTS,
-        )
-        val rowSnapshot = tradeVolumeRows(product, window, maximumPoints, now)
+        val rowSnapshot = tradeVolumeRows(product, window, now)
         val cutoff = rowSnapshot.cutoff
         val rows = rowSnapshot.rows
         val visibleTransactions = transactions
@@ -159,17 +154,15 @@ internal object BazaarGraphPlotRenderer {
     private fun tradeVolumeRows(
         product: SkysoftBazaarDepthProduct?,
         window: BazaarGraphWindow,
-        maximumPoints: Int,
         now: Long,
     ): BazaarTradeVolumeRows =
-        tradeVolumeRowsCache.value(product, TradeVolumeRowsCriteria(window, maximumPoints), now) {
+        tradeVolumeRowsCache.value(product, TradeVolumeRowsCriteria(window), now) {
             val cutoff = now - window.durationMillis
             BazaarTradeVolumeRows(
                 cutoff = cutoff,
-                rows = compactBazaarTradeVolumeRows(
-                    product?.flowDeltas.orEmpty().filter { it.at >= cutoff }.sortedBy(SkysoftBazaarFlowDelta::at),
-                    maximumPoints,
-                ),
+                rows = product?.flowDeltas.orEmpty()
+                    .filter { it.at >= cutoff }
+                    .sortedBy(SkysoftBazaarFlowDelta::at),
             )
         }
 
@@ -428,22 +421,6 @@ internal object BazaarGraphPlotRenderer {
         ProfileStorage.BazaarTransactionType.INSTANT_SELL -> PlotStyle.INSTANT_SELL
         ProfileStorage.BazaarTransactionType.BUY_ORDER -> PlotStyle.BUY_ORDER
         ProfileStorage.BazaarTransactionType.SELL_ORDER -> PlotStyle.SELL_ORDER
-    }
-}
-
-internal fun compactBazaarTradeVolumeRows(
-    rows: List<SkysoftBazaarFlowDelta>,
-    maximumPoints: Int,
-): List<SkysoftBazaarFlowDelta> {
-    require(maximumPoints > 0) { "Maximum Bazaar trade volume points must be positive" }
-    if (rows.size <= maximumPoints) return rows
-    val bucketSize = ceil(rows.size.toDouble() / maximumPoints).toInt()
-    return rows.chunked(bucketSize).map { bucket ->
-        SkysoftBazaarFlowDelta(
-            at = bucket.last().at,
-            buy = bucket.sumOf(SkysoftBazaarFlowDelta::buy),
-            sell = bucket.sumOf(SkysoftBazaarFlowDelta::sell),
-        )
     }
 }
 
@@ -754,10 +731,7 @@ private data class TransactionGraphPoint(
     val transaction: ProfileStorage.BazaarTransactionData,
 )
 
-private data class TradeVolumeRowsCriteria(
-    val window: BazaarGraphWindow,
-    val maximumPoints: Int,
-)
+private data class TradeVolumeRowsCriteria(val window: BazaarGraphWindow)
 
 private data class BazaarTradeVolumeRows(
     val cutoff: Long,
@@ -794,9 +768,6 @@ private object PlotLayout {
     const val DOT_END = 2
     const val TRANSACTION_DOT_RADIUS = 2
     const val TRANSACTION_HIT_RADIUS = 4
-    const val TRADE_VOLUME_POINT_SPACING = 8
-    const val MIN_TRADE_VOLUME_POINTS = 24
-    const val MAX_TRADE_VOLUME_POINTS = 64
     const val TRADE_VOLUME_CACHE_MILLIS = 1_000L
     const val FLAT_PRICE_PADDING = 0.02
     const val DETAIL_MIN_WIDTH = 220

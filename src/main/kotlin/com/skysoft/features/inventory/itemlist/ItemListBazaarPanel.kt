@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockCookieBuffApi
@@ -37,6 +38,7 @@ internal class ItemListBazaarPanel {
     private val depthRefreshSchedule = RefreshSchedule()
     private var playerMarketSnapshot = BazaarPlayerMarketSnapshot()
     private var nextPlayerMarketRefreshAt = 0L
+    private var requestedWindow: BazaarGraphWindow? = null
     private val graph = ItemListBazaarGraph()
 
     fun render(
@@ -175,6 +177,7 @@ internal class ItemListBazaarPanel {
         graph.reset()
         playerMarketSnapshot = BazaarPlayerMarketSnapshot()
         nextPlayerMarketRefreshAt = 0L
+        requestedWindow = null
         SkyBlockPriceData.refreshBazaarNow()
     }
 
@@ -182,13 +185,10 @@ internal class ItemListBazaarPanel {
         val now = System.currentTimeMillis()
         if (now < nextPlayerMarketRefreshAt) return playerMarketSnapshot
         val itemName = SkyBlockDataRepository.entry(key)?.displayName ?: key.id
+        val window = requestedWindow ?: selectedWindow()
         playerMarketSnapshot = BazaarPlayerMarketSnapshot(
             investment = BazaarTracker.investmentPosition(key.id),
-            transactions = BazaarTracker.transactionsFor(
-                key.id,
-                itemName,
-                now - BazaarGraphWindow.TWENTY_FOUR_HOURS.durationMillis,
-            ),
+            transactions = BazaarTracker.transactionsFor(key.id, itemName, now - window.durationMillis),
         )
         nextPlayerMarketRefreshAt = now + PLAYER_MARKET_REFRESH_MILLIS
         return playerMarketSnapshot
@@ -196,13 +196,21 @@ internal class ItemListBazaarPanel {
 
     private fun requestDepthWhenReady(key: ItemListEntryKey) {
         if (SkyBlockPriceData.bazaarAvailability(key.id) != BazaarProductAvailability.AVAILABLE) return
+        val window = selectedWindow()
+        if (requestedWindow != window) {
+            requestedWindow = window
+            depthState = BazaarDepthState.LOADING
+            depthProduct = null
+            depthError = null
+            depthRequest.cancel()
+            depthRefreshSchedule.reset()
+            playerMarketSnapshot = BazaarPlayerMarketSnapshot()
+            nextPlayerMarketRefreshAt = 0L
+        }
         val now = System.currentTimeMillis()
         if (!depthRefreshSchedule.isDue(now) || depthRequest.isPending) return
         if (depthProduct == null) depthState = BazaarDepthState.LOADING
-        val future = SkyBlockPriceData.refreshBazaarDepth(
-            listOf(key.id),
-            now - BazaarGraphWindow.TWENTY_FOUR_HOURS.durationMillis,
-        )
+        val future = SkyBlockPriceData.refreshBazaarDepth(listOf(key.id), now - window.durationMillis)
         if (future == null) {
             depthState = if (depthProduct == null) BazaarDepthState.NOT_LOADED else BazaarDepthState.READY
             depthRefreshSchedule.schedule(now, DEPTH_BUSY_RETRY_MILLIS)
@@ -210,7 +218,7 @@ internal class ItemListBazaarPanel {
         }
         depthRequest.startIfIdle({ future }) { products, error ->
             SkysoftErrorBoundary.run("Item List Bazaar async completion") {
-                if (currentKey != key) return@run
+                if (currentKey != key || requestedWindow != window) return@run
                 val completedAt = System.currentTimeMillis()
                 if (error == null) {
                     depthProduct = products?.get(key.id)
@@ -225,6 +233,9 @@ internal class ItemListBazaarPanel {
             }
         }
     }
+
+    private fun selectedWindow(): BazaarGraphWindow =
+        SkysoftConfigGui.config().inventory.itemList.sources.graphWindow()
 
     private fun openButton(bounds: Rect) = Rect(
         bounds.x + bounds.width - INSET - OPEN_WIDTH,
