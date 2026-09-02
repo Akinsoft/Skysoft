@@ -140,7 +140,9 @@ internal fun updateOrderIdentityFromGui(
     parsed.guiSlot?.let { slot ->
         if (order.lastGuiSlot != slot) update(isMeaningful = false) { order.lastGuiSlot = slot }
     }
-    if (order.productId == null && parsed.productId != null) update { order.productId = parsed.productId }
+    if ((order.productId == null || isGenericBazaarProductId(order.productId)) && parsed.productId != null) update {
+        order.productId = parsed.productId
+    }
     if (order.pricePerUnit <= 0.0 && parsed.pricePerUnit > 0.0) update {
         order.pricePerUnit = parsed.pricePerUnit
         order.pricePerUnitResolution = parsed.pricePerUnitResolution
