@@ -222,6 +222,8 @@ class ItemListSourcesConfig {
             "ONE_HOUR",
             "SIX_HOURS",
             "TWENTY_FOUR_HOURS",
+            "SEVEN_DAYS",
+            "THIRTY_DAYS",
         )
     }
 }
