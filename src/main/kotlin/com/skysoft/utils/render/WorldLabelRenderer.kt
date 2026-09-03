@@ -19,7 +19,7 @@ object WorldLabelRenderer {
     ) {
         if (lines.isEmpty()) return
 
-        drawTransformed(context, anchor, style) { font ->
+        drawTransformed(context, anchor, style) { font, _ ->
             val totalHeight = lines.size * style.lineHeight
             lines.forEachIndexed { index, line ->
                 val x = -font.width(line).toFloat() / 2
@@ -39,18 +39,13 @@ object WorldLabelRenderer {
     ) {
         if (lines.isEmpty()) return
 
-        drawTransformed(context, anchor, style) { font ->
-            val totalHeight = lines.size * style.lineHeight
+        drawTransformed(context, anchor, style) { font, scale ->
             val reservedHeight = reservedLinesBelow.coerceAtLeast(0) * style.lineHeight
+            val bottomY = -font.lineHeight - (reservedHeight + gap) / scale
             lines.forEachIndexed { index, line ->
                 val x = -font.width(line).toFloat() / 2
-                submitText(
-                    context,
-                    line,
-                    x,
-                    index * style.lineHeight - totalHeight - reservedHeight - gap.toFloat(),
-                    style,
-                )
+                val y = bottomY - (lines.lastIndex - index) * style.lineHeight
+                submitText(context, line, x, y, style)
             }
         }
     }
@@ -63,7 +58,7 @@ object WorldLabelRenderer {
     ) {
         if (parts.isEmpty()) return
 
-        drawTransformed(context, anchor, style) {
+        drawTransformed(context, anchor, style) { _, _ ->
             parts.forEach { part ->
                 context.matrices.pushPose()
                 context.matrices.translate(part.x.toDouble(), part.y.toDouble(), 0.0)
@@ -80,7 +75,7 @@ object WorldLabelRenderer {
         label: Component,
         style: WorldLabelStyle = WorldLabelStyle(),
     ) {
-        drawTransformed(context, anchor, style) { font ->
+        drawTransformed(context, anchor, style) { font, _ ->
             submitHead(context, texture)
             submitText(
                 context,
@@ -96,7 +91,7 @@ object WorldLabelRenderer {
         context: SkysoftRenderContext,
         anchor: WorldVec,
         style: WorldLabelStyle,
-        render: (Font) -> Unit,
+        render: (Font, Float) -> Unit,
     ) {
         val font = Minecraft.getInstance().font
         val cameraPosition = context.camera.position().toWorldVec()
@@ -116,7 +111,7 @@ object WorldLabelRenderer {
         )
         context.matrices.mulPose(context.cameraRenderState.orientation)
         context.matrices.scale(worldScale, -worldScale, worldScale)
-        render(font)
+        render(font, scale)
         context.matrices.popPose()
     }
 
