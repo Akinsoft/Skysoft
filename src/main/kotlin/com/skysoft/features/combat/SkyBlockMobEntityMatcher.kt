@@ -146,7 +146,7 @@ internal fun LivingEntity.isPossibleSkyBlockMob(): Boolean {
 
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
     if (labels.none { label -> name.contains(label, ignoreCase = true) }) return null
-    val normalizedName = normalizeMobName(SkyBlockMobTextParser.parseName(name) ?: name)
+    val normalizedName = normalizeSkyBlockMobName(SkyBlockMobTextParser.parseName(name) ?: name)
         .withoutSkyBlockMobModifierPrefix(ignoreCase = true)
     return labels.firstOrNull { label -> normalizedName.equals(label, ignoreCase = true) }
 }
@@ -157,7 +157,7 @@ private fun prepareMobLabels(labels: Collection<String>): List<String> = labels.
     .sortedByDescending(String::length)
     .toList()
 
-private fun normalizeMobName(name: String): String = name.replace(TIER_SUFFIX, "").trim()
+internal fun normalizeSkyBlockMobName(name: String): String = name.replace(TIER_SUFFIX, "").trim()
 
 private val TIER_SUFFIX = Regex("""\s+[IVX]+$""")
 private const val REAL_PLAYER_UUID_VERSION = 4

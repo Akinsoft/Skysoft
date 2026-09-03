@@ -34,6 +34,7 @@ import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatTabs
 import com.skysoft.features.chat.ImageLinkPreview
 import com.skysoft.features.chat.PlayerBadges
+import com.skysoft.features.combat.BestiaryHelper
 import com.skysoft.features.combat.BetterShurikens
 import com.skysoft.features.combat.CocoonTracker
 import com.skysoft.features.combat.HealingPoolLine
@@ -263,6 +264,7 @@ internal object SkysoftFeatureRegistrations {
         register("Cocoon Tracker", CocoonTracker::register)
         register("Healing Pool Line", HealingPoolLine::register)
         register("Better Shurikens", BetterShurikens::register)
+        register("Bestiary Helper", BestiaryHelper::register)
         register("Ravengard Loot Bag Checkmarks", RavengardLootBagCheckmarks::register)
         register("Slayer Boss Alerts", SlayerBossAlerts::register)
         register("Slayer Miniboss Alert", SlayerMinibossAlert::register)

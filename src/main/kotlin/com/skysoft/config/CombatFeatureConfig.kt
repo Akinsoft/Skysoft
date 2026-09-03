@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.HudPosition
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -12,6 +13,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableLi
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
+import java.util.Locale
 
 class CombatFeatureConfig : ConfigRepairable {
     @JvmField
@@ -29,9 +31,68 @@ class CombatFeatureConfig : ConfigRepairable {
     @field:Category(name = "Better Shurikens", desc = "Show shuriken status at mobs' feet.")
     val betterShurikens = BetterShurikensConfig()
 
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Bestiary Helper", desc = "Select Bestiary mobs to highlight in the world.")
+    val bestiaryHelper = BestiaryHelperConfig()
+
     override fun repairLoadedValues() {
         betterShurikens.settings.repairLoadedValues()
+        bestiaryHelper.repairLoadedValues()
     }
+}
+
+class BestiaryHelperConfig : ConfigRepairable {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Show a mob selector beside Bestiary menus and highlight selected mobs.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Customize the target marker and mob highlight.")
+    @field:Accordion
+    val details = BestiaryHelperDetailsConfig()
+
+    @JvmField
+    @field:Expose
+    val selectedMobs: MutableList<String> = mutableListOf()
+
+    @JvmField
+    @field:Expose
+    val position = HudPosition(8, 70, centerX = false, centerY = false).rememberDefault()
+
+    override fun repairLoadedValues() {
+        val repairedMobs = selectedMobs.asSequence()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinctBy { name -> name.lowercase(Locale.ROOT) }
+            .toList()
+        selectedMobs.clear()
+        selectedMobs.addAll(repairedMobs)
+    }
+}
+
+class BestiaryHelperDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Target Text", desc = "Text shown above selected Bestiary mobs.")
+    @field:ConfigEditorText
+    var targetText = ""
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Mob Highlight Color", desc = "Color used to highlight selected Bestiary mobs.")
+    @field:ConfigEditorColour
+    val highlightColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 85, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Text Color", desc = "Color used for the target marker.")
+    @field:ConfigEditorColour
+    val textColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(85, 255, 85, 0, 255))
 }
 
 class HealingPoolConfig {
