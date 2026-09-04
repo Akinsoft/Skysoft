@@ -11,6 +11,7 @@ class CustomProfitTrackerConfig(
     @JvmField @field:Expose val locations: CustomProfitTrackerLocations = CustomProfitTrackerLocations(),
     @JvmField @field:Expose val items: MutableList<String> = mutableListOf(),
     @JvmField @field:Expose val priceSources: MutableMap<String, String> = mutableMapOf(),
+    @JvmField @field:Expose var trackCoins: Boolean = false,
     @JvmField @field:Expose val config: ProfitTrackerConfig = ProfitTrackerConfig(RESOURCE_TRACKER_SUMMARY_LINES),
 ) {
     val storageKey: String

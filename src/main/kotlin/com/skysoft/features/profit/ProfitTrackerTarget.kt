@@ -3,9 +3,14 @@ package com.skysoft.features.profit
 import com.skysoft.config.CustomProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerConfig
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockAreaState
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
+import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockSlayerType
+import com.skysoft.utils.MinecraftClient
+import net.minecraft.client.Minecraft
 
 internal data class ProfitTrackerTarget(
     val preset: ProfitTrackerPreset? = null,
@@ -58,6 +63,23 @@ internal fun ProfitTrackerTarget.isVisible(): Boolean = when {
 internal fun matchingCustomTrackerTargets(): List<ProfitTrackerTarget> =
     customTrackerTargets().filter(ProfitTrackerTarget::isVisible)
 
+internal fun coinTrackingTargets(
+    amount: Double,
+    preset: ProfitTrackerPreset?,
+    lastActivityAt: (ProfitTrackerTarget) -> Long?,
+): List<ProfitTrackerTarget> {
+    if (MinecraftClient.screen() != null || amount <= TALISMAN_OF_COINS_AMOUNT || amount >= MAXIMUM_COIN_GAIN) {
+        return emptyList()
+    }
+    return buildList {
+        preset?.let {
+            val target = ProfitTrackerTarget.preset(it)
+            if (shouldTrackCoinGain(it, lastActivityAt(target))) add(target)
+        }
+        addAll(matchingCustomTrackerTargets().filter { it.custom?.trackCoins == true })
+    }
+}
+
 internal fun activeProfitTrackerTargets(locationPreset: ProfitTrackerPreset?): List<ProfitTrackerTarget> = buildList {
     locationPreset?.let { add(ProfitTrackerTarget.preset(it)) }
     addAll(matchingCustomTrackerTargets())
@@ -72,3 +94,23 @@ internal fun visibleProfitTrackerTargets(): List<ProfitTrackerTarget> = buildLis
 
 private fun customTrackers(): List<CustomProfitTrackerConfig> =
     SkysoftConfigGui.config().profitTrackers.custom.trackers
+
+private fun shouldTrackCoinGain(
+    preset: ProfitTrackerPreset,
+    lastActivityAtMillis: Long?,
+): Boolean {
+    if (preset != ProfitTrackerPreset.FARMING) {
+        return preset.slayerType != null ||
+            preset == ProfitTrackerPreset.FISHING ||
+            preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL
+    }
+    val recentlyFarmed = lastActivityAtMillis?.let {
+        System.currentTimeMillis() - it <= BOUNTIFUL_ATTRIBUTION_MILLIS
+    } == true
+    val modifier = Minecraft.getInstance().player?.mainHandItem?.extraAttributes()?.getStringOrNull("modifier")
+    return HypixelLocationState.currentIsland == SkyBlockIsland.GARDEN && recentlyFarmed && modifier == "bountiful"
+}
+
+private const val TALISMAN_OF_COINS_AMOUNT = 1.0
+private const val MAXIMUM_COIN_GAIN = 100_000.0
+private const val BOUNTIFUL_ATTRIBUTION_MILLIS = 2_000L

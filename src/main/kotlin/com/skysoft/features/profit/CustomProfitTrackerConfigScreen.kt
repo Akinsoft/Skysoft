@@ -2,6 +2,7 @@ package com.skysoft.features.profit
 
 import com.skysoft.config.CustomProfitTrackerConfig
 import com.skysoft.config.CustomProfitTrackerLocation
+import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SkysoftMoulConfigGuis
 import com.skysoft.data.SkyBlockLocationCatalog
@@ -12,6 +13,8 @@ import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigLink
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
@@ -233,7 +236,7 @@ internal class CustomProfitTrackerPage(
     @field:ConfigOption(name = "Settings", desc = "Profit Tracker settings.")
     @field:Accordion
     @field:ConfigOrder(40)
-    val settings = tracker.config.settings
+    val settings = CustomProfitTrackerSettingsPage(tracker)
 
     @JvmField
     @field:ConfigOption(name = "Details", desc = "Profit Tracker appearance.")
@@ -270,6 +273,49 @@ internal class CustomProfitTrackerPage(
     @field:ConfigVisibleIf("deletePending")
     @field:ConfigOrder(90)
     val cancelDelete = Runnable { deletePending.set(false) }
+}
+
+internal class CustomProfitTrackerSettingsPage(tracker: CustomProfitTrackerConfig) {
+    @JvmField
+    @field:ConfigOption(name = "Track Coins", desc = "Include purse coin gains while this tracker is active.")
+    @field:ConfigEditorBoolean
+    @field:ConfigOrder(10)
+    val trackCoins: Property<Boolean> = Property.of(tracker.trackCoins).also { property ->
+        property.addObserver { _, value -> tracker.trackCoins = value }
+    }
+
+    @JvmField
+    @field:ConfigOption(name = "Price Source", desc = "Choose how tracked items are valued.")
+    @field:ConfigEditorDropdown
+    @field:ConfigOrder(20)
+    val priceSource: Property<ProfitTrackerPriceSource> = Property.of(tracker.config.settings.priceSource).also { property ->
+        property.addObserver { _, value -> tracker.config.settings.priceSource = value }
+    }
+
+    @JvmField
+    @field:ConfigOption(name = "Pause After", desc = "Pause time tracking after a period without tracked activity.")
+    @field:ConfigEditorBoolean
+    @field:ConfigOrder(30)
+    val pauseAfter: Property<Boolean> = Property.of(tracker.config.settings.pauseAfter).also { property ->
+        property.addObserver { _, value -> tracker.config.settings.pauseAfter = value }
+    }
+
+    @JvmField
+    @field:ConfigOption(name = "Inactivity Time", desc = "Seconds without tracked activity before time tracking pauses.")
+    @field:ConfigVisibleIf("pauseAfter")
+    @field:ConfigEditorSlider(minValue = 15f, maxValue = 900f, minStep = 15f)
+    @field:ConfigOrder(40)
+    val pauseAfterSeconds: Property<Int> = Property.of(tracker.config.settings.pauseAfterSeconds).also { property ->
+        property.addObserver { _, value -> tracker.config.settings.pauseAfterSeconds = value }
+    }
+
+    @JvmField
+    @field:ConfigOption(name = "Maximum Items", desc = "Maximum tracked item rows shown at once.")
+    @field:ConfigEditorSlider(minValue = 1f, maxValue = 15f, minStep = 1f)
+    @field:ConfigOrder(50)
+    val maximumItems: Property<Int> = Property.of(tracker.config.settings.maximumItems).also { property ->
+        property.addObserver { _, value -> tracker.config.settings.maximumItems = value }
+    }
 }
 
 internal class CustomProfitTrackerLocationsPage(tracker: CustomProfitTrackerConfig) {
