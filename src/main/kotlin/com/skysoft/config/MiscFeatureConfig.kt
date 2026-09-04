@@ -32,11 +32,6 @@ class MiscFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Mouse Lock", desc = "Lock mouse movement and show its status.")
-    val mouseLock = MouseLockConfig()
-
-    @JvmField
-    @field:Expose
     @field:Category(name = "Zoom", desc = "Magnify the camera with configurable controls.")
     val zoom = ZoomConfig()
 

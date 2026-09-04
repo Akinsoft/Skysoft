@@ -21,7 +21,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object MouseLock {
     private var locked = false
-    private val config get() = SkysoftConfigGui.config().misc.mouseLock
+    private val config get() = SkysoftConfigGui.config().farming.mouseLock
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Mouse Lock reset") { locked = false }
@@ -59,6 +59,10 @@ object MouseLock {
             )
         }
         return Command.SINGLE_SUCCESS
+    }
+
+    fun setLocked(isLocked: Boolean) {
+        locked = isLocked
     }
 
     @JvmStatic
