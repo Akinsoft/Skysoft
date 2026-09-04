@@ -76,6 +76,7 @@ import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.StorageCache
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.StoragePreviews
+import com.skysoft.features.inventory.crafting.CraftingHelper
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.itemlist.ItemListNpcWaypoint
 import com.skysoft.features.inventory.itemlist.ItemListState
@@ -212,6 +213,7 @@ internal object SkysoftFeatureRegistrations {
         register("Item List State", ItemListState::register)
         register("Item List", ItemListController::register)
         register("Item List Waypoints", ItemListNpcWaypoint::register)
+        register("Crafting Helper", CraftingHelper::register)
         register("Storage Overlay", StorageOverlayController::register)
         register("Smooth Swapping", SmoothSwapping::register)
     }

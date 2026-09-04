@@ -413,10 +413,12 @@ object SkyBlockPriceData {
         }
         bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
         bazaarConsumers.register("Sack Display") { SkysoftConfigGui.config().inventory.sackDisplay.enabled }
+        bazaarConsumers.register("Crafting Helper") { SkysoftConfigGui.config().inventory.craftingHelper.enabled }
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
         lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
+        lowestBinConsumers.register("Crafting Helper") { SkysoftConfigGui.config().inventory.craftingHelper.enabled }
         npcSellPriceConsumers.register("Item List") { hasItemListMarketInterest.get() }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
