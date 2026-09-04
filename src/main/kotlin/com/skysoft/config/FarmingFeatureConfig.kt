@@ -10,6 +10,13 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 class FarmingFeatureConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Highlight Pests", desc = "Highlight visible Pests in the Garden.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var highlightPests = false
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "No Crop Rotation", desc = "Remove coordinate-based visual variation from crops.")
     val noCropRotation = NoCropRotationConfig()
 }
