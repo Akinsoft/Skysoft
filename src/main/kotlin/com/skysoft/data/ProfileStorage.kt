@@ -363,7 +363,9 @@ data class ProfileStorage(
         @Expose var y: Int = 0,
         @Expose var z: Int = 0,
         @Expose var readyAtMillis: Long = 0L,
+        @Expose var statusObserved: Boolean = false,
     ) {
+        fun hasKnownStatus(): Boolean = statusObserved || readyAtMillis > 0L
         fun isUsable(): Boolean = readyAtMillis >= 0L
         fun locationKey(): String = "$x:$y:$z"
     }

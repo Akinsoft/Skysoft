@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 21
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 23
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -77,6 +77,7 @@ internal object SkysoftConfigMigrations {
         migrateCursorPositionPreservation(json, migrationVersion)
         migrateDianaParticleQualitySetup(json, migrationVersion)
         if (migrationVersion < MOUSE_LOCK_FARMING_CATEGORY_VERSION) migrateMouseLockIntoFarming(json)
+        migrateHoneyhiveHelper(json, migrationVersion)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -640,6 +641,20 @@ private fun JsonObject.moveBooleanToDisplayMode(target: JsonObject, fieldName: S
     }
     remove(fieldName)
 }
+
+private fun migrateHoneyhiveHelper(json: JsonObject, migrationVersion: Int) {
+    if (migrationVersion >= HONEYHIVE_HELPER_CATEGORY_VERSION) return
+    val foraging = json.getObjectOrNull("foraging") ?: return
+    val legacy = foraging.get("honeyhiveHelper") ?: return
+    if (legacy.isJsonPrimitive) {
+        foraging.add("honeyhiveHelper", JsonObject().also { it.add("enabled", legacy.deepCopy()) })
+    }
+    val settings = foraging.getObjectOrNull("honeyhiveHelper")?.getObjectOrNull("settings") ?: return
+    mapOf("showDisplay" to "display", "maxRows" to "maximumLines", "showOutsideIsland" to "showOutsideTorrhus")
+        .forEach { (oldName, newName) -> settings.moveFieldInto(settings, oldName, newName) }
+}
+
+private const val HONEYHIVE_HELPER_CATEGORY_VERSION = 23
 
 private fun migratePriceTooltipCustomization(json: JsonObject) {
     val settingsJson = json.get("inventory")?.takeIf { it.isJsonObject }?.asJsonObject

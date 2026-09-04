@@ -13,13 +13,8 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 class ForagingFeatureConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(
-        name = "Honeyhive Helper",
-        desc = "Show waypoints and play a sound when Honeyhives are ready to loot.",
-    )
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var honeyhiveHelper = false
+    @field:Category(name = "Honeyhive Helper", desc = "Track Honeyhive refills and find hives ready to loot.")
+    val honeyhiveHelper = HoneyhiveHelperConfig()
 
     @JvmField
     @field:Expose
