@@ -81,11 +81,17 @@ private fun shouldAllowPartyDisplayClick(
     click: MouseButtonEvent,
 ): Boolean {
     if (!isPartyDisplayVisible()) return true
-    if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) return true
-    val control = hoveredControl?.action ?: return true
+    if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) {
+        hudControls.closeMemberPanel()
+        return true
+    }
+    val control = hoveredControl?.action
+    val panelHovered = hudControls.memberPanelHovered
+    if (!panelHovered && control !is PartyDisplayControl.Manage) hudControls.closeMemberPanel()
+    if (control == null) return !panelHovered
     val handled = hudControls.wasClickHandled(control, click.button())
     if (handled && control !is PartyDisplayControl.Unavailable) SoundUtilities.playClickSound()
-    return !handled
+    return !handled && !panelHovered
 }
 
 private fun renderPartyDisplayHud(context: GuiGraphicsExtractor) {
@@ -396,12 +402,21 @@ private class PartyDisplayHudControls {
     private val confirmationTransition = PanelFadeTransition()
     private var managedMember: String? = null
     private var pendingCommand: PartyDisplayCommand? = null
+    var memberPanelHovered = false
+        private set
 
     fun clear() {
         managedMember = null
         pendingCommand = null
+        memberPanelHovered = false
         memberPanelTransition.reset()
         confirmationTransition.reset()
+    }
+
+    fun closeMemberPanel() {
+        if (managedMember == null) return
+        memberPanelTransition.hide()
+        clearConfirmation()
     }
 
     fun commandRowWidth(command: PartyDisplayCommand): Int {
@@ -442,6 +457,7 @@ private class PartyDisplayHudControls {
         mouseX: Int?,
         mouseY: Int?,
     ): OverlayControlArea<PartyDisplayControl>? {
+        memberPanelHovered = false
         val managedName = managedMember ?: return null
         val member = members.firstOrNull { candidate ->
             !candidate.invited && candidate.leavingAtMillis == null &&
@@ -458,6 +474,7 @@ private class PartyDisplayHudControls {
         }
         val x = if (placeRight) displayWidth + MEMBER_PANEL_GAP else -MEMBER_PANEL_WIDTH - MEMBER_PANEL_GAP
         val height = MEMBER_PANEL_ROWS * OverlayTextStyle.ROW_HEIGHT + OverlayPanelStyle.PADDING * 2
+        memberPanelHovered = Rect(x, 0, MEMBER_PANEL_WIDTH, height).contains(mouseX, mouseY)
         context.fill(
             x,
             0,

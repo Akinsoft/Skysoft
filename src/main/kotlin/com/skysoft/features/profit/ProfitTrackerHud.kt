@@ -288,13 +288,21 @@ private fun buildProfitRenderable(target: ProfitTrackerTarget, inventoryOpen: Bo
 private fun registerMouseCapture() {
     val isActive = { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
     InventoryOverlayInput.registerClickHandler("Profit Tracker mouse click", isActive) { screen, click ->
+        if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) {
+            itemPanel.close()
+            return@registerClickHandler InputHandlingResult.IGNORED
+        }
         val hovered = hoveredControl
+        val action = hovered?.area?.action
         val target = hovered?.target ?: itemPanelTarget
-        if (target != null && hovered?.area?.action.usesItemPanel()) selectItemPanelTarget(target)
-        val allowed = InventoryOverlayInput.isPointCovered(screen, click.x(), click.y()) ||
-            target == null || !target.isVisible() ||
-            !hudControls.wasClickHandled(screen, target, hovered?.area?.action, click.button())
-        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
+        val opensPanel = action.usesItemPanel()
+        if (target != null && opensPanel) selectItemPanelTarget(target)
+        val panelHovered = itemPanel.isHovered
+        val handled = target?.takeIf { it.isVisible() }?.let {
+            hudControls.wasClickHandled(screen, it, action, click.button())
+        } == true
+        if (!panelHovered && !opensPanel && (action != null || !handled)) itemPanel.close()
+        if (handled || panelHovered) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
     }
     InventoryOverlayInput.registerScrollHandler("Profit Tracker mouse scroll", isActive) {
             screen, mouseX, mouseY, verticalAmount ->
