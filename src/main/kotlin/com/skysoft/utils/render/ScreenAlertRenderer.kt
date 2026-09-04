@@ -30,7 +30,7 @@ object ScreenAlertRenderer {
             alert = alert,
             createdAtMillis = now,
             expiresAtMillis = now + alert.durationMillis,
-            remainingSoundPlays = alert.sound?.plays ?: 0,
+            nextSoundIndex = 0,
             nextSoundAtMillis = now,
         )
         playDueSounds(now)
@@ -103,11 +103,11 @@ object ScreenAlertRenderer {
 
     private fun ActiveScreenAlert.playDueSound(now: Long) {
         val sound = alert.sound ?: return
-        if (remainingSoundPlays <= 0 || now < nextSoundAtMillis) return
+        if (nextSoundIndex >= sound.events.size || now < nextSoundAtMillis) return
         Minecraft.getInstance().soundManager.play(
-            SimpleSoundInstance.forUI(sound.event, sound.pitch, sound.volume),
+            SimpleSoundInstance.forUI(sound.events[nextSoundIndex], sound.pitch, sound.volume),
         )
-        remainingSoundPlays -= 1
+        nextSoundIndex += 1
         nextSoundAtMillis = now + sound.repeatIntervalMillis
     }
 
@@ -127,18 +127,29 @@ data class ScreenAlert(
 )
 
 data class ScreenAlertSound(
-    val event: SoundEvent,
+    val events: List<SoundEvent>,
     val pitch: Float,
     val volume: Float,
-    val plays: Int = 1,
     val repeatIntervalMillis: Long = 0L,
-)
+) {
+    init {
+        require(events.isNotEmpty()) { "A screen alert sound must have at least one event." }
+    }
+
+    constructor(
+        event: SoundEvent,
+        pitch: Float,
+        volume: Float,
+        plays: Int = 1,
+        repeatIntervalMillis: Long = 0L,
+    ) : this(List(plays) { event }, pitch, volume, repeatIntervalMillis)
+}
 
 private data class ActiveScreenAlert(
     val alert: ScreenAlert,
     val createdAtMillis: Long,
     val expiresAtMillis: Long,
-    var remainingSoundPlays: Int,
+    var nextSoundIndex: Int,
     var nextSoundAtMillis: Long,
 )
 
