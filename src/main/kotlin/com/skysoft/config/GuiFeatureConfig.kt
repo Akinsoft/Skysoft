@@ -191,6 +191,12 @@ class ScreenshotManagerConfig {
     @field:ConfigOption(name = "Settings", desc = "Screenshot Manager settings.")
     @field:Accordion
     val settings = ScreenshotManagerSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Screenshot Manager appearance.")
+    @field:Accordion
+    val details = ScreenshotManagerDetailsConfig()
 }
 
 class ScreenshotManagerSettingsConfig {
@@ -210,6 +216,17 @@ class ScreenshotManagerSettingsConfig {
     @field:ConfigOption(name = "Open Manager", desc = "Open the Screenshot Manager.")
     @field:ConfigEditorButton(buttonText = "Open")
     val openManager = Runnable { ScreenshotManager.open() }
+}
+
+class ScreenshotManagerDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Simple Preview",
+        desc = "Show new screenshot previews directly in the top-right corner without animation.",
+    )
+    @field:ConfigEditorBoolean
+    var isSimplePreviewEnabled = false
 }
 
 class PositionEditorConfig {
