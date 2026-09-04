@@ -44,14 +44,10 @@ public class ScreenOverlayCursorMixin implements ScaledScreenState {
         MixinErrorBoundary.run("Tooltip viewport screen removal", TooltipViewport::clear);
     }
 
-    @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;extractBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", shift = At.Shift.AFTER))
-    protected void skysoftRenderBelowScreenOverlays(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        MixinErrorBoundary.run("Below-screen overlay rendering", () -> GuiOverlayRegistry.INSTANCE.renderLayer(GuiOverlayLayer.BELOW_SCREEN, context));
-    }
-
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;extractDeferredElements(IIF)V"))
-    protected void skysoftRenderStorageOverlayAboveScreenContents(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    protected void skysoftRenderScreenForeground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         MixinErrorBoundary.run("Storage Overlay background rendering", () -> skysoftRenderStorageOverlay(context, mouseX, mouseY));
+        MixinErrorBoundary.run("Screen foreground overlay rendering", () -> GuiOverlayRegistry.INSTANCE.renderLayer(GuiOverlayLayer.BELOW_SCREEN, context));
     }
 
     @Inject(method = "init(II)V", at = @At("HEAD")) protected void skysoftClearInventoryGuiSizeBeforeInit(int width, int height, CallbackInfo ci) { skysoftForgetScaleDimensions(); }
