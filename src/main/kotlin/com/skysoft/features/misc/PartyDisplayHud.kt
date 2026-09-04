@@ -328,9 +328,17 @@ private class PartyDisplayRenderable(
         val inactive = member.invited || member.disconnected
         val faceColor = (if (inactive) INACTIVE_MEMBER_COLOR else TEXT_COLOR).withScaledAlpha(opacity)
         val name = displayName(member)
+        val nameWidth = font.width(name)
+        val checkmark = lootshareCheckmarks[member.name.lowercase()]?.takeIf { !inactive }
         val rightAligned = alignment == PartyDisplayAlignment.RIGHT
-        val faceX = if (rightAligned) x + memberWidth - HEAD_SIZE else x
-        val nameX = if (rightAligned) faceX - HEAD_GAP - font.width(name) else faceX + HEAD_SIZE + HEAD_GAP
+        val centeredWidth = HEAD_SIZE + HEAD_GAP + nameWidth +
+            if (checkmark == null) 0 else STATUS_GAP + font.width(checkmark)
+        val faceX = when (alignment) {
+            PartyDisplayAlignment.LEFT -> x
+            PartyDisplayAlignment.CENTER -> x + (memberWidth - centeredWidth) / 2
+            PartyDisplayAlignment.RIGHT -> x + memberWidth - HEAD_SIZE
+        }
+        val nameX = if (rightAligned) faceX - HEAD_GAP - nameWidth else faceX + HEAD_SIZE + HEAD_GAP
         PartyDisplay.face(member)?.let { face ->
             PlayerFaceExtractor.extractRenderState(
                 context,
@@ -351,11 +359,15 @@ private class PartyDisplayRenderable(
             TEXT_COLOR.withScaledAlpha(opacity),
             true,
         )
-        lootshareCheckmarks[member.name.lowercase()]?.takeIf { !inactive }?.let { checkmark ->
+        checkmark?.let {
             context.text(
                 font,
-                checkmark,
-                if (rightAligned) x else nameX + usernameWidth + STATUS_GAP,
+                it,
+                when (alignment) {
+                    PartyDisplayAlignment.LEFT -> nameX + usernameWidth + STATUS_GAP
+                    PartyDisplayAlignment.CENTER -> nameX + nameWidth + STATUS_GAP
+                    PartyDisplayAlignment.RIGHT -> x
+                },
                 y,
                 TEXT_COLOR.withScaledAlpha(opacity),
                 true,
