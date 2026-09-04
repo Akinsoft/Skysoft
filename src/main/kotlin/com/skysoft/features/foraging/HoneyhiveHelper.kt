@@ -22,7 +22,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.decoration.ArmorStand
-import net.minecraft.world.level.block.Blocks
 
 object HoneyhiveHelper {
     private val config get() = SkysoftConfigGui.config().foraging
@@ -80,15 +79,12 @@ object HoneyhiveHelper {
     }
 
     private fun didReconcileVisibleHives(data: ProfileStorage.HoneyhiveTrackerData, now: Long): Boolean {
-        val level = Minecraft.getInstance().level ?: return false
+        if (Minecraft.getInstance().level == null) return false
         val armorStands = ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>().filter { it.isAlive }
         val statuses = armorStands.mapNotNull { stand ->
             stand.cleanName().takeIf(String::isHoneyhiveStatus)?.let { status -> stand to status }
         }
-        var changed = data.hives.removeIf { hive ->
-            val position = BlockPos(hive.x, hive.y, hive.z)
-            level.isLoaded(position) && level.getBlockState(position).block != Blocks.BEE_NEST
-        }
+        var changed = false
 
         armorStands
             .filter { it.cleanName() == HONEYHIVE_NAME }
