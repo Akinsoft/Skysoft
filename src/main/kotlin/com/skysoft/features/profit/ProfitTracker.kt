@@ -6,7 +6,6 @@ import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.ItemListEntryKind
@@ -19,7 +18,6 @@ import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SKYBLOCK_COINS
 import com.skysoft.data.skyblock.SkyBlockCurrencyChanges
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockSlayerType
@@ -79,11 +77,11 @@ object ProfitTracker {
         SkyBlockCurrencyChanges.onChange("Profit Tracker currency changes", { configs.isAnyEnabled() }) { change ->
             questCostCapture.recordChange(change.currency, change.amount)
             if (change.currency != SKYBLOCK_COINS) return@onChange
-            val preset = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset ?: return@onChange
-            val target = ProfitTrackerTarget.preset(preset)
-            if (!shouldTrackCoinGain(preset, change.amount, uptime.lastActivityAt(target))) return@onChange
-            uptime.markActivity(target)
-            update(target) { stats -> stats.coins += change.amount }
+            val preset = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset
+            coinTrackingTargets(change.amount, preset, uptime::lastActivityAt).forEach { target ->
+                uptime.markActivity(target)
+                update(target) { stats -> stats.coins += change.amount }
+            }
         }
         IMMEDIATE_DROP_PRESETS.forEach { preset ->
             ChatEvents.onVisibleMessage(
@@ -614,33 +612,10 @@ private const val ATTRIBUTION_GRACE_TICKS = 2
 private const val MILLIS_PER_SECOND = 1_000
 private const val MINIMUM_PAUSE_AFTER_SECONDS = 15
 private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
-private const val TALISMAN_OF_COINS_AMOUNT = 1.0
-private const val MAXIMUM_COIN_GAIN = 100_000.0
-private const val BOUNTIFUL_ATTRIBUTION_MILLIS = 2_000L
 private const val MINECRAFT_DAY_TICKS = 24_000L
 private const val MINECRAFT_NIGHT_START_TICK = 12_000L
 private const val SEA_CREATURE_ENTITY_TYPE = "Sea Creature"
 private const val MYTHOLOGICAL_CREATURE_ENTITY_TYPE = "Mythological Creature"
-
-private fun shouldTrackCoinGain(
-    preset: ProfitTrackerPreset,
-    amount: Double,
-    lastActivityAtMillis: Long?,
-): Boolean {
-    if (MinecraftClient.screen() != null || amount <= TALISMAN_OF_COINS_AMOUNT || amount >= MAXIMUM_COIN_GAIN) {
-        return false
-    }
-    if (preset != ProfitTrackerPreset.FARMING) {
-        return preset.slayerType != null ||
-            preset == ProfitTrackerPreset.FISHING ||
-            preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL
-    }
-    val recentlyFarmed = lastActivityAtMillis?.let {
-        System.currentTimeMillis() - it <= BOUNTIFUL_ATTRIBUTION_MILLIS
-    } == true
-    val modifier = Minecraft.getInstance().player?.mainHandItem?.extraAttributes()?.getStringOrNull("modifier")
-    return HypixelLocationState.currentIsland == SkyBlockIsland.GARDEN && recentlyFarmed && modifier == "bountiful"
-}
 
 internal fun parseFarmingChatDrop(message: String): ParsedItemAmount? {
     val match = FARMING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
