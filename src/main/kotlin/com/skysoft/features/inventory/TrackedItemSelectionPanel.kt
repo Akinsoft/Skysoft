@@ -40,6 +40,8 @@ internal data class TrackedItemSelectionControl(
 internal class TrackedItemSelectionPanel {
     var mode = TrackedItemSelectionMode.INVENTORY
         private set
+    var isHovered = false
+        private set
     private val searchField = TextFieldState(maxLength = SEARCH_MAXIMUM_LENGTH)
     private var selectedSearchIndex = 0
     private var searchOffset = 0
@@ -55,12 +57,14 @@ internal class TrackedItemSelectionPanel {
         selectedSearchIndex = 0
         searchOffset = 0
         searchCacheKey = null
+        isHovered = false
     }
 
     fun clear() {
         searchField.focused = false
         searchResultsHovered = false
         searchFieldBounds = null
+        isHovered = false
     }
 
     fun selectMode(next: TrackedItemSelectionMode) {
@@ -133,6 +137,7 @@ internal class TrackedItemSelectionPanel {
     ): TrackedItemSelectionControl? {
         val height = if (mode == TrackedItemSelectionMode.SEARCH) SEARCH_PANEL_HEIGHT else INVENTORY_PANEL_HEIGHT
         val panelX = if (placeRight) trackerWidth + PANEL_GAP else -PANEL_WIDTH - PANEL_GAP
+        isHovered = Rect(panelX, 0, PANEL_WIDTH, height).contains(mouseX, mouseY)
         val frame = RenderFrame(context, panelX, mouseX, mouseY, opacity, interactive)
         context.fill(panelX, 0, panelX + PANEL_WIDTH, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
         context.outline(panelX, 0, PANEL_WIDTH, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))

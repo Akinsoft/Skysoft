@@ -1,6 +1,8 @@
 package com.skysoft.features.profit
 
 import com.skysoft.config.ProfitTrackerPriceSource
+import com.skysoft.features.inventory.TrackedItemQuantityAction
+import com.skysoft.features.inventory.TrackedItemQuantityModifier
 import com.skysoft.features.inventory.TrackedItemSelectionAction
 import com.skysoft.features.inventory.TrackedItemSelectionMode
 import com.skysoft.features.inventory.TrackedItemSelectionPanel
@@ -11,7 +13,6 @@ import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
-import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import net.minecraft.client.Minecraft
@@ -21,7 +22,6 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 internal sealed interface ProfitTrackerControl {
     data object Period : ProfitTrackerControl
@@ -60,7 +60,9 @@ internal class ProfitTrackerItemPanel(
     private var content: Content? = null
     private val transition = PanelFadeTransition(nanoTime)
     private val addItemPanel = TrackedItemSelectionPanel()
-    val itemModifier = ProfitTrackerItemModifier()
+    val itemModifier = TrackedItemQuantityModifier()
+    var isHovered = false
+        private set
 
     fun toggleOverview() {
         if (content != null && !transition.isClosing) close() else open(Content.Overview)
@@ -101,7 +103,7 @@ internal class ProfitTrackerItemPanel(
         modify: (String, Long) -> Unit,
     ): Boolean {
         val item = content as? Content.Item
-        if (item != null && itemModifier.wasKeyPressHandled(event, item.itemId, modify)) return true
+        if (item != null && itemModifier.wasKeyPressHandled(event) { amount -> modify(item.itemId, amount) }) return true
         val selecting = content == Content.AddItem || content == Content.ManageItem
         if (!selecting) return false
         val excludedItemIds = ProfitTracker.trackedItemIds(target).takeIf { isAddingItems() }.orEmpty()
@@ -121,6 +123,8 @@ internal class ProfitTrackerItemPanel(
 
     fun close() {
         if (content == null) return
+        addItemPanel.clear()
+        itemModifier.cancel()
         transition.hide()
     }
 
@@ -128,6 +132,7 @@ internal class ProfitTrackerItemPanel(
         content = null
         addItemPanel.clear()
         itemModifier.cancel()
+        isHovered = false
         transition.reset()
     }
 
@@ -147,7 +152,7 @@ internal class ProfitTrackerItemPanel(
         }
         if (current == Content.AddItem || current == Content.ManageItem) {
             val excludedItemIds = ProfitTracker.trackedItemIds(target).takeIf { current == Content.AddItem }.orEmpty()
-            return addItemPanel.render(
+            val control = addItemPanel.render(
                 context = context,
                 title = if (current == Content.AddItem) "Add Item" else "Manage Item",
                 trackerWidth = trackerWidth,
@@ -157,8 +162,10 @@ internal class ProfitTrackerItemPanel(
                 opacity = opacity,
                 interactive = transition.isInteractive,
                 isSelectable = { it !in excludedItemIds },
-            )?.let { control ->
-                ProfitTrackerPanelControl(ProfitTrackerControl.ItemSelection(control.action), control.bounds)
+            )
+            isHovered = addItemPanel.isHovered
+            return control?.let {
+                ProfitTrackerPanelControl(ProfitTrackerControl.ItemSelection(it.action), it.bounds)
             }
         }
         val rows = rows(current, target)
@@ -166,12 +173,12 @@ internal class ProfitTrackerItemPanel(
         val width = maxOf(
             PANEL_MINIMUM_WIDTH,
             rows.maxOfOrNull { row ->
-                font.width(row.text) + row.iconOffset +
-                    (row.field?.let { PANEL_FIELD_GAP + it.width } ?: 0)
+                row.quantityModifier?.width() ?: font.width(row.text) + row.iconOffset
             } ?: 0,
         ) + OverlayPanelStyle.PADDING * 2
         val height = rows.sumOf(PanelRow::height) + OverlayPanelStyle.PADDING * 2
         val x = if (placeRight) trackerWidth + PANEL_GAP else -width - PANEL_GAP
+        isHovered = Rect(x, 0, width, height).contains(mouseX, mouseY)
         context.fill(x, 0, x + width, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
         context.outline(x, 0, width, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))
         var hovered: ProfitTrackerPanelControl? = null
@@ -252,7 +259,7 @@ internal class ProfitTrackerItemPanel(
                 ProfitTrackerControl.ItemPriceSource(itemId),
                 OverlayControlTooltips.cycle("Item Price Source", sources, (override?.ordinal ?: -1) + 1),
             ),
-            itemModifier.row(itemId),
+            PanelRow(Component.empty(), quantityItemId = itemId, quantityModifier = itemModifier),
             if (target.custom == null) {
                 PanelRow(styledText("Exclude", DANGER_COLOR), ProfitTrackerControl.ExcludeItem(itemId))
             } else {
@@ -270,110 +277,19 @@ internal class ProfitTrackerItemPanel(
 
 }
 
-internal class ProfitTrackerItemModifier {
-    private val field = TextFieldState(maxLength = QUANTITY_MAXIMUM_LENGTH)
-    private var direction = 0
-
-    fun begin(nextDirection: Int) {
-        require(nextDirection == -1 || nextDirection == 1)
-        direction = nextDirection
-        field.text = ""
-        field.focused = true
-    }
-
-    fun focus(localMouseX: Int, bounds: Rect) {
-        field.focused = true
-        field.placeCursorAt(localMouseX, bounds.x, bounds.width)
-    }
-
-    fun cancel() {
-        direction = 0
-        field.focused = false
-    }
-
-    fun wasKeyPressHandled(event: KeyEvent, itemId: String, modify: (String, Long) -> Unit): Boolean {
-        if (direction == 0 || !field.focused) return false
-        when (event.key()) {
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> field.text.toLongOrNull()
-                ?.takeIf { it > 0L }
-                ?.let { amount ->
-                    modify(itemId, amount * direction)
-                    cancel()
-                }
-            GLFW.GLFW_KEY_ESCAPE -> cancel()
-            else -> {
-                field.keyPressed(event)
-                field.text = field.text.filter { it in '0'..'9' }
-            }
-        }
-        return true
-    }
-
-    fun wasCharTypedHandled(event: CharacterEvent): Boolean {
-        if (direction == 0 || !field.focused) return false
-        if (event.codepointAsString().singleOrNull() in '0'..'9') field.charTyped(event)
-        return true
-    }
-
-    fun row(itemId: String): PanelRow {
-        if (direction != 0) {
-            val color = if (direction < 0) DANGER_COLOR else ACTION_COLOR
-            return PanelRow(
-                styledText("Modify ", MUTED_COLOR).append(
-                    styledText(if (direction < 0) "-" else "+", color, bold = true),
-                ),
-                heightOverride = QUANTITY_FIELD_HEIGHT,
-                field = PanelRowField(field, QUANTITY_FIELD_WIDTH, color),
-            )
-        }
-        val font = Minecraft.getInstance().font
-        val text = styledText("Modify ", MUTED_COLOR)
-        val controls = mutableListOf<PanelRowControl>()
-        MODIFY_ITEM_AMOUNTS.forEachIndexed { index, amount ->
-            if (index > 0) text.append(" ")
-            val buttonDirection = if (index < MODIFY_MINUS_BUTTON_COUNT) -1 else 1
-            val button = styledText(
-                "[${amount?.let { if (it > 0) "+$it" else it.toString() } ?: if (buttonDirection < 0) "-" else "+"}]",
-                if (buttonDirection < 0) DANGER_COLOR else ACTION_COLOR,
-                bold = true,
-            )
-            val offset = font.width(text)
-            text.append(button)
-            controls += PanelRowControl(
-                offset,
-                font.width(button),
-                amount?.let { ProfitTrackerControl.ModifyItem(itemId, it) }
-                    ?: ProfitTrackerControl.BeginCustomModification(buttonDirection),
-            )
-        }
-        return PanelRow(text, controls = controls)
-    }
-}
-
 internal data class PanelRow(
     val text: Component,
     val action: ProfitTrackerControl? = null,
     val tooltipLines: List<String> = emptyList(),
     val icon: ItemStack? = null,
     val heightOverride: Int? = null,
-    val controls: List<PanelRowControl> = emptyList(),
-    val field: PanelRowField? = null,
+    val quantityItemId: String? = null,
+    val quantityModifier: TrackedItemQuantityModifier? = null,
 ) {
-    val height: Int = heightOverride ?: if (icon == null) PANEL_ROW_HEIGHT else PANEL_ICON_ROW_HEIGHT
+    val height: Int
+        get() = quantityModifier?.height ?: heightOverride ?: if (icon == null) PANEL_ROW_HEIGHT else PANEL_ICON_ROW_HEIGHT
     val iconOffset: Int = if (icon == null) 0 else PANEL_ICON_TEXT_OFFSET
 }
-
-internal data class PanelRowControl(
-    val offset: Int,
-    val width: Int,
-    val action: ProfitTrackerControl,
-)
-
-internal data class PanelRowField(
-    val state: TextFieldState,
-    val width: Int,
-    val color: Int,
-)
 
 private fun PanelRow.render(
     context: GuiGraphicsExtractor,
@@ -386,30 +302,25 @@ private fun PanelRow.render(
     opacity: Double,
     interactive: Boolean,
 ): ProfitTrackerPanelControl? {
-    val textX = panelX + OverlayPanelStyle.PADDING + iconOffset
-    val button = controls.firstOrNull { control ->
-        interactive && Rect(textX + control.offset, y, control.width, height).contains(mouseX, mouseY)
+    quantityModifier?.let { modifier ->
+        val itemId = requireNotNull(quantityItemId)
+        return modifier.render(context, panelX, y, mouseX, mouseY, opacity, interactive)?.let { control ->
+            val action = when (val quantityAction = control.action) {
+                is TrackedItemQuantityAction.Modify ->
+                    ProfitTrackerControl.ModifyItem(itemId, quantityAction.amount)
+                is TrackedItemQuantityAction.BeginCustom ->
+                    ProfitTrackerControl.BeginCustomModification(quantityAction.direction)
+                is TrackedItemQuantityAction.Field ->
+                    ProfitTrackerControl.ModifyItemField(quantityAction.localMouseX, quantityAction.bounds)
+            }
+            ProfitTrackerPanelControl(action, control.bounds, control.tooltipLines)
+        }
     }
-    val fieldBounds = field?.let { Rect(textX + font.width(text) + PANEL_FIELD_GAP, y, it.width, height) }
+    val textX = panelX + OverlayPanelStyle.PADDING + iconOffset
     val rowHovered = interactive && action != null &&
         mouseX in panelX until panelX + panelWidth && mouseY in y until y + height
-    val fieldHovered = interactive && fieldBounds?.contains(mouseX, mouseY) == true
-    val hovered = when {
-        button != null -> ProfitTrackerPanelControl(
-            button.action,
-            Rect(textX + button.offset, y, button.width, height),
-        )
-        fieldHovered -> ProfitTrackerPanelControl(
-            ProfitTrackerControl.ModifyItemField(mouseX, requireNotNull(fieldBounds)),
-            fieldBounds,
-            listOf("§7Press Enter to confirm. Escape to cancel."),
-        )
-        rowHovered -> ProfitTrackerPanelControl(
-            requireNotNull(action),
-            Rect(panelX, y, panelWidth, height),
-            tooltipLines,
-        )
-        else -> null
+    val hovered = action?.takeIf { rowHovered }?.let {
+        ProfitTrackerPanelControl(it, Rect(panelX, y, panelWidth, height), tooltipLines)
     }
     hovered?.bounds?.let { bounds ->
         context.fill(
@@ -431,28 +342,12 @@ private fun PanelRow.render(
         TEXT_BASE_COLOR.withScaledAlpha(opacity),
         false,
     )
-    field?.let {
-        val bounds = requireNotNull(fieldBounds)
-        it.state.render(
-            context,
-            bounds.x,
-            bounds.y,
-            bounds.width,
-            bounds.height,
-            "Quantity...",
-            alpha = opacity,
-            textColor = it.color,
-        )
-    }
     return hovered
 }
 
 private fun styledText(text: String, color: Int, bold: Boolean = false): MutableComponent =
     Component.literal(text).withStyle { style -> style.withColor(color and RGB_MASK).withBold(bold) }
 
-private val MODIFY_ITEM_AMOUNTS = listOf<Long?>(null, -4, -1, 1, 4, null)
-
-private const val MODIFY_MINUS_BUTTON_COUNT = 3
 private const val PANEL_MINIMUM_WIDTH = 130
 private const val PANEL_ROW_HEIGHT = 11
 private const val PANEL_SECTION_GAP = 6
@@ -462,10 +357,6 @@ private const val PANEL_ICON_TEXT_OFFSET = 16
 private const val PANEL_ICON_SCALE = 0.75
 private const val ICON_VISIBILITY_THRESHOLD = 0.35
 private const val PANEL_GAP = 4
-private const val PANEL_FIELD_GAP = 3
-private const val QUANTITY_MAXIMUM_LENGTH = 19
-private const val QUANTITY_FIELD_WIDTH = 80
-private const val QUANTITY_FIELD_HEIGHT = 18
 private const val TEXT_BASE_COLOR = 0xFFFFFFFF.toInt()
 private const val TITLE_COLOR = 0xFFFFFF55.toInt()
 private const val MUTED_COLOR = 0xFFAAAAAA.toInt()
