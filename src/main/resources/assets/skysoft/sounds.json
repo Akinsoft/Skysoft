@@ -9,6 +9,16 @@
       "minecraft:entity/painting/break3"
     ]
   },
+  "pest_cooldown.lead_knot_place1": {
+    "sounds": [
+      "minecraft:entity/leashknot/leash1"
+    ]
+  },
+  "pest_cooldown.lead_knot_place2": {
+    "sounds": [
+      "minecraft:entity/leashknot/leash2"
+    ]
+  },
   "honeyhive.ready": {
     "sounds": [
       "skysoft:foraging/honeyhive_ready"
