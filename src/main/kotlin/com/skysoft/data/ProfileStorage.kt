@@ -257,10 +257,12 @@ data class ProfileStorage(
         @Expose
         @SerializedName(value = "actions", alternate = ["bosses"])
         var actions: Long = 0L,
+        @Expose val pestKills: MutableMap<String, Long> = mutableMapOf(),
     ) {
         fun repairLoadedValues() {
             itemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0L }
             costs.entries.removeIf { (currency, amount) -> currency.isBlank() || amount <= 0L }
+            pestKills.entries.removeIf { (pest, amount) -> pest.isBlank() || amount <= 0L }
             if (!coins.isFinite() || coins < 0.0) coins = 0.0
             if (activeMillis < 0L) activeMillis = 0L
             if (actions < 0L) actions = 0L
@@ -269,6 +271,7 @@ data class ProfileStorage(
         fun clear() {
             itemCounts.clear()
             costs.clear()
+            pestKills.clear()
             coins = 0.0
             activeMillis = 0L
             actions = 0L

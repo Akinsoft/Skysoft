@@ -8,6 +8,7 @@ import com.skysoft.features.inventory.TrackedItemSelectionMode
 import com.skysoft.features.inventory.TrackedItemSelectionPanel
 import com.skysoft.features.inventory.trackedItemPresentation
 import com.skysoft.gui.OverlayControlTooltips
+import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.animation.PanelFadeTransition
@@ -30,6 +31,7 @@ internal sealed interface ProfitTrackerControl {
     data object CancelReset : ProfitTrackerControl
     data object ConfirmReset : ProfitTrackerControl
     data object More : ProfitTrackerControl
+    data class PestBreakdown(val rows: List<SkysoftNativeTooltip.ItemRow>) : ProfitTrackerControl
     data class ManageItem(
         val itemId: String,
         val stack: ItemStack,

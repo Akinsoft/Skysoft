@@ -103,6 +103,7 @@ internal class ProfitTrackerHudControls(
             resetTransition.hide()
         }
         ProfitTrackerControl.More -> wasLeftClickHandled(button, itemPanel::toggleOverview)
+        is ProfitTrackerControl.PestBreakdown -> false
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
         is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(target, action.itemId, button)
         is ProfitTrackerControl.ModifyItem -> wasLeftClickHandled(button) {

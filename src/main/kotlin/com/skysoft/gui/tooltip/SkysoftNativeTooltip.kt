@@ -1,5 +1,6 @@
 package com.skysoft.gui.tooltip
 
+import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
@@ -44,19 +45,41 @@ object SkysoftNativeTooltip {
         mouseY: Int,
         actionLines: List<String> = emptyList(),
     ) {
+        setComponentForNextFrame(
+            context,
+            ItemActionTooltip(
+                stack,
+                LegacyTextRenderer.formattedSequence(
+                    if (action.isNullOrBlank()) formattedItemName else "§7$action $formattedItemName",
+                ),
+                actionLines.map(LegacyTextRenderer::formattedSequence),
+            ),
+            mouseX,
+            mouseY,
+        )
+    }
+
+    fun setItemRowsForNextFrame(
+        context: GuiGraphicsExtractor,
+        title: String,
+        rows: List<ItemRow>,
+        mouseX: Int,
+        mouseY: Int,
+    ) {
+        setComponentForNextFrame(context, ItemRowsTooltip(title, rows), mouseX, mouseY)
+    }
+
+    private fun setComponentForNextFrame(
+        context: GuiGraphicsExtractor,
+        tooltip: SkysoftTooltipComponent,
+        mouseX: Int,
+        mouseY: Int,
+    ) {
         TooltipViewport.clear()
         context.setTooltipForNextFrame(
             Minecraft.getInstance().font,
             emptyList<FormattedCharSequence>(),
-            Optional.of(
-                ItemActionTooltip(
-                    stack,
-                    LegacyTextRenderer.formattedSequence(
-                        if (action.isNullOrBlank()) formattedItemName else "§7$action $formattedItemName",
-                    ),
-                    actionLines.map(LegacyTextRenderer::formattedSequence),
-                ),
-            ),
+            Optional.of(tooltip),
             NonScrollableTooltipPositioner,
             mouseX,
             mouseY,
@@ -110,6 +133,55 @@ object SkysoftNativeTooltip {
                     ITEM_TOOLTIP_COLOR,
                     false,
                 )
+            }
+        }
+    }
+
+    data class ItemRow(val stack: ItemStack?, val label: String, val value: String)
+
+    private data class ItemRowsTooltip(
+        val title: String,
+        val rows: List<ItemRow>,
+    ) : SkysoftTooltipComponent {
+        override fun clientComponent(): ClientTooltipComponent = ClientItemRowsTooltip(this)
+    }
+
+    private class ClientItemRowsTooltip(tooltip: ItemRowsTooltip) : ClientTooltipComponent {
+        private val title = LegacyTextRenderer.formattedSequence(tooltip.title)
+        private val rows = tooltip.rows.map { row ->
+            Triple(
+                row.stack,
+                LegacyTextRenderer.formattedSequence(row.label),
+                LegacyTextRenderer.formattedSequence(row.value),
+            )
+        }
+        private val labelWidth = rows.maxOfOrNull { Minecraft.getInstance().font.width(it.second) } ?: 0
+        private val valueX = OverlayItemRowStyle.ICON_TEXT_OFFSET + labelWidth + OverlayItemRowStyle.VALUE_COLUMN_GAP
+
+        override fun getHeight(font: Font): Int = ITEM_TOOLTIP_HEIGHT + rows.size * OverlayItemRowStyle.HEIGHT
+
+        override fun getWidth(font: Font): Int = maxOf(
+            font.width(title),
+            valueX + (rows.maxOfOrNull { font.width(it.third) } ?: 0),
+        )
+
+        override fun extractImage(
+            font: Font,
+            x: Int,
+            y: Int,
+            width: Int,
+            height: Int,
+            context: GuiGraphicsExtractor,
+        ) {
+            context.text(font, title, x, y, ITEM_TOOLTIP_COLOR, false)
+            rows.forEachIndexed { index, (stack, label, value) ->
+                val rowY = y + ITEM_TOOLTIP_HEIGHT + index * OverlayItemRowStyle.HEIGHT
+                stack?.let {
+                    ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, x, rowY)
+                }
+                val textY = rowY + OverlayItemRowStyle.TEXT_Y_OFFSET
+                context.text(font, label, x + OverlayItemRowStyle.ICON_TEXT_OFFSET, textY, ITEM_TOOLTIP_COLOR, false)
+                context.text(font, value, x + valueX, textY, ITEM_TOOLTIP_COLOR, false)
             }
         }
     }
