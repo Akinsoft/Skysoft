@@ -29,8 +29,12 @@ private fun shouldAllowSackHudClick(
     click: MouseButtonEvent,
 ): Boolean {
     if (!isSackHudVisible()) return true
-    if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) return true
+    if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) {
+        sackHudItemPanel.close()
+        return true
+    }
     val control = sackHudHoveredControl?.action
+    val panelHovered = sackHudItemPanel.isHovered
     if (control is SackHudControl.Item && sackHudItemPanel.isRemovingItems()) {
         if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             removeSackHudTrackedItem(control.itemId)
@@ -51,8 +55,10 @@ private fun shouldAllowSackHudClick(
         )
         null -> wasInventoryItemSelected(screen, click.button())
     }
+    val keepsPanelOpen = panelHovered || control == SackHudControl.More || control == null && handled
+    if (!keepsPanelOpen) sackHudItemPanel.close()
     if (handled) SoundUtilities.playClickSound()
-    return !handled
+    return !handled && !panelHovered
 }
 
 private fun wasInventoryItemSelected(screen: AbstractContainerScreen<*>, button: Int): Boolean {
