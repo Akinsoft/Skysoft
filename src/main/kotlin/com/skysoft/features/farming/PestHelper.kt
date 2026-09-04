@@ -66,7 +66,7 @@ object PestHelper {
     private fun String.commandName(): String = if (this == "The Barn") "barn" else this
 
     private fun isKeyDown(key: Int): Boolean =
-        key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isBindingDown(key)
+        key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isActionBindingDown(key)
 
     private fun resetKeys() {
         warpKeyWasDown = false

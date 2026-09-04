@@ -176,7 +176,7 @@ class SkysoftMod : ClientModInitializer {
             val minecraft = Minecraft.getInstance()
             val keyDown = key != GLFW.GLFW_KEY_UNKNOWN &&
                 key != GLFW.GLFW_KEY_ENTER &&
-                InputUtilities.isBindingDown(key)
+                InputUtilities.isActionBindingDown(key)
             if (!keyDown) {
                 positionEditorKeyWasDown = false
                 return

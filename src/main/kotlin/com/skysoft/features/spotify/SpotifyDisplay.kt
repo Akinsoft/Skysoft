@@ -281,7 +281,7 @@ object SpotifyDisplay {
         }
         CONTROL_BINDINGS.forEach { action ->
             val key = keyFor(action, settings)
-            val down = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isBindingDown(key)
+            val down = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isActionBindingDown(key)
             val wasDown = keyStates.put(action, down) == true
             if (down && !wasDown) control(action)
         }
