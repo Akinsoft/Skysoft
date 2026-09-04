@@ -70,7 +70,7 @@ internal object ScreenshotCapturePreview {
 
     fun processMouseButtonPress(button: Int): InputHandlingResult {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
-        val current = presentation?.takeIf { it.elapsedMillis() >= TRAVEL_END_MILLIS }
+        val current = presentation?.takeIf { it.isSimplePreview || it.elapsedMillis() >= TRAVEL_END_MILLIS }
             ?: return InputHandlingResult.IGNORED
         val minecraft = Minecraft.getInstance()
         val screen = MinecraftClient.screen(minecraft)?.takeUnless { it is ScreenshotManagerScreen }
@@ -112,17 +112,19 @@ internal object ScreenshotCapturePreview {
 
     private fun render(context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
         val current = presentation ?: return
-        if (!SkysoftConfigGui.config().gui.screenshotManager.enabled || current.elapsedMillis() >= DISPLAY_MILLIS) {
+        val elapsedMillis = current.elapsedMillis()
+        if (!SkysoftConfigGui.config().gui.screenshotManager.enabled || elapsedMillis >= DISPLAY_MILLIS) {
             clear()
             return
         }
+        val animationElapsedMillis = if (current.isSimplePreview) TRAVEL_END_MILLIS else elapsedMillis
         val bounds = imageBounds(
             context.guiWidth(),
             context.guiHeight(),
             current.image.width.toDouble() / current.image.height,
-            current.elapsedMillis(),
+            animationElapsedMillis,
         )
-        val isSettled = current.elapsedMillis() >= TRAVEL_END_MILLIS
+        val isSettled = animationElapsedMillis >= TRAVEL_END_MILLIS
         if (!isSettled) {
             drawTexture(context, current, bounds)
             return
@@ -239,7 +241,12 @@ internal object ScreenshotCapturePreview {
         clear()
         val id = SkysoftMod.id("screenshot_capture/preview_${nextTextureId++}")
         val texture = RegisteredImageTexture.register(id, "Skysoft Screenshot Capture Preview", image)
-        presentation = CapturePresentation(path, texture, System.currentTimeMillis())
+        presentation = CapturePresentation(
+            path,
+            texture,
+            System.currentTimeMillis(),
+            isSimplePreview = SkysoftConfigGui.config().gui.screenshotManager.details.isSimplePreviewEnabled,
+        )
     }
 
     private fun clear() {
@@ -323,6 +330,7 @@ private data class CapturePresentation(
     val path: Path,
     val image: RegisteredImageTexture,
     val startedAtMillis: Long,
+    val isSimplePreview: Boolean,
 ) {
     fun elapsedMillis(): Long = System.currentTimeMillis() - startedAtMillis
 }
