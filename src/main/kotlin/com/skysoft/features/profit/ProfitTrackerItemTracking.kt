@@ -9,6 +9,7 @@ import com.skysoft.data.skyblock.SkyBlockItemChangeBatch
 import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockSackTransfers
+import com.skysoft.data.skyblock.SkyBlockSupercrafts
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import kotlin.math.min
@@ -17,13 +18,6 @@ internal data class ParsedItemAmount(
     val displayName: String,
     val amount: Int,
 )
-
-internal fun parseSupercraftResult(message: String): ParsedItemAmount? {
-    val match = SUPERCRAFT_PATTERN.matchEntire(message) ?: return null
-    val displayName = match.groups["item"]?.value?.trim().orEmpty()
-    val amount = match.groups["amount"]?.value?.replace(",", "")?.toIntOrNull() ?: 1
-    return ParsedItemAmount(displayName, amount).takeIf { displayName.isNotEmpty() && amount > 0 }
-}
 
 internal fun parseNpcSale(message: String): ParsedItemAmount? {
     val match = NPC_SALE_PATTERN.matchEntire(message) ?: return null
@@ -68,13 +62,10 @@ internal class ProfitTrackerItemTracking {
             }
             ChatMessageVisibility.SHOW
         }
-        ChatEvents.onVisibleMessage("Profit Tracker Supercraft", isActive) { message ->
-            parseSupercraftResult(message.cleanText)?.let { crafted ->
-                SkyBlockItemNames.itemId(crafted.displayName)?.let { itemId ->
-                    suppressions.add(itemId, crafted.amount)
-                }
+        SkyBlockSupercrafts.onCraft("Profit Tracker Supercraft", isActive) { crafted ->
+            SkyBlockItemNames.itemId(crafted.displayName)?.let { itemId ->
+                suppressions.add(itemId, crafted.amount)
             }
-            ChatMessageVisibility.SHOW
         }
     }
 
@@ -184,7 +175,6 @@ internal class ProfitItemSuppressions(
     )
 }
 
-private val SUPERCRAFT_PATTERN = Regex("^You Supercrafted (?<item>.+?)(?: x(?<amount>[\\d,]+))?!$")
 private val NPC_SALE_PATTERN = Regex("^You sold (?<item>.+) x(?<amount>[\\d,]+) for [\\d,]+ Coins!$")
 private const val SUPERCRAFT_SUPPRESSION_MILLIS = 60_000L
 private const val DROPPED_ITEM_SUPPRESSION_MILLIS = 10_000L
