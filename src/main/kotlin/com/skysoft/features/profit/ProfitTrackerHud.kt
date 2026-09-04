@@ -8,6 +8,7 @@ import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.slayer.SlayerTimeToKill
@@ -33,6 +34,7 @@ import com.skysoft.utils.DurationParts
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
+import com.skysoft.utils.NumberUtilities.roundTo
 import com.skysoft.utils.NumberUtilities.signedCoinFormat
 import com.skysoft.utils.TextUtilities.truncateLegacyText
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -156,12 +158,21 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
         context.nextStratum()
         hoveredControl?.area?.let { area ->
             val managedItem = area.action as? ProfitTrackerControl.ManageItem
+            val pestBreakdown = area.action as? ProfitTrackerControl.PestBreakdown
             if (managedItem != null) {
                 SkysoftNativeTooltip.setItemActionForNextFrame(
                     context,
                     managedItem.stack,
                     "Manage",
                     managedItem.formattedName,
+                    screenMouseX,
+                    screenMouseY,
+                )
+            } else if (pestBreakdown != null && pestBreakdown.rows.isNotEmpty()) {
+                SkysoftNativeTooltip.setItemRowsForNextFrame(
+                    context,
+                    "§ePests Vacuumed",
+                    pestBreakdown.rows,
                     screenMouseX,
                     screenMouseY,
                 )
@@ -386,6 +397,11 @@ private class ProfitTrackerRenderable(
         control = ProfitTrackerControl.CancelReset,
         secondaryControl = ProfitTrackerControl.ConfirmReset,
     )
+    private val pestBreakdownControl = if (inventoryOpen && target.preset == ProfitTrackerPreset.FARMING) {
+        ProfitTrackerControl.PestBreakdown(pestBreakdownRows())
+    } else {
+        null
+    }
     private val lines = buildLines()
 
     override val width: Int = maxOf(
@@ -552,7 +568,13 @@ private class ProfitTrackerRenderable(
                     add(ProfitLine("§7$label", profitColor(profitPerHour) + profitPerHour.signedCoinFormat()))
                 }
                 ProfitTrackerSummaryLine.ACTIONS -> {
-                    add(ProfitLine("§7${target.actionLabel}", "§e${stats.actions.addSeparators()}"))
+                    add(
+                        ProfitLine(
+                            "§7${target.actionLabel}",
+                            "§e${stats.actions.addSeparators()}",
+                            control = pestBreakdownControl,
+                        ),
+                    )
                 }
                 ProfitTrackerSummaryLine.AVERAGE_KILL_TIME -> add(
                     ProfitLine(
@@ -585,6 +607,27 @@ private class ProfitTrackerRenderable(
         return "§7x$style${item.amount.addSeparators()}"
     }
 
+    private fun pestBreakdownRows(): List<SkysoftNativeTooltip.ItemRow> {
+        if (stats.actions == 0L) return emptyList()
+        val counts = stats.pestKills.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Long>> { it.value }.thenBy { it.key })
+            .map { it.key to it.value }
+            .toMutableList()
+        val unrecorded = stats.actions - stats.pestKills.values.sum()
+        if (unrecorded > 0L) counts.add("Not recorded" to unrecorded)
+        val pests = SkyBlockDataRepository.entries.asSequence()
+            .filter { it.key.kind == ItemListEntryKind.ENTITY && "Pest" in it.tags }
+            .associateBy { it.displayName }
+        return counts.map { (pest, count) ->
+            val percentage = (count * PERCENT_SCALE / stats.actions).roundTo(1).toString().removeSuffix(".0")
+            SkysoftNativeTooltip.ItemRow(
+                stack = pests[pest]?.let { SkyBlockDataRepository.displayStack(it.key) },
+                label = "§7$pest §e${count.addSeparators()}",
+                value = "§7($percentage%)",
+            )
+        }
+    }
+
     private fun controlTooltip(action: ProfitTrackerControl): List<String> = when (action) {
         ProfitTrackerControl.Period -> OverlayControlTooltips.cycle(
             "Display Mode",
@@ -601,6 +644,7 @@ private class ProfitTrackerRenderable(
         -> listOf("§7Reset ${period.displayName} ${target.displayName} data.")
         ProfitTrackerControl.CancelReset -> emptyList()
         ProfitTrackerControl.More -> listOf("§7Manage tracked items.")
+        is ProfitTrackerControl.PestBreakdown -> listOf("§ePests Vacuumed", "§7No pests vacuumed yet.")
         is ProfitTrackerControl.ManageItem -> emptyList()
         else -> emptyList()
     }
@@ -628,7 +672,8 @@ private data class ProfitLine(
         (right?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.VALUE_COLUMN_GAP } ?: 0)
 
     fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {
-        control is ProfitTrackerControl.ManageItem -> totalWidth - padding * 2
+        control is ProfitTrackerControl.ManageItem || control is ProfitTrackerControl.PestBreakdown ->
+            totalWidth - padding * 2
         secondaryControl == null -> width
         else -> LegacyTextRenderer.width(left)
     }
@@ -687,6 +732,7 @@ private fun profitColor(value: Double): String = if (value >= 0.0) "§a" else "�
 
 private const val COIN_CURRENCY = "Coins"
 private const val MILLIS_PER_HOUR = 3_600_000.0
+private const val PERCENT_SCALE = 100.0
 private const val MAXIMUM_ITEMS = 15
 private const val MAXIMUM_ITEM_NAME_LENGTH = 20
 private const val MINIMUM_WIDTH = 145

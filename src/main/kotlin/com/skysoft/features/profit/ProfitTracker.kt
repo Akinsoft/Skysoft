@@ -328,15 +328,19 @@ object ProfitTracker {
                 update(target, listOf(itemId)) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
             }
         }
+        val pest = if (preset == ProfitTrackerPreset.FARMING) parseCountedPestKill(message) else null
         val actionOccurred = when (preset) {
-            ProfitTrackerPreset.FARMING -> isCountedPestKillMessage(message)
+            ProfitTrackerPreset.FARMING -> pest != null
             ProfitTrackerPreset.MYTHOLOGICAL_RITUAL -> MythologicalRitualMessageTracker.isBurrowMessage(message)
             else -> false
         }
         if (actionOccurred) {
             val target = ProfitTrackerTarget.preset(preset)
             uptime.markActivity(target)
-            update(target) { stats -> stats.actions++ }
+            update(target) { stats ->
+                stats.actions++
+                if (pest != null) stats.pestKills.merge(pest, 1L, Long::plus)
+            }
         }
     }
 
@@ -678,13 +682,15 @@ private fun isFarmingCropBlock(block: Block): Boolean = when (block) {
     else -> false
 }
 
-internal fun isCountedPestKillMessage(message: String): Boolean {
-    val match = PEST_KILL_PATTERN.matchEntire(message) ?: return false
-    return when (match.groups["pest"]?.value) {
+internal fun parseCountedPestKill(message: String): String? {
+    val match = PEST_KILL_PATTERN.matchEntire(message) ?: return null
+    val pest = match.groups["pest"]?.value ?: return null
+    val counted = when (pest) {
         "Field Mouse" -> match.groups["item"]?.value == "Dung"
         "Lunar Moth" -> match.groups["item"]?.value == "Enchanted Sunflower"
         else -> match.groups["item"]?.value != "Overclocker 3000"
     }
+    return pest.takeIf { counted }
 }
 
 private val PEST_KILL_PATTERN = Regex(
