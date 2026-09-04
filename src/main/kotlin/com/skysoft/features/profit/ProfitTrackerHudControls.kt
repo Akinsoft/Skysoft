@@ -203,9 +203,6 @@ internal class ProfitTrackerHudControls(
     )
 }
 
-internal fun profitTrackerScrollOffset(current: Int, verticalAmount: Double, maximumOffset: Int): Int =
-    (current + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
-
 internal fun nextProfitTrackerPriceSource(
     current: ProfitTrackerPriceSource,
     backwards: Boolean,

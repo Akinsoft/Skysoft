@@ -9,7 +9,6 @@ import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 internal fun renderHud(context: GuiGraphicsExtractor) {
@@ -59,8 +58,8 @@ internal fun renderPositioned(
     val scaledHeight = (renderable.height * scale).roundToInt()
     val x = config.position.getAbsX0AllowingOverflow(scaledWidth)
     val y = config.position.getAbsY0AllowingOverflow(scaledHeight)
-    val localMouseX = mouseX?.let { floor((it - x) / scale).toInt() }
-    val localMouseY = mouseY?.let { floor((it - y) / scale).toInt() }
+    val localMouseX = mouseX?.let { OverlayControlMouse.localCoordinate(it, x, scale) }
+    val localMouseY = mouseY?.let { OverlayControlMouse.localCoordinate(it, y, scale) }
     context.pose().pushMatrix()
     context.pose().translate(x.toFloat(), y.toFloat())
     context.pose().scale(scale, scale)
