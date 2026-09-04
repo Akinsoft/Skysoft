@@ -19,6 +19,7 @@ import com.skysoft.data.skyblock.entityItemKey
 import com.skysoft.data.skyblock.itemListKey
 import com.skysoft.data.skyblock.recipeIngredientStack
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
+import com.skysoft.features.inventory.crafting.addCraftingHelperTarget
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.gui.tooltip.TooltipScrollPriorityScreen
 import com.skysoft.utils.BrowserUtilities
@@ -63,6 +64,7 @@ internal class ItemListViewerScreen(
     private var ingredientBounds: List<Pair<Rect, ItemListEntryKey>> = emptyList()
     private var progressionBounds: List<Pair<Rect, SkyBlockProgressionRequirement>> = emptyList()
     private var quickCraftBounds: List<Pair<Rect, String>> = emptyList()
+    private var craftingHelperBounds: List<Pair<Rect, String>> = emptyList()
     private var entityBounds: List<Pair<Rect, String>> = emptyList()
     private var petBounds: List<PetIngredientBounds> = emptyList()
     private var fusionIngredientTriggers: List<FusionIngredientTrigger> = emptyList()
@@ -99,6 +101,7 @@ internal class ItemListViewerScreen(
                 ingredientBounds = emptyList()
                 progressionBounds = emptyList()
                 quickCraftBounds = emptyList()
+                craftingHelperBounds = emptyList()
                 entityBounds = emptyList()
                 petBounds = emptyList()
                 fusionIngredientTriggers = emptyList()
@@ -325,6 +328,7 @@ internal class ItemListViewerScreen(
     private fun renderRecipes(context: GuiGraphicsExtractor, layout: ViewerLayout, mouseX: Int, mouseY: Int) {
         progressionBounds = emptyList()
         quickCraftBounds = emptyList()
+        craftingHelperBounds = emptyList()
         entityBounds = emptyList()
         petBounds = emptyList()
         fusionIngredientTriggers = emptyList()
@@ -435,6 +439,13 @@ internal class ItemListViewerScreen(
             val isHovered = button.contains(mouseX, mouseY)
             PixelButtonRenderer.draw(context, font, button, "+", false, isHovered, true)
             if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eQuick Craft"), mouseX, mouseY)
+        }
+        if (SkysoftConfigGui.config().inventory.craftingHelper.enabled) {
+            val button = itemListCraftingHelperButtonBounds(crafting.result)
+            craftingHelperBounds += button to recipe.result.id
+            val isHovered = button.contains(mouseX, mouseY)
+            PixelButtonRenderer.draw(context, font, button, "*", false, isHovered, true)
+            if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eHelp me craft"), mouseX, mouseY)
         }
         if (crafting.progressionRequirement != null && recipe.progressionRequirement != null) {
             progressionBounds += renderProgressionRequirement(
@@ -618,6 +629,11 @@ internal class ItemListViewerScreen(
     }
 
     private fun navigateIngredient(mouseX: Int, mouseY: Int, canQuickCraft: Boolean = false): ViewerInputResult {
+        val craftingHelperTarget = craftingHelperBounds.firstOrNull { it.first.contains(mouseX, mouseY) }?.second
+        if (canQuickCraft && SkysoftConfigGui.config().inventory.craftingHelper.enabled && craftingHelperTarget != null) {
+            addCraftingHelperTarget(craftingHelperTarget)
+            return ViewerInputResult.HANDLED
+        }
         val quickCraftCommand = quickCraftBounds.firstOrNull { it.first.contains(mouseX, mouseY) }?.second
         if (canQuickCraft && quickCraftCommand != null) {
             val connection = Minecraft.getInstance().connection

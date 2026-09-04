@@ -7,6 +7,7 @@ import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.crafting.CraftingHelperInput
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.sacks.SackHudInput
 import com.skysoft.features.profit.ProfitTrackerHudInput
@@ -54,6 +55,7 @@ object ContainerInputHooks {
 
     @JvmStatic
     fun didConsumeKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): Boolean {
+        if (didConsume("Crafting Helper key input") { CraftingHelperInput.handleKeyPress(event) }) return true
         if (didConsume("Sacks Tracker key input") { SackHudInput.handleKeyPress(event) }) return true
         if (didConsume("Profit Tracker key input") { ProfitTrackerHudInput.handleKeyPress(event) }) return true
         if (didConsume("Storage Overlay key input") { StorageOverlayController.handleKeyPress(screen, event) }) return true
@@ -67,6 +69,7 @@ object ContainerInputHooks {
 
     @JvmStatic
     fun didConsumeCharacterInput(screen: AbstractContainerScreen<*>, event: CharacterEvent): Boolean {
+        if (didConsume("Crafting Helper character input") { CraftingHelperInput.handleCharTyped(event) }) return true
         if (didConsume("Sacks Tracker character input") { SackHudInput.handleCharTyped(event) }) return true
         val profitTrackerConsumed = didConsume("Profit Tracker character input") {
             ProfitTrackerHudInput.handleCharTyped(event)

@@ -21,6 +21,12 @@ class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Crafting Helper", desc = "Track the materials needed for selected recipes.")
+    val craftingHelper = CraftingHelperConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Bazaar", desc = "Bazaar order tracking and overlays.")
     val bazaar = SkysoftBazaarConfig()
 
@@ -160,6 +166,7 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     override fun repairLoadedValues() = repairLoadedConfigs(
         itemList,
+        craftingHelper,
         bazaar,
         sackDisplay,
         sackHud,
