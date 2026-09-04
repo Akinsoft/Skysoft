@@ -29,7 +29,6 @@ import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.abs
-import kotlin.math.floor
 import kotlin.math.roundToInt
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -145,8 +144,8 @@ private fun renderInteractive(
     val scaledAnchorHeight = (renderable.anchorHeight * scale).roundToInt()
     val x = position.getAbsX0AllowingOverflow(scaledWidth)
     val y = position.getAbsY0AllowingOverflow(scaledAnchorHeight)
-    val localMouseX = floor((normalMouseX - x) / scale).toInt()
-    val localMouseY = floor((normalMouseY - y) / scale).toInt()
+    val localMouseX = OverlayControlMouse.localCoordinate(normalMouseX, x, scale)
+    val localMouseY = OverlayControlMouse.localCoordinate(normalMouseY, y, scale)
     val placePanelRight = partyDisplayConfig.details.alignment != PartyDisplayAlignment.RIGHT &&
         x + ((renderable.width + MEMBER_PANEL_GAP + MEMBER_PANEL_WIDTH) * scale).roundToInt() <=
         window.guiScaledWidth

@@ -23,6 +23,7 @@ import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayItemRowStyle
+import com.skysoft.utils.gui.OverlayListScroll
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
@@ -42,7 +43,6 @@ import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import com.skysoft.utils.renderables.withIsolatedPose
-import kotlin.math.floor
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -212,8 +212,8 @@ private fun renderPositioned(
     val scaledHeight = (renderable.height * scale).roundToInt()
     val x = position.getAbsX0AllowingOverflow(scaledWidth)
     val y = position.getAbsY0AllowingOverflow(scaledHeight)
-    val localMouseX = floor((mouseX - x) / scale).toInt()
-    val localMouseY = floor((mouseY - y) / scale).toInt()
+    val localMouseX = OverlayControlMouse.localCoordinate(mouseX, x, scale)
+    val localMouseY = OverlayControlMouse.localCoordinate(mouseY, y, scale)
     val placePanelRight = x + ((renderable.width + SIDE_PANEL_ESTIMATED_WIDTH) * scale).roundToInt() <=
         Minecraft.getInstance().window.guiScaledWidth
     val localControl = context.withIsolatedPose {
@@ -334,7 +334,7 @@ private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
     if (maximumOffset == 0) return false
     val key = ItemScrollKey(target, period)
     val current = itemScrollOffsets.getOrDefault(key, 0)
-    itemScrollOffsets[key] = profitTrackerScrollOffset(current, verticalAmount, maximumOffset)
+    itemScrollOffsets[key] = OverlayListScroll.nextOffset(current, verticalAmount, maximumOffset)
     return true
 }
 
@@ -545,11 +545,8 @@ private class ProfitTrackerRenderable(
                 )
             }
         }
-        if (remainingItems > 0) {
-            add(ProfitLine("§7$remainingItems more...", centered = true))
-        } else if (hiddenItemsAbove > 0) {
-            add(ProfitLine("§7$hiddenItemsAbove above...", centered = true))
-        }
+        val scrollIndicator = OverlayListScroll.indicator(hiddenItemsAbove, remainingItems)
+        if (scrollIndicator.isNotEmpty()) add(ProfitLine(scrollIndicator, centered = true))
         val profitPerHour = profitPerHour(profit, stats.activeMillis)
         summaryLines.forEach { summaryLine ->
             when (summaryLine) {

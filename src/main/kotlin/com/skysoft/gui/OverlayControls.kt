@@ -3,6 +3,7 @@ package com.skysoft.gui
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
+import kotlin.math.floor
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
@@ -48,6 +49,9 @@ object OverlayControlCycle {
 }
 
 object OverlayControlMouse {
+    fun localCoordinate(normalCoordinate: Int, origin: Int, scale: Float): Int =
+        floor((normalCoordinate - origin) / scale).toInt()
+
     fun normalPoint(mouseX: Int, mouseY: Int): Pair<Int, Int> {
         val minecraft = Minecraft.getInstance()
         val window = minecraft.window
