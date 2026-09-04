@@ -62,7 +62,7 @@ object Zoom {
         val settings = config.settings
         val canZoom = config.enabled && minecraft.player != null && MinecraftClient.screen(minecraft) == null &&
             settings.key != GLFW.GLFW_KEY_UNKNOWN
-        val keyDown = canZoom && InputUtilities.isBindingDown(settings.key)
+        val keyDown = canZoom && InputUtilities.isActionBindingDown(settings.key)
 
         if (!canZoom) {
             toggled = false

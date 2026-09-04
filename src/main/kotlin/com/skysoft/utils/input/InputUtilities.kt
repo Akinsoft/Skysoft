@@ -1,11 +1,33 @@
 package com.skysoft.utils.input
 
 import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Point
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.Screen
 import org.lwjgl.glfw.GLFW
 
 object InputUtilities {
+    private val bindingPressScreens = mutableMapOf<Int, Screen?>()
+
+    @JvmStatic
+    fun recordBindingInput(window: Long, binding: Int, action: Int) {
+        val minecraft = Minecraft.getInstance()
+        if (window != minecraft.window.handle()) return
+        when (action) {
+            GLFW.GLFW_PRESS -> bindingPressScreens[binding] = MinecraftClient.screen(minecraft)
+            GLFW.GLFW_RELEASE -> bindingPressScreens.remove(binding)
+        }
+    }
+
+    fun isActionBindingDown(binding: Int): Boolean {
+        val minecraft = Minecraft.getInstance()
+        if (!minecraft.isWindowActive || bindingPressScreens[binding] !== MinecraftClient.screen(minecraft)) {
+            bindingPressScreens.remove(binding)
+        }
+        return bindingPressScreens.containsKey(binding) && isBindingDown(binding)
+    }
+
     fun isBindingDown(binding: Int): Boolean {
         val window = Minecraft.getInstance().window.handle()
         return when (binding) {
