@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.features.combat.BetterShurikens;
+import com.skysoft.features.hunting.LassoDisplay;
 import com.skysoft.features.pets.VisiblePetPosition;
 import com.skysoft.utils.render.EntityHighlightRenderer;
 import net.minecraft.client.Minecraft;
@@ -22,6 +23,7 @@ public class EntityRendererMixin {
     protected void skysoftAdjustVisiblePetPosition(Entity entity, EntityRenderState state, CallbackInfo ci) {
         VisiblePetPosition.adjustRenderState(entity, state);
         BetterShurikens.adjustNameTag(entity, state);
+        LassoDisplay.adjustNameTag(entity, state);
     }
 
     @ModifyReturnValue(method = "getBoundingBoxForCulling", at = @At("RETURN"))
