@@ -34,6 +34,9 @@ object Zoom {
     fun applyFov(fov: Double): Double = zoomedFov(fov, currentAmount())
 
     @JvmStatic
+    fun shouldHideHand(): Boolean = active && config.enabled && config.details.hideHand
+
+    @JvmStatic
     fun applyMouseMovement(movement: Double): Double {
         if (!config.settings.relativeSensitivity) return movement
         return movement / currentAmount()

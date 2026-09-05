@@ -7,6 +7,7 @@ import com.skysoft.features.helditem.HeldItemSwingVisuals;
 import com.skysoft.features.helditem.HeldItemTransforms;
 import com.skysoft.features.helditem.HeldItemUpdateFix;
 import com.skysoft.features.helditem.SwingReplacementResult;
+import com.skysoft.features.misc.Zoom;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -22,6 +23,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemInHandRenderer.class)
 public class ItemInHandRendererMixin {
+    @Inject(method = ItemInHandRendererMethodsKt.ITEM_IN_HAND_HANDS_METHOD, at = @At("HEAD"), cancellable = true)
+    private void skysoftHideHandsWhileZooming(CallbackInfo ci) {
+        if (Zoom.shouldHideHand()) ci.cancel();
+    }
+
     @ModifyReturnValue(method = "shouldInstantlyReplaceVisibleItem", at = @At("RETURN"))
     protected boolean skysoftKeepSameUpdatedItemVisible(boolean original, ItemStack currentlyVisibleItem, ItemStack expectedItem) {
         boolean preserve = MixinErrorBoundary.value("Held Item visible item update", false, () -> HeldItemUpdateFix.INSTANCE.shouldPreserveUpdate(currentlyVisibleItem, expectedItem));
