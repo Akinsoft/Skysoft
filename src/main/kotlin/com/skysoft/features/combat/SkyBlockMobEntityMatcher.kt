@@ -1,6 +1,8 @@
 package com.skysoft.features.combat
 
 import com.skysoft.data.ClientEntitySnapshot
+import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.skyblock.SkyBlockMobType
 import com.skysoft.data.skyblock.withoutSkyBlockMobModifierPrefix
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
@@ -9,8 +11,17 @@ import java.util.Locale
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.animal.armadillo.Armadillo
+import net.minecraft.world.entity.animal.axolotl.Axolotl
+import net.minecraft.world.entity.animal.bee.Bee
+import net.minecraft.world.entity.animal.fish.TropicalFish
+import net.minecraft.world.entity.animal.frog.Frog
+import net.minecraft.world.entity.animal.parrot.Parrot
 import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.entity.monster.Shulker
+import net.minecraft.world.entity.monster.creaking.Creaking
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.DyeColor
 
 internal data class SkyBlockMobSignal(
     val label: String,
@@ -26,6 +37,7 @@ internal data class DetectedSkyBlockMob(
     val entity: LivingEntity,
     val nameplate: ArmorStand?,
     val health: SkyBlockMobHealth?,
+    val mobTypes: Set<SkyBlockMobType>?,
 )
 
 internal object SkyBlockMobEntityMatcher {
@@ -84,7 +96,7 @@ internal object SkyBlockMobEntityMatcher {
     private fun ArmorStand.detectedMob(entities: Iterable<Entity>): DetectedSkyBlockMob? {
         if (!hasCustomName()) return null
         val text = cleanName()
-        val health = SkyBlockMobTextParser.parseHealth(text) ?: return null
+        val health = SkyBlockMobTextParser.parseHealth(text)
         val name = SkyBlockMobTextParser.parseName(text) ?: return null
         val linkedEntity = physicalEntityFor(this, entities) ?: return null
         return DetectedSkyBlockMob(
@@ -93,18 +105,48 @@ internal object SkyBlockMobEntityMatcher {
             entity = linkedEntity,
             nameplate = this,
             health = health,
+            mobTypes = SkyBlockMobTextParser.parseMobTypes(text),
         )
     }
 
     private fun LivingEntity.detectedStandaloneMob(): DetectedSkyBlockMob? {
-        if (!isStandaloneSignalEntity() || !hasCustomName()) return null
+        if (!isStandaloneSignalEntity()) return null
+        val name = if (hasCustomName()) cleanName() else torrhusCritterName() ?: return null
         return DetectedSkyBlockMob(
-            name = cleanName(),
+            name = name,
             location = position().toWorldVec(),
             entity = this,
             nameplate = null,
             health = null,
+            mobTypes = SkyBlockMobTextParser.parseMobTypes(name),
         )
+    }
+
+    private fun LivingEntity.torrhusCritterName(): String? {
+        if (!SkyBlockIsland.TORRHUS_CANYON.isInIsland()) return null
+        return when {
+            this is Armadillo -> "Pangolin"
+            this is Parrot -> "Blue Jay"
+            this is Frog -> "Dustybit"
+            this is Creaking -> "Drybark"
+            this is Shulker -> "Hideonsun"
+            this is Axolotl && variant == Axolotl.Variant.GOLD -> "Goldolot"
+            this is Axolotl && variant == Axolotl.Variant.WILD -> "Sepialot"
+            this is TropicalFish -> torrhusFishName()
+            this is Bee && bbWidth in BEEHEEMOTH_WIDTH_RANGE -> "Beeheemoth"
+            else -> null
+        }
+    }
+
+    private fun TropicalFish.torrhusFishName(): String? {
+        if (pattern != TropicalFish.Pattern.BLOCKFISH && pattern != TropicalFish.Pattern.KOB) return null
+        return when {
+            baseColor == DyeColor.YELLOW && patternColor == DyeColor.YELLOW -> "Solar"
+            baseColor == DyeColor.PINK && patternColor == DyeColor.WHITE -> "Timil"
+            baseColor == DyeColor.ORANGE && patternColor == DyeColor.ORANGE &&
+                pattern == TropicalFish.Pattern.KOB -> "Ember"
+            else -> null
+        }
     }
 
     private fun SkyBlockMob.signal(labels: List<String>): SkyBlockMobSignal? {
@@ -134,6 +176,7 @@ internal object SkyBlockMobEntityMatcher {
     private fun LivingEntity.isStandaloneSignalEntity(): Boolean =
         isAlive && isPossibleSkyBlockMob() && this !is Player
 
+    private val BEEHEEMOTH_WIDTH_RANGE = 4.9f..5.0f
     private const val NAMEPLATE_PAIR_HORIZONTAL_DISTANCE_SQ = 1.0
     private const val NAMEPLATE_PAIR_MAX_VERTICAL_DISTANCE = 4.0
 }

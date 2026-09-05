@@ -2,6 +2,7 @@ package com.skysoft.features.combat
 
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.skyblock.SkyBlockMobType
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
@@ -19,6 +20,7 @@ internal class SkyBlockMob internal constructor(
     entity: LivingEntity,
     nameplate: ArmorStand?,
     health: SkyBlockMobHealth?,
+    mobTypes: Set<SkyBlockMobType>?,
     now: Long,
 ) {
     var name: String = name
@@ -32,6 +34,8 @@ internal class SkyBlockMob internal constructor(
     var nameplateUuid: UUID? = nameplate?.uuid
         private set
     var health: SkyBlockMobHealth? = health
+        private set
+    var mobTypes: Set<SkyBlockMobType>? = mobTypes
         private set
     var lastHealthChangeAtMillis: Long? = null
         private set
@@ -49,6 +53,7 @@ internal class SkyBlockMob internal constructor(
         if (entity !== observation.entity || nameplate !== observation.nameplate) attachmentVersion++
         val previousHealth = health
         if (observation.nameplate != null || nameplateUuid == null) name = observation.name
+        observation.mobTypes?.let { mobTypes = it }
         location = observation.location
         entity = observation.entity
         nameplate = observation.nameplate
@@ -149,6 +154,7 @@ internal object SkyBlockMobTracker {
                     entity = observation.entity,
                     nameplate = observation.nameplate,
                     health = observation.health,
+                    mobTypes = observation.mobTypes,
                     now = now,
                 )
             }.also { mob -> mob.update(observation, now) }
