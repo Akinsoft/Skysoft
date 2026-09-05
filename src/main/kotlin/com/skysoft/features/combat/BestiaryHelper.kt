@@ -51,13 +51,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
 object BestiaryHelper {
     private val config get() = SkysoftConfigGui.config().combat.bestiaryHelper
-    private val highlightedEntities = EntityHighlightTracker<LivingEntity>(this)
+    private val highlightedEntities = EntityHighlightTracker<Entity>(this)
     private val resetTransition = PanelFadeTransition()
     private val knownFamilies = mutableMapOf<String, BestiaryFamily>()
     private var openBestiary: OpenBestiary? = null
@@ -206,13 +206,23 @@ object BestiaryHelper {
             return
         }
         if (++ticks % HIGHLIGHT_SCAN_INTERVAL_TICKS != 0) return
-        val entities = SkyBlockMobEntityMatcher.visibleSignals(SkyBlockBestiaryFamilies.mobNames(config.selectedMobs))
-            .mapNotNullTo(mutableSetOf()) { signal -> signal.entity }
-        highlightedEntities.replaceWith(entities)
+        val highlights = SkyBlockMobEntityMatcher.visibleSignals(SkyBlockBestiaryFamilies.mobNames(config.selectedMobs))
+            .flatMap { signal ->
+                val parts = signal.nameplate?.let { nameplate ->
+                    SegmentedMobHighlights.parts(nameplate, SkyBlockMobEntityMatcher.allEntities())
+                }.orEmpty()
+                parts.ifEmpty { listOfNotNull(signal.entity?.let { SkyBlockMobHighlight(it, it) }) }
+            }
+        highlightedEntities.replaceWith(highlights.mapTo(mutableSetOf()) { it.entity })
         val color = config.details.highlightColor.get().toColor()
-        entities.forEach { entity ->
-            EntityHighlightRenderer.setEntityColor(entity, color, source = this) {
-                config.enabled && entity in highlightedEntities
+        highlights.forEach { highlight ->
+            EntityHighlightRenderer.setEntityColor(
+                highlight.entity,
+                color,
+                source = this,
+                visibilityEntity = highlight.visibilityEntity,
+            ) {
+                config.enabled && highlight.entity in highlightedEntities
             }
         }
     }
