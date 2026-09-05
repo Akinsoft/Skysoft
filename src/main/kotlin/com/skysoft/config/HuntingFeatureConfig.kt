@@ -11,6 +11,11 @@ class HuntingFeatureConfig {
     @field:Expose
     @field:Category(name = "Lotum Helper", desc = "Lotus Atoll Lotum helpers.")
     val lotumHelper = LotumHelperConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Lasso Display", desc = "Show lasso stamina and reel prompts on screen.")
+    val lassoDisplay = LassoDisplayConfig()
 }
 
 class LotumHelperConfig {

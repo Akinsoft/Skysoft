@@ -59,6 +59,7 @@ import com.skysoft.features.foraging.HoneyhiveHelper
 import com.skysoft.features.foraging.QueenAntWarning
 import com.skysoft.features.foraging.ThrowingAxeHelper
 import com.skysoft.features.foraging.ThrowingAxeParticleHider
+import com.skysoft.features.hunting.LassoDisplay
 import com.skysoft.features.hunting.LotumHelper
 import com.skysoft.features.inventory.AnimatedDyeArmorCache
 import com.skysoft.features.inventory.DuplicateEnchantmentTooltipFix
@@ -180,6 +181,7 @@ internal object SkysoftFeatureRegistrations {
         register("Chat Image Preview", ImageLinkPreview::register)
         register("Screen Alert Renderer", ScreenAlertRenderer::register)
         register("Lotum Helper", LotumHelper::register)
+        register("Lasso Display", LassoDisplay::register)
     }
 
     private fun registerSkyBlockTrackingApis() {
