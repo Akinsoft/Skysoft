@@ -60,6 +60,9 @@ internal object StorageOverlayItemRenderer {
     ) {
         RarityHighlightRenderer.renderSlot(context, stack, x, y) {
             SkyblockerItemBackgrounds.draw(context, stack, x, y)
+            if (StorageSearchIndex.hasQuery && StorageSearchIndex.matches(stack)) {
+                InventoryItemSearchHighlight.render(context, x, y, matches = true)
+            }
             render()
         }
     }

@@ -224,12 +224,6 @@ private fun drawPageSlots(
         val activeSlot = if (active) activeSlots[index] else null
         val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else stackFor(storedItem)
         if (!stack.isEmpty) {
-            if (
-                StorageSearchIndex.hasQuery &&
-                (if (active) StorageSearchIndex.matches(stack) else StorageSearchIndex.matches(storedItem))
-            ) {
-                InventoryItemSearchHighlight.render(context, slotX, slotY)
-            }
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
                 if (active) {
                     StorageOverlayItemRenderer.drawLiveItem(context, stack, slotX, slotY)
@@ -238,6 +232,10 @@ private fun drawPageSlots(
                 }
             }
             ItemProtectionManager.renderProtectedMarker(context, stack, slotX, slotY)
+        }
+        if (StorageSearchIndex.hasQuery) {
+            val isMatch = if (active) StorageSearchIndex.matches(stack) else StorageSearchIndex.matches(storedItem)
+            if (!isMatch) InventoryItemSearchHighlight.render(context, slotX, slotY, matches = false)
         }
         if (hovered) {
             drawSlotHover(context, slotX, slotY)
@@ -267,7 +265,11 @@ internal fun drawSearchBox(context: GuiGraphicsExtractor, measurements: Measurem
         box.height,
         "Search...",
         backgroundColor = StorageColors.SEARCH_BACKGROUND,
-        outlineColor = if (storageSearchField.focused) StorageColors.SELECTED else StorageColors.PANEL_OUTLINE,
+        outlineColor = when {
+            StorageSearchIndex.hasQuery -> InventoryItemSearchHighlight.outlineColor
+            storageSearchField.focused -> StorageColors.SELECTED
+            else -> StorageColors.PANEL_OUTLINE
+        },
         textColor = StorageColors.TEXT_WHITE,
         placeholderColor = StorageColors.SEARCH_PLACEHOLDER,
     )
@@ -322,6 +324,9 @@ private fun drawPlayerSlot(
     slot?.let { SlotLockManager.renderSlotOverlay(context, it, pos.x, pos.y) }
     if (shouldRenderItem) {
         ItemProtectionManager.renderProtectedMarker(context, stack, pos.x, pos.y)
+    }
+    if (StorageSearchIndex.hasQuery && !StorageSearchIndex.matches(stack)) {
+        InventoryItemSearchHighlight.render(context, pos.x, pos.y, matches = false)
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
         drawSlotHover(context, pos.x, pos.y)
