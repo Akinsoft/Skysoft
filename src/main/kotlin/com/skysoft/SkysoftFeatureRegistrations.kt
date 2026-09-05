@@ -91,6 +91,7 @@ import com.skysoft.features.mining.MiningAbilityCooldownDisplay
 import com.skysoft.features.misc.DayDisplay
 import com.skysoft.features.misc.ForIntrests
 import com.skysoft.features.misc.KeepTerrainLoaded
+import com.skysoft.features.misc.HideSillyButtons
 import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.PartyDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
@@ -296,6 +297,7 @@ internal object SkysoftFeatureRegistrations {
         register("Honeybug Helper", HoneybugHelper::register)
         register("Rare Loot Features", RareLootChatFeatures::register)
         register("Keep Terrain Loaded", KeepTerrainLoaded::register)
+        register("Hide Silly Buttons", HideSillyButtons::register)
         register("Diana Burrow Storage", DianaBurrowStorage::register)
         register("Diana Particle Quality", DianaParticleQuality::register)
         register("Diana Burrow Helper", DianaBurrowHelper::register)

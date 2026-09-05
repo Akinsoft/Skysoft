@@ -87,7 +87,8 @@
     "ServerInfoPacketMixin",
     "SoundPacketMixin",
     "StatusEffectHudMixin",
-    "TabListPacketMixin"
+    "TabListPacketMixin",
+    "TitleScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
