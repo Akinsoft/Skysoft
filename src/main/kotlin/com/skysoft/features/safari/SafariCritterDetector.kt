@@ -1,26 +1,20 @@
 package com.skysoft.features.safari
 
 import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.features.combat.SegmentedMobHighlights
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
-import net.minecraft.core.registries.BuiltInRegistries
+import com.skysoft.features.combat.SkyBlockMobHighlight
 import net.minecraft.world.entity.Display
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
-import net.minecraft.world.item.Items
 
 internal data class SafariCritter(
     val name: String,
     val rarity: SkyBlockRarity,
     val nameplate: ArmorStand,
     val captureEntity: LivingEntity?,
-    val highlights: List<SafariCritterHighlight>,
-)
-
-internal data class SafariCritterHighlight(
-    val entity: Entity,
-    val visibilityEntity: Entity,
+    val highlights: List<SkyBlockMobHighlight>,
 )
 
 internal object SafariCritterDetector {
@@ -62,13 +56,11 @@ internal object SafariCritterDetector {
             .toList()
         val captureEntity = SkyBlockMobEntityMatcher.physicalEntityFor(nameplate, entities)
             ?: matchedEntities.filterIsInstance<ArmorStand>().firstOrNull { stand -> !stand.isMarker }
-        val highlights = when (kind.model) {
-            CritterModel.STANDARD ->
-                matchedEntities
-                    .filter { entity -> entity is Display || entity is ArmorStand && !entity.isMarker }
-                    .ifEmpty { listOfNotNull(captureEntity) }
-                    .map { entity -> SafariCritterHighlight(entity, entity) }
-            CritterModel.SHYWORM -> shywormHighlights(nameplate, entities)
+        val highlights = SegmentedMobHighlights.parts(nameplate, entities).ifEmpty {
+            matchedEntities
+                .filter { entity -> entity is Display || entity is ArmorStand && !entity.isMarker }
+                .ifEmpty { listOfNotNull(captureEntity) }
+                .map { entity -> SkyBlockMobHighlight(entity, entity) }
         }
         return SafariCritter(
             name = kind.name,
@@ -109,42 +101,10 @@ internal object SafariCritterDetector {
         val nameplate: ArmorStand,
     )
 
-    private fun shywormHighlights(nameplate: ArmorStand, entities: List<Entity>): List<SafariCritterHighlight> {
-        val entitiesById = entities.associateBy(Entity::getId)
-        val head = entitiesById[nameplate.id - SHYWORM_HEAD_OFFSET]
-        if (!head.isShywormPhysicalPart(ZOMBIE_ENTITY_TYPE)) return emptyList()
-        if (
-            SHYWORM_BODY_OFFSETS.any { offset ->
-                !entitiesById[nameplate.id - offset].isShywormPhysicalPart(SLIME_ENTITY_TYPE)
-            }
-        ) {
-            return emptyList()
-        }
-        return SHYWORM_MODEL_OFFSETS.map { offset ->
-            val stand = entitiesById[nameplate.id - offset] as? ArmorStand ?: return emptyList()
-            if (
-                !stand.isAlive || !stand.isInvisible || !stand.isMarker ||
-                stand.getItemBySlot(EquipmentSlot.HEAD).item != Items.PLAYER_HEAD
-            ) {
-                return emptyList()
-            }
-            SafariCritterHighlight(stand, entitiesById.getValue(stand.id - 1))
-        }
-    }
-
-    private fun Entity?.isShywormPhysicalPart(typePath: String): Boolean =
-        this is LivingEntity && BuiltInRegistries.ENTITY_TYPE.getKey(type).path == typePath && isAlive && isInvisible
-
     private data class CritterKind(
         val name: String,
         val rarity: SkyBlockRarity,
-        val model: CritterModel = CritterModel.STANDARD,
     )
-
-    private enum class CritterModel {
-        STANDARD,
-        SHYWORM,
-    }
 
     private fun critters(rarity: SkyBlockRarity, vararg names: String): List<CritterKind> =
         names.map { name -> CritterKind(name, rarity) }
@@ -154,14 +114,8 @@ internal object SafariCritterDetector {
     private const val DISPLAY_PAIR_MIN_VERTICAL_DISTANCE = -0.5
     private const val DISPLAY_PAIR_MAX_VERTICAL_DISTANCE = 4.0
     private const val CAPSULE_TARGET_DISTANCE_SQ = 9.0
-    private const val ZOMBIE_ENTITY_TYPE = "zombie"
-    private const val SLIME_ENTITY_TYPE = "slime"
-    private const val SHYWORM_HEAD_OFFSET = 17
-    private val SHYWORM_BODY_OFFSETS = 1..15 step 2
-    private val SHYWORM_MODEL_OFFSETS = 2..16 step 2
     private val CRITTER_KINDS = buildList {
-        addAll(critters(SkyBlockRarity.COMMON, "Cavernfish", "Flitter", "Foxtrot", "Strongarm", "Tepid"))
-        add(CritterKind("Shyworm", SkyBlockRarity.COMMON, CritterModel.SHYWORM))
+        addAll(critters(SkyBlockRarity.COMMON, "Cavernfish", "Flitter", "Foxtrot", "Shyworm", "Strongarm", "Tepid"))
         addAll(
             critters(
                 SkyBlockRarity.UNCOMMON,
