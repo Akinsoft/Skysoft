@@ -158,6 +158,10 @@ internal object SkyBlockMobEntityMatcher {
         entities: Iterable<Entity>,
         isCandidate: (LivingEntity) -> Boolean,
     ): LivingEntity? {
+        val model = entities.firstOrNull { entity -> entity.id == id - 1 } as? ArmorStand
+        if (model != null && model.isMobModelPart() && !model.isMarker && model.isTightPair(this) && isCandidate(model)) {
+            return model
+        }
         val candidates = entities
             .filterIsInstance<LivingEntity>()
             .filter { entity -> entity.isPossibleSkyBlockMob() && isCandidate(entity) && entity.isTightPair(this) }
