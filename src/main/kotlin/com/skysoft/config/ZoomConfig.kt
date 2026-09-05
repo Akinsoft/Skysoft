@@ -80,6 +80,12 @@ class ZoomSettingsConfig {
 class ZoomDetailsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Hide Hand", desc = "Hide your hands and held items while zooming.")
+    @field:ConfigEditorBoolean
+    var hideHand = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Smooth Transition", desc = "Ease the camera in and out of zoom.")
     @field:ConfigEditorBoolean
     var smoothTransition = true
