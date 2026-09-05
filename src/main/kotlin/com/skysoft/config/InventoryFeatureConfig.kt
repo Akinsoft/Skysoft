@@ -67,6 +67,11 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:Category(name = "Head Display Size", desc = "Resize player head item icons.")
+    val headDisplaySize = HeadDisplaySizeConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Storage Previews", desc = "Preview the contents of SkyBlock storage items.")
     val storagePreviews = StoragePreviewsConfig()
@@ -178,6 +183,7 @@ class InventoryFeatureConfig : ConfigRepairable {
         storagePreviews,
         storageOverlay,
         rarityHighlight,
+        headDisplaySize,
     )
 }
 
