@@ -18,6 +18,7 @@
     "ChatScreenAccessor",
     "ChatScreenMixin",
     "CenteredCrosshairMixin",
+    "CrosshairVisibilityMixin",
     "ClientCommandMixin",
     "ClientPacketListenerAccessor",
     "ClientTextTooltipAccessor",
