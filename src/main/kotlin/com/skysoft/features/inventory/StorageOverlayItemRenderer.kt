@@ -38,7 +38,7 @@ internal object StorageOverlayItemRenderer {
             } else {
                 val model = models.getOrPut(stack) { resolveModel(stack) }
                 val itemState = GuiItemRenderState(
-                    Matrix3x2f(context.pose()),
+                    HeadDisplaySize.scalePose(Matrix3x2f(context.pose()), stack, x, y),
                     model,
                     x,
                     y,
