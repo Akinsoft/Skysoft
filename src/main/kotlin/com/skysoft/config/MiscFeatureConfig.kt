@@ -17,6 +17,11 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 class MiscFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
+    @field:Category(name = "Hide Silly Buttons", desc = "Hide selected Minecraft menu buttons.")
+    val hideSillyButtons = HideSillyButtonsConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Block Overlay", desc = "Customize the targeted block highlight.")
     val blockOverlay = BlockOverlayConfig()
 
