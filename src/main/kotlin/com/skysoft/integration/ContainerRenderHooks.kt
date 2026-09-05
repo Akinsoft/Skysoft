@@ -74,9 +74,6 @@ object ContainerRenderHooks {
 
     @JvmStatic
     fun renderSlotBackgrounds(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) {
-        SkysoftErrorBoundary.run("Container Search highlighting") {
-            ContainerSearchHighlighter.renderBackground(context, slot)
-        }
         SkysoftErrorBoundary.run("Active Pet highlighting") {
             ActivePetHighlighter.renderBackground(screen, context, slot)
         }
@@ -104,6 +101,9 @@ object ContainerRenderHooks {
         }
         SkysoftErrorBoundary.run("Ravengard Crown Value overlay") {
             CrownValueOverlay.render(context, slot)
+        }
+        SkysoftErrorBoundary.run("Container Search highlighting") {
+            ContainerSearchHighlighter.renderOverlay(context, slot)
         }
     }
 }

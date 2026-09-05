@@ -1,7 +1,10 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.ColorUtilities.toColor
+import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.ItemStackComponentCache
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -48,19 +51,23 @@ internal object InventoryItemSearchIndex {
 }
 
 internal object InventoryItemSearchHighlight {
-    const val OUTLINE_COLOR = 0xFF30FF30.toInt()
-    private const val FILL_COLOR = 0x6030FF30
+    private val fillColor: Int
+        get() = SkysoftConfigGui.config().settings.searchHighlightColor.get().toColor().rgb
+    val outlineColor: Int
+        get() = fillColor.withAlpha(255)
+
+    private val DIM_COLOR = 0xA0000000.toInt()
     private const val INSET = 1
     private const val SIZE = 18
     private const val END_OFFSET = SIZE - INSET
 
-    fun render(context: GuiGraphicsExtractor, itemX: Int, itemY: Int) {
+    fun render(context: GuiGraphicsExtractor, itemX: Int, itemY: Int, matches: Boolean) {
         context.fill(
             itemX - INSET,
             itemY - INSET,
             itemX + END_OFFSET,
             itemY + END_OFFSET,
-            FILL_COLOR,
+            if (matches) fillColor else DIM_COLOR,
         )
     }
 }
@@ -101,6 +108,12 @@ object ContainerSearchHighlighter {
     @JvmStatic
     fun renderBackground(context: GuiGraphicsExtractor, slot: Slot) {
         if (!matches(slot)) return
-        InventoryItemSearchHighlight.render(context, slot.x, slot.y)
+        InventoryItemSearchHighlight.render(context, slot.x, slot.y, matches = true)
+    }
+
+    @JvmStatic
+    fun renderOverlay(context: GuiGraphicsExtractor, slot: Slot) {
+        if (!active || !query.hasTerms || !slot.isActive || matches(slot)) return
+        InventoryItemSearchHighlight.render(context, slot.x, slot.y, matches = false)
     }
 }

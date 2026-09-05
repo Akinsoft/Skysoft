@@ -372,7 +372,7 @@ object ItemListController {
             layout.search.height,
             "Search items and mobs...",
             alpha = footerOpacity,
-            outlineColor = InventoryItemSearchHighlight.OUTLINE_COLOR.takeIf {
+            outlineColor = InventoryItemSearchHighlight.outlineColor.takeIf {
                 ContainerSearchHighlighter.isActive()
             },
         )

@@ -73,6 +73,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
             ContainerItemRenderHooks.renderItemWithRarity(
                 "Rarity Highlight item rendering",
                 screen,
+                context,
                 skysoftCurrentSlot,
                 renderStack,
                 () -> original.call(context, renderStack, x, y, seed)
@@ -89,6 +90,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
             ContainerItemRenderHooks.renderItemWithRarity(
                 "Rarity Highlight fake item rendering",
                 screen,
+                context,
                 skysoftCurrentSlot,
                 renderStack,
                 () -> original.call(context, renderStack, x, y, seed)
