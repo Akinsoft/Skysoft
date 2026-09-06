@@ -30,7 +30,9 @@ internal fun lotMatches(lot: ProfileStorage.BazaarItemLotData, productId: String
 internal fun resolveProductId(itemName: String): String? =
     SkyBlockItemNames.itemId(itemName.clean()) ?: PetRepository.resolvePetItemOrNull(itemName)
 
-internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(Regex("\\s+"), " ")
+private val nameWhitespacePattern = Regex("\\s+")
+
+internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(nameWhitespacePattern, " ")
 
 internal fun orderMatchesParsedIdentity(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (
