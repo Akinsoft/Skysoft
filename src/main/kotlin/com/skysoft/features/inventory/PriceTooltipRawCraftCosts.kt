@@ -3,9 +3,7 @@ package com.skysoft.features.inventory
 import com.skysoft.config.PriceTooltipLine
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.SkyBlockDataRepository
-import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockRecipeSnapshot
 import com.skysoft.data.skyblock.price.RawCraftMarketSnapshot
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
@@ -72,8 +70,7 @@ internal object PriceTooltipRawCraftCosts {
         activeBuild = build
         build.future = backgroundExecutor().submit {
             try {
-                val source = SnapshotRawCraftPriceSource(recipeSnapshot, marketSnapshot)
-                val costs = RawCraftCostResolver(source).resolveAll(build.cancelled::get)
+                val costs = RawCraftCostResolver(recipeSnapshot, marketSnapshot).resolveAll(build.cancelled::get)
                 SkysoftErrorBoundary.onClientThread("Raw Craft Cost preparation completion") {
                     if (activeBuild !== build || !isActive()) return@onClientThread
                     activeBuild = null
@@ -139,21 +136,6 @@ internal object PriceTooltipRawCraftCosts {
         val cancelled: AtomicBoolean = AtomicBoolean(),
         var future: Future<*>? = null,
     )
-
-    private class SnapshotRawCraftPriceSource(
-        private val recipes: SkyBlockRecipeSnapshot,
-        private val market: RawCraftMarketSnapshot,
-    ) : RawCraftPriceSource {
-        override val recipeVersion: Long = recipes.version
-        override val marketVersion: Long = market.version
-        override val recipeKeys: Set<ItemListEntryKey> = recipes.recipesByResult.keys
-
-        override fun recipesFor(key: ItemListEntryKey): List<SkyBlockRecipe> = recipes.recipesByResult[key].orEmpty()
-
-        override fun bazaarInstantBuy(itemId: String): Double? = market.bazaarProducts[itemId]?.instantBuyPrice
-
-        override fun lowestBin(itemId: String): Double? = market.lowestBins[itemId]?.toDouble()
-    }
 
     private const val REFRESH_INTERVAL_TICKS = 20
 }
