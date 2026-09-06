@@ -10,9 +10,7 @@ import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtBinaryExpression
-import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtConstantExpression
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtIsExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -81,15 +79,7 @@ class AmbiguousBooleanReturn(config: Config) : Rule(
             is KtBinaryExpression -> operationToken in BOOLEAN_OPERATION_TOKENS
             is KtPrefixExpression -> operationToken == KtTokens.EXCL && baseExpression?.looksLikeBooleanExpression() == true
             is KtParenthesizedExpression -> expression?.looksLikeBooleanExpression() == true
-            is KtCallExpression -> calleeExpression?.text?.isPredicateName() == true
-            is KtDotQualifiedExpression -> selectorExpression?.looksLikeBooleanSelector() == true
             else -> false
-        }
-
-    private fun KtExpression.looksLikeBooleanSelector(): Boolean =
-        when (this) {
-            is KtCallExpression -> calleeExpression?.text?.isPredicateName() == true
-            else -> text.isPredicateName()
         }
 
     private fun KtParameter.hasBooleanReturningFunctionType(): Boolean {
