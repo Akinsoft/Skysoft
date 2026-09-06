@@ -103,6 +103,9 @@ internal class ProfitTrackerHudControls(
             resetTransition.hide()
         }
         ProfitTrackerControl.More -> wasLeftClickHandled(button, itemPanel::toggleOverview)
+        ProfitTrackerControl.ManageKernels -> wasLeftClickHandled(button, itemPanel::toggleKernels)
+        ProfitTrackerControl.KernelItem -> wasKernelItemCycled(button)
+        ProfitTrackerControl.KernelPriceSource -> wasKernelPriceSourceCycled(button)
         is ProfitTrackerControl.PestBreakdown -> false
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
         is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(target, action.itemId, button)
@@ -190,6 +193,24 @@ internal class ProfitTrackerHudControls(
             OverlayControlCycle.next(choices, current, backwards),
         )
     }
+
+    private fun wasKernelItemCycled(button: Int): Boolean =
+        OverlayControlCycle.wasClickHandled(button) { backwards ->
+            farmingKernelProfitItem = OverlayControlCycle.next(
+                FarmingKernelProfitItem.entries,
+                farmingKernelProfitItem,
+                backwards,
+            )
+        }
+
+    private fun wasKernelPriceSourceCycled(button: Int): Boolean =
+        farmingKernelProfitItem.isBazaar && OverlayControlCycle.wasClickHandled(button) { backwards ->
+            farmingKernelProfitPriceSource = OverlayControlCycle.next(
+                FarmingKernelProfitPriceSource.entries,
+                farmingKernelProfitPriceSource,
+                backwards,
+            )
+        }
 
     private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
         if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false

@@ -70,7 +70,7 @@ object ProfitTracker {
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         SkyBlockDataRepository.Demand.register("Profit Tracker") { configs.isAnyEnabled() }
-        MayorPerkApi.registerConsumer("Profit Tracker") { configs.mythologicalRitual.enabled }
+        MayorPerkApi.registerConsumer("Profit Tracker") { configs.farming.enabled || configs.mythologicalRitual.enabled }
         PetRepository.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         itemTracking.register({ configs.isAnyEnabled() }, ::recordItemChanges)
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, state -> recordFarmingBlock(state.block) }
@@ -305,6 +305,12 @@ object ProfitTracker {
     }
 
     private fun recordImmediateMessage(preset: ProfitTrackerPreset, message: String) {
+        if (preset == ProfitTrackerPreset.FARMING && message == KERNEL_DONATION_MESSAGE) {
+            val target = ProfitTrackerTarget.preset(preset)
+            uptime.markActivity(target)
+            update(target) { stats -> stats.kernels++ }
+            return
+        }
         val activityDrop = when (preset) {
             ProfitTrackerPreset.FARMING -> parseFarmingChatDrop(message)
             ProfitTrackerPreset.FORAGING -> foragingTreeGiftParser.parse(message)
@@ -620,6 +626,8 @@ private const val MINECRAFT_DAY_TICKS = 24_000L
 private const val MINECRAFT_NIGHT_START_TICK = 12_000L
 private const val SEA_CREATURE_ENTITY_TYPE = "Sea Creature"
 private const val MYTHOLOGICAL_CREATURE_ENTITY_TYPE = "Mythological Creature"
+private const val KERNEL_DONATION_MESSAGE =
+    "[NPC] Feast Chef Ted: Thanks for the donation! I've added a Kernel to your purse."
 
 internal fun parseFarmingChatDrop(message: String): ParsedItemAmount? {
     val match = FARMING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
