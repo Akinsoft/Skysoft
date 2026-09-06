@@ -4,6 +4,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
+import com.skysoft.data.skyblock.SkyBlockOpenInventoryCell
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.MinecraftClient
@@ -60,17 +61,7 @@ internal fun resetTransientState() {
     StorageSearchIndex.clear()
 }
 
-internal fun readSnapshot(snapshot: SkyBlockOpenInventorySnapshot, handle: StorageHandle) {
-    readStorageInventory(
-        StorageInventoryView(
-            key = snapshot.key,
-            cells = snapshot.cells.map { cell -> StorageInventoryCell(cell.index, cell.item) },
-        ),
-        handle,
-    )
-}
-
-private fun readStorageInventory(inventory: StorageInventoryView, handle: StorageHandle) {
+internal fun readSnapshot(inventory: SkyBlockOpenInventorySnapshot, handle: StorageHandle) {
     if (inventory.key == lastInventoryKey) return
     lastInventoryKey = inventory.key
     if (isStorageOverlayEnabled) StorageSearchIndex.invalidatePages()
@@ -106,7 +97,7 @@ private fun readStorageInventory(inventory: StorageInventoryView, handle: Storag
     }
 }
 
-private fun readOverview(cells: List<StorageInventoryCell>) {
+private fun readOverview(cells: List<SkyBlockOpenInventoryCell>) {
     var changed = false
     for (cell in cells) {
         changed = readOverviewCell(cell) == ChangeResult.CHANGED || changed
@@ -114,7 +105,7 @@ private fun readOverview(cells: List<StorageInventoryCell>) {
     if (changed) ProfileStorageApi.markDirty()
 }
 
-private fun readOverviewCell(cell: StorageInventoryCell): ChangeResult {
+private fun readOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
     val pageIndex = StorageOverviewSlots.pageIndexForSlot(cell.index)
         ?: return if (isStorageOverlayEnabled) readToolkitOverviewCell(cell) else ChangeResult.UNCHANGED
     val stack = cell.item
@@ -129,7 +120,7 @@ private fun readOverviewCell(cell: StorageInventoryCell): ChangeResult {
     }
 }
 
-private fun readToolkitOverviewCell(cell: StorageInventoryCell): ChangeResult {
+private fun readToolkitOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
     val stack = cell.item
     if (stack.isEmpty || stack.formattedHoverName().cleanSkyBlockText() != "Toolkits") return ChangeResult.UNCHANGED
     val overviewIcon = encodeItem(stack).encodedStack
@@ -178,7 +169,7 @@ private fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeRes
 }
 
 private fun readStoragePage(
-    cells: List<StorageInventoryCell>,
+    cells: List<SkyBlockOpenInventoryCell>,
     pageIndex: Int,
     storedPageIndex: Int,
     menuRows: Int,
@@ -211,7 +202,7 @@ private fun readStoragePage(
     if (changed) ProfileStorageApi.markDirty()
 }
 
-private fun readToolkit(cells: List<StorageInventoryCell>, handle: StorageHandle.Toolkit) {
+private fun readToolkit(cells: List<SkyBlockOpenInventoryCell>, handle: StorageHandle.Toolkit) {
     val rows = handle.rows.coerceIn(1, ProfileStorage.SKYBLOCK_CONTAINER_MAX_ROWS)
     var changed = false
     val page = storage.skyBlockToolkits.getOrPut(handle.type.storageKey) {
@@ -236,13 +227,3 @@ private fun readToolkit(cells: List<StorageInventoryCell>, handle: StorageHandle
     }
     if (changed) ProfileStorageApi.markDirty()
 }
-
-private data class StorageInventoryView(
-    val key: String,
-    val cells: List<StorageInventoryCell>,
-)
-
-private data class StorageInventoryCell(
-    val index: Int,
-    val item: ItemStack,
-)
