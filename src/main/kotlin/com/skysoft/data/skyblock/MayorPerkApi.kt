@@ -19,6 +19,7 @@ object MayorPerkApi {
     private const val CHIVALROUS_CARNIVAL = "Chivalrous Carnival"
     private const val FISHING_FESTIVAL = "Fishing Festival"
     private const val MINING_FIESTA = "Mining Fiesta"
+    private const val GRAND_FEAST = "Grand Feast"
     private const val REFRESH_CHECK_INTERVAL_TICKS = 40
 
     private val gson = Gson()
@@ -54,6 +55,10 @@ object MayorPerkApi {
 
     @Volatile
     var miningFiestaActive: Boolean = false
+        private set
+
+    @Volatile
+    var grandFeastActive: Boolean = false
         private set
 
     @Volatile
@@ -103,6 +108,7 @@ object MayorPerkApi {
                     carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL)
                     fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
                     miningFiestaActive = response.hasPerk(MINING_FIESTA)
+                    grandFeastActive = response.hasPerk(GRAND_FEAST)
                     mythologicalRitualEventKey = response.mythologicalRitualEventKey()
                     refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
                 } else if (error?.isCancellationFailure() != true) {
@@ -129,6 +135,7 @@ object MayorPerkApi {
         carnivalActive = false
         fishingFestivalActive = false
         miningFiestaActive = false
+        grandFeastActive = false
         mythologicalRitualEventKey = null
     }
 
