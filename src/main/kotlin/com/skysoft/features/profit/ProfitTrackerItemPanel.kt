@@ -179,10 +179,9 @@ internal class ProfitTrackerItemPanel(
             } ?: 0,
         ) + OverlayPanelStyle.PADDING * 2
         val height = rows.sumOf(PanelRow::height) + OverlayPanelStyle.PADDING * 2
-        val x = if (placeRight) trackerWidth + PANEL_GAP else -width - PANEL_GAP
-        isHovered = Rect(x, 0, width, height).contains(mouseX, mouseY)
-        context.fill(x, 0, x + width, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
-        context.outline(x, 0, width, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))
+        val frame = OverlayPanelStyle.drawBeside(context, trackerWidth, placeRight, width, height, opacity)
+        val x = frame.x
+        isHovered = frame.contains(mouseX, mouseY)
         var hovered: ProfitTrackerPanelControl? = null
         var rowY = OverlayPanelStyle.PADDING
         rows.forEach { row ->
@@ -358,7 +357,6 @@ private const val PANEL_TEXT_HEIGHT = 9
 private const val PANEL_ICON_TEXT_OFFSET = 16
 private const val PANEL_ICON_SCALE = 0.75
 private const val ICON_VISIBILITY_THRESHOLD = 0.35
-private const val PANEL_GAP = 4
 private const val TEXT_BASE_COLOR = 0xFFFFFFFF.toInt()
 private const val TITLE_COLOR = 0xFFFFFF55.toInt()
 private const val MUTED_COLOR = 0xFFAAAAAA.toInt()

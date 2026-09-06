@@ -182,10 +182,9 @@ internal class TrackedItemManagerPanel(
         val font = Minecraft.getInstance().font
         val width = maxOf(PANEL_MINIMUM_WIDTH, rows.maxOf { font.width(it.text) }) + OverlayPanelStyle.PADDING * 2
         val height = rows.size * PANEL_ROW_HEIGHT + OverlayPanelStyle.PADDING * 2
-        val x = if (placeRight) trackerWidth + PANEL_GAP else -width - PANEL_GAP
-        isHovered = Rect(x, 0, width, height).contains(mouseX, mouseY)
-        context.fill(x, 0, x + width, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
-        context.outline(x, 0, width, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))
+        val frame = OverlayPanelStyle.drawBeside(context, trackerWidth, placeRight, width, height, opacity)
+        val x = frame.x
+        isHovered = frame.contains(mouseX, mouseY)
         var hovered: TrackedItemManagerControl? = null
         rows.forEachIndexed { index, row ->
             val y = OverlayPanelStyle.PADDING + index * PANEL_ROW_HEIGHT
@@ -229,10 +228,9 @@ internal class TrackedItemManagerPanel(
             quantityModifier.width(),
         ) + OverlayPanelStyle.PADDING * 2
         val height = PANEL_ICON_ROW_HEIGHT + quantityModifier.height + OverlayPanelStyle.PADDING * 2
-        val x = if (placeRight) trackerWidth + PANEL_GAP else -width - PANEL_GAP
-        isHovered = Rect(x, 0, width, height).contains(mouseX, mouseY)
-        context.fill(x, 0, x + width, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
-        context.outline(x, 0, width, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))
+        val frame = OverlayPanelStyle.drawBeside(context, trackerWidth, placeRight, width, height, opacity)
+        val x = frame.x
+        isHovered = frame.contains(mouseX, mouseY)
         val itemY = OverlayPanelStyle.PADDING
         item.stack?.let { stack ->
             ItemIconRenderable(stack, PANEL_ICON_SCALE).renderAt(context, x + OverlayPanelStyle.PADDING, itemY)
@@ -292,7 +290,6 @@ private const val PANEL_ICON_ROW_HEIGHT = 16
 private const val PANEL_ICON_TEXT_OFFSET = 16
 private const val PANEL_ICON_SCALE = 0.75
 private const val PANEL_TEXT_HEIGHT = 9
-private const val PANEL_GAP = 4
 private const val TEXT_BASE_COLOR = 0xFFFFFFFF.toInt()
 private const val TITLE_COLOR = 0xFFFFFF55.toInt()
 private const val ACTION_COLOR = 0xFF55FF55.toInt()

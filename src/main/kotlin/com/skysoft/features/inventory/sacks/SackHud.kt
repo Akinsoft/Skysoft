@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockSackChangeBatch
 import com.skysoft.data.skyblock.SkyBlockSackChanges
+import com.skysoft.features.inventory.TrackedItemManagerPanel
 import com.skysoft.features.inventory.TrackedItemSelectionAction
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
@@ -27,7 +28,14 @@ object SackHud {
 }
 
 internal val sackHudConfig get() = SkysoftConfigGui.config().inventory.sackHud
-internal val sackHudItemPanel = SackHudItemPanel()
+internal val sackHudItemPanel = TrackedItemManagerPanel(
+    overviewTitle = "Manage Tracked Items",
+    addTitle = "Add Item",
+    removeTitle = "Remove Item",
+    removeInstruction = "Click an item to remove",
+    isSelectable = { itemId -> itemId !in sackHudConfig.trackedItems },
+    selectItem = ::addSackHudTrackedItem,
+)
 internal var sackHudScrollOffset = 0
 internal var sackHudHoveredControl: OverlayControlArea<SackHudControl>? = null
 internal var sackHudHovered = false
