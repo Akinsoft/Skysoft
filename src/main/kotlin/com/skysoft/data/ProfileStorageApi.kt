@@ -64,10 +64,7 @@ object ProfileStorageApi {
         saves.flush()
     }
 
-    private fun serializeStorage(): String {
-        state.storageData.repairLoadedValues()
-        return profileStorageGson.toJson(state.storageData)
-    }
+    private fun serializeStorage(): String = profileStorageGson.toJson(state.storageData)
 
     private fun hasSchedulableChanges(): Boolean = saves.hasUnsavedChanges && !saveBlocked
 

@@ -222,6 +222,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
                         SkysoftConfigMigrations.apply(json, GSON)
                         NewSettingsConfigBootstrap.captureLoadedConfig(json)
                         (GSON.fromJson(json, configClass) ?: createConfig()).also {
+                            it.migrateLoadedValues()
                             it.repairLoadedValues()
                         }
                     }
@@ -238,7 +239,6 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     }
 
     fun repairLoadedValues() {
-        migrateLoadedValues()
         repairLoadedConfigs(
             ravengard,
             gui,

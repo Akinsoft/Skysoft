@@ -59,7 +59,6 @@ data class ProfileStorage(
             skillData.putAll(legacy.skillData)
             attributeShards.putAll(legacy.attributeShards)
         }
-        repairLoadedValues()
     }
 
     fun activeProfile(): ProfileSpecific {
@@ -75,10 +74,8 @@ data class ProfileStorage(
     }
 
     private fun migrateLegacyStorage(playerStorage: PlayerSpecific, profileKey: String) {
-        repairLegacyFlatStorage()
         if (profiles.isNotEmpty()) {
             profiles.forEach { (profile, data) ->
-                data.repairLoadedValues()
                 playerStorage.profiles.putIfAbsent(profile, data)
             }
             profiles.clear()
@@ -137,7 +134,8 @@ data class ProfileStorage(
         @Expose val skyBlockRiftStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
         @Expose val skyBlockToolkits: MutableMap<String, SkyBlockStoragePageData> = mutableMapOf(),
         @Expose var skyBlockToolkitIcon: String = "",
-        @Expose val inventoryEquipment: MutableList<SkyBlockStorageItemData> = mutableListOf(),
+        @Expose val inventoryEquipment: MutableList<SkyBlockStorageItemData> =
+            MutableList(INVENTORY_EQUIPMENT_SLOT_COUNT) { SkyBlockStorageItemData() },
         @Expose val skillData: MutableMap<SkyBlockSkill, SkyBlockSkillInfo> = mutableMapOf(),
         @Expose val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf(),
         @Expose val slotBindings: MutableList<SlotBindingData> = mutableListOf(),
@@ -147,16 +145,15 @@ data class ProfileStorage(
         @Expose val sackContents: MutableMap<String, SackItemData> = mutableMapOf(),
         @Expose val profitTracker: ProfitTrackerData = ProfitTrackerData(),
         @Expose val slayerTimeToKill: SlayerTimeToKillData = SlayerTimeToKillData(),
-        @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
+        @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(
+            flipAccountingVersion = BazaarTrackerData.FLIP_ACCOUNTING_VERSION,
+        ),
         @Expose val honeyhiveTracker: HoneyhiveTrackerData = HoneyhiveTrackerData(),
         @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
         @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
     ) {
         fun repairLoadedValues() {
             currentPetUuid = repairPetReferences(pets, expSharePets, currentPetUuid)
-            if (attributeShards.isNotEmpty() && attributeShards.values.none { it.enabled }) {
-                attributeShards.values.forEach { it.enabled = true }
-            }
             skyBlockStoragePages.entries.removeIf { (page, data) ->
                 page !in 0 until SKYBLOCK_STORAGE_PAGE_COUNT || !data.isUsable()
             }
