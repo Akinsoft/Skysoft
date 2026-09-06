@@ -69,12 +69,12 @@ object SpotifyAuthentication {
         SkysoftConfigGui.config().saveNow()
         pending.server.start()
         if (!BrowserUtilities.tryOpen(SpotifyOAuth.authorizationUrl(pending))) {
-            didStopPendingAuthorization(pending)
+            tryStopPendingAuthorization(pending)
             SkysoftChat.error("Could not open Spotify in your browser.")
             return
         }
         CompletableFuture.delayedExecutor(AUTHORIZATION_TIMEOUT_MINUTES, java.util.concurrent.TimeUnit.MINUTES).execute {
-            if (didStopPendingAuthorization(pending)) {
+            if (tryStopPendingAuthorization(pending)) {
                 Minecraft.getInstance().execute { SkysoftChat.error("Spotify connection timed out.") }
             }
         }
@@ -144,7 +144,7 @@ object SpotifyAuthentication {
                 }
             }
         } finally {
-            didStopPendingAuthorization(pending)
+            tryStopPendingAuthorization(pending)
         }
     }
 
@@ -234,7 +234,7 @@ object SpotifyAuthentication {
             .onFailure { SkysoftMod.LOGGER.warn("Could not clear Spotify authentication", it) }
     }
 
-    private fun didStopPendingAuthorization(pending: PendingAuthorization): Boolean {
+    private fun tryStopPendingAuthorization(pending: PendingAuthorization): Boolean {
         val stopped = synchronized(lock) {
             if (pendingAuthorization !== pending) return@synchronized false
             pendingAuthorization = null

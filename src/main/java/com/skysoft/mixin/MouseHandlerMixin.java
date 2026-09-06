@@ -45,13 +45,13 @@ public class MouseHandlerMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     protected void skysoftProcessGlobalScroll(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
-        if (MouseInputHooks.shouldConsumeScroll(verticalAmount)) ci.cancel();
+        if (MouseInputHooks.tryHandleScroll(verticalAmount)) ci.cancel();
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     protected void skysoftProcessGlobalMouseButton(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
         InputUtilities.recordBindingInput(window, buttonInfo.button(), action);
-        if (MouseInputHooks.shouldConsumeButton(buttonInfo.button(), action)) ci.cancel();
+        if (MouseInputHooks.tryHandleButton(buttonInfo.button(), action)) ci.cancel();
     }
 
     @WrapOperation(method = "onScroll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;mouseScrolled(DDDD)Z"))

@@ -156,7 +156,7 @@ class AmbiguousBooleanReturn(config: Config) : Rule(
         )
 
         val ACTION_OUTCOME_PATTERNS = listOf(
-            Regex("""try(Handle|Navigate|Send|Swap)[A-Z].*"""),
+            Regex("""try(Handle|Navigate|Send|Stop|Swap)[A-Z].*"""),
             Regex("""consumeRecent[A-Z].*"""),
         )
 

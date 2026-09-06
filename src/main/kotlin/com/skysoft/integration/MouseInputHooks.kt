@@ -38,13 +38,13 @@ object MouseInputHooks {
     }
 
     @JvmStatic
-    fun shouldConsumeScroll(verticalAmount: Double): Boolean =
+    fun tryHandleScroll(verticalAmount: Double): Boolean =
         SkysoftErrorBoundary.value("Zoom mouse scrolling", false) {
             Zoom.didHandleScroll(verticalAmount)
         }
 
     @JvmStatic
-    fun shouldConsumeButton(button: Int, action: Int): Boolean {
+    fun tryHandleButton(button: Int, action: Int): Boolean {
         if (action != GLFW.GLFW_PRESS) return false
         return didConsumeButton("Screenshot Capture Preview mouse control") {
             ScreenshotCapturePreview.processMouseButtonPress(button)
