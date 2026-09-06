@@ -26,7 +26,7 @@ class ProfitTrackersConfig {
     @JvmField
     @field:Expose
     @field:Category(name = "Farming", desc = "Track Farming profit.")
-    val farming = ProfitTrackerConfig()
+    val farming = ProfitTrackerConfig(FARMING_TRACKER_SUMMARY_LINES)
 
     @JvmField
     @field:Expose
@@ -208,6 +208,7 @@ enum class ProfitTrackerQuantityPosition(private val displayName: String) {
 enum class ProfitTrackerSummaryLine(private val displayName: String, val requiresKillTime: Boolean = false) {
     @SerializedName(value = "COINS", alternate = ["MOB_KILL_COINS"])
     COINS("Coins"),
+    KERNEL_PROFIT("Kernel Profit"),
     QUEST_COSTS("Costs"),
     TOTAL_PROFIT("Total Profit"),
     PROFIT_PER_HOUR("Profit/h"),
@@ -221,8 +222,13 @@ enum class ProfitTrackerSummaryLine(private val displayName: String, val require
     override fun toString(): String = displayName
 }
 
-private val STANDARD_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries.filterNot { it.requiresKillTime }
-private val SLAYER_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries
+private val FARMING_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries.filterNot { it.requiresKillTime }
+private val STANDARD_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries.filterNot {
+    it.requiresKillTime || it == ProfitTrackerSummaryLine.KERNEL_PROFIT
+}
+private val SLAYER_TRACKER_SUMMARY_LINES = ProfitTrackerSummaryLine.entries.filterNot {
+    it == ProfitTrackerSummaryLine.KERNEL_PROFIT
+}
 internal val RESOURCE_TRACKER_SUMMARY_LINES = listOf(
     ProfitTrackerSummaryLine.TOTAL_PROFIT,
     ProfitTrackerSummaryLine.PROFIT_PER_HOUR,

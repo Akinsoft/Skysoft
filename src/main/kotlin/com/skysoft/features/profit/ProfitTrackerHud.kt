@@ -9,6 +9,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.ItemListEntryKind
+import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.slayer.SlayerTimeToKill
@@ -369,8 +370,17 @@ private class ProfitTrackerRenderable(
     private val displayedItems = items.drop(scrollOffset).take(maximumItems)
     private val remainingItems = (items.size - scrollOffset - displayedItems.size).coerceAtLeast(0)
     private val hiddenItemsAbove = scrollOffset
-    private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins
-    private val hasUnknownPrices = items.any { it.value == null }
+    private val kernelProfit = if (target.preset == ProfitTrackerPreset.FARMING) {
+        farmingKernelProfit(
+            stats.kernels,
+            farmingKernelProfitItem,
+            farmingKernelProfitPriceSource.source ?: config.settings.priceSource,
+        )
+    } else {
+        0.0
+    }
+    private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins + (kernelProfit ?: 0.0)
+    private val hasUnknownPrices = items.any { it.value == null } || kernelProfit == null
     private val profitLabel = when {
         stats.costs.keys.any { it != COIN_CURRENCY } -> "Coin Profit"
         hasUnknownPrices -> "Known Profit"
@@ -399,6 +409,17 @@ private class ProfitTrackerRenderable(
     )
     private val pestBreakdownControl = if (inventoryOpen && target.preset == ProfitTrackerPreset.FARMING) {
         ProfitTrackerControl.PestBreakdown(pestBreakdownRows())
+    } else {
+        null
+    }
+    private val kernelProfitLine = if (
+        target.preset == ProfitTrackerPreset.FARMING && MayorPerkApi.grandFeastActive
+    ) {
+        ProfitLine(
+            "§7Kernel Profit",
+            kernelProfit?.let { "§6${it.coinFormat()}" } ?: "§8Unknown",
+            control = ProfitTrackerControl.ManageKernels.takeIf { inventoryOpen },
+        )
     } else {
         null
     }
@@ -553,6 +574,7 @@ private class ProfitTrackerRenderable(
                 ProfitTrackerSummaryLine.COINS -> if (stats.coins > 0.0) {
                     add(ProfitLine("§7${target.coinLabel}", "§6${stats.coins.coinFormat()}"))
                 }
+                ProfitTrackerSummaryLine.KERNEL_PROFIT -> kernelProfitLine?.let(::add)
                 ProfitTrackerSummaryLine.QUEST_COSTS -> stats.costs.forEach { (currency, amount) ->
                     val value = if (currency == COIN_CURRENCY) amount.toDouble().coinFormat() else amount.addSeparators()
                     add(ProfitLine("§7Quest Costs", "§c-$value"))
@@ -641,6 +663,7 @@ private class ProfitTrackerRenderable(
         -> listOf("§7Reset ${period.displayName} ${target.displayName} data.")
         ProfitTrackerControl.CancelReset -> emptyList()
         ProfitTrackerControl.More -> listOf("§7Manage tracked items.")
+        ProfitTrackerControl.ManageKernels -> listOf("§7Manage Kernel profit.")
         is ProfitTrackerControl.PestBreakdown -> listOf("§ePests Vacuumed", "§7No pests vacuumed yet.")
         is ProfitTrackerControl.ManageItem -> emptyList()
         else -> emptyList()
@@ -669,7 +692,8 @@ private data class ProfitLine(
         (right?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.VALUE_COLUMN_GAP } ?: 0)
 
     fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {
-        control is ProfitTrackerControl.ManageItem || control is ProfitTrackerControl.PestBreakdown ->
+        control is ProfitTrackerControl.ManageItem || control is ProfitTrackerControl.PestBreakdown ||
+            control == ProfitTrackerControl.ManageKernels ->
             totalWidth - padding * 2
         secondaryControl == null -> width
         else -> LegacyTextRenderer.width(left)
@@ -713,7 +737,7 @@ private data class ProfitTrackerHoveredControl(
 )
 
 private fun ProfitTrackerControl?.usesItemPanel(): Boolean =
-    this == ProfitTrackerControl.More || this is ProfitTrackerControl.ManageItem
+    this == ProfitTrackerControl.More || this is ProfitTrackerControl.ManageItem || this == ProfitTrackerControl.ManageKernels
 
 private fun selectItemPanelTarget(target: ProfitTrackerTarget) {
     if (itemPanelTarget == target) return
