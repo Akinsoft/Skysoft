@@ -305,11 +305,17 @@ private fun registerMouseCapture() {
     }
     InventoryOverlayInput.registerScrollHandler("Profit Tracker mouse scroll", isActive) {
             screen, mouseX, mouseY, verticalAmount ->
-        val allowed = InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
-            itemPanelTarget?.takeIf { it.isVisible() } == null && hoveredTracker == null ||
-            itemPanelTarget?.let { itemPanel.wasSearchScrollHandled(it, verticalAmount) } != true &&
-            (!isTrackerHovered || !wasItemScrollHandled(verticalAmount))
-        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
+        when {
+            InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ->
+                InputHandlingResult.IGNORED
+            itemPanelTarget?.takeIf { it.isVisible() } == null && hoveredTracker == null ->
+                InputHandlingResult.IGNORED
+            itemPanelTarget?.let { itemPanel.wasSearchScrollHandled(it, verticalAmount) } == true ->
+                InputHandlingResult.CONSUMED
+            isTrackerHovered && wasItemScrollHandled(verticalAmount) ->
+                InputHandlingResult.CONSUMED
+            else -> InputHandlingResult.IGNORED
+        }
     }
 }
 
