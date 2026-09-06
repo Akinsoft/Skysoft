@@ -8,6 +8,7 @@ import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -37,6 +38,7 @@ import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
 import com.skysoft.utils.NumberUtilities.roundTo
 import com.skysoft.utils.NumberUtilities.signedCoinFormat
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.truncateLegacyText
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
@@ -61,6 +63,7 @@ private val itemScrollOffsets = mutableMapOf<ItemScrollKey, Int>()
 private var profitRenderableTick = Long.MIN_VALUE
 private val profitRenderables = mutableMapOf<ProfitTrackerTarget, ProfitTrackerRenderable>()
 private val inventoryProfitRenderables = mutableMapOf<ProfitTrackerTarget, ProfitTrackerRenderable>()
+private val profitWidths = mutableMapOf<ProfitTrackerWidthKey, ProfitTrackerWidthState>()
 
 object ProfitTrackerHudInput {
     @JvmStatic
@@ -83,6 +86,14 @@ object ProfitTrackerHudInput {
 }
 
 internal fun registerProfitTrackerHud() {
+    val resetLayout = {
+        profitRenderableTick = Long.MIN_VALUE
+        profitRenderables.clear()
+        inventoryProfitRenderables.clear()
+        profitWidths.clear()
+    }
+    SkysoftClientEvents.onDisconnect("Profit Tracker HUD reset", resetLayout)
+    SkyBlockProfileApi.onProfileChange("Profit Tracker HUD profile reset", { true }) { resetLayout() }
     registerMouseCapture()
     ProfitTrackerPreset.entries.map(ProfitTrackerTarget::preset).forEach { target ->
         HudEditorRegistry.register(profitTrackerHudEditorElement(target))
@@ -272,6 +283,7 @@ private fun buildProfitRenderable(target: ProfitTrackerTarget, inventoryOpen: Bo
         profitRenderableTick = tick
         profitRenderables.clear()
         inventoryProfitRenderables.clear()
+        profitWidths.keys.removeAll { !it.target.isAvailable }
     }
     val cache = if (inventoryOpen) inventoryProfitRenderables else profitRenderables
     return cache.getOrPut(target) {
@@ -404,12 +416,14 @@ private class ProfitTrackerRenderable(
     }
     private val lines = buildLines()
 
-    override val width: Int = maxOf(
+    private val contentWidth = maxOf(
         MINIMUM_WIDTH,
         lines.maxOfOrNull(ProfitLine::width) ?: 0,
         resetLine.width.takeIf { inventoryOpen } ?: 0,
         resetConfirmationLine.width.takeIf { inventoryOpen } ?: 0,
     ) + padding * 2
+    override val width: Int = profitWidths.getOrPut(ProfitTrackerWidthKey(target, inventoryOpen), ::ProfitTrackerWidthState)
+        .update(contentWidth)
     override val height: Int = lines.sumOf(ProfitLine::height) +
         (if (inventoryOpen) resetLine.height else 0) + padding * 2
 
@@ -688,6 +702,30 @@ internal fun formatProfitUptime(activeMillis: Long): String {
 internal fun profitPerHour(profit: Double, activeMillis: Long): Double =
     if (activeMillis > 0L) profit * MILLIS_PER_HOUR / activeMillis else 0.0
 
+private data class ProfitTrackerWidthKey(
+    val target: ProfitTrackerTarget,
+    val inventoryOpen: Boolean,
+)
+
+private class ProfitTrackerWidthState {
+    private var width = 0
+    private var pendingWidth = 0
+    private var pendingSince = 0L
+
+    fun update(targetWidth: Int, nowNanos: Long = System.nanoTime()): Int {
+        if (targetWidth >= width) {
+            width = targetWidth
+            pendingWidth = targetWidth
+        } else if (targetWidth != pendingWidth) {
+            pendingWidth = targetWidth
+            pendingSince = nowNanos
+        } else if (nowNanos - pendingSince >= WIDTH_SHRINK_DELAY_NANOS) {
+            width = targetWidth
+        }
+        return width
+    }
+}
+
 private data class ItemScrollKey(
     val target: ProfitTrackerTarget,
     val period: ProfitTrackingPeriod,
@@ -733,5 +771,6 @@ private const val PERCENT_SCALE = 100.0
 private const val MAXIMUM_ITEMS = 15
 private const val MAXIMUM_ITEM_NAME_LENGTH = 20
 private const val MINIMUM_WIDTH = 145
+private const val WIDTH_SHRINK_DELAY_NANOS = 2_000_000_000L
 private const val SIDE_PANEL_ESTIMATED_WIDTH = 310
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
