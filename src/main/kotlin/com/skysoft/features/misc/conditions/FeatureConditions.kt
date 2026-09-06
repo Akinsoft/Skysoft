@@ -10,7 +10,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockEvent
 import com.skysoft.data.skyblock.SkyBlockEventState
-import com.skysoft.features.pets.CanonicalItemNames
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.util.Locale
@@ -199,7 +199,7 @@ object FeatureItemConditionCommand {
             val result = FeatureItemConditionInput.resolve(
                 isEmpty = stack == null || stack.isEmpty,
                 itemId = rawItemId,
-                canonicalName = rawItemId?.let(CanonicalItemNames::resolve),
+                canonicalName = SkyBlockItemNames.displayName(rawItemId),
             )
         ) {
             is FeatureItemInputResult.Rejected -> reject(source, result.reason)

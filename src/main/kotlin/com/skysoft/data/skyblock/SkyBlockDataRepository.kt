@@ -188,6 +188,7 @@ object SkyBlockDataRepository {
         (snapshot?.recipesByIngredient?.get(key).orEmpty() + MinecraftRecipeAdapter.usagesFor(key)).distinct()
 
     fun stack(key: ItemListEntryKey): ItemStack? {
+        ensureLoaded()
         return cachedStack(key)?.copy()
     }
 

@@ -1,6 +1,7 @@
 package com.skysoft.features.pets
 
 import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
@@ -52,7 +53,7 @@ internal object PetStorageChat {
         val petHeldItemName = hoverInfo.firstNotNullOfOrNull { line ->
             autoPetHoverHeldItemPattern.matchEntire(line.removeResets())?.group("item")
         }?.trim()
-        val petHeldItem = petHeldItemName?.let(PetRepository::resolvePetItemOrNull)
+        val petHeldItem = petHeldItemName?.let(SkyBlockItemNames::resolveItemId)
         val resolvedPet = PetStorageService.resolvePetDataOrNull(
             name = petName,
             rarity = rarity,
@@ -84,9 +85,9 @@ internal object PetStorageChat {
             ?.removeResets()
             ?.trim()
         if (heldItemName?.removeColor() == itemName.removeColor()) {
-            PetRepository.resolvePetItemOrNull(heldItemName)?.let { return it }
+            SkyBlockItemNames.resolveItemId(heldItemName)?.let { return it }
         }
-        return PetRepository.resolvePetItemOrNull(itemName)
+        return SkyBlockItemNames.resolveItemId(itemName)
     }
 
     private fun updateCurrentPetHeldItem(heldItem: String) {

@@ -6,7 +6,6 @@ import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.TextUtilities.removeColor
@@ -384,8 +383,8 @@ internal data class TrackedItemPresentation(
 internal fun trackedItemPresentation(itemId: String): TrackedItemPresentation {
     val key = SkyBlockDataRepository.itemKey(itemId)
     val entry = SkyBlockDataRepository.entry(key)
-    val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId)
-    val formattedName = (entry?.formattedDisplayName ?: PetRepository.itemName(itemId) ?: itemId)
+    val stack = SkyBlockDataRepository.displayStack(key)
+    val formattedName = (entry?.formattedDisplayName ?: itemId)
         .replace("Enchanted ", "Ench ")
     val name = formattedName.removeColor()
     val rarity = LEGACY_COLOR_PATTERN.find(formattedName)?.groupValues?.get(1)?.singleOrNull()

@@ -4,7 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
-import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
@@ -27,7 +27,7 @@ import kotlin.math.min
 
 object BetterShurikens {
     fun register() {
-        PetRepository.registerConsumer("Better Shurikens", ::isEnabled)
+        SkyBlockDataRepository.Demand.register("Better Shurikens", ::isEnabled)
         SkysoftClientEvents.onEndTick(
             "Better Shurikens tick",
             isActive = { isEnabled() || hasRuntimeState },
@@ -106,7 +106,7 @@ object BetterShurikens {
         val selectedSlot = player.inventory.selectedSlot
         val selectedStack = player.inventory.getItem(selectedSlot)
         heldShuriken = if (selectedStack.isShuriken()) {
-            cachedShurikenStack = selectedStack.copyWithCount(1)
+            observedShurikenStack = selectedStack.copyWithCount(1)
             HeldShuriken(selectedSlot, selectedStack.count, clientTick)
         } else {
             retainedHeld?.takeIf { held ->
@@ -220,12 +220,8 @@ object BetterShurikens {
     private fun ItemStack.isShuriken(): Boolean =
         skyBlockId() == SHURIKEN_ITEM_ID || (item == Items.NETHER_STAR && hoverName.string == SHURIKEN_ITEM_NAME)
 
-    private fun shurikenStack(): ItemStack? {
-        cachedShurikenStack?.let { return it }
-        return PetRepository.itemStackOrNull(SHURIKEN_ITEM_ID)?.copyWithCount(1)?.also {
-            cachedShurikenStack = it
-        }
-    }
+    private fun shurikenStack(): ItemStack? = observedShurikenStack
+        ?: SkyBlockDataRepository.displayStack(SkyBlockDataRepository.itemKey(SHURIKEN_ITEM_ID))
 
     private fun ArmorStand.hasShurikenMarker(): Boolean = customName?.string?.endsWith(SHURIKEN_MARKER_SUFFIX) == true
 
@@ -372,7 +368,7 @@ object BetterShurikens {
     private var heldShuriken: HeldShuriken? = null
     private var detectionTicksRemaining = 0
     private var pendingThrows = 0
-    private var cachedShurikenStack: ItemStack? = null
+    private var observedShurikenStack: ItemStack? = null
     private val trackedShurikens = mutableMapOf<UUID, TrackedShuriken>()
     private val recentItemDisplays = mutableMapOf<UUID, RecentItemDisplay>()
     private val taggedMobs = mutableMapOf<UUID, LivingEntity>()

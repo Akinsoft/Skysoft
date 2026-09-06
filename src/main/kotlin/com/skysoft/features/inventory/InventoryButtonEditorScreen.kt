@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.SkysoftConfigGui
@@ -52,6 +53,7 @@ object InventoryButtonEditorScreen {
         internal var selectedIndex: Int? = null
         internal var resultScrollRow = 0
         internal var lastIconSearch: String? = null
+        private var iconCatalogVersion = -1L
         internal var cachedIconCandidates: List<IconCandidate> = emptyList()
         internal var lastInventoryLeft = 0
         internal var lastInventoryTop = 0
@@ -380,26 +382,24 @@ object InventoryButtonEditorScreen {
         }
 
         internal fun iconCandidates(): List<IconCandidate> {
-            val search = iconField.text
-            if (search == lastIconSearch) return cachedIconCandidates
-            cachedIconCandidates = InventoryButtonManager.searchIconCandidates(search)
-            lastIconSearch = search
+            updateIconCandidates()
             resultScrollRow = min(resultScrollRow, maxResultScrollRow())
             return cachedIconCandidates
         }
 
         internal fun maxResultScrollRow(): Int {
-            val totalRows = ceil(iconCandidatesRawCount() / IconResults.COLUMNS.toDouble()).toInt()
+            updateIconCandidates()
+            val totalRows = ceil(cachedIconCandidates.size / IconResults.COLUMNS.toDouble()).toInt()
             return (totalRows - IconResults.ROWS).coerceAtLeast(0)
         }
 
-        private fun iconCandidatesRawCount(): Int {
+        private fun updateIconCandidates() {
             val search = iconField.text
-            if (search != lastIconSearch) {
-                cachedIconCandidates = InventoryButtonManager.searchIconCandidates(search)
-                lastIconSearch = search
-            }
-            return cachedIconCandidates.size
+            val version = SkyBlockDataRepository.snapshotVersion
+            if (search == lastIconSearch && iconCatalogVersion == version) return
+            cachedIconCandidates = InventoryButtonManager.searchIconCandidates(search)
+            lastIconSearch = search
+            iconCatalogVersion = version
         }
     }
 

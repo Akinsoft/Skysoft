@@ -12,13 +12,6 @@ import net.minecraft.world.item.component.DyedItemColor
 import net.minecraft.world.item.component.ItemLore
 
 internal object SkyBlockItemStacks {
-    fun placeholder(internalName: String, displayName: String): ItemStack {
-        val stack = ItemStack(Items.STONE)
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(displayName))
-        stack.setSkyBlockId(internalName)
-        return stack
-    }
-
     fun fromNeuItem(item: NeuItemJson): ItemStack {
         val texture = item.nbtTag?.let { textureValuePattern.find(it)?.groupValues?.get(1) }
         val signature = item.nbtTag?.let { textureSignaturePattern.find(it)?.groupValues?.get(1) }

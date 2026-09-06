@@ -13,12 +13,13 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockStackFactory
-import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ColorUtilities.withAlpha
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -63,9 +64,10 @@ object InventoryButtonManager {
     private var hoveredMillis = 0L
 
     fun register() {
-        SkyBlockDataRepository.Demand.register("Inventory Buttons") { config.enabled }
+        SkyBlockDataRepository.Demand.register("Inventory Buttons") {
+            config.enabled || MinecraftClient.screen() is InventoryButtonEditorScreen.EditorScreen
+        }
         TabListApi.registerConsumer("Inventory Buttons") { config.enabled }
-        PetRepository.registerConsumer("Inventory Buttons") { config.enabled }
         InventoryButtonIcons.registerPlayerHeadCacheRefresh({ config.enabled }) {
             config.buttons.asSequence()
                 .filter { it.isActive() }
@@ -606,7 +608,7 @@ private object InventoryButtonIcons {
             }.copy()
         }
         skyBlockInternalName(trimmed)?.let { internalName ->
-            return PetRepository.itemStackOrNull(internalName)
+            return SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(internalName))
         }
         return iconStackCache.getOrPut(trimmed.lowercase(Locale.ROOT)) {
             resolveItem(trimmed)?.let { ItemStack(it) } ?: ItemStack.EMPTY
@@ -623,13 +625,15 @@ private object InventoryButtonIcons {
             results.putIfAbsent(candidate.id, candidate)
         }
         if (query.isNotBlank()) {
-            PetRepository.searchItemIconCandidates(query, limit).forEach { candidate ->
-                val id = "skyblock:${candidate.internalName}"
-                results.putIfAbsent(
-                    id,
-                    InventoryButtonManager.IconCandidate(id, candidate.displayName, candidate.stack),
-                )
-            }
+            SkyBlockDataRepository.ensureLoaded()
+            SkyBlockDataRepository.search(query).asSequence()
+                .filter { it.key.kind == ItemListEntryKind.SKYBLOCK }
+                .take(limit)
+                .forEach { entry ->
+                    val stack = SkyBlockDataRepository.stack(entry.key) ?: return@forEach
+                    val id = "skyblock:${entry.key.id}"
+                    results.putIfAbsent(id, InventoryButtonManager.IconCandidate(id, entry.displayName, stack))
+                }
         }
         playerIconCandidates(query, limit).forEach { candidate ->
             results.putIfAbsent(candidate.id, candidate)

@@ -1,6 +1,5 @@
 package com.skysoft.features.profit
 
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.ProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.ProfitTrackerQuantityPosition
@@ -10,6 +9,7 @@ import com.skysoft.data.ProfileStorage
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.features.slayer.formatSlayerKillTimeForHud
@@ -342,8 +342,8 @@ private fun profitDisplayItems(
             return@mapNotNull null
         }
         val key = SkyBlockDataRepository.itemKey(itemId)
-        val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId) ?: return@mapNotNull null
-        val name = (SkyBlockDataRepository.entry(key)?.formattedDisplayName ?: PetRepository.itemName(itemId) ?: itemId)
+        val stack = SkyBlockDataRepository.displayStack(key) ?: return@mapNotNull null
+        val name = (SkyBlockItemNames.displayName(itemId) ?: itemId)
             .replace("Enchanted ", "Ench ")
         val unitValue = ProfitTracker.unitValue(target, itemId)
         ProfitDisplayItem(itemId, name, stack, amount, unitValue?.times(amount))

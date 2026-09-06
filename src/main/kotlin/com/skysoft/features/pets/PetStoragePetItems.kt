@@ -2,6 +2,8 @@ package com.skysoft.features.pets
 
 import com.skysoft.data.skyblock.pets.PetInternalNames
 import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.pets.PetSkinCatalog
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
@@ -123,7 +125,7 @@ internal object PetStoragePetItems {
 
     fun matchesHeldItemName(petData: StoredPetData, heldItemName: String): Boolean {
         val internalName = petData.heldItemInternalName ?: return false
-        return PetRepository.itemName(internalName)
+        return SkyBlockItemNames.displayName(internalName)
             ?.removeColor()
             ?.equals(heldItemName.removeColor(), ignoreCase = true) == true
     }
@@ -134,7 +136,7 @@ internal object PetStoragePetItems {
     } ?: true
 
     fun petSkinInternalNameOrNull(match: MatchResult, petInternalName: String): String? =
-        PetRepository.findPetSkinInternalNameOrNull(
+        PetSkinCatalog.findInternalName(
             petInternalName,
             match.groupOrNull("skin") ?: match.groupOrNull("altskin"),
         )

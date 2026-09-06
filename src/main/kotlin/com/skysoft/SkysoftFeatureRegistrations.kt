@@ -28,7 +28,6 @@ import com.skysoft.data.skyblock.SkyBlockSackContents
 import com.skysoft.data.skyblock.SkyBlockSackTransfers
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.chat.ChatHistoryPersistence
@@ -257,7 +256,6 @@ internal object SkysoftFeatureRegistrations {
     }
 
     private fun registerPetFeatures() {
-        register("Pet Repository", PetRepository::register)
         register("Active Pet Tracker", ActivePetTracker::register)
         register("Skill Experience API", SkillExpGainApi::register)
         register("Pet Experience Estimator", PetXpEstimator::register)

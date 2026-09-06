@@ -1,6 +1,6 @@
 package com.skysoft.features.pets
 
-import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.features.pets.display.text.PetTextDisplaySettings
 import com.skysoft.config.features.pets.display.text.PetTextConfig
@@ -82,7 +82,7 @@ object ActivePetOverlay {
     }
 
     fun register() {
-        PetRepository.registerConsumer("Pet Features", PetFeatureDemand::isActive)
+        SkyBlockDataRepository.Demand.register("Pet Features", PetFeatureDemand::isActive)
         ActivePetEntityTracker.registerConsumer("Pet Display", PetFeatureDemand::isDisplayActive)
         GuiOverlayRegistry.registerHud(
             GuiOverlay(
@@ -557,7 +557,8 @@ private fun GuiRenderable.wrapInPetItemOrSelf(
     opacity: Float = 1.0f,
 ): GuiRenderable {
     if (!enabled) return this
-    val item = PetRepository.itemStackOrNull(petData.heldItemInternalName) ?: return this
+    val itemId = petData.heldItemInternalName ?: return this
+    val item = SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(itemId)) ?: return this
     val placement = petItemConfig.placement.get()
     return PetItemOverlayRenderable(
         root = this,

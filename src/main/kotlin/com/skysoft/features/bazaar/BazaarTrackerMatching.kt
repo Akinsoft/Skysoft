@@ -1,6 +1,5 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
@@ -28,7 +27,7 @@ internal fun lotMatches(lot: ProfileStorage.BazaarItemLotData, productId: String
     productMatches(lot.productId, productId) || namesMatch(lot.itemName, itemName)
 
 internal fun resolveProductId(itemName: String): String? =
-    SkyBlockItemNames.itemId(itemName.clean()) ?: PetRepository.resolvePetItemOrNull(itemName)
+    SkyBlockItemNames.itemId(itemName.clean()) ?: SkyBlockItemNames.resolveItemId(itemName)
 
 private val nameWhitespacePattern = Regex("\\s+")
 

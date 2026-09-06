@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.data.skyblock.SkillExpGainApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
@@ -172,7 +173,7 @@ internal object PetStorageInventoryReader {
             ?.trim()
             ?.removeResets()
             ?.takeIf { it.isNotBlank() }
-            ?.let(PetRepository::resolvePetItemOrNull)
+            ?.let(SkyBlockItemNames::resolveItemId)
 
         var isMaxedWithoutOverflowXp = false
         val petExp = petTabWidgetXpPattern.matchEntire(widget.xp.string)?.let { xpMatch ->

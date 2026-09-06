@@ -1,41 +1,19 @@
 package com.skysoft.data.skyblock.pets
 
 import com.google.gson.Gson
-import com.skysoft.data.skyblock.SkyBlockItemJson
-import com.skysoft.data.skyblock.SkyBlockPetInfo
-import com.skysoft.utils.net.PendingHttpRequests
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import net.minecraft.world.item.ItemStack
 import java.util.concurrent.ConcurrentHashMap
 
 internal object PetRepoCache {
-    const val RAW_BASE = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master"
-    const val GITHUB_TREE_URL =
-        "https://api.github.com/repos/NotEnoughUpdates/NotEnoughUpdates-REPO/git/trees/master?recursive=1"
-
     val gson = Gson()
-    val requests = PendingHttpRequests()
-    val itemStacks = ConcurrentHashMap<String, ItemStack>()
-    val itemNames = ConcurrentHashMap<String, String>()
     val skinStacks = ConcurrentHashMap<String, ItemStack>()
     val animatedSkinMatches = ConcurrentHashMap<String, AnimatedSkinJson>()
     val missingAnimatedSkinMatches = ConcurrentHashMap.newKeySet<String>()
     private val animationCacheLock = Any()
     private val animatedSkinFrames = HashMap<PetAnimationFramesKey, List<PetItemFrame>>()
 
-    @Volatile
-    var localRepoCacheLoaded = false
-
-    @Volatile
-    var localItemsByInternalName: Map<String, SkyBlockItemJson> = emptyMap()
-
-    @Volatile
-    var localItemNameResolution: Map<String, String> = emptyMap()
-
-    @Volatile
-    var localPets: Map<String, SkyBlockPetInfo> = emptyMap()
-
-    @Volatile
-    var petsJson: SkysoftPetsRepoJson? = null
+    private var catalogVersion = -1L
 
     @Volatile
     var petAnimations: PetAnimationsJson? = null
@@ -55,16 +33,14 @@ internal object PetRepoCache {
             }
         }
 
-    @Volatile
-    var petSkinInternalNames: Set<String>? = null
-
-    @Volatile
-    var itemInternalNames: Set<String>? = null
-
     fun animatedSkinFrames(
         key: () -> PetAnimationFramesKey,
         create: (PetAnimationFramesKey) -> List<PetItemFrame>?,
     ): List<PetItemFrame>? = synchronized(animationCacheLock) {
+        if (catalogVersion != SkyBlockDataRepository.snapshotVersion) {
+            animatedSkinFrames.clear()
+            catalogVersion = SkyBlockDataRepository.snapshotVersion
+        }
         val resolvedKey = key()
         animatedSkinFrames[resolvedKey] ?: create(resolvedKey)?.also {
             animatedSkinFrames[resolvedKey] = it
@@ -72,6 +48,7 @@ internal object PetRepoCache {
     }
 
     private fun clearAnimationCaches() {
+        skinStacks.clear()
         animatedSkinFrames.clear()
         animatedSkinMatches.clear()
         missingAnimatedSkinMatches.clear()

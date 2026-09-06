@@ -1,6 +1,5 @@
 package com.skysoft.features.profit
 
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.ProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
@@ -71,7 +70,6 @@ object ProfitTracker {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         SkyBlockDataRepository.Demand.register("Profit Tracker") { configs.isAnyEnabled() }
         MayorPerkApi.registerConsumer("Profit Tracker") { configs.mythologicalRitual.enabled }
-        PetRepository.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         itemTracking.register({ configs.isAnyEnabled() }, ::recordItemChanges)
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, state -> recordFarmingBlock(state.block) }
         SkyBlockCurrencyChanges.onChange("Profit Tracker currency changes", { configs.isAnyEnabled() }) { change ->

@@ -10,7 +10,6 @@ import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
@@ -28,7 +27,6 @@ import net.minecraft.sounds.SoundEvents
 internal fun registerBazaarTracker() {
     ProfileStorageApi.registerConsumer("Bazaar Tracker") { config.enabled }
     SkyBlockDataRepository.Demand.register("Bazaar Tracker") { config.enabled }
-    PetRepository.registerConsumer("Bazaar Tracker") { config.enabled }
     SkyBlockOpenInventoryApi.onChange(
         "Bazaar Tracker inventory",
         isActive = { config.enabled },
