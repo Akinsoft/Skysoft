@@ -28,6 +28,8 @@ object SlayerQuestState {
             .orEmpty()
     val slayerType: SkyBlockSlayerType? get() = snapshot.slayerType
     val tier: Int? get() = snapshot.tier
+    internal var scoreboardSlayerType: SkyBlockSlayerType? = null
+        private set
 
     fun register() {
         ChatEvents.onVisibleMessage(
@@ -56,7 +58,7 @@ object SlayerQuestState {
         }
         SidebarScoreboardState.onChange(
             "Slayer Quest State scoreboard",
-            isActive = { HypixelLocationState.inSkyBlock || isActive },
+            isActive = { HypixelLocationState.inSkyBlock || isActive || scoreboardSlayerType != null },
             listener = ::update,
         )
         SkysoftClientEvents.onDisconnect("Slayer Quest State disconnect reset", ::clear)
@@ -93,6 +95,7 @@ object SlayerQuestState {
             return
         }
         val next = parseSlayerQuestSnapshot(lines)
+        scoreboardSlayerType = next.slayerType
         val now = System.currentTimeMillis()
         recentlyClearedMinibossNames.entries.removeIf { (_, clearedAtMillis) ->
             !isWithinMinibossCocoonWindow(clearedAtMillis, now)
@@ -114,6 +117,7 @@ object SlayerQuestState {
     }
 
     private fun clear() {
+        scoreboardSlayerType = null
         snapshot = SlayerQuestSnapshot.NONE
         lastActiveSnapshot = SlayerQuestSnapshot.NONE
         clearMinibossNames()

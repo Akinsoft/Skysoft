@@ -109,8 +109,14 @@ object ProfitTracker {
         SlayerQuestState.onQuestComplete("Profit Tracker quest completion") { quest ->
             questCostCapture.clear()
             if (!configs.isAnyEnabled()) return@onQuestComplete
-            val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
+            val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf { presetConfig(it).enabled }
                 ?: return@onQuestComplete
+            val locationPreset = ProfitTrackerPresets.forLocation(
+                HypixelLocationState.currentIsland?.displayName,
+                SkyBlockAreaState.currentArea,
+                preset,
+            )
+            if (locationPreset != preset) return@onQuestComplete
             val target = ProfitTrackerTarget.preset(preset)
             uptime.markActivity(target)
             update(target) { stats -> stats.actions++ }
@@ -176,7 +182,7 @@ object ProfitTracker {
                     DianaEventState.isMythologicalRitualActive() &&
                     DianaEventState.hasSpadeInHotbar()
             }
-                ?: SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)
+                ?: SlayerQuestState.scoreboardSlayerType?.let(ProfitTrackerPreset::fromSlayer)
                 ?: fishingHookPreset
                 ?: activeFishingPreset,
         )

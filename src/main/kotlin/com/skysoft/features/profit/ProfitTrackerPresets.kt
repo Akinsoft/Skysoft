@@ -78,7 +78,7 @@ internal enum class ProfitTrackerPreset(
     val slayerType: SkyBlockSlayerType? = null,
     val coinLabel: String = "Mob Kill Coins",
     val actionLabel: String = "Bosses Killed",
-    val requiresPreference: Boolean = false,
+    val requiresPreference: Boolean = slayerType != null,
 ) {
     ZOMBIE("Zombie Slayer", SkyBlockSlayerType.ZOMBIE),
     SPIDER("Spider Slayer", SkyBlockSlayerType.SPIDER),
