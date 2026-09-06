@@ -4,12 +4,12 @@ import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import kotlin.math.roundToInt
 
 internal fun renderHud(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
@@ -53,22 +53,16 @@ internal fun renderPositioned(
     mouseX: Int? = null,
     mouseY: Int? = null,
 ) {
-    val scale = config.position.effectiveScale
-    val scaledWidth = (renderable.width * scale).roundToInt()
-    val scaledHeight = (renderable.height * scale).roundToInt()
-    val x = config.position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = config.position.getAbsY0AllowingOverflow(scaledHeight)
-    val localMouseX = mouseX?.let { OverlayControlMouse.localCoordinate(it, x, scale) }
-    val localMouseY = mouseY?.let { OverlayControlMouse.localCoordinate(it, y, scale) }
-    context.pose().pushMatrix()
-    context.pose().translate(x.toFloat(), y.toFloat())
-    context.pose().scale(scale, scale)
-    val hoveredArea = if (updateControls) renderable.render(context, localMouseX, localMouseY) else {
-        renderable.render(context)
-        null
+    val transform = config.position.transform(renderable.width, renderable.height)
+    val localMouseX = mouseX?.let(transform::localX)
+    val localMouseY = mouseY?.let(transform::localY)
+    val hoveredArea = transform.render(context) {
+        if (updateControls) renderable.render(context, localMouseX, localMouseY) else {
+            renderable.render(context)
+            null
+        }
     }
-    context.pose().popMatrix()
-    hoveredControlArea = if (updateControls) hoveredArea?.toOverlayArea(x, y, scale) else null
+    hoveredControlArea = if (updateControls) hoveredArea?.toOverlayArea(transform) else null
 }
 
 internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {

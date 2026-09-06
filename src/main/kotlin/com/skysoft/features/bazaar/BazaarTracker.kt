@@ -3,6 +3,7 @@ package com.skysoft.features.bazaar
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.BazaarOrderType
+import com.skysoft.gui.HudTransform
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -18,7 +19,6 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.Slot
 import java.util.ArrayDeque
 import java.util.Locale
-import kotlin.math.roundToInt
 
 object BazaarTracker {
     fun register() = registerBazaarTracker()
@@ -175,14 +175,9 @@ internal data class RelativeControlArea(
 ) {
     fun contains(mouseX: Int, mouseY: Int): Boolean = bounds.contains(mouseX, mouseY)
 
-    fun toOverlayArea(baseX: Int, baseY: Int, scale: Float): OverlayControlArea<TrackerControl> = OverlayControlArea(
+    fun toOverlayArea(transform: HudTransform): OverlayControlArea<TrackerControl> = OverlayControlArea(
         action = action,
-        bounds = Rect(
-            x = baseX + (bounds.x * scale).roundToInt(),
-            y = baseY + (bounds.y * scale).roundToInt(),
-            width = (bounds.width * scale).roundToInt().coerceAtLeast(1),
-            height = (bounds.height * scale).roundToInt().coerceAtLeast(1),
-        ),
+        bounds = transform.screenBounds(bounds),
         tooltipLines = tooltipLines,
     )
 }

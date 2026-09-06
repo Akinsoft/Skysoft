@@ -22,6 +22,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
+import com.skysoft.gui.transform
 import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayListScroll
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -42,8 +43,6 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
-import com.skysoft.utils.renderables.withIsolatedPose
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -206,19 +205,13 @@ private fun renderPositioned(
     mouseX: Int,
     mouseY: Int,
 ) {
-    val position = target.config.position
-    val scale = position.effectiveScale
-    val scaledWidth = (renderable.width * scale).roundToInt()
-    val scaledHeight = (renderable.height * scale).roundToInt()
-    val x = position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = position.getAbsY0AllowingOverflow(scaledHeight)
-    val localMouseX = OverlayControlMouse.localCoordinate(mouseX, x, scale)
-    val localMouseY = OverlayControlMouse.localCoordinate(mouseY, y, scale)
-    val placePanelRight = x + ((renderable.width + SIDE_PANEL_ESTIMATED_WIDTH) * scale).roundToInt() <=
-        Minecraft.getInstance().window.guiScaledWidth
-    val localControl = context.withIsolatedPose {
-        pose().translate(x.toFloat(), y.toFloat())
-        pose().scale(scale, scale)
+    val transform = target.config.position.transform(renderable.width, renderable.height)
+    val localMouseX = transform.localX(mouseX)
+    val localMouseY = transform.localY(mouseY)
+    val placePanelRight = transform.fitsRight(
+        renderable.width, SIDE_PANEL_ESTIMATED_WIDTH, Minecraft.getInstance().window.guiScaledWidth,
+    )
+    val localControl = transform.render(context) {
         val trackerControl = renderable.renderInteractive(
             context,
             if (interactive) localMouseX else null,
@@ -254,12 +247,7 @@ private fun renderPositioned(
             target,
             OverlayControlArea(
                 action = area.action,
-                bounds = Rect(
-                    x = x + (area.bounds.x * scale).roundToInt(),
-                    y = y + (area.bounds.y * scale).roundToInt(),
-                    width = (area.bounds.width * scale).roundToInt().coerceAtLeast(1),
-                    height = (area.bounds.height * scale).roundToInt().coerceAtLeast(1),
-                ),
+                bounds = transform.screenBounds(area.bounds),
                 tooltipLines = area.tooltipLines,
             ),
         )

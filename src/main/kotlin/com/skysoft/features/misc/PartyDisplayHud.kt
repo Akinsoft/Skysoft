@@ -14,6 +14,7 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.RGB_MASK
@@ -27,7 +28,7 @@ import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.GuiRenderable
-import com.skysoft.utils.renderables.withIsolatedPose
+import com.skysoft.utils.renderables.renderRenderable
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import net.minecraft.ChatFormatting
@@ -115,7 +116,7 @@ private fun renderPartyDisplayHud(context: GuiGraphicsExtractor) {
         hudControls,
     )
     if (screen == null) {
-        renderPositioned(context, renderable)
+        partyDisplayConfig.position.renderRenderable(context, renderable)
         return
     }
     renderInteractive(context, screen, renderable, members, localLeader)
@@ -138,22 +139,14 @@ private fun renderInteractive(
         screenMouseX.toDouble(),
         screenMouseY.toDouble(),
     )
-    val position = partyDisplayConfig.position
-    val scale = position.effectiveScale
-    val scaledWidth = (renderable.width * scale).roundToInt()
-    val scaledAnchorHeight = (renderable.anchorHeight * scale).roundToInt()
-    val x = position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = position.getAbsY0AllowingOverflow(scaledAnchorHeight)
-    val localMouseX = OverlayControlMouse.localCoordinate(normalMouseX, x, scale)
-    val localMouseY = OverlayControlMouse.localCoordinate(normalMouseY, y, scale)
+    val transform = partyDisplayConfig.position.transform(renderable.width, renderable.anchorHeight)
+    val localMouseX = transform.localX(normalMouseX)
+    val localMouseY = transform.localY(normalMouseY)
     val placePanelRight = partyDisplayConfig.details.alignment != PartyDisplayAlignment.RIGHT &&
-        x + ((renderable.width + MEMBER_PANEL_GAP + MEMBER_PANEL_WIDTH) * scale).roundToInt() <=
-        window.guiScaledWidth
+        transform.fitsRight(renderable.width, MEMBER_PANEL_GAP + MEMBER_PANEL_WIDTH, window.guiScaledWidth)
 
     context.nextStratum()
-    val localControl = context.withIsolatedPose {
-        pose().translate(x.toFloat(), y.toFloat())
-        pose().scale(scale, scale)
+    val localControl = transform.render(context) {
         val displayControl = renderable.renderInteractive(
             context,
             localMouseX.takeIf { interactive },
@@ -169,7 +162,7 @@ private fun renderInteractive(
             localMouseY.takeIf { interactive },
         ) ?: displayControl
     }
-    hoveredControl = localControl?.toScreenArea(x, y, scale)
+    hoveredControl = localControl?.let { it.copy(bounds = transform.screenBounds(it.bounds)) }
     if (interactive) hoveredControl?.tooltipLines?.takeIf { it.isNotEmpty() }?.let { lines ->
         context.nextStratum()
         SkysoftNativeTooltip.setForNextFrame(
@@ -179,20 +172,6 @@ private fun renderInteractive(
             screenMouseY,
             scrollable = false,
         )
-    }
-}
-
-private fun renderPositioned(context: GuiGraphicsExtractor, renderable: GuiRenderable) {
-    val position = partyDisplayConfig.position
-    val scale = position.effectiveScale
-    val scaledWidth = (renderable.width * scale).roundToInt()
-    val scaledHeight = (renderable.height * scale).roundToInt()
-    val x = position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = position.getAbsY0AllowingOverflow(scaledHeight)
-    context.withIsolatedPose {
-        pose().translate(x.toFloat(), y.toFloat())
-        pose().scale(scale, scale)
-        renderable.render(context)
     }
 }
 
@@ -694,19 +673,6 @@ private fun PartyDisplayAlignment.offset(containerWidth: Int, contentWidth: Int)
 
 private fun Rect.contains(mouseX: Int?, mouseY: Int?): Boolean =
     mouseX != null && mouseY != null && contains(mouseX, mouseY)
-
-private fun OverlayControlArea<PartyDisplayControl>.toScreenArea(
-    x: Int,
-    y: Int,
-    scale: Float,
-): OverlayControlArea<PartyDisplayControl> = copy(
-    bounds = Rect(
-        x = x + (bounds.x * scale).roundToInt(),
-        y = y + (bounds.y * scale).roundToInt(),
-        width = (bounds.width * scale).roundToInt().coerceAtLeast(1),
-        height = (bounds.height * scale).roundToInt().coerceAtLeast(1),
-    ),
-)
 
 private const val HEAD_SIZE = 8
 private const val HEAD_GAP = 2

@@ -15,6 +15,7 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.toColor
@@ -41,10 +42,7 @@ import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
-import com.skysoft.utils.renderables.withIsolatedPose
 import java.util.Locale
-import kotlin.math.floor
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -273,16 +271,12 @@ object BestiaryHelper {
             screenMouseX.toDouble(),
             screenMouseY.toDouble(),
         )
-        val scale = config.position.effectiveScale
-        val x = config.position.getAbsX0AllowingOverflow(0)
-        val y = config.position.getAbsY0AllowingOverflow(0)
-        val localMouseX = floor((normalMouseX - x) / scale).toInt()
-        val localMouseY = floor((normalMouseY - y) / scale).toInt()
+        val transform = config.position.transform(0, 0)
+        val localMouseX = transform.localX(normalMouseX)
+        val localMouseY = transform.localY(normalMouseY)
 
         context.nextStratum()
-        val localControl = context.withIsolatedPose {
-            pose().translate(x.toFloat(), y.toFloat())
-            pose().scale(scale, scale)
+        val localControl = transform.render(context) {
             renderable.renderInteractive(
                 context,
                 localMouseX.takeIf { interactive },
@@ -293,12 +287,7 @@ object BestiaryHelper {
         hoveredControl = localControl?.let { control ->
             OverlayControlArea(
                 action = control.action,
-                bounds = Rect(
-                    x = x + (control.bounds.x * scale).roundToInt(),
-                    y = y + (control.bounds.y * scale).roundToInt(),
-                    width = (control.bounds.width * scale).roundToInt().coerceAtLeast(1),
-                    height = (control.bounds.height * scale).roundToInt().coerceAtLeast(1),
-                ),
+                bounds = transform.screenBounds(control.bounds),
                 tooltipLines = control.tooltipLines,
             )
         }

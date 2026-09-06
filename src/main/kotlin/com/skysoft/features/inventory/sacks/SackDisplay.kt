@@ -18,6 +18,7 @@ import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -38,8 +39,6 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
-import kotlin.math.floor
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -187,33 +186,24 @@ private fun renderSackDisplay(context: GuiGraphicsExtractor) {
     val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
     val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
     val interactive = !InventoryOverlayInput.isPointCovered(screen, screenMouseX.toDouble(), screenMouseY.toDouble())
-    val scale = config.position.effectiveScale
-    val x = config.position.getAbsX0AllowingOverflow(0)
-    val y = config.position.getAbsY0AllowingOverflow(0)
-    val localMouseX = floor((normalMouseX - x) / scale).toInt()
-    val localMouseY = floor((normalMouseY - y) / scale).toInt()
+    val transform = config.position.transform(0, 0)
+    val localMouseX = transform.localX(normalMouseX)
+    val localMouseY = transform.localY(normalMouseY)
 
     context.nextStratum()
-    context.pose().pushMatrix()
-    context.pose().translate(x.toFloat(), y.toFloat())
-    context.pose().scale(scale, scale)
-    val localControl = renderable.renderInteractive(
-        context,
-        localMouseX.takeIf { interactive },
-        localMouseY.takeIf { interactive },
-    )
-    context.pose().popMatrix()
+    val localControl = transform.render(context) {
+        renderable.renderInteractive(
+            context,
+            localMouseX.takeIf { interactive },
+            localMouseY.takeIf { interactive },
+        )
+    }
 
     isDisplayHovered = interactive && localMouseX in 0 until renderable.width && localMouseY in 0 until renderable.height
     hoveredControl = localControl?.let { control ->
         OverlayControlArea(
             action = control.action,
-            bounds = Rect(
-                x = x + (control.bounds.x * scale).roundToInt(),
-                y = y + (control.bounds.y * scale).roundToInt(),
-                width = (control.bounds.width * scale).roundToInt().coerceAtLeast(1),
-                height = (control.bounds.height * scale).roundToInt().coerceAtLeast(1),
-            ),
+            bounds = transform.screenBounds(control.bounds),
             tooltipLines = control.tooltipLines,
         )
     }

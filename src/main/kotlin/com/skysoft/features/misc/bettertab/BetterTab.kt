@@ -5,6 +5,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.ColorUtilities.toColor
@@ -102,18 +103,10 @@ object BetterTab {
         ) return
         val layout = currentLayout(minecraft) ?: return
         val scale = defaultScale(layout) * config.position.scale
-        val width = (layout.panelWidth * scale).roundToInt()
-        val height = (layout.panelHeight * scale).roundToInt()
-        val x = config.position.getAbsX0AllowingOverflow(width)
-        val y = config.position.getAbsY0AllowingOverflow(height)
+        val transform = config.position.transform(layout.panelWidth, layout.panelHeight, scale)
         context.nextStratum()
-        context.pose().pushMatrix()
-        try {
-            context.pose().translate(x.toFloat(), y.toFloat())
-            context.pose().scale(scale, scale)
+        transform.render(context) {
             drawLayout(context, minecraft, layout, 0, 0)
-        } finally {
-            context.pose().popMatrix()
         }
     }
 

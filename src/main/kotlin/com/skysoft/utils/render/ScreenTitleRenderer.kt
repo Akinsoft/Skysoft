@@ -8,6 +8,7 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.transform
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -136,8 +137,9 @@ object ScreenTitleRenderer {
         val previewHeight = positionReferenceLines.totalHeight()
         val scaledWidth = (previewWidth * position.scale).roundToInt()
         val scaledHeight = (previewHeight * position.scale).roundToInt()
-        val centerX = position.getAbsX0AllowingOverflow(scaledWidth) + scaledWidth / 2f
-        val centerY = position.getAbsY0AllowingOverflow(scaledHeight) + scaledHeight / 2f
+        val transform = position.transform(previewWidth, previewHeight)
+        val centerX = transform.x + scaledWidth / 2f
+        val centerY = transform.y + scaledHeight / 2f
         context.pose().pushMatrix()
         context.pose().translate(centerX, centerY)
         context.pose().scale(position.scale, position.scale)

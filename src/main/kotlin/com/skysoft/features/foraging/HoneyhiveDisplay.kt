@@ -10,6 +10,7 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.TextUtilities.formattedText
@@ -25,7 +26,6 @@ import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import com.skysoft.utils.renderables.renderRenderable
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -101,11 +101,8 @@ internal object HoneyhiveDisplay {
 
     private fun localPoint(view: HoneyhiveRenderable, mouseX: Int, mouseY: Int): Pair<Int, Int> {
         val (normalX, normalY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-        val position = config.position
-        val scale = position.effectiveScale
-        val x = position.getAbsX0AllowingOverflow((view.width * scale).roundToInt())
-        val y = position.getAbsY0AllowingOverflow((view.height * scale).roundToInt())
-        return OverlayControlMouse.localCoordinate(normalX, x, scale) to OverlayControlMouse.localCoordinate(normalY, y, scale)
+        val transform = config.position.transform(view.width, view.height)
+        return transform.localX(normalX) to transform.localY(normalY)
     }
 
     private fun isDisplayVisible(): Boolean = config.settings.display &&

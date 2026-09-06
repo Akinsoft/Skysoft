@@ -4,6 +4,8 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.HudTransform
+import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
@@ -71,17 +73,12 @@ object ActionBarCustomizer {
         val layout = layout(context, message, useCustomPosition = true)
         val vanillaTextX = (context.guiWidth() - layout.textWidth) / 2
         val vanillaTextY = context.guiHeight() - VANILLA_TEXT_Y_FROM_BOTTOM
-        context.pose().pushMatrix()
-        try {
-            context.pose().translate(layout.x.toFloat(), layout.y.toFloat())
-            context.pose().scale(layout.scale, layout.scale)
-            context.pose().translate(
+        HudTransform(layout.x, layout.y, layout.scale).render(context) {
+            pose().translate(
                 (X_PADDING - vanillaTextX).toFloat(),
                 (Y_PADDING - vanillaTextY).toFloat(),
             )
             drawVanillaActionBar()
-        } finally {
-            context.pose().popMatrix()
         }
     }
 
@@ -165,10 +162,8 @@ object ActionBarCustomizer {
             )
         }
 
-        return measured.copy(
-            x = config.position.getAbsX0AllowingOverflow(measured.scaledWidth),
-            y = config.position.getAbsY0AllowingOverflow(measured.scaledHeight),
-        )
+        val transform = config.position.transform(measured.width, measured.height)
+        return measured.copy(x = transform.x, y = transform.y)
     }
 
     private fun layout(message: Component, scale: Float, x: Int, y: Int): ActionBarLayout {

@@ -2,6 +2,7 @@ package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.SkysoftHudEditor
@@ -10,8 +11,8 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SidebarScoreboard
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.renderables.withIsolatedPose
 import java.util.Locale
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.numbers.StyledFormat
@@ -117,22 +118,16 @@ object ScoreboardPositionEditor {
         }
 
         val layout = layout(context, objective)
-        context.pose().pushMatrix()
-        try {
-            if (isRenderingEditorPreview) {
-                context.pose().translate(-layout.left.toFloat(), -layout.top.toFloat())
-            } else {
-                val scaledWidth = (layout.width * positionScale()).roundToInt()
-                val scaledHeight = (layout.height * positionScale()).roundToInt()
-                val x = config.scoreboardPosition.getAbsX0AllowingOverflow(scaledWidth)
-                val y = config.scoreboardPosition.getAbsY0AllowingOverflow(scaledHeight)
-                context.pose().translate(x.toFloat(), y.toFloat())
-                context.pose().scale(positionScale(), positionScale())
-                context.pose().translate(-layout.left.toFloat(), -layout.top.toFloat())
-            }
+        val drawAtOrigin = {
+            context.pose().translate(-layout.left.toFloat(), -layout.top.toFloat())
             drawVanillaScoreboard()
-        } finally {
-            context.pose().popMatrix()
+        }
+        if (isRenderingEditorPreview) {
+            context.withIsolatedPose { drawAtOrigin() }
+        } else {
+            config.scoreboardPosition.transform(layout.width, layout.height, positionScale()).render(context) {
+                drawAtOrigin()
+            }
         }
     }
 

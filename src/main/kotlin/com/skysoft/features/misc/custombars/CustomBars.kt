@@ -19,6 +19,8 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.HudTransform
+import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.hudEditorSnapshot
@@ -203,10 +205,7 @@ object CustomBars {
     ) {
         val width = part.vanillaWidth()
         val height = part.vanillaHeight()
-        val position = part.position()
-        val scale = position.effectiveScale
-        val targetX = position.getAbsX0AllowingOverflow((width * scale).roundToInt())
-        val targetY = position.getAbsY0AllowingOverflow((height * scale).roundToInt())
+        val transform = part.position().transform(width, height)
         val sourceX: Int
         val sourceY: Int
         when (part) {
@@ -224,9 +223,7 @@ object CustomBars {
             }
             else -> error("${part.label} has no vanilla position")
         }
-        context.withIsolatedPose {
-            pose().translate(targetX.toFloat(), targetY.toFloat())
-            pose().scale(scale, scale)
+        transform.render(context) {
             pose().translate(-sourceX.toFloat(), -sourceY.toFloat())
             render()
         }
@@ -849,9 +846,7 @@ object CustomBars {
             val y = barY(includeBottomLayout = false) +
                 (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() +
                 position.y
-            context.withIsolatedPose {
-                pose().translate(x.toFloat(), y.toFloat())
-                pose().scale(position.effectiveScale, position.effectiveScale)
+            HudTransform(x, y, position.effectiveScale).render(context) {
                 renderEditor(context)
             }
         }
