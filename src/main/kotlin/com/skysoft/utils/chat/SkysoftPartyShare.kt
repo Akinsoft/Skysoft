@@ -24,11 +24,12 @@ object SkysoftPartyShare {
             "Share queue tracking",
             isActive = HypixelPartyApi::hasActiveConsumers,
         ) { message ->
-            recordCommandCooldownFailure(message.cleanText)
+            val now = System.currentTimeMillis()
+            if (message.isSystemLike) commandQueue.recordCommandCooldownFailure(message.cleanText, now)
             if (message.type == ChatMessageType.PARTY || message.type == ChatMessageType.GUILD) {
                 message.sender?.takeIf { it.isLocalPlayerName(localPlayerName()) }?.let {
-                    commandQueue.recordLocalPartyChat()
-                    recordPartyEchoDelivered(message.body)
+                    commandQueue.recordLocalPartyChat(now)
+                    commandQueue.recordPartyEcho(message.body, now)
                 }
             }
             ChatMessageVisibility.SHOW
