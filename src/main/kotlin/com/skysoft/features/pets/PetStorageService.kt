@@ -36,7 +36,7 @@ object PetStorageService {
         TabListApi.onChange(
             "Pet Storage",
             isActive = PetFeatureDemand::isActive,
-            listener = PetStorageInventoryReader::readPetTabWidget,
+            listener = PetTabWidgetReader::read,
         )
         MayorPerkApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
         SkyBlockProfileApi.onProfileChange("Pet Storage profile reset", PetFeatureDemand::isActive) {
