@@ -92,14 +92,15 @@ object SkyBlockEventState {
 
     private fun refresh() {
         val nowMillis = System.currentTimeMillis()
+        val perks = MayorPerkApi.currentPerks
         val next = resolveSkyBlockEvents(
             SkyBlockEventSignals(
                 isInSkyBlock = HypixelLocationState.inSkyBlock,
                 nowMillis = nowMillis,
-                isMythologicalRitualPerkActive = MayorPerkApi.mythologicalRitualActive,
-                isCarnivalPerkActive = MayorPerkApi.carnivalActive,
-                isFishingFestivalPerkActive = MayorPerkApi.fishingFestivalActive,
-                isMiningFiestaPerkActive = MayorPerkApi.miningFiestaActive,
+                isMythologicalRitualPerkActive = perks.mythologicalRitualActive,
+                isCarnivalPerkActive = perks.carnivalActive,
+                isFishingFestivalPerkActive = perks.fishingFestivalActive,
+                isMiningFiestaPerkActive = perks.miningFiestaActive,
                 backendActiveEvents = SkyBlockEventScheduleApi.activeEvents(nowMillis),
                 tabEvents = tabEvents,
             ),
