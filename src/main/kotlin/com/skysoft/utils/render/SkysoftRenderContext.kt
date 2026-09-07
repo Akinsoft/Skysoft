@@ -16,6 +16,15 @@ class SkysoftRenderContext(
     val camera: Camera,
     val cameraRenderState: CameraRenderState,
 ) {
+    internal inline fun <T> withIsolatedPose(block: () -> T): T {
+        matrices.pushPose()
+        return try {
+            block()
+        } finally {
+            matrices.popPose()
+        }
+    }
+
     fun drawLineToCrosshair(
         location: WorldVec,
         color: Color,
