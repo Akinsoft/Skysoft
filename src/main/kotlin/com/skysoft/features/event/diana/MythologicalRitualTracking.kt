@@ -1,7 +1,6 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.DianaRareMobOption
-import com.skysoft.features.loot.RareLootChatParser
 import com.skysoft.features.loot.RareLootChatDrop
 import com.skysoft.features.loot.RareLootDropCount
 import com.skysoft.features.loot.RareLootShareReceipt
@@ -22,19 +21,6 @@ internal class MythologicalRitualLootShareWindow {
 }
 
 internal object MythologicalRitualMessageTracker {
-    fun track(
-        message: String,
-        state: MythologicalRitualTrackerState,
-        lootShareWindow: MythologicalRitualLootShareWindow,
-        now: Long,
-        lootShareMob: DianaRareMobOption? = null,
-    ) {
-        trackNonRareLoot(message, state, lootShareWindow, now, lootShareMob)
-        val chatDrop = RareLootChatParser.parse(message.trim()) ?: return
-        val lootshare = lootShareWindow.isActive(now) || DianaRareMobSharing.likelyRemoteRareLoot
-        trackRareLoot(chatDrop, state, lootshare)
-    }
-
     fun trackNonRareLoot(
         message: String,
         state: MythologicalRitualTrackerState,
