@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.features.event.diana.DianaWarpPoint
 import io.github.notenoughupdates.moulconfig.ChromaColour
@@ -14,7 +15,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
-import io.github.notenoughupdates.moulconfig.observer.GetSetter
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 import java.util.Locale
@@ -173,16 +173,12 @@ class DianaBurrowSettingsConfig {
 }
 
 class DianaBurrowDetailsConfig {
-    val customBurrowBoxColorVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
-        override fun get(): Boolean = burrowBoxColorMode == DianaBurrowBoxColorMode.CUSTOM
-
-        override fun set(value: Boolean) = Unit
-    })
-    val distanceHideRadiusVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
-        override fun get(): Boolean = showDistance && hideDistanceWithin
-
-        override fun set(value: Boolean) = Unit
-    })
+    val customBurrowBoxColorVisible: Property<Boolean> = configVisibility {
+        burrowBoxColorMode == DianaBurrowBoxColorMode.CUSTOM
+    }
+    val distanceHideRadiusVisible: Property<Boolean> = configVisibility {
+        showDistance && hideDistanceWithin
+    }
 
     @JvmField
     @field:Expose
