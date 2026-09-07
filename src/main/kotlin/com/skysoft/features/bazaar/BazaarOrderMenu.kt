@@ -15,23 +15,14 @@ internal data class BazaarOrderMenuCell(val row: Int, val column: Int)
 
 internal data class BazaarOrderMenuOrder(
     val slot: Slot,
-    val owner: String,
-    val isLocal: Boolean,
     val visibleIndex: Int?,
-)
-
-internal data class BazaarOrderMenuSnapshot(
-    val playerName: String?,
-    val visibleRows: Int,
-    val rejectionReason: String?,
-    val orders: List<BazaarOrderMenuOrder>,
 ) {
-    val isActive: Boolean get() = rejectionReason == null
+    val isLocal: Boolean get() = visibleIndex != null
 }
 
-private data class BazaarOrderMenuReadResult(
+internal data class BazaarOrderMenuPlan(
+    val visibleRows: Int,
     val orders: List<BazaarOrderMenuOrder>,
-    val rejectionReason: String?,
 )
 
 internal fun compactBazaarOrderMenuRows(
@@ -71,89 +62,65 @@ internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Se
     }
 }
 
-private fun shouldCompactBazaarOrderMenu(totalOrders: Int, ownedOrders: Int): Boolean = totalOrders > ownedOrders
-
-internal fun bazaarOrderMenuSnapshot(screen: ContainerScreen): BazaarOrderMenuSnapshot {
-    val playerName = Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank)
-    fun rejected(reason: String, orders: List<BazaarOrderMenuOrder> = emptyList()) = BazaarOrderMenuSnapshot(
-        playerName = playerName,
-        visibleRows = screen.menu.rowCount,
-        rejectionReason = reason,
+internal fun bazaarOrderMenuPlan(screen: ContainerScreen): BazaarOrderMenuPlan? {
+    val playerName = Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank) ?: return null
+    val slots = screen.nonPlayerSlots().sortedBy { slot -> slot.containerSlot }
+    if (!isSupportedBazaarOrderMenu(screen, slots)) return null
+    val containerRows = screen.menu.rowCount
+    val orders = readBazaarOrderMenuOrders(slots, playerName, bazaarOrderSlotRange(containerRows)) ?: return null
+    val visibleOrders = orders.count(BazaarOrderMenuOrder::isLocal)
+    if (orders.size == visibleOrders) return null
+    val occupiedOrderRows = orders.mapTo(mutableSetOf()) { order ->
+        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
+    }
+    val ownedOrderRows = orders.filter(BazaarOrderMenuOrder::isLocal).mapTo(mutableSetOf()) { order ->
+        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
+    }
+    return BazaarOrderMenuPlan(
+        visibleRows = compactBazaarOrderMenuRows(containerRows, occupiedOrderRows, ownedOrderRows),
         orders = orders,
     )
+}
 
-    val slots = screen.nonPlayerSlots().sortedBy { slot -> slot.containerSlot }
+private fun isSupportedBazaarOrderMenu(screen: ContainerScreen, slots: List<Slot>): Boolean {
+    if (!config.settings.onlyMyOrders || screen.title.cleanSkyBlockText() != COOP_BAZAAR_ORDERS_TITLE) return false
     val containerRows = screen.menu.rowCount
+    if (containerRows !in BazaarOrderMenuLayout.MIN_ROWS..BazaarOrderMenuLayout.MAX_ROWS) return false
+    if (slots.map { it.containerSlot } != (0 until containerRows * BazaarOrderMenuLayout.MENU_COLUMNS).toList()) return false
+    if (!ordersMenuLoaded(slots.asSequence().map { it.item })) return false
     val orderSlotRange = bazaarOrderSlotRange(containerRows)
-    val rejectionReason = when {
-        !config.settings.onlyMyOrders -> "setting disabled"
-        screen.title.cleanSkyBlockText() != COOP_BAZAAR_ORDERS_TITLE -> "not the co-op orders menu"
-        containerRows !in BazaarOrderMenuLayout.MIN_ROWS..BazaarOrderMenuLayout.MAX_ROWS ->
-            "unsupported container row count"
-        slots.map { slot -> slot.containerSlot } != (0 until containerRows * BazaarOrderMenuLayout.MENU_COLUMNS).toList() ->
-            "unsupported container slots"
-        !ordersMenuLoaded(slots.asSequence().map { slot -> slot.item }) -> "menu contents are not loaded"
-        playerName == null -> "local player name is unavailable"
-        slots.any { slot ->
-            slot.containerSlot !in orderSlotRange && parseOrdersStack(slot.item) != null
-        } -> "order found outside the expected order area"
-        else -> null
-    }
-    if (rejectionReason != null) return rejected(rejectionReason)
-
-    val readResult = readBazaarOrderMenuOrders(slots, requireNotNull(playerName), orderSlotRange)
-    if (readResult.rejectionReason != null) {
-        return rejected(readResult.rejectionReason, readResult.orders)
-    }
-    val visibleOrders = readResult.orders.count(BazaarOrderMenuOrder::isLocal)
-    if (!shouldCompactBazaarOrderMenu(readResult.orders.size, visibleOrders)) {
-        return rejected("menu has no co-op orders")
-    }
-    val occupiedOrderRows = readResult.orders.mapTo(mutableSetOf()) { order ->
-        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
-    }
-    val ownedOrderRows = readResult.orders.filter(BazaarOrderMenuOrder::isLocal).mapTo(mutableSetOf()) { order ->
-        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
-    }
-    return BazaarOrderMenuSnapshot(
-        playerName = playerName,
-        visibleRows = compactBazaarOrderMenuRows(containerRows, occupiedOrderRows, ownedOrderRows),
-        rejectionReason = null,
-        orders = readResult.orders,
-    )
+    return slots.none { it.containerSlot !in orderSlotRange && parseOrdersStack(it.item) != null }
 }
 
 private fun readBazaarOrderMenuOrders(
     slots: List<Slot>,
     playerName: String,
     orderSlotRange: IntRange,
-): BazaarOrderMenuReadResult {
+): List<BazaarOrderMenuOrder>? {
     val orders = mutableListOf<BazaarOrderMenuOrder>()
     var visibleIndex = 0
     for (slot in slots.filter { it.containerSlot in orderSlotRange }) {
         val column = slot.containerSlot % BazaarOrderMenuLayout.MENU_COLUMNS
         val parsed = parseOrdersStack(slot.item)
         if (column == 0 || column == BazaarOrderMenuLayout.MENU_COLUMNS - 1) {
-            if (parsed != null) return BazaarOrderMenuReadResult(orders, "order found in a border slot")
+            if (parsed != null) return null
             continue
         }
         if (parsed == null) continue
         val owner = parseBazaarOrderOwner(slot.item)
-            ?: return BazaarOrderMenuReadResult(orders, "order slot ${slot.containerSlot} has no valid By line")
+            ?: return null
         val isLocal = !shouldBlockBazaarOrderOwner(owner, playerName)
         orders += BazaarOrderMenuOrder(
             slot = slot,
-            owner = owner,
-            isLocal = isLocal,
             visibleIndex = if (isLocal) visibleIndex++ else null,
         )
     }
-    return BazaarOrderMenuReadResult(orders, null)
+    return orders
 }
 
 internal fun layoutBazaarOrderMenu(screen: ContainerScreen): Int {
-    val snapshot = bazaarOrderMenuSnapshot(screen)
-    if (!snapshot.isActive) {
+    val plan = bazaarOrderMenuPlan(screen)
+    if (plan == null) {
         restoreBazaarOrderMenu(screen)
         return screen.menu.rowCount
     }
@@ -169,7 +136,7 @@ internal fun layoutBazaarOrderMenu(screen: ContainerScreen): Int {
         )
     }
 
-    val orderRows = snapshot.visibleRows - BazaarOrderMenuLayout.FIXED_ROWS
+    val orderRows = plan.visibleRows - BazaarOrderMenuLayout.FIXED_ROWS
     repeat(orderRows) { orderRow ->
         val sourceRow = BazaarOrderMenuLayout.FIRST_ORDER_ROW + orderRow
         moveBazaarOrderMenuSlot(screen, requireNotNull(slots[sourceRow * BazaarOrderMenuLayout.MENU_COLUMNS]), sourceRow, 0)
@@ -180,12 +147,12 @@ internal fun layoutBazaarOrderMenu(screen: ContainerScreen): Int {
             BazaarOrderMenuLayout.MENU_COLUMNS - 1,
         )
     }
-    snapshot.orders.filter(BazaarOrderMenuOrder::isLocal).forEach { order ->
+    plan.orders.filter(BazaarOrderMenuOrder::isLocal).forEach { order ->
         val cell = compactBazaarOrderMenuCell(requireNotNull(order.visibleIndex))
         moveBazaarOrderMenuSlot(screen, order.slot, cell.row, cell.column)
     }
 
-    val controlRow = snapshot.visibleRows - 1
+    val controlRow = plan.visibleRows - 1
     val sourceControlRow = screen.menu.rowCount - 1
     repeat(BazaarOrderMenuLayout.MENU_COLUMNS) { column ->
         moveBazaarOrderMenuSlot(
@@ -196,13 +163,13 @@ internal fun layoutBazaarOrderMenu(screen: ContainerScreen): Int {
         )
     }
 
-    val removedRows = screen.menu.rowCount - snapshot.visibleRows
+    val removedRows = screen.menu.rowCount - plan.visibleRows
     val playerInventory = Minecraft.getInstance().player?.inventory
     screen.menu.slots
         .filter { slot -> playerInventory != null && slot.container === playerInventory }
         .forEach { slot -> bazaarOrderMenuSlots.moveFromOriginal(screen, slot, deltaY = -removedRows * BazaarOrderMenuLayout.SLOT_STEP) }
-    applyBazaarOrderMenuRows(screen, snapshot.visibleRows)
-    return snapshot.visibleRows
+    applyBazaarOrderMenuRows(screen, plan.visibleRows)
+    return plan.visibleRows
 }
 
 internal fun restoreBazaarOrderMenu(screen: AbstractContainerScreen<*>) {
@@ -215,9 +182,9 @@ internal fun restoreBazaarOrderMenu(screen: AbstractContainerScreen<*>) {
 
 internal fun shouldBlockBazaarOrderInteraction(screen: AbstractContainerScreen<*>, slotId: Int): Boolean {
     if (slotId < 0 || screen !is ContainerScreen) return false
-    val snapshot = bazaarOrderMenuSnapshot(screen)
-    if (!snapshot.isActive) return false
-    return snapshot.orders.firstOrNull { order -> order.slot.index == slotId }?.isLocal == false
+    val plan = bazaarOrderMenuPlan(screen)
+    if (plan == null) return false
+    return plan.orders.firstOrNull { order -> order.slot.index == slotId }?.isLocal == false
 }
 
 private fun moveBazaarOrderMenuSlot(screen: ContainerScreen, slot: Slot, row: Int, column: Int) {
