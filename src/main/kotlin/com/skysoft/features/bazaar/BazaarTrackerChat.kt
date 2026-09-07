@@ -245,7 +245,7 @@ private fun ProfileStorage.BazaarTrackerData.markFilled(type: BazaarOrderType, a
     order.amountOrdered = amount
     order.amountResolution = 0.0
     order.filledAmount = max(order.filledAmount, amount)
-    playProgressAlert(order, previousFilled)
+    BazaarTrackerAlerts.playProgressAlert(order, previousFilled)
     order.updatedAtMillis = System.currentTimeMillis()
     if (BazaarTrackingState.pendingCancel?.orderId == order.id) BazaarTrackingState.pendingCancel = null
 }
@@ -327,3 +327,17 @@ private object BazaarChatGroups {
     const val FILLED_ITEM = 3
 }
 
+private val buySetupPattern =
+    Regex("""^\[Bazaar] Buy Order Setup! ([\d,]+)x (.+) for ([\d,.]+) coins\.$""")
+
+private val orderFlippedPattern =
+    Regex("""^\[Bazaar] Order Flipped! ([\d,]+)x (.+) for ([\d,.]+) coins of total expected profit\.$""")
+
+private val buyCancelPattern =
+    Regex(
+        """^(?:\[Bazaar] )?Cancelled! Refunded ([\d,.]+) coins from cancelling Buy Order!$""",
+        RegexOption.IGNORE_CASE,
+    )
+
+private val sellClaimPattern = Regex("""^\[Bazaar] Claimed ([\d,.]+) coins from selling ([\d,]+)x (.+) at ([\d,.]+) each!$""")
+private val filledPattern = Regex("""^\[Bazaar] Your (Buy Order|Sell Offer) for ([\d,]+)x (.+) was filled!$""")

@@ -62,13 +62,17 @@ internal fun renderPositioned(
             null
         }
     }
-    BazaarDisplayState.hoveredControlArea = if (updateControls) hoveredArea?.toOverlayArea(transform) else null
+    BazaarDisplayState.hoveredControlArea = if (updateControls) {
+        hoveredArea?.copy(bounds = transform.screenBounds(hoveredArea.bounds))
+    } else {
+        null
+    }
 }
 
 internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
     val orders = displayOrders()
     val lines = buildList {
-        add(DisplayLine.title("§e§lBazaar Tracker"))
+        add(DisplayLine.text("§e§lBazaar Tracker"))
         if (orders.isEmpty()) {
             add(DisplayLine.text("§7Open §eBazaar Orders §7to load orders."))
         } else {
@@ -161,3 +165,9 @@ private fun statusPriority(status: OrderStatus): Int = when (status) {
     OrderStatus.COMPETITIVE -> COMPETITIVE_STATUS_PRIORITY
 }
 
+private const val FILL_HIGHLIGHT_MILLIS = 3_000L
+private const val MIN_TRACKER_DISPLAY_ORDERS = 1
+private const val MAX_TRACKER_DISPLAY_ORDERS = 20
+private const val FILLED_STATUS_PRIORITY = 3
+private const val WARNING_STATUS_PRIORITY = 2
+private const val COMPETITIVE_STATUS_PRIORITY = 1

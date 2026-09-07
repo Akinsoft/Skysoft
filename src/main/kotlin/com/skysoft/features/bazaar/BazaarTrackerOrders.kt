@@ -69,7 +69,7 @@ internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: P
     }
     if (changed) {
         if (identityUpdate.meaningful) order.updatedAtMillis = System.currentTimeMillis()
-        playProgressAlert(order, progressAlertBaseline)
+        BazaarTrackerAlerts.playProgressAlert(order, progressAlertBaseline)
     }
     return ChangeResult.from(changed)
 }
@@ -198,3 +198,12 @@ private fun parsedRepresentsOrder(order: ProfileStorage.BazaarOrderData, parsed:
     return guiMatchIsPlausible(order, parsed)
 }
 
+private const val GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS = 1_500L
+private const val GUI_MISSING_PRUNE_NEW_ORDER_GRACE_MILLIS = 1_500L
+private const val BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT = 21
+private const val GUI_MISSING_PRUNE_CONFIRM_SCANS = 3
+private const val GUI_MISSING_PRUNE_MIN_CONFIRMATION_MILLIS = 1_500L
+private const val BAZAAR_MATCH_TOLERANCE_RATE = 0.08
+private const val MIN_CANCEL_AMOUNT_TOLERANCE = 1L
+private const val MIN_CLAIM_AMOUNT_TOLERANCE = 2L
+private const val MIN_UNIT_PRICE_TOLERANCE = 2.0

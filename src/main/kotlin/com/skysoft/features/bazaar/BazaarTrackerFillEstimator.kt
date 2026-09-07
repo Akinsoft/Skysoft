@@ -101,7 +101,7 @@ private fun updateFillEstimate(
     val estimatedFilled = max(state.estimatedFilled, state.filledAtBaseline + filledSinceBaseline)
         .coerceIn(confirmedFilled, order.amountOrdered)
     val visibleFilled = estimatedVisibleFilled(order, confirmedFilled, estimatedFilled)
-    showEstimatedFillProgress(order, previousVisibleFilled, visibleFilled)
+    BazaarTrackerAlerts.showEstimatedFillProgress(order, previousVisibleFilled, visibleFilled)
 
     BazaarTrackingState.fillEstimateStates[order.id] = state.copy(
         queueAhead = queue.queueAhead,

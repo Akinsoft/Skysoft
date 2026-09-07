@@ -10,7 +10,7 @@ internal fun ProfileStorage.BazaarTrackerData.addActiveOrder(
     this.activeOrders += order
     recordBazaarTransaction(this, order.toBazaarTransaction())
     if (requireFreshMarketProof) requireMarketProof(order)
-    initializeOrderAlertState(order)
+    BazaarTrackerAlerts.initializeOrderAlertState(order)
 }
 
 internal fun refreshBazaarTrackerMarketData(
@@ -34,7 +34,7 @@ internal fun ProfileStorage.BazaarTrackerData.applyClaimedAmount(
 ): OrderRemovalResult {
     val previousFilled = order.filledAmount
     order.filledAmount = max(order.filledAmount, order.claimedAmount + amount)
-    if (alert) playProgressAlert(order, previousFilled)
+    if (alert) BazaarTrackerAlerts.playProgressAlert(order, previousFilled)
     order.claimedAmount += amount
     order.claimedCoins += claimedCoins
     order.updatedAtMillis = System.currentTimeMillis()

@@ -28,3 +28,13 @@ data class BazaarMarket(
     val sellOrderAmount: Long,
     val updatedAtMillis: Long,
 )
+
+internal enum class OrderStatus(val label: String, val color: Int) {
+    COMPETITIVE("COMPETITIVE", 0xFF2EAD4A.toInt()),
+    OUTBID("OUTBID", 0xFFE04444.toInt()),
+    UNDERCUT("UNDERCUT", 0xFFE06622.toInt()),
+    FILLED("FILLED", 0xFF21A7D8.toInt()),
+    ;
+
+    val isWarning: Boolean get() = this == OUTBID || this == UNDERCUT
+}

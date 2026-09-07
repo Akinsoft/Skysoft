@@ -172,3 +172,26 @@ private fun applyCraftPlan(
         source = ProfileStorage.BazaarLotSource.CRAFTED,
     )
 }
+
+data class BazaarInvestmentPosition(
+    val amount: Long,
+    val investedCoins: Double,
+    val averageCost: Double,
+)
+
+internal fun bazaarInvestmentPosition(
+    lots: List<ProfileStorageView.BazaarItemLotData>,
+    productId: String,
+): BazaarInvestmentPosition? {
+    val matching = lots.asSequence()
+        .filter { it.flipBatchId != null && it.productId.equals(productId, ignoreCase = true) }
+        .toList()
+    val amount = matching.sumOf { it.amount }
+    if (amount <= 0L) return null
+    val investedCoins = matching.sumOf { it.amount * it.unitCost }
+    return BazaarInvestmentPosition(
+        amount = amount,
+        investedCoins = investedCoins,
+        averageCost = investedCoins / amount,
+    )
+}

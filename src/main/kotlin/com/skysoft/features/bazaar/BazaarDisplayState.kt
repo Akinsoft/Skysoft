@@ -18,3 +18,10 @@ internal object BazaarDisplayState {
         mode = displayModeCycle[Math.floorMod(currentIndex + step, displayModeCycle.size)]
     }
 }
+
+internal enum class TrackerDisplayMode(val displayName: String) {
+    SESSION("Session"),
+    TOTAL("Total"),
+}
+
+internal val displayModeCycle = listOf(TrackerDisplayMode.TOTAL, TrackerDisplayMode.SESSION)

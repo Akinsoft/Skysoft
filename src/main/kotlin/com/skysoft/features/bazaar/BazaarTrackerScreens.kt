@@ -269,3 +269,26 @@ private fun recordOrderOptionsClick(screen: AbstractContainerScreen<*>, click: M
     } ?: return
     BazaarTrackingState.pendingCancel = cancel
 }
+
+internal data class SlotIndicator(
+    val fillColor: Int,
+    val outlineColor: Int,
+    val partial: Boolean,
+)
+
+private const val DUPLICATE_CLICK_SUPPRESS_MILLIS = 100L
+private const val SLOT_INDICATOR_INSET = 1
+private const val SLOT_INDICATOR_SIZE = 18
+private const val SLOT_INDICATOR_END_OFFSET = SLOT_INDICATOR_SIZE - SLOT_INDICATOR_INSET
+private const val PARTIAL_MARKER_X_OFFSET = 10
+private const val PARTIAL_MARKER_Y_OFFSET = 8
+private const val PARTIAL_MARKER_TEXT_X_OFFSET = 11
+private const val PARTIAL_MARKER_TEXT_Y_OFFSET = 8
+private const val SLOT_COMPETITIVE_FILL = 0x5530FF30
+private const val SLOT_COMPETITIVE_OUTLINE = 0xFF30FF30.toInt()
+private const val SLOT_UNDERCUT_FILL = 0x60FFD735
+private const val SLOT_UNDERCUT_OUTLINE = 0xFFFFD735.toInt()
+private const val SLOT_FILLED_FILL = 0x6045A3FF
+private const val SLOT_FILLED_OUTLINE = 0xFF45A3FF.toInt()
+private const val PARTIAL_MARKER_BACKGROUND = 0xB0000000.toInt()
+private val PARTIAL_MARKER_TEXT_COLOR = 0xFFFFFF55.toInt()

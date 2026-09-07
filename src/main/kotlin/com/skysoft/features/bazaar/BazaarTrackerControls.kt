@@ -49,3 +49,8 @@ internal fun handleTrackerControlClick(button: Int): InputHandlingResult {
     if (activated) SoundUtilities.playClickSound()
     return InputHandlingResult.CONSUMED
 }
+
+internal enum class TrackerControl {
+    TOGGLE_MODE,
+    RESET,
+}

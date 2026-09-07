@@ -248,3 +248,51 @@ internal fun PendingOrder.toOrderData(): ProfileStorage.BazaarOrderData =
         setupConfirmed = false,
     )
 
+internal data class PendingOrder(
+    val type: BazaarOrderType,
+    val itemName: String,
+    val productId: String?,
+    val amount: Long,
+    val amountApproximate: Boolean,
+    val amountResolution: Double,
+    val pricePerUnit: Double,
+    val pricePerUnitResolution: Double,
+    val totalCoins: Double?,
+    val totalCoinsResolution: Double,
+    val filledAmount: Long?,
+    val filledAmountApproximate: Boolean,
+    val filledAmountResolution: Double,
+    val taxPercent: Double?,
+    val guiSlot: Int?,
+    val stackSignature: Int?,
+)
+
+internal data class PendingCancel(
+    val orderId: String?,
+    val type: BazaarOrderType,
+    val itemName: String,
+    val productId: String?,
+    val amount: Long?,
+    val refundedCoins: Double?,
+)
+
+private val pricePerUnitPattern = Regex("""^Price per unit: ([\d,.]+[kKmMbB]?) coins$""")
+private val confirmBuyAmountPattern = Regex("""^Order: ([\d,]+)x (.+)$""")
+private val confirmSellAmountPattern = Regex("""^Selling: ([\d,]+)x (.+)$""")
+private val totalPricePattern = Regex("""^Total price: ([\d,.]+) coins$""")
+private val youEarnPattern = Regex("""^You earn: ([\d,.]+) coins$""")
+private val taxPattern = Regex("""^Current tax: ([\d,.]+)%$""")
+private val orderHeaderPattern = Regex("""^(BUY|SELL) (.+)$""")
+private val orderAmountPattern = Regex("""^(?:Order|Offer) amount: ([\d,.]+[kKmMbB]?)x$""")
+private val worthPattern = Regex("""^Worth:? ([\d,.]+[kKmMbB]?) coins$""")
+private val filledPatternGui = Regex("""^Filled: ([\d,.]+[kKmMbB]?)/([\d,.]+[kKmMbB]?).*$""")
+private val cancelBuyTooltipPattern =
+    Regex(
+        """refunded ([\d,.]+) coins from ([\d,.]+[kKmMbB]?)x missing items""",
+        RegexOption.IGNORE_CASE,
+    )
+
+private val cancelSellTooltipPattern = Regex("""refunded ([\d,.]+[kKmMbB]?)x (.+?)(?: from|\.|$)""", RegexOption.IGNORE_CASE)
+internal const val BAZAAR_PERCENT_SCALE = 100.0
+internal const val MIN_BAZAAR_TAX_MULTIPLIER = 0.01
+private const val MIN_GUI_FILL_TOLERANCE = 1L

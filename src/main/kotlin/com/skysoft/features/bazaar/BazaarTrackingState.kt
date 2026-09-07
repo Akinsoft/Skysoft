@@ -9,11 +9,8 @@ internal object BazaarTrackingState {
     private var lastOrdersInventoryKey: String? = null
     private var pendingOrdersInventoryKey: String? = null
     private var pendingOrdersInventoryStableTicks = 0
-    var statusAlertTick = 0
     var lastOrdersGuiClickMillis = 0L
     var lastOrdersGuiClickSignature = ""
-    val lastAlertStatuses = mutableMapOf<String, OrderStatus>()
-    val lastOutbidAlertMillis = mutableMapOf<String, Long>()
     val missingFromOrdersGuiScans = mutableMapOf<String, MissingOrderObservation>()
     val fillHighlightExpiresAt = mutableMapOf<String, Long>()
     val marketProofMillis = mutableMapOf<String, Long>()
@@ -26,11 +23,9 @@ internal object BazaarTrackingState {
         pendingOrderOptionId = null
         pendingCancel = null
         resetOrderScan()
-        statusAlertTick = 0
         lastOrdersGuiClickMillis = 0L
         lastOrdersGuiClickSignature = ""
-        lastAlertStatuses.clear()
-        lastOutbidAlertMillis.clear()
+        BazaarTrackerAlerts.reset()
         missingFromOrdersGuiScans.clear()
         fillHighlightExpiresAt.clear()
         marketProofMillis.clear()
@@ -61,8 +56,7 @@ internal object BazaarTrackingState {
     }
 
     fun forgetOrder(orderId: String) {
-        lastAlertStatuses.remove(orderId)
-        lastOutbidAlertMillis.remove(orderId)
+        BazaarTrackerAlerts.forgetOrder(orderId)
         missingFromOrdersGuiScans.remove(orderId)
         fillHighlightExpiresAt.remove(orderId)
         marketProofMillis.remove(orderId)
@@ -74,3 +68,10 @@ internal enum class BazaarOrderScanDecision {
     SKIP,
     SCAN,
 }
+
+internal data class MissingOrderObservation(
+    val scans: Int,
+    val firstObservedAtMillis: Long,
+)
+
+private const val GUI_MISSING_PRUNE_INVENTORY_STABLE_TICKS = 3

@@ -70,3 +70,5 @@ internal fun PendingOrder.canCreateOrderFromGui(): Boolean {
 
 internal fun amountDistance(a: Long, b: Long): Long = abs(a - b)
 
+internal const val EXACT_AMOUNT_EPSILON = 0.5
+internal const val TOTAL_RECALCULATION_EPSILON = 0.5

@@ -38,3 +38,8 @@ internal fun formatCoins(coins: Double): String = coins.coinFormat()
 
 internal fun formatSigned(coins: Double): String = coins.signedCoinFormat()
 
+internal data class NumberParse(
+    val value: Double,
+    val approximate: Boolean,
+    val resolution: Double,
+)

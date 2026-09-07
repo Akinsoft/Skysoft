@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.gui.nonPlayerSlotAt
 import com.skysoft.utils.trimStartToSize
@@ -61,3 +62,14 @@ internal fun pruneRecentResolvedOrders() {
 internal fun slotAt(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int): Slot? =
     screen.nonPlayerSlotAt(mouseX, mouseY)
 
+internal data class RecentResolvedOrder(
+    val type: BazaarOrderType,
+    val itemName: String,
+    val productId: String?,
+    val amount: Long,
+    val totalCoins: Double,
+    val timestampMillis: Long,
+)
+
+private const val MAX_RECENT_RESOLVED_ORDERS = 20
+private const val RECENT_RESOLVED_SUPPRESS_MILLIS = 5_000L
