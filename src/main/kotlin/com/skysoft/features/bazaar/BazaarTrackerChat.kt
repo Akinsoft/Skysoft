@@ -2,6 +2,7 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.buyClaimPattern
 import com.skysoft.data.skyblock.sellCancelPattern
@@ -14,10 +15,10 @@ internal fun handleChat(rawMessage: String) {
     if (!config.enabled || !HypixelLocationState.inSkyBlock) return
     val message = rawMessage.cleanSkyBlockText()
     if (!message.startsWith("[Bazaar]") && !message.startsWith("Cancelled!")) return
-    handleBazaarChatMessage(message)
+    ProfileStorageApi.updateProfile { it.bazaarTracker.handleBazaarChatMessage(message) }
 }
 
-private fun handleBazaarChatMessage(message: String) {
+private fun ProfileStorage.BazaarTrackerData.handleBazaarChatMessage(message: String) {
     tryHandleInstantTransactionMessage(message) ||
         tryHandleSetupChatMessage(message) ||
         tryHandleOrderFlippedChatMessage(message) ||
@@ -26,7 +27,7 @@ private fun handleBazaarChatMessage(message: String) {
         tryHandleFilledChatMessage(message)
 }
 
-private fun tryHandleSetupChatMessage(message: String): Boolean {
+private fun ProfileStorage.BazaarTrackerData.tryHandleSetupChatMessage(message: String): Boolean {
     buySetupPattern.matchEntire(message)?.let { match ->
         confirmSetup(
             BazaarOrderType.BUY,
@@ -48,7 +49,7 @@ private fun tryHandleSetupChatMessage(message: String): Boolean {
     return false
 }
 
-private fun tryHandleOrderFlippedChatMessage(message: String): Boolean {
+private fun ProfileStorage.BazaarTrackerData.tryHandleOrderFlippedChatMessage(message: String): Boolean {
     orderFlippedPattern.matchEntire(message)?.let { match ->
         flipOrder(
             parseExactLong(match.groupValues[BazaarChatGroups.FLIPPED_AMOUNT]),
@@ -60,7 +61,7 @@ private fun tryHandleOrderFlippedChatMessage(message: String): Boolean {
     return false
 }
 
-private fun tryHandleCancelChatMessage(message: String): Boolean {
+private fun ProfileStorage.BazaarTrackerData.tryHandleCancelChatMessage(message: String): Boolean {
     buyCancelPattern.matchEntire(message)?.let { match ->
         cancelBuyOrderFromChat(parseNumber(match.groupValues[BazaarChatGroups.CANCEL_REFUND]).value)
         return true
@@ -75,7 +76,7 @@ private fun tryHandleCancelChatMessage(message: String): Boolean {
     return false
 }
 
-private fun tryHandleClaimChatMessage(message: String): Boolean {
+private fun ProfileStorage.BazaarTrackerData.tryHandleClaimChatMessage(message: String): Boolean {
     buyClaimPattern.matchEntire(message)?.let { match ->
         claimBuyOrder(
             parseExactLong(match.groupValues[BazaarChatGroups.BUY_CLAIM_AMOUNT]),
@@ -97,7 +98,7 @@ private fun tryHandleClaimChatMessage(message: String): Boolean {
     return false
 }
 
-private fun tryHandleFilledChatMessage(message: String): Boolean {
+private fun ProfileStorage.BazaarTrackerData.tryHandleFilledChatMessage(message: String): Boolean {
     filledPattern.matchEntire(message)?.let { match ->
         val type = if (match.groupValues[BazaarChatGroups.FILLED_TYPE] == "Buy Order") BazaarOrderType.BUY else BazaarOrderType.SELL
         markFilled(
@@ -110,7 +111,7 @@ private fun tryHandleFilledChatMessage(message: String): Boolean {
     return false
 }
 
-private fun confirmSetup(type: BazaarOrderType, amountText: String, itemName: String, totalText: String) {
+private fun ProfileStorage.BazaarTrackerData.confirmSetup(type: BazaarOrderType, amountText: String, itemName: String, totalText: String) {
     val amount = parseExactLong(amountText)
     val totalCoins = parseNumber(totalText).value
     val pending = pendingSetup?.takeIf {
@@ -134,7 +135,7 @@ private fun confirmSetup(type: BazaarOrderType, amountText: String, itemName: St
         totalCoinsResolution = 0.0,
         setupConfirmed = true,
         flipBatchId = if (type == BazaarOrderType.BUY && config.details.flippingInfo) {
-            activeFlipBatch(storage)
+            activeFlipBatch(this)
         } else {
             null
         },
@@ -143,13 +144,13 @@ private fun confirmSetup(type: BazaarOrderType, amountText: String, itemName: St
     if (type == BazaarOrderType.BUY) sessionBuySetupValue += totalCoins else sessionSellSetupValue += order.totalCoins
     pending?.taxPercent?.let { updateTax(it) }
     pendingSetup = null
-    markBazaarTrackerChanged(refreshFillEstimates = true, refreshOrderBook = true)
+    refreshBazaarTrackerMarketData(refreshFillEstimates = true, refreshOrderBook = true)
 }
 
-private fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
+private fun ProfileStorage.BazaarTrackerData.flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
     val buyOrder = pendingOrderOptionId
-        ?.let { id -> storage.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
-        ?: storage.activeOrders
+        ?.let { id -> this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
+        ?: this.activeOrders
             .asSequence()
             .filter { it.type == BazaarOrderType.BUY && namesMatch(it.itemName, itemName) }
             .minWithOrNull(
@@ -162,13 +163,13 @@ private fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
     val cleanItemName = buyOrder?.itemName ?: itemName.trim()
     val costPerUnit = buyOrder?.pricePerUnit ?: 0.0
     if (buyOrder != null) {
-        ensureTrackedBuyOrder(storage, buyOrder, config.details.flippingInfo)
-        addTrackedBuyLot(storage, buyOrder, amount, costPerUnit)
+        ensureTrackedBuyOrder(this, buyOrder, config.details.flippingInfo)
+        addTrackedBuyLot(this, buyOrder, amount, costPerUnit)
         removeOrReduceOrderAfterClaim(buyOrder, amount)
     }
 
     val sellPricePerUnit = costPerUnit + expectedProfit / amount.coerceAtLeast(1)
-    val taxMultiplier = (1.0 - storage.taxPercent / BAZAAR_PERCENT_SCALE)
+    val taxMultiplier = (1.0 - this.taxPercent / BAZAAR_PERCENT_SCALE)
         .coerceAtLeast(MIN_BAZAAR_TAX_MULTIPLIER)
     val totalCoins = sellPricePerUnit * amount * taxMultiplier
     val sellOrder = ProfileStorage.BazaarOrderData(
@@ -187,10 +188,10 @@ private fun flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
     addActiveOrder(sellOrder, requireFreshMarketProof = true)
     sessionSellSetupValue += totalCoins
     pendingOrderOptionId = null
-    markBazaarTrackerChanged(refreshFillEstimates = true, refreshOrderBook = true)
+    refreshBazaarTrackerMarketData(refreshFillEstimates = true, refreshOrderBook = true)
 }
 
-private fun claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPrice: Double) {
+private fun ProfileStorage.BazaarTrackerData.claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPrice: Double) {
     val order = findClaimOrder(BazaarOrderType.BUY, itemName, amount, unitPrice)
     if (order != null) {
         applyClaimedAmount(order, amount)
@@ -199,14 +200,13 @@ private fun claimBuyOrder(amount: Long, itemName: String, coins: Double, unitPri
         return
     }
     order.productId = order.productId ?: resolveProductId(itemName)
-    ensureTrackedBuyOrder(storage, order, config.details.flippingInfo)
+    ensureTrackedBuyOrder(this, order, config.details.flippingInfo)
     val cost = if (unitPrice > 0.0) unitPrice else coins / amount.coerceAtLeast(1)
-    addTrackedBuyLot(storage, order, amount, cost)
+    addTrackedBuyLot(this, order, amount, cost)
     clearPendingOrderAction()
-    markBazaarTrackerChanged()
 }
 
-private fun claimSellOrder(coins: Double, amount: Long, itemName: String, unitPrice: Double) {
+private fun ProfileStorage.BazaarTrackerData.claimSellOrder(coins: Double, amount: Long, itemName: String, unitPrice: Double) {
     val order = findClaimOrder(BazaarOrderType.SELL, itemName, amount, unitPrice)
     if (order != null) {
         applyClaimedAmount(order, amount, claimedCoins = coins)
@@ -216,15 +216,14 @@ private fun claimSellOrder(coins: Double, amount: Long, itemName: String, unitPr
     }
     val productId = order.productId ?: resolveProductId(itemName)
     prepareCraftedCostBasis(productId, itemName, amount)
-    val knownProfit = consumeTrackedLotsForSale(storage, productId, itemName, amount, coins)
-    storage.totalKnownProfit += knownProfit
+    val knownProfit = consumeTrackedLotsForSale(this, productId, itemName, amount, coins)
+    this.totalKnownProfit += knownProfit
     sessionKnownProfit += knownProfit
     clearPendingOrderAction()
-    markBazaarTrackerChanged()
 }
 
-private fun markFilled(type: BazaarOrderType, amount: Long, itemName: String) {
-    val candidates = storage.activeOrders
+private fun ProfileStorage.BazaarTrackerData.markFilled(type: BazaarOrderType, amount: Long, itemName: String) {
+    val candidates = this.activeOrders
         .filter { it.type == type && namesMatch(it.itemName, itemName) }
         .filter {
             haveOverlappingRanges(
@@ -245,7 +244,6 @@ private fun markFilled(type: BazaarOrderType, amount: Long, itemName: String) {
     playProgressAlert(order, previousFilled)
     order.updatedAtMillis = System.currentTimeMillis()
     if (pendingCancel?.orderId == order.id) pendingCancel = null
-    markBazaarTrackerChanged()
 }
 
 internal fun selectFilledOrder(
@@ -259,10 +257,10 @@ internal fun selectFilledOrder(
     return candidates.minWithOrNull(priceComparator.thenBy { it.createdAtMillis })
 }
 
-private fun cancelBuyOrderFromChat(refundedCoins: Double) {
+private fun ProfileStorage.BazaarTrackerData.cancelBuyOrderFromChat(refundedCoins: Double) {
     val pending = pendingCancel?.takeIf { it.type == BazaarOrderType.BUY }
-    val order = pending?.orderId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
-        ?: pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
+    val order = pending?.orderId?.let { id -> this.activeOrders.firstOrNull { it.id == id } }
+        ?: pendingOrderOptionId?.let { id -> this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
     val orderId = order?.id ?: pending?.orderId ?: run {
         clearPendingOrderAction()
         return
@@ -281,12 +279,12 @@ private fun cancelBuyOrderFromChat(refundedCoins: Double) {
     applyCancel(cancel)
 }
 
-private fun cancelSellOrderFromChat(amount: Long, itemName: String) {
+private fun ProfileStorage.BazaarTrackerData.cancelSellOrderFromChat(amount: Long, itemName: String) {
     val pending = pendingCancel?.takeIf {
         it.type == BazaarOrderType.SELL && (it.itemName.isBlank() || namesMatch(it.itemName, itemName))
     }
-    val order = pending?.orderId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
-        ?: pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.SELL } }
+    val order = pending?.orderId?.let { id -> this.activeOrders.firstOrNull { it.id == id } }
+        ?: pendingOrderOptionId?.let { id -> this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.SELL } }
     val cancel = PendingCancel(
         orderId = order?.id ?: pending?.orderId,
         type = BazaarOrderType.SELL,

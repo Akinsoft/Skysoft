@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Rect
@@ -119,7 +120,7 @@ private fun focusBackdropColor(progress: Float): Int {
 private fun drawPage(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    page: ProfileStorage.SkyBlockStoragePageData,
+    page: ProfileStorageView.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,
@@ -198,7 +199,7 @@ private fun drawPage(
 private fun drawPageSlots(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    page: ProfileStorage.SkyBlockStoragePageData,
+    page: ProfileStorageView.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,

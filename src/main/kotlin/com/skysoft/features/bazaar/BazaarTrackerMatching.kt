@@ -1,6 +1,6 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
@@ -23,7 +23,7 @@ internal fun canonicalBazaarProductId(productId: String): String = productId.rep
 internal fun productMatches(a: String?, b: String?): Boolean =
     a != null && b != null && canonicalBazaarProductId(a) == canonicalBazaarProductId(b)
 
-internal fun lotMatches(lot: ProfileStorage.BazaarItemLotData, productId: String?, itemName: String): Boolean =
+internal fun lotMatches(lot: ProfileStorageView.BazaarItemLotData, productId: String?, itemName: String): Boolean =
     productMatches(lot.productId, productId) || namesMatch(lot.itemName, itemName)
 
 internal fun resolveProductId(itemName: String): String? =
@@ -33,7 +33,7 @@ private val nameWhitespacePattern = Regex("\\s+")
 
 internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(nameWhitespacePattern, " ")
 
-internal fun orderMatchesParsedIdentity(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
+internal fun orderMatchesParsedIdentity(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (
         parsed.amount > 0 &&
         !haveOverlappingRanges(

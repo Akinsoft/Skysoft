@@ -5,7 +5,7 @@ import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.ProfitTrackerQuantityPosition
 import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -334,7 +334,7 @@ private fun wasItemScrollHandled(verticalAmount: Double): Boolean {
 
 private fun profitDisplayItems(
     target: ProfitTrackerTarget,
-    stats: ProfileStorage.ProfitTrackerStats,
+    stats: ProfileStorageView.ProfitTrackerStats,
 ): List<ProfitDisplayItem> {
     val trackedItemIds = ProfitTracker.trackedItemIds(target)
     return stats.itemCounts.mapNotNull { (itemId, amount) ->
@@ -352,7 +352,7 @@ private fun profitDisplayItems(
 
 private class ProfitTrackerRenderable(
     private val target: ProfitTrackerTarget,
-    private val stats: ProfileStorage.ProfitTrackerStats,
+    private val stats: ProfileStorageView.ProfitTrackerStats,
     items: List<ProfitDisplayItem>,
     maximumItems: Int,
     scrollOffset: Int,

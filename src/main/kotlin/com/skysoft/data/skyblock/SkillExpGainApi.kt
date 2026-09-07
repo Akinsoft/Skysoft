@@ -59,48 +59,50 @@ object SkillExpGainApi {
         listeners.register(boundary, isActive, listener)
     }
 
-    fun getSkillInfo(skill: SkyBlockSkill): SkyBlockSkillInfo? = storage[skill]
+    fun getSkillInfo(skill: SkyBlockSkill): SkyBlockSkillView? = storage[skill]
 
     internal fun xpRequiredForMaxLevel(skill: SkyBlockSkill): Long = xpRequiredForLevel(skill.maxLevel)
 
     fun readOpenInventory(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
         if (inventoryName != "Your Skills") return
-        var changed = false
-        for (stack in inventoryItems.values) {
-            val lore = stack.loreLines()
-            if (lore.none { it.contains("Click to view!") || it.contains("Not unlocked!") }) continue
-            val split = stack.formattedHoverName().cleanSkyBlockText().split(" ")
-            val skillName = split.firstOrNull() ?: continue
-            val skill = SkyBlockSkill.getByNameOrNull(skillName) ?: continue
-            val skillLevel = split.getOrNull(1)?.romanToDecimalIfNecessary() ?: 0
-            val skillInfo = storage.getOrPut(skill, ::SkillInfo)
-            if (readSkillMenuLore(lore, skill, skillInfo, skillLevel) == ChangeResult.CHANGED) changed = true
+        ProfileStorageApi.updateProfile { profile ->
+            val storage = profile.skillData
+            for (stack in inventoryItems.values) {
+                val lore = stack.loreLines()
+                if (lore.none { it.contains("Click to view!") || it.contains("Not unlocked!") }) continue
+                val split = stack.formattedHoverName().cleanSkyBlockText().split(" ")
+                val skillName = split.firstOrNull() ?: continue
+                val skill = SkyBlockSkill.getByNameOrNull(skillName) ?: continue
+                val skillLevel = split.getOrNull(1)?.romanToDecimalIfNecessary() ?: 0
+                val skillInfo = storage.getOrPut(skill, ::SkillInfo)
+                readSkillMenuLore(lore, skill, skillInfo, skillLevel)
+            }
         }
-        if (changed) ProfileStorageApi.markDirty()
     }
 
     private fun handleActionBar(component: Component) {
         val match = findActionBarGain(component.cleanSkyBlockText()) ?: return
         val skillType = SkyBlockSkill.getByNameOrNull(match.skillName) ?: return
         val gained = match.gainedText.formatDoubleOrNull() ?: return
-        val skillInfo = storage.getOrPut(skillType, ::SkillInfo)
-        val previousTotalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble()
-        val updated = if (match.percentageText != null) {
-            tryHandlePercentActionBar(match, skillType, skillInfo)
-        } else {
-            tryHandleNumericActionBar(match, skillType, skillInfo)
+        ProfileStorageApi.updateProfile { profile ->
+            val skillInfo = profile.skillData.getOrPut(skillType, ::SkillInfo)
+            val previousTotalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble()
+            val updated = if (match.percentageText != null) {
+                tryHandlePercentActionBar(match, skillType, skillInfo)
+            } else {
+                tryHandleNumericActionBar(match, skillType, skillInfo)
+            }
+            if (!updated) return@updateProfile
+            post(
+                SkillExpGain(
+                    skill = skillType,
+                    gained = gained,
+                    totalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble(),
+                    previousTotalXp = previousTotalXp,
+                    source = ACTIONBAR_SOURCE,
+                ),
+            )
         }
-        if (!updated) return
-        ProfileStorageApi.markDirty()
-        post(
-            SkillExpGain(
-                skill = skillType,
-                gained = gained,
-                totalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble(),
-                previousTotalXp = previousTotalXp,
-                source = ACTIONBAR_SOURCE,
-            ),
-        )
     }
 
     internal fun findActionBarGain(text: String): SkillActionBarMatch? =
@@ -143,13 +145,14 @@ object SkillExpGainApi {
         if (skillInfo.totalXp <= 0L) return null
         val totalXp = skillInfo.totalXp + gained
         val roundedTotalXp = totalXp.roundToLong()
-        skillInfo.recordChatGain(
-            parsedLevel = calculateSkillLevel(roundedTotalXp, skillType.maxLevel),
-            roundedTotalXp = roundedTotalXp,
-            maxLevel = skillType.maxLevel,
-            gained = gained,
-        )
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { profile ->
+            profile.skillData.getValue(skillType).recordChatGain(
+                parsedLevel = calculateSkillLevel(roundedTotalXp, skillType.maxLevel),
+                roundedTotalXp = roundedTotalXp,
+                maxLevel = skillType.maxLevel,
+                gained = gained,
+            )
+        }
         return totalXp
     }
 

@@ -2,13 +2,13 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.instantBuyPattern
 import com.skysoft.data.skyblock.instantSellPattern
 
-internal fun tryHandleInstantTransactionMessage(message: String): Boolean {
+internal fun ProfileStorage.BazaarTrackerData.tryHandleInstantTransactionMessage(message: String): Boolean {
     val transaction = parseInstantBazaarTransaction(message, System.currentTimeMillis()) ?: return false
-    recordBazaarTransaction(storage, transaction)
-    markBazaarTrackerChanged()
+    recordBazaarTransaction(this, transaction)
     return true
 }
 
@@ -20,21 +20,21 @@ internal fun recordBazaarTransaction(
 }
 
 internal fun bazaarTransactionsFor(
-    data: ProfileStorage.BazaarTrackerData,
+    data: ProfileStorageView.BazaarTrackerData,
     productId: String,
     itemName: String,
     sinceMillis: Long,
-): List<ProfileStorage.BazaarTransactionData> {
+): List<ProfileStorageView.BazaarTransactionData> {
     val recorded = data.transactions.asSequence()
         .filter { it.atMillis >= sinceMillis }
         .filter { transactionMatches(it, productId, itemName) }
     val active = data.activeOrders.asSequence()
         .filter { it.createdAtMillis >= sinceMillis }
         .filter { orderMatches(it, productId, itemName) }
-        .map(ProfileStorage.BazaarOrderData::toBazaarTransaction)
+        .map(ProfileStorageView.BazaarOrderData::toBazaarTransaction)
     return (active + recorded)
         .distinctBy(::transactionIdentity)
-        .sortedBy(ProfileStorage.BazaarTransactionData::atMillis)
+        .sortedBy(ProfileStorageView.BazaarTransactionData::atMillis)
         .toList()
 }
 
@@ -59,7 +59,7 @@ internal fun parseInstantBazaarTransaction(
     )
 }
 
-internal fun ProfileStorage.BazaarOrderData.toBazaarTransaction() = ProfileStorage.BazaarTransactionData(
+internal fun ProfileStorageView.BazaarOrderData.toBazaarTransaction() = ProfileStorage.BazaarTransactionData(
     type = when (type) {
         BazaarOrderType.BUY -> ProfileStorage.BazaarTransactionType.BUY_ORDER
         BazaarOrderType.SELL -> ProfileStorage.BazaarTransactionType.SELL_ORDER
@@ -72,16 +72,16 @@ internal fun ProfileStorage.BazaarOrderData.toBazaarTransaction() = ProfileStora
 )
 
 private fun transactionMatches(
-    transaction: ProfileStorage.BazaarTransactionData,
+    transaction: ProfileStorageView.BazaarTransactionData,
     productId: String,
     itemName: String,
 ): Boolean = transaction.productId?.equals(productId, ignoreCase = true) == true ||
     transaction.productId == null && namesMatch(transaction.itemName, itemName)
 
-private fun orderMatches(order: ProfileStorage.BazaarOrderData, productId: String, itemName: String): Boolean =
+private fun orderMatches(order: ProfileStorageView.BazaarOrderData, productId: String, itemName: String): Boolean =
     order.productId?.equals(productId, ignoreCase = true) == true || order.productId == null && namesMatch(order.itemName, itemName)
 
-private fun transactionIdentity(transaction: ProfileStorage.BazaarTransactionData): String = listOf(
+private fun transactionIdentity(transaction: ProfileStorageView.BazaarTransactionData): String = listOf(
     transaction.type.name,
     transaction.productId.orEmpty().uppercase(),
     transaction.itemName.lowercase(),

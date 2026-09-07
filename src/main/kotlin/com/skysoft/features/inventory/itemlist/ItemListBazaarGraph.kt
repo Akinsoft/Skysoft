@@ -2,7 +2,7 @@ package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.features.bazaar.BazaarInvestmentPosition
 import com.skysoft.utils.gui.PixelButtonRenderer
@@ -26,7 +26,7 @@ internal class ItemListBazaarGraph {
         bounds: Rect,
         product: SkysoftBazaarDepthProduct?,
         investment: BazaarInvestmentPosition?,
-        transactions: List<ProfileStorage.BazaarTransactionData>,
+        transactions: List<ProfileStorageView.BazaarTransactionData>,
         exitPrice: Double,
         updatedAtMillis: Long,
         state: BazaarDepthState,
@@ -103,7 +103,7 @@ internal class ItemListBazaarGraph {
         bounds: Rect,
         product: SkysoftBazaarDepthProduct?,
         investment: BazaarInvestmentPosition?,
-        transactions: List<ProfileStorage.BazaarTransactionData>,
+        transactions: List<ProfileStorageView.BazaarTransactionData>,
         preferences: ItemListSourcesConfig,
         state: BazaarDepthState,
         error: String?,

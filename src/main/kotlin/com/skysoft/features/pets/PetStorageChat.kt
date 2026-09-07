@@ -65,18 +65,23 @@ internal object PetStorageChat {
             level = level,
         ) ?: return true
 
-        PetStoragePetItems.applyKnownData(resolvedPet, skinInternalName = petSkin)
-        when {
-            petHeldItem != null -> resolvedPet.heldItemInternalName = petHeldItem
-            hoverInfo.isNotEmpty() && petHeldItemName == null -> resolvedPet.heldItemInternalName = null
-        }
-        PetRepository.levelToXp(level, resolvedPet.fauxInternalName)?.let { minimumExp ->
-            if ((resolvedPet.exp ?: 0.0) < minimumExp) resolvedPet.exp = minimumExp
+        val equippedPet = resolvedPet.copy(
+            skinInternalName = petSkin ?: resolvedPet.skinInternalName,
+            heldItemInternalName = when {
+                petHeldItem != null -> petHeldItem
+                hoverInfo.isNotEmpty() && petHeldItemName == null -> null
+                else -> resolvedPet.heldItemInternalName
+            },
+        )
+        val minimumExp = PetRepository.levelToXp(level, equippedPet.fauxInternalName)
+        val updatedPet = if (minimumExp != null && (equippedPet.exp ?: 0.0) < minimumExp) {
+            equippedPet.copy(exp = minimumExp)
+        } else {
+            equippedPet
         }
         val previousPet = ActivePetTracker.currentPet
-        ActivePetTracker.assertFoundCurrentData(resolvedPet, PetDataAssertionSource.AUTOPET)
-        PetXpEstimator.recordAutopetSwap(resolvedPet, previousPet, autopetTriggerOrNull(hoverInfo))
-        PetStorageService.markDirty()
+        ActivePetTracker.assertFoundCurrentData(updatedPet, PetDataAssertionSource.AUTOPET)
+        PetXpEstimator.recordAutopetSwap(updatedPet, previousPet, autopetTriggerOrNull(hoverInfo))
         return true
     }
 
@@ -93,10 +98,7 @@ internal object PetStorageChat {
     private fun updateCurrentPetHeldItem(heldItem: String) {
         val currentPet = ActivePetTracker.currentPet ?: return
         if (currentPet.heldItemInternalName == heldItem) return
-        currentPet.heldItemInternalName = heldItem
-        currentPet.uuid?.let { uuid -> PetStorageService.petStorage.pets.addOrReplace(currentPet) { it.uuid == uuid } }
-        ActivePetTracker.assertFoundCurrentData(currentPet, PetDataAssertionSource.CHAT)
-        PetStorageService.markDirty()
+        ActivePetTracker.assertFoundCurrentData(currentPet.copy(heldItemInternalName = heldItem), PetDataAssertionSource.CHAT)
     }
 
     private fun hoverTextLines(component: Component): List<String> =

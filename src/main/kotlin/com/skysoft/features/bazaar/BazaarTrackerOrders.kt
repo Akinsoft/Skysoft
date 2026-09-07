@@ -6,7 +6,7 @@ import com.skysoft.utils.ChangeResult
 import kotlin.math.max
 import kotlin.math.roundToLong
 
-internal fun applyCancel(cancel: PendingCancel) {
+internal fun ProfileStorage.BazaarTrackerData.applyCancel(cancel: PendingCancel) {
     val order = findCancelOrder(cancel)
         ?: run {
             pendingCancel = null
@@ -14,16 +14,15 @@ internal fun applyCancel(cancel: PendingCancel) {
         }
 
     rememberResolvedOrder(order)
-    storage.activeOrders.remove(order)
+    this.activeOrders.remove(order)
     clearPendingOrderAction()
-    markBazaarTrackerChanged()
 }
 
-private fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
+private fun ProfileStorage.BazaarTrackerData.findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
     cancel.orderId?.let { id ->
-        storage.activeOrders.firstOrNull { it.id == id && it.type == cancel.type }?.let { return it }
+        this.activeOrders.firstOrNull { it.id == id && it.type == cancel.type }?.let { return it }
     }
-    return storage.activeOrders
+    return this.activeOrders
         .asSequence()
         .filter { it.type == cancel.type }
         .filter { cancel.itemName.isBlank() || namesMatch(it.itemName, cancel.itemName) }
@@ -55,7 +54,7 @@ private fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: Pendin
     return amountDistance(expectedUnfilled, amount)
 }
 
-internal fun removeOrReduceOrderAfterClaim(order: ProfileStorage.BazaarOrderData, amount: Long) {
+internal fun ProfileStorage.BazaarTrackerData.removeOrReduceOrderAfterClaim(order: ProfileStorage.BazaarOrderData, amount: Long) {
     applyClaimedAmount(order, amount, alert = false)
 }
 
@@ -75,18 +74,18 @@ internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: P
     return ChangeResult.from(changed)
 }
 
-internal fun findClaimOrder(
+internal fun ProfileStorage.BazaarTrackerData.findClaimOrder(
     type: BazaarOrderType,
     itemName: String,
     amount: Long,
     unitPrice: Double,
 ): ProfileStorage.BazaarOrderData? {
     pendingOrderOptionId?.let { id ->
-        storage.activeOrders.firstOrNull { isPlausibleClaimOrder(it, id, type, itemName, amount, unitPrice) }?.let {
+        this.activeOrders.firstOrNull { isPlausibleClaimOrder(it, id, type, itemName, amount, unitPrice) }?.let {
             return it
         }
     }
-    val candidates = storage.activeOrders
+    val candidates = this.activeOrders
         .filter { isPlausibleClaimOrder(it, it.id, type, itemName, amount, unitPrice) }
     return candidates.minWithOrNull(
         compareBy<ProfileStorage.BazaarOrderData> {
@@ -130,7 +129,7 @@ private fun isPlausibleClaimOrder(
     return true
 }
 
-internal fun pruneOrdersMissingFromGui(
+internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
     matchedOrderIds: Set<String>,
     parsedOrders: List<PendingOrder>,
     visibleOrderCount: Int,
@@ -138,9 +137,9 @@ internal fun pruneOrdersMissingFromGui(
     val now = System.currentTimeMillis()
     val recentlyClickedOrder = now - lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
     val visibleScanMayBeWindowed = visibleOrderCount >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
-        storage.activeOrders.any { it.id !in matchedOrderIds }
+        this.activeOrders.any { it.id !in matchedOrderIds }
     var changed = false
-    val iterator = storage.activeOrders.iterator()
+    val iterator = this.activeOrders.iterator()
     while (iterator.hasNext()) {
         val order = iterator.next()
         if (order.id in matchedOrderIds) {

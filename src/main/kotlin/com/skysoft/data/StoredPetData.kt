@@ -15,11 +15,11 @@ import java.util.UUID
 
 data class StoredPetData(
     @field:Expose val petInternalName: String,
-    @field:Expose var skinInternalName: String? = null,
-    @field:Expose var heldItemInternalName: String? = null,
-    @field:Expose var exp: Double? = null,
+    @field:Expose val skinInternalName: String? = null,
+    @field:Expose val heldItemInternalName: String? = null,
+    @field:Expose val exp: Double? = null,
     @field:Expose val uuid: UUID? = null,
-    @field:Expose var displayIconTexture: String? = null,
+    @field:Expose val displayIconTexture: String? = null,
     @Transient var exactItemStack: ItemStack? = null,
 ) {
     val hasPetInternalName: Boolean get() = rawPetInternalName?.isNotBlank() == true

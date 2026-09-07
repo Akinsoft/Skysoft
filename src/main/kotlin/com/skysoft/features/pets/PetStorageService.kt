@@ -57,8 +57,16 @@ object PetStorageService {
         }
     }
 
-    fun markDirty() {
-        ProfileStorageApi.markDirty()
+    internal fun storePet(petData: StoredPetData) {
+        val uuid = petData.uuid ?: return
+        val existing = petStorage.pets.firstOrNull { it.uuid == uuid }
+        if (existing?.hasSamePersistedDataAs(petData) == true) {
+            existing.exactItemStack = petData.exactItemStack
+            return
+        }
+        ProfileStorageApi.updateProfile { profile ->
+            profile.pets.addOrReplace(petData) { it.uuid == uuid }
+        }
     }
 
     @JvmStatic
@@ -124,3 +132,11 @@ object PetStorageService {
         .filter { level == null || it.level == level }
         .singleOrNull { PetStoragePetItems.hasMatchingExp(it, exp, expErrorFactor) }
 }
+
+private fun StoredPetData.hasSamePersistedDataAs(other: StoredPetData): Boolean =
+    petInternalName == other.petInternalName &&
+        skinInternalName == other.skinInternalName &&
+        heldItemInternalName == other.heldItemInternalName &&
+        exp == other.exp &&
+        uuid == other.uuid &&
+        displayIconTexture == other.displayIconTexture

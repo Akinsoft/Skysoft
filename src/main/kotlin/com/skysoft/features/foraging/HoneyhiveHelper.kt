@@ -3,6 +3,7 @@ package com.skysoft.features.foraging
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -29,7 +30,7 @@ import net.minecraft.world.entity.decoration.ArmorStand
 
 object HoneyhiveHelper {
     private val config get() = SkysoftConfigGui.config().foraging.honeyhiveHelper
-    private var activeData: ProfileStorage.HoneyhiveTrackerData? = null
+    private var activeData: ProfileStorageView.HoneyhiveTrackerData? = null
     private var activeProfile: SkyBlockProfileId? = null
     private val selectedHives = mutableSetOf<String>()
     private val dismissedReadyHives = mutableSetOf<String>()
@@ -74,28 +75,29 @@ object HoneyhiveHelper {
             return
         }
 
-        var changed = didInitializeKnownHives(data)
+        didInitializeKnownHives(data)
         val now = System.currentTimeMillis()
-        if (ticks++ % SCAN_INTERVAL_TICKS == 0) changed = didReconcileVisibleHives(data, now) || changed
-        if (changed) ProfileStorageApi.markDirty()
+        if (ticks++ % SCAN_INTERVAL_TICKS == 0) didReconcileVisibleHives(data, now)
         clearReachedWaypoints(data, now)
         alertForNewlyReadyHives(data, now)
         playQueuedSound()
     }
 
-    private fun didInitializeKnownHives(data: ProfileStorage.HoneyhiveTrackerData): Boolean {
+    private fun didInitializeKnownHives(data: ProfileStorageView.HoneyhiveTrackerData): Boolean {
         if (data.initialized) return false
-        val existing = data.hives.mapTo(mutableSetOf(), ProfileStorage.HoneyhiveData::locationKey)
-        KNOWN_HONEYHIVES
-            .filter { it.locationKey() !in existing }
-            .forEach { position ->
-                data.hives += ProfileStorage.HoneyhiveData(position.x, position.y, position.z)
-            }
-        data.initialized = true
+        val existing = data.hives.mapTo(mutableSetOf(), ProfileStorageView.HoneyhiveData::locationKey)
+        ProfileStorageApi.updateProfile { profile ->
+            KNOWN_HONEYHIVES
+                .filter { it.locationKey() !in existing }
+                .forEach { position ->
+                    profile.honeyhiveTracker.hives += ProfileStorage.HoneyhiveData(position.x, position.y, position.z)
+                }
+            profile.honeyhiveTracker.initialized = true
+        }
         return true
     }
 
-    private fun didReconcileVisibleHives(data: ProfileStorage.HoneyhiveTrackerData, now: Long): Boolean {
+    private fun didReconcileVisibleHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long): Boolean {
         if (Minecraft.getInstance().level == null) return false
         val armorStands = ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>().filter { it.isAlive }
         val statuses = armorStands.mapNotNull { stand ->
@@ -115,18 +117,24 @@ object HoneyhiveHelper {
                 val position = hiveTag.blockPosition().above()
                 val hive = data.hives.firstOrNull { it.matches(position) }
                 if (hive == null) {
-                    data.hives += ProfileStorage.HoneyhiveData(position.x, position.y, position.z, readyAtMillis, true)
+                    ProfileStorageApi.updateProfile { profile ->
+                        profile.honeyhiveTracker.hives +=
+                            ProfileStorage.HoneyhiveData(position.x, position.y, position.z, readyAtMillis, true)
+                    }
                     changed = true
                 } else if (!hive.statusObserved || shouldUpdateReadyTime(hive.readyAtMillis, readyAtMillis, now)) {
-                    hive.readyAtMillis = readyAtMillis
-                    hive.statusObserved = true
+                    ProfileStorageApi.updateProfile { profile ->
+                        val updatedHive = profile.honeyhiveTracker.hives.first { it.matches(position) }
+                        updatedHive.readyAtMillis = readyAtMillis
+                        updatedHive.statusObserved = true
+                    }
                     changed = true
                 }
             }
         return changed
     }
 
-    private fun alertForNewlyReadyHives(data: ProfileStorage.HoneyhiveTrackerData, now: Long) {
+    private fun alertForNewlyReadyHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
         val ready = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
             .mapTo(mutableSetOf()) { it.locationKey() }
         alertedReadyHives.retainAll(ready)
@@ -166,14 +174,14 @@ object HoneyhiveHelper {
             }
     }
 
-    internal fun currentHives(): List<ProfileStorage.HoneyhiveData> {
+    internal fun currentHives(): List<ProfileStorageView.HoneyhiveData> {
         if (!config.enabled || !HypixelLocationState.inSkyBlock ||
             activeProfile == null || activeProfile != SkyBlockProfileApi.currentProfileId
         ) return emptyList()
         return activeData?.hives.orEmpty()
     }
 
-    internal fun toggleWaypoint(hive: ProfileStorage.HoneyhiveData) {
+    internal fun toggleWaypoint(hive: ProfileStorageView.HoneyhiveData) {
         if (currentHives().none { it === hive }) return
         val now = System.currentTimeMillis()
         if (hasWaypoint(hive, now)) {
@@ -185,11 +193,11 @@ object HoneyhiveHelper {
         }
     }
 
-    internal fun hasWaypoint(hive: ProfileStorage.HoneyhiveData, now: Long = System.currentTimeMillis()): Boolean =
+    internal fun hasWaypoint(hive: ProfileStorageView.HoneyhiveData, now: Long = System.currentTimeMillis()): Boolean =
         hive.locationKey() in selectedHives || config.settings.readyWaypoints &&
             hive.hasKnownStatus() && hive.readyAtMillis <= now && hive.locationKey() !in dismissedReadyHives
 
-    private fun clearReachedWaypoints(data: ProfileStorage.HoneyhiveTrackerData, now: Long) {
+    private fun clearReachedWaypoints(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
         val readyKeys = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
             .mapTo(mutableSetOf()) { it.locationKey() }
         dismissedReadyHives.retainAll(readyKeys)
@@ -198,7 +206,7 @@ object HoneyhiveHelper {
             .forEach { dismissWaypoint(it, now) }
     }
 
-    private fun dismissWaypoint(hive: ProfileStorage.HoneyhiveData, now: Long) {
+    private fun dismissWaypoint(hive: ProfileStorageView.HoneyhiveData, now: Long) {
         val key = hive.locationKey()
         selectedHives.remove(key)
         if (hive.hasKnownStatus() && hive.readyAtMillis <= now) dismissedReadyHives.add(key)
@@ -218,8 +226,8 @@ object HoneyhiveHelper {
         HoneyhiveDisplay.clear()
     }
 
-    private fun ProfileStorage.HoneyhiveData.location(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
-    private fun ProfileStorage.HoneyhiveData.matches(position: BlockPos): Boolean =
+    private fun ProfileStorageView.HoneyhiveData.location(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
+    private fun ProfileStorageView.HoneyhiveData.matches(position: BlockPos): Boolean =
         x == position.x && y == position.y && z == position.z
 
     private fun KnownHoneyhive.locationKey(): String = "$x:$y:$z"
@@ -258,7 +266,7 @@ object HoneyhiveHelper {
     )
 }
 
-internal fun honeyhiveStatusComponent(hive: ProfileStorage.HoneyhiveData, now: Long): Component {
+internal fun honeyhiveStatusComponent(hive: ProfileStorageView.HoneyhiveData, now: Long): Component {
     if (!hive.hasKnownStatus()) return Component.literal("Unchecked").withStyle(ChatFormatting.GRAY)
     if (hive.readyAtMillis <= now) return Component.literal("Ready").withStyle(ChatFormatting.GREEN)
     val duration = DurationParts.fromMilliseconds(hive.readyAtMillis - now, roundUp = true)

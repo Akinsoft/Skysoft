@@ -6,6 +6,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SlotBindingHighlightStyle
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.SlotBindingAdditionDecision
 import com.skysoft.data.SlotBindingGraph
 import com.skysoft.data.SlotBindingShiftClickDecision
@@ -161,9 +162,8 @@ object SlotBindingManager {
     @JvmStatic
     fun resetAllBindings() {
         val removed = bindings.isNotEmpty()
-        bindings.clear()
+        if (removed) ProfileStorageApi.updateProfile { it.slotBindings.clear() }
         resetInputState()
-        if (removed) ProfileStorageApi.markDirty()
     }
 
     private fun updateDragState(screen: AbstractContainerScreen<*>, hoveredSlot: Slot?) {
@@ -229,34 +229,37 @@ object SlotBindingManager {
         if (!Geometry.isValidBindingPair(firstSlot, secondSlot)) return
         val firstSlotIndex = firstSlot.containerSlot
         val secondSlotIndex = secondSlot.containerSlot
-        val result = SlotBindingGraph.add(bindings, firstSlotIndex, secondSlotIndex)
-        if (result == SlotBindingAdditionDecision.ADD) {
-            ProfileStorageApi.markDirty()
+        if (SlotBindingGraph.additionDecision(bindings, firstSlotIndex, secondSlotIndex) == SlotBindingAdditionDecision.ADD) {
+            ProfileStorageApi.updateProfile { SlotBindingGraph.add(it.slotBindings, firstSlotIndex, secondSlotIndex) }
         }
     }
 
     private fun removeBindingsInvolving(slotIndex: Int) {
-        val removed = bindings.removeIf { Geometry.bindingContains(it, slotIndex) }
-        if (removed) {
-            ProfileStorageApi.markDirty()
+        if (bindings.any { Geometry.bindingContains(it, slotIndex) }) {
+            ProfileStorageApi.updateProfile { profile ->
+                profile.slotBindings.removeIf { Geometry.bindingContains(it, slotIndex) }
+            }
         }
     }
 
-    private fun bindingsFor(slotIndex: Int): List<ProfileStorage.SlotBindingData> =
+    private fun bindingsFor(slotIndex: Int): List<ProfileStorageView.SlotBindingData> =
         SlotBindingGraph.bindingsForSlot(bindings, slotIndex)
 
     private fun repairBindings(screen: AbstractContainerScreen<*>? = null) {
-        val repair = SlotBindingGraph.repair(bindings)
-        val menuBindingCount = bindings.count { Geometry.involvesSkyBlockMenuSlot(it, screen) }
-        if (menuBindingCount > 0) {
-            bindings.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
+        val repaired = bindings.map { ProfileStorage.SlotBindingData(it.firstSlot, it.secondSlot) }.toMutableList()
+        val repair = SlotBindingGraph.repair(repaired)
+        val removedMenuBindings = repaired.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
+        if (repair == ChangeResult.CHANGED || removedMenuBindings) {
+            ProfileStorageApi.updateProfile { profile ->
+                profile.slotBindings.clear()
+                profile.slotBindings.addAll(repaired)
+            }
         }
-        if (repair == ChangeResult.CHANGED || menuBindingCount > 0) ProfileStorageApi.markDirty()
     }
 
     private fun swapBoundSlots(
         screen: AbstractContainerScreen<*>,
-        binding: ProfileStorage.SlotBindingData,
+        binding: ProfileStorageView.SlotBindingData,
     ): InputHandlingResult {
         val firstSlot = Geometry.findPlayerSlot(screen, binding.firstSlot)
         val secondSlot = Geometry.findPlayerSlot(screen, binding.secondSlot)
@@ -567,17 +570,17 @@ object SlotBindingManager {
 
         fun isSkyBlockMenuSlot(slot: Slot): Boolean = slot.item.isSkyBlockMenu()
 
-        fun bindingContains(binding: ProfileStorage.SlotBindingData, slotIndex: Int): Boolean =
+        fun bindingContains(binding: ProfileStorageView.SlotBindingData, slotIndex: Int): Boolean =
             binding.firstSlot == slotIndex || binding.secondSlot == slotIndex
 
-        fun otherSlot(binding: ProfileStorage.SlotBindingData, slotIndex: Int): Int? = when (slotIndex) {
+        fun otherSlot(binding: ProfileStorageView.SlotBindingData, slotIndex: Int): Int? = when (slotIndex) {
             binding.firstSlot -> binding.secondSlot
             binding.secondSlot -> binding.firstSlot
             else -> null
         }
 
         fun involvesSkyBlockMenuSlot(
-            binding: ProfileStorage.SlotBindingData,
+            binding: ProfileStorageView.SlotBindingData,
             screen: AbstractContainerScreen<*>?,
         ): Boolean {
             if (screen == null) return false

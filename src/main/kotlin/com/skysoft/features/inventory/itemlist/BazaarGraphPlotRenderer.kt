@@ -2,6 +2,7 @@ package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthRow
 import com.skysoft.data.skyblock.price.SkysoftBazaarFlowDelta
@@ -105,7 +106,7 @@ internal object BazaarGraphPlotRenderer {
         context: GuiGraphicsExtractor,
         bounds: Rect,
         product: SkysoftBazaarDepthProduct?,
-        transactions: List<ProfileStorage.BazaarTransactionData>,
+        transactions: List<ProfileStorageView.BazaarTransactionData>,
         preferences: ItemListSourcesConfig,
         mouseX: Int,
         mouseY: Int,
@@ -334,7 +335,7 @@ internal object BazaarGraphPlotRenderer {
     private fun renderPlayerTrades(
         context: GuiGraphicsExtractor,
         bounds: Rect,
-        transactions: List<ProfileStorage.BazaarTransactionData>,
+        transactions: List<ProfileStorageView.BazaarTransactionData>,
         start: Long,
         end: Long,
         maximum: Double,
@@ -361,7 +362,7 @@ internal object BazaarGraphPlotRenderer {
 
     private fun renderTransactionTooltip(
         context: GuiGraphicsExtractor,
-        transaction: ProfileStorage.BazaarTransactionData,
+        transaction: ProfileStorageView.BazaarTransactionData,
         mouseX: Int,
         mouseY: Int,
     ) {
@@ -728,7 +729,7 @@ internal data class DepthGraphPoint(
 
 private data class TransactionGraphPoint(
     val point: Pair<Int, Int>,
-    val transaction: ProfileStorage.BazaarTransactionData,
+    val transaction: ProfileStorageView.BazaarTransactionData,
 )
 
 private data class TradeVolumeRowsCriteria(val window: BazaarGraphWindow)

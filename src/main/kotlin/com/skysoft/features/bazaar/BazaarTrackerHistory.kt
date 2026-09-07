@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.gui.nonPlayerSlotAt
 import com.skysoft.utils.trimStartToSize
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -32,7 +33,7 @@ internal fun resetTransientState(resetSessionStats: Boolean) {
     }
 }
 
-internal fun rememberResolvedOrder(order: ProfileStorage.BazaarOrderData) {
+internal fun rememberResolvedOrder(order: ProfileStorageView.BazaarOrderData) {
     clearTrackedOrderRuntimeState(order.id)
     pruneRecentResolvedOrders()
     recentResolvedOrders.addLast(
@@ -48,9 +49,9 @@ internal fun rememberResolvedOrder(order: ProfileStorage.BazaarOrderData) {
     recentResolvedOrders.trimStartToSize(MAX_RECENT_RESOLVED_ORDERS)
 }
 
-internal fun discardTrackedOrder(order: ProfileStorage.BazaarOrderData) {
+internal fun ProfileStorage.BazaarTrackerData.discardTrackedOrder(order: ProfileStorageView.BazaarOrderData) {
     clearTrackedOrderRuntimeState(order.id)
-    storage.activeOrders.remove(order)
+    this.activeOrders.remove(order)
 }
 
 private fun clearTrackedOrderRuntimeState(orderId: String) {

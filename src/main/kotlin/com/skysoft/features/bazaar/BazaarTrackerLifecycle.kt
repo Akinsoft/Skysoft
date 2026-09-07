@@ -4,7 +4,7 @@ import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.config.BazaarTrackerSound
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -72,8 +72,7 @@ internal fun resetBazaarTrackerDisplayedProfit() {
         sessionBuySetupValue = 0.0
         sessionSellSetupValue = 0.0
     } else {
-        storage.totalKnownProfit = 0.0
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.bazaarTracker.totalKnownProfit = 0.0 }
     }
 }
 
@@ -138,7 +137,7 @@ private fun checkStatusAlerts() {
     }
 }
 
-internal fun initializeOrderAlertState(order: ProfileStorage.BazaarOrderData) {
+internal fun initializeOrderAlertState(order: ProfileStorageView.BazaarOrderData) {
     lastAlertStatuses[order.id] = statusFor(order)
 }
 
@@ -147,7 +146,7 @@ internal fun forgetOrderAlertState(orderId: String) {
     lastOutbidAlertMillis.remove(orderId)
 }
 
-internal fun playProgressAlert(order: ProfileStorage.BazaarOrderData, previousFilledAmount: Long) {
+internal fun playProgressAlert(order: ProfileStorageView.BazaarOrderData, previousFilledAmount: Long) {
     if (order.filledAmount <= previousFilledAmount) return
     if (order.amountOrdered > 0 && order.filledAmount >= order.maximumAmount()) {
         playAlertSound(BazaarTrackerSound.FILLED)
@@ -158,7 +157,7 @@ internal fun playProgressAlert(order: ProfileStorage.BazaarOrderData, previousFi
 }
 
 internal fun showEstimatedFillProgress(
-    order: ProfileStorage.BazaarOrderData,
+    order: ProfileStorageView.BazaarOrderData,
     previousFilledAmount: Long,
     filledAmount: Long,
 ) {

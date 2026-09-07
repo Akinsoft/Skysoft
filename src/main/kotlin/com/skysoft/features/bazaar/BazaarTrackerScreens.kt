@@ -1,7 +1,8 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.utils.ChangeResult
@@ -55,39 +56,44 @@ internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
         return
     }
 
-    val reconciliation = reconcileBazaarSnapshot(storage.activeOrders.toList(), allParsedOrders)
-    val matchedOrderIds = mutableSetOf<String>()
-    var changed = false
-    for (match in reconciliation.matches) {
-        val parsed = match.parsed
-        if (parsed.guiSlot !in localOrderSlots) {
-            discardTrackedOrder(match.order)
-            changed = true
-            continue
+    ProfileStorageApi.updateProfile { profile ->
+        with(profile.bazaarTracker) {
+            val reconciliation = reconcileBazaarSnapshot(activeOrders.toList(), allParsedOrders)
+            val matchedOrderIds = mutableSetOf<String>()
+            var changed = false
+            for (match in reconciliation.matches) {
+                val parsed = match.parsed
+                val order = activeOrders.first { it.id == match.order.id }
+                if (parsed.guiSlot !in localOrderSlots) {
+                    discardTrackedOrder(match.order)
+                    changed = true
+                    continue
+                }
+                matchedOrderIds += match.order.id
+                parsed.taxPercent?.let { updateTax(it) }
+                val updateResult = updateOrderFromGui(order, parsed)
+                missingFromOrdersGuiScans.remove(match.order.id)
+                changed = updateResult == ChangeResult.CHANGED || changed
+            }
+            for (parsed in reconciliation.unmatchedRows) {
+                if (parsed.guiSlot !in localOrderSlots) continue
+                parsed.taxPercent?.let { updateTax(it) }
+                if (!parsed.canCreateOrderFromGui() || recentlyResolved(parsed)) continue
+                val added = parsed.toOrderData()
+                addActiveOrder(added, requireFreshMarketProof = false)
+                matchedOrderIds += added.id
+                changed = true
+            }
+            val parsedOrders = allParsedOrders.filter { order -> order.guiSlot in localOrderSlots }
+            changed = pruneOrdersMissingFromGui(
+                matchedOrderIds,
+                parsedOrders,
+                visibleOrderCount = allParsedOrders.size,
+            ) == ChangeResult.CHANGED || changed
+            if (changed) {
+                refreshBazaarTrackerMarketData(refreshFillEstimates = true)
+            }
         }
-        matchedOrderIds += match.order.id
-        parsed.taxPercent?.let { updateTax(it) }
-        val updateResult = updateOrderFromGui(match.order, parsed)
-        missingFromOrdersGuiScans.remove(match.order.id)
-        changed = updateResult == ChangeResult.CHANGED || changed
-    }
-    for (parsed in reconciliation.unmatchedRows) {
-        if (parsed.guiSlot !in localOrderSlots) continue
-        parsed.taxPercent?.let { updateTax(it) }
-        if (!parsed.canCreateOrderFromGui() || recentlyResolved(parsed)) continue
-        val added = parsed.toOrderData()
-        addActiveOrder(added, requireFreshMarketProof = false)
-        matchedOrderIds += added.id
-        changed = true
-    }
-    val parsedOrders = allParsedOrders.filter { order -> order.guiSlot in localOrderSlots }
-    changed = pruneOrdersMissingFromGui(
-        matchedOrderIds,
-        parsedOrders,
-        visibleOrderCount = allParsedOrders.size,
-    ) == ChangeResult.CHANGED || changed
-    if (changed) {
-        markBazaarTrackerChanged(refreshFillEstimates = true)
     }
 }
 
@@ -196,14 +202,14 @@ internal fun slotIndicator(screen: AbstractContainerScreen<*>, slot: Slot): Slot
     )
 }
 
-internal fun marketStatusFor(order: ProfileStorage.BazaarOrderData): OrderStatus {
+internal fun marketStatusFor(order: ProfileStorageView.BazaarOrderData): OrderStatus {
     val market = BazaarOrderBookApi.get(order.productId) ?: return OrderStatus.COMPETITIVE
     val status = rawMarketStatusFor(order, market)
     if (status.isWarning && !hasMarketProof(order, market)) return OrderStatus.COMPETITIVE
     return status
 }
 
-internal fun rawMarketStatusFor(order: ProfileStorage.BazaarOrderData, market: BazaarMarket): OrderStatus = when (order.type) {
+internal fun rawMarketStatusFor(order: ProfileStorageView.BazaarOrderData, market: BazaarMarket): OrderStatus = when (order.type) {
     BazaarOrderType.BUY -> if (order.pricePerUnit + BAZAAR_PRICE_EPSILON >= market.bestBuyOrder) {
         OrderStatus.COMPETITIVE
     } else {
@@ -216,7 +222,7 @@ internal fun rawMarketStatusFor(order: ProfileStorage.BazaarOrderData, market: B
     }
 }
 
-private fun hasMarketProof(order: ProfileStorage.BazaarOrderData, market: BazaarMarket): Boolean {
+private fun hasMarketProof(order: ProfileStorageView.BazaarOrderData, market: BazaarMarket): Boolean {
     val proofMillis = marketProofMillis[order.id] ?: return true
     if (market.updatedAtMillis <= 0L) {
         marketProofMillis.remove(order.id)

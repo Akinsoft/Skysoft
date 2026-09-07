@@ -65,47 +65,51 @@ internal fun readSnapshot(inventory: SkyBlockOpenInventorySnapshot, handle: Stor
     if (inventory.key == lastInventoryKey) return
     lastInventoryKey = inventory.key
     if (isStorageOverlayEnabled) StorageSearchIndex.invalidatePages()
-    when (handle) {
-        StorageHandle.Overview -> readOverview(inventory.cells)
-        is StorageHandle.Page -> readStoragePage(
-            inventory.cells,
-            handle.pageIndex,
-            handle.pageIndex,
-            handle.rows,
-            StoragePages.COLUMNS,
-            storage.skyBlockStoragePages,
-        )
-        is StorageHandle.Rift -> {
-            var changed = false
-            repeat(ProfileStorage.SKYBLOCK_RIFT_STORAGE_PAGE_COUNT) { pageNumber ->
-                storage.skyBlockRiftStoragePages.getOrPut(pageNumber) {
-                    changed = true
-                    ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(riftStoragePageIndex(pageNumber)), 0)
+    ProfileStorageApi.updateProfile { profile ->
+        with(profile) {
+            when (handle) {
+                StorageHandle.Overview -> readOverview(inventory.cells)
+                is StorageHandle.Page -> readStoragePage(
+                    inventory.cells,
+                    handle.pageIndex,
+                    handle.pageIndex,
+                    handle.rows,
+                    StoragePages.COLUMNS,
+                    skyBlockStoragePages,
+                )
+                is StorageHandle.Rift -> {
+                    var changed = false
+                    repeat(ProfileStorage.SKYBLOCK_RIFT_STORAGE_PAGE_COUNT) { pageNumber ->
+                        skyBlockRiftStoragePages.getOrPut(pageNumber) {
+                            changed = true
+                            ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(riftStoragePageIndex(pageNumber)), 0)
+                        }
+                    }
+                    readStoragePage(
+                        inventory.cells,
+                        handle.pageIndex,
+                        riftStoragePageNumber(handle.pageIndex),
+                        handle.rows,
+                        RiftStorage.SLOT_OFFSET,
+                        skyBlockRiftStoragePages,
+                        changed,
+                    )
                 }
+                is StorageHandle.Toolkit -> readToolkit(inventory.cells, handle)
             }
-            readStoragePage(
-                inventory.cells,
-                handle.pageIndex,
-                riftStoragePageNumber(handle.pageIndex),
-                handle.rows,
-                RiftStorage.SLOT_OFFSET,
-                storage.skyBlockRiftStoragePages,
-                changed,
-            )
         }
-        is StorageHandle.Toolkit -> readToolkit(inventory.cells, handle)
     }
 }
 
-private fun readOverview(cells: List<SkyBlockOpenInventoryCell>) {
+private fun ProfileStorage.ProfileSpecific.readOverview(cells: List<SkyBlockOpenInventoryCell>): ChangeResult {
     var changed = false
     for (cell in cells) {
         changed = readOverviewCell(cell) == ChangeResult.CHANGED || changed
     }
-    if (changed) ProfileStorageApi.markDirty()
+    return ChangeResult.from(changed)
 }
 
-private fun readOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
+private fun ProfileStorage.ProfileSpecific.readOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
     val pageIndex = StorageOverviewSlots.pageIndexForSlot(cell.index)
         ?: return if (isStorageOverlayEnabled) readToolkitOverviewCell(cell) else ChangeResult.UNCHANGED
     val stack = cell.item
@@ -120,17 +124,17 @@ private fun readOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
     }
 }
 
-private fun readToolkitOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
+private fun ProfileStorage.ProfileSpecific.readToolkitOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResult {
     val stack = cell.item
     if (stack.isEmpty || stack.formattedHoverName().cleanSkyBlockText() != "Toolkits") return ChangeResult.UNCHANGED
     val overviewIcon = encodeItem(stack).encodedStack
     var changed = false
-    if (storage.skyBlockToolkitIcon != overviewIcon) {
-        storage.skyBlockToolkitIcon = overviewIcon
+    if (skyBlockToolkitIcon != overviewIcon) {
+        skyBlockToolkitIcon = overviewIcon
         changed = true
     }
     ToolkitType.entries.forEach { type ->
-        storage.skyBlockToolkits.getOrPut(type.storageKey) {
+        skyBlockToolkits.getOrPut(type.storageKey) {
             changed = true
             ProfileStorage.SkyBlockStoragePageData(type.title, 0)
         }
@@ -138,7 +142,7 @@ private fun readToolkitOverviewCell(cell: SkyBlockOpenInventoryCell): ChangeResu
     return ChangeResult.from(changed)
 }
 
-private fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
+private fun ProfileStorage.ProfileSpecific.readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     return if (isEnderChestPage(pageIndex)) {
         if (isStorageOverlayEnabled) emptyOverviewStacks[pageIndex] = stack.copy()
         ensureUnloadedPage(pageIndex)
@@ -147,15 +151,15 @@ private fun readEmptyOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResul
     }
 }
 
-private fun readUnavailableOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
+private fun ProfileStorage.ProfileSpecific.readUnavailableOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     if (isStorageOverlayEnabled) emptyOverviewStacks[pageIndex] = stack.copy()
-    return ChangeResult.from(storage.skyBlockStoragePages.remove(pageIndex) != null)
+    return ChangeResult.from(skyBlockStoragePages.remove(pageIndex) != null)
 }
 
-private fun readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
+private fun ProfileStorage.ProfileSpecific.readStorageOverviewSlot(pageIndex: Int, stack: ItemStack): ChangeResult {
     var changed = false
     if (isStorageOverlayEnabled) emptyOverviewStacks.remove(pageIndex)
-    val page = storage.skyBlockStoragePages.getOrPut(pageIndex) {
+    val page = skyBlockStoragePages.getOrPut(pageIndex) {
         changed = true
         ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(pageIndex), 0)
     }
@@ -176,7 +180,7 @@ private fun readStoragePage(
     slotOffset: Int,
     pages: MutableMap<Int, ProfileStorage.SkyBlockStoragePageData>,
     wasChanged: Boolean = false,
-) {
+): ChangeResult {
     val rows = menuRows.coerceIn(1, ProfileStorage.SKYBLOCK_STORAGE_PAGE_MAX_ROWS)
     var changed = wasChanged
     val page = pages.getOrPut(storedPageIndex) {
@@ -199,13 +203,16 @@ private fun readStoragePage(
             changed = true
         }
     }
-    if (changed) ProfileStorageApi.markDirty()
+    return ChangeResult.from(changed)
 }
 
-private fun readToolkit(cells: List<SkyBlockOpenInventoryCell>, handle: StorageHandle.Toolkit) {
+private fun ProfileStorage.ProfileSpecific.readToolkit(
+    cells: List<SkyBlockOpenInventoryCell>,
+    handle: StorageHandle.Toolkit,
+): ChangeResult {
     val rows = handle.rows.coerceIn(1, ProfileStorage.SKYBLOCK_CONTAINER_MAX_ROWS)
     var changed = false
-    val page = storage.skyBlockToolkits.getOrPut(handle.type.storageKey) {
+    val page = skyBlockToolkits.getOrPut(handle.type.storageKey) {
         changed = true
         ProfileStorage.SkyBlockStoragePageData(handle.type.title, rows)
     }
@@ -225,5 +232,5 @@ private fun readToolkit(cells: List<SkyBlockOpenInventoryCell>, handle: StorageH
             changed = true
         }
     }
-    if (changed) ProfileStorageApi.markDirty()
+    return ChangeResult.from(changed)
 }

@@ -72,23 +72,22 @@ internal object PetStoragePetItems {
     fun readExactSelectedPetData(item: ItemStack): PetDataReadResult {
         val currentPetData = item.toExactPetDataOrNull() ?: return PetDataReadResult.UNAVAILABLE
         saveExactPetRead(currentPetData, syncXp = true, assertCurrent = true)
-        PetStorageService.markDirty()
         return PetDataReadResult.READ
     }
 
     fun isCurrentPetStack(item: ItemStack): Boolean =
         item.loreLines().any { it.contains("Click to despawn") }
 
-    fun applyKnownData(
+    fun withKnownData(
         petData: StoredPetData,
         exp: Double? = null,
         skinInternalName: String? = null,
         heldItemInternalName: String? = null,
-    ) {
-        petData.exp = exp ?: petData.exp
-        petData.skinInternalName = skinInternalName ?: petData.skinInternalName
-        petData.heldItemInternalName = heldItemInternalName ?: petData.heldItemInternalName
-    }
+    ): StoredPetData = petData.copy(
+        exp = exp ?: petData.exp,
+        skinInternalName = skinInternalName ?: petData.skinInternalName,
+        heldItemInternalName = heldItemInternalName ?: petData.heldItemInternalName,
+    )
 
     fun reconcileDisplayedExp(petData: StoredPetData, readExp: Double): Double {
         val storedExp = petData.exp ?: return readExp

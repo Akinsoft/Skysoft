@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
@@ -41,8 +42,8 @@ internal object InventoryEquipmentCache {
     }
 }
 
-private val inventoryEquipmentStorage: MutableList<ProfileStorage.SkyBlockStorageItemData>
-    get() = ProfileStorageApi.storage.inventoryEquipment.also(::repairInventoryEquipmentItems)
+private val inventoryEquipmentStorage: List<ProfileStorageView.SkyBlockStorageItemData>
+    get() = ProfileStorageApi.storage.inventoryEquipment
 
 internal var lastEquipmentInventoryKey: String? = null
 
@@ -70,9 +71,7 @@ private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapsh
     )
     if (items.size < ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) return ChangeResult.UNCHANGED
 
-    val result = updateInventoryEquipmentStorage(items.map(::encodeItem))
-    if (result == ChangeResult.CHANGED) ProfileStorageApi.markDirty()
-    return result
+    return updateInventoryEquipmentStorage(items.map(::encodeItem))
 }
 
 private fun repairInventoryEquipmentItems(items: MutableList<ProfileStorage.SkyBlockStorageItemData>) {
@@ -144,9 +143,11 @@ private fun inventoryEquipmentMenuType(name: String): InventoryEquipmentMenuType
 private fun updateInventoryEquipmentStorage(items: List<ProfileStorage.SkyBlockStorageItemData>): ChangeResult {
     val storageItems = inventoryEquipmentStorage
     if (storageItems.map { it.encodedStack } == items.map { it.encodedStack }) return ChangeResult.UNCHANGED
-    storageItems.clear()
-    storageItems.addAll(items)
-    repairInventoryEquipmentItems(storageItems)
+    ProfileStorageApi.updateProfile { profile ->
+        profile.inventoryEquipment.clear()
+        profile.inventoryEquipment.addAll(items)
+        repairInventoryEquipmentItems(profile.inventoryEquipment)
+    }
     return ChangeResult.CHANGED
 }
 

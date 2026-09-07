@@ -59,7 +59,6 @@ internal object PetStorageInventoryReader {
                 assertCurrent = isCurrentPet,
             )
         }
-        if (exactPetUuids.isNotEmpty()) PetStorageService.markDirty()
         return exactPetUuids
     }
 
@@ -70,7 +69,6 @@ internal object PetStorageInventoryReader {
         } ?: return
         val data = currentPetItem.toExactPetDataOrNull() ?: return
         saveExactPetRead(data, syncXp = true, assertCurrent = true)
-        PetStorageService.markDirty()
     }
 
     private fun readSelectedPetData(
@@ -137,15 +135,14 @@ internal object PetStorageInventoryReader {
                 val previousExp = currentPetData.exp
                 val exactPetExp = petExp.exactValue.takeUnless { hasExactPetMenuRead }
                     ?.let { PetStoragePetItems.reconcileDisplayedExp(currentPetData, it) }
-                PetStoragePetItems.applyKnownData(currentPetData, exp = exactPetExp, skinInternalName = petSkin)
+                val updatedPet = PetStoragePetItems.withKnownData(currentPetData, exp = exactPetExp, skinInternalName = petSkin)
                 PetXpEstimator.resyncFromPetDataRead(
-                    currentPetData,
+                    updatedPet,
                     exact = exactPetExp != null,
                     previousExp = previousExp,
                     appliedExp = exactPetExp,
                 )
-                ActivePetTracker.assertFoundCurrentData(currentPetData, PetDataAssertionSource.MENU)
-                PetStorageService.markDirty()
+                ActivePetTracker.assertFoundCurrentData(updatedPet, PetDataAssertionSource.MENU)
                 true
             }
         }
@@ -217,25 +214,24 @@ internal object PetStorageInventoryReader {
                 previousExp = previousExp,
             )
         }
-        PetStoragePetItems.applyKnownData(
+        val updatedPet = PetStoragePetItems.withKnownData(
             currentPetData,
             exp = appliedExactPetExp,
             skinInternalName = petSkin,
             heldItemInternalName = petHeldItem,
         )
         PetXpEstimator.resyncFromPetDataRead(
-            currentPetData,
+            updatedPet,
             exact = appliedExactPetExp != null,
             previousExp = previousExp,
             appliedExp = appliedExactPetExp,
         )
-        ActivePetTracker.assertFoundCurrentData(currentPetData, PetDataAssertionSource.TAB)
+        ActivePetTracker.assertFoundCurrentData(updatedPet, PetDataAssertionSource.TAB)
         when {
             isMaxedWithoutOverflowXp -> PetWidgetStateTracker.setMaxedWithoutOverflowXp()
             exactPetExp != null -> PetWidgetStateTracker.setReady()
             else -> PetWidgetStateTracker.setNotReady()
         }
-        PetStorageService.markDirty()
     }
 
     private fun petTabWidgetLinesOrNull(): PetTabWidgetLines? {

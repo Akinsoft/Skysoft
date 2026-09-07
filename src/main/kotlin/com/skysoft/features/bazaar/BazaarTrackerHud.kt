@@ -1,7 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
@@ -104,14 +104,14 @@ internal fun resetLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§c[Reset ${displayMode.displayName}]", TrackerControl.RESET),
 )
 
-private fun displayOrders(): List<ProfileStorage.BazaarOrderData> =
+private fun displayOrders(): List<ProfileStorageView.BazaarOrderData> =
     storage.activeOrders.sortedWith(
-        compareByDescending<ProfileStorage.BazaarOrderData> { statusPriority(statusFor(it)) }
+        compareByDescending<ProfileStorageView.BazaarOrderData> { statusPriority(statusFor(it)) }
             .thenByDescending { it.updatedAtMillis }
             .thenBy { it.createdAtMillis },
     )
 
-internal fun orderLine(order: ProfileStorage.BazaarOrderData): DisplayLine {
+internal fun orderLine(order: ProfileStorageView.BazaarOrderData): DisplayLine {
     val status = statusFor(order)
     val typeColor = if (order.type == BazaarOrderType.BUY) "§b" else "§d"
     val progress = "${fillProgressStyle(order)}(${formatAmount(visibleFilledAmount(order))}/${formatOrderAmount(order)})"
@@ -120,13 +120,13 @@ internal fun orderLine(order: ProfileStorage.BazaarOrderData): DisplayLine {
     return DisplayLine(status.label, status.color, listOf(LineSegment(text)))
 }
 
-internal fun markFillHighlight(order: ProfileStorage.BazaarOrderData, filled: Long) {
+internal fun markFillHighlight(order: ProfileStorageView.BazaarOrderData, filled: Long) {
     if (isPartialFill(order, filled)) {
         fillHighlightExpiresAt[order.id] = System.currentTimeMillis() + FILL_HIGHLIGHT_MILLIS
     }
 }
 
-private fun fillProgressStyle(order: ProfileStorage.BazaarOrderData): String {
+private fun fillProgressStyle(order: ProfileStorageView.BazaarOrderData): String {
     val expiresAt = fillHighlightExpiresAt[order.id] ?: return "§8"
     val filled = visibleFilledAmount(order)
     if (System.currentTimeMillis() >= expiresAt || !isPartialFill(order, filled)) {
@@ -136,15 +136,15 @@ private fun fillProgressStyle(order: ProfileStorage.BazaarOrderData): String {
     return "§a§l"
 }
 
-internal fun isPartialFill(order: ProfileStorage.BazaarOrderData, filled: Long): Boolean =
+internal fun isPartialFill(order: ProfileStorageView.BazaarOrderData, filled: Long): Boolean =
     order.amountOrdered > 0 && filled > order.claimedAmount && filled < order.maximumAmount()
 
-internal fun requireMarketProof(order: ProfileStorage.BazaarOrderData) {
+internal fun requireMarketProof(order: ProfileStorageView.BazaarOrderData) {
     val market = BazaarOrderBookApi.get(order.productId)
     if (market == null || !rawMarketStatusFor(order, market).isWarning) marketProofMillis[order.id] = order.createdAtMillis
 }
 
-internal fun statusFor(order: ProfileStorage.BazaarOrderData): OrderStatus {
+internal fun statusFor(order: ProfileStorageView.BazaarOrderData): OrderStatus {
     if (order.amountOrdered > 0 && visibleFilledAmount(order) >= order.maximumAmount()) return OrderStatus.FILLED
     return marketStatusFor(order)
 }

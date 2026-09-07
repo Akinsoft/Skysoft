@@ -1,7 +1,7 @@
 package com.skysoft.features.foraging
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.GuiOverlay
@@ -36,7 +36,7 @@ import org.lwjgl.glfw.GLFW
 internal object HoneyhiveDisplay {
     private val config get() = SkysoftConfigGui.config().foraging.honeyhiveHelper
     private var scrollOffset = 0
-    private var hoveredHive: ProfileStorage.HoneyhiveData? = null
+    private var hoveredHive: ProfileStorageView.HoneyhiveData? = null
     private var isDisplayHovered = false
     private var hoveredScreen: AbstractContainerScreen<*>? = null
 
@@ -172,9 +172,9 @@ private class HoneyhiveRenderable(
     ) + padding * 2
     override val height: Int = padding * 2 + OverlayTextStyle.TITLE_HEIGHT + rows.size * OverlayItemRowStyle.HEIGHT +
         if (footer.isEmpty()) 0 else OverlayTextStyle.ROW_HEIGHT
-    var hoveredHive: ProfileStorage.HoneyhiveData? = null
+    var hoveredHive: ProfileStorageView.HoneyhiveData? = null
 
-    fun hiveAt(y: Int): ProfileStorage.HoneyhiveData? {
+    fun hiveAt(y: Int): ProfileStorageView.HoneyhiveData? {
         val rowY = y - padding - OverlayTextStyle.TITLE_HEIGHT
         if (rowY < 0) return null
         return rows.getOrNull(rowY / OverlayItemRowStyle.HEIGHT)?.hive
@@ -204,7 +204,7 @@ private class HoneyhiveRenderable(
     }
 }
 
-private class HoneyhiveRow(val number: Int, val hive: ProfileStorage.HoneyhiveData, now: Long) {
+private class HoneyhiveRow(val number: Int, val hive: ProfileStorageView.HoneyhiveData, now: Long) {
     val name = "§6Hive $number"
     val status = honeyhiveStatusComponent(hive, now).formattedText()
     val width = OverlayItemRowStyle.ICON_TEXT_OFFSET + LegacyTextRenderer.width(name) +

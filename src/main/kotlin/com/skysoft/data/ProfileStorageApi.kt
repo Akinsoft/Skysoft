@@ -23,17 +23,44 @@ object ProfileStorageApi {
         },
         canSave = ::ensureSaveEnabled,
     )
+    private val storageChanged = saves::markDirty
     private var saveBlocked = false
     private var saveDisabledWarningShown = false
 
-    val storage: ProfileStorage.ProfileSpecific
-        get() = state.storageData.activeProfile()
+    val storage: ProfileStorageView.ProfileSpecific
+        get() = state.storageData.activeProfile(storageChanged)
 
-    val playerStorage: ProfileStorage.PlayerSpecific
-        get() = state.storageData.activePlayer()
+    val playerStorage: ProfileStorageView.PlayerSpecific
+        get() = state.storageData.activePlayer(storageChanged)
 
-    val allStorage: ProfileStorage
+    val allStorage: ProfileStorageView
         get() = state.storageData
+
+    fun updateProfile(action: (ProfileStorage.ProfileSpecific) -> Unit) {
+        val profile = state.storageData.activeProfile(storageChanged)
+        try {
+            action(profile)
+        } finally {
+            saves.markDirty()
+        }
+    }
+
+    fun updatePlayer(action: (ProfileStorage.PlayerSpecific) -> Unit) {
+        val player = state.storageData.activePlayer(storageChanged)
+        try {
+            action(player)
+        } finally {
+            saves.markDirty()
+        }
+    }
+
+    fun updateAll(action: (ProfileStorage) -> Unit) {
+        try {
+            action(state.storageData)
+        } finally {
+            saves.markDirty()
+        }
+    }
 
     fun register() {
         SkyBlockProfileApi.registerConsumer("Profile Storage") { consumers.hasActiveConsumers }
@@ -52,12 +79,7 @@ object ProfileStorageApi {
 
     fun importLegacyStorage(legacy: ProfileStorage) {
         if (state.loadedFromDisk) return
-        state.storageData.importFrom(legacy)
-        markDirty()
-    }
-
-    fun markDirty() {
-        saves.markDirty()
+        updateAll { it.importFrom(legacy) }
     }
 
     internal fun flush() {

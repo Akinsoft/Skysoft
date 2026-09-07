@@ -345,7 +345,7 @@ data class BazaarInvestmentPosition(
 )
 
 internal fun bazaarInvestmentPosition(
-    lots: List<com.skysoft.data.ProfileStorage.BazaarItemLotData>,
+    lots: List<com.skysoft.data.ProfileStorageView.BazaarItemLotData>,
     productId: String,
 ): BazaarInvestmentPosition? {
     val matching = lots.asSequence()

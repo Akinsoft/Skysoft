@@ -88,24 +88,22 @@ object SkyBlockCookieBuffApi {
         }
         val storage = ProfileStorageApi.playerStorage
         if (kotlin.math.abs(storage.cookieBuffExpiresAtMillis - expiry) >= EXPIRY_SAVE_THRESHOLD_MILLIS) {
-            storage.cookieBuffExpiresAtMillis = expiry
-            ProfileStorageApi.markDirty()
+            ProfileStorageApi.updatePlayer { it.cookieBuffExpiresAtMillis = expiry }
         }
         status = tabStatus
     }
 
     private fun recordConsumedCookie(now: Long = System.currentTimeMillis()) {
-        val storage = ProfileStorageApi.playerStorage
-        storage.cookieBuffExpiresAtMillis = maxOf(now, storage.cookieBuffExpiresAtMillis) + COOKIE_DURATION_MILLIS
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updatePlayer { storage ->
+            storage.cookieBuffExpiresAtMillis = maxOf(now, storage.cookieBuffExpiresAtMillis) + COOKIE_DURATION_MILLIS
+        }
         status = rememberedStatus(now)
     }
 
     private fun clearRememberedExpiry() {
         val storage = ProfileStorageApi.playerStorage
         if (storage.cookieBuffExpiresAtMillis != 0L) {
-            storage.cookieBuffExpiresAtMillis = 0L
-            ProfileStorageApi.markDirty()
+            ProfileStorageApi.updatePlayer { it.cookieBuffExpiresAtMillis = 0L }
         }
         status = CookieBuffStatus(CookieBuffState.INACTIVE)
     }

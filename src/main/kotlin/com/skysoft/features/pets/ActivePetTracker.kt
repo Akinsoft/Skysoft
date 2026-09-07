@@ -14,7 +14,7 @@ object ActivePetTracker {
     private val changeListeners = ActiveListenerRegistry<(StoredPetData?) -> Unit>()
     private val lastAssertion = mutableMapOf<PetDataAssertionSource, ElapsedTimeMark>()
     private var currentPetSnapshot: StoredPetData? = null
-    private var pendingTabPetData: StoredPetData? = null
+    private var pendingTabPetData: PendingTabPetData? = null
     private var ticks = 0
 
     private val chatSummonPattern = Regex("""§aYou summoned your §r§(?<rarity>.)(?<pet>[^§]+)(?:§r(?<skin>§. ✦))?§r§a!""")
@@ -40,8 +40,10 @@ object ActivePetTracker {
             isActive = PetFeatureDemand::isActive,
         ) {
             if (++ticks % TAB_ASSERTION_INTERVAL_TICKS != 0) return@onEndTick
-            val petData = pendingTabPetData ?: return@onEndTick
+            val pending = pendingTabPetData ?: return@onEndTick
             if (shouldDelayTabAssertion()) return@onEndTick
+            val trackedExp = pending.petData.trackedPet()?.exp
+            val petData = if (trackedExp != pending.trackedExp) pending.petData.copy(exp = trackedExp) else pending.petData
             pendingTabPetData = null
             assertFoundCurrentData(petData, PetDataAssertionSource.TAB)
         }
@@ -57,7 +59,7 @@ object ActivePetTracker {
 
     fun assertFoundCurrentData(petData: StoredPetData, source: PetDataAssertionSource) {
         if (source == PetDataAssertionSource.TAB && shouldDelayTabAssertion()) {
-            pendingTabPetData = petData
+            pendingTabPetData = PendingTabPetData(petData, petData.trackedPet()?.exp)
             return
         }
         pendingTabPetData = null
@@ -65,11 +67,12 @@ object ActivePetTracker {
 
         val mergedPetData = petData.withStoredDataWhenMissing(source)
         currentPetSnapshot = mergedPetData
-        storage.currentPetUuid = mergedPetData.uuid
-        mergedPetData.uuid?.let { uuid ->
-            storage.pets.addOrReplace(mergedPetData) { it.uuid == uuid }
+        ProfileStorageApi.updateProfile { profile ->
+            profile.currentPetUuid = mergedPetData.uuid
+            mergedPetData.uuid?.let { uuid ->
+                profile.pets.addOrReplace(mergedPetData) { it.uuid == uuid }
+            }
         }
-        ProfileStorageApi.markDirty()
         notifyChange(mergedPetData)
     }
 
@@ -78,21 +81,17 @@ object ActivePetTracker {
         val currentExp = currentPet.exp ?: 0.0
         if (exp <= currentExp) return null
 
-        currentPet.exp = exp
-        currentPetSnapshot = currentPet
-        currentPet.uuid?.let { uuid ->
-            storage.pets.addOrReplace(currentPet) { it.uuid == uuid }
-        }
-        ProfileStorageApi.markDirty()
-        notifyChange(currentPet)
-        return currentPet
+        val updatedPet = currentPet.copy(exp = exp)
+        currentPetSnapshot = updatedPet
+        PetStorageService.storePet(updatedPet)
+        notifyChange(updatedPet)
+        return updatedPet
     }
 
     fun clearCurrentPet() {
         val hadStoredCurrentPet = storage.currentPetUuid != null
         resetProfileState()
-        storage.currentPetUuid = null
-        if (hadStoredCurrentPet) ProfileStorageApi.markDirty()
+        if (hadStoredCurrentPet) ProfileStorageApi.updateProfile { it.currentPetUuid = null }
     }
 
     fun assertNoCurrentPetFromTab() {
@@ -147,6 +146,14 @@ object ActivePetTracker {
             displayIconTexture = displayIconTexture ?: storedPet.displayIconTexture,
         )
     }
+
+    private fun StoredPetData.trackedPet(): StoredPetData? = if (uuid != null) {
+        storage.pets.firstOrNull { it.uuid == uuid }
+    } else {
+        currentPet?.takeIf { it.uuid == null && it.petInternalName == petInternalName }
+    }
+
+    private data class PendingTabPetData(val petData: StoredPetData, val trackedExp: Double?)
 
     enum class PetDataAssertionSource {
         CHAT,

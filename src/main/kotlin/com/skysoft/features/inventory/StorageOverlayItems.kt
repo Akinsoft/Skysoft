@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemStackCodec
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.utils.ChangeResult
@@ -30,9 +31,9 @@ internal fun emptyBackpackShortcutStack(backpackSlot: Int): ItemStack = ItemStac
     )
 }
 
-internal fun ensureUnloadedPage(pageIndex: Int): ChangeResult {
-    val page = storage.skyBlockStoragePages[pageIndex] ?: run {
-        storage.skyBlockStoragePages[pageIndex] =
+internal fun ProfileStorage.ProfileSpecific.ensureUnloadedPage(pageIndex: Int): ChangeResult {
+    val page = skyBlockStoragePages[pageIndex] ?: run {
+        skyBlockStoragePages[pageIndex] =
             ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(pageIndex), 0)
         return ChangeResult.CHANGED
     }
@@ -71,7 +72,7 @@ internal fun encodeItem(stack: ItemStack): ProfileStorage.SkyBlockStorageItemDat
         ProfileStorage.SkyBlockStorageItemData(SkyBlockItemStackCodec.encode(stack.copy()))
     }
 
-internal fun stackFor(item: ProfileStorage.SkyBlockStorageItemData?): ItemStack {
+internal fun stackFor(item: ProfileStorageView.SkyBlockStorageItemData?): ItemStack {
     val encoded = item?.encodedStack?.takeIf { it.isNotBlank() } ?: return ItemStack.EMPTY
     decodedStacks[encoded]?.let { return it }
     val decodedStack = SkyBlockItemStackCodec.decode(encoded) ?: return ItemStack.EMPTY

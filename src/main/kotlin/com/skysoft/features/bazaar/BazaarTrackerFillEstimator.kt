@@ -1,7 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -87,7 +87,7 @@ private fun applyBazaarDepthProducts(products: Map<String, SkysoftBazaarDepthPro
 }
 
 private fun updateFillEstimate(
-    order: ProfileStorage.BazaarOrderData,
+    order: ProfileStorageView.BazaarOrderData,
     product: SkysoftBazaarDepthProduct,
 ) {
     if (!config.settings.estimateFills) return
@@ -131,7 +131,7 @@ private fun updateFillEstimate(
 }
 
 private fun initialFillEstimateState(
-    order: ProfileStorage.BazaarOrderData,
+    order: ProfileStorageView.BazaarOrderData,
     productId: String,
     confirmedFilled: Long,
     queue: BazaarQueueSnapshot,
@@ -162,7 +162,7 @@ private fun initialFillEstimateState(
 }
 
 private fun estimatedVisibleFilled(
-    order: ProfileStorage.BazaarOrderData,
+    order: ProfileStorageView.BazaarOrderData,
     confirmedFilled: Long,
     estimatedFilled: Long,
 ): Long {
@@ -170,7 +170,7 @@ private fun estimatedVisibleFilled(
     return max(confirmedFilled, estimatedFilled).coerceAtMost(order.amountOrdered - 1)
 }
 
-internal fun estimatedFilledAmount(order: ProfileStorage.BazaarOrderData): Long {
+internal fun estimatedFilledAmount(order: ProfileStorageView.BazaarOrderData): Long {
     if (!config.settings.estimateFills) return 0L
     return fillEstimateStates[order.id]
         ?.takeIf { state -> order.productId?.let { state.matches(order, it) } == true }
@@ -179,10 +179,10 @@ internal fun estimatedFilledAmount(order: ProfileStorage.BazaarOrderData): Long 
         ?: 0L
 }
 
-internal fun confirmedFilledAmount(order: ProfileStorage.BazaarOrderData): Long =
+internal fun confirmedFilledAmount(order: ProfileStorageView.BazaarOrderData): Long =
     max(order.filledAmount, order.claimedAmount).coerceAtMost(order.amountOrdered)
 
-internal fun visibleFilledAmount(order: ProfileStorage.BazaarOrderData): Long {
+internal fun visibleFilledAmount(order: ProfileStorageView.BazaarOrderData): Long {
     val confirmedFilled = confirmedFilledAmount(order)
     if (!config.settings.estimateFills || order.amountOrdered <= 0L || confirmedFilled >= order.amountOrdered) {
         return confirmedFilled
@@ -195,11 +195,11 @@ private fun pruneFillEstimateStates() {
     fillEstimateStates.keys.retainAll(activeIds)
 }
 
-internal fun resetFillEstimate(order: ProfileStorage.BazaarOrderData) {
+internal fun resetFillEstimate(order: ProfileStorageView.BazaarOrderData) {
     fillEstimateStates.remove(order.id)
 }
 
-private fun orderReferenceMillis(order: ProfileStorage.BazaarOrderData): Long {
+private fun orderReferenceMillis(order: ProfileStorageView.BazaarOrderData): Long {
     val productId = order.productId ?: return baseOrderReferenceMillis(order)
     val confirmedFilled = confirmedFilledAmount(order)
     return fillEstimateStates[order.id]
@@ -208,10 +208,10 @@ private fun orderReferenceMillis(order: ProfileStorage.BazaarOrderData): Long {
         ?: baseOrderReferenceMillis(order)
 }
 
-private fun baseOrderReferenceMillis(order: ProfileStorage.BazaarOrderData): Long =
+private fun baseOrderReferenceMillis(order: ProfileStorageView.BazaarOrderData): Long =
     max(order.createdAtMillis, order.updatedAtMillis)
 
-private fun BazaarFillEstimateState.matches(order: ProfileStorage.BazaarOrderData, productId: String): Boolean =
+private fun BazaarFillEstimateState.matches(order: ProfileStorageView.BazaarOrderData, productId: String): Boolean =
     type == order.type &&
         this.productId == productId &&
         amountOrdered == order.amountOrdered &&

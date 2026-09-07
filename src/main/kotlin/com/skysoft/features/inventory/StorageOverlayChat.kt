@@ -17,10 +17,10 @@ private fun recordBackpackRemoval(message: String): ChangeResult {
     val pageIndex = removedBackpackPageIndex(message) ?: return ChangeResult.UNCHANGED
     val backpackSlot = pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1
     emptyOverviewStacks[pageIndex] = emptyBackpackShortcutStack(backpackSlot)
-    val changed = storage.skyBlockStoragePages.remove(pageIndex) != null
+    val changed = pageIndex in storage.skyBlockStoragePages
     if (changed) {
         StorageSearchIndex.invalidatePages()
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.skyBlockStoragePages.remove(pageIndex) }
     }
     return ChangeResult.from(changed)
 }

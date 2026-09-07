@@ -1,6 +1,6 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
 import com.skysoft.utils.NumberUtilities.parseCompactNumberOrNull
@@ -31,7 +31,7 @@ private const val COMPACT_BILLION = 1_000_000_000.0
 
 internal fun formatAmount(amount: Long): String = amount.addSeparators()
 
-internal fun formatOrderAmount(order: ProfileStorage.BazaarOrderData): String =
+internal fun formatOrderAmount(order: ProfileStorageView.BazaarOrderData): String =
     formatAmount(order.amountOrdered) + if (order.amountResolution > 0.0) "+" else ""
 
 internal fun formatCoins(coins: Double): String = coins.coinFormat()

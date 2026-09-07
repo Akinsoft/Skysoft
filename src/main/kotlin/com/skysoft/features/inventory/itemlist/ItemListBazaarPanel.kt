@@ -1,7 +1,7 @@
 package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockCookieBuffApi
 import com.skysoft.data.skyblock.ItemListEntryKey
@@ -268,7 +268,7 @@ internal class ItemListBazaarPanel {
 
 private data class BazaarPlayerMarketSnapshot(
     val investment: BazaarInvestmentPosition? = null,
-    val transactions: List<ProfileStorage.BazaarTransactionData> = emptyList(),
+    val transactions: List<ProfileStorageView.BazaarTransactionData> = emptyList(),
 )
 
 internal enum class BazaarPanelClickResult(val isHandled: Boolean) {

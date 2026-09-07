@@ -57,7 +57,7 @@ object PetXpEstimator {
                 levelExp,
             )
         }
-        if (ActivePetTracker.updateCurrentPetExp(levelExp) != null) PetStorageService.markDirty()
+        ActivePetTracker.updateCurrentPetExp(levelExp)
     }
 
     fun resyncFromPetDataRead(
@@ -105,10 +105,9 @@ object PetXpEstimator {
         targetPet.uuid?.let { recentEstimatePetUuids[it] = ElapsedTimeMark.now() }
         skillTracker.rememberRecentSkillEstimate(event, targetPet, skillRead)
         val targetExp = targetPet.targetExpAfterGain(targetPetExp, petXp)
-        val updatedPet = updateTargetPetExp(targetPet, targetExp)
+        updateTargetPetExp(targetPet, targetExp)
         targetPet.uuid?.let { uuid -> recentEstimatedPetExp[uuid] = ElapsedTimeMark.now() }
-        val expShareUpdate = updateExpSharePets(event.skill, petXp, targetPet.uuid)
-        if (updatedPet != null || expShareUpdate == ChangeResult.CHANGED) PetStorageService.markDirty()
+        updateExpSharePets(event.skill, petXp, targetPet.uuid)
     }
 
     private fun resolveGainTarget(skillRead: SkillGainRead, currentPet: StoredPetData?): StoredPetData? =
@@ -132,7 +131,7 @@ object PetXpEstimator {
             val petType = PetRepository.getPetType(petData.fauxInternalName) ?: return@forEach
             val sharedPetBaseMultiplier = PetXpRules.skillBaseMultiplier(petType, skill) ?: return@forEach
             val gain = sourcePetXp * rate * sharedPetBaseMultiplier
-            petData.exp = currentExp + gain
+            PetStorageService.storePet(petData.copy(exp = currentExp + gain))
             petData.uuid?.let { recentEstimatePetUuids[it] = ElapsedTimeMark.now() }
             updated = true
         }
@@ -148,8 +147,7 @@ object PetXpEstimator {
         }
         val currentExp = petData.exp ?: 0.0
         if (exp <= currentExp) return null
-        petData.exp = exp
-        return petData
+        return petData.copy(exp = exp).also(PetStorageService::storePet)
     }
 
     private fun StoredPetData.targetExpAfterGain(currentExp: Double, petXp: Double): Double {

@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.StorageOverlayConfigBounds
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.nonPlayerSlots
@@ -225,7 +226,7 @@ internal fun selectorSlotPosition(measurements: Measurements, slot: Int): Point 
 private fun selectorSlotBounds(pos: Point): Rect =
     Rect(pos.x - 1, pos.y - 1, StorageSelector.SLOT_SIZE, StorageSelector.SLOT_SIZE)
 
-internal fun selectorIconStack(pageIndex: Int, page: ProfileStorage.SkyBlockStoragePageData?): ItemStack {
+internal fun selectorIconStack(pageIndex: Int, page: ProfileStorageView.SkyBlockStoragePageData?): ItemStack {
     if (page != null && page.overviewIcon.isNotBlank()) {
         val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(page.overviewIcon))
         if (!stack.isEmpty) return stack

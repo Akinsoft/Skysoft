@@ -5,6 +5,7 @@ import com.google.gson.annotations.SerializedName
 import com.skysoft.SkysoftMod
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
@@ -214,39 +215,40 @@ object AttributeShardCatalog {
     private fun updateAmountInBox(internalName: String, amount: Int) {
         val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
         if (!AttributeShardConstants.isConsumable(shardName)) return
-        val data = storage.getOrPut(shardName) { ProfileStorage.AttributeShardData() }
-        if (data.amountInBox == amount) return
-        data.amountInBox = amount
-        ProfileStorageApi.markDirty()
+        if (storage[shardName]?.amountInBox == amount) return
+        ProfileStorageApi.updateProfile { profile ->
+            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.amountInBox = amount
+        }
     }
 
     private fun updateAmountInBoxDelta(internalName: String, amount: Int) {
         val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
         if (!AttributeShardConstants.isConsumable(shardName)) return
-        val data = storage.getOrPut(shardName) { ProfileStorage.AttributeShardData() }
-        val newAmount = (data.amountInBox + amount).coerceAtLeast(0)
-        if (data.amountInBox == newAmount) return
-        data.amountInBox = newAmount
-        ProfileStorageApi.markDirty()
+        val data = storage[shardName]
+        val newAmount = ((data?.amountInBox ?: 0) + amount).coerceAtLeast(0)
+        if (data?.amountInBox == newAmount) return
+        ProfileStorageApi.updateProfile { profile ->
+            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.amountInBox = newAmount
+        }
     }
 
     private fun processShard(internalName: String, currentTier: Int, toNextTier: Int) {
         val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
         if (!AttributeShardConstants.isConsumable(shardName)) return
         val totalAmount = AttributeShardConstants.findTotalAmount(shardName, currentTier, toNextTier) ?: return
-        val data = storage.getOrPut(shardName) { ProfileStorage.AttributeShardData() }
-        if (data.amountSyphoned == totalAmount) return
-        data.amountSyphoned = totalAmount
-        ProfileStorageApi.markDirty()
+        if (storage[shardName]?.amountSyphoned == totalAmount) return
+        ProfileStorageApi.updateProfile { profile ->
+            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.amountSyphoned = totalAmount
+        }
     }
 
     private fun setAttributeState(internalName: String, enabled: Boolean) {
         val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
         if (!AttributeShardConstants.isConsumable(shardName)) return
-        val data = storage.getOrPut(shardName) { ProfileStorage.AttributeShardData() }
-        if (data.enabled == enabled) return
-        data.enabled = enabled
-        ProfileStorageApi.markDirty()
+        if (storage[shardName]?.enabled == enabled) return
+        ProfileStorageApi.updateProfile { profile ->
+            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.enabled = enabled
+        }
     }
 
     private fun handleShardAmountMessage(message: String) {
@@ -402,7 +404,7 @@ private object AttributeShardConstants {
         return attributeInfo.isNotEmpty()
     }
 
-    fun activeLevel(storage: Map<String, ProfileStorage.AttributeShardData>, abilityName: String): Int {
+    fun activeLevel(storage: Map<String, ProfileStorageView.AttributeShardData>, abilityName: String): Int {
         val shardName = attributeAbilityNameToShard[abilityName] ?: return 0
         return if (storage[shardName]?.enabled == true) level(storage, shardName) else 0
     }
@@ -453,7 +455,7 @@ private object AttributeShardConstants {
         return attributeInfo[normalized]?.internalName
     }
 
-    private fun level(storage: Map<String, ProfileStorage.AttributeShardData>, shardName: String): Int {
+    private fun level(storage: Map<String, ProfileStorageView.AttributeShardData>, shardName: String): Int {
         val rarity = attributeInfo[shardName]?.rarity ?: return 0
         val levelling = attributeLevelling[rarity] ?: return 0
         val totalAmount = storage[shardName]?.amountSyphoned ?: return 0

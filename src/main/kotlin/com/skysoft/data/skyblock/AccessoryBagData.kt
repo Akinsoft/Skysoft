@@ -49,7 +49,7 @@ object AccessoryBagData {
 
         // Keep lore-derived accessory state outside the snapshot gate. Add future lore parsers here,
         // not in AccessorySnapshot, unless they should emit explicit accessory update events.
-        if (updateBeastmasterMultiplier(inventoryItems.values) == ChangeResult.CHANGED) ProfileStorageApi.markDirty()
+        updateBeastmasterMultiplier(inventoryItems.values)
 
         val snapshot = accessorySnapshot(inventoryItems)
         if (!hasStableSnapshot(snapshot)) return
@@ -79,10 +79,8 @@ object AccessoryBagData {
         forceNextSnapshotBaseline = false
         changeLoggingArmedAt = ElapsedTimeMark.farPast()
 
-        val accessoriesChanged = storeVisibleAccessories(snapshot) == ChangeResult.CHANGED
-        val removedAccessoriesChanged = removeMissingAccessories(snapshot, previousSnapshot, emitChanges) == ChangeResult.CHANGED
-
-        if (accessoriesChanged || removedAccessoriesChanged) ProfileStorageApi.markDirty()
+        storeVisibleAccessories(snapshot)
+        removeMissingAccessories(snapshot, previousSnapshot, emitChanges)
         processedSnapshot = snapshot
         baselineEstablished = true
     }
@@ -105,7 +103,7 @@ object AccessoryBagData {
             if (previous != null && previous.displayName == accessory.displayName && previous.lastSeenSlot == accessory.slot) {
                 continue
             }
-            storage.accessories[internalName] = accessory.toStorageData()
+            ProfileStorageApi.updateProfile { it.accessories[internalName] = accessory.toStorageData() }
             changed = true
         }
         return ChangeResult.from(changed)
@@ -120,7 +118,10 @@ object AccessoryBagData {
         var changed = false
         val removedAccessories = previousSnapshot.orEmpty().filterKeys { it !in snapshot }
         for (internalName in removedAccessories.keys) {
-            changed = storage.accessories.remove(internalName) != null || changed
+            if (internalName in storage.accessories) {
+                ProfileStorageApi.updateProfile { it.accessories.remove(internalName) }
+                changed = true
+            }
         }
         return ChangeResult.from(changed)
     }
@@ -130,7 +131,7 @@ object AccessoryBagData {
         for (item in inventoryItems) {
             val beastmasterMultiplier = readBeastmasterMultiplier(item) ?: continue
             if (beastmasterMultiplier > (storage.beastmasterPetXpMultiplier ?: 1.0)) {
-                storage.beastmasterPetXpMultiplier = beastmasterMultiplier
+                ProfileStorageApi.updateProfile { it.beastmasterPetXpMultiplier = beastmasterMultiplier }
                 changed = true
             }
         }

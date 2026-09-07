@@ -137,8 +137,7 @@ object ItemProtectionManager {
 
     fun resetProtectedItems() {
         if (protectedItemUuids.isEmpty()) return
-        protectedItemUuids.clear()
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.protectedItemUuids.clear() }
         clearInputState()
     }
 
@@ -160,12 +159,11 @@ object ItemProtectionManager {
     private fun changeProtection(stack: ItemStack): ItemProtectionChangeResult {
         if (stack.isEmpty) return ItemProtectionChangeResult.NO_ITEM
         val uuid = stack.skyBlockUuid() ?: return ItemProtectionChangeResult.NO_SKYBLOCK_UUID
-        return if (protectedItemUuids.remove(uuid)) {
-            ProfileStorageApi.markDirty()
+        return if (uuid in protectedItemUuids) {
+            ProfileStorageApi.updateProfile { it.protectedItemUuids.remove(uuid) }
             ItemProtectionChangeResult.UNPROTECTED
         } else {
-            protectedItemUuids.add(uuid)
-            ProfileStorageApi.markDirty()
+            ProfileStorageApi.updateProfile { it.protectedItemUuids.add(uuid) }
             ItemProtectionChangeResult.PROTECTED
         }
     }

@@ -10,7 +10,7 @@ import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.SkysoftGame.RAVENGARD
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.ColorUtilities.RGB_MASK
@@ -129,7 +129,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @field:Category(name = "Pets", desc = "Pet display and storage settings.")
     val pets = PetFeatureConfig()
 
-    val storage: ProfileStorage
+    val storage: ProfileStorageView
         get() = ProfileStorageApi.allStorage
 
     @JvmField

@@ -58,8 +58,7 @@ internal fun finishTitleEdit() {
     val page = storageEntry(pageIndex)
     val title = editingTitleText.ifBlank { defaultPageTitle(pageIndex) }
     if (page != null && page.title != title) {
-        page.title = title
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.mutableStorageEntry(pageIndex)?.title = title }
     }
     editingTitlePage = null
     editingTitleText = ""

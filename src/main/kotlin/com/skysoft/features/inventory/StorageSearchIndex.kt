@@ -1,6 +1,6 @@
 package com.skysoft.features.inventory
 
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import java.util.IdentityHashMap
 import net.minecraft.world.item.ItemStack
 
@@ -8,12 +8,12 @@ internal object StorageSearchIndex {
     private var indexedQuery = ""
     private var searchQuery = InventoryItemSearchQuery.EMPTY
     private val itemTextByEncodedStack = mutableMapOf<String, String>()
-    private val pageMatches = IdentityHashMap<ProfileStorage.SkyBlockStoragePageData, Boolean>()
+    private val pageMatches = IdentityHashMap<ProfileStorageView.SkyBlockStoragePageData, Boolean>()
 
     val hasQuery: Boolean
         get() = query().hasTerms
 
-    fun matches(page: ProfileStorage.SkyBlockStoragePageData): Boolean {
+    fun matches(page: ProfileStorageView.SkyBlockStoragePageData): Boolean {
         val currentQuery = query()
         if (!currentQuery.hasTerms) return true
         return pageMatches.getOrPut(page) {
@@ -21,7 +21,7 @@ internal object StorageSearchIndex {
         }
     }
 
-    fun matches(item: ProfileStorage.SkyBlockStorageItemData?): Boolean {
+    fun matches(item: ProfileStorageView.SkyBlockStorageItemData?): Boolean {
         val currentQuery = query()
         return !currentQuery.hasTerms || matches(item, currentQuery)
     }
@@ -50,7 +50,7 @@ internal object StorageSearchIndex {
         return searchQuery
     }
 
-    private fun matches(item: ProfileStorage.SkyBlockStorageItemData?, query: InventoryItemSearchQuery): Boolean {
+    private fun matches(item: ProfileStorageView.SkyBlockStorageItemData?, query: InventoryItemSearchQuery): Boolean {
         val encoded = item?.encodedStack?.takeIf { it.isNotBlank() } ?: return false
         val searchableText = itemTextByEncodedStack.getOrPut(encoded) { InventoryItemSearchIndex.text(stackFor(item)) }
         return query.matchesSearchableText(searchableText)

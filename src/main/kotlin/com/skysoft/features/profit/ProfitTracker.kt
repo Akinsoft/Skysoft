@@ -4,6 +4,7 @@ import com.skysoft.config.ProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
@@ -126,6 +127,7 @@ object ProfitTracker {
                     uptime.hasUnconfirmedUptime
             },
         ) { minecraft ->
+            synchronizePeriods()
             fishingHookPreset?.let { uptime.refreshActivity(ProfitTrackerTarget.preset(it)) }
             val locationPreset = currentPreset
             if (locationPreset != durationPreset) {
@@ -213,12 +215,13 @@ object ProfitTracker {
                 .let { stored -> ProfitTrackerPreset.entries.firstOrNull { it.name == stored } }
                 ?.takeIf(::isInPresetArea)
 
-    internal fun stats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats = when (displayPeriod(target)) {
-        ProfitTrackingPeriod.SESSION -> sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats)
-        ProfitTrackingPeriod.TODAY -> todayStats(target)
+    internal fun stats(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerStats = when (displayPeriod(target)) {
+        ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey] ?: emptyProfitTrackerStats
+        ProfitTrackingPeriod.TODAY -> with(ProfileStorageApi.storage.profitTracker) {
+            today[target.storageKey].takeIf { todayEpochDay == LocalDate.now().toEpochDay() } ?: emptyProfitTrackerStats
+        }
         ProfitTrackingPeriod.MAYOR -> requireNotNull(mythologicalRitualMayorStats(target))
-        ProfitTrackingPeriod.TOTAL ->
-            ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats)
+        ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.storage.profitTracker.totals[target.storageKey] ?: emptyProfitTrackerStats
     }
 
     internal fun isTimerPaused(target: ProfitTrackerTarget): Boolean =
@@ -240,17 +243,15 @@ object ProfitTracker {
         val period = displayPeriod(target)
         when (period) {
             ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey]?.clear()
-            ProfitTrackingPeriod.TODAY -> {
-                todayStats(target).clear()
-                ProfileStorageApi.markDirty()
+            ProfitTrackingPeriod.TODAY -> ProfileStorageApi.updateProfile { profile ->
+                didRollProfitTrackerToday(profile.profitTracker, LocalDate.now().toEpochDay())
+                profile.profitTracker.today[target.storageKey]?.clear()
             }
-            ProfitTrackingPeriod.MAYOR -> {
-                mythologicalRitualMayorStats(target)?.clear()
-                ProfileStorageApi.markDirty()
+            ProfitTrackingPeriod.MAYOR -> ProfileStorageApi.updateProfile { profile ->
+                mutableMythologicalRitualMayorStats(profile.profitTracker, target)?.clear()
             }
-            ProfitTrackingPeriod.TOTAL -> {
-                ProfileStorageApi.storage.profitTracker.totals[target.storageKey]?.clear()
-                ProfileStorageApi.markDirty()
+            ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.updateProfile { profile ->
+                profile.profitTracker.totals[target.storageKey]?.clear()
             }
         }
         target.slayerType?.let { SlayerTimeToKill.reset(it, period) }
@@ -281,17 +282,17 @@ object ProfitTracker {
         sessionStats.remove(key)
         craftingReconciliation.clear(target)
         uptime.clear(target)
-        val storage = ProfileStorageApi.allStorage
-        val profiles = storage.profiles.values + storage.players.values.flatMap { it.profiles.values }
-        profiles.forEach { profile ->
-            with(profile.profitTracker) {
-                totals.remove(key)
-                today.remove(key)
-                displayPeriods.remove(key)
-                itemCustomizations.remove(key)
+        ProfileStorageApi.updateAll { storage ->
+            val profiles = storage.profiles.values + storage.players.values.flatMap { it.profiles.values }
+            profiles.forEach { profile ->
+                with(profile.profitTracker) {
+                    totals.remove(key)
+                    today.remove(key)
+                    displayPeriods.remove(key)
+                    itemCustomizations.remove(key)
+                }
             }
         }
-        ProfileStorageApi.markDirty()
     }
 
     private fun recordFarmingBlock(block: Block) {
@@ -400,21 +401,35 @@ object ProfitTracker {
         action: (ProfileStorage.ProfitTrackerStats) -> Unit,
     ) {
         action(sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats))
-        action(todayStats(target))
-        mythologicalRitualMayorStats(target)?.let(action)
-        action(ProfileStorageApi.storage.profitTracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
-        target.preset?.let { ProfileStorageApi.storage.profitTracker.lastPreset = it.name }
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { profile ->
+            val tracker = profile.profitTracker
+            didRollProfitTrackerToday(tracker, LocalDate.now().toEpochDay())
+            action(tracker.today.getOrPut(target.storageKey, ::newProfitTrackerStats))
+            mutableMythologicalRitualMayorStats(tracker, target)?.let(action)
+            action(tracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
+            target.preset?.let { tracker.lastPreset = it.name }
+        }
         if (target.config.details.highlightChanges) {
             changedItemIds.forEach { itemId -> itemQuantityHighlights.highlight(target.storageKey to itemId) }
         }
     }
 
-    private fun todayStats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats {
+    private fun synchronizePeriods() {
+        if (SkyBlockProfileApi.currentProfileKey == null) return
         val tracker = ProfileStorageApi.storage.profitTracker
         val today = LocalDate.now().toEpochDay()
-        if (didRollProfitTrackerToday(tracker, today)) ProfileStorageApi.markDirty()
-        return tracker.today.getOrPut(target.storageKey, ::newProfitTrackerStats)
+        val updateMayor = configs.mythologicalRitual.enabled &&
+            tracker.mythologicalRitualMayorKey != tracker.currentMythologicalRitualEventKey
+        if (tracker.todayEpochDay == today && !updateMayor) return
+        ProfileStorageApi.updateProfile { profile ->
+            didRollProfitTrackerToday(profile.profitTracker, today)
+            if (updateMayor) {
+                mutableMythologicalRitualMayorStats(
+                    profile.profitTracker,
+                    ProfitTrackerTarget.preset(ProfitTrackerPreset.MYTHOLOGICAL_RITUAL),
+                )
+            }
+        }
     }
 
     private fun rebuildDropCatalog() {
@@ -478,20 +493,34 @@ object ProfitTracker {
     }
 }
 
-private fun mythologicalRitualMayorStats(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerStats? {
+private fun mythologicalRitualMayorStats(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerStats? {
     if (target.preset != ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) return null
     val tracker = ProfileStorageApi.storage.profitTracker
-    val eventKey = MayorPerkApi.mythologicalRitualEventKey
-        ?: tracker.mythologicalRitualMayorKey.takeIf(String::isNotBlank)
-        ?: UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
+    return if (tracker.mythologicalRitualMayorKey == tracker.currentMythologicalRitualEventKey ||
+        tracker.mythologicalRitualMayorKey == UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
+    ) tracker.mythologicalRitualMayor else emptyProfitTrackerStats
+}
+
+private fun mutableMythologicalRitualMayorStats(
+    tracker: ProfileStorage.ProfitTrackerData,
+    target: ProfitTrackerTarget,
+): ProfileStorage.ProfitTrackerStats? {
+    if (target.preset != ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) return null
+    val eventKey = tracker.currentMythologicalRitualEventKey
     if (tracker.mythologicalRitualMayorKey != eventKey) {
         val preserveStats = tracker.mythologicalRitualMayorKey == UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
         tracker.mythologicalRitualMayorKey = eventKey
         if (!preserveStats) tracker.mythologicalRitualMayor.clear()
-        ProfileStorageApi.markDirty()
     }
     return tracker.mythologicalRitualMayor
 }
+
+private val ProfileStorageView.ProfitTrackerData.currentMythologicalRitualEventKey: String
+    get() = MayorPerkApi.mythologicalRitualEventKey
+        ?: mythologicalRitualMayorKey.takeIf(String::isNotBlank)
+        ?: UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
+
+private val emptyProfitTrackerStats: ProfileStorageView.ProfitTrackerStats = ProfileStorage.ProfitTrackerStats()
 
 private val ProfitTrackerTarget.trackingPeriods: List<ProfitTrackingPeriod>
     get() = if (preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) {
