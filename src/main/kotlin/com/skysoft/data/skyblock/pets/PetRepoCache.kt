@@ -1,24 +1,20 @@
 package com.skysoft.data.skyblock.pets
 
-import com.google.gson.Gson
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockStackFactory
+import java.util.concurrent.ConcurrentHashMap
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
-import java.util.concurrent.ConcurrentHashMap
 
 internal object PetRepoCache {
-    val gson = Gson()
     private val skinStacks = ConcurrentHashMap<String, ItemStack>()
-    val animatedSkinMatches = ConcurrentHashMap<String, AnimatedSkinJson>()
-    val missingAnimatedSkinMatches = ConcurrentHashMap.newKeySet<String>()
     private val animationCacheLock = Any()
     private val animatedSkinFrames = HashMap<PetAnimationFramesKey, List<PetItemFrame>>()
 
     private var catalogVersion = -1L
 
     @Volatile
-    var petAnimations: PetAnimationsJson? = null
+    var petAnimations: PetAnimationCatalog? = null
         set(value) {
             synchronized(animationCacheLock) {
                 field = value
@@ -27,7 +23,7 @@ internal object PetRepoCache {
         }
 
     @Volatile
-    var learnedPetAnimations: PetAnimationsJson = PetAnimationsJson()
+    var learnedPetAnimations = PetAnimationCatalog(PetAnimationsJson())
         set(value) {
             synchronized(animationCacheLock) {
                 field = value
@@ -43,9 +39,10 @@ internal object PetRepoCache {
         key: () -> PetAnimationFramesKey,
         create: (PetAnimationFramesKey) -> List<PetItemFrame>?,
     ): List<PetItemFrame>? = synchronized(animationCacheLock) {
-        if (catalogVersion != SkyBlockDataRepository.snapshotVersion) {
+        val currentVersion = SkyBlockDataRepository.snapshotVersion
+        if (catalogVersion != currentVersion) {
             animatedSkinFrames.clear()
-            catalogVersion = SkyBlockDataRepository.snapshotVersion
+            catalogVersion = currentVersion
         }
         val resolvedKey = key()
         animatedSkinFrames[resolvedKey] ?: create(resolvedKey)?.also {
@@ -56,8 +53,6 @@ internal object PetRepoCache {
     private fun clearAnimationCaches() {
         skinStacks.clear()
         animatedSkinFrames.clear()
-        animatedSkinMatches.clear()
-        missingAnimatedSkinMatches.clear()
     }
 }
 
