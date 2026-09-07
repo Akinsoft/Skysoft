@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.takeAtCharacterBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
@@ -102,7 +103,7 @@ internal fun handleStorageOverlayCharTyped(
 
 private fun appendTitleText(value: String) {
     val text = if (editingTitleSelected) "" else editingTitleText
-    editingTitleText = (text + value).filterTitle().take(StorageTitle.MAX_LENGTH)
+    editingTitleText = (text + value).filterTitle().takeAtCharacterBoundary(StorageTitle.MAX_LENGTH)
     editingTitleSelected = false
 }
 
@@ -110,7 +111,7 @@ private fun removeTitleText() {
     if (editingTitleSelected) {
         clearTitleText()
     } else if (editingTitleText.isNotEmpty()) {
-        editingTitleText = editingTitleText.dropLast(1)
+        editingTitleText = editingTitleText.substring(0, editingTitleText.offsetByCodePoints(editingTitleText.length, -1))
     }
     editingTitleSelected = false
 }
