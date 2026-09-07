@@ -11,12 +11,13 @@ import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
+import net.minecraft.client.Minecraft
 
 object SkyBlockEventScheduleApi {
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
-    private val requestSlot = AsyncRequestSlot<SkyBlockEventSchedule>()
+    private val requestSlot = AsyncRequestSlot<SkyBlockEventSchedule>(completionExecutor = Minecraft.getInstance())
     private val refreshSchedule = RefreshSchedule()
 
     @Volatile
