@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component
 
 object SkysoftPartyShare {
     private val recentSentMessages = mutableListOf<RecentSentPartyMessage>()
-    private val commandQueue = SkysoftPartyCommandQueue(::partyCommand, ::partySendBlockedReason, ::rememberSentMessage)
+    private val commandQueue = SkysoftPartyCommandQueue(::partyCommand, ::canSendParty, ::rememberSentMessage)
     private var partyChatObservedUntilMillis = 0L
     private var wasActive = false
 
@@ -39,7 +39,7 @@ object SkysoftPartyShare {
     private fun partyCommand(message: String): String = "pc $message"
 
     fun sendParty(message: String, allowRecentPartyChatEvidence: Boolean = false) {
-        if (partySendBlockedReason(allowRecentPartyChatEvidence) != null) return
+        if (!canSendParty(allowRecentPartyChatEvidence)) return
         commandQueue.enqueue(message, allowRecentPartyChatEvidence)
     }
 
@@ -56,29 +56,11 @@ object SkysoftPartyShare {
         partyChatObservedUntilMillis = now + PARTY_CHAT_EVIDENCE_MILLIS
     }
 
-    internal fun partySendBlockedReason(allowRecentPartyChatEvidence: Boolean = false): String? = when {
-        HypixelPartyApi.isLoaded && HypixelPartyApi.isInParty -> null
-        allowRecentPartyChatEvidence && hasRecentPartyChatEvidence() -> null
-        !HypixelPartyApi.isLoaded -> "party state is not loaded"
-        else -> "player is not in a party"
-    }
+    private fun canSendParty(allowRecentPartyChatEvidence: Boolean): Boolean =
+        HypixelPartyApi.isLoaded && HypixelPartyApi.isInParty ||
+            allowRecentPartyChatEvidence && hasRecentPartyChatEvidence()
 
-    internal fun nextPartyCommand(now: Long = System.currentTimeMillis()): String? =
-        commandQueue.nextPartyCommand(now)
-
-    internal fun recordCommandCooldownFailure(
-        cleanText: String,
-        now: Long = System.currentTimeMillis(),
-    ): CommandCooldownRecoveryResult =
-        commandQueue.recordCommandCooldownFailure(cleanText, now)
-
-    internal fun recordPartyEchoDelivered(
-        message: String,
-        now: Long = System.currentTimeMillis(),
-    ): PartyEchoDeliveryResult =
-        commandQueue.recordPartyEcho(message, now)
-
-    internal fun rememberSentMessage(message: String, now: Long = System.currentTimeMillis()) {
+    private fun rememberSentMessage(message: String, now: Long) {
         pruneSentMessages(now)
         recentSentMessages += RecentSentPartyMessage(message.trim(), now + SENT_MESSAGE_ECHO_WINDOW_MILLIS)
     }
@@ -92,7 +74,7 @@ object SkysoftPartyShare {
         return true
     }
 
-    internal fun clearRecentSentMessages() {
+    private fun clearRecentSentMessages() {
         recentSentMessages.clear()
         commandQueue.clear()
         partyChatObservedUntilMillis = 0L
