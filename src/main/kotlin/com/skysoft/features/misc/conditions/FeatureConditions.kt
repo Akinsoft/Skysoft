@@ -60,7 +60,8 @@ object FeatureConditions {
     private fun FeatureCondition.matches(context: FeatureConditionContext): Boolean = when (kind) {
         FeatureConditionKind.EVENT ->
             context.isInSkyBlock && runCatching { SkyBlockEvent.valueOf(value) }.getOrNull() in context.activeEvents
-        FeatureConditionKind.ISLAND -> SkyBlockIsland.getByConditionValue(value) == context.island
+        FeatureConditionKind.ISLAND ->
+            context.island != null && SkyBlockIsland.getByConditionValue(value) == context.island
         FeatureConditionKind.ITEM -> context.heldItemId?.normalizedValue() == value.normalizedValue()
     }
 
