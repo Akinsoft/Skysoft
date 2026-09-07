@@ -242,13 +242,18 @@ internal data class FeatureConditionActivationKey(
 )
 
 internal class FeatureConditionActivationCache {
-    private var cachedKey: FeatureConditionActivationKey? = null
-    private var cachedValue = false
+    private var cachedActivation: CachedActivation? = null
 
     fun isActivationAllowed(key: FeatureConditionActivationKey, calculateIsActivationAllowed: () -> Boolean): Boolean {
-        if (key == cachedKey) return cachedValue
-        cachedKey = key
-        cachedValue = calculateIsActivationAllowed()
-        return cachedValue
+        val cached = cachedActivation
+        if (key == cached?.key) return cached.isActivationAllowed
+        val isActivationAllowed = calculateIsActivationAllowed()
+        cachedActivation = CachedActivation(key, isActivationAllowed)
+        return isActivationAllowed
     }
+
+    private data class CachedActivation(
+        val key: FeatureConditionActivationKey,
+        val isActivationAllowed: Boolean,
+    )
 }
