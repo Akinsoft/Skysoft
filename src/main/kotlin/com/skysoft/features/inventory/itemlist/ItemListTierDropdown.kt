@@ -70,13 +70,13 @@ internal data class ItemListTierDropdown(
 
 internal class ItemListTierDropdownState {
     private var representativeKey: ItemListEntryKey? = null
-    private var dropdown: ItemListTierDropdown? = null
-    private var tierKeys: List<ItemListEntryKey> = emptyList()
+    private var renderedDropdown: RenderedDropdown? = null
 
     val isOpen: Boolean get() = representativeKey != null
 
     fun toggle(key: ItemListEntryKey) {
         representativeKey = key.takeUnless { it == representativeKey }
+        renderedDropdown = null
     }
 
     fun render(
@@ -95,8 +95,7 @@ internal class ItemListTierDropdownState {
             family.tiers.size,
             layout.slotSize,
         )
-        dropdown = current
-        tierKeys = family.tiers
+        renderedDropdown = RenderedDropdown(current, family.tiers)
         current.renderBackground(context)
         family.tiers.forEachIndexed { index, tierKey ->
             SkyBlockDataRepository.entry(tierKey)?.let { drawTier(current.tierBounds[index], it) }
@@ -104,16 +103,19 @@ internal class ItemListTierDropdownState {
     }
 
     fun keyAt(mouseX: Int, mouseY: Int): ItemListEntryKey? {
-        val current = dropdown ?: return null
-        return current.tierBounds.indexOfFirst { it.contains(mouseX, mouseY) }
+        val current = renderedDropdown ?: return null
+        return current.layout.tierBounds.indexOfFirst { it.contains(mouseX, mouseY) }
             .takeIf { it >= 0 }
-            ?.let(tierKeys::getOrNull)
+            ?.let(current.tierKeys::getOrNull)
     }
 
     fun clear() {
         representativeKey = null
-        dropdown = null
-        tierKeys = emptyList()
+        renderedDropdown = null
     }
 
+    private data class RenderedDropdown(
+        val layout: ItemListTierDropdown,
+        val tierKeys: List<ItemListEntryKey>,
+    )
 }
