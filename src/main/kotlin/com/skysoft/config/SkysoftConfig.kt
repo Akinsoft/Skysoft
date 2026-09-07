@@ -9,11 +9,13 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
+import com.skysoft.data.BackgroundSave
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.SkysoftGame.RAVENGARD
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.ColorUtilities.RGB_MASK
+import com.skysoft.utils.SkysoftClientEvents
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.LegacyStringChromaColourTypeAdapter
@@ -27,6 +29,15 @@ import java.nio.file.Path
 
 open class SkysoftConfig(private val saveDisabledReason: String? = null) : Config() {
     private var saveDisabledWarningShown = false
+    private val saves = BackgroundSave(
+        name = "Skysoft config",
+        prepare = {
+            repairLoadedValues()
+            GSON.toJson(this)
+        },
+        write = { json -> SkysoftConfigFiles.writeStringSafely(CONFIG_PATH, json) },
+        canSave = ::ensureSaveEnabled,
+    )
 
     @JvmField
     @field:Expose
@@ -167,20 +178,26 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     }
 
     override fun saveNow() {
-        try {
-            if (saveDisabledReason != null) {
-                if (!saveDisabledWarningShown) {
-                    saveDisabledWarningShown = true
-                    SkysoftMod.LOGGER.warn("Skipping Skysoft config save because $saveDisabledReason")
-                }
-            } else {
-                repairLoadedValues()
-                val json = GSON.toJson(this)
-                SkysoftConfigFiles.writeStringSafely(CONFIG_PATH, json)
-            }
-        } catch (e: Exception) {
-            SkysoftMod.LOGGER.error("Failed to save Skysoft config", e)
+        saves.markDirty()
+        saves.flush()
+    }
+
+    internal fun registerSaving() {
+        SkysoftClientEvents.onEndTick(
+            "Config save retry",
+            isActive = { saveDisabledReason == null && saves.hasUnsavedChanges },
+        ) {
+            saves.saveIfDue()
         }
+    }
+
+    private fun ensureSaveEnabled(): Boolean {
+        if (saveDisabledReason == null) return true
+        if (!saveDisabledWarningShown) {
+            saveDisabledWarningShown = true
+            SkysoftMod.LOGGER.warn("Skipping Skysoft config save because $saveDisabledReason")
+        }
+        return false
     }
 
     companion object {

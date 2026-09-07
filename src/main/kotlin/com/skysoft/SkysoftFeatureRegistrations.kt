@@ -1,5 +1,6 @@
 package com.skysoft
 
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.discovery.NewSettingsDiscovery
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.MinecraftProfileLookup
@@ -164,6 +165,7 @@ internal object SkysoftFeatureRegistrations {
         register("SkyBlock Mob Tracker", SkyBlockMobTracker::register)
         register("Entity Lifecycle Events", EntityLifecycleEvents::register)
         register("Profile Storage", ProfileStorageApi::register)
+        register("Config Saving") { SkysoftConfigGui.config().registerSaving() }
         register("SkyBlock Sack Contents", SkyBlockSackContents::register)
         register("Storage Cache", StorageCache::register)
         register("Attribute Shard Catalog", AttributeShardCatalog::register)
