@@ -280,7 +280,7 @@ internal class HudEditorSnapper(
         val end = if (axis == HudSnapAxis.HORIZONTAL) bounds.right else bounds.bottom
         return listOf(
             HudSnapTargetPoint(HudSnapAnchor.START, start, bounds),
-            HudSnapTargetPoint(HudSnapAnchor.CENTER, (start + end) / 2, bounds),
+            HudSnapTargetPoint(HudSnapAnchor.CENTER, snapCenter(start, end - start), bounds),
             HudSnapTargetPoint(HudSnapAnchor.END, end, bounds),
         )
     }
@@ -403,7 +403,7 @@ internal data class HudSnapBounds(
 
     fun perpendicularCenter(axis: HudSnapAxis): Int {
         val start = perpendicularStart(axis)
-        return (start + perpendicularEnd(axis)) / 2
+        return snapCenter(start, perpendicularEnd(axis) - start)
     }
 
     fun perpendicularDistance(other: HudSnapBounds, axis: HudSnapAxis): Int {
