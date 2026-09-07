@@ -26,7 +26,7 @@ object ModUpdateChecker {
     private val versionListType = object : TypeToken<List<ModrinthVersionInfo>>() {}.type
 
     @Volatile
-    var status: UpdateStatus = UpdateStatus(UpdateState.NOT_CHECKED)
+    var status: UpdateStatus = UpdateStatus.NotChecked
         private set
 
     private var registered = false
@@ -48,8 +48,8 @@ object ModUpdateChecker {
 
     fun check(force: Boolean = false, announce: Boolean = false) {
         val current = status
-        if (current.state == UpdateState.CHECKING) return
-        if (!force && current.state != UpdateState.NOT_CHECKED && current.state != UpdateState.FAILED) {
+        if (current == UpdateStatus.Checking) return
+        if (!force && current != UpdateStatus.NotChecked && current != UpdateStatus.Failed) {
             if (announce) announceUpdate()
             return
         }
@@ -59,7 +59,7 @@ object ModUpdateChecker {
             return
         }
 
-        status = UpdateStatus(UpdateState.CHECKING)
+        status = UpdateStatus.Checking
         requestSlot.startIfIdle(
             requestFactory = {
                 SkysoftHttp.getString(metadata.url(), Duration.ofSeconds(UPDATE_REQUEST_TIMEOUT_SECONDS))
@@ -72,39 +72,39 @@ object ModUpdateChecker {
                     return@run
                 }
                 if (update == null) {
-                    status = UpdateStatus(UpdateState.CURRENT)
+                    status = UpdateStatus.Current
                     if (force) SkysoftChat.success("Skysoft is up to date.")
                     return@run
                 }
-                status = UpdateStatus(UpdateState.AVAILABLE, update)
+                status = UpdateStatus.Available(update)
                 if (force || announce) announceUpdate()
             }
         }
     }
 
     fun openDownload(): DownloadOpenResult {
-        val update = status.update ?: return DownloadOpenResult.NOT_READY
+        val update = (status as? UpdateStatus.Available)?.update ?: return DownloadOpenResult.NOT_READY
         if (BrowserUtilities.tryOpen(update.url)) return DownloadOpenResult.OPENED
         SkysoftChat.error("Could not open the Skysoft download page.")
         return DownloadOpenResult.FAILED
     }
 
     fun buttonText(): String =
-        when (status.state) {
-            UpdateState.NOT_CHECKED -> "Check"
-            UpdateState.CHECKING -> "Checking..."
-            UpdateState.CURRENT -> "Check Again"
-            UpdateState.AVAILABLE -> "Download"
-            UpdateState.FAILED -> "Retry"
+        when (status) {
+            UpdateStatus.NotChecked -> "Check"
+            UpdateStatus.Checking -> "Checking..."
+            UpdateStatus.Current -> "Check Again"
+            is UpdateStatus.Available -> "Download"
+            UpdateStatus.Failed -> "Retry"
         }
 
     fun statusText(currentStatus: UpdateStatus = status): String =
-        when (currentStatus.state) {
-            UpdateState.NOT_CHECKED -> "Not checked"
-            UpdateState.CHECKING -> "Checking..."
-            UpdateState.CURRENT -> "Up to date"
-            UpdateState.AVAILABLE -> currentStatus.update?.let { "${it.version} available" } ?: "Update available"
-            UpdateState.FAILED -> "Check failed"
+        when (currentStatus) {
+            UpdateStatus.NotChecked -> "Not checked"
+            UpdateStatus.Checking -> "Checking..."
+            UpdateStatus.Current -> "Up to date"
+            is UpdateStatus.Available -> "${currentStatus.update.version} available"
+            UpdateStatus.Failed -> "Check failed"
         }
 
     internal fun latestUpdate(
@@ -128,7 +128,7 @@ object ModUpdateChecker {
     }
 
     private fun announceUpdate() {
-        val update = status.update ?: return
+        val update = (status as? UpdateStatus.Available)?.update ?: return
         if (announcedVersion == update.version) return
         announcedVersion = update.version
         SkysoftChat.link(
@@ -139,7 +139,7 @@ object ModUpdateChecker {
     }
 
     private fun fail(error: Throwable, chat: Boolean) {
-        status = UpdateStatus(UpdateState.FAILED)
+        status = UpdateStatus.Failed
         SkysoftMod.LOGGER.warn("Skysoft update check failed", error)
         if (chat) SkysoftChat.error("Could not check for Skysoft updates. See the log for details.")
     }
@@ -177,17 +177,12 @@ object ModUpdateChecker {
     private const val UPDATE_REQUEST_TIMEOUT_SECONDS = 15L
 }
 
-data class UpdateStatus(
-    val state: UpdateState,
-    val update: SkysoftUpdate? = null,
-)
-
-enum class UpdateState {
-    NOT_CHECKED,
-    CHECKING,
-    CURRENT,
-    AVAILABLE,
-    FAILED,
+sealed interface UpdateStatus {
+    data object NotChecked : UpdateStatus
+    data object Checking : UpdateStatus
+    data object Current : UpdateStatus
+    data class Available(val update: SkysoftUpdate) : UpdateStatus
+    data object Failed : UpdateStatus
 }
 
 private data class UpdateMetadata(
