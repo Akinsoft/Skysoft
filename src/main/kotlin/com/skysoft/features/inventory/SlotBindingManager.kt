@@ -51,7 +51,6 @@ object SlotBindingManager {
     private const val SLOT_HIT_SIZE = 18
     private const val SLOT_OUTLINE_SIZE = 18
     private const val HOTBAR_FIRST_SLOT = 0
-    private const val HOTBAR_LAST_SLOT = 8
     private const val ARMOR_LAST_SLOT = 39
 
     private const val PIXEL_SIZE = 1
@@ -320,7 +319,7 @@ object SlotBindingManager {
     private object Tooltips {
         fun invalidBindingReason(source: Slot, target: Slot): InvalidBindingReason? = when {
             Geometry.isSkyBlockMenuSlot(source) || Geometry.isSkyBlockMenuSlot(target) -> InvalidBindingReason.SKYBLOCK_MENU
-            !Geometry.isValidBindingPair(source.containerSlot, target.containerSlot) -> InvalidBindingReason.HOTBAR_REQUIRED
+            !SlotBindingGraph.isValidPair(source.containerSlot, target.containerSlot) -> InvalidBindingReason.HOTBAR_REQUIRED
             SlotBindingGraph.additionDecision(bindings, source.containerSlot, target.containerSlot) ==
                 SlotBindingAdditionDecision.SLOT_CONFLICT -> InvalidBindingReason.SLOT_CONFLICT
             else -> null
@@ -559,15 +558,7 @@ object SlotBindingManager {
         fun isValidBindingPair(firstSlot: Slot, secondSlot: Slot): Boolean =
             !isSkyBlockMenuSlot(firstSlot) &&
                 !isSkyBlockMenuSlot(secondSlot) &&
-                isValidBindingPair(firstSlot.containerSlot, secondSlot.containerSlot)
-
-        fun isValidBindingPair(firstSlot: Int, secondSlot: Int): Boolean =
-            firstSlot != secondSlot &&
-                firstSlot in HOTBAR_FIRST_SLOT..ARMOR_LAST_SLOT &&
-                secondSlot in HOTBAR_FIRST_SLOT..ARMOR_LAST_SLOT &&
-                (isHotbarSlot(firstSlot) || isHotbarSlot(secondSlot))
-
-        fun isHotbarSlot(slotIndex: Int): Boolean = slotIndex in HOTBAR_FIRST_SLOT..HOTBAR_LAST_SLOT
+                SlotBindingGraph.isValidPair(firstSlot.containerSlot, secondSlot.containerSlot)
 
         fun isSkyBlockMenuSlot(slot: Slot): Boolean = slot.item.isSkyBlockMenu()
 
