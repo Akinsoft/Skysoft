@@ -1,6 +1,8 @@
 package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.helditem.HeldItemSwingVisuals;
@@ -51,8 +53,8 @@ public class ItemInHandRendererMixin {
         }
     }
 
-    @Inject(method = ItemInHandRendererMethodsKt.ITEM_IN_HAND_ARM_METHOD, at = @At("HEAD"))
-    private void skysoftBeginHeldItemSwing(
+    @WrapMethod(method = ItemInHandRendererMethodsKt.ITEM_IN_HAND_ARM_METHOD)
+    private void skysoftRenderWithHeldItemSwing(
         AbstractClientPlayer player,
         float frameInterp,
         float xRot,
@@ -63,27 +65,11 @@ public class ItemInHandRendererMixin {
         PoseStack poseStack,
         SubmitNodeCollector submitNodeCollector,
         int light,
-        CallbackInfo ci
+        Operation<Void> original
     ) {
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
-        MixinErrorBoundary.run("Held Item swing state", () -> HeldItemSwingVisuals.begin(itemStack, attack, arm));
-    }
-
-    @Inject(method = ItemInHandRendererMethodsKt.ITEM_IN_HAND_ARM_METHOD, at = @At("TAIL"))
-    private void skysoftEndHeldItemSwing(
-        AbstractClientPlayer player,
-        float frameInterp,
-        float xRot,
-        InteractionHand hand,
-        float attack,
-        ItemStack itemStack,
-        float inverseArmHeight,
-        PoseStack poseStack,
-        SubmitNodeCollector submitNodeCollector,
-        int light,
-        CallbackInfo ci
-    ) {
-        MixinErrorBoundary.run("Held Item swing state", HeldItemSwingVisuals::end);
+        HeldItemSwingVisuals.renderWithSwing(itemStack, attack, arm,
+            () -> original.call(player, frameInterp, xRot, hand, attack, itemStack, inverseArmHeight, poseStack, submitNodeCollector, light));
     }
 
     @Inject(method = "swingArm", at = @At("HEAD"), cancellable = true)
