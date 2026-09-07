@@ -56,11 +56,9 @@ object ServerInfoDisplay {
                 override fun width(): Int = currentSimpleRenderable()?.width ?: 0
                 override fun height(): Int = currentSimpleRenderable()?.height ?: 0
                 override fun isVisible(): Boolean =
-                    config.enabled &&
-                        config.details.style == ServerInfoDisplayStyle.SIMPLE &&
-                        configuredMetrics().isNotEmpty()
+                    canRenderLive() && config.details.style == ServerInfoDisplayStyle.SIMPLE
                 override fun renderEditor(context: GuiGraphicsExtractor) {
-                    currentSimpleRenderable()?.render(context)
+                    if (isVisible()) currentSimpleRenderable()?.render(context)
                 }
                 override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
             },
@@ -74,10 +72,12 @@ object ServerInfoDisplay {
                 override fun width(): Int = currentSplitRenderable(metric).width
                 override fun height(): Int = currentSplitRenderable(metric).height
                 override fun isVisible(): Boolean =
-                    config.enabled &&
+                    canRenderLive() &&
                         config.details.style == ServerInfoDisplayStyle.SPLIT &&
                         metric in configuredMetrics()
-                override fun renderEditor(context: GuiGraphicsExtractor) = currentSplitRenderable(metric).render(context)
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    if (isVisible()) currentSplitRenderable(metric).render(context)
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
             })
         }

@@ -69,10 +69,7 @@ object SpotifyDisplay {
                     GuiOverlayContextType.STORAGE,
                     GuiOverlayContextType.CHAT,
                 ),
-                visible = {
-                    playback != null && displayAlpha(System.currentTimeMillis()) > 0.0 &&
-                        !MinecraftClient.isGuiHidden(Minecraft.getInstance())
-                },
+                visible = { isDisplayVisible() },
                 render = { context, _ -> render(context) },
             ),
             object : HudEditorElement {
@@ -80,10 +77,12 @@ object SpotifyDisplay {
                 override val label: String = "Spotify Display"
                 override val position get() = config().position
                 override val hasEditorBackground: Boolean = false
-                override fun width(): Int = editorRenderable().width
-                override fun height(): Int = editorRenderable().height
-                override fun isVisible(): Boolean = config().enabled
-                override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable().render(context)
+                override fun width(): Int = currentRenderable()?.width ?: 0
+                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun isVisible(): Boolean = isDisplayVisible()
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    currentRenderable()?.render(context)
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Spotify Display")
             },
         )
@@ -332,12 +331,20 @@ object SpotifyDisplay {
         }
     }
 
+    private fun isDisplayVisible(): Boolean =
+        config().enabled && playback != null && displayAlpha(System.currentTimeMillis()) > 0.0 &&
+            !MinecraftClient.isGuiHidden(Minecraft.getInstance())
+
     private fun render(context: GuiGraphicsExtractor) {
-        val current = playback ?: return
+        val renderable = currentRenderable() ?: return
+        config().position.renderRenderable(context, renderable)
+    }
+
+    private fun currentRenderable(): SpotifyHudRenderable? {
+        if (!isDisplayVisible()) return null
+        val current = playback ?: return null
         val now = System.currentTimeMillis()
-        val alpha = displayAlpha(now)
-        if (alpha <= 0.0) return
-        config().position.renderRenderable(context, renderable(current, alpha, now))
+        return renderable(current, displayAlpha(now), now)
     }
 
     private fun renderable(current: SpotifyPlayback, alpha: Double, now: Long) = SpotifyHudRenderable(
@@ -354,42 +361,6 @@ object SpotifyDisplay {
         roundedCorners = config().details.roundedCorners,
         nowMillis = now,
     )
-
-    private fun editorRenderable(): SpotifyHudRenderable {
-        val now = System.currentTimeMillis()
-        playback?.takeIf { hiddenAtMillis == null }?.let { current ->
-            return renderable(current, 1.0, now)
-        }
-        return SpotifyHudRenderable(
-            playback = SpotifyPlayback(
-                identity = "skysoft-preview",
-                title = "Skysoft Radio",
-                subtitle = "Akinsoft",
-                collection = "Now Playing",
-                artworkUrl = null,
-                durationMillis = PREVIEW_DURATION_MILLIS,
-                progressMillis = PREVIEW_PROGRESS_MILLIS,
-                playing = true,
-                receivedAtMillis = now,
-                supportsLyrics = true,
-            ),
-            artwork = null,
-            lyrics = listOf(
-                SyncedLyricLine(0, "This Display is dedicated to Mashclash"),
-                SyncedLyricLine(PREVIEW_PROGRESS_MILLIS, "Lyrics and stuff appear here"),
-                SyncedLyricLine(PREVIEW_PROGRESS_MILLIS * 2, "Enjoy it nerds"),
-            ),
-            alpha = 1.0,
-            lyricTransition = 1.0,
-            activeLyricIndex = 1,
-            previousLyricIndex = 1,
-            showArtwork = config().details.albumArtwork,
-            lyricsMode = config().details.lyricsMode,
-            lyricLineCount = config().details.lyricLineCount,
-            roundedCorners = config().details.roundedCorners,
-            nowMillis = now,
-        )
-    }
 
     private fun displayAlpha(now: Long): Double {
         val hiddenAt = hiddenAtMillis
@@ -417,8 +388,6 @@ object SpotifyDisplay {
     private const val MAXIMUM_ARTWORK_SIZE = 300
     private const val SPOTIFY_ARTWORK_HOST = "i.scdn.co"
     private const val LYRICS_CACHE_SIZE = 20
-    private const val PREVIEW_DURATION_MILLIS = 213_000L
-    private const val PREVIEW_PROGRESS_MILLIS = 68_000L
     private const val HTTP_UNAUTHORIZED = 401
     private const val HTTP_FORBIDDEN = 403
     private const val HTTP_TOO_MANY_REQUESTS = 429

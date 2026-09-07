@@ -35,7 +35,7 @@ object DayDisplay {
                 override val hasEditorBackground: Boolean get() = !config.details.background
                 override fun width(): Int = currentRenderable()?.width ?: 0
                 override fun height(): Int = currentRenderable()?.height ?: 0
-                override fun isVisible(): Boolean = config.enabled && currentDay() != null
+                override fun isVisible(): Boolean = isDisplayVisible()
                 override fun renderEditor(context: GuiGraphicsExtractor) {
                     currentRenderable()?.render(context)
                 }
@@ -44,26 +44,27 @@ object DayDisplay {
         )
     }
 
+    private fun isDisplayVisible(): Boolean =
+        config.enabled && HypixelLocationState.inSkyBlock &&
+            HypixelLocationState.currentIsland in config.settings.islands.get() &&
+            !MinecraftClient.isGuiHidden(Minecraft.getInstance()) && currentDay() != null
+
     private fun renderHud(context: GuiGraphicsExtractor) {
-        val minecraft = Minecraft.getInstance()
-        val island = HypixelLocationState.currentIsland
-        if (
-            !config.enabled ||
-            island !in config.settings.islands.get() ||
-            MinecraftClient.isGuiHidden(minecraft)
-        ) return
-        val day = currentDay() ?: return
-        config.position.renderRenderable(context, renderable(day))
+        val renderable = currentRenderable() ?: return
+        config.position.renderRenderable(context, renderable)
     }
 
     private fun currentDay(): Long? =
         Minecraft.getInstance().level?.overworldClockTime?.floorDiv(TICKS_PER_DAY)
 
-    private fun currentRenderable(): GuiRenderable? = currentDay()?.let(::renderable)
+    private fun currentRenderable(): GuiRenderable? {
+        if (!isDisplayVisible()) return null
+        return currentDay()?.let(::renderable)
+    }
 
     private fun renderable(day: Long): GuiRenderable = DayRenderable(day).withOverlayPanel(config.details.background)
 
-    private class DayRenderable(private val day: Long) : GuiRenderable {
+    private class DayRenderable(day: Long) : GuiRenderable {
         private val font get() = Minecraft.getInstance().font
         private val text = "Day: $day"
         override val width: Int get() = font.width(text)

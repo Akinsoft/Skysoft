@@ -63,7 +63,7 @@ internal fun registerPartyDisplayHud() {
             override val hasEditorBackground: Boolean get() = !partyDisplayConfig.details.background
             override fun width(): Int = editorRenderable()?.width ?: 0
             override fun height(): Int = editorRenderable()?.height ?: 0
-            override fun isVisible(): Boolean = partyDisplayConfig.enabled && PartyDisplay.currentMembers().isNotEmpty()
+            override fun isVisible(): Boolean = isPartyDisplayVisible()
             override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
             override fun openConfig() = SkysoftConfigGui.open("Party Display")
         },
