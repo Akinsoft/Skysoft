@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.renderables.withIsolatedPose
 import com.mojang.authlib.GameProfile
 import com.skysoft.config.DEFAULT_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.INVENTORY_BUTTON_SCALE_STEP
@@ -216,11 +217,11 @@ object InventoryButtonManager {
         renderScale: Float = button.scale,
     ) {
         val scale = normalizedInventoryButtonScale(renderScale)
-        context.pose().pushMatrix()
-        context.pose().translate(x.toFloat(), y.toFloat())
-        context.pose().scale(scale, scale)
-        drawButtonContents(context, button, active, hovered, selected)
-        context.pose().popMatrix()
+        context.withIsolatedPose {
+            context.pose().translate(x.toFloat(), y.toFloat())
+            context.pose().scale(scale, scale)
+            drawButtonContents(context, button, active, hovered, selected)
+        }
     }
 
     fun drawButtonBackground(
