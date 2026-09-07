@@ -22,46 +22,42 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 
 object CustomProfitTrackerConfigScreen {
-    private lateinit var categories: LinkedHashMap<String, ProcessedCategory>
-    private lateinit var editor: MoulConfigEditor<CustomProfitTrackerEditorConfig>
+    fun open() = openEditor(null)
 
-    fun open() {
-        show(MinecraftClient.screen(), null)
+    fun open(trackerId: String) = openEditor(trackerId)
+
+    private fun openEditor(selectedTrackerId: String?) {
+        val parent = MinecraftClient.screen()
+        MinecraftClient.setScreen(CustomProfitTrackerEditor(selectedTrackerId).createScreen(parent))
     }
+}
 
-    fun open(trackerId: String) {
-        show(MinecraftClient.screen(), trackerId)
-    }
-
-    private fun show(parent: Screen?, selectedTrackerId: String?) {
-        MinecraftClient.setScreen(createScreen(parent, selectedTrackerId))
-    }
-
-    private fun createScreen(parent: Screen?, selectedTrackerId: String?): Screen {
-        val shell = CustomProfitTrackerEditorConfig()
-        categories = LinkedHashMap()
-        categories[CREATE_CATEGORY_ID] = runtimeCategory(
-            CreateCustomProfitTrackerPageConfig(::createTracker, ::importTracker),
+private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
+    private val categories = LinkedHashMap<String, ProcessedCategory>().apply {
+        put(
             CREATE_CATEGORY_ID,
-            { "Create Tracker" },
-            "Create or import a custom Profit Tracker.",
+            runtimeCategory(
+                CreateCustomProfitTrackerPageConfig(::createTracker, ::importTracker),
+                CREATE_CATEGORY_ID,
+                { "Create Tracker" },
+                "Create or import a custom Profit Tracker.",
+            ),
         )
-        customTrackers().forEach { tracker ->
-            categories[categoryId(tracker.id)] = trackerCategory(tracker)
-        }
-        editor = MoulConfigEditor(categories, shell).apply {
-            val selected = selectedTrackerId?.let { categories[categoryId(it)] } ?: categories[CREATE_CATEGORY_ID]
-            selected?.let(::setSelectedCategory)
-        }
-        return object : MoulConfigScreenComponent(
-            Component.empty(),
-            GuiContext(GuiElementComponent(editor)),
-            parent,
-        ) {
-            override fun removed() {
-                super.removed()
-                repairAndSave()
-            }
+        customTrackers().forEach { tracker -> put(categoryId(tracker.id), trackerCategory(tracker)) }
+    }
+    private val editor = MoulConfigEditor(categories, CustomProfitTrackerEditorConfig()).apply {
+        val selected = selectedTrackerId?.let { categories[categoryId(it)] } ?: categories[CREATE_CATEGORY_ID]
+        selected?.let(::setSelectedCategory)
+    }
+
+    fun createScreen(parent: Screen?): Screen = object : MoulConfigScreenComponent(
+        Component.empty(),
+        GuiContext(GuiElementComponent(editor)),
+        parent,
+    ) {
+        override fun removed() {
+            super.removed()
+            repairAndSave()
         }
     }
 
@@ -136,20 +132,23 @@ private fun runtimeCategory(
     description: String,
 ): ProcessedCategory {
     val source = SkysoftMoulConfigGuis.processConfig(config).allCategories.values.single()
-    val category = RuntimeProcessedCategory(id, name, description)
-    val wrapped = source.options.associateWith { option -> RuntimeProcessedOption(option, category, id) }
-    category.optionValues = source.options.map(wrapped::getValue)
-    category.anchorValues = source.accordionAnchors.mapValues { (_, option) -> wrapped.getValue(option) }
-    return category
+    return RuntimeProcessedCategory(id, name, description, source)
 }
 
 private class RuntimeProcessedCategory(
     private val id: String,
     private val name: () -> String,
     private val description: String,
+    source: ProcessedCategory,
 ) : ProcessedCategory {
-    lateinit var optionValues: List<ProcessedOption>
-    lateinit var anchorValues: Map<Int, ProcessedOption>
+    private val optionValues: List<ProcessedOption>
+    private val anchorValues: Map<Int, ProcessedOption>
+
+    init {
+        val wrapped = source.options.associateWith { option -> RuntimeProcessedOption(option, this, id) }
+        optionValues = source.options.map(wrapped::getValue)
+        anchorValues = source.accordionAnchors.mapValues { (_, option) -> wrapped.getValue(option) }
+    }
 
     override fun getDisplayName(): StructuredText = StructuredText.of(name())
     override fun getDescription(): StructuredText = StructuredText.of(description)
