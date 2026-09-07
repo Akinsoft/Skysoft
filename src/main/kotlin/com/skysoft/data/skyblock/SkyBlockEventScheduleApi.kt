@@ -56,7 +56,7 @@ object SkyBlockEventScheduleApi {
 
     fun activeEvents(nowMillis: Long): Set<SkyBlockEvent> {
         val current = schedule
-        if (nowMillis - current.fetchedAt > MAX_SCHEDULE_AGE_MILLIS) return emptySet()
+        if (!current.isFreshAt(nowMillis, MAX_SCHEDULE_AGE_MILLIS)) return emptySet()
         return current.windows.asSequence()
             .filter { nowMillis in it.startsAt until it.endsAt }
             .mapTo(mutableSetOf()) { it.event }
@@ -158,7 +158,7 @@ internal fun scheduleAvailability(
     durationMinutes: Int,
     maximumAgeMillis: Long,
 ): Boolean? {
-    if (nowMillis - schedule.fetchedAt !in 0..maximumAgeMillis) return null
+    if (!schedule.isFreshAt(nowMillis, maximumAgeMillis)) return null
     val windows = schedule.windows.filter { it.event == event }
     if (windows.isEmpty()) return null
     return windows.any { window ->
@@ -167,5 +167,8 @@ internal fun scheduleAvailability(
         nowMillis in start until end
     }
 }
+
+private fun SkyBlockEventSchedule.isFreshAt(nowMillis: Long, maximumAgeMillis: Long): Boolean =
+    nowMillis - fetchedAt in 0..maximumAgeMillis
 
 private const val MILLIS_PER_MINUTE = 60_000L
