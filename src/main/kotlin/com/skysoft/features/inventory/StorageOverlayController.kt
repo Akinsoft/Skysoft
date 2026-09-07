@@ -107,9 +107,6 @@ internal val isLightStorageOverlay get() = config.settings.theme == StorageOverl
 
 internal var lastInventoryKey: String? = null
 internal val storageSearchField = TextFieldState()
-internal var editingTitlePage: Int? = null
-internal var editingTitleText = ""
-internal var editingTitleSelected = false
 internal var lastCommandMillis = 0L
 internal var rememberedPageIndex: Int? = null
 internal var redirectedOverviewScreenId: Int? = null

@@ -11,6 +11,13 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import org.lwjgl.glfw.GLFW
 
+internal var editingTitlePage: Int? = null
+    private set
+internal var editingTitleText = ""
+    private set
+internal var editingTitleSelected = false
+    private set
+
 internal fun titlePageAt(layouts: Map<Int, PageLayout>, mouseX: Int, mouseY: Int): Int? =
     layouts.values.firstOrNull { layout ->
         if (fixedPageTitle(layout.pageIndex) != null) return@firstOrNull false
@@ -61,6 +68,10 @@ internal fun finishTitleEdit() {
     if (page != null && page.title != title) {
         ProfileStorageApi.updateProfile { it.mutableStorageEntry(pageIndex)?.title = title }
     }
+    resetTitleEdit()
+}
+
+internal fun resetTitleEdit() {
     editingTitlePage = null
     editingTitleText = ""
     editingTitleSelected = false

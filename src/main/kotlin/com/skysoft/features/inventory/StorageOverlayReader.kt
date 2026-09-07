@@ -50,9 +50,7 @@ internal fun resetTransientState() {
     rememberedPageIndex = null
     storageSearchField.focused = false
     storageSearchField.text = ""
-    editingTitlePage = null
-    editingTitleText = ""
-    editingTitleSelected = false
+    resetTitleEdit()
     pendingOverviewShortcutClick = null
     resetModernTransientState()
     resetStorageScroll()
