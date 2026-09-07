@@ -35,9 +35,7 @@ internal object KeepTerrainLoaded {
     private val pendingSaves = linkedMapOf<LoadingChunk, PendingSave>()
     private val storages = mutableMapOf<Path, TerrainStorage>()
     private val bobbyInstalled = FabricLoader.getInstance().isModLoaded("bobby")
-    private var expandedLevel: ClientLevel? = null
-    private var activeSession: TerrainSession? = null
-    private var activeStorage: TerrainStorage? = null
+    private var activeTerrain: ActiveTerrain? = null
     private var restoringServerDistance = false
     private var applyingCachedPacket = false
     private var scanCenter: ChunkPos? = null
@@ -48,7 +46,7 @@ internal object KeepTerrainLoaded {
     fun register() {
         SkysoftClientEvents.onEndTick(
             "Keep Terrain Loaded tick",
-            isActive = { expandedLevel != null || pendingSaves.isNotEmpty() || currentSession() != null },
+            isActive = { activeTerrain != null || pendingSaves.isNotEmpty() || currentSession() != null },
         ) { minecraft -> onTick(minecraft) }
         SkysoftClientEvents.onDisconnect("Keep Terrain Loaded disconnect reset", ::close)
     }
@@ -64,7 +62,7 @@ internal object KeepTerrainLoaded {
     @JvmStatic
     fun didRetain(level: ClientLevel, position: ChunkPos): Boolean {
         val session = currentSession() ?: return false
-        if (expandedLevel !== level || activeSession != session) return false
+        if (activeTerrain?.level !== level || activeTerrain?.session != session) return false
         val chunk = level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false) ?: return false
         chunk.clearAllBlockEntities()
         retainedChunks += position
@@ -73,10 +71,10 @@ internal object KeepTerrainLoaded {
 
     @JvmStatic
     fun onServerChunk(level: ClientLevel, packet: ClientboundLevelChunkWithLightPacket) {
-        if (applyingCachedPacket || expandedLevel !== level) return
+        if (applyingCachedPacket || activeTerrain?.level !== level) return
         val session = currentSession() ?: return
-        val storage = activeStorage ?: return
-        if (activeSession != session) return
+        val storage = activeTerrain?.storage ?: return
+        if (activeTerrain?.session != session) return
         val position = ChunkPos(packet.x, packet.z)
         retainedChunks.remove(position)
         val key = LoadingChunk(storage, position.pack())
@@ -97,8 +95,8 @@ internal object KeepTerrainLoaded {
             deactivate(minecraft)
             return
         }
-        if (expandedLevel !== level || activeSession != session) activate(minecraft, level, session)
-        if (expandedLevel !== level || activeSession != session) return
+        if (activeTerrain?.level !== level || activeTerrain?.session != session) activate(minecraft, level, session)
+        if (activeTerrain?.level !== level || activeTerrain?.session != session) return
 
         val serverDistance = serverViewDistance(minecraft) ?: return
         val distance = terrainCacheDistance(minecraft)
@@ -109,16 +107,14 @@ internal object KeepTerrainLoaded {
     }
 
     private fun activate(minecraft: Minecraft, level: ClientLevel, session: TerrainSession) {
-        if (expandedLevel === level) {
+        if (activeTerrain?.level === level) {
             releaseRetained(level)
             resizeToServerDistance(minecraft, level)
         } else {
             retainedChunks.clear()
         }
         val serverDistance = serverViewDistance(minecraft) ?: return
-        expandedLevel = level
-        activeSession = session
-        activeStorage = storageFor(session)
+        activeTerrain = ActiveTerrain(level, session, storageFor(session))
         val distance = terrainCacheDistance(minecraft)
         level.chunkSource.updateViewRadius(maxOf(serverDistance, distance))
         minecraft.player?.chunkPosition()?.let { center -> resetScan(center, distance) }
@@ -143,7 +139,7 @@ internal object KeepTerrainLoaded {
     }
 
     private fun processCachedChunkLoads(minecraft: Minecraft, level: ClientLevel, session: TerrainSession) {
-        val storage = activeStorage ?: return
+        val storage = activeTerrain?.storage ?: return
         var checks = 0
         while (
             scanIndex < scanOffsets.size &&
@@ -176,7 +172,7 @@ internal object KeepTerrainLoaded {
         position: ChunkPos,
         packetBytes: ByteArray,
     ) {
-        if (expandedLevel !== level || activeSession != session || !isWithinScanDistance(position)) return
+        if (activeTerrain?.level !== level || activeTerrain?.session != session || !isWithinScanDistance(position)) return
         if (level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false) != null) return
         val connection = minecraft.connection ?: return
         runCatching {
@@ -211,14 +207,12 @@ internal object KeepTerrainLoaded {
     }
 
     private fun deactivate(minecraft: Minecraft) {
-        val level = expandedLevel
+        val level = activeTerrain?.level
         if (level != null && minecraft.level === level) {
             releaseRetained(level)
             resizeToServerDistance(minecraft, level)
         }
-        expandedLevel = null
-        activeSession = null
-        activeStorage = null
+        activeTerrain = null
         scanCenter = null
         scanDistance = -1
         scanOffsets = emptyList()
@@ -290,9 +284,7 @@ internal object KeepTerrainLoaded {
         }
         storages.clear()
         retainedChunks.clear()
-        expandedLevel = null
-        activeSession = null
-        activeStorage = null
+        activeTerrain = null
         restoringServerDistance = false
         applyingCachedPacket = false
         scanCenter = null
@@ -300,6 +292,12 @@ internal object KeepTerrainLoaded {
         scanOffsets = emptyList()
         scanIndex = 0
     }
+
+    private data class ActiveTerrain(
+        val level: ClientLevel,
+        val session: TerrainSession,
+        val storage: TerrainStorage,
+    )
 
     private data class TerrainSession(
         val island: SkyBlockIsland,
