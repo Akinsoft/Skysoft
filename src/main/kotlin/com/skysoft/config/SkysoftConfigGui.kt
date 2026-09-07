@@ -1,7 +1,6 @@
 package com.skysoft.config
 
 import com.skysoft.config.discovery.NewSettingsConfigEditor
-import com.skysoft.config.discovery.NewSettingsEditor
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkysoftGame
 import com.skysoft.utils.MinecraftClient
@@ -21,7 +20,7 @@ object SkysoftConfigGui {
 
     fun open(search: String? = null) {
         val currentEditor = editor()
-        val query = configSearchQuery(search)
+        val query = search.orEmpty()
         val matchingCategory = currentEditor.allCategories.values
             .firstOrNull { it.displayName.text.equals(query, ignoreCase = true) }
         if (matchingCategory != null) {
@@ -37,10 +36,10 @@ object SkysoftConfigGui {
     fun createScreen(parent: Screen?): Screen =
         createScreen(parent, editor())
 
-    internal fun openNewSettings(optionIds: Set<String>): NewSettingsEditor<SkysoftConfig>? {
-        val filteredEditor = NewSettingsConfigEditor.create(config, optionIds, configGame()) ?: return null
-        MinecraftClient.setScreen(createScreen(null, filteredEditor.editor))
-        return filteredEditor
+    internal fun didOpenNewSettings(optionIds: Set<String>): Boolean {
+        val filteredEditor = NewSettingsConfigEditor.create(config, optionIds, configGame()) ?: return false
+        MinecraftClient.setScreen(createScreen(null, filteredEditor))
+        return true
     }
 
     private fun createScreen(parent: Screen?, configEditor: MoulConfigEditor<SkysoftConfig>): Screen {
@@ -67,8 +66,6 @@ object SkysoftConfigGui {
     private fun configGame(): SkysoftGame =
         if (HypixelLocationState.inRavengard) SkysoftGame.RAVENGARD else SkysoftGame.SKYBLOCK
 }
-
-internal fun configSearchQuery(search: String?): String = search.orEmpty()
 
 private fun <T : Config> selectSearchResult(editor: MoulConfigEditor<T>, query: String) {
     val matchingOption = matchingSearchOption(editor.allOptions, query) ?: return

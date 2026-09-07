@@ -40,17 +40,11 @@ internal data class NewSettingsDiscoveryState(
     }
 }
 
-internal data class NewSettingsStateUpdate(
-    val state: NewSettingsDiscoveryState,
-    val addedIds: Set<String>,
-    val changedIds: Set<String>,
-)
-
 internal fun updateNewSettingsState(
     schema: NewSettingsSchema,
     storedState: NewSettingsDiscoveryState?,
     persistedSignatures: Map<String, String>,
-): NewSettingsStateUpdate {
+): NewSettingsDiscoveryState {
     val previousSignatures = storedState?.knownSignatures ?: persistedSignatures
     val detection = detectNewSettings(previousSignatures, schema.signatures)
     val addedIds = if (storedState == null) {
@@ -59,7 +53,7 @@ internal fun updateNewSettingsState(
         detection.addedIds
     }
     val discoveredIds = addedIds + detection.changedIds
-    val state = NewSettingsDiscoveryState(
+    return NewSettingsDiscoveryState(
         knownSignatures = schema.signatures,
         pendingOptionIds = orderedCurrentIds(
             schema,
@@ -67,7 +61,6 @@ internal fun updateNewSettingsState(
         ),
         lastPresentedOptionIds = orderedCurrentIds(schema, storedState.orEmpty().lastPresentedOptionIds),
     )
-    return NewSettingsStateUpdate(state, addedIds, detection.changedIds)
 }
 
 internal fun orderedCurrentIds(schema: NewSettingsSchema, ids: Iterable<String>): List<String> {

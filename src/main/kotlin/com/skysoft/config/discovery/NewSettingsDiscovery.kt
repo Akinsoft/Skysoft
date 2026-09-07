@@ -37,8 +37,7 @@ object NewSettingsDiscovery {
         val optionIds = activeRuntime.state.lastPresentedOptionIds
             .filterTo(linkedSetOf(), activeRuntime.schema.byId::containsKey)
         if (optionIds.isEmpty()) return false
-        SkysoftConfigGui.openNewSettings(optionIds) ?: return false
-        return true
+        return SkysoftConfigGui.didOpenNewSettings(optionIds)
     }
 
     private fun initialize() {
@@ -68,8 +67,7 @@ object NewSettingsDiscovery {
             is NewSettingsConfigSource.Loaded -> bootstrapKnownSignatures(schema, configSource.json)
             is NewSettingsConfigSource.Unavailable -> error("Unavailable config source passed initialization guard")
         }
-        val update = updateNewSettingsState(schema, storedState, persistedSignatures)
-        val currentState = update.state
+        val currentState = updateNewSettingsState(schema, storedState, persistedSignatures)
         store.save(currentState)
         runtime = NewSettingsRuntime(schema, currentState, store)
     }
