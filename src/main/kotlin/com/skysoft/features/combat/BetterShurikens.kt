@@ -300,8 +300,6 @@ object BetterShurikens {
 
     private data class HitResolution(
         val mob: LivingEntity?,
-        val strategy: String,
-        val projectedEnd: Vec3,
         val isDirectOverlap: Boolean = false,
     )
 
@@ -313,15 +311,15 @@ object BetterShurikens {
         ): HitResolution {
             val projectedEnd = currentPosition.add(tracked.lastVelocity.scale(Detection.UNSEEN_FLIGHT_TICKS))
             val directMob = containingMob(currentPosition, candidates)
-            if (directMob != null) return HitResolution(directMob, "direct-overlap", projectedEnd, true)
+            if (directMob != null) return HitResolution(directMob, isDirectOverlap = true)
 
             val projectedMob = intersectedMob(currentPosition, projectedEnd, candidates)
-            if (projectedMob != null) return HitResolution(projectedMob, "projected-flight", projectedEnd)
+            if (projectedMob != null) return HitResolution(projectedMob)
 
             val endpointMob = nearestEndpointMob(currentPosition, candidates)
-            if (endpointMob != null) return HitResolution(endpointMob, "endpoint", projectedEnd)
+            if (endpointMob != null) return HitResolution(endpointMob)
 
-            return HitResolution(tracked.lastCrossedMob, "last-crossing", projectedEnd)
+            return HitResolution(tracked.lastCrossedMob)
         }
 
         private fun containingMob(location: Vec3, candidates: List<LivingEntity>): LivingEntity? =
