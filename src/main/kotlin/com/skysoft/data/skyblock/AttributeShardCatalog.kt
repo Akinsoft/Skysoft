@@ -2,16 +2,10 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
-import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.getCompoundOrNull
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.NumberUtilities.formatInt
-import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
 import com.skysoft.utils.SkysoftClientEvents
@@ -22,7 +16,6 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
-import java.util.Locale
 
 object AttributeShardCatalog {
     private val storage get() = ProfileStorageApi.storage.attributeShards
@@ -69,8 +62,8 @@ object AttributeShardCatalog {
     fun readOpenInventory(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
         if (!AttributeShardConstants.ensureLoaded()) return
         when {
-            AttributeShardItemResolver.isAttributeMenuName(inventoryName) ||
-                inventoryItems.values.any { AttributeShardItemResolver.hasAttributeStateLine(it) } ->
+            AttributeShardItemReader.isAttributeMenuName(inventoryName) ||
+                inventoryItems.values.any { AttributeShardItemReader.hasAttributeStateLine(it) } ->
                 processAttributeMenuItems(inventoryItems)
 
             inventoryName == "Hunting Box" -> processHuntingBoxItems(inventoryItems.values)
@@ -138,30 +131,18 @@ object AttributeShardCatalog {
 
     private fun processAttributeMenuItems(items: Map<Int, ItemStack>) {
         for (item in items.values) {
-            val internalName = AttributeShardItemResolver.internalNameOrNull(item, "Attribute Menu") ?: continue
-            var tier = 0
-            val hoverName = item.formattedHoverName()
-            val cleanHoverName = hoverName.cleanSkyBlockText()
-            (
-                attributeShardNamePattern.matchEntire(hoverName)
-                    ?: cleanAttributeShardNamePattern.matchEntire(cleanHoverName)
-                )?.let { match ->
-                tier = match.groupOrNull("tier")?.romanToDecimal() ?: 0
-            }
+            val internalName = AttributeShardItemReader.internalNameOrNull(item, "Attribute Menu") ?: continue
+            val tier = AttributeShardItemReader.tier(item)
 
             val lore = item.loreLines()
-            var toNextTier = 0
-            lore.firstNotNullOfOrNull { line ->
+            val toNextTier = lore.firstNotNullOfOrNull { line ->
                 syphonAmountPattern.matchEntire(line)?.group("amount")?.formatInt()
                     ?: cleanSyphonAmountPattern.matchEntire(line.removeColor())?.group("amount")?.formatInt()
-            }?.let { toNextTier = it }
+            } ?: 0
 
             processShard(internalName, tier, toNextTier)
-            lore.firstNotNullOfOrNull { line ->
-                attributeStatePattern.matchEntire(line)?.group("state")
-                    ?: cleanAttributeStatePattern.matchEntire(line.removeColor())?.group("state")
-            }?.let { state ->
-                setAttributeState(internalName, enabled = AttributeShardItemResolver.isEnabledAttributeState(state))
+            lore.firstNotNullOfOrNull(AttributeShardItemReader::enabledState)?.let { enabled ->
+                setAttributeState(internalName, enabled)
             }
         }
 
@@ -172,17 +153,12 @@ object AttributeShardCatalog {
 
     private fun processHuntingBoxItems(items: Collection<ItemStack>) {
         for (item in items) {
-            val internalName = AttributeShardItemResolver.internalNameOrNull(item, "Hunting Box") ?: continue
+            val internalName = AttributeShardItemReader.internalNameOrNull(item, "Hunting Box") ?: continue
             var tier = 0
             var toNextTier = 0
             for (line in item.loreLines()) {
                 val cleanLine = line.cleanSkyBlockText()
-                (
-                    attributeShardNameLorePattern.matchEntire(line)
-                        ?: cleanAttributeShardNameLorePattern.matchEntire(cleanLine)
-                    )?.let { match ->
-                    tier = match.groupOrNull("tier")?.romanToDecimal() ?: 0
-                }
+                AttributeShardItemReader.tierFromLore(line)?.let { tier = it }
                 syphonAmountPattern.matchEntire(line)?.let { match ->
                     toNextTier = match.group("amount").formatInt()
                 }
@@ -312,18 +288,10 @@ internal fun parseAttributeShardGain(message: String): ParsedAttributeShardGain?
 }
 
 private const val ADVANCED_MODE_SLOT = 52
-private val attributeShardNamePattern = Regex("""§6(?<name>.+?) ?(?<tier>[IVXL]+)?$""")
-private val cleanAttributeShardNamePattern = Regex("""(?<name>.+?) ?(?<tier>[IVXL]+)?$""")
-private val attributeShardNameLorePattern = Regex("""§6(?<name>.+?) ?(?<tier>[IVXL]+)? §8\(\w+\)$""")
-private val cleanAttributeShardNameLorePattern = Regex("""(?<name>.+?) ?(?<tier>[IVXL]+)? \(\w+\)$""")
-private val attributeStatePattern = Regex("""§7Enabled: §.(?<state>.+)""")
 private val syphonAmountPattern = Regex("""§7Syphon §b(?<amount>\d+) §7shards? to (?:level up|unlock)!""")
 private val amountOwnedPattern = Regex("""§7Owned: §b(?<amount>[\d,]+) Shards?""")
-private val cleanAttributeStatePattern = Regex("""Enabled: (?<state>.+)""")
 private val cleanSyphonAmountPattern = Regex("""Syphon (?<amount>\d+) shards? to (?:level up|unlock)!""")
 private val cleanAmountOwnedPattern = Regex("""Owned: (?<amount>[\d,]+) Shards?""")
-private val attributeSourcePattern = Regex("""§7Source: §.(?<source>.+)""")
-private val cleanAttributeSourcePattern = Regex("""Source: (?<source>.+)""")
 private val advancedModeNotUnlockedPattern = Regex("""Advanced Mode unlocked at 30""")
 private val shardSyphonedPattern =
     Regex("""§a\+(?<amount>\d+) (?<attributeName>.+) Attribute §r§7\(Level (?<level>\d+)\) - (?<untilNext>\d+) more to upgrade!""")
@@ -349,82 +317,3 @@ private val sentToHuntingBoxPattern =
     Regex("""You sent (?:an?|a|(?<amount>\d+)) (?<shardName>.+) Shards? to your Hunting Box\.""")
 private val fusionShardPattern =
     Regex("""FUSION! You obtained(?: an?)? (?<shardName>.+) Shard(?: x(?<amount>\d+))?!(?: NEW!)?""")
-
-internal object AttributeShardItemResolver {
-    fun internalNameOrNull(item: ItemStack, inventoryName: String?): String? {
-        if (isAttributeShardInventoryName(inventoryName)) {
-            resolveContextualShardInternalName(item, inventoryName)?.let { return it }
-        }
-
-        item.skyBlockId()
-            ?.let { AttributeShardConstants.internalNameFromKnownShardId(it) }
-            ?.let { return it }
-
-        val extraAttributes = item.extraAttributes() ?: return resolveContextualShardInternalName(item, inventoryName)
-        val id = extraAttributes.getStringOrNull("id")?.uppercase(Locale.US)?.replace(':', '-')
-        return if (id == "ATTRIBUTE_SHARD") {
-            extraAttributes.getCompoundOrNull("attributes")
-                ?.keySet()
-                ?.singleOrNull()
-                ?.let { attributeName -> "ATTRIBUTE_SHARD_${attributeName.uppercase(Locale.US)};1" }
-                ?: resolveContextualShardInternalName(item, inventoryName)
-        } else {
-            id?.let { AttributeShardConstants.internalNameFromKnownShardId(it) }
-                ?: resolveContextualShardInternalName(item, inventoryName)
-        }
-    }
-
-    fun isAttributeMenuName(inventoryName: String?): Boolean =
-        inventoryName == "Attribute Menu" || inventoryName?.startsWith("Attribute Menu ") == true
-
-    fun hasAttributeStateLine(item: ItemStack): Boolean =
-        item.loreLines().any { line ->
-            attributeStatePattern.matchEntire(line) != null ||
-                cleanAttributeStatePattern.matchEntire(line.removeColor()) != null
-        }
-
-    fun isEnabledAttributeState(state: String): Boolean =
-        state.trim().equals("Yes", ignoreCase = true) ||
-            state.trim().equals("On", ignoreCase = true) ||
-            state.trim().equals("Enabled", ignoreCase = true)
-
-    private fun resolveContextualShardInternalName(item: ItemStack, inventoryName: String?): String? {
-        val cleanName = item.formattedHoverName().cleanSkyBlockText().removeSuffix(" NEW SHARD").trim()
-        val shardName = when {
-            isAttributeMenuName(inventoryName) -> findAttributeMenuShardName(item, cleanName)
-            inventoryName == "Hunting Box" -> findHuntingBoxShardName(item, cleanName)
-            else -> null
-        } ?: return null
-        return AttributeShardConstants.internalNameByBazaarName(shardName)
-    }
-
-    private fun findAttributeMenuShardName(item: ItemStack, cleanName: String): String? =
-        displayNameCandidates(cleanName).firstNotNullOfOrNull { AttributeShardConstants.shardByDisplayOrAbilityName(it) }
-            ?: item.loreLines().firstNotNullOfOrNull { line ->
-                val cleanLine = line.cleanSkyBlockText()
-                val source = attributeSourcePattern.matchEntire(line)?.group("source")
-                    ?: cleanAttributeSourcePattern.matchEntire(cleanLine)?.group("source")
-                source?.let { AttributeShardConstants.shardByDisplayOrAbilityName(it) }
-                    ?: displayNameCandidates(cleanLine).firstNotNullOfOrNull {
-                        AttributeShardConstants.shardByDisplayOrAbilityName(it)
-                    }
-            }
-
-    private fun findHuntingBoxShardName(item: ItemStack, cleanName: String): String? =
-        displayNameCandidates(cleanName).firstNotNullOfOrNull { AttributeShardConstants.shardByDisplayOrAbilityName(it) }
-            ?: item.loreLines().firstNotNullOfOrNull { line ->
-                displayNameCandidates(line.cleanSkyBlockText()).firstNotNullOfOrNull {
-                    AttributeShardConstants.shardByDisplayOrAbilityName(it)
-                }
-            }
-
-    private fun displayNameCandidates(cleanName: String): List<String> =
-        listOfNotNull(
-            cleanName,
-            cleanAttributeShardNamePattern.matchEntire(cleanName)?.group("name")?.trim(),
-            cleanAttributeShardNameLorePattern.matchEntire(cleanName)?.group("name")?.trim(),
-        ).distinct()
-
-    private fun isAttributeShardInventoryName(inventoryName: String?): Boolean =
-        isAttributeMenuName(inventoryName) || inventoryName == "Hunting Box"
-}
