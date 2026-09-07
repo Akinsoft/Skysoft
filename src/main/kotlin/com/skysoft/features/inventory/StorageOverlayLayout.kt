@@ -192,7 +192,7 @@ internal fun selectorPageAt(
         if (selectorSlotBounds(pos).contains(mouseX, mouseY)) {
             return pageIndex.takeIf {
                 storageEntryExists(it) ||
-                    emptyOverviewStacks[it]?.let(::storageOverviewSlotState) == StorageOverviewSlotState.PLACEHOLDER
+                    StorageItemStacks.overviewPlaceholder(it)?.let(::storageOverviewSlotState) == StorageOverviewSlotState.PLACEHOLDER
             }
         }
     }
@@ -228,10 +228,10 @@ private fun selectorSlotBounds(pos: Point): Rect =
 
 internal fun selectorIconStack(pageIndex: Int, page: ProfileStorageView.SkyBlockStoragePageData?): ItemStack {
     if (page != null && page.overviewIcon.isNotBlank()) {
-        val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(page.overviewIcon))
+        val stack = StorageItemStacks.stackFor(ProfileStorage.SkyBlockStorageItemData(page.overviewIcon))
         if (!stack.isEmpty) return stack
     }
-    emptyOverviewStacks[pageIndex]?.let { return it }
+    StorageItemStacks.overviewPlaceholder(pageIndex)?.let { return it }
     if (page == null) return ItemStack.EMPTY
     return if (
         pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES ||

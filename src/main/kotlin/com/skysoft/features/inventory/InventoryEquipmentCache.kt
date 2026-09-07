@@ -9,7 +9,6 @@ import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.utils.ActiveConsumerRegistry
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
@@ -35,7 +34,7 @@ internal object InventoryEquipmentCache {
 
     fun registerConsumer(id: String, isActive: () -> Boolean) = consumers.register(id, isActive)
 
-    fun stacks(): List<ItemStack> = inventoryEquipmentStorage.map(::stackFor)
+    fun stacks(): List<ItemStack> = inventoryEquipmentStorage.map(StorageItemStacks::stackFor)
 
     private fun reset() {
         lastEquipmentInventoryKey = null
@@ -45,15 +44,15 @@ internal object InventoryEquipmentCache {
 private val inventoryEquipmentStorage: List<ProfileStorageView.SkyBlockStorageItemData>
     get() = ProfileStorageApi.storage.inventoryEquipment
 
-internal var lastEquipmentInventoryKey: String? = null
+private var lastEquipmentInventoryKey: String? = null
 
-private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapshot?): ChangeResult {
+private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapshot?) {
     if (snapshot == null || !isInventoryEquipmentMenuName(snapshot.title)) {
         lastEquipmentInventoryKey = null
-        return ChangeResult.UNCHANGED
+        return
     }
 
-    if (snapshot.key == lastEquipmentInventoryKey) return ChangeResult.UNCHANGED
+    if (snapshot.key == lastEquipmentInventoryKey) return
     lastEquipmentInventoryKey = snapshot.key
 
     val items = selectEquipmentMenuItems(
@@ -69,9 +68,9 @@ private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapsh
         },
         emptyItem = ItemStack.EMPTY,
     )
-    if (items.size < ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) return ChangeResult.UNCHANGED
+    if (items.size < ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) return
 
-    return updateInventoryEquipmentStorage(items.map(::encodeItem))
+    updateInventoryEquipmentStorage(items.map(::encodeItem))
 }
 
 private fun repairInventoryEquipmentItems(items: MutableList<ProfileStorage.SkyBlockStorageItemData>) {
@@ -140,15 +139,14 @@ private fun inventoryEquipmentMenuType(name: String): InventoryEquipmentMenuType
     else -> null
 }
 
-private fun updateInventoryEquipmentStorage(items: List<ProfileStorage.SkyBlockStorageItemData>): ChangeResult {
+private fun updateInventoryEquipmentStorage(items: List<ProfileStorage.SkyBlockStorageItemData>) {
     val storageItems = inventoryEquipmentStorage
-    if (storageItems.map { it.encodedStack } == items.map { it.encodedStack }) return ChangeResult.UNCHANGED
+    if (storageItems.map { it.encodedStack } == items.map { it.encodedStack }) return
     ProfileStorageApi.updateProfile { profile ->
         profile.inventoryEquipment.clear()
         profile.inventoryEquipment.addAll(items)
         repairInventoryEquipmentItems(profile.inventoryEquipment)
     }
-    return ChangeResult.CHANGED
 }
 
 private fun String.isEmptyEquipmentPlaceholder(): Boolean {

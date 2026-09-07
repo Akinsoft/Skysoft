@@ -223,7 +223,7 @@ private fun drawPageSlots(
         val hovered = isSlotHovered(mouseX, mouseY, slotX, slotY) && context.containsPointInScissor(mouseX, mouseY)
         val storedItem = page.items.getOrNull(index)
         val activeSlot = if (active) activeSlots[index] else null
-        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else stackFor(storedItem)
+        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else StorageItemStacks.stackFor(storedItem)
         if (!stack.isEmpty) {
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
                 if (active) {
@@ -419,7 +419,7 @@ internal fun drawStorageSelectorPanel(
 private fun toolkitShortcutStack(type: ToolkitType): ItemStack {
     val isAvailable = storageEntryExists(type.pageIndex)
     if (isAvailable) {
-        val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
+        val stack = StorageItemStacks.stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
         if (!stack.isEmpty) return stack
     }
     return ItemStack(if (isAvailable) Items.CHEST else Items.BARRIER).apply {

@@ -28,7 +28,7 @@ internal fun registerStorageOverlay() {
         isActive = { isStorageOverlayEnabled || wasStorageOverlayEnabled },
     ) {
         val isEnabled = isStorageOverlayEnabled
-        if (isEnabled && !wasStorageOverlayEnabled) lastInventoryKey = null
+        if (isEnabled && !wasStorageOverlayEnabled) StorageCache.invalidateSnapshot()
         wasStorageOverlayEnabled = isEnabled
         onClientTick()
     }

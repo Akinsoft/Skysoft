@@ -5,7 +5,6 @@ import com.skysoft.config.StorageOverlayMode
 import com.skysoft.config.StorageOverlayTheme
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.gui.scale.GuiScaleController
-import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
@@ -16,8 +15,6 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.world.item.Item
-import net.minecraft.world.item.ItemStack
 
 object StorageOverlayController {
     fun register() = registerStorageOverlay()
@@ -94,18 +91,12 @@ object StorageOverlayController {
         isStorageOverlayClickInside(screen, mouseX, mouseY)
 }
 
-internal val emptyOverviewItems: Set<Item> = buildSet {
-    addAll(MinecraftItems.stainedGlassPanes())
-    add(MinecraftItems.grayDye())
-}
-
 internal val storage get() = ProfileStorageApi.storage
 internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
 internal val isStorageOverlayEnabled get() = SkysoftConfigGui.config().inventory.isStorageOverlayEnabled
 internal val isModernStorageOverlay get() = config.settings.mode == StorageOverlayMode.MODERN
 internal val isLightStorageOverlay get() = config.settings.theme == StorageOverlayTheme.LIGHT
 
-internal var lastInventoryKey: String? = null
 internal val storageSearchField = TextFieldState()
 internal var lastCommandMillis = 0L
 internal var rememberedPageIndex: Int? = null
@@ -115,8 +106,6 @@ internal var requestedFocusPageIndex: Int? = null
 internal var requestedFocusKey: String? = null
 internal var preservedScrollPageIndex: Int? = null
 internal var pendingOverviewShortcutClick: PendingOverviewShortcutClick? = null
-internal val decodedStacks = linkedMapOf<String, ItemStack>()
-internal val emptyOverviewStacks = mutableMapOf<Int, ItemStack>()
 
 internal enum class ToolkitType(
     val storageKey: String,

@@ -52,7 +52,9 @@ internal object StorageSearchIndex {
 
     private fun matches(item: ProfileStorageView.SkyBlockStorageItemData?, query: InventoryItemSearchQuery): Boolean {
         val encoded = item?.encodedStack?.takeIf { it.isNotBlank() } ?: return false
-        val searchableText = itemTextByEncodedStack.getOrPut(encoded) { InventoryItemSearchIndex.text(stackFor(item)) }
+        val searchableText = itemTextByEncodedStack.getOrPut(encoded) {
+            InventoryItemSearchIndex.text(StorageItemStacks.stackFor(item))
+        }
         return query.matchesSearchableText(searchableText)
     }
 }
