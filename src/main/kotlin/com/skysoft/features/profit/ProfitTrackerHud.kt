@@ -164,6 +164,11 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
     }
 }
 
+internal fun resetProfitTrackerHud() {
+    clearProfitTrackerInteraction()
+    hudContent.clear()
+}
+
 private fun clearProfitTrackerInteraction() {
     hoveredControl = null
     hoveredTracker = null

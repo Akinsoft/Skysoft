@@ -373,6 +373,7 @@ object ProfitTracker {
         replenishCosts.clear()
         foragingTreeGiftParser.clear()
         itemQuantityHighlights.clear()
+        resetProfitTrackerHud()
     }
 }
 
