@@ -10,7 +10,6 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
-import java.util.Locale
 import java.util.Optional
 import java.util.UUID
 import net.minecraft.client.Minecraft
@@ -20,9 +19,7 @@ import net.minecraft.resources.Identifier
 
 object PartyDisplay {
     private val config get() = SkysoftConfigGui.config().gui.partyDisplay
-    private val pendingInvites = linkedMapOf<String, PendingInvite>()
-    private val disconnectedMembers = mutableSetOf<String>()
-    private var displayedMembers: List<PartyDisplayMember> = emptyList()
+    private val roster = PartyDisplayRoster()
     private var requestedParty: Set<UUID>? = null
     private var pendingPartyList: PendingPartyList? = null
     private var lastApiInParty: Boolean? = null
@@ -60,10 +57,7 @@ object PartyDisplay {
     private fun update() {
         val now = System.currentTimeMillis()
         if (pendingPartyList?.expiresAtMillis?.let { now > it } == true) pendingPartyList = null
-        pendingInvites.values.removeAll { now >= it.expiresAtMillis }
-        displayedMembers = displayedMembers.filterNot { member ->
-            member.leavingAtMillis?.let { startedAt -> now >= startedAt + MEMBER_LEAVE_FADE_MILLIS } == true
-        }
+        roster.update(now)
         if (!config.enabled) {
             clearPartyState()
             lastApiInParty = null
@@ -77,9 +71,9 @@ object PartyDisplay {
         if (!config.enabled || !HypixelLocationState.inSkyBlock || !state.isLoaded) return
         if (!state.isInParty) {
             if (state.updatedAtMillis > optimisticPartyAtMillis) {
-                val memberIsFading = displayedMembers.any { member -> member.leavingAtMillis != null }
-                if (lastApiInParty == true && pendingInvites.isEmpty() && !memberIsFading) clearDisplayedParty()
-                if (pendingInvites.isEmpty() && !memberIsFading) lastApiInParty = false
+                val memberIsFading = roster.hasLeavingMembers
+                if (lastApiInParty == true && !roster.hasPendingInvites && !memberIsFading) clearDisplayedParty()
+                if (!roster.hasPendingInvites && !memberIsFading) lastApiInParty = false
                 requestedParty = null
             }
             return
@@ -89,7 +83,7 @@ object PartyDisplay {
             .sortedBy { member -> member.uuid != state.leaderUuid }
             .forEach { member ->
                 member.profileName?.let { name ->
-                    addPartyMember(apiPartyMember(member.uuid, name), first = member.uuid == state.leaderUuid)
+                    roster.addPartyMember(apiPartyMember(member.uuid, name), first = member.uuid == state.leaderUuid)
                 }
             }
         val party = state.memberUuids
@@ -119,7 +113,7 @@ object PartyDisplay {
             }
             text == PARTY_LIST_SEPARATOR -> {
                 if (pending.started) {
-                    if (!pending.discard) applyPartyList(pending.members)
+                    if (!pending.discard) roster.applyPartyList(pending.members)
                     pendingPartyList = null
                 }
                 ChatMessageVisibility.HIDE
@@ -156,12 +150,12 @@ object PartyDisplay {
             outgoingInvite != null -> {
                 lastApiInParty = true
                 optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMember(component, rawText, text, outgoingInvite.groups["inviter"])?.let(::addPartyMember)
+                partyMember(component, rawText, text, outgoingInvite.groups["inviter"])?.let(roster::addPartyMember)
                 partyMember(component, rawText, text, outgoingInvite.groups["invitee"])?.let { member ->
-                    if (displayedMembers.none { samePlayer(it.name, member.name) }) {
+                    if (!roster.hasMember(member.name)) {
                         val seconds = outgoingInvite.groups["seconds"]?.value?.toLongOrNull() ?: INVITE_SECONDS
-                        pendingInvites[playerKey(member.name)] = PendingInvite(
-                            member.copy(invited = true),
+                        roster.invite(
+                            member,
                             System.currentTimeMillis() + seconds * MILLIS_PER_SECOND,
                         )
                     }
@@ -169,26 +163,26 @@ object PartyDisplay {
                 HypixelPartyApi.requestPartyInfo()
             }
             inviteExpired != null -> playerName(inviteExpired.groups["invitee"])
-                ?.let { pendingInvites.remove(playerKey(it)) }
+                ?.let(roster::removeInvite)
             youJoined != null -> {
                 clearPartyState()
                 lastApiInParty = true
                 optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMember(component, rawText, text, youJoined.groups["leader"])?.let(::addPartyMember)
-                currentPlayerMember()?.let(::addPartyMember)
+                partyMember(component, rawText, text, youJoined.groups["leader"])?.let(roster::addPartyMember)
+                currentPlayerMember()?.let(roster::addPartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
             partyingWith != null -> {
                 lastApiInParty = true
                 optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMembers(component, rawText, text, partyingWith.groups["members"]).forEach(::addPartyMember)
-                currentPlayerMember()?.let(::addPartyMember)
+                partyMembers(component, rawText, text, partyingWith.groups["members"]).forEach(roster::addPartyMember)
+                currentPlayerMember()?.let(roster::addPartyMember)
             }
             memberJoined != null -> {
                 lastApiInParty = true
                 optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMember(component, rawText, text, memberJoined.groups["member"])?.let(::addPartyMember)
-                currentPlayerMember()?.let(::addPartyMember)
+                partyMember(component, rawText, text, memberJoined.groups["member"])?.let(roster::addPartyMember)
+                currentPlayerMember()?.let(roster::addPartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
             memberDisconnected != null -> partyMember(
@@ -196,21 +190,21 @@ object PartyDisplay {
                 rawText,
                 text,
                 memberDisconnected.groups["member"],
-            )?.let { member -> setPartyMemberDisconnected(member, true) }
+            )?.let { member -> roster.setPartyMemberDisconnected(member, true) }
             memberRejoined != null -> partyMember(
                 component,
                 rawText,
                 text,
                 memberRejoined.groups["member"],
-            )?.let { member -> setPartyMemberDisconnected(member, false) }
+            )?.let { member -> roster.setPartyMemberDisconnected(member, false) }
             memberRemoved != null -> {
-                playerName(memberRemoved.groups["member"])?.let(::removePartyMember)
+                playerName(memberRemoved.groups["member"])?.let(roster::removePartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
             transfer != null -> {
-                playerName(transfer.groups["member"])?.let(::removePartyMember)
+                playerName(transfer.groups["member"])?.let(roster::removePartyMember)
                 partyMember(component, rawText, text, transfer.groups["leader"])
-                    ?.let { addPartyMember(it, first = true) }
+                    ?.let { roster.addPartyMember(it, first = true) }
                 HypixelPartyApi.requestPartyInfo()
             }
         }
@@ -286,77 +280,23 @@ object PartyDisplay {
         return PartyDisplayMember(name, Component.literal(name).withStyle(style), uuid = uuid)
     }
 
-    private fun addPartyMember(member: PartyDisplayMember, first: Boolean = false) {
-        val key = playerKey(member.name)
-        pendingInvites.remove(key)
-        val index = displayedMembers.indexOfFirst { playerKey(it.name) == key }
-        if (index < 0) {
-            displayedMembers += member.copy(invited = false)
-        } else {
-            val existing = displayedMembers[index]
-            displayedMembers = displayedMembers.toMutableList().also { members ->
-                members[index] = member.copy(
-                    invited = false,
-                    uuid = member.uuid ?: existing.uuid,
-                    leavingAtMillis = null,
-                )
-            }
-        }
-        if (first) displayedMembers = displayedMembers.sortedBy { playerKey(it.name) != key }
-    }
-
-    private fun setPartyMemberDisconnected(member: PartyDisplayMember, disconnected: Boolean) {
-        addPartyMember(member)
-        val key = playerKey(member.name)
-        if (disconnected) disconnectedMembers += key else disconnectedMembers -= key
-    }
-
-    private fun removePartyMember(name: String) {
-        val key = playerKey(name)
-        disconnectedMembers -= key
-        val now = System.currentTimeMillis()
-        displayedMembers = displayedMembers.map { member ->
-            if (playerKey(member.name) == key && member.leavingAtMillis == null) {
-                member.copy(leavingAtMillis = now)
-            } else {
-                member
-            }
-        }
-        pendingInvites.remove(key)
-    }
-
-    private fun applyPartyList(members: List<PartyDisplayMember>) {
-        val latestMembers = members.associateBy { playerKey(it.name) }
-        val existingNames = displayedMembers.mapTo(mutableSetOf()) { playerKey(it.name) }
-        val now = System.currentTimeMillis()
-        displayedMembers = displayedMembers.map { existing ->
-            latestMembers[playerKey(existing.name)]?.let { latest ->
-                latest.copy(uuid = latest.uuid ?: existing.uuid)
-            }
-                ?: existing.takeIf { it.leavingAtMillis != null }
-                ?: existing.copy(leavingAtMillis = now)
-        } + members.filterNot { playerKey(it.name) in existingNames }
-        members.firstOrNull()?.let { addPartyMember(it, first = true) }
-        pendingInvites.keys.removeAll(latestMembers.keys)
-    }
-
     private fun clearDisplayedParty() {
-        displayedMembers = emptyList()
-        pendingInvites.clear()
+        roster.clearDisplayed()
+        clearPartyTracking()
+    }
+
+    private fun clearPartyState() {
+        roster.clear()
+        clearPartyTracking()
+    }
+
+    private fun clearPartyTracking() {
         requestedParty = null
         pendingPartyList?.discard = true
         optimisticPartyAtMillis = 0L
     }
 
-    private fun clearPartyState() {
-        clearDisplayedParty()
-        disconnectedMembers.clear()
-    }
-
-    internal fun currentMembers(): List<PartyDisplayMember> =
-        (displayedMembers + pendingInvites.values.map(PendingInvite::member)).map { member ->
-            member.copy(disconnected = playerKey(member.name) in disconnectedMembers)
-        }
+    internal fun currentMembers(): List<PartyDisplayMember> = roster.currentMembers()
 
     internal fun face(member: PartyDisplayMember): PartyDisplayFace? {
         val tabProfile = if (member.uuid != null) {
@@ -375,17 +315,13 @@ object PartyDisplay {
     }
 
     private fun reset() {
-        displayedMembers = emptyList()
-        pendingInvites.clear()
-        disconnectedMembers.clear()
+        roster.clear()
         requestedParty = null
         pendingPartyList = null
         lastApiInParty = null
         optimisticPartyAtMillis = 0L
         wasEnabled = false
     }
-
-    private data class PendingInvite(val member: PartyDisplayMember, val expiresAtMillis: Long)
 
     private data class PendingPartyList(
         val members: MutableList<PartyDisplayMember> = mutableListOf(),
@@ -480,8 +416,3 @@ private val PLAYER_NAME_PATTERN = Regex("""[A-Za-z0-9_]{1,16}""")
 
 private fun playerName(group: MatchGroup?): String? =
     group?.value?.let { PLAYER_NAME_PATTERN.findAll(it).lastOrNull()?.value }
-
-private fun samePlayer(first: String, second: String): Boolean =
-    first.equals(second, ignoreCase = true)
-
-private fun playerKey(name: String): String = name.lowercase(Locale.ROOT)
