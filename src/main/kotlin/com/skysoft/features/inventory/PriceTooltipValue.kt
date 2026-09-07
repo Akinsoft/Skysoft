@@ -8,7 +8,6 @@ import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import net.minecraft.network.chat.Component
 
 internal data class PriceTooltipValue(
-    val line: PriceTooltipLine,
     val label: String,
     val unitPrice: Double,
 )
@@ -31,7 +30,7 @@ internal fun collectPriceTooltipValues(
         PriceTooltipLine.RAW_CRAFT_COST -> rawCraftCost()
     }
     price?.takeIf { it.isFinite() && it > 0.0 }?.let {
-        PriceTooltipValue(line, line.tooltipLabel(wording), it)
+        PriceTooltipValue(line.tooltipLabel(wording), it)
     }
 }
 
