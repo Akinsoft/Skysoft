@@ -75,16 +75,16 @@ object HoneyhiveHelper {
             return
         }
 
-        didInitializeKnownHives(data)
+        initializeKnownHives(data)
         val now = System.currentTimeMillis()
-        if (ticks++ % SCAN_INTERVAL_TICKS == 0) didReconcileVisibleHives(data, now)
+        if (ticks++ % SCAN_INTERVAL_TICKS == 0) reconcileVisibleHives(data, now)
         clearReachedWaypoints(data, now)
         alertForNewlyReadyHives(data, now)
         playQueuedSound()
     }
 
-    private fun didInitializeKnownHives(data: ProfileStorageView.HoneyhiveTrackerData): Boolean {
-        if (data.initialized) return false
+    private fun initializeKnownHives(data: ProfileStorageView.HoneyhiveTrackerData) {
+        if (data.initialized) return
         val existing = data.hives.mapTo(mutableSetOf(), ProfileStorageView.HoneyhiveData::locationKey)
         ProfileStorageApi.updateProfile { profile ->
             KNOWN_HONEYHIVES
@@ -94,16 +94,14 @@ object HoneyhiveHelper {
                 }
             profile.honeyhiveTracker.initialized = true
         }
-        return true
     }
 
-    private fun didReconcileVisibleHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long): Boolean {
-        if (Minecraft.getInstance().level == null) return false
+    private fun reconcileVisibleHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
+        if (Minecraft.getInstance().level == null) return
         val armorStands = ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>().filter { it.isAlive }
         val statuses = armorStands.mapNotNull { stand ->
             stand.cleanName().takeIf(String::isHoneyhiveStatus)?.let { status -> stand to status }
         }
-        var changed = false
 
         armorStands
             .filter { it.cleanName() == HONEYHIVE_NAME }
@@ -121,17 +119,14 @@ object HoneyhiveHelper {
                         profile.honeyhiveTracker.hives +=
                             ProfileStorage.HoneyhiveData(position.x, position.y, position.z, readyAtMillis, true)
                     }
-                    changed = true
                 } else if (!hive.statusObserved || shouldUpdateReadyTime(hive.readyAtMillis, readyAtMillis, now)) {
                     ProfileStorageApi.updateProfile { profile ->
                         val updatedHive = profile.honeyhiveTracker.hives.first { it.matches(position) }
                         updatedHive.readyAtMillis = readyAtMillis
                         updatedHive.statusObserved = true
                     }
-                    changed = true
                 }
             }
-        return changed
     }
 
     private fun alertForNewlyReadyHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
