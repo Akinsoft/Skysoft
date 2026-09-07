@@ -42,7 +42,10 @@ object SkysoftConfigFiles {
         val configuredName = System.getProperty(CONFIG_DIRECTORY_PROPERTY)?.trim()
         val directoryName = configuredName?.takeIf { it.isNotEmpty() }
             ?: SkysoftMod.MOD_ID
-        require(directoryName.none { it == '/' || it == '\\' }) {
+        require(
+            directoryName != "." && directoryName != ".." &&
+                directoryName.none { it == '/' || it == '\\' } && Path.of(directoryName).root == null,
+        ) {
             "Skysoft config directory must be a directory name, not a path: $directoryName"
         }
         return directoryName
