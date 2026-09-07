@@ -62,8 +62,9 @@ data class ProfileStorage(
     }
 
     internal fun activeProfile(onChange: () -> Unit): ProfileSpecific {
-        val profileKey = SkyBlockProfileApi.currentProfileKey ?: return transientProfile
-        val playerStorage = activePlayer(onChange)
+        val profileId = SkyBlockProfileApi.currentProfileId ?: return transientProfile
+        val profileKey = profileId.profileKey
+        val playerStorage = playerStorage(profileId.playerKey, onChange)
         if (profiles.isNotEmpty() || hasLegacyFlatStorage()) {
             migrateLegacyStorage(playerStorage, profileKey)
             onChange()
@@ -76,11 +77,14 @@ data class ProfileStorage(
 
     internal fun activePlayer(onChange: () -> Unit): PlayerSpecific {
         val playerKey = SkyBlockProfileApi.currentPlayerKeyOrNull() ?: return transientPlayer
-        return players.getOrPut(playerKey) {
+        return playerStorage(playerKey, onChange)
+    }
+
+    private fun playerStorage(playerKey: String, onChange: () -> Unit): PlayerSpecific =
+        players.getOrPut(playerKey) {
             onChange()
             PlayerSpecific()
         }
-    }
 
     private fun migrateLegacyStorage(playerStorage: PlayerSpecific, profileKey: String) {
         if (profiles.isNotEmpty()) {
