@@ -24,7 +24,7 @@ internal object SpotifyWebApi {
                     HTTP_OK -> parsePlayback(response.body())
                     HTTP_NO_CONTENT -> null
                     HTTP_UNAUTHORIZED -> {
-                        SpotifyAuthentication.invalidateAccessToken()
+                        SpotifyAuthentication.invalidateAccessToken(token)
                         throw SpotifyApiException(response.statusCode())
                     }
                     else -> throw spotifyApiException(response)
@@ -43,7 +43,7 @@ internal object SpotifyWebApi {
                 .build()
             requests.track(SkysoftHttp.sendString(request, MAXIMUM_API_RESPONSE_BYTES)).thenApply { response ->
                 if (response.statusCode() !in HTTP_SUCCESS) {
-                    if (response.statusCode() == HTTP_UNAUTHORIZED) SpotifyAuthentication.invalidateAccessToken()
+                    if (response.statusCode() == HTTP_UNAUTHORIZED) SpotifyAuthentication.invalidateAccessToken(token)
                     throw spotifyApiException(response)
                 }
             }

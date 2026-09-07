@@ -26,7 +26,10 @@ object SpotifyAuthentication {
 
     fun register() {
         SkysoftClientEvents.onClientStopping("Spotify authentication cleanup") {
-            refreshRequest.cancel()
+            synchronized(lock) {
+                sessionVersion++
+                refreshRequest.cancel()
+            }
             stopPendingAuthorization()
         }
     }
@@ -53,6 +56,7 @@ object SpotifyAuthentication {
             try {
                 SpotifyOAuth.createPending(clientId, sessionVersion + 1, ::handleCallback).also {
                     sessionVersion++
+                    refreshRequest.cancel()
                     pendingAuthorization = it
                 }
             } catch (failure: Exception) {
@@ -97,54 +101,61 @@ object SpotifyAuthentication {
     }
 
     internal fun accessToken(): CompletableFuture<String?> = synchronized(lock) {
-        val current = accessToken
+        val clientId = settings().clientId.trim()
+        val current = accessToken?.takeIf { it.clientId == clientId }
         if (current != null && current.expiresAtMillis > System.currentTimeMillis() + EXPIRY_MARGIN_MILLIS) {
             return@synchronized CompletableFuture.completedFuture(current.value)
         }
-        refreshRequest.pendingFuture()?.let { return@synchronized it }
         val stored = loadStoredAuthorization()
-        if (stored == null || stored.clientId != settings().clientId.trim()) {
+        if (stored == null || stored.clientId != clientId) {
             return@synchronized CompletableFuture.completedFuture(null)
         }
+        refreshRequest.pendingFuture()?.let { return@synchronized it }
         val version = sessionVersion
         val request = refresh(stored).thenApply { response ->
             synchronized(lock) {
-                if (version != sessionVersion) return@synchronized null
+                if (!isCurrentAuthorization(version, stored.clientId) || storedAuthorization !== stored) {
+                    return@synchronized null
+                }
                 installToken(stored.clientId, stored.refreshToken, response)
             }
         }
         val started = refreshRequest.startIfIdleFuture(
             requestFactory = { request },
         ) { _, failure ->
-            if (synchronized(lock) { version != sessionVersion }) return@startIfIdleFuture
             val cause = failure?.unwrap() as? SpotifyAuthenticationException ?: return@startIfIdleFuture
-            if (cause.statusCode in CLIENT_AUTHENTICATION_FAILURES) {
-                clearStoredAuthorization()
+            if (cause.statusCode in CLIENT_AUTHENTICATION_FAILURES && didClearStoredAuthorization(stored, version)) {
                 SkysoftChat.error("Spotify needs to be connected again.")
             }
         }
         checkNotNull(started) { "Spotify refresh request ownership changed while authentication was locked" }.copy()
     }
 
-    internal fun invalidateAccessToken() {
-        synchronized(lock) { accessToken = null }
+    internal fun invalidateAccessToken(rejectedToken: String) {
+        synchronized(lock) {
+            if (accessToken?.value == rejectedToken) accessToken = null
+        }
     }
 
     private fun handleCallback(pending: PendingAuthorization, exchange: HttpExchange) {
-        try {
+        exchange.use {
             val parameters = SpotifyOAuth.parseQuery(exchange.requestURI.rawQuery.orEmpty())
             val valid = synchronized(lock) { pendingAuthorization === pending } && parameters["state"] == pending.state
-            val code = parameters["code"]
-            when {
-                !valid -> SpotifyOAuth.respond(exchange, HTTP_BAD_REQUEST, "Spotify connection could not be verified.")
-                code == null -> SpotifyOAuth.respond(exchange, HTTP_BAD_REQUEST, "Spotify connection was cancelled.")
-                else -> {
+            if (!valid) {
+                SpotifyOAuth.respond(exchange, HTTP_BAD_REQUEST, "Spotify connection could not be verified.")
+                return
+            }
+            try {
+                val code = parameters["code"]
+                if (code == null) {
+                    SpotifyOAuth.respond(exchange, HTTP_BAD_REQUEST, "Spotify connection was cancelled.")
+                } else {
                     SpotifyOAuth.respond(exchange, HTTP_OK, "Spotify is connected to Skysoft. You can close this page.")
                     exchangeCode(pending, code)
                 }
+            } finally {
+                tryStopPendingAuthorization(pending)
             }
-        } finally {
-            tryStopPendingAuthorization(pending)
         }
     }
 
@@ -159,12 +170,15 @@ object SpotifyAuthentication {
             Minecraft.getInstance().execute {
                 if (response != null) {
                     synchronized(lock) {
-                        if (pending.sessionVersion != sessionVersion) return@execute
+                        if (!isCurrentAuthorization(pending.sessionVersion, pending.clientId)) return@execute
+                        sessionVersion++
+                        refreshRequest.cancel()
                         installToken(pending.clientId, response.refreshToken.orEmpty(), response)
                     }
                     SkysoftChat.success("Spotify connected.")
                     SpotifyDisplay.requestRefresh()
                 } else {
+                    if (synchronized(lock) { !isCurrentAuthorization(pending.sessionVersion, pending.clientId) }) return@execute
                     SkysoftMod.LOGGER.warn("Spotify token exchange failed", failure?.unwrap())
                     SkysoftChat.error("Spotify connection failed. Try connecting again.")
                 }
@@ -193,6 +207,7 @@ object SpotifyAuthentication {
 
     private fun installToken(clientId: String, previousRefreshToken: String, response: TokenResponse): String {
         accessToken = AccessToken(
+            clientId,
             response.accessToken,
             System.currentTimeMillis() + response.expiresInSeconds * MILLIS_PER_SECOND,
         )
@@ -224,15 +239,20 @@ object SpotifyAuthentication {
         SkysoftConfigFiles.writeStringSafely(SkysoftConfigFiles.spotifyAuthentication, gson.toJson(json))
     }
 
-    private fun clearStoredAuthorization() {
-        synchronized(lock) {
-            accessToken = null
-            storedLoaded = true
-            storedAuthorization = null
+    private fun didClearStoredAuthorization(expected: StoredAuthorization, version: Int): Boolean = synchronized(lock) {
+        if (!isCurrentAuthorization(version, expected.clientId) || storedAuthorization !== expected) {
+            return@synchronized false
         }
+        accessToken = null
+        storedLoaded = true
+        storedAuthorization = null
         runCatching { SkysoftConfigFiles.deleteWithBackups(SkysoftConfigFiles.spotifyAuthentication) }
             .onFailure { SkysoftMod.LOGGER.warn("Could not clear Spotify authentication", it) }
+        true
     }
+
+    private fun isCurrentAuthorization(version: Int, clientId: String): Boolean =
+        version == sessionVersion && clientId == settings().clientId.trim()
 
     private fun tryStopPendingAuthorization(pending: PendingAuthorization): Boolean {
         val stopped = synchronized(lock) {
@@ -264,7 +284,7 @@ object SpotifyAuthentication {
 }
 
 private data class StoredAuthorization(val clientId: String, val refreshToken: String)
-private data class AccessToken(val value: String, val expiresAtMillis: Long)
+private data class AccessToken(val clientId: String, val value: String, val expiresAtMillis: Long)
 private data class TokenResponse(val accessToken: String, val expiresInSeconds: Long, val refreshToken: String?)
 private class SpotifyAuthenticationException(val statusCode: Int) :
     IllegalStateException("Spotify authentication returned HTTP $statusCode")
