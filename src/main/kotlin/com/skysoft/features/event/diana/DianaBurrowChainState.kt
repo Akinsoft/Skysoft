@@ -9,11 +9,10 @@ import com.skysoft.utils.ChangeResult
 internal object DianaBurrowChainState {
     private val states = mutableListOf<ActiveDianaBurrowChain>()
     private var loadedStorageKey: SkyBlockProfileId? = null
-    private var storageKeyProvider: () -> SkyBlockProfileId? = { SkyBlockProfileApi.currentProfileId }
     private val persistentStorage get() = ProfileStorageApi.storage
 
     fun restoreCurrentProfile(now: Long = System.currentTimeMillis()) {
-        val storageKey = currentStorageKey() ?: return
+        val storageKey = SkyBlockProfileApi.currentProfileId ?: return
         if (loadedStorageKey == storageKey) return
         loadedStorageKey = storageKey
         states.clear()
@@ -225,9 +224,6 @@ internal object DianaBurrowChainState {
             .asSequence()
             .filter { target -> target.source == DianaBurrowSource.DETECTED }
             .mapTo(mutableSetOf()) { target -> target.targetId }
-
-    private fun currentStorageKey(): SkyBlockProfileId? =
-        storageKeyProvider()
 
     private const val CHAIN_RESTORE_WINDOW_MILLIS = 5 * 60 * 1000L
 }

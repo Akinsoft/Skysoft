@@ -9,7 +9,6 @@ import com.skysoft.utils.WorldVec
 
 internal object DianaBurrowStorage {
     private var loadedStorageKey: SkyBlockProfileId? = null
-    private var storageKeyProvider: () -> SkyBlockProfileId? = { SkyBlockProfileApi.currentProfileId }
     private val persistentStorage get() = ProfileStorageApi.storage
 
     fun register() {
@@ -17,7 +16,7 @@ internal object DianaBurrowStorage {
     }
 
     fun restoreCurrentProfile(now: Long = System.currentTimeMillis()) {
-        val storageKey = currentStorageKey() ?: return
+        val storageKey = SkyBlockProfileApi.currentProfileId ?: return
         if (loadedStorageKey == storageKey) return
         loadedStorageKey = storageKey
         val targets = persistentTargets(now).map { target -> target.copy(updatedAtMillis = now) }
@@ -39,7 +38,7 @@ internal object DianaBurrowStorage {
         now: Long = System.currentTimeMillis(),
         refreshTimestamp: Boolean = false,
     ) {
-        val storageKey = loadedStorageKey ?: currentStorageKey() ?: return
+        val storageKey = loadedStorageKey ?: SkyBlockProfileApi.currentProfileId ?: return
         val cachedTargets = targets
             .filter { target -> target.targetId > 0L }
             .sortedWith(compareBy({ it.location.x }, { it.location.y }, { it.location.z }, { it.type.name }))
@@ -52,7 +51,7 @@ internal object DianaBurrowStorage {
         now: Long,
         refreshTimestamp: Boolean,
     ) {
-        if (currentStorageKey() != storageKey) return
+        if (SkyBlockProfileApi.currentProfileId != storageKey) return
         val cache = persistentStorage.dianaBurrowCache
         val storageTargets = targets.map { target -> target.toStorageData() }
         if (cache.targets == storageTargets && (!refreshTimestamp || targets.isEmpty())) return
@@ -82,9 +81,6 @@ internal object DianaBurrowStorage {
         }
         return targets
     }
-
-    private fun currentStorageKey(): SkyBlockProfileId? =
-        storageKeyProvider()
 
     private const val RESTORE_WINDOW_MILLIS = 30 * 60 * 1_000L
 }
