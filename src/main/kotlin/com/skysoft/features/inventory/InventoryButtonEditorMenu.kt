@@ -178,7 +178,7 @@ internal class InventoryButtonEditorMenu(
                         beginRename(presetIndex)
                     } else if (config().activePreset != presetIndex) {
                         config().switchPreset(presetIndex)
-                        InventoryButtonManager.clearIconCache()
+                        InventoryButtonIcons.clearIconCache()
                         onLayoutChanged()
                     }
                 }
@@ -218,7 +218,7 @@ internal class InventoryButtonEditorMenu(
             PendingAction.ResetSlots -> config().replaceActiveButtons(InventoryButtonDefaults.create())
             is PendingAction.Import -> config().replaceActiveButtons(action.buttons)
         }
-        InventoryButtonManager.clearIconCache()
+        InventoryButtonIcons.clearIconCache()
         onLayoutChanged()
         pendingAction = null
         transition.hide()

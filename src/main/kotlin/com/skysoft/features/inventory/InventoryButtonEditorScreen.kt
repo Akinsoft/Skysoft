@@ -5,7 +5,7 @@ import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.inventory.InventoryButtonManager.BUTTON_SIZE
-import com.skysoft.features.inventory.InventoryButtonManager.IconCandidate
+import com.skysoft.features.inventory.InventoryButtonIcons.IconCandidate
 import com.skysoft.gui.SkysoftEditorScreen
 import com.skysoft.gui.hudEditorNudge
 import com.skysoft.gui.scale.InventoryScaledScreen
@@ -237,7 +237,7 @@ object InventoryButtonEditorScreen {
                 }
                 if (!selectedIcon.isNullOrBlank()) {
                     selectedButton()?.icon = selectedIcon
-                    InventoryButtonManager.clearIconCache()
+                    InventoryButtonIcons.clearIconCache()
                 }
                 iconField.focused = false
                 return InputHandlingResult.CONSUMED
@@ -357,7 +357,7 @@ object InventoryButtonEditorScreen {
             val index = (resultScrollRow + row) * IconResults.COLUMNS + column
             val candidate = iconCandidates().getOrNull(index) ?: return InputHandlingResult.CONSUMED
             button.icon = candidate.id
-            InventoryButtonManager.clearIconCache()
+            InventoryButtonIcons.clearIconCache()
             return InputHandlingResult.CONSUMED
         }
 
@@ -397,7 +397,7 @@ object InventoryButtonEditorScreen {
             val search = iconField.text
             val version = SkyBlockDataRepository.snapshotVersion
             if (search == lastIconSearch && iconCatalogVersion == version) return
-            cachedIconCandidates = InventoryButtonManager.searchIconCandidates(search)
+            cachedIconCandidates = InventoryButtonIcons.searchIconCandidates(search)
             lastIconSearch = search
             iconCatalogVersion = version
         }
