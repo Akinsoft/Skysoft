@@ -292,7 +292,7 @@ internal class ScreenshotManagerScreen(
             layout.next.contains(mouseX, mouseY) -> navigateSelection(1)
             layout.share.contains(mouseX, mouseY) -> {
                 val path = selectedPath ?: return InputHandlingResult.IGNORED
-                if (ScreenshotSharing.status(path).state == ScreenshotShareState.UPLOADED) {
+                if (ScreenshotSharing.status(path) is ScreenshotShareStatus.Uploaded) {
                     ScreenshotSharing.share(path)
                 } else {
                     confirmation = ScreenshotConfirmation.SHARE

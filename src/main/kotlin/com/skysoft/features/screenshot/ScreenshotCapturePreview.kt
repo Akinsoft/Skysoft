@@ -163,7 +163,7 @@ internal object ScreenshotCapturePreview {
             ScreenshotSharing.buttonLabel(path),
             selected = false,
             hovered = canInteract && layout.share.contains(mouseX, mouseY),
-            enabled = canInteract && ScreenshotSharing.status(path).state != ScreenshotShareState.UPLOADING,
+            enabled = canInteract && ScreenshotSharing.status(path) != ScreenshotShareStatus.Uploading,
         )
         PixelButtonRenderer.draw(
             context,
