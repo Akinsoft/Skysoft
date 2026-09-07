@@ -7,6 +7,7 @@ import com.skysoft.features.inventory.TrackedItemSelectionAction
 import com.skysoft.features.inventory.TrackedItemSelectionMode
 import com.skysoft.features.inventory.TrackedItemSelectionPanel
 import com.skysoft.features.inventory.trackedItemPresentation
+import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.RGB_MASK
@@ -49,12 +50,6 @@ internal sealed interface ProfitTrackerControl {
     data class ItemSelection(val action: TrackedItemSelectionAction) : ProfitTrackerControl
     data object ResetCustomizations : ProfitTrackerControl
 }
-
-internal data class ProfitTrackerPanelControl(
-    val action: ProfitTrackerControl,
-    val bounds: Rect,
-    val tooltipLines: List<String> = emptyList(),
-)
 
 internal class ProfitTrackerItemPanel(
     nanoTime: () -> Long = System::nanoTime,
@@ -145,7 +140,7 @@ internal class ProfitTrackerItemPanel(
         placeRight: Boolean,
         mouseX: Int,
         mouseY: Int,
-    ): ProfitTrackerPanelControl? {
+    ): OverlayControlArea<ProfitTrackerControl>? {
         val current = content ?: return null
         val opacity = transition.opacity()
         if (!transition.isVisible) {
@@ -167,7 +162,7 @@ internal class ProfitTrackerItemPanel(
             )
             isHovered = addItemPanel.isHovered
             return control?.let {
-                ProfitTrackerPanelControl(ProfitTrackerControl.ItemSelection(it.action), it.bounds)
+                OverlayControlArea(ProfitTrackerControl.ItemSelection(it.action), it.bounds)
             }
         }
         val rows = rows(current, target)
@@ -182,7 +177,7 @@ internal class ProfitTrackerItemPanel(
         val frame = OverlayPanelStyle.drawBeside(context, trackerWidth, placeRight, width, height, opacity)
         val x = frame.x
         isHovered = frame.contains(mouseX, mouseY)
-        var hovered: ProfitTrackerPanelControl? = null
+        var hovered: OverlayControlArea<ProfitTrackerControl>? = null
         var rowY = OverlayPanelStyle.PADDING
         rows.forEach { row ->
             row.render(context, font, x, width, rowY, mouseX, mouseY, opacity, transition.isInteractive)
@@ -302,7 +297,7 @@ private fun PanelRow.render(
     mouseY: Int,
     opacity: Double,
     interactive: Boolean,
-): ProfitTrackerPanelControl? {
+): OverlayControlArea<ProfitTrackerControl>? {
     quantityModifier?.let { modifier ->
         val itemId = requireNotNull(quantityItemId)
         return modifier.render(context, panelX, y, mouseX, mouseY, opacity, interactive)?.let { control ->
@@ -314,14 +309,14 @@ private fun PanelRow.render(
                 is TrackedItemQuantityAction.Field ->
                     ProfitTrackerControl.ModifyItemField(quantityAction.localMouseX, quantityAction.bounds)
             }
-            ProfitTrackerPanelControl(action, control.bounds, control.tooltipLines)
+            OverlayControlArea(action, control.bounds, control.tooltipLines)
         }
     }
     val textX = panelX + OverlayPanelStyle.PADDING + iconOffset
     val rowHovered = interactive && action != null &&
         mouseX in panelX until panelX + panelWidth && mouseY in y until y + height
     val hovered = action?.takeIf { rowHovered }?.let {
-        ProfitTrackerPanelControl(it, Rect(panelX, y, panelWidth, height), tooltipLines)
+        OverlayControlArea(it, Rect(panelX, y, panelWidth, height), tooltipLines)
     }
     hovered?.bounds?.let { bounds ->
         context.fill(

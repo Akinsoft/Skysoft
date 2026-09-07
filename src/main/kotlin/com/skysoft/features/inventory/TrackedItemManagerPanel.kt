@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.gui.OverlayControlArea
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.animation.PanelFadeTransition
@@ -21,11 +22,6 @@ internal sealed interface TrackedItemManagerAction {
     data class ItemSelection(val action: TrackedItemSelectionAction) : TrackedItemManagerAction
     data class Quantity(val action: TrackedItemQuantityAction) : TrackedItemManagerAction
 }
-
-internal data class TrackedItemManagerControl(
-    val action: TrackedItemManagerAction,
-    val bounds: Rect,
-)
 
 internal class TrackedItemManagerPanel(
     private val overviewTitle: String,
@@ -128,7 +124,7 @@ internal class TrackedItemManagerPanel(
         placeRight: Boolean,
         mouseX: Int,
         mouseY: Int,
-    ): TrackedItemManagerControl? {
+    ): OverlayControlArea<TrackedItemManagerAction>? {
         val current = content ?: return null
         val opacity = transition.opacity()
         if (!transition.isVisible) {
@@ -149,7 +145,7 @@ internal class TrackedItemManagerPanel(
             )
             isHovered = selectionPanel.isHovered
             return control?.let {
-                TrackedItemManagerControl(TrackedItemManagerAction.ItemSelection(it.action), it.bounds)
+                OverlayControlArea<TrackedItemManagerAction>(TrackedItemManagerAction.ItemSelection(it.action), it.bounds)
             }
         }
         if (current is Content.Item) {
@@ -178,14 +174,14 @@ internal class TrackedItemManagerPanel(
         mouseY: Int,
         opacity: Double,
         rows: List<PanelRow>,
-    ): TrackedItemManagerControl? {
+    ): OverlayControlArea<TrackedItemManagerAction>? {
         val font = Minecraft.getInstance().font
         val width = maxOf(PANEL_MINIMUM_WIDTH, rows.maxOf { font.width(it.text) }) + OverlayPanelStyle.PADDING * 2
         val height = rows.size * PANEL_ROW_HEIGHT + OverlayPanelStyle.PADDING * 2
         val frame = OverlayPanelStyle.drawBeside(context, trackerWidth, placeRight, width, height, opacity)
         val x = frame.x
         isHovered = frame.contains(mouseX, mouseY)
-        var hovered: TrackedItemManagerControl? = null
+        var hovered: OverlayControlArea<TrackedItemManagerAction>? = null
         rows.forEachIndexed { index, row ->
             val y = OverlayPanelStyle.PADDING + index * PANEL_ROW_HEIGHT
             val bounds = Rect(x, y, width, PANEL_ROW_HEIGHT)
@@ -197,7 +193,7 @@ internal class TrackedItemManagerPanel(
                     bounds.y + bounds.height,
                     PANEL_HOVER.withScaledAlpha(opacity),
                 )
-                hovered = TrackedItemManagerControl(row.action, bounds)
+                hovered = OverlayControlArea<TrackedItemManagerAction>(row.action, bounds)
             }
             context.text(
                 font,
@@ -219,7 +215,7 @@ internal class TrackedItemManagerPanel(
         mouseY: Int,
         opacity: Double,
         itemId: String,
-    ): TrackedItemManagerControl? {
+    ): OverlayControlArea<TrackedItemManagerAction>? {
         val font = Minecraft.getInstance().font
         val item = trackedItemPresentation(itemId)
         val width = maxOf(
@@ -252,7 +248,7 @@ internal class TrackedItemManagerPanel(
             opacity,
             transition.isInteractive,
         )?.let { control ->
-            TrackedItemManagerControl(TrackedItemManagerAction.Quantity(control.action), control.bounds)
+            OverlayControlArea<TrackedItemManagerAction>(TrackedItemManagerAction.Quantity(control.action), control.bounds)
         }
     }
 
