@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.BazaarGraphWindow
 import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.data.skyblock.price.SkysoftBazaarPriceSnapshot

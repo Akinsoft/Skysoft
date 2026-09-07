@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.BazaarGraphWindow
 import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView

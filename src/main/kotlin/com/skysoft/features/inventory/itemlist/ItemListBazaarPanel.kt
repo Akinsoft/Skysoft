@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.BazaarGraphWindow
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
