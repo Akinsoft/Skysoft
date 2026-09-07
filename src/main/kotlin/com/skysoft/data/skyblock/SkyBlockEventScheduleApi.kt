@@ -113,7 +113,6 @@ object SkyBlockEventScheduleApi {
 internal data class SkyBlockEventSchedule(
     val fetchedAt: Long = 0L,
     val windows: List<SkyBlockEventWindow> = emptyList(),
-    val unknownEventIds: Set<String> = emptySet(),
 )
 
 internal data class SkyBlockEventWindow(
@@ -138,16 +137,12 @@ internal data class SkyBlockEventWindowResponse(
 internal fun normalizeSchedule(response: SkyBlockEventScheduleResponse): SkyBlockEventSchedule {
     check(response.success) { "Skysoft event schedule failed: ${response.cause ?: "unknown cause"}" }
     check(response.fetchedAt > 0L) { "Skysoft event schedule has no fetch timestamp" }
-    val unknownEventIds = mutableSetOf<String>()
     val windows = response.events.mapNotNull { window ->
-        val event = runCatching { SkyBlockEvent.valueOf(window.id) }.getOrNull() ?: run {
-            unknownEventIds += window.id
-            return@mapNotNull null
-        }
+        val event = SkyBlockEvent.entries.firstOrNull { it.name == window.id } ?: return@mapNotNull null
         check(window.startsAt < window.endsAt) { "Invalid ${window.id} event window" }
         SkyBlockEventWindow(event, window.startsAt, window.endsAt)
     }
-    return SkyBlockEventSchedule(response.fetchedAt, windows, unknownEventIds)
+    return SkyBlockEventSchedule(response.fetchedAt, windows)
 }
 
 internal fun scheduleAvailability(
