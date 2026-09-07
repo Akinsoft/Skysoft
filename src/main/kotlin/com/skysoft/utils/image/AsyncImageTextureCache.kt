@@ -5,12 +5,14 @@ import com.skysoft.utils.boundedAccessOrderMap
 import com.skysoft.utils.net.isCancellationFailure
 import java.util.concurrent.CompletableFuture
 import net.minecraft.client.Minecraft
+import net.minecraft.resources.Identifier
 
 internal class AsyncImageTextureCache<K>(
     private val minecraft: Minecraft,
     maximumSize: Int,
     private val maximumPending: Int,
-    private val registerTexture: (K, NativeImage) -> RegisteredImageTexture,
+    private val textureDescription: String,
+    private val textureId: (K) -> Identifier,
 ) : AutoCloseable {
     private val textures = boundedAccessOrderMap<K, RegisteredImageTexture>(maximumSize) { _, texture ->
         texture.release()
@@ -57,8 +59,9 @@ internal class AsyncImageTextureCache<K>(
     }
 
     fun clear() {
-        pending.values.forEach { it.cancel(true) }
+        val requestsToCancel = pending.values.toList()
         pending.clear()
+        requestsToCancel.forEach { it.cancel(true) }
         failures.clear()
         val texturesToRelease = textures.values.toList()
         textures.clear()
@@ -72,10 +75,16 @@ internal class AsyncImageTextureCache<K>(
     }
 
     private fun install(key: K, image: NativeImage) {
-        val texture = try {
-            registerTexture(key, image)
+        val id = try {
+            textureId(key)
         } catch (failure: Throwable) {
             image.close()
+            failures[key] = Unit
+            return
+        }
+        val texture = try {
+            RegisteredImageTexture.register(id, textureDescription, image)
+        } catch (failure: Throwable) {
             failures[key] = Unit
             return
         }

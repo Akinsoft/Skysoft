@@ -14,8 +14,8 @@ import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.boundedAccessOrderMap
 import com.skysoft.utils.image.AsyncImageTextureCache
-import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.image.ScaledImageDecoder
+import com.skysoft.utils.image.mapNativeImageAsync
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.SkysoftHttp
@@ -24,7 +24,6 @@ import java.net.URI
 import java.util.EnumMap
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 
 object SpotifyDisplay {
@@ -39,9 +38,9 @@ object SpotifyDisplay {
         Minecraft.getInstance(),
         maximumSize = 1,
         maximumPending = 1,
-    ) { _, image ->
-        val id = SkysoftMod.id("spotify/artwork_${nextTextureId++}")
-        RegisteredImageTexture.register(id, "Skysoft Spotify artwork", image)
+        textureDescription = "Skysoft Spotify artwork",
+    ) {
+        SkysoftMod.id("spotify/artwork_${nextTextureId++}")
     }
     private var lyrics: List<SyncedLyricLine> = emptyList()
     private val lyricsRequest = AsyncRequestSlot<List<SyncedLyricLine>>(
@@ -218,10 +217,9 @@ object SpotifyDisplay {
             SkysoftHttp.getBytes(
                 url,
                 maximumResponseBytes = MAXIMUM_ARTWORK_BYTES.toLong(),
-            ).thenApplyAsync(
-                { bytes -> ScaledImageDecoder.decode(bytes, MAXIMUM_ARTWORK_SIZE, MAXIMUM_ARTWORK_SIZE) },
-                Util.ioPool(),
-            )
+            ).mapNativeImageAsync { bytes ->
+                ScaledImageDecoder.decode(bytes, MAXIMUM_ARTWORK_SIZE, MAXIMUM_ARTWORK_SIZE)
+            }
         }
     }
 
