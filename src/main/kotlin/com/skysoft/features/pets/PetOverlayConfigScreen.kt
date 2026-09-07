@@ -1,5 +1,6 @@
 package com.skysoft.features.pets
 
+import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SkysoftMoulConfigGuis
 import com.skysoft.config.features.pets.display.PetOverlayConfig
@@ -99,11 +100,11 @@ object PetOverlayConfigScreen {
 
         val renderX = bounds.left + PREVIEW_PADDING
         val renderY = bounds.top + PREVIEW_PADDING + PREVIEW_LABEL_HEIGHT + PREVIEW_LABEL_GAP
-        context.pose().pushMatrix()
-        context.pose().translate(renderX.toFloat(), renderY.toFloat())
-        context.pose().scale(pane.scale, pane.scale)
-        renderable.render(context)
-        context.pose().popMatrix()
+        context.withIsolatedPose {
+            context.pose().translate(renderX.toFloat(), renderY.toFloat())
+            context.pose().scale(pane.scale, pane.scale)
+            renderable.render(context)
+        }
     }
 
     private fun previewPane(renderable: GuiRenderable): PreviewPane {
