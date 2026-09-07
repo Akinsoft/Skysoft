@@ -151,8 +151,8 @@ internal class ScreenshotManagerScreen(
     override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
         if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
         if (!isEditing) return super.mouseDragged(click, dragX, dragY)
-        val path = selectedPath ?: return super.mouseDragged(click, dragX, dragY)
-        return if (editor.processDrag(path, click.x(), click.y()) == InputHandlingResult.CONSUMED) {
+        if (selectedPath == null) return super.mouseDragged(click, dragX, dragY)
+        return if (editor.processDrag(click.x(), click.y()) == InputHandlingResult.CONSUMED) {
             true
         } else {
             super.mouseDragged(click, dragX, dragY)
@@ -162,8 +162,8 @@ internal class ScreenshotManagerScreen(
     override fun mouseReleased(click: MouseButtonEvent): Boolean {
         if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
         if (!isEditing) return super.mouseReleased(click)
-        val path = selectedPath ?: return super.mouseReleased(click)
-        return if (editor.processRelease(path) == InputHandlingResult.CONSUMED) true else super.mouseReleased(click)
+        if (selectedPath == null) return super.mouseReleased(click)
+        return if (editor.processRelease() == InputHandlingResult.CONSUMED) true else super.mouseReleased(click)
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
@@ -177,8 +177,12 @@ internal class ScreenshotManagerScreen(
             event.hasControlDownWithQuirk() &&
             event.key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
         ) {
-            val session = selectedPath?.let(editor::session) ?: return true
-            if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) session.redo() else session.undo()
+            val path = selectedPath ?: return true
+            if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) {
+                editor.redo(path)
+            } else {
+                editor.undo(path)
+            }
             return true
         }
         if (
@@ -209,6 +213,7 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun onClose() {
+        editor.clearPresentation()
         val unsavedPath = editor.firstUnsavedPath()
         if (unsavedPath != null) {
             selectedPath = unsavedPath
