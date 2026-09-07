@@ -134,7 +134,7 @@ internal object ItemListNpcWaypoint {
         val waypoint = activeWaypoint ?: return
         if (HypixelLocationState.currentIsland != waypoint.island) return
         val entity = SkyBlockDataRepository.entity(waypoint.entityId) ?: return
-        val texture = SkyBlockEntityStacks.skinTexture(waypoint.entityId) ?: return
+        val texture = SkyBlockEntityStacks.skinTexture(entity) ?: return
         WorldLabelRenderer.drawHeadLabel(
             context,
             waypoint.target.up(WAYPOINT_HEIGHT),

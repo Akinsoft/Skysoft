@@ -5,6 +5,9 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.skyblock.CatalogJson.array
+import com.skysoft.data.skyblock.CatalogJson.obj
+import com.skysoft.data.skyblock.CatalogJson.string
 import com.skysoft.utils.WorldVec
 import java.io.StringReader
 
@@ -110,80 +113,6 @@ internal object SkyBlockAuxiliaryDataLoader {
             }
     }
 
-    fun readObtainSources(json: String): Map<String, SkyBlockObtainInfo> {
-        require(json.length in ObtainSchema.SIZE_RANGE) {
-            "Item List obtain data has an invalid size"
-        }
-        val root = JsonParser.parseString(json).asJsonObject
-        require(root.get("schemaVersion")?.asInt == ObtainSchema.VERSION) {
-            "Item List obtain data has an unsupported schema"
-        }
-        val sources = root.array("sources")?.toList().orEmpty()
-        require(
-            sources.size >= ObtainSchema.MINIMUM_SOURCE_COUNT && sources.all { element ->
-                val source = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@all false
-                source.string("name").isNotBlank() && source.string("url").startsWith("https://") &&
-                    source.string("license").isNotBlank()
-            },
-        ) {
-            "Item List obtain data has invalid attribution"
-        }
-        val items = requireNotNull(root.obj("items")) { "Item List obtain data has no items" }
-        require(items.size() >= ObtainSchema.MINIMUM_COUNT) {
-            "Item List obtain data contains only ${items.size()} entries"
-        }
-        return items.entrySet().associate { (id, element) ->
-            require(id.matches(entityIdPattern) && element.isJsonObject) {
-                "Item List obtain data has an invalid item ID"
-            }
-            val value = element.asJsonObject
-            val status = runCatching { SkyBlockObtainStatus.valueOf(value.string("status")) }.getOrNull()
-                ?: error("Item List obtain source $id has an invalid status")
-            val sourceKind = runCatching { SkyBlockObtainSource.valueOf(value.string("source")) }.getOrNull()
-                ?: error("Item List obtain source $id has an invalid source")
-            val summary = value.string("summary")
-            val page = value.string("page")
-            val revision = value.get("revision")?.asLong ?: -1L
-            val sourceItemId = value.string("sourceItem").takeIf(String::isNotBlank)
-            require(
-                summary.isNotBlank() && summary.length <= ObtainSchema.MAXIMUM_SUMMARY_LENGTH &&
-                    !ObtainSchema.RAW_WIKI_MARKUP.containsMatchIn(summary),
-            ) {
-                "Item List obtain source $id has an invalid summary"
-            }
-            require(page.length <= SharedLimits.MAXIMUM_TEXT_LENGTH && revision >= 0L) {
-                "Item List obtain source $id has invalid provenance"
-            }
-            require(sourceItemId == null || sourceItemId.matches(entityIdPattern)) {
-                "Item List obtain source $id has an invalid source item"
-            }
-            require((status == SkyBlockObtainStatus.UNKNOWN) == (sourceKind == SkyBlockObtainSource.UNKNOWN)) {
-                "Item List obtain source $id has inconsistent unknown state"
-            }
-            val context = value.obj("context")?.let { contextValue ->
-                val contextSource = runCatching {
-                    SkyBlockObtainSource.valueOf(contextValue.string("source"))
-                }.getOrNull() ?: error("Item List obtain source $id has an invalid context source")
-                SkyBlockObtainContext(
-                    label = contextValue.string("label"),
-                    page = contextValue.string("page"),
-                    revision = contextValue.get("revision")?.asLong ?: -1L,
-                    source = contextSource,
-                    url = contextValue.string("url"),
-                ).also { context ->
-                    require(
-                        context.label.isNotBlank() && context.label.length <= SharedLimits.MAXIMUM_TEXT_LENGTH &&
-                            context.page.isNotBlank() && context.page.length <= SharedLimits.MAXIMUM_TEXT_LENGTH &&
-                            context.revision > 0L &&
-                            context.source in contextSources &&
-                            context.url.startsWith(context.source.wikiBaseUrl()),
-                    ) { "Item List obtain source $id has invalid context provenance" }
-                }
-            }
-            id to SkyBlockObtainInfo(status, summary, page, revision, sourceKind, sourceItemId, context)
-        }
-    }
-
     private fun readProgressionRequirements(root: JsonObject): Map<String, SkyBlockProgressionRequirement> {
         val entries = requireNotNull(root.array("requirements")) {
             "Item List supplemental data has no progression requirements"
@@ -246,11 +175,6 @@ internal object SkyBlockAuxiliaryDataLoader {
         }
     }
 
-    private fun JsonObject.string(name: String): String =
-        get(name)?.takeUnless { it.isJsonNull }?.asString.orEmpty()
-
-    private fun JsonObject.obj(name: String): JsonObject? = get(name)?.takeIf { it.isJsonObject }?.asJsonObject
-    private fun JsonObject.array(name: String) = get(name)?.takeIf { it.isJsonArray }?.asJsonArray
     private fun JsonObject.coordinate(name: String): Double = get(name)?.takeUnless { it.isJsonNull }?.asDouble ?: 0.0
 
     private object SupplementalLimits {
@@ -271,19 +195,6 @@ internal object SkyBlockAuxiliaryDataLoader {
         val MINUTE_RANGE = 0..24 * 60
     }
 
-    private object ObtainSchema {
-        const val VERSION = 2
-        const val MINIMUM_COUNT = 5_000
-        const val MINIMUM_SOURCE_COUNT = 3
-        const val MAXIMUM_SUMMARY_LENGTH = 600
-        val SIZE_RANGE = 500_000..4_000_000
-        val RAW_WIKI_MARKUP = Regex(
-            """(?:\{\||\|\}|\{\{|\[\[|\]\]|wikitable|tabber|^\s*\|[a-z][\w.-]*\s*=|""" +
-                """(?:^|\s)(?:class|rowspan|colspan|style)\s*=|={2,}\s*[^=]+\s*={2,}|\|-\|)""",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE),
-        )
-    }
-
     private object EntityContextSchema {
         const val MINIMUM_COUNT = 150
         const val SOURCE =
@@ -291,7 +202,6 @@ internal object SkyBlockAuxiliaryDataLoader {
     }
     private val entityIdPattern = Regex("[A-Z0-9_;.\\-]+")
     private val commandPattern = Regex("[a-z0-9_]+")
-    private val contextSources = setOf(SkyBlockObtainSource.INDEPENDENT_WIKI)
     private val petMapType = object : TypeToken<Map<String, SkyBlockPetInfo>>() {}.type
 }
 
@@ -300,8 +210,3 @@ internal data class SupplementalCatalog(
     val petMaxLevels: Map<String, Int>,
     val warps: List<SkyBlockWarpPoint>,
 )
-
-private fun SkyBlockObtainSource.wikiBaseUrl(): String = when (this) {
-    SkyBlockObtainSource.INDEPENDENT_WIKI -> SKYBLOCK_WIKI_PAGE_URL
-    else -> ""
-}

@@ -5,10 +5,6 @@ import com.skysoft.utils.TextUtilities.removeColor
 import java.util.Locale
 
 object SkyBlockItemNames {
-    private var itemIdsByDisplayName: Map<String, String> = emptyMap()
-    private var itemIdsByNormalizedName: Map<String, String> = emptyMap()
-    private var repositoryVersion = -1L
-
     fun displayName(internalName: String?): String? {
         if (internalName == null) return null
         SkyBlockDataRepository.ensureLoaded()
@@ -17,8 +13,7 @@ object SkyBlockItemNames {
 
     fun itemId(displayName: String): String? {
         SkyBlockDataRepository.ensureLoaded()
-        if (repositoryVersion != SkyBlockDataRepository.snapshotVersion) rebuildIndex()
-        return itemIdsByDisplayName[displayName]
+        return SkyBlockDataRepository.itemNames?.byDisplayName?.get(displayName)
     }
 
     fun resolveItemId(displayName: String): String? {
@@ -29,31 +24,38 @@ object SkyBlockItemNames {
             name.removeColor() == clean || id.replace('_', ' ').equals(clean, ignoreCase = true)
         }?.value
         if (alias != null) return alias
-        if (repositoryVersion != SkyBlockDataRepository.snapshotVersion) rebuildIndex()
-        return itemIdsByNormalizedName[displayName.lowercase(Locale.ROOT)]
-            ?: itemIdsByNormalizedName[clean.lowercase(Locale.ROOT)]
+        val index = SkyBlockDataRepository.itemNames ?: return null
+        return index.byNormalizedName[displayName.lowercase(Locale.ROOT)]
+            ?: index.byNormalizedName[clean.lowercase(Locale.ROOT)]
     }
+}
 
-    private fun rebuildIndex() {
-        val entries = SkyBlockDataRepository.entries.filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
-        itemIdsByDisplayName = index(entries.groupBy(ItemListEntry::displayName))
+internal class SkyBlockItemNameIndex(snapshot: SkyBlockDataSnapshot) {
+    val byDisplayName: Map<String, String>
+    val byNormalizedName: Map<String, String>
+
+    init {
+        val entries = snapshot.entries.filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
+        byDisplayName = index(entries.groupBy(ItemListEntry::displayName), snapshot.itemInfo)
         val names = entries.flatMap { entry ->
             listOf(entry.formattedDisplayName, entry.displayName).distinct().map { it.lowercase(Locale.ROOT) to entry }
         }
-        itemIdsByNormalizedName = index(names.groupBy({ it.first }, { it.second }))
-        repositoryVersion = SkyBlockDataRepository.snapshotVersion
+        byNormalizedName = index(names.groupBy({ it.first }, { it.second }), snapshot.itemInfo)
     }
 
-    private fun index(groups: Map<String, List<ItemListEntry>>): Map<String, String> = groups
+    private fun index(
+        groups: Map<String, List<ItemListEntry>>,
+        info: Map<ItemListEntryKey, SkyBlockItemInfo>,
+    ): Map<String, String> = groups
         .mapNotNull { (name, entries) ->
             resolveDisplayNameItemId(entries) { key ->
-                SkyBlockDataRepository.info(key)?.obtain?.status
+                info[key]?.obtain?.status
             }?.let { itemId -> name to itemId }
         }
         .toMap()
 }
 
-internal fun resolveDisplayNameItemId(
+private fun resolveDisplayNameItemId(
     entries: List<ItemListEntry>,
     obtainStatus: (ItemListEntryKey) -> SkyBlockObtainStatus?,
 ): String? {
