@@ -145,23 +145,25 @@ object DianaBurrowHelper {
             targets = targets,
             currentTarget = target,
             playerLocation = playerLocation,
-            drawCrosshairLine = settings.crosshairLine &&
-                (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget),
-            boldLabels = details.boldText,
-            labelFormat = details.labelFormat,
-            labelColors = labelColors,
-            beamColors = if (details.beaconBeam) details.burrowBeamColors() else null,
-            boxStyle = details.burrowBoxStyle(labelColors),
-            distanceStyle = if (details.showDistance) details.burrowDistanceStyle() else null,
-            showClickCounter = settings.clickCounter,
-            clickCounterPosition = settings.clickCounterPosition,
-            visualAlphaScale = if (
-                config.rareMobSharing.enabled && DianaRareMobSharing.remotePriorityTarget != null
-            ) {
-                RARE_MOB_PRIORITY_BURROW_ALPHA
-            } else {
-                1.0
-            },
+            style = DianaBurrowRenderStyle(
+                drawCrosshairLine = settings.crosshairLine &&
+                    (!config.rareMobSharing.enabled || !DianaRareMobSharing.hasActiveTarget),
+                boldLabels = details.boldText,
+                labelFormat = details.labelFormat,
+                labelColors = labelColors,
+                beamColors = if (details.beaconBeam) details.burrowBeamColors() else null,
+                boxStyle = details.burrowBoxStyle(labelColors),
+                distanceStyle = if (details.showDistance) details.burrowDistanceStyle() else null,
+                showClickCounter = settings.clickCounter,
+                clickCounterPosition = settings.clickCounterPosition,
+                visualAlphaScale = if (
+                    config.rareMobSharing.enabled && DianaRareMobSharing.remotePriorityTarget != null
+                ) {
+                    RARE_MOB_PRIORITY_BURROW_ALPHA
+                } else {
+                    1.0
+                },
+            ),
         )
     }
 
