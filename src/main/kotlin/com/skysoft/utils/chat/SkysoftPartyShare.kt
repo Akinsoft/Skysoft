@@ -134,8 +134,9 @@ object SkysoftPartyShare {
     }
 
     private fun sendNextQueuedPartyMessage() {
-        val command = nextPartyCommand() ?: return
-        Minecraft.getInstance().connection?.sendCommand(command)
+        val connection = Minecraft.getInstance().connection ?: return
+        val command = commandQueue.nextPartyCommand() ?: return
+        connection.sendCommand(command)
     }
 
     private fun updateQueue() {
