@@ -35,10 +35,10 @@ object ActionBarCustomizer {
             override val position get() = config.position
             override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
             override val hasEditorBackground: Boolean get() = !config.background
-            override fun width(): Int = editorLayout().width
-            override fun height(): Int = editorLayout().height
-            override fun isVisible(): Boolean = config.settings.customPosition
-            override fun renderEditor(context: GuiGraphicsExtractor) = renderEditorPreview(context)
+            override fun width(): Int = editorLayout()?.width ?: 0
+            override fun height(): Int = editorLayout()?.height ?: 0
+            override fun isVisible(): Boolean = editorLayout() != null
+            override fun renderEditor(context: GuiGraphicsExtractor) = renderEditorMessage(context)
             override fun openConfig() = SkysoftConfigGui.open("Action Bar")
         })
         HudElementRegistry.replaceElement(VanillaHudElements.OVERLAY_MESSAGE) { vanilla ->
@@ -100,8 +100,8 @@ object ActionBarCustomizer {
         context.nextStratum()
     }
 
-    private fun renderEditorPreview(context: GuiGraphicsExtractor) {
-        val layout = editorLayout()
+    private fun renderEditorMessage(context: GuiGraphicsExtractor) {
+        val layout = editorLayout() ?: return
         if (config.background) {
             drawBackground(context, 0, 0, layout.width, layout.height, COLOR_CHANNEL_MAX)
             context.nextStratum()
@@ -143,8 +143,9 @@ object ActionBarCustomizer {
         }
     }
 
-    private fun editorLayout(): ActionBarLayout {
-        val message = currentMessage() ?: EDITOR_MESSAGE
+    private fun editorLayout(): ActionBarLayout? {
+        if (!config.settings.customPosition || MinecraftClient.isGuiHidden(Minecraft.getInstance())) return null
+        val message = currentMessage() ?: return null
         return layout(message, scale = 1f, x = 0, y = 0)
     }
 
@@ -196,7 +197,6 @@ private data class ActionBarLayout(
     val y: Int,
 )
 
-private val EDITOR_MESSAGE = Component.literal("Action Bar")
 private const val BACKGROUND_RGB = 0x101010
 private const val X_PADDING = 4
 private const val Y_PADDING = 3
