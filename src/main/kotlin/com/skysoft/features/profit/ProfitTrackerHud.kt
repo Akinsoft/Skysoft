@@ -75,18 +75,26 @@ private fun profitTrackerHudEditorElement(target: ProfitTrackerTarget): HudEdito
         override val label: String get() = "${target.displayName} Profit Tracker"
         override val position get() = config.position
         override val hasEditorBackground: Boolean get() = !config.details.showBackground
-        override fun width(): Int = hudContent.build(target, false).width
-        override fun height(): Int = hudContent.build(target, false).height
-        override fun isVisible(): Boolean = target.isVisible()
-        override fun renderEditor(context: GuiGraphicsExtractor) = hudContent.build(target, false).render(context)
+        override fun width(): Int = currentEditorRenderable()?.width ?: 0
+        override fun height(): Int = currentEditorRenderable()?.height ?: 0
+        override fun isVisible(): Boolean = isProfitTrackerHudVisible() && target.isVisible()
+        override fun renderEditor(context: GuiGraphicsExtractor) {
+            currentEditorRenderable()?.render(context)
+        }
         override fun openConfig() = target.customId?.let(CustomProfitTrackerConfigScreen::open)
             ?: SkysoftConfigGui.open(target.displayName)
+
+        private fun currentEditorRenderable(): ProfitTrackerRenderable? =
+            if (isVisible()) hudContent.build(target, false) else null
     }
 }
 
+private fun isProfitTrackerHudVisible(): Boolean =
+    HypixelLocationState.inSkyBlock && !MinecraftClient.isGuiHidden(Minecraft.getInstance())
+
 private fun renderProfitTracker(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
-    if (!HypixelLocationState.inSkyBlock || MinecraftClient.isGuiHidden(minecraft)) {
+    if (!isProfitTrackerHudVisible()) {
         clearProfitTrackerInteraction()
         return
     }
