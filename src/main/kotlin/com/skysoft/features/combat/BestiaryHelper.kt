@@ -18,7 +18,6 @@ import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
-import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
@@ -32,37 +31,26 @@ import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
-import com.skysoft.utils.render.EntityHighlightRenderer
-import com.skysoft.utils.render.EntityHighlightTracker
-import com.skysoft.utils.render.EntityLabelRenderer
 import com.skysoft.utils.render.LegacyTextRenderer
-import com.skysoft.utils.render.SkysoftRenderContext
-import com.skysoft.utils.render.WorldLabelStyle
-import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import java.util.Locale
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.network.chat.Component
-import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
 object BestiaryHelper {
     private val config get() = SkysoftConfigGui.config().combat.bestiaryHelper
-    private val highlightedEntities = EntityHighlightTracker<Entity>(this)
     private val resetTransition = PanelFadeTransition()
     private val knownFamilies = mutableMapOf<String, BestiaryFamily>()
     private var openBestiary: OpenBestiary? = null
     private var scrollOffset = 0
     private var hoveredControl: OverlayControlArea<BestiaryControl>? = null
     private var displayHovered = false
-    private var ticks = 0
 
     fun register() {
         SkyBlockDataRepository.Demand.register("Bestiary Helper") { config.enabled }
@@ -71,22 +59,11 @@ object BestiaryHelper {
             isActive = { config.enabled && HypixelLocationState.inSkyBlock },
             listener = ::updateOpenBestiary,
         )
-        SkysoftClientEvents.onEndTick(
-            "Bestiary Helper highlighting",
-            isActive = { config.enabled || highlightedEntities.isNotEmpty() },
-        ) { updateHighlights() }
+        BestiaryWorldHighlights.register()
         SkysoftClientEvents.onDisconnect("Bestiary Helper reset") {
             clearDisplay()
-            clearHighlights()
             knownFamilies.clear()
         }
-        WorldRenderDispatcher.registerHandler(
-            "Bestiary Helper target labels",
-            isActive = {
-                config.enabled && HypixelLocationState.inSkyBlock && config.selectedMobs.isNotEmpty()
-            },
-            handler = ::renderWorld,
-        )
         registerInput()
         GuiOverlayRegistry.registerHud(
             GuiOverlay(
@@ -196,53 +173,6 @@ object BestiaryHelper {
         val bestiary = OpenBestiary(snapshot.title, snapshot.containerId, families)
         openBestiary = bestiary
         scrollOffset = scrollOffset.coerceIn(0, maximumScrollOffset(familiesForDisplay(bestiary).size))
-    }
-
-    private fun updateHighlights() {
-        if (!config.enabled || !HypixelLocationState.inSkyBlock || config.selectedMobs.isEmpty()) {
-            clearHighlights()
-            return
-        }
-        if (++ticks % HIGHLIGHT_SCAN_INTERVAL_TICKS != 0) return
-        val highlights = SkyBlockMobEntityMatcher.visibleSignals(SkyBlockBestiaryFamilies.mobNames(config.selectedMobs))
-            .flatMap { signal ->
-                val parts = signal.nameplate?.let { nameplate ->
-                    SegmentedMobHighlights.parts(nameplate, SkyBlockMobEntityMatcher.allEntities())
-                }.orEmpty()
-                parts.ifEmpty { listOfNotNull(signal.entity?.let { SkyBlockMobHighlight(it, it) }) }
-            }
-        highlightedEntities.replaceWith(highlights.mapTo(mutableSetOf()) { it.entity })
-        val color = config.details.highlightColor.get().toColor()
-        highlights.forEach { highlight ->
-            EntityHighlightRenderer.setEntityColor(
-                highlight.entity,
-                color,
-                source = this,
-                visibilityEntity = highlight.visibilityEntity,
-            ) {
-                config.enabled && highlight.entity in highlightedEntities
-            }
-        }
-    }
-
-    private fun renderWorld(context: SkysoftRenderContext) {
-        val lines = buildList {
-            config.details.targetText.takeIf(String::isNotBlank)?.let { text -> add(Component.literal(text)) }
-            add(Component.literal(TARGET_MARKER))
-        }
-        val style = WorldLabelStyle(
-            textColor = config.details.textColor.get().toColor().rgb,
-            displayMode = Font.DisplayMode.NORMAL,
-        )
-        SkyBlockMobEntityMatcher.visibleSignals(SkyBlockBestiaryFamilies.mobNames(config.selectedMobs)).forEach { signal ->
-            val anchor = signal.nameplate ?: signal.entity ?: return@forEach
-            EntityLabelRenderer.drawAboveNameTag(context, anchor, lines, style)
-        }
-    }
-
-    private fun clearHighlights() {
-        highlightedEntities.clear()
-        ticks = 0
     }
 
     private fun clearDisplay() {
@@ -583,8 +513,6 @@ private const val CONTROL_ROW_HEIGHT = 13
 private const val CONTROL_TEXT_Y_OFFSET = 1
 private const val CONTROL_GAP = 8
 private const val HUD_SCALE_STEP = 0.1f
-private const val HIGHLIGHT_SCAN_INTERVAL_TICKS = 4
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
-private const val TARGET_MARKER = "▾"
 
 private fun familyKey(name: String): String = name.lowercase(Locale.ROOT)
