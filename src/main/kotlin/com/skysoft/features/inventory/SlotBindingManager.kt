@@ -163,18 +163,18 @@ object SlotBindingManager {
     fun resetAllBindings() {
         val removed = bindings.isNotEmpty()
         if (removed) ProfileStorageApi.updateProfile { it.slotBindings.clear() }
-        resetInputState()
+        clearInputState()
     }
 
     private fun updateDragState(screen: AbstractContainerScreen<*>, hoveredSlot: Slot?) {
         if (!isAvailable()) {
-            resetInputState()
+            clearInputState()
             return
         }
 
         val containerId = screen.menu.containerId
         if (activeContainerId != containerId) {
-            resetInputState()
+            clearInputState()
             activeContainerId = containerId
         }
 
@@ -219,10 +219,11 @@ object SlotBindingManager {
         }
     }
 
-    private fun resetInputState() {
+    internal fun clearInputState() {
         dragState = null
         bindingKeyWasDown = false
         activeContainerId = null
+        pendingTooltip = null
     }
 
     private fun bindSlots(firstSlot: Slot, secondSlot: Slot) {
