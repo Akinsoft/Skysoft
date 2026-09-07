@@ -47,22 +47,31 @@ internal object SkysoftErrorBoundary {
         boundary: String,
         original: () -> Unit,
         action: (() -> Unit) -> Unit,
+    ) = aroundUnit(boundary, Unit, { original() }) { callOriginal ->
+        action { callOriginal(Unit) }
+    }
+
+    internal fun <T> aroundUnit(
+        boundary: String,
+        initialArgument: T,
+        original: (T) -> Unit,
+        action: ((T) -> Unit) -> Unit,
     ) {
         var isOriginalCalled = false
         var originalFailure: Throwable? = null
         run(boundary) {
-            action {
+            action { argument ->
                 if (!isOriginalCalled) {
                     isOriginalCalled = true
                     try {
-                        original()
+                        original(argument)
                     } catch (failure: Throwable) {
                         originalFailure = failure
                     }
                 }
             }
         }
-        if (!isOriginalCalled) original()
+        if (!isOriginalCalled) original(initialArgument)
         originalFailure?.let { throw it }
     }
 
