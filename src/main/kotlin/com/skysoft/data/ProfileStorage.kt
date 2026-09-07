@@ -167,15 +167,9 @@ data class ProfileStorage(
     ) : ProfileStorageView.ProfileSpecific {
         fun repairLoadedValues() {
             currentPetUuid = repairPetReferences(pets, expSharePets, currentPetUuid)
-            skyBlockStoragePages.entries.removeIf { (page, data) ->
-                page !in 0 until SKYBLOCK_STORAGE_PAGE_COUNT || !data.isUsable()
-            }
-            skyBlockRiftStoragePages.entries.removeIf { (page, data) ->
-                page !in 0 until SKYBLOCK_RIFT_STORAGE_PAGE_COUNT || !data.isUsable()
-            }
-            skyBlockToolkits.entries.removeIf { (toolkit, data) ->
-                toolkit !in SKYBLOCK_TOOLKIT_KEYS || !data.isUsable()
-            }
+            skyBlockStoragePages.repairStoragePages { it in 0 until SKYBLOCK_STORAGE_PAGE_COUNT }
+            skyBlockRiftStoragePages.repairStoragePages { it in 0 until SKYBLOCK_RIFT_STORAGE_PAGE_COUNT }
+            skyBlockToolkits.repairStoragePages { it in SKYBLOCK_TOOLKIT_KEYS }
             repairInventoryEquipment()
             repairSlotBindings()
             repairSlotLocks()
@@ -191,6 +185,17 @@ data class ProfileStorage(
             honeyhiveTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
+        }
+
+        private fun <K> MutableMap<K, SkyBlockStoragePageData>.repairStoragePages(isValidKey: (K) -> Boolean) {
+            entries.removeIf { (key, page) ->
+                if (!isValidKey(key)) {
+                    true
+                } else {
+                    page.repairLoadedValues()
+                    page.title.isBlank()
+                }
+            }
         }
 
         private fun repairInventoryEquipment() {
@@ -635,11 +640,6 @@ data class ProfileStorage(
             val targetSize = rows * SLOTS_PER_STORAGE_ROW
             while (items.size > targetSize) items.removeAt(items.lastIndex)
             while (items.size < targetSize) items.add(SkyBlockStorageItemData())
-        }
-
-        fun isUsable(): Boolean {
-            repairLoadedValues()
-            return title.isNotBlank()
         }
     }
 
