@@ -36,7 +36,7 @@ internal data class InventoryButtonImportReadResult(
 
 internal data class InventoryButtonImportPlan(
     val read: InventoryButtonImportReadResult,
-    val mergedButtons: MutableList<InventoryButtonConfig>,
+    val mergedButtons: List<InventoryButtonConfig>,
     val imported: Int,
     val duplicates: Int,
     val conflicts: Int,
@@ -44,13 +44,6 @@ internal data class InventoryButtonImportPlan(
     val canMerge: Boolean get() = imported > 0
     val canReplace: Boolean get() = read.buttons.isNotEmpty() && duplicates + conflicts > 0
 }
-
-internal data class InventoryButtonImportSnapshot(
-    val buttons: MutableList<InventoryButtonConfig>,
-    val isEnabled: Boolean,
-    val clickType: InventoryButtonClickType,
-    val tooltipDelay: Int,
-)
 
 internal data class ImportedIcon(
     val value: String?,
