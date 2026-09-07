@@ -69,14 +69,15 @@ object SkysoftChat {
 
     internal fun gradient(component: Component, start: Int, end: Int): MutableComponent {
         val result = Component.empty()
-        val lastIndex = (component.string.length - 1).coerceAtLeast(1)
+        val plainText = component.string
+        val lastIndex = (plainText.codePointCount(0, plainText.length) - 1).coerceAtLeast(1)
         var index = 0
         component.visit({ style: Style, text: String ->
-            text.forEach { char ->
+            text.codePoints().forEach { codePoint ->
                 val progress = index++.toFloat() / lastIndex
                 val color = style.color ?: TextColor.fromRgb(mix(start, end, progress))
                 result.append(
-                    Component.literal(char.toString()).withStyle(
+                    Component.literal(String(Character.toChars(codePoint))).withStyle(
                         style.withColor(color),
                     ),
                 )

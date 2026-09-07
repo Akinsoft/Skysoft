@@ -1,8 +1,9 @@
 package com.skysoft.utils.gui
 
+import com.skysoft.utils.ColorUtilities.withScaledAlpha
+import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
-import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -11,13 +12,13 @@ import net.minecraft.client.input.KeyEvent
 import org.lwjgl.glfw.GLFW
 
 internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
-    var text: String = text.take(maxLength)
+    var text: String = text.takeAtCharacterBoundary(maxLength)
         set(value) {
-            val boundedValue = value.take(maxLength)
+            val boundedValue = value.takeAtCharacterBoundary(maxLength)
             if (boundedValue == field) return
             val wasAtEnd = cursorIndex == field.length
             field = boundedValue
-            cursorIndex = if (wasAtEnd) field.length else cursorIndex.coerceIn(0, field.length)
+            cursorIndex = if (wasAtEnd) field.length else field.characterBoundary(cursorIndex.coerceIn(0, field.length))
             selectionAnchor = null
         }
 
@@ -92,7 +93,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         val visibleText = visibleText(font, contentWidth, prefix)
         val clickX = mouseX - fieldX - TEXT_X_OFFSET
         val clickedOffset = textFieldCursorOffsetAt(visibleText.text, clickX, font::width)
-        cursorIndex = (visibleText.startIndex + clickedOffset - prefix.length).coerceIn(0, text.length)
+        cursorIndex = text.characterBoundary((visibleText.startIndex + clickedOffset - prefix.length).coerceIn(0, text.length))
         selectionAnchor = null
         restartCursorBlink()
     }
@@ -155,7 +156,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         val insertionIndex = selection?.start ?: cursorIndex
         val replacedEnd = selection?.endExclusive ?: cursorIndex
         val remainingLength = text.length - (replacedEnd - insertionIndex)
-        val insertion = value.take((maxLength - remainingLength).coerceAtLeast(0))
+        val insertion = value.takeAtCharacterBoundary((maxLength - remainingLength).coerceAtLeast(0))
         if (insertion.isEmpty()) return
         text = text.replaceRange(insertionIndex, replacedEnd, insertion)
         cursorIndex = insertionIndex + insertion.length
@@ -170,7 +171,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         val remainingPrefix = if (control) {
             textAfterDeletingPreviousWord(textBeforeCursor)
         } else {
-            textBeforeCursor.dropLast(1)
+            text.substring(0, text.offsetByCodePoints(cursorIndex, -1))
         }
         text = remainingPrefix + text.substring(cursorIndex)
         cursorIndex = remainingPrefix.length
@@ -180,14 +181,17 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     private fun deleteAfterCursor() {
         if (removeSelection() != null) return
         if (cursorIndex >= text.length) return
-        text = text.removeRange(cursorIndex, cursorIndex + 1)
+        text = text.removeRange(cursorIndex, text.offsetByCodePoints(cursorIndex, 1))
         restartCursorBlink()
     }
 
     private fun moveCursor(offset: Int): InputHandlingResult {
         val selection = selection()
         cursorIndex = when {
-            selection == null -> (cursorIndex + offset).coerceIn(0, text.length)
+            selection == null -> text.offsetByCodePoints(
+                cursorIndex,
+                offset.coerceIn(-cursorIndex, text.length - cursorIndex),
+            )
             offset < 0 -> selection.start
             else -> selection.endExclusive
         }
@@ -259,13 +263,13 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     }
 
     private fun isCursorVisible(): Boolean =
-        ((System.currentTimeMillis() - cursorBlinkStartedAt) / CURSOR_BLINK_MILLIS) % CURSOR_BLINK_PHASES == 0L
+        (cursorBlinkStartedAt.passedSince().inWholeMilliseconds / CURSOR_BLINK_MILLIS) % CURSOR_BLINK_PHASES == 0L
 
     private fun restartCursorBlink() {
-        cursorBlinkStartedAt = System.currentTimeMillis()
+        cursorBlinkStartedAt = ElapsedTimeMark.now()
     }
 
-    private var cursorBlinkStartedAt = System.currentTimeMillis()
+    private var cursorBlinkStartedAt = ElapsedTimeMark.now()
     private var selectionAnchor: Int? = null
 
     private companion object {
@@ -299,20 +303,29 @@ private data class TextSelection(
 internal fun textFieldTextY(fieldY: Int, fieldHeight: Int, lineHeight: Int): Int =
     fieldY + (fieldHeight - lineHeight + 2) / 2
 
-internal fun textFieldCursorOffsetAt(text: String, clickX: Int, width: (String) -> Int): Int {
+private fun textFieldCursorOffsetAt(text: String, clickX: Int, width: (String) -> Int): Int {
     if (clickX <= 0) return 0
     var previousWidth = 0
-    text.indices.forEach { index ->
-        val nextWidth = width(text.substring(0, index + 1))
+    var index = 0
+    while (index < text.length) {
+        val nextIndex = text.offsetByCodePoints(index, 1)
+        val nextWidth = width(text.substring(0, nextIndex))
         if (clickX * 2 < previousWidth + nextWidth) return index
         previousWidth = nextWidth
+        index = nextIndex
     }
     return text.length
 }
 
-internal fun textAfterDeletingPreviousWord(text: String): String {
+private fun textAfterDeletingPreviousWord(text: String): String {
     val wordEnd = text.indexOfLast { !it.isWhitespace() } + 1
     if (wordEnd == 0) return ""
     val wordStart = text.substring(0, wordEnd).indexOfLast(Char::isWhitespace) + 1
     return text.substring(0, wordStart)
 }
+
+internal fun String.takeAtCharacterBoundary(maxLength: Int): String =
+    take(characterBoundary(maxLength.coerceAtMost(length)))
+
+private fun String.characterBoundary(index: Int): Int =
+    if (index in 1 until length && this[index - 1].isHighSurrogate() && this[index].isLowSurrogate()) index - 1 else index
