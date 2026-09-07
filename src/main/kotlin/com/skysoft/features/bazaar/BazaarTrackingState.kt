@@ -3,6 +3,8 @@ package com.skysoft.features.bazaar
 import java.util.ArrayDeque
 
 internal object BazaarTrackingState {
+    var sessionVersion = 0L
+        private set
     var pendingSetup: PendingOrder? = null
     var pendingOrderOptionId: String? = null
     var pendingCancel: PendingCancel? = null
@@ -19,6 +21,7 @@ internal object BazaarTrackingState {
     val fillEstimateStates = mutableMapOf<String, BazaarFillEstimateState>()
 
     fun reset() {
+        sessionVersion++
         pendingSetup = null
         pendingOrderOptionId = null
         pendingCancel = null

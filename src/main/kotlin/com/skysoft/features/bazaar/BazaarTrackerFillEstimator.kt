@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorageView
+import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.utils.SkysoftErrorBoundary
@@ -36,10 +37,13 @@ private fun refreshBazaarFillEstimates() {
     if (orders.isEmpty()) return
     val productIds = orders.mapNotNull { it.productId }.distinct()
     val sinceMillis = orders.minOfOrNull { orderReferenceMillis(it) } ?: 0L
+    val sessionVersion = BazaarTrackingState.sessionVersion
 
     SkyBlockPriceData.refreshBazaarDepth(productIds, sinceMillis)?.whenComplete { products, error ->
         if (products == null || error != null) return@whenComplete
         SkysoftErrorBoundary.onClientThread("Bazaar Tracker fill estimate async completion") {
+            if (sessionVersion != BazaarTrackingState.sessionVersion) return@onClientThread
+            if (!config.enabled || !HypixelLocationState.inSkyBlock) return@onClientThread
             applyBazaarDepthProducts(products)
         }
     }
