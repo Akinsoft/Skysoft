@@ -46,7 +46,7 @@ class SharedPetLayoutConfig : ConfigResettable {
     @Accordion
     val subOrbit: OrbitSettings = OrbitSettings()
 
-    class OrbitSettings {
+    class OrbitSettings : ConfigResettable {
         @Expose
         @ConfigOption(name = "Orbit Distance", desc = "Gap between the orbiting pets and the equipped pet.")
         @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
