@@ -12,6 +12,7 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object BazaarPriceHistoryRenderer {
@@ -160,7 +161,7 @@ internal object BazaarPriceHistoryRenderer {
     ) {
         if (!plot.bounds.contains(mouseX, mouseY) || rows.isEmpty()) return
         val progress = ((mouseX - plot.bounds.x).toDouble() / plot.bounds.width).coerceIn(0.0, 1.0)
-        val hoveredAt = start + ((end - start) * progress).roundToInt()
+        val hoveredAt = start + ((end - start) * progress).roundToLong()
         val row = rows.minByOrNull { abs(it.at - hoveredAt) } ?: return
         val x = pricePoint(plot, row.at, plot.minimumPrice, start, end).first
         context.fill(x, plot.bounds.y, x + 1, plot.bounds.y + plot.bounds.height, PriceHistoryStyle.CROSSHAIR)
