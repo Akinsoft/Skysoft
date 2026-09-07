@@ -17,7 +17,7 @@ import kotlin.math.roundToLong
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object BazaarPriceHistoryRenderer {
-    private val rowsCache = IdentityRefreshCache<PriceRowsCriteria, List<SkysoftBazaarPriceSnapshot>>(
+    private val rowsCache = IdentityRefreshCache<BazaarGraphWindow, List<SkysoftBazaarPriceSnapshot>>(
         PriceHistoryLayout.CACHE_MILLIS,
     )
 
@@ -55,7 +55,7 @@ internal object BazaarPriceHistoryRenderer {
         product: SkysoftBazaarDepthProduct?,
         window: BazaarGraphWindow,
         now: Long,
-    ): List<SkysoftBazaarPriceSnapshot> = rowsCache.value(product, PriceRowsCriteria(window), now) {
+    ): List<SkysoftBazaarPriceSnapshot> = rowsCache.value(product, window, now) {
         val cutoff = now - window.durationMillis
         product?.priceHistory.orEmpty()
             .filter { it.at >= cutoff }
@@ -206,8 +206,6 @@ private data class BazaarPricePlot(
 ) {
     val priceRange = maximumPrice - minimumPrice
 }
-
-private data class PriceRowsCriteria(val window: BazaarGraphWindow)
 
 private enum class BazaarPriceSeries(
     val coloredLabel: String,
