@@ -30,7 +30,7 @@ internal data class FishingHotspotPartyShareResult(
     val hasStoredNearbyClaim: Boolean,
 )
 
-internal data class NearbyFishingHotspotPartyClaim(
+private data class NearbyFishingHotspotPartyClaim(
     val share: FishingHotspotShare,
     val expiresAtMillis: Long,
 )
