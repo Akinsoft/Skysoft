@@ -290,10 +290,14 @@ private class SackDisplayRenderable(
         )
     }
     private val emptyText = "§7No stored items."
-    private val indicatorText = buildList {
-        if (hiddenAbove > 0) add("$hiddenAbove above")
-        if (hiddenBelow > 0) add("$hiddenBelow more")
-    }.joinToString(" §8• §7", prefix = "§7", postfix = if (hiddenAbove > 0 || hiddenBelow > 0) "..." else "")
+    private val indicatorText = if (hiddenAbove <= 0 && hiddenBelow <= 0) {
+        ""
+    } else {
+        buildList {
+            if (hiddenAbove > 0) add("$hiddenAbove above")
+            if (hiddenBelow > 0) add("$hiddenBelow more")
+        }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
+    }
     private val modeLine = "§7Mode: §a§l[${mode.displayName}]"
     private val priceSourceLine = "§7Price Source: §e§l[$priceSource]"
     private val totalText = totalValue?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
