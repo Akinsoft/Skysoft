@@ -1,11 +1,7 @@
 package com.skysoft.data.skyblock
 
-import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
-import com.skysoft.SkysoftMod
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
-import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
@@ -19,21 +15,13 @@ import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import com.skysoft.utils.net.AsyncRequestSlot
-import com.skysoft.utils.net.PendingHttpRequests
-import com.skysoft.utils.net.RefreshSchedule
-import com.skysoft.utils.net.isCancellationFailure
-import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
-import java.nio.file.Files
-import java.nio.file.Path
 import java.util.Locale
 
 object AttributeShardCatalog {
@@ -277,9 +265,9 @@ object AttributeShardCatalog {
 
     private fun addAllMissingShards() {
         if (storage.size > SHARD_BOX_BOOTSTRAP_LIMIT) return
-        for (shardInfo in AttributeShardConstants.consumableShards()) {
-            if (shardInfo.bazaarName in storage) continue
-            processShard(shardInfo.internalName, currentTier = 0, toNextTier = 1)
+        for ((shardName, internalName) in AttributeShardConstants.consumableShardInternalNames()) {
+            if (shardName in storage) continue
+            processShard(internalName, currentTier = 0, toNextTier = 1)
         }
     }
 
@@ -362,181 +350,6 @@ private val sentToHuntingBoxPattern =
 private val fusionShardPattern =
     Regex("""FUSION! You obtained(?: an?)? (?<shardName>.+) Shard(?: x(?<amount>\d+))?!(?: NEW!)?""")
 
-private object AttributeShardConstants {
-    private const val ATTRIBUTE_SHARDS_URL =
-        "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/attribute_shards.json"
-
-    private val gson = Gson()
-    private val requests = PendingHttpRequests()
-    private val requestSlot = AsyncRequestSlot<SkysoftAttributeShardRepoJson>()
-    private val failureSchedule = RefreshSchedule()
-
-    @Volatile
-    var remoteConstantsLoaded = false
-        private set
-
-    @Volatile
-    private var attributeLevelling = mapOf<SkyBlockRarity, List<Int>>()
-
-    @Volatile
-    private var attributeInfo = mapOf<String, NeuAttributeShardData>()
-
-    @Volatile
-    private var internalNameToShard = mapOf<String, String>()
-
-    @Volatile
-    private var attributeAbilityNameToShard = mapOf<String, String>()
-
-    @Volatile
-    private var attributeDisplayNameToShard = mapOf<String, String>()
-
-    @Volatile
-    private var unconsumableAttributes = emptySet<String>()
-
-    fun cancelAll() {
-        requestSlot.cancel()
-        requests.cancelAll()
-    }
-
-    fun ensureLoaded(): Boolean {
-        if (attributeInfo.isEmpty()) loadLocalConstants()
-        if (!remoteConstantsLoaded) loadConstants()
-        return attributeInfo.isNotEmpty()
-    }
-
-    fun activeLevel(storage: Map<String, ProfileStorageView.AttributeShardData>, abilityName: String): Int {
-        val shardName = attributeAbilityNameToShard[abilityName] ?: return 0
-        return if (storage[shardName]?.enabled == true) level(storage, shardName) else 0
-    }
-
-    fun internalNameByAbilityName(abilityName: String): String? {
-        if (!ensureLoaded()) return null
-        val cleanName = abilityName.trim()
-        val shardName = attributeAbilityNameToShard[cleanName]
-            ?: attributeDisplayNameToShard[cleanName]
-            ?: return null
-        return attributeInfo[shardName]?.internalName
-    }
-
-    fun internalNameByDisplayName(shardName: String): String? {
-        if (!ensureLoaded()) return null
-        val cleanName = shardName.trim().removeSuffix(" Shard").trim()
-        val bazaarName = attributeDisplayNameToShard[cleanName]
-            ?: attributeAbilityNameToShard[cleanName]
-            ?: return null
-        return attributeInfo[bazaarName]?.internalName
-    }
-
-    fun shardNameByInternalName(internalName: String): String? = internalNameToShard[internalName]
-
-    fun bazaarProductAliases(): Map<String, String> = internalNameToShard
-
-    fun isConsumable(shardName: String): Boolean = shardName !in unconsumableAttributes
-
-    fun findTotalAmount(shardName: String, currentTier: Int, toNextTier: Int): Int? {
-        val rarity = attributeInfo[shardName]?.rarity ?: return null
-        val tierLevelling = attributeLevelling[rarity] ?: return 0
-        val cumulativeAmount = tierLevelling.take((currentTier + 1).coerceIn(0, tierLevelling.size)).sum()
-        return (cumulativeAmount - toNextTier).coerceAtLeast(0)
-    }
-
-    fun consumableShards(): List<NeuAttributeShardData> =
-        attributeInfo.values.filter { it.bazaarName !in unconsumableAttributes }
-
-    fun shardByDisplayOrAbilityName(name: String): String? =
-        attributeDisplayNameToShard[name] ?: attributeAbilityNameToShard[name]
-
-    fun internalNameByBazaarName(shardName: String): String? = attributeInfo[shardName]?.internalName
-
-    fun internalNameFromKnownShardId(internalName: String): String? {
-        val normalized = internalName.uppercase(Locale.US).replace(':', '-')
-        val attributeInternalName = normalized.normalizeAttributeShardInternalName()
-        if (attributeInternalName.startsWith("ATTRIBUTE_SHARD_")) return attributeInternalName
-        return attributeInfo[normalized]?.internalName
-    }
-
-    private fun level(storage: Map<String, ProfileStorageView.AttributeShardData>, shardName: String): Int {
-        val rarity = attributeInfo[shardName]?.rarity ?: return 0
-        val levelling = attributeLevelling[rarity] ?: return 0
-        val totalAmount = storage[shardName]?.amountSyphoned ?: return 0
-        var tier = 0
-        var cumulativeCount = 0
-        for (amount in levelling) {
-            cumulativeCount += amount
-            if (cumulativeCount > totalAmount) break
-            tier++
-        }
-        return tier
-    }
-
-    private fun loadConstants() {
-        val now = System.currentTimeMillis()
-        if (!failureSchedule.isDue(now)) return
-        requestSlot.startIfIdle(
-            requestFactory = {
-                request(ATTRIBUTE_SHARDS_URL)
-                    .thenApply { gson.fromJson(it, SkysoftAttributeShardRepoJson::class.java) }
-            },
-        ) { data, error ->
-            SkysoftErrorBoundary.run("Attribute Shard constants async completion") {
-                if (error == null && data != null) {
-                    applyConstants(data)
-                    remoteConstantsLoaded = true
-                    failureSchedule.reset()
-                } else if (error?.isCancellationFailure() != true) {
-                    failureSchedule.schedule(System.currentTimeMillis(), CONSTANTS_RETRY_DELAY_MILLIS)
-                    SkysoftMod.LOGGER.warn("Failed to load attribute shard constants", error)
-                }
-            }
-        }
-    }
-
-    private fun loadLocalConstants() {
-        for (path in localAttributeShardPaths()) {
-            if (!Files.isRegularFile(path)) continue
-            val data = runCatching {
-                Files.newBufferedReader(path).use { reader ->
-                    gson.fromJson(reader, SkysoftAttributeShardRepoJson::class.java)
-                }
-            }.getOrNull() ?: continue
-            applyConstants(data)
-            return
-        }
-    }
-
-    private fun localAttributeShardPaths(): List<Path> {
-        val gameDir = FabricLoader.getInstance().gameDir
-        return listOf(
-            gameDir.resolve("config/notenoughupdates/repo/constants/attribute_shards.json"),
-            gameDir.resolve("config/skyblocker/item-repo/constants/attribute_shards.json"),
-        )
-    }
-
-    private fun applyConstants(data: SkysoftAttributeShardRepoJson) {
-        attributeLevelling = data.attributeLevelling
-        unconsumableAttributes = data.unconsumableAttributes.toSet()
-        attributeInfo = data.attributes.associateBy { it.bazaarName }
-        internalNameToShard = buildMap {
-            for (attribute in data.attributes) {
-                put(attribute.internalName, attribute.bazaarName)
-                put(attribute.internalName.substringBefore(';'), attribute.bazaarName)
-            }
-        }
-        attributeAbilityNameToShard = data.attributes.associate { it.abilityName to it.bazaarName }
-        attributeDisplayNameToShard = data.attributes.associate { it.displayName to it.bazaarName }
-    }
-
-    private fun request(url: String) = requests.getString(url)
-
-    private const val CONSTANTS_RETRY_DELAY_MILLIS = 30_000L
-
-    private fun String.normalizeAttributeShardInternalName(): String {
-        val normalized = uppercase(Locale.US).replace(':', '-')
-        val baseName = normalized.substringBefore(';')
-        return if (baseName.startsWith("ATTRIBUTE_SHARD_")) "$baseName;1" else normalized
-    }
-}
-
 internal object AttributeShardItemResolver {
     fun internalNameOrNull(item: ItemStack, inventoryName: String?): String? {
         if (isAttributeShardInventoryName(inventoryName)) {
@@ -615,17 +428,3 @@ internal object AttributeShardItemResolver {
     private fun isAttributeShardInventoryName(inventoryName: String?): Boolean =
         isAttributeMenuName(inventoryName) || inventoryName == "Hunting Box"
 }
-
-private data class SkysoftAttributeShardRepoJson(
-    @SerializedName("attribute_levelling") val attributeLevelling: Map<SkyBlockRarity, List<Int>> = emptyMap(),
-    @SerializedName("unconsumable_attributes") val unconsumableAttributes: List<String> = emptyList(),
-    val attributes: List<NeuAttributeShardData> = emptyList(),
-)
-
-private data class NeuAttributeShardData(
-    val bazaarName: String = "",
-    val displayName: String = "",
-    val rarity: SkyBlockRarity = SkyBlockRarity.COMMON,
-    val internalName: String = "",
-    val abilityName: String = "",
-)
