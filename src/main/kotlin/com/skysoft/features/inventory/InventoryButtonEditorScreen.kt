@@ -895,7 +895,7 @@ object InventoryButtonEditorScreen {
                 return Rect(left, sidePanelTop(screen, rightSide = false), EditorPanel.WIDTH, EditorPanel.HEIGHT)
             }
 
-            val horizontal = content.x + (content.width - EditorPanel.WIDTH) / 2
+            val horizontal = (content.x + (content.width - EditorPanel.WIDTH) / 2)
                 .coerceIn(EditorPanel.MARGIN, maxPanelLeft)
             val below = content.y + content.height + previewVerticalGap(screen, bottomSide = true)
             if (below + EditorPanel.HEIGHT <= screen.height - EditorPanel.MARGIN) {
