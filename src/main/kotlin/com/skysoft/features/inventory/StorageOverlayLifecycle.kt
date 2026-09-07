@@ -20,7 +20,7 @@ internal fun registerStorageOverlay() {
         StorageOverlayController.isClickInsideOverlay(screen, mouseX, mouseY)
     }
     StorageCache.registerConsumer("Storage Overlay") { isStorageOverlayEnabled }
-    SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset", { isStorageOverlayEnabled }) { resetTransientState() }
+    SkyBlockProfileApi.onProfileChange("Storage Overlay profile reset", { true }) { resetTransientState() }
     SkysoftClientEvents.onDisconnect("Storage Overlay disconnect reset", ::resetTransientState)
     registerStorageOverlayChat()
     SkysoftClientEvents.onEndTick(
