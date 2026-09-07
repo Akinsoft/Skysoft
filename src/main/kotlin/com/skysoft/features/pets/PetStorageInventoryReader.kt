@@ -2,7 +2,6 @@ package com.skysoft.features.pets
 
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.hypixel.TabListApi
-import com.skysoft.data.skyblock.AccessoryBagData
 import com.skysoft.data.skyblock.AttributeShardCatalog
 import com.skysoft.data.skyblock.SkillExpGainApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
@@ -33,7 +32,6 @@ internal object PetStorageInventoryReader {
         val inventoryItems = snapshot.items
         AttributeShardCatalog.readOpenInventory(inventoryName, inventoryItems)
         SkillExpGainApi.readOpenInventory(inventoryName, inventoryItems)
-        AccessoryBagData.readOpenInventory(inventoryName, inventoryItems, snapshot.containerId)
 
         val exactPetMenuUuids = readPetsMenuItems(inventoryName, inventoryItems)
         readEquipmentPetData(inventoryName, inventoryItems)

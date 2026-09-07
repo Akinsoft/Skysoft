@@ -30,6 +30,7 @@ object PetStorageService {
         get() = PetWidgetStateTracker.displayMessage
 
     fun register() {
+        AccessoryBagData.register(PetFeatureDemand::isActive)
         AttributeShardCatalog.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
         ProfileStorageApi.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
         TabListApi.onChange(
