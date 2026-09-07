@@ -17,7 +17,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.Slot
-import java.util.ArrayDeque
 import java.util.Locale
 
 object BazaarTracker {
@@ -58,27 +57,6 @@ object BazaarTracker {
 
 internal val config get() = SkysoftConfigGui.config().inventory.bazaar
 internal val storage get() = ProfileStorageApi.storage.bazaarTracker
-
-internal var pendingSetup: PendingOrder? = null
-internal var pendingOrderOptionId: String? = null
-internal var pendingCancel: PendingCancel? = null
-internal var lastOrdersInventoryKey: String? = null
-internal var pendingOrdersInventoryKey: String? = null
-internal var pendingOrdersInventoryStableTicks = 0
-internal var sessionKnownProfit = 0.0
-internal var sessionBuySetupValue = 0.0
-internal var sessionSellSetupValue = 0.0
-internal var displayMode = TrackerDisplayMode.SESSION
-internal var hoveredControlArea: OverlayControlArea<TrackerControl>? = null
-internal var statusAlertTick = 0
-internal var lastOrdersGuiClickMillis = 0L
-internal var lastOrdersGuiClickSignature = ""
-internal val lastAlertStatuses = mutableMapOf<String, OrderStatus>()
-internal val lastOutbidAlertMillis = mutableMapOf<String, Long>()
-internal val missingFromOrdersGuiScans = mutableMapOf<String, MissingOrderObservation>()
-internal val fillHighlightExpiresAt = mutableMapOf<String, Long>()
-internal val marketProofMillis = mutableMapOf<String, Long>()
-internal val recentResolvedOrders = ArrayDeque<RecentResolvedOrder>()
 
 internal data class PendingOrder(
     val type: BazaarOrderType,
@@ -182,13 +160,6 @@ internal data class RelativeControlArea(
     )
 }
 
-internal fun cycleDisplayMode(backwards: Boolean) {
-    val currentIndex = displayModeCycle.indexOf(displayMode)
-    check(currentIndex in displayModeCycle.indices) { "Display mode is missing from its cycle" }
-    val step = if (backwards) -1 else 1
-    displayMode = displayModeCycle[Math.floorMod(currentIndex + step, displayModeCycle.size)]
-}
-
 private fun trackerControlTooltip(action: TrackerControl): List<String> = when (action) {
     TrackerControl.TOGGLE_MODE -> displayModeTooltip()
     TrackerControl.RESET -> listOf(
@@ -197,12 +168,12 @@ private fun trackerControlTooltip(action: TrackerControl): List<String> = when (
 }
 
 private fun displayModeTooltip(): List<String> {
-    val selectedIndex = displayModeCycle.indexOf(displayMode)
+    val selectedIndex = displayModeCycle.indexOf(BazaarDisplayState.mode)
     check(selectedIndex in displayModeCycle.indices) { "Display mode is missing from its tooltip cycle" }
     return OverlayControlTooltips.cycle("Display Mode", displayModeCycle.map { it.displayName }, selectedIndex)
 }
 
-private fun resetTooltipModeText(): String = when (displayMode) {
+private fun resetTooltipModeText(): String = when (BazaarDisplayState.mode) {
     TrackerDisplayMode.SESSION -> "§eSession's §7Bazaar Tracker data"
     TrackerDisplayMode.TOTAL -> "§eTotal §7Bazaar Tracker data"
 }

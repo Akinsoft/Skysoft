@@ -9,7 +9,7 @@ import kotlin.math.roundToLong
 internal fun ProfileStorage.BazaarTrackerData.applyCancel(cancel: PendingCancel) {
     val order = findCancelOrder(cancel)
         ?: run {
-            pendingCancel = null
+            BazaarTrackingState.pendingCancel = null
             return
         }
 
@@ -30,7 +30,7 @@ private fun ProfileStorage.BazaarTrackerData.findCancelOrder(cancel: PendingCanc
         .filter { isPlausibleCancelOrder(it, cancel) }
         .minWithOrNull(
             compareBy<ProfileStorage.BazaarOrderData> { cancelDistance(it, cancel) }
-                .thenBy { if (pendingOrderOptionId == it.id) 0 else 1 }
+                .thenBy { if (BazaarTrackingState.pendingOrderOptionId == it.id) 0 else 1 }
                 .thenByDescending { it.updatedAtMillis }
         )
 }
@@ -80,7 +80,7 @@ internal fun ProfileStorage.BazaarTrackerData.findClaimOrder(
     amount: Long,
     unitPrice: Double,
 ): ProfileStorage.BazaarOrderData? {
-    pendingOrderOptionId?.let { id ->
+    BazaarTrackingState.pendingOrderOptionId?.let { id ->
         this.activeOrders.firstOrNull { isPlausibleClaimOrder(it, id, type, itemName, amount, unitPrice) }?.let {
             return it
         }
@@ -135,7 +135,7 @@ internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
     visibleOrderCount: Int,
 ): ChangeResult {
     val now = System.currentTimeMillis()
-    val recentlyClickedOrder = now - lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
+    val recentlyClickedOrder = now - BazaarTrackingState.lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
     val visibleScanMayBeWindowed = visibleOrderCount >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
         this.activeOrders.any { it.id !in matchedOrderIds }
     var changed = false
@@ -143,18 +143,18 @@ internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
     while (iterator.hasNext()) {
         val order = iterator.next()
         if (order.id in matchedOrderIds) {
-            missingFromOrdersGuiScans.remove(order.id)
+            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else if (visibleScanMayBeWindowed) {
-            missingFromOrdersGuiScans.remove(order.id)
+            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else if (!shouldPruneMissingFromGui(order, parsedOrders, recentlyClickedOrder, now)) {
-            missingFromOrdersGuiScans.remove(order.id)
+            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else {
-            val previous = missingFromOrdersGuiScans[order.id]
+            val previous = BazaarTrackingState.missingFromOrdersGuiScans[order.id]
             val observation = MissingOrderObservation(
                 scans = (previous?.scans ?: 0) + 1,
                 firstObservedAtMillis = previous?.firstObservedAtMillis ?: now,
             )
-            missingFromOrdersGuiScans[order.id] = observation
+            BazaarTrackingState.missingFromOrdersGuiScans[order.id] = observation
             if (
                 parsedOrders.isEmpty() ||
                 (
@@ -178,7 +178,7 @@ private fun shouldPruneMissingFromGui(
     now: Long,
 ): Boolean {
     if (recentlyClickedOrder) return false
-    if (pendingCancel?.orderId == order.id) return false
+    if (BazaarTrackingState.pendingCancel?.orderId == order.id) return false
     if (now - order.createdAtMillis < GUI_MISSING_PRUNE_NEW_ORDER_GRACE_MILLIS) return false
 
     // If we have seen this order in a real Bazaar Orders slot before, then a stable scan

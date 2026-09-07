@@ -114,7 +114,7 @@ private fun ProfileStorage.BazaarTrackerData.tryHandleFilledChatMessage(message:
 private fun ProfileStorage.BazaarTrackerData.confirmSetup(type: BazaarOrderType, amountText: String, itemName: String, totalText: String) {
     val amount = parseExactLong(amountText)
     val totalCoins = parseNumber(totalText).value
-    val pending = pendingSetup?.takeIf {
+    val pending = BazaarTrackingState.pendingSetup?.takeIf {
         it.type == type &&
             namesMatch(it.itemName, itemName) &&
             it.amount == amount
@@ -141,14 +141,18 @@ private fun ProfileStorage.BazaarTrackerData.confirmSetup(type: BazaarOrderType,
         },
     )
     addActiveOrder(order, requireFreshMarketProof = true)
-    if (type == BazaarOrderType.BUY) sessionBuySetupValue += totalCoins else sessionSellSetupValue += order.totalCoins
+    if (type == BazaarOrderType.BUY) {
+        BazaarSessionState.recordBuySetup(totalCoins)
+    } else {
+        BazaarSessionState.recordSellSetup(order.totalCoins)
+    }
     pending?.taxPercent?.let { updateTax(it) }
-    pendingSetup = null
+    BazaarTrackingState.pendingSetup = null
     refreshBazaarTrackerMarketData(refreshFillEstimates = true, refreshOrderBook = true)
 }
 
 private fun ProfileStorage.BazaarTrackerData.flipOrder(amount: Long, itemName: String, expectedProfit: Double) {
-    val buyOrder = pendingOrderOptionId
+    val buyOrder = BazaarTrackingState.pendingOrderOptionId
         ?.let { id -> this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
         ?: this.activeOrders
             .asSequence()
@@ -186,8 +190,8 @@ private fun ProfileStorage.BazaarTrackerData.flipOrder(amount: Long, itemName: S
         flipBatchId = buyOrder?.flipBatchId,
     )
     addActiveOrder(sellOrder, requireFreshMarketProof = true)
-    sessionSellSetupValue += totalCoins
-    pendingOrderOptionId = null
+    BazaarSessionState.recordSellSetup(totalCoins)
+    BazaarTrackingState.pendingOrderOptionId = null
     refreshBazaarTrackerMarketData(refreshFillEstimates = true, refreshOrderBook = true)
 }
 
@@ -218,7 +222,7 @@ private fun ProfileStorage.BazaarTrackerData.claimSellOrder(coins: Double, amoun
     prepareCraftedCostBasis(productId, itemName, amount)
     val knownProfit = consumeTrackedLotsForSale(this, productId, itemName, amount, coins)
     this.totalKnownProfit += knownProfit
-    sessionKnownProfit += knownProfit
+    BazaarSessionState.recordProfit(knownProfit)
     clearPendingOrderAction()
 }
 
@@ -243,7 +247,7 @@ private fun ProfileStorage.BazaarTrackerData.markFilled(type: BazaarOrderType, a
     order.filledAmount = max(order.filledAmount, amount)
     playProgressAlert(order, previousFilled)
     order.updatedAtMillis = System.currentTimeMillis()
-    if (pendingCancel?.orderId == order.id) pendingCancel = null
+    if (BazaarTrackingState.pendingCancel?.orderId == order.id) BazaarTrackingState.pendingCancel = null
 }
 
 internal fun selectFilledOrder(
@@ -258,9 +262,11 @@ internal fun selectFilledOrder(
 }
 
 private fun ProfileStorage.BazaarTrackerData.cancelBuyOrderFromChat(refundedCoins: Double) {
-    val pending = pendingCancel?.takeIf { it.type == BazaarOrderType.BUY }
+    val pending = BazaarTrackingState.pendingCancel?.takeIf { it.type == BazaarOrderType.BUY }
     val order = pending?.orderId?.let { id -> this.activeOrders.firstOrNull { it.id == id } }
-        ?: pendingOrderOptionId?.let { id -> this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY } }
+        ?: BazaarTrackingState.pendingOrderOptionId?.let { id ->
+            this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.BUY }
+        }
     val orderId = order?.id ?: pending?.orderId ?: run {
         clearPendingOrderAction()
         return
@@ -280,11 +286,13 @@ private fun ProfileStorage.BazaarTrackerData.cancelBuyOrderFromChat(refundedCoin
 }
 
 private fun ProfileStorage.BazaarTrackerData.cancelSellOrderFromChat(amount: Long, itemName: String) {
-    val pending = pendingCancel?.takeIf {
+    val pending = BazaarTrackingState.pendingCancel?.takeIf {
         it.type == BazaarOrderType.SELL && (it.itemName.isBlank() || namesMatch(it.itemName, itemName))
     }
     val order = pending?.orderId?.let { id -> this.activeOrders.firstOrNull { it.id == id } }
-        ?: pendingOrderOptionId?.let { id -> this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.SELL } }
+        ?: BazaarTrackingState.pendingOrderOptionId?.let { id ->
+            this.activeOrders.firstOrNull { it.id == id && it.type == BazaarOrderType.SELL }
+        }
     val cancel = PendingCancel(
         orderId = order?.id ?: pending?.orderId,
         type = BazaarOrderType.SELL,

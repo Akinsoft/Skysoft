@@ -1,6 +1,5 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
@@ -9,46 +8,27 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-internal var depthRefreshTick = 0
-internal val fillEstimateStates = mutableMapOf<String, BazaarFillEstimateState>()
-
-internal data class BazaarFillEstimateState(
-    val orderId: String,
-    val type: BazaarOrderType,
-    val productId: String,
-    val pricePerUnit: Double,
-    val amountOrdered: Long,
-    val confirmedAtReference: Long,
-    val referenceMillis: Long,
-    val filledAtBaseline: Long,
-    val baselineAmountAtPrice: Long,
-    val queueAheadAtPrice: Long,
-    val queueAhead: Long,
-    val estimatedFilled: Long,
-    val updatedAtMillis: Long,
-)
-
 internal fun tickBazaarFillEstimator() {
     if (!config.settings.estimateFills) {
-        fillEstimateStates.clear()
+        BazaarTrackingState.fillEstimateStates.clear()
         return
     }
-    if (depthRefreshTick++ % BAZAAR_DEPTH_REFRESH_INTERVAL_TICKS != 0) return
+    if (BazaarTrackingState.depthRefreshTick++ % BAZAAR_DEPTH_REFRESH_INTERVAL_TICKS != 0) return
     refreshBazaarFillEstimates()
 }
 
 internal fun requestBazaarFillEstimateRefresh() {
     if (!config.settings.estimateFills) {
-        fillEstimateStates.clear()
+        BazaarTrackingState.fillEstimateStates.clear()
         return
     }
-    depthRefreshTick = 1
+    BazaarTrackingState.depthRefreshTick = 1
     refreshBazaarFillEstimates()
 }
 
 private fun refreshBazaarFillEstimates() {
     if (!config.settings.estimateFills) {
-        fillEstimateStates.clear()
+        BazaarTrackingState.fillEstimateStates.clear()
         return
     }
     pruneFillEstimateStates()
@@ -67,7 +47,7 @@ private fun refreshBazaarFillEstimates() {
 
 private fun applyBazaarDepthProducts(products: Map<String, SkysoftBazaarDepthProduct>) {
     if (!config.settings.estimateFills) {
-        fillEstimateStates.clear()
+        BazaarTrackingState.fillEstimateStates.clear()
         return
     }
     pruneFillEstimateStates()
@@ -75,9 +55,9 @@ private fun applyBazaarDepthProducts(products: Map<String, SkysoftBazaarDepthPro
     val ambiguousIds = activeOrders
         .filter { order -> activeOrders.any { other -> hasOverlappingFillEstimateIdentity(order, other) } }
         .mapTo(mutableSetOf()) { it.id }
-    ambiguousIds.forEach(fillEstimateStates::remove)
+    ambiguousIds.forEach(BazaarTrackingState.fillEstimateStates::remove)
     val uncertainAmountIds = activeOrders.filter { it.amountResolution > 0.0 }.mapTo(mutableSetOf()) { it.id }
-    uncertainAmountIds.forEach(fillEstimateStates::remove)
+    uncertainAmountIds.forEach(BazaarTrackingState.fillEstimateStates::remove)
     storage.activeOrders.forEach { order ->
         if (order.id in ambiguousIds || order.amountResolution > 0.0) return@forEach
         val productId = order.productId ?: return@forEach
@@ -95,12 +75,12 @@ private fun updateFillEstimate(
     val confirmedFilled = max(order.filledAmount, order.claimedAmount).coerceAtMost(order.amountOrdered)
     val remaining = (order.amountOrdered - confirmedFilled).coerceAtLeast(0L)
     if (remaining <= 0L) {
-        fillEstimateStates.remove(order.id)
+        BazaarTrackingState.fillEstimateStates.remove(order.id)
         return
     }
 
     val queue = product.depthRowsFor(order.type).queueSnapshot(order.type, order.pricePerUnit, remaining) ?: return
-    val existingState = fillEstimateStates[order.id]
+    val existingState = BazaarTrackingState.fillEstimateStates[order.id]
         ?.takeIf { it.matches(order, productId) && it.confirmedAtReference == confirmedFilled }
     val state = existingState ?: initialFillEstimateState(
         order,
@@ -123,7 +103,7 @@ private fun updateFillEstimate(
     val visibleFilled = estimatedVisibleFilled(order, confirmedFilled, estimatedFilled)
     showEstimatedFillProgress(order, previousVisibleFilled, visibleFilled)
 
-    fillEstimateStates[order.id] = state.copy(
+    BazaarTrackingState.fillEstimateStates[order.id] = state.copy(
         queueAhead = queue.queueAhead,
         estimatedFilled = estimatedFilled,
         updatedAtMillis = System.currentTimeMillis(),
@@ -172,7 +152,7 @@ private fun estimatedVisibleFilled(
 
 internal fun estimatedFilledAmount(order: ProfileStorageView.BazaarOrderData): Long {
     if (!config.settings.estimateFills) return 0L
-    return fillEstimateStates[order.id]
+    return BazaarTrackingState.fillEstimateStates[order.id]
         ?.takeIf { state -> order.productId?.let { state.matches(order, it) } == true }
         ?.estimatedFilled
         ?.coerceIn(0L, order.amountOrdered)
@@ -192,17 +172,17 @@ internal fun visibleFilledAmount(order: ProfileStorageView.BazaarOrderData): Lon
 
 private fun pruneFillEstimateStates() {
     val activeIds = storage.activeOrders.mapTo(mutableSetOf()) { it.id }
-    fillEstimateStates.keys.retainAll(activeIds)
+    BazaarTrackingState.fillEstimateStates.keys.retainAll(activeIds)
 }
 
 internal fun resetFillEstimate(order: ProfileStorageView.BazaarOrderData) {
-    fillEstimateStates.remove(order.id)
+    BazaarTrackingState.fillEstimateStates.remove(order.id)
 }
 
 private fun orderReferenceMillis(order: ProfileStorageView.BazaarOrderData): Long {
     val productId = order.productId ?: return baseOrderReferenceMillis(order)
     val confirmedFilled = confirmedFilledAmount(order)
-    return fillEstimateStates[order.id]
+    return BazaarTrackingState.fillEstimateStates[order.id]
         ?.takeIf { it.matches(order, productId) && it.confirmedAtReference == confirmedFilled }
         ?.referenceMillis
         ?: baseOrderReferenceMillis(order)

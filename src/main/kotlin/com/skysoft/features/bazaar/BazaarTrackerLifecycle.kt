@@ -41,8 +41,8 @@ internal fun registerBazaarTracker() {
         wasBazaarTrackerEnabled = config.enabled
         onClientTick()
     }
-    SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset") { resetTransientState(false) }
-    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset", { config.enabled }) { resetTransientState(false) }
+    SkysoftClientEvents.onDisconnect("Bazaar Tracker disconnect reset", ::resetBazaarTrackerRuntime)
+    SkyBlockProfileApi.onProfileChange("Bazaar Tracker profile reset", { config.enabled }) { resetBazaarTrackerRuntime() }
     GuiOverlayRegistry.registerHud(
         GuiOverlay(
             id = "bazaar_tracker",
@@ -67,13 +67,16 @@ internal fun registerBazaarTracker() {
 }
 
 internal fun resetBazaarTrackerDisplayedProfit() {
-    if (displayMode == TrackerDisplayMode.SESSION) {
-        sessionKnownProfit = 0.0
-        sessionBuySetupValue = 0.0
-        sessionSellSetupValue = 0.0
+    if (BazaarDisplayState.mode == TrackerDisplayMode.SESSION) {
+        BazaarSessionState.reset()
     } else {
         ProfileStorageApi.updateProfile { it.bazaarTracker.totalKnownProfit = 0.0 }
     }
+}
+
+internal fun resetBazaarTrackerRuntime() {
+    BazaarTrackingState.reset()
+    BazaarDisplayState.clearInteraction()
 }
 
 private fun registerChatListeners() {
@@ -94,15 +97,13 @@ private var wasBazaarTrackerEnabled = false
 
 internal fun onClientTick() {
     if (!HypixelLocationState.inSkyBlock || !config.enabled) {
-        resetTransientState(false)
+        resetBazaarTrackerRuntime()
         return
     }
     checkStatusAlerts()
     tickBazaarFillEstimator()
     val snapshot = openInventorySnapshot ?: run {
-        lastOrdersInventoryKey = null
-        pendingOrdersInventoryKey = null
-        pendingOrdersInventoryStableTicks = 0
+        BazaarTrackingState.resetOrderScan()
         return
     }
     when {
@@ -110,40 +111,31 @@ internal fun onClientTick() {
         snapshot.title == "Confirm Sell Offer" -> readConfirmInventory(snapshot, BazaarOrderType.SELL)
         snapshot.title.contains("Bazaar Orders") -> readOrdersInventory(snapshot)
         snapshot.title == "Order options" -> readOrderOptionsInventory(snapshot)
-        else -> {
-            lastOrdersInventoryKey = null
-            pendingOrdersInventoryKey = null
-            pendingOrdersInventoryStableTicks = 0
-        }
+        else -> BazaarTrackingState.resetOrderScan()
     }
 }
 
 private fun checkStatusAlerts() {
-    if (statusAlertTick++ % STATUS_ALERT_INTERVAL_TICKS != 0) return
+    if (BazaarTrackingState.statusAlertTick++ % STATUS_ALERT_INTERVAL_TICKS != 0) return
     val activeIds = storage.activeOrders.mapTo(mutableSetOf()) { it.id }
-    lastAlertStatuses.keys.retainAll(activeIds)
-    lastOutbidAlertMillis.keys.retainAll(activeIds)
-    marketProofMillis.keys.retainAll(activeIds)
+    BazaarTrackingState.lastAlertStatuses.keys.retainAll(activeIds)
+    BazaarTrackingState.lastOutbidAlertMillis.keys.retainAll(activeIds)
+    BazaarTrackingState.marketProofMillis.keys.retainAll(activeIds)
 
     val now = System.currentTimeMillis()
     for (order in storage.activeOrders) {
         val status = statusFor(order)
-        val previous = lastAlertStatuses.put(order.id, status) ?: continue
+        val previous = BazaarTrackingState.lastAlertStatuses.put(order.id, status) ?: continue
         if (!status.isWarning || previous.isWarning) continue
-        val lastAlert = lastOutbidAlertMillis[order.id] ?: 0L
+        val lastAlert = BazaarTrackingState.lastOutbidAlertMillis[order.id] ?: 0L
         if (now - lastAlert < OUTBID_SOUND_COOLDOWN_MILLIS) continue
-        lastOutbidAlertMillis[order.id] = now
+        BazaarTrackingState.lastOutbidAlertMillis[order.id] = now
         playAlertSound(BazaarTrackerSound.OUTBID_UNDERCUT)
     }
 }
 
 internal fun initializeOrderAlertState(order: ProfileStorageView.BazaarOrderData) {
-    lastAlertStatuses[order.id] = statusFor(order)
-}
-
-internal fun forgetOrderAlertState(orderId: String) {
-    lastAlertStatuses.remove(orderId)
-    lastOutbidAlertMillis.remove(orderId)
+    BazaarTrackingState.lastAlertStatuses[order.id] = statusFor(order)
 }
 
 internal fun playProgressAlert(order: ProfileStorageView.BazaarOrderData, previousFilledAmount: Long) {
@@ -153,7 +145,7 @@ internal fun playProgressAlert(order: ProfileStorageView.BazaarOrderData, previo
     } else if (order.filledAmount > order.claimedAmount) {
         playAlertSound(BazaarTrackerSound.PARTIAL)
     }
-    lastAlertStatuses[order.id] = statusFor(order)
+    BazaarTrackingState.lastAlertStatuses[order.id] = statusFor(order)
 }
 
 internal fun showEstimatedFillProgress(
@@ -166,7 +158,7 @@ internal fun showEstimatedFillProgress(
     if (isPartialFill(order, filledAmount)) {
         playAlertSound(BazaarTrackerSound.PARTIAL)
     }
-    lastAlertStatuses[order.id] = statusFor(order)
+    BazaarTrackingState.lastAlertStatuses[order.id] = statusFor(order)
 }
 
 private fun playAlertSound(sound: BazaarTrackerSound) {

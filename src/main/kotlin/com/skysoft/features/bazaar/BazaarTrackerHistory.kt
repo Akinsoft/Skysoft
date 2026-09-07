@@ -7,36 +7,10 @@ import com.skysoft.utils.trimStartToSize
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
 
-internal fun resetTransientState(resetSessionStats: Boolean) {
-    pendingSetup = null
-    pendingOrderOptionId = null
-    pendingCancel = null
-    lastOrdersInventoryKey = null
-    pendingOrdersInventoryKey = null
-    pendingOrdersInventoryStableTicks = 0
-    hoveredControlArea = null
-    statusAlertTick = 0
-    lastOrdersGuiClickMillis = 0L
-    lastOrdersGuiClickSignature = ""
-    lastAlertStatuses.clear()
-    lastOutbidAlertMillis.clear()
-    missingFromOrdersGuiScans.clear()
-    fillHighlightExpiresAt.clear()
-    marketProofMillis.clear()
-    fillEstimateStates.clear()
-    depthRefreshTick = 0
-    recentResolvedOrders.clear()
-    if (resetSessionStats) {
-        sessionKnownProfit = 0.0
-        sessionBuySetupValue = 0.0
-        sessionSellSetupValue = 0.0
-    }
-}
-
 internal fun rememberResolvedOrder(order: ProfileStorageView.BazaarOrderData) {
-    clearTrackedOrderRuntimeState(order.id)
+    BazaarTrackingState.forgetOrder(order.id)
     pruneRecentResolvedOrders()
-    recentResolvedOrders.addLast(
+    BazaarTrackingState.recentResolvedOrders.addLast(
         RecentResolvedOrder(
             type = order.type,
             itemName = order.itemName,
@@ -46,25 +20,17 @@ internal fun rememberResolvedOrder(order: ProfileStorageView.BazaarOrderData) {
             timestampMillis = System.currentTimeMillis(),
         ),
     )
-    recentResolvedOrders.trimStartToSize(MAX_RECENT_RESOLVED_ORDERS)
+    BazaarTrackingState.recentResolvedOrders.trimStartToSize(MAX_RECENT_RESOLVED_ORDERS)
 }
 
 internal fun ProfileStorage.BazaarTrackerData.discardTrackedOrder(order: ProfileStorageView.BazaarOrderData) {
-    clearTrackedOrderRuntimeState(order.id)
+    BazaarTrackingState.forgetOrder(order.id)
     this.activeOrders.remove(order)
-}
-
-private fun clearTrackedOrderRuntimeState(orderId: String) {
-    forgetOrderAlertState(orderId)
-    missingFromOrdersGuiScans.remove(orderId)
-    fillHighlightExpiresAt.remove(orderId)
-    marketProofMillis.remove(orderId)
-    fillEstimateStates.remove(orderId)
 }
 
 internal fun recentlyResolved(parsed: PendingOrder): Boolean {
     pruneRecentResolvedOrders()
-    return recentResolvedOrders.any { resolved ->
+    return BazaarTrackingState.recentResolvedOrders.any { resolved ->
         resolved.type == parsed.type &&
             (productMatches(resolved.productId, parsed.productId) || namesMatch(resolved.itemName, parsed.itemName)) &&
             haveOverlappingRanges(
@@ -88,7 +54,8 @@ internal fun recentlyResolved(parsed: PendingOrder): Boolean {
 
 internal fun pruneRecentResolvedOrders() {
     val cutoff = System.currentTimeMillis() - RECENT_RESOLVED_SUPPRESS_MILLIS
-    while (recentResolvedOrders.firstOrNull()?.timestampMillis?.let { it < cutoff } == true) recentResolvedOrders.removeFirst()
+    val orders = BazaarTrackingState.recentResolvedOrders
+    while (orders.firstOrNull()?.timestampMillis?.let { it < cutoff } == true) orders.removeFirst()
 }
 
 internal fun slotAt(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int): Slot? =

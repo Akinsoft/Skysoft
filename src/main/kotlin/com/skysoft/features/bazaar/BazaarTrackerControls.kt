@@ -27,16 +27,16 @@ internal fun handleBazaarTrackerMouseButtonPress(button: Int): InputHandlingResu
 }
 
 internal fun renderTrackerControlTooltip(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-    val area = hoveredControlArea ?: return
+    val area = BazaarDisplayState.hoveredControlArea ?: return
     val (tooltipMouseX, tooltipMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
     SkysoftNativeTooltip.setForNextFrame(context, area.tooltipLines, tooltipMouseX, tooltipMouseY)
 }
 
 internal fun handleTrackerControlClick(button: Int): InputHandlingResult {
-    val area = hoveredControlArea ?: return InputHandlingResult.IGNORED
+    val area = BazaarDisplayState.hoveredControlArea ?: return InputHandlingResult.IGNORED
     val activated = when (area.action) {
         TrackerControl.TOGGLE_MODE -> {
-            cycleDisplayMode(backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+            BazaarDisplayState.cycleMode(backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
             true
         }
         TrackerControl.RESET -> if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {

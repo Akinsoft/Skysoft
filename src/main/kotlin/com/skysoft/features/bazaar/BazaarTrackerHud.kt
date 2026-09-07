@@ -14,14 +14,14 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 internal fun renderHud(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
     if (!isBazaarTrackerVisible(minecraft)) {
-        hoveredControlArea = null
+        BazaarDisplayState.hoveredControlArea = null
         return
     }
     val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
     val inventoryOpen = inventoryScreen != null
     val renderable = buildRenderable(inventoryOpen)
     if (renderable.width <= 0 || renderable.height <= 0) {
-        hoveredControlArea = null
+        BazaarDisplayState.hoveredControlArea = null
         return
     }
     val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
@@ -62,7 +62,7 @@ internal fun renderPositioned(
             null
         }
     }
-    hoveredControlArea = if (updateControls) hoveredArea?.toOverlayArea(transform) else null
+    BazaarDisplayState.hoveredControlArea = if (updateControls) hoveredArea?.toOverlayArea(transform) else null
 }
 
 internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
@@ -82,7 +82,11 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
         }
         if (config.details.flippingInfo) {
             val activeValue = trackedInvestedValue(storage)
-            val profit = if (displayMode == TrackerDisplayMode.SESSION) sessionKnownProfit else storage.totalKnownProfit
+            val profit = if (BazaarDisplayState.mode == TrackerDisplayMode.SESSION) {
+                BazaarSessionState.knownProfit
+            } else {
+                storage.totalKnownProfit
+            }
             add(DisplayLine.text("§7Invested: §6${formatCoins(activeValue)}"))
             add(DisplayLine.text("§7Profit: §a${formatSigned(profit)}"))
             if (inventoryOpen) add(displayModeLine())
@@ -95,13 +99,13 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
 private fun displayModeLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§7Display Mode "),
     LineSegment(
-        if (displayMode == TrackerDisplayMode.SESSION) "§a§l[Session]" else "§a§l[Total]",
+        if (BazaarDisplayState.mode == TrackerDisplayMode.SESSION) "§a§l[Session]" else "§a§l[Total]",
         TrackerControl.TOGGLE_MODE,
     ),
 )
 
 internal fun resetLine(): DisplayLine = DisplayLine.segments(
-    LineSegment("§c[Reset ${displayMode.displayName}]", TrackerControl.RESET),
+    LineSegment("§c[Reset ${BazaarDisplayState.mode.displayName}]", TrackerControl.RESET),
 )
 
 private fun displayOrders(): List<ProfileStorageView.BazaarOrderData> =
@@ -122,15 +126,15 @@ internal fun orderLine(order: ProfileStorageView.BazaarOrderData): DisplayLine {
 
 internal fun markFillHighlight(order: ProfileStorageView.BazaarOrderData, filled: Long) {
     if (isPartialFill(order, filled)) {
-        fillHighlightExpiresAt[order.id] = System.currentTimeMillis() + FILL_HIGHLIGHT_MILLIS
+        BazaarTrackingState.fillHighlightExpiresAt[order.id] = System.currentTimeMillis() + FILL_HIGHLIGHT_MILLIS
     }
 }
 
 private fun fillProgressStyle(order: ProfileStorageView.BazaarOrderData): String {
-    val expiresAt = fillHighlightExpiresAt[order.id] ?: return "§8"
+    val expiresAt = BazaarTrackingState.fillHighlightExpiresAt[order.id] ?: return "§8"
     val filled = visibleFilledAmount(order)
     if (System.currentTimeMillis() >= expiresAt || !isPartialFill(order, filled)) {
-        fillHighlightExpiresAt.remove(order.id)
+        BazaarTrackingState.fillHighlightExpiresAt.remove(order.id)
         return "§8"
     }
     return "§a§l"
@@ -141,7 +145,9 @@ internal fun isPartialFill(order: ProfileStorageView.BazaarOrderData, filled: Lo
 
 internal fun requireMarketProof(order: ProfileStorageView.BazaarOrderData) {
     val market = BazaarOrderBookApi.get(order.productId)
-    if (market == null || !rawMarketStatusFor(order, market).isWarning) marketProofMillis[order.id] = order.createdAtMillis
+    if (market == null || !rawMarketStatusFor(order, market).isWarning) {
+        BazaarTrackingState.marketProofMillis[order.id] = order.createdAtMillis
+    }
 }
 
 internal fun statusFor(order: ProfileStorageView.BazaarOrderData): OrderStatus {

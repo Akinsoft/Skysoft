@@ -22,8 +22,8 @@ internal fun refreshBazaarTrackerMarketData(
 }
 
 internal fun clearPendingOrderAction() {
-    pendingCancel = null
-    pendingOrderOptionId = null
+    BazaarTrackingState.pendingCancel = null
+    BazaarTrackingState.pendingOrderOptionId = null
 }
 
 internal fun ProfileStorage.BazaarTrackerData.applyClaimedAmount(
