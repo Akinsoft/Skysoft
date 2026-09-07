@@ -94,7 +94,6 @@ internal fun visibleStorageSettings(): List<StorageVisualSetting> = StorageVisua
 internal data class StorageSettingsPanelLayout(
     val button: Rect,
     val panel: Rect,
-    val isBesideInventory: Boolean,
     val settings: List<StorageVisualSetting>,
 ) {
     val close: Rect
@@ -199,7 +198,6 @@ internal data class StorageSettingsPanelLayout(
                     StorageSettingsPanel.BUTTON_SIZE,
                 ),
                 panel = Rect(panelX, panelY, panelWidth, panelHeight),
-                isBesideInventory = panelX == preferredX,
                 settings = visibleSettings,
             )
         }
