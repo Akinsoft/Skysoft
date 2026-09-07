@@ -622,8 +622,8 @@ private class ProfitTrackerRenderable(
     private fun controlTooltip(action: ProfitTrackerControl): List<String> = when (action) {
         ProfitTrackerControl.Period -> OverlayControlTooltips.cycle(
             "Display Mode",
-            ProfitTrackingPeriod.entries.map(ProfitTrackingPeriod::displayName),
-            period.ordinal,
+            target.trackingPeriods.map(ProfitTrackingPeriod::displayName),
+            target.trackingPeriods.indexOf(period),
         )
         ProfitTrackerControl.PriceSource -> OverlayControlTooltips.cycle(
             "Price Source",
