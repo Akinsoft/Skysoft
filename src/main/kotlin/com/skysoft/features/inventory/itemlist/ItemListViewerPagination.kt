@@ -1,9 +1,5 @@
 package com.skysoft.features.inventory.itemlist
 
-import com.skysoft.data.skyblock.ItemListEntryKey
-import com.skysoft.data.skyblock.SkyBlockCurrencyStacks
-import com.skysoft.data.skyblock.SkyBlockItemInfo
-import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
 
@@ -232,81 +228,3 @@ private fun viewerContentScale(tile: Rect, baseWidth: Int, baseHeight: Int): Flo
 private fun scaled(value: Int, scale: Float): Int = (value * scale).roundToInt().coerceAtLeast(1)
 
 internal fun recipePageCount(recipeCount: Int, pageSize: Int): Int = Math.ceilDiv(recipeCount, pageSize)
-
-internal fun availableViewerMode(
-    requested: ItemListViewMode,
-    hasRecipes: Boolean,
-    hasUsages: Boolean,
-): ItemListViewMode = when (requested) {
-    ItemListViewMode.RECIPES -> if (hasRecipes) requested else ItemListViewMode.INFO
-    ItemListViewMode.USAGES -> if (hasUsages) requested else ItemListViewMode.INFO
-    ItemListViewMode.INFO -> requested
-}
-
-internal fun favoriteTooltip(isFavorite: Boolean): String =
-    if (isFavorite) "Remove from favorites" else "Add to favorites"
-
-internal fun itemInfoLines(
-    key: ItemListEntryKey,
-    info: SkyBlockItemInfo?,
-    motesSellPrice: Long? = null,
-): List<String> = buildList {
-    add("§7ID: §f${key.id}")
-    info?.category?.let { add("§7Category: §f$it") }
-    motesSellPrice?.let {
-        add("§7Motes Grubber base value: §d${SkyBlockCurrencyStacks.moteName(it)}")
-    }
-    if (info?.lore?.isNotEmpty() == true) {
-        addAll(cleanInfoLore(info))
-    }
-}
-
-private fun cleanInfoLore(info: SkyBlockItemInfo): List<String> = info.lore.filterNot { line ->
-    val plain = line.replace(Regex("§."), "").trim()
-    line.isBlank() ||
-        isRecipePrompt(line) ||
-        isRepeatedEnchantmentDetail(line) ||
-        isEnchantmentBoilerplate(info, plain)
-}
-
-private fun isEnchantmentBoilerplate(info: SkyBlockItemInfo, plain: String): Boolean {
-    if (info.enchantment == null) return false
-    return plain.equals(info.displayName, ignoreCase = true) ||
-        plain.startsWith("Use this on an item in an Anvil", ignoreCase = true) ||
-        plain.equals("apply it!", ignoreCase = true)
-}
-
-private fun isRecipePrompt(line: String): Boolean =
-    line.replace(Regex("§."), "").trim().matches(Regex("Right-click to view recipes!?", RegexOption.IGNORE_CASE))
-
-private fun isRepeatedEnchantmentDetail(line: String): Boolean {
-    val plain = line.replace(Regex("§."), "").trim()
-    return plain.startsWith("Applicable on:") || plain.startsWith("Apply Cost:")
-}
-
-internal enum class ViewerInputResult {
-    HANDLED,
-    PREVIOUS_PAGE,
-    NEXT_PAGE,
-    IGNORED,
-    ;
-
-    val isHandled: Boolean get() = this != IGNORED
-    val pageDelta: Int?
-        get() = when (this) {
-            PREVIOUS_PAGE -> -1
-            NEXT_PAGE -> 1
-            else -> null
-        }
-
-    inline fun orElse(action: () -> ViewerInputResult): ViewerInputResult = if (isHandled) this else action()
-
-    fun playSound() {
-        if (!isHandled) return
-        pageDelta?.let(SoundUtilities::playNavigationSound) ?: SoundUtilities.playClickSound()
-    }
-
-    companion object {
-        fun page(delta: Int): ViewerInputResult = if (delta < 0) PREVIOUS_PAGE else NEXT_PAGE
-    }
-}

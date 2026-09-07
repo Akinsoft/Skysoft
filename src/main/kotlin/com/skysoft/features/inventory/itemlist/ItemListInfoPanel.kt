@@ -2,7 +2,9 @@ package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
+import com.skysoft.data.skyblock.SkyBlockCurrencyStacks
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockItemInfo
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.gui.Rect
@@ -17,8 +19,6 @@ internal class ItemListInfoPanel {
     private var currentKey: ItemListEntryKey? = null
     private var scrollOffset = 0
     private var maximumScroll = 0
-    private var entityBounds: List<Pair<Rect, String>> = emptyList()
-    private var panelBounds: Rect? = null
 
     fun render(
         context: GuiGraphicsExtractor,
@@ -32,7 +32,6 @@ internal class ItemListInfoPanel {
             currentKey = key
             scrollOffset = 0
         }
-        panelBounds = bounds
         val info = SkyBlockDataRepository.info(key)
         val entity = key.takeIf { it.kind == ItemListEntryKind.ENTITY }?.let { SkyBlockDataRepository.entity(it.id) }
         val motesSellPrice = SkyBlockPriceData.getNpcSellPrices(key.id).motes?.roundToLong()
@@ -83,14 +82,8 @@ internal class ItemListInfoPanel {
         } finally {
             context.disableScissor()
         }
-        entityBounds = emptyList()
         renderScrollbar(context, bounds)
     }
-
-    fun entityAt(mouseX: Int, mouseY: Int): String? =
-        panelBounds?.takeIf { it.contains(mouseX, mouseY) }?.let {
-            entityBounds.firstOrNull { (bounds, _) -> bounds.contains(mouseX, mouseY) }?.second
-        }
 
     fun applyScroll(bounds: Rect, mouseX: Int, mouseY: Int, amount: Double): ViewerInputResult {
         if (!bounds.contains(mouseX, mouseY) || amount == 0.0 || maximumScroll == 0) return ViewerInputResult.IGNORED
@@ -257,11 +250,35 @@ private fun enchantmentTarget(value: String): EnchantmentTarget {
     }
 }
 
-internal fun itemListEntityAt(
-    mode: ItemListViewMode,
-    infoPanel: ItemListInfoPanel,
-    entityBounds: List<Pair<Rect, String>>,
-    mouseX: Int,
-    mouseY: Int,
-): String? = (if (mode == ItemListViewMode.INFO) infoPanel.entityAt(mouseX, mouseY) else null)
-    ?: entityBounds.firstOrNull { (bounds, _) -> bounds.contains(mouseX, mouseY) }?.second
+private fun itemInfoLines(
+    key: ItemListEntryKey,
+    info: SkyBlockItemInfo?,
+    motesSellPrice: Long? = null,
+): List<String> = buildList {
+    add("§7ID: §f${key.id}")
+    info?.category?.let { add("§7Category: §f$it") }
+    motesSellPrice?.let {
+        add("§7Motes Grubber base value: §d${SkyBlockCurrencyStacks.moteName(it)}")
+    }
+    if (info?.lore?.isNotEmpty() == true) {
+        addAll(cleanInfoLore(info))
+    }
+}
+
+private fun cleanInfoLore(info: SkyBlockItemInfo): List<String> = info.lore.filterNot { line ->
+    val plain = line.replace(INFO_COLOR_PATTERN, "").trim()
+    line.isBlank() ||
+        RECIPE_PROMPT_PATTERN.matches(plain) ||
+        (plain.startsWith("Applicable on:") || plain.startsWith("Apply Cost:")) ||
+        isEnchantmentBoilerplate(info, plain)
+}
+
+private fun isEnchantmentBoilerplate(info: SkyBlockItemInfo, plain: String): Boolean {
+    if (info.enchantment == null) return false
+    return plain.equals(info.displayName, ignoreCase = true) ||
+        plain.startsWith("Use this on an item in an Anvil", ignoreCase = true) ||
+        plain.equals("apply it!", ignoreCase = true)
+}
+
+private val INFO_COLOR_PATTERN = Regex("§.")
+private val RECIPE_PROMPT_PATTERN = Regex("Right-click to view recipes!?", RegexOption.IGNORE_CASE)
