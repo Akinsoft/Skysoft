@@ -573,31 +573,25 @@ internal fun refreshRemoteCocoonTargets(
         }
 }
 
-internal fun shouldRememberLocalRareMobDeath(
+private fun shouldRememberLocalRareMobDeath(
     target: DianaRareMobTarget,
     reason: String,
     broadcast: Boolean,
 ): Boolean = broadcast && target.source == DianaRareMobTargetSource.LOCAL && reason in LOCAL_DEATH_REASONS
 
-internal fun clearRemoteTargetForPlayerDeath(
+private fun clearRemoteTargetForPlayerDeath(
     targets: Collection<DianaRareMobTarget>,
     death: DianaRareMobPlayerDeath,
     clearTarget: (DianaRareMobTarget) -> Unit,
-): RemoteTargetClearResult {
+) {
     val target = targets
         .asSequence()
         .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
         .filter { target -> target.sharedBy.name.equals(death.player, ignoreCase = true) }
         .filter { target -> target.mob == death.mob }
         .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
-        ?: return RemoteTargetClearResult.NOT_FOUND
+        ?: return
     clearTarget(target)
-    return RemoteTargetClearResult.CLEARED
-}
-
-internal enum class RemoteTargetClearResult {
-    CLEARED,
-    NOT_FOUND,
 }
 
 private fun staleRemoteClearReason(target: DianaRareMobTarget, playerLocation: WorldVec, now: Long): String? {
