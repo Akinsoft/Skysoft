@@ -42,7 +42,7 @@ internal object PetStorageClickHandler {
         clickedPetUuid: UUID?,
         currentPetUuid: UUID?,
     ) {
-        if (isShiftKeyDown()) return
+        if (InputUtilities.isShiftDown()) return
         PetStorageService.lastExactPetMenuClick = ElapsedTimeMark.now()
         if (PetStoragePetItems.isCurrentPetStack(clickedItem) || currentPetUuid == clickedPetUuid) {
             ActivePetTracker.clearCurrentPet()
@@ -50,6 +50,4 @@ internal object PetStorageClickHandler {
             ActivePetTracker.assertFoundCurrentData(clickedPetData, PetDataAssertionSource.MENU)
         }
     }
-
-    private fun isShiftKeyDown(): Boolean = InputUtilities.isShiftDown()
 }
