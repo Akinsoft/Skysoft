@@ -2,12 +2,14 @@ package com.skysoft.data.skyblock.pets
 
 import com.google.gson.Gson
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockStackFactory
+import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import java.util.concurrent.ConcurrentHashMap
 
 internal object PetRepoCache {
     val gson = Gson()
-    val skinStacks = ConcurrentHashMap<String, ItemStack>()
+    private val skinStacks = ConcurrentHashMap<String, ItemStack>()
     val animatedSkinMatches = ConcurrentHashMap<String, AnimatedSkinJson>()
     val missingAnimatedSkinMatches = ConcurrentHashMap.newKeySet<String>()
     private val animationCacheLock = Any()
@@ -32,6 +34,10 @@ internal object PetRepoCache {
                 clearAnimationCaches()
             }
         }
+
+    fun skinStack(texture: String): ItemStack = skinStacks.computeIfAbsent(texture) {
+        SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
+    }.copy()
 
     fun animatedSkinFrames(
         key: () -> PetAnimationFramesKey,

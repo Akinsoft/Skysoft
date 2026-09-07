@@ -18,9 +18,7 @@ object PetRepository {
             return SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
         }
         PetSkins.animatedTexture(skinInternalName)?.let { texture ->
-            return PetRepoCache.skinStacks.computeIfAbsent(skinInternalName) {
-                SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
-            }.copy()
+            return PetRepoCache.skinStack(texture)
         }
         return SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(skinInternalName))
     }
