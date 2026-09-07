@@ -8,7 +8,6 @@ import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockAreaState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -19,23 +18,18 @@ import com.skysoft.data.skyblock.SKYBLOCK_COINS
 import com.skysoft.data.skyblock.SkyBlockCurrencyChanges
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockEnchantments
-import com.skysoft.data.skyblock.SkyBlockRecipe
-import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.SlayerMessageParser
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.BazaarPriceData
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.event.diana.DianaEventState
 import com.skysoft.features.event.diana.MythologicalRitualMessageTracker
-import com.skysoft.features.event.diana.UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.animation.TimedHighlightTracker
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
-import java.time.LocalDate
-import kotlin.math.roundToLong
 import net.fabricmc.fabric.api.event.client.player.ClientPlayerBlockBreakEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -44,7 +38,7 @@ import net.minecraft.world.level.block.Blocks
 
 object ProfitTracker {
     private val configs get() = SkysoftConfigGui.config().profitTrackers
-    private val sessionStats = mutableMapOf<String, ProfileStorage.ProfitTrackerStats>()
+    private val statistics = ProfitTrackerStatistics()
     private val questCostCapture = SlayerQuestCostCapture()
     private var attributionPreset: ProfitTrackerPreset? = null
     private var inactiveAttributionTicks = 0
@@ -61,9 +55,8 @@ object ProfitTracker {
     )
     private val itemTracking = ProfitTrackerItemTracking()
     private val craftingReconciliation = ProfitCraftingReconciliation<ProfitTrackerTarget>()
-    private var dropCatalogVersion = -1L
-    private var trackedItems = emptyMap<ProfitTrackerPreset, Set<String>>()
-    private val pendingReplenishCosts = mutableMapOf<ReplenishCrop, Int>()
+    private val dropCatalog = ProfitDropCatalog()
+    private val replenishCosts = ProfitReplenishCosts()
     private val foragingTreeGiftParser = ForagingTreeGiftParser()
     internal val itemQuantityHighlights = TimedHighlightTracker<Pair<String, String>>()
 
@@ -127,7 +120,7 @@ object ProfitTracker {
                     uptime.hasUnconfirmedUptime
             },
         ) { minecraft ->
-            synchronizePeriods()
+            statistics.synchronizePeriods(configs.mythologicalRitual.enabled)
             fishingHookPreset?.let { uptime.refreshActivity(ProfitTrackerTarget.preset(it)) }
             val locationPreset = currentPreset
             if (locationPreset != durationPreset) {
@@ -215,45 +208,19 @@ object ProfitTracker {
                 .let { stored -> ProfitTrackerPreset.entries.firstOrNull { it.name == stored } }
                 ?.takeIf(::isInPresetArea)
 
-    internal fun stats(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerStats = when (displayPeriod(target)) {
-        ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey] ?: emptyProfitTrackerStats
-        ProfitTrackingPeriod.TODAY -> with(ProfileStorageApi.storage.profitTracker) {
-            today[target.storageKey].takeIf { todayEpochDay == LocalDate.now().toEpochDay() } ?: emptyProfitTrackerStats
-        }
-        ProfitTrackingPeriod.MAYOR -> requireNotNull(mythologicalRitualMayorStats(target))
-        ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.storage.profitTracker.totals[target.storageKey] ?: emptyProfitTrackerStats
-    }
+    internal fun stats(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerStats = statistics.stats(target)
 
     internal fun isTimerPaused(target: ProfitTrackerTarget): Boolean =
         uptime.isPaused(target, Minecraft.getInstance().isWindowActive)
 
-    internal fun displayPeriod(target: ProfitTrackerTarget): ProfitTrackingPeriod =
-        ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey]
-            ?.let { period -> target.trackingPeriods.firstOrNull { it.name == period } }
-            ?: if (target.preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) {
-                ProfitTrackingPeriod.MAYOR
-            } else {
-                ProfitTrackingPeriod.SESSION
-            }
+    internal fun displayPeriod(target: ProfitTrackerTarget): ProfitTrackingPeriod = statistics.displayPeriod(target)
 
     internal fun resetDisplayed(target: ProfitTrackerTarget) {
         itemTracking.clear()
         craftingReconciliation.clear(target)
-        pendingReplenishCosts.clear()
+        replenishCosts.clear()
         val period = displayPeriod(target)
-        when (period) {
-            ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey]?.clear()
-            ProfitTrackingPeriod.TODAY -> ProfileStorageApi.updateProfile { profile ->
-                didRollProfitTrackerToday(profile.profitTracker, LocalDate.now().toEpochDay())
-                profile.profitTracker.today[target.storageKey]?.clear()
-            }
-            ProfitTrackingPeriod.MAYOR -> ProfileStorageApi.updateProfile { profile ->
-                mutableMythologicalRitualMayorStats(profile.profitTracker, target)?.clear()
-            }
-            ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.updateProfile { profile ->
-                profile.profitTracker.totals[target.storageKey]?.clear()
-            }
-        }
+        statistics.reset(target, period)
         target.slayerType?.let { SlayerTimeToKill.reset(it, period) }
     }
 
@@ -278,21 +245,9 @@ object ProfitTracker {
 
     internal fun deleteCustomTrackerData(target: ProfitTrackerTarget) {
         require(target.custom != null)
-        val key = target.storageKey
-        sessionStats.remove(key)
         craftingReconciliation.clear(target)
         uptime.clear(target)
-        ProfileStorageApi.updateAll { storage ->
-            val profiles = storage.profiles.values + storage.players.values.flatMap { it.profiles.values }
-            profiles.forEach { profile ->
-                with(profile.profitTracker) {
-                    totals.remove(key)
-                    today.remove(key)
-                    displayPeriods.remove(key)
-                    itemCustomizations.remove(key)
-                }
-            }
-        }
+        statistics.deleteCustomTracker(target)
     }
 
     private fun recordFarmingBlock(block: Block) {
@@ -304,9 +259,7 @@ object ProfitTracker {
         if (minecraft.player?.mainHandItem?.extraAttributes()?.skyBlockEnchantments()?.containsKey("replenish") != true) {
             return
         }
-        replenishCrop(block, minecraft.level?.gameTime ?: 0L)?.let { crop ->
-            pendingReplenishCosts[crop] = pendingReplenishCosts.getOrDefault(crop, 0) + 1
-        }
+        replenishCosts.record(block, minecraft.level?.gameTime ?: 0L)
     }
 
     private fun recordImmediateMessage(preset: ProfitTrackerPreset, message: String) {
@@ -361,8 +314,7 @@ object ProfitTracker {
 
     internal fun trackedItemIds(target: ProfitTrackerTarget): Set<String> {
         if (target.custom != null) return ProfitTrackerItemCustomizations.customItems(target)
-        if (dropCatalogVersion != SkyBlockDataRepository.snapshotVersion) rebuildDropCatalog()
-        return trackedItems[target.preset].orEmpty() + ProfitTrackerItemCustomizations.customItems(target)
+        return dropCatalog.items(target.preset) + ProfitTrackerItemCustomizations.customItems(target)
     }
 
     private fun recordItemChanges(batch: SkyBlockItemChangeBatch) {
@@ -378,21 +330,13 @@ object ProfitTracker {
             val allowedItems = trackedItemIds(target)
             val changes = craftingReconciliation
                 .reconcile(target, batch.source, unsuppressedChanges, allowedItems)
-                .withReplenishCosts(target)
+                .let { changes ->
+                    if (target.preset == ProfitTrackerPreset.FARMING) replenishCosts.applyTo(changes) else changes
+                }
             if (changes.isEmpty()) return@forEach
             uptime.markActivity(target)
             update(target, changes.keys) { stats -> applyTrackedItemChanges(stats, changes) }
         }
-    }
-
-    private fun Map<String, Int>.withReplenishCosts(target: ProfitTrackerTarget): Map<String, Int> {
-        if (target.preset != ProfitTrackerPreset.FARMING || pendingReplenishCosts.isEmpty()) return this
-        val costs = pendingReplenishCosts.filterKeys { crop -> getOrDefault(crop.harvestItemId, 0) > 0 }
-        if (costs.isEmpty()) return this
-        pendingReplenishCosts.keys.removeAll(costs.keys)
-        return toMutableMap().apply {
-            costs.forEach { (crop, amount) -> merge(crop.costItemId, -amount, Int::plus) }
-        }.filterValues { it != 0 }
     }
 
     private fun update(
@@ -400,71 +344,10 @@ object ProfitTracker {
         changedItemIds: Iterable<String> = emptyList(),
         action: (ProfileStorage.ProfitTrackerStats) -> Unit,
     ) {
-        action(sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats))
-        ProfileStorageApi.updateProfile { profile ->
-            val tracker = profile.profitTracker
-            didRollProfitTrackerToday(tracker, LocalDate.now().toEpochDay())
-            action(tracker.today.getOrPut(target.storageKey, ::newProfitTrackerStats))
-            mutableMythologicalRitualMayorStats(tracker, target)?.let(action)
-            action(tracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
-            target.preset?.let { tracker.lastPreset = it.name }
-        }
+        statistics.update(target, action)
         if (target.config.details.highlightChanges) {
             changedItemIds.forEach { itemId -> itemQuantityHighlights.highlight(target.storageKey to itemId) }
         }
-    }
-
-    private fun synchronizePeriods() {
-        if (SkyBlockProfileApi.currentProfileKey == null) return
-        val tracker = ProfileStorageApi.storage.profitTracker
-        val today = LocalDate.now().toEpochDay()
-        val updateMayor = configs.mythologicalRitual.enabled &&
-            tracker.mythologicalRitualMayorKey != tracker.currentMythologicalRitualEventKey
-        if (tracker.todayEpochDay == today && !updateMayor) return
-        ProfileStorageApi.updateProfile { profile ->
-            didRollProfitTrackerToday(profile.profitTracker, today)
-            if (updateMayor) {
-                mutableMythologicalRitualMayorStats(
-                    profile.profitTracker,
-                    ProfitTrackerTarget.preset(ProfitTrackerPreset.MYTHOLOGICAL_RITUAL),
-                )
-            }
-        }
-    }
-
-    private fun rebuildDropCatalog() {
-        trackedItems = ProfitTrackerPreset.entries.associateWith { preset ->
-            val slayerType = preset.slayerType
-            val directDrops = SkyBlockDataRepository.entries.asSequence()
-                .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
-                .filter { entry ->
-                    SkyBlockDataRepository.info(entry.key)?.dropSources.orEmpty().any { source ->
-                        val entityType = SkyBlockDataRepository.entity(source.entityId)?.type
-                        when (preset) {
-                            ProfitTrackerPreset.FISHING ->
-                                entityType.equals(SEA_CREATURE_ENTITY_TYPE, ignoreCase = true)
-                            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL ->
-                                entityType.equals(MYTHOLOGICAL_CREATURE_ENTITY_TYPE, ignoreCase = true)
-                            else ->
-                                slayerType != null &&
-                                    SkyBlockSlayerType.fromBossEntityId(source.entityId)?.first == slayerType
-                        }
-                    }
-                }
-                .map { entry -> entry.key.id }
-                .toSet()
-            val presetItems = directDrops + ProfitTrackerPresets.get(preset).additionalItems
-            val compactedDrops = SkyBlockDataRepository.entries.asSequence()
-                .filter { entry -> entry.key.kind == ItemListEntryKind.SKYBLOCK }
-                .filter { entry ->
-                    SkyBlockDataRepository.recipesFor(entry.key)
-                        .filterIsInstance<SkyBlockRecipe.Crafting>()
-                        .any { recipe -> recipe.ingredients.map { it.id }.distinct().singleOrNull() in presetItems }
-                }
-                .map { entry -> entry.key.id }
-            presetItems + compactedDrops
-        }
-        dropCatalogVersion = SkyBlockDataRepository.snapshotVersion
     }
 
     private fun itemAttributionPreset(batch: SkyBlockItemChangeBatch): ProfitTrackerPreset? {
@@ -487,103 +370,9 @@ object ProfitTracker {
         uptime.clear()
         itemTracking.clear()
         craftingReconciliation.clear()
-        pendingReplenishCosts.clear()
+        replenishCosts.clear()
         foragingTreeGiftParser.clear()
         itemQuantityHighlights.clear()
-    }
-}
-
-private fun mythologicalRitualMayorStats(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerStats? {
-    if (target.preset != ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) return null
-    val tracker = ProfileStorageApi.storage.profitTracker
-    return if (tracker.mythologicalRitualMayorKey == tracker.currentMythologicalRitualEventKey ||
-        tracker.mythologicalRitualMayorKey == UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
-    ) tracker.mythologicalRitualMayor else emptyProfitTrackerStats
-}
-
-private fun mutableMythologicalRitualMayorStats(
-    tracker: ProfileStorage.ProfitTrackerData,
-    target: ProfitTrackerTarget,
-): ProfileStorage.ProfitTrackerStats? {
-    if (target.preset != ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) return null
-    val eventKey = tracker.currentMythologicalRitualEventKey
-    if (tracker.mythologicalRitualMayorKey != eventKey) {
-        val preserveStats = tracker.mythologicalRitualMayorKey == UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
-        tracker.mythologicalRitualMayorKey = eventKey
-        if (!preserveStats) tracker.mythologicalRitualMayor.clear()
-    }
-    return tracker.mythologicalRitualMayor
-}
-
-private val ProfileStorageView.ProfitTrackerData.currentMythologicalRitualEventKey: String
-    get() = MayorPerkApi.mythologicalRitualEventKey
-        ?: mythologicalRitualMayorKey.takeIf(String::isNotBlank)
-        ?: UNRESOLVED_MYTHOLOGICAL_RITUAL_EVENT_KEY
-
-private val emptyProfitTrackerStats: ProfileStorageView.ProfitTrackerStats = ProfileStorage.ProfitTrackerStats()
-
-private val ProfitTrackerTarget.trackingPeriods: List<ProfitTrackingPeriod>
-    get() = if (preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) {
-        MYTHOLOGICAL_RITUAL_TRACKING_PERIODS
-    } else {
-        STANDARD_TRACKING_PERIODS
-    }
-
-private class ForagingTreeGiftParser {
-    private var isBonusGiftPending = false
-
-    fun parse(message: String): ParsedItemAmount? {
-        val cleanMessage = message.trim()
-        if (FORAGING_BONUS_GIFT_HEADER.matches(cleanMessage)) {
-            isBonusGiftPending = true
-            return null
-        }
-        if (!isBonusGiftPending) return null
-        isBonusGiftPending = false
-        return parseForagingChatDrop(cleanMessage)
-    }
-
-    fun clear() {
-        isBonusGiftPending = false
-    }
-}
-
-internal data class SlayerQuestCost(val currency: String, val amount: Long)
-
-internal class SlayerQuestCostCapture(
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
-) {
-    private var questStartedAtMillis: Long? = null
-    private var cost: SlayerQuestCost? = null
-
-    fun questStarted() {
-        val now = currentTimeMillis()
-        if (questStartedAtMillis?.let { now - it in 0..QUEST_COST_CAPTURE_MILLIS } != true) cost = null
-        questStartedAtMillis = now
-    }
-
-    fun recordChange(currency: String, change: Double) {
-        val startedAt = questStartedAtMillis ?: return
-        if (cost != null || change >= 0.0 || currentTimeMillis() - startedAt !in 0..QUEST_COST_CAPTURE_MILLIS) return
-        recordCost(currency, (-change).roundToLong())
-    }
-
-    fun recordCost(currency: String, amount: Long) {
-        if (amount <= 0L) return
-        questStartedAtMillis = currentTimeMillis()
-        cost = SlayerQuestCost(currency, amount)
-    }
-
-    fun take(): SlayerQuestCost? = cost?.also { clear() }
-
-    fun clearExpired() {
-        val startedAt = questStartedAtMillis ?: return
-        if (cost == null && currentTimeMillis() - startedAt > QUEST_COST_CAPTURE_MILLIS) clear()
-    }
-
-    fun clear() {
-        questStartedAtMillis = null
-        cost = null
     }
 }
 
@@ -620,15 +409,6 @@ private val ProfitTrackerConfig.pauseAfterMillis: Int?
         .times(MILLIS_PER_SECOND)
         .takeIf { settings.pauseAfter }
 
-private fun newProfitTrackerStats() = ProfileStorage.ProfitTrackerStats()
-
-internal fun didRollProfitTrackerToday(tracker: ProfileStorage.ProfitTrackerData, epochDay: Long): Boolean {
-    if (tracker.todayEpochDay == epochDay) return false
-    tracker.todayEpochDay = epochDay
-    tracker.today.clear()
-    return true
-}
-
 internal fun trackedItemChanges(
     changes: Map<String, Int>,
     allowedItems: Set<String>,
@@ -644,54 +424,10 @@ internal fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, c
     }
 }
 
-private const val QUEST_COST_CAPTURE_MILLIS = 1_500L
 private const val ATTRIBUTION_GRACE_TICKS = 2
 private const val MILLIS_PER_SECOND = 1_000
 private const val MINIMUM_PAUSE_AFTER_SECONDS = 15
 private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
-private const val MINECRAFT_DAY_TICKS = 24_000L
-private const val MINECRAFT_NIGHT_START_TICK = 12_000L
-private const val SEA_CREATURE_ENTITY_TYPE = "Sea Creature"
-private const val MYTHOLOGICAL_CREATURE_ENTITY_TYPE = "Mythological Creature"
-
-internal fun parseFarmingChatDrop(message: String): ParsedItemAmount? {
-    val match = FARMING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
-    return match.parsedItemAmount()
-}
-
-internal fun parseMiningChatDrop(message: String): ParsedItemAmount? {
-    val match = MINING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
-    return match.parsedItemAmount()
-}
-
-internal fun parseForagingChatDrop(message: String): ParsedItemAmount? =
-    FORAGING_BONUS_GIFT_PATTERN.matchEntire(message.trim())?.parsedItemAmount()
-
-private fun MatchResult.parsedItemAmount(): ParsedItemAmount? {
-    val itemName = groups["item"]?.value ?: return null
-    val amount = runCatching { groups["amount"]?.value }.getOrNull()
-        ?.replace(",", "")
-        ?.toIntOrNull()
-        ?: 1
-    return ParsedItemAmount(itemName, amount)
-}
-
-internal data class ReplenishCrop(val harvestItemId: String, val costItemId: String)
-
-internal fun replenishCrop(block: Block, dayTime: Long = 0L): ReplenishCrop? = when (block) {
-    Blocks.WHEAT -> ReplenishCrop("WHEAT", "SEEDS")
-    Blocks.CARROTS -> ReplenishCrop("CARROT_ITEM", "CARROT_ITEM")
-    Blocks.POTATOES -> ReplenishCrop("POTATO_ITEM", "POTATO_ITEM")
-    Blocks.NETHER_WART -> ReplenishCrop("NETHER_STALK", "NETHER_STALK")
-    Blocks.COCOA -> ReplenishCrop("INK_SACK-3", "INK_SACK-3")
-    Blocks.ROSE_BUSH -> ReplenishCrop("WILD_ROSE", "WILD_ROSE")
-    Blocks.SUNFLOWER -> if (dayTime % MINECRAFT_DAY_TICKS >= MINECRAFT_NIGHT_START_TICK) {
-        ReplenishCrop("MOONFLOWER", "MOONFLOWER")
-    } else {
-        ReplenishCrop("DOUBLE_PLANT", "DOUBLE_PLANT")
-    }
-    else -> null
-}
 
 private fun isFarmingCropBlock(block: Block): Boolean = when (block) {
     Blocks.WHEAT,
@@ -715,49 +451,4 @@ private fun isFarmingCropBlock(block: Block): Boolean = when (block) {
     else -> false
 }
 
-internal fun parseCountedPestKill(message: String): String? {
-    val match = PEST_KILL_PATTERN.matchEntire(message) ?: return null
-    val pest = match.groups["pest"]?.value ?: return null
-    val counted = when (pest) {
-        "Field Mouse" -> match.groups["item"]?.value == "Dung"
-        "Lunar Moth" -> match.groups["item"]?.value == "Enchanted Sunflower"
-        else -> match.groups["item"]?.value != "Overclocker 3000"
-    }
-    return pest.takeIf { counted }
-}
-
-private val PEST_KILL_PATTERN = Regex(
-    "^You received (?<amount>\\d+)x (?<item>.+) for killing an? (?<pest>.+)!$",
-)
-private val FARMING_DROP_PATTERNS = listOf(
-    Regex("^BLESSED! You found an? (?<item>.+)!$"),
-    Regex("^(?:VERY )?RARE CROP! (?<item>.+?)(?: \\(.*)?$"),
-    Regex("^[\\w ]+! You dropped (?<amount>[\\d,]+)x (?<item>[\\w ]+)!$"),
-    PEST_KILL_PATTERN,
-    Regex("^ABOUT TIME! You find an? (?<item>.+?) \\(.*\\)!$"),
-    Regex("^OVERFLOW! Your .+ has just dropped an? (?<item>Tool Exp Capsule)!$"),
-    Regex("^(?:RARE|PET) DROP! (?<item>.+?)(?: x(?<amount>\\d+))? \\(.*\\)!?$"),
-)
-private val MINING_DROP_PATTERNS = listOf(
-    Regex("^PRISTINE! You found (?<item>\\S Flawed [\\w ]+ Gemstone) x(?<amount>[\\d,]+)!$"),
-    Regex("^COMPACT! You found an? (?<item>.+)!$"),
-)
-private val FORAGING_BONUS_GIFT_HEADER = Regex("^BONUS GIFT(?: \\(\\d+\\))?$")
-private val FORAGING_BONUS_GIFT_PATTERN = Regex(
-    "^(?<item>.+?) \\(\\d+(?:\\.\\d+)?%(?: - \\d+(?:\\.\\d+)?%)?\\)(?: \\(\\d+\\))?$",
-)
 private val IMMEDIATE_DROP_PRESETS = ProfitTrackerPreset.entries
-
-enum class ProfitTrackingPeriod(val displayName: String) {
-    SESSION("Session"),
-    TODAY("Today"),
-    MAYOR("Mayor"),
-    TOTAL("Total"),
-}
-
-private val STANDARD_TRACKING_PERIODS = listOf(
-    ProfitTrackingPeriod.SESSION,
-    ProfitTrackingPeriod.TODAY,
-    ProfitTrackingPeriod.TOTAL,
-)
-private val MYTHOLOGICAL_RITUAL_TRACKING_PERIODS = ProfitTrackingPeriod.entries

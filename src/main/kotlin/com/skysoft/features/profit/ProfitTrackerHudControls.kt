@@ -162,10 +162,7 @@ internal class ProfitTrackerHudControls(
 
     private fun wasPeriodCycled(target: ProfitTrackerTarget, button: Int): Boolean =
         OverlayControlCycle.wasClickHandled(button) { backwards ->
-            val periods = ProfitTrackingPeriod.entries.filter {
-                target.preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL || it != ProfitTrackingPeriod.MAYOR
-            }
-            val next = OverlayControlCycle.next(periods, ProfitTracker.displayPeriod(target), backwards)
+            val next = OverlayControlCycle.next(target.trackingPeriods, ProfitTracker.displayPeriod(target), backwards)
             ProfileStorageApi.updateProfile { it.profitTracker.displayPeriods[target.storageKey] = next.name }
         }
 
