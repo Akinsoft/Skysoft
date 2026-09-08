@@ -3,6 +3,7 @@ package com.skysoft.features.profit
 import com.skysoft.config.CustomProfitTrackerConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SkysoftMoulConfigGuis
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import io.github.notenoughupdates.moulconfig.Config
@@ -22,11 +23,18 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 
 object CustomProfitTrackerConfigScreen {
+    init {
+        SkyBlockDataRepository.Demand.register("Custom Tracker editor") {
+            MinecraftClient.screen() is CustomProfitTrackerScreen
+        }
+    }
+
     fun open() = openEditor(null)
 
     fun open(trackerId: String) = openEditor(trackerId)
 
     private fun openEditor(selectedTrackerId: String?) {
+        SkyBlockDataRepository.ensureLoaded()
         val parent = MinecraftClient.screen()
         MinecraftClient.setScreen(CustomProfitTrackerEditor(selectedTrackerId).createScreen(parent))
     }
@@ -50,16 +58,11 @@ private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
         selected?.let(::setSelectedCategory)
     }
 
-    fun createScreen(parent: Screen?): Screen = object : MoulConfigScreenComponent(
-        Component.empty(),
+    fun createScreen(parent: Screen?): Screen = CustomProfitTrackerScreen(
         GuiContext(GuiElementComponent(editor)),
         parent,
-    ) {
-        override fun removed() {
-            super.removed()
-            repairAndSave()
-        }
-    }
+        ::repairAndSave,
+    )
 
     private fun createTracker(name: String) {
         val tracker = CustomProfitTrackerConfig(name = name)
@@ -123,6 +126,17 @@ private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
 
     private fun customTrackers(): MutableList<CustomProfitTrackerConfig> =
         SkysoftConfigGui.config().profitTrackers.custom.trackers
+}
+
+private class CustomProfitTrackerScreen(
+    context: GuiContext,
+    parent: Screen?,
+    private val save: () -> Unit,
+) : MoulConfigScreenComponent(Component.empty(), context, parent) {
+    override fun removed() {
+        super.removed()
+        save()
+    }
 }
 
 private fun runtimeCategory(
