@@ -44,7 +44,7 @@ object CustomBars {
                 id = "custom_bars",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
                 contexts = GuiOverlayContextType.entries.toSet(),
-                visible = { isActive() && !MinecraftClient.isGuiHidden(Minecraft.getInstance()) },
+                visible = { isHudVisible() },
                 render = { context, _ -> renderParts(context) },
             ),
         )
@@ -103,13 +103,14 @@ object CustomBars {
 
     private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
+    internal fun isHudVisible(): Boolean = isActive() && Minecraft.getInstance().player != null &&
+        !MinecraftClient.isGuiHidden(Minecraft.getInstance())
+
     private fun renderParts(context: GuiGraphicsExtractor) {
         context.withIsolatedPose {
             pose().translate(0f, -BottomHudLayout.reservedHeight().toFloat())
             for (part in CustomBarPart.entries) {
-                if (part.isCustomVisible() &&
-                    (part != CustomBarPart.AIR || Minecraft.getInstance().player?.isUnderWater == true)
-                ) {
+                if (part.isCustomVisible()) {
                     context.withIsolatedPose {
                         pose().translate(part.layoutOffsetX().toFloat(), 0f)
                         part.position().renderRenderable(context, CustomBarRenderable.create(part))

@@ -10,6 +10,7 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.inventory.InventoryHudLayout
 import com.skysoft.features.misc.custombars.VanillaCustomBarDisplay.Companion.HOTBAR_WIDTH
 import kotlin.math.roundToInt
+import net.minecraft.client.Minecraft
 
 internal enum class CustomBarPart(val label: String) {
     HEALTH("Health Bar"),
@@ -71,10 +72,12 @@ internal enum class CustomBarPart(val label: String) {
         EXPERIENCE -> config.settings.displays.experience == CustomBarDisplayMode.CUSTOM
         DEFENSE -> config.settings.displays.defense == CustomBarDisplayMode.CUSTOM
         SPEED -> config.settings.displays.speed
-        AIR -> config.settings.displays.air == CustomBarDisplayMode.CUSTOM
+        AIR ->
+            config.settings.displays.air == CustomBarDisplayMode.CUSTOM &&
+                Minecraft.getInstance().player?.isUnderWater == true
     }
 
-    fun isEditorVisible(): Boolean = isCustomVisible() || usesVanillaDisplay()
+    fun isEditorVisible(): Boolean = isCustomVisible() || (usesVanillaDisplay() && vanillaDisplay().isVisible())
 
     fun usesVanillaDisplay(): Boolean = when (this) {
         HEALTH -> config.settings.displays.health == CustomBarDisplayMode.VANILLA

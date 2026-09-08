@@ -22,13 +22,9 @@ internal class CustomBarEditorElement(private val part: CustomBarPart) : HudEdit
     override val canResizeHeight: Boolean get() = part.editorDimensions() != null
     override fun width(): Int = part.width
     override fun height(): Int = part.height
-    override fun isVisible(): Boolean = config.enabled && part.isEditorVisible()
+    override fun isVisible(): Boolean = CustomBars.isHudVisible() && part.isEditorVisible()
     override fun renderEditor(context: GuiGraphicsExtractor) {
-        if (part.usesVanillaDisplay()) {
-            part.vanillaDisplay().renderPreview(context, !config.settings.numbers.experience)
-        } else {
-            CustomBarRenderable.create(part, previewAir = part == CustomBarPart.AIR).render(context)
-        }
+        if (!part.usesVanillaDisplay()) CustomBarRenderable.create(part).render(context)
     }
     override fun resizeEditor(width: Int, height: Int) = part.resize(width, height)
     override fun minEditorWidth(): Int = MIN_RESOURCE_WIDTH
@@ -49,5 +45,3 @@ internal class CustomBarEditorElement(private val part: CustomBarPart) : HudEdit
     }
     override fun openConfig() = SkysoftConfigGui.open("Custom Bars")
 }
-
-private val config get() = SkysoftConfigGui.config().gui.customBars

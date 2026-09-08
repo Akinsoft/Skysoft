@@ -26,7 +26,7 @@ internal class CustomBarTextElement(private val part: CustomBarPart) : HudEditor
 
     override fun width(): Int = Minecraft.getInstance().font.width(text())
     override fun height(): Int = Minecraft.getInstance().font.lineHeight
-    override fun isVisible(): Boolean = config.enabled && part.isNumberVisible()
+    override fun isVisible(): Boolean = CustomBars.isHudVisible() && part.isNumberVisible()
 
     override fun absoluteX(width: Int): Int {
         val barScale = part.position().effectiveScale

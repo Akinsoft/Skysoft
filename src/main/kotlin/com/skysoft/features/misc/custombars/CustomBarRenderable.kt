@@ -36,7 +36,6 @@ internal class CustomBarRenderable private constructor(
     private val mana: BarValue?,
     private val vitality: BarValue?,
     private val defense: Int?,
-    private val previewAir: Boolean,
 ) : GuiRenderable {
     override val width: Int = part.width
     override val height: Int = part.height
@@ -88,11 +87,7 @@ internal class CustomBarRenderable private constructor(
                 config.details.speed,
             )
             CustomBarPart.AIR -> {
-                val remainingTicks = if (previewAir && player?.isUnderWater != true) {
-                    PREVIEW_AIR_TICKS
-                } else {
-                    player?.airSupply ?: 0
-                }
+                val remainingTicks = player?.airSupply ?: 0
                 drawAirReadout(
                     context,
                     remainingTicks.coerceAtLeast(0) / TICKS_PER_SECOND,
@@ -263,14 +258,13 @@ internal class CustomBarRenderable private constructor(
         ((READOUT_WIDTH - contentWidth) / 2f).roundToInt()
 
     companion object {
-        fun create(part: CustomBarPart, previewAir: Boolean = false): GuiRenderable =
+        fun create(part: CustomBarPart): GuiRenderable =
             CustomBarRenderable(
                 part,
                 CustomBarState.displayedHealth(),
                 CustomBarState.mana,
                 CustomBarState.vitality,
                 CustomBarState.displayedDefense(),
-                previewAir,
             )
     }
 }
@@ -281,7 +275,6 @@ private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
 private fun net.minecraft.world.entity.player.Player.skyBlockSpeed(): Int =
     ((if (isSprinting) speed / SPRINT_SPEED_MULTIPLIER else speed) * SPEED_SCALE).roundToInt()
 
-private const val PREVIEW_AIR_TICKS = 220
 private const val READOUT_HEIGHT = 9
 private const val READOUT_BACKGROUND_Y = 1
 private const val READOUT_CONTENT_Y = 2
