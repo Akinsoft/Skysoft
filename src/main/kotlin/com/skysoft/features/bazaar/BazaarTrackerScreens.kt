@@ -188,7 +188,7 @@ internal fun slotIndicator(screen: AbstractContainerScreen<*>, slot: Slot): Slot
 }
 
 internal fun marketStatusFor(order: ProfileStorageView.BazaarOrderData): OrderStatus {
-    val market = BazaarOrderBookApi.get(order.productId) ?: return OrderStatus.COMPETITIVE
+    val market = BazaarOrderBookApi.get(resolveOrderProductId(order)) ?: return OrderStatus.COMPETITIVE
     val status = rawMarketStatusFor(order, market)
     if (status.isWarning && !hasMarketProof(order, market)) return OrderStatus.COMPETITIVE
     return status

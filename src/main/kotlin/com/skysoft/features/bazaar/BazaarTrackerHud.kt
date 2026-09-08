@@ -148,7 +148,7 @@ internal fun isPartialFill(order: ProfileStorageView.BazaarOrderData, filled: Lo
     order.amountOrdered > 0 && filled > order.claimedAmount && filled < order.maximumAmount()
 
 internal fun requireMarketProof(order: ProfileStorageView.BazaarOrderData) {
-    val market = BazaarOrderBookApi.get(order.productId)
+    val market = BazaarOrderBookApi.get(resolveOrderProductId(order))
     if (market == null || !rawMarketStatusFor(order, market).isWarning) {
         BazaarTrackingState.marketProofMillis[order.id] = order.createdAtMillis
     }

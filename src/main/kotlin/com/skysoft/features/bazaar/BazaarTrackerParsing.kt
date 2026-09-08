@@ -4,7 +4,6 @@ import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import net.minecraft.world.item.ItemStack
 import java.util.UUID
 import kotlin.math.abs
@@ -66,7 +65,7 @@ internal fun parseConfirmStack(stack: ItemStack, expectedType: BazaarOrderType):
     return PendingOrder(
         type = type,
         itemName = itemName,
-        productId = stack.skyBlockId() ?: resolveProductId(itemName),
+        productId = stack.resolveBazaarOrderProductId(itemName),
         amount = amount,
         amountApproximate = false,
         amountResolution = 0.0,
@@ -94,7 +93,7 @@ internal fun parseOrdersStack(stack: ItemStack): PendingOrder? {
     return PendingOrder(
         type = type,
         itemName = itemName,
-        productId = stack.skyBlockId() ?: resolveProductId(itemName),
+        productId = stack.resolveBazaarOrderProductId(itemName),
         amount = numbers.amount,
         amountApproximate = numbers.amountParsed.approximate,
         amountResolution = numbers.amountParsed.resolution,
@@ -235,7 +234,7 @@ internal fun PendingOrder.toOrderData(): ProfileStorage.BazaarOrderData =
         productId = productId,
         amountOrdered = amount,
         pricePerUnit = pricePerUnit,
-        totalCoins = totalCoins ?: amount * pricePerUnit,
+        totalCoins = totalCoins ?: (amount * pricePerUnit),
         filledAmount = filledAmount ?: 0L,
         claimedAmount = 0L,
         claimedCoins = 0.0,
