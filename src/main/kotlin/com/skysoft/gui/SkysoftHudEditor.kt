@@ -46,6 +46,7 @@ object SkysoftHudEditor {
         private var elementDrag: HudEditorElementDrag? = null
         private val grabbedElement get() = elementDrag?.element
         private var hoveredElement: HudEditorElement? = null
+        val isTabListVisible = Minecraft.getInstance().options.keyPlayerList.isDown
         private var selectedElement: HudEditorElement? = null
         private var grabbedInventoryButtonIndex: Int? = null
         private var grabbedInventoryButtonOffsetX = 0

@@ -4,6 +4,7 @@ import com.skysoft.config.BETTER_TAB_DEFAULT_TOP_MARGIN
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.features.misc.TabListPositionEditor
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
@@ -71,7 +72,7 @@ object BetterTab {
 
             override fun isVisible(): Boolean {
                 val minecraft = Minecraft.getInstance()
-                return isActive() && minecraft.options.keyPlayerList.isDown && currentLayout(minecraft) != null
+                return isActive() && TabListPositionEditor.isVisible() && currentLayout(minecraft) != null
             }
 
             override fun renderEditor(context: GuiGraphicsExtractor) {
@@ -87,7 +88,7 @@ object BetterTab {
         })
     }
 
-    private fun isActive(): Boolean = config.isEnabled && HypixelLocationState.inSkyBlock
+    fun isActive(): Boolean = config.isEnabled && HypixelLocationState.inSkyBlock
 
     private fun render(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()

@@ -96,6 +96,7 @@ import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.PartyDisplay
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.features.misc.RealTimeDisplay
+import com.skysoft.features.misc.TabListPositionEditor
 import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
@@ -249,6 +250,7 @@ internal object SkysoftFeatureRegistrations {
         register("Spotify Display", SpotifyDisplay::register)
         register("Mouse Lock", MouseLock::register)
         register("Zoom", Zoom::register)
+        register("Tab List Position Editor", TabListPositionEditor::register)
         register("Scoreboard Position Editor", ScoreboardPositionEditor::register)
         register("Player Head Skin Fix", PlayerHeadSkinFix::register)
         register("Auto Sprint", AutoSprint::register)
