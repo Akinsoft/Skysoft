@@ -40,7 +40,7 @@ object BlockOverlay {
         val rawTarget = minecraft.hitResult as? BlockHitResult
         val target = rawTarget?.takeIf {
             val blockState = minecraft.level?.getBlockState(it.blockPos)
-            isRenderableBlockTarget(it.type == HitResult.Type.BLOCK, blockState == null || blockState.isAir)
+            it.type == HitResult.Type.BLOCK && blockState != null && !blockState.isAir
         }
         val heldItemId = if (config.enabled && target != null) minecraft.player?.mainHandItem?.skyBlockId() else null
         val isActivationAllowed = config.enabled && target != null && isFeatureActivationAllowed(heldItemId)
@@ -48,28 +48,19 @@ object BlockOverlay {
             return if (vanillaEligible) BlockOutlineSelection.VANILLA else BlockOutlineSelection.NONE
         }
 
-        val blockTarget = requireNotNull(target)
         val level = minecraft.level
         val cameraEntity = minecraft.cameraEntity
         val shape = if (level != null && cameraEntity != null) {
-            level.getBlockState(blockTarget.blockPos)
-                .getShape(level, blockTarget.blockPos, CollisionContext.of(cameraEntity))
+            level.getBlockState(target.blockPos)
+                .getShape(level, target.blockPos, CollisionContext.of(cameraEntity))
         } else {
             null
         }
-        if (
-            !shouldReplaceVanillaBlockOutline(
-                isVanillaEligible = vanillaEligible,
-                isEnabled = config.enabled,
-                hasBlockTarget = true,
-                isActivationAllowed = isActivationAllowed,
-                hasRenderableShape = shape != null && !shape.isEmpty,
-            )
-        ) {
+        if (shape == null || shape.isEmpty) {
             return BlockOutlineSelection.VANILLA
         }
 
-        pendingTarget = BlockOverlayTarget(blockTarget.blockPos, requireNotNull(shape))
+        pendingTarget = BlockOverlayTarget(target.blockPos, shape)
         return BlockOutlineSelection.CUSTOM
     }
 
@@ -123,16 +114,6 @@ enum class BlockOutlineSelection(val rendersVanilla: Boolean) {
     VANILLA(true),
     CUSTOM(false),
 }
-
-private fun shouldReplaceVanillaBlockOutline(
-    isVanillaEligible: Boolean,
-    isEnabled: Boolean,
-    hasBlockTarget: Boolean,
-    isActivationAllowed: Boolean,
-    hasRenderableShape: Boolean,
-): Boolean = isVanillaEligible && isEnabled && hasBlockTarget && isActivationAllowed && hasRenderableShape
-
-private fun isRenderableBlockTarget(isBlockHit: Boolean, isAir: Boolean): Boolean = isBlockHit && !isAir
 
 private data class BlockOverlayTarget(
     val position: BlockPos,

@@ -67,7 +67,7 @@ object ScreenshotManager {
         val key = config().settings.managerKey
         val isKeyDown = key != GLFW.GLFW_KEY_UNKNOWN &&
             key != GLFW.GLFW_KEY_ENTER &&
-            InputUtilities.isBindingDown(key)
+            InputUtilities.isActionBindingDown(key)
         if (!isKeyDown) {
             managerKeyWasDown = false
             return

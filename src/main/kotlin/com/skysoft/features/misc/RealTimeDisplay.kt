@@ -37,8 +37,10 @@ object RealTimeDisplay {
                 override val hasEditorBackground: Boolean get() = !config.details.background
                 override fun width(): Int = currentRenderable().width
                 override fun height(): Int = currentRenderable().height
-                override fun isVisible(): Boolean = config.enabled
-                override fun renderEditor(context: GuiGraphicsExtractor) = currentRenderable().render(context)
+                override fun isVisible(): Boolean = canRenderLive()
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    if (isVisible()) currentRenderable().render(context)
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Real Time Display")
             },
         )

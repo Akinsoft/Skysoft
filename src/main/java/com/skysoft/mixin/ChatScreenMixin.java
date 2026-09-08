@@ -4,6 +4,8 @@ import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalFloatRef;
 import com.skysoft.config.ChatTabChannel;
 import com.skysoft.features.chat.ChatCopy;
 import com.skysoft.features.chat.ChatMotionProfile;
@@ -44,7 +46,6 @@ public abstract class ChatScreenMixin extends Screen {
     private static final int MIN_TAB_WIDTH = 36;
     @Shadow private ChatComponent.DisplayMode displayMode;
     @Unique private final AnimationClock skysoftOpeningMotion = new AnimationClock();
-    @Unique private float skysoftOpenDisplacement;
     @Unique private int skysoftMouseX;
     @Unique private int skysoftMouseY;
     @Unique private final Map<ChatTabChannel, PixelButtonWidget> skysoftTabButtons = new LinkedHashMap<>();
@@ -100,19 +101,21 @@ public abstract class ChatScreenMixin extends Screen {
     }
 
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"))
-    protected void skysoftAnimateChatInputBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
-        skysoftOpenDisplacement = MixinErrorBoundary.value("Chat input motion", 0.0F, this::skysoftChatOpenDisplacement);
-        if (skysoftOpenDisplacement == 0.0F) { original.call(graphics, minX, minY, maxX, maxY, color); return; }
+    protected void skysoftAnimateChatInputBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
+        float displacement = MixinErrorBoundary.value("Chat input motion", 0.0F, this::skysoftChatOpenDisplacement);
+        openDisplacement.set(displacement);
+        if (displacement == 0.0F) { original.call(graphics, minX, minY, maxX, maxY, color); return; }
         graphics.pose().pushMatrix();
-        try { graphics.pose().translate(0.0F, skysoftOpenDisplacement); original.call(graphics, minX, minY, maxX, maxY, color); }
+        try { graphics.pose().translate(0.0F, displacement); original.call(graphics, minX, minY, maxX, maxY, color); }
         finally { graphics.pose().popMatrix(); }
     }
 
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"))
-    protected void skysoftAnimateChatInput(ChatScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, Operation<Void> original) {
-        if (skysoftOpenDisplacement == 0.0F) { original.call(screen, graphics, mouseX, mouseY, delta); return; }
+    protected void skysoftAnimateChatInput(ChatScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
+        float displacement = openDisplacement.get();
+        if (displacement == 0.0F) { original.call(screen, graphics, mouseX, mouseY, delta); return; }
         graphics.pose().pushMatrix();
-        try { graphics.pose().translate(0.0F, skysoftOpenDisplacement); original.call(screen, graphics, mouseX, mouseY, delta); }
+        try { graphics.pose().translate(0.0F, displacement); original.call(screen, graphics, mouseX, mouseY, delta); }
         finally { graphics.pose().popMatrix(); }
     }
 

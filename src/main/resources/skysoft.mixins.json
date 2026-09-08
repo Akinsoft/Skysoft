@@ -18,6 +18,7 @@
     "ChatScreenAccessor",
     "ChatScreenMixin",
     "CenteredCrosshairMixin",
+    "CrosshairVisibilityMixin",
     "ClientCommandMixin",
     "ClientPacketListenerAccessor",
     "ClientTextTooltipAccessor",
@@ -37,6 +38,7 @@
     "ExperienceLevelColorMixin",
     "ExperienceLevelMixin",
     "FontPreparedTextBuilderMixin",
+    "FogRendererMixin",
     "GameRendererMixin",
     "ZoomRendererMixin",
     "GuiMixin",
@@ -78,13 +80,15 @@
     "ScoreboardHudMixin",
     "ScoreboardPacketMixin",
     "ScreenshotCaptureMixin",
+    "SkyRendererMixin",
     "ServerPackDataAccessor",
     "ServerPackManagerMixin",
     "ServerPackReloadCallbacksMixin",
     "ServerInfoPacketMixin",
     "SoundPacketMixin",
     "StatusEffectHudMixin",
-    "TabListPacketMixin"
+    "TabListPacketMixin",
+    "TitleScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

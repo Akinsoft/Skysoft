@@ -28,12 +28,3 @@ internal data class AnimatedSkinJson(
     val matchTextures: List<String> = emptyList(),
     val textures: List<String> = emptyList(),
 )
-
-internal data class GithubTreeJson(
-    val tree: List<GithubTreeEntry> = emptyList(),
-)
-
-internal data class GithubTreeEntry(
-    val path: String = "",
-    val type: String = "",
-)

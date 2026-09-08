@@ -125,9 +125,6 @@ internal object DianaBurrowInteractions {
         return DianaBlockClickResult.ALLOW
     }
 
-    private fun completeProgressBurrow(now: Long = System.currentTimeMillis()): DianaBurrowTarget? =
-        completeProgressBurrow(now, currentPlayerLocation())
-
     private fun completeProgressBurrow(
         now: Long,
         playerLocation: WorldVec?,
@@ -144,7 +141,7 @@ internal object DianaBurrowInteractions {
             }
         }
 
-        val removed = removePendingClick(pending, now)
+        val removed = DianaBurrowTargetTracker.removeIfCurrent(pending.target, now)
         if (removed != null) {
             activeMobBurrowIds.remove(removed.targetId)
         }
@@ -152,13 +149,6 @@ internal object DianaBurrowInteractions {
             return removeActiveMobBurrow(now, target = pending.target)
         }
         return removed
-    }
-
-    private fun removePendingClick(
-        pending: PendingBurrowClick,
-        now: Long = System.currentTimeMillis(),
-    ): DianaBurrowTarget? {
-        return DianaBurrowTargetTracker.removeIfCurrent(pending.target, now)
     }
 
     private fun removeOrAdvanceRejectedGuess(target: DianaBurrowTarget, now: Long) {
@@ -212,9 +202,6 @@ internal object DianaBurrowInteractions {
         pendingClicks.removeAll { it.target.targetId == current.targetId }
         return removed
     }
-
-    private fun completeTreasureBurrow(now: Long = System.currentTimeMillis()): DianaBurrowTarget? =
-        completeTreasureBurrow(now, currentPlayerLocation())
 
     private fun completeTreasureBurrow(now: Long, playerLocation: WorldVec?): DianaBurrowTarget? {
         val pendingTarget = removeLastPendingClick(now)?.target

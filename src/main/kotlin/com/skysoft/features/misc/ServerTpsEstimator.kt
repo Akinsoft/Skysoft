@@ -5,9 +5,7 @@ import java.util.ArrayDeque
 
 internal class ServerTpsEstimator(private val sampleLimit: Int = DEFAULT_SAMPLE_LIMIT) {
     private val samples = ArrayDeque<Double>()
-    private var previousGameTime: Long? = null
-    private var previousTimestampNanos: Long? = null
-    private var previousTargetTps: Double? = null
+    private var baseline: Baseline? = null
 
     init {
         require(sampleLimit > 0) { "TPS sample limit must be positive" }
@@ -18,21 +16,15 @@ internal class ServerTpsEstimator(private val sampleLimit: Int = DEFAULT_SAMPLE_
 
     fun recordTimeUpdate(gameTime: Long, timestampNanos: Long, targetTps: Double): TpsSampleResult {
         if (!targetTps.isFinite() || targetTps <= 0.0) return TpsSampleResult.REJECTED_INVALID_TARGET
-        if (previousTargetTps != null && previousTargetTps != targetTps) {
-            clearMeasurements()
+        val previous = baseline
+        if (previous == null || previous.targetTps != targetTps) {
+            if (previous != null) clearMeasurements()
             rememberBaseline(gameTime, timestampNanos, targetTps)
-            return TpsSampleResult.RESET_TARGET_CHANGED
+            return if (previous == null) TpsSampleResult.BASELINE else TpsSampleResult.RESET_TARGET_CHANGED
         }
 
-        val oldGameTime = previousGameTime
-        val oldTimestampNanos = previousTimestampNanos
-        if (oldGameTime == null || oldTimestampNanos == null) {
-            rememberBaseline(gameTime, timestampNanos, targetTps)
-            return TpsSampleResult.BASELINE
-        }
-
-        val gameTimeDelta = gameTime - oldGameTime
-        val elapsedNanos = timestampNanos - oldTimestampNanos
+        val gameTimeDelta = gameTime - previous.gameTime
+        val elapsedNanos = timestampNanos - previous.timestampNanos
         rememberBaseline(gameTime, timestampNanos, targetTps)
         if (gameTimeDelta <= 0L) {
             clearMeasurements()
@@ -56,20 +48,18 @@ internal class ServerTpsEstimator(private val sampleLimit: Int = DEFAULT_SAMPLE_
 
     fun reset() {
         clearMeasurements()
-        previousGameTime = null
-        previousTimestampNanos = null
-        previousTargetTps = null
+        baseline = null
     }
 
     private fun rememberBaseline(gameTime: Long, timestampNanos: Long, targetTps: Double) {
-        previousGameTime = gameTime
-        previousTimestampNanos = timestampNanos
-        previousTargetTps = targetTps
+        baseline = Baseline(gameTime, timestampNanos, targetTps)
     }
 
     private fun clearMeasurements() {
         samples.clear()
     }
+
+    private data class Baseline(val gameTime: Long, val timestampNanos: Long, val targetTps: Double)
 
     private companion object {
         const val DEFAULT_SAMPLE_LIMIT = 5

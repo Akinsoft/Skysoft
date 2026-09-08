@@ -2,13 +2,16 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
+import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import net.minecraft.world.item.ItemStack
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToLong
 
-internal fun guiMatchIsPlausible(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
+internal fun guiMatchIsPlausible(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (
         parsed.amount > 0 &&
         order.filledAmount >= parsed.amount + max(parsed.amountResolution, MIN_GUI_FILL_TOLERANCE.toDouble())
@@ -18,12 +21,12 @@ internal fun guiMatchIsPlausible(order: ProfileStorage.BazaarOrderData, parsed: 
     return true
 }
 
-internal fun guiFilledScore(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Long {
+internal fun guiFilledScore(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long {
     val parsedFilled = parsed.filledAmount ?: 0L
     return amountDistance(order.filledAmount, parsedFilled)
 }
 
-internal fun guiSlotScore(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Int {
+internal fun guiSlotScore(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Int {
     val slot = parsed.guiSlot ?: return 1
     return when (order.lastGuiSlot) {
         slot -> EXACT_GUI_SLOT_SCORE
@@ -164,7 +167,7 @@ private data class ParsedOrderNumbers(
     val tax: Double?,
 )
 
-internal fun parseCancelStack(stack: ItemStack, order: ProfileStorage.BazaarOrderData?): PendingCancel? {
+internal fun parseCancelStack(stack: ItemStack, order: ProfileStorageView.BazaarOrderData?): PendingCancel? {
     if (stack.isEmpty) return null
     val clean = stack.textLines().map { it.clean() }
     if (clean.none { it.contains("Cancel Order") }) return null
@@ -210,8 +213,7 @@ internal fun parseCancelStack(stack: ItemStack, order: ProfileStorage.BazaarOrde
 
 internal fun updateTax(taxPercent: Double) {
     if (taxPercent <= 0.0 || abs(storage.taxPercent - taxPercent) < BAZAAR_PRICE_EPSILON) return
-    storage.taxPercent = taxPercent
-    markBazaarTrackerChanged()
+    ProfileStorageApi.updateProfile { it.bazaarTracker.taxPercent = taxPercent }
 }
 
 private const val EXACT_GUI_SLOT_SCORE = 0
@@ -246,3 +248,51 @@ internal fun PendingOrder.toOrderData(): ProfileStorage.BazaarOrderData =
         setupConfirmed = false,
     )
 
+internal data class PendingOrder(
+    val type: BazaarOrderType,
+    val itemName: String,
+    val productId: String?,
+    val amount: Long,
+    val amountApproximate: Boolean,
+    val amountResolution: Double,
+    val pricePerUnit: Double,
+    val pricePerUnitResolution: Double,
+    val totalCoins: Double?,
+    val totalCoinsResolution: Double,
+    val filledAmount: Long?,
+    val filledAmountApproximate: Boolean,
+    val filledAmountResolution: Double,
+    val taxPercent: Double?,
+    val guiSlot: Int?,
+    val stackSignature: Int?,
+)
+
+internal data class PendingCancel(
+    val orderId: String?,
+    val type: BazaarOrderType,
+    val itemName: String,
+    val productId: String?,
+    val amount: Long?,
+    val refundedCoins: Double?,
+)
+
+private val pricePerUnitPattern = Regex("""^Price per unit: ([\d,.]+[kKmMbB]?) coins$""")
+private val confirmBuyAmountPattern = Regex("""^Order: ([\d,]+)x (.+)$""")
+private val confirmSellAmountPattern = Regex("""^Selling: ([\d,]+)x (.+)$""")
+private val totalPricePattern = Regex("""^Total price: ([\d,.]+) coins$""")
+private val youEarnPattern = Regex("""^You earn: ([\d,.]+) coins$""")
+private val taxPattern = Regex("""^Current tax: ([\d,.]+)%$""")
+private val orderHeaderPattern = Regex("""^(BUY|SELL) (.+)$""")
+private val orderAmountPattern = Regex("""^(?:Order|Offer) amount: ([\d,.]+[kKmMbB]?)x$""")
+private val worthPattern = Regex("""^Worth:? ([\d,.]+[kKmMbB]?) coins$""")
+private val filledPatternGui = Regex("""^Filled: ([\d,.]+[kKmMbB]?)/([\d,.]+[kKmMbB]?).*$""")
+private val cancelBuyTooltipPattern =
+    Regex(
+        """refunded ([\d,.]+) coins from ([\d,.]+[kKmMbB]?)x missing items""",
+        RegexOption.IGNORE_CASE,
+    )
+
+private val cancelSellTooltipPattern = Regex("""refunded ([\d,.]+[kKmMbB]?)x (.+?)(?: from|\.|$)""", RegexOption.IGNORE_CASE)
+internal const val BAZAAR_PERCENT_SCALE = 100.0
+internal const val MIN_BAZAAR_TAX_MULTIPLIER = 0.01
+private const val MIN_GUI_FILL_TOLERANCE = 1L

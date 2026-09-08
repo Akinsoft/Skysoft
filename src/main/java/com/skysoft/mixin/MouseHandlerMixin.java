@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
 import com.skysoft.integration.MouseInputHooks;
+import com.skysoft.utils.input.InputUtilities;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
@@ -44,12 +45,13 @@ public class MouseHandlerMixin {
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     protected void skysoftProcessGlobalScroll(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
-        if (MouseInputHooks.shouldConsumeScroll(verticalAmount)) ci.cancel();
+        if (MouseInputHooks.tryHandleScroll(verticalAmount)) ci.cancel();
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     protected void skysoftProcessGlobalMouseButton(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
-        if (MouseInputHooks.shouldConsumeButton(buttonInfo.button(), action)) ci.cancel();
+        InputUtilities.recordBindingInput(window, buttonInfo.button(), action);
+        if (MouseInputHooks.tryHandleButton(buttonInfo.button(), action)) ci.cancel();
     }
 
     @WrapOperation(method = "onScroll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;mouseScrolled(DDDD)Z"))

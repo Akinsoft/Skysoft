@@ -149,6 +149,8 @@ private class CancellationPropagatingFuture<T>(
             if (wasCancelled) cancellation.cancel()
         }
 
+    override fun copy(): CompletableFuture<T> = minimalCompletionStage().toCompletableFuture()
+
     override fun <U> newIncompleteFuture(): CompletableFuture<U> = CancellationPropagatingFuture(cancellation)
 }
 

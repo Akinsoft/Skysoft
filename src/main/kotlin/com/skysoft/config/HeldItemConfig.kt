@@ -104,27 +104,29 @@ class HeldItemConfig {
 
     internal fun snapshotCustomization(itemId: String?): HeldItemCustomizationSnapshot {
         if (itemId == null) {
-            return HeldItemCustomizationSnapshot(global.snapshot(), globalTextureMode)
+            return HeldItemCustomizationSnapshot.Global(global.snapshot(), globalTextureMode)
         }
         val normalizedId = normalizedItemId(itemId)
-        return HeldItemCustomizationSnapshot(
+        return HeldItemCustomizationSnapshot.Item(
+            normalizedId,
             itemTransforms[normalizedId]?.snapshot(),
             itemTextureModes[normalizedId],
         )
     }
 
-    internal fun restoreCustomization(itemId: String?, snapshot: HeldItemCustomizationSnapshot) {
-        if (itemId == null) {
-            val transform = requireNotNull(snapshot.transform) { "Global held item history is missing its transform" }
-            global.restore(transform)
-            globalTextureMode = requireNotNull(snapshot.textureMode) {
-                "Global held item history is missing its texture mode"
+    internal fun restoreCustomization(snapshot: HeldItemCustomizationSnapshot) {
+        when (snapshot) {
+            is HeldItemCustomizationSnapshot.Global -> {
+                global.restore(snapshot.transform)
+                globalTextureMode = snapshot.textureMode
             }
-            return
+            is HeldItemCustomizationSnapshot.Item -> {
+                snapshot.transform?.let { itemTransforms[snapshot.itemId] = it.toConfig() }
+                    ?: itemTransforms.remove(snapshot.itemId)
+                snapshot.textureMode?.let { itemTextureModes[snapshot.itemId] = it }
+                    ?: itemTextureModes.remove(snapshot.itemId)
+            }
         }
-        val normalizedId = normalizedItemId(itemId)
-        snapshot.transform?.let { itemTransforms[normalizedId] = it.toConfig() } ?: itemTransforms.remove(normalizedId)
-        snapshot.textureMode?.let { itemTextureModes[normalizedId] = it } ?: itemTextureModes.remove(normalizedId)
     }
 
     fun repairLoadedValues() {
@@ -171,10 +173,18 @@ class HeldItemSettingsConfig {
     var ignoresMiningEffects = false
 }
 
-internal data class HeldItemCustomizationSnapshot(
-    val transform: HeldItemTransformSnapshot?,
-    val textureMode: HeldItemTextureMode?,
-)
+internal sealed interface HeldItemCustomizationSnapshot {
+    data class Global(
+        val transform: HeldItemTransformSnapshot,
+        val textureMode: HeldItemTextureMode,
+    ) : HeldItemCustomizationSnapshot
+
+    data class Item(
+        val itemId: String,
+        val transform: HeldItemTransformSnapshot?,
+        val textureMode: HeldItemTextureMode?,
+    ) : HeldItemCustomizationSnapshot
+}
 
 internal data class HeldItemTransformSnapshot(
     val x: Float,

@@ -15,13 +15,6 @@ object WorldItemRenderLayers {
     private val cutoutPipeline = itemPipeline("world_item_xray_cutout")
     private val translucentPipeline = itemPipeline("world_item_xray_translucent", BlendFunction.TRANSLUCENT)
     private val layers = mutableMapOf<Pair<Identifier, Boolean>, RenderType>()
-    private val throughWallsState = ThreadLocal.withInitial { false }
-
-    fun beginItemRender(isThroughWalls: Boolean) = throughWallsState.set(isThroughWalls)
-
-    fun endItemRender() = throughWallsState.remove()
-
-    fun isRenderingThroughWalls(): Boolean = throughWallsState.get()
 
     @JvmStatic
     fun throughWalls(texture: Identifier, isTranslucent: Boolean): RenderType =

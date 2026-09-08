@@ -1,8 +1,8 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
@@ -26,7 +26,7 @@ internal fun canonicalBazaarProductId(productId: String): String = productId.rep
 internal fun productMatches(a: String?, b: String?): Boolean =
     a != null && b != null && canonicalBazaarProductId(a) == canonicalBazaarProductId(b)
 
-internal fun lotMatches(lot: ProfileStorage.BazaarItemLotData, productId: String?, itemName: String): Boolean =
+internal fun lotMatches(lot: ProfileStorageView.BazaarItemLotData, productId: String?, itemName: String): Boolean =
     productMatches(lot.productId, productId) || namesMatch(lot.itemName, itemName)
 
 internal fun ItemStack.resolveBazaarOrderProductId(itemName: String): String? =
@@ -41,7 +41,7 @@ internal fun resolveProductId(itemName: String): String? {
     val cleanName = itemName.clean()
     return SkyBlockItemNames.itemId(cleanName)
         ?: resolveEnchantmentProductId(cleanName)
-        ?: PetRepository.resolvePetItemOrNull(itemName)
+        ?: SkyBlockItemNames.resolveItemId(itemName)
 }
 
 private fun resolveEnchantmentProductId(itemName: String): String? {
@@ -51,9 +51,11 @@ private fun resolveEnchantmentProductId(itemName: String): String? {
     return SkyBlockItemNames.itemId(catalogName)?.takeIf { it.startsWith(ENCHANTMENT_PRODUCT_PREFIX) }
 }
 
-internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(Regex("\\s+"), " ")
+private val nameWhitespacePattern = Regex("\\s+")
 
-internal fun orderMatchesParsedIdentity(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
+internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(nameWhitespacePattern, " ")
+
+internal fun orderMatchesParsedIdentity(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (
         parsed.amount > 0 &&
         !haveOverlappingRanges(
@@ -93,3 +95,5 @@ internal fun amountDistance(a: Long, b: Long): Long = abs(a - b)
 private const val ENCHANTED_BOOK_ID = "ENCHANTED_BOOK"
 private const val ENCHANTMENT_PRODUCT_PREFIX = "ENCHANTMENT_"
 
+internal const val EXACT_AMOUNT_EPSILON = 0.5
+internal const val TOTAL_RECALCULATION_EPSILON = 0.5

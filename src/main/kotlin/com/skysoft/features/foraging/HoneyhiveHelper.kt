@@ -3,9 +3,14 @@ package com.skysoft.features.foraging
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.hypixel.SkyBlockProfileId
 import com.skysoft.utils.EntityUtilities.cleanName
+import com.skysoft.utils.DurationParts
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.WorldVec
@@ -22,30 +27,46 @@ import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.decoration.ArmorStand
-import net.minecraft.world.level.block.Blocks
 
 object HoneyhiveHelper {
-    private val config get() = SkysoftConfigGui.config().foraging
-    private var activeData: ProfileStorage.HoneyhiveTrackerData? = null
+    private val config get() = SkysoftConfigGui.config().foraging.honeyhiveHelper
+    private var activeData: ProfileStorageView.HoneyhiveTrackerData? = null
+    private var activeProfile: SkyBlockProfileId? = null
+    private val selectedHives = mutableSetOf<String>()
+    private val dismissedReadyHives = mutableSetOf<String>()
     private val alertedReadyHives = mutableSetOf<String>()
     private var ticks = 0
     private var soundsRemaining = 0
     private var soundDelayTicks = 0
 
     fun register() {
-        ProfileStorageApi.registerConsumer("Honeyhive Helper") { config.honeyhiveHelper }
+        ProfileStorageApi.registerConsumer("Honeyhive Helper") { config.enabled }
         SkysoftClientEvents.onEndTick(
             "Honeyhive Helper tick",
-            isActive = { config.honeyhiveHelper || activeData != null },
+            isActive = { config.enabled || activeData != null },
         ) { tick() }
         SkysoftClientEvents.onDisconnect("Honeyhive Helper disconnect reset", ::clear)
         WorldRenderDispatcher.registerHandler("Honeyhive Helper rendering", ::isEnabled, ::render)
+        HoneyhiveDisplay.register()
     }
 
     private fun tick() {
-        if (!config.honeyhiveHelper) {
+        val profile = SkyBlockProfileApi.currentProfileId
+        if (!config.enabled) {
             clear()
             return
+        }
+        if (!HypixelLocationState.inSkyBlock || profile == null) {
+            soundsRemaining = 0
+            soundDelayTicks = 0
+            ticks = 0
+            return
+        }
+        val data = ProfileStorageApi.storage.honeyhiveTracker
+        if (activeProfile != profile || activeData !== data) {
+            clear()
+            activeProfile = profile
+            activeData = data
         }
         if (!SkyBlockIsland.TORRHUS_CANYON.isInIsland()) {
             soundsRemaining = 0
@@ -54,40 +75,32 @@ object HoneyhiveHelper {
             return
         }
 
-        val data = ProfileStorageApi.storage.honeyhiveTracker
-        if (activeData !== data) {
-            activeData = data
-            alertedReadyHives.clear()
-        }
-        var changed = didInitializeKnownHives(data)
+        initializeKnownHives(data)
         val now = System.currentTimeMillis()
-        if (ticks++ % SCAN_INTERVAL_TICKS == 0) changed = didReconcileVisibleHives(data, now) || changed
-        if (changed) ProfileStorageApi.markDirty()
+        if (ticks++ % SCAN_INTERVAL_TICKS == 0) reconcileVisibleHives(data, now)
+        clearReachedWaypoints(data, now)
         alertForNewlyReadyHives(data, now)
         playQueuedSound()
     }
 
-    private fun didInitializeKnownHives(data: ProfileStorage.HoneyhiveTrackerData): Boolean {
-        if (data.initialized) return false
-        val existing = data.hives.mapTo(mutableSetOf(), ProfileStorage.HoneyhiveData::locationKey)
-        KNOWN_HONEYHIVES
-            .filter { it.locationKey() !in existing }
-            .forEach { position ->
-                data.hives += ProfileStorage.HoneyhiveData(position.x, position.y, position.z)
-            }
-        data.initialized = true
-        return true
+    private fun initializeKnownHives(data: ProfileStorageView.HoneyhiveTrackerData) {
+        if (data.initialized) return
+        val existing = data.hives.mapTo(mutableSetOf(), ProfileStorageView.HoneyhiveData::locationKey)
+        ProfileStorageApi.updateProfile { profile ->
+            KNOWN_HONEYHIVES
+                .filter { it.locationKey() !in existing }
+                .forEach { position ->
+                    profile.honeyhiveTracker.hives += ProfileStorage.HoneyhiveData(position.x, position.y, position.z)
+                }
+            profile.honeyhiveTracker.initialized = true
+        }
     }
 
-    private fun didReconcileVisibleHives(data: ProfileStorage.HoneyhiveTrackerData, now: Long): Boolean {
-        val level = Minecraft.getInstance().level ?: return false
+    private fun reconcileVisibleHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
+        if (Minecraft.getInstance().level == null) return
         val armorStands = ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>().filter { it.isAlive }
         val statuses = armorStands.mapNotNull { stand ->
             stand.cleanName().takeIf(String::isHoneyhiveStatus)?.let { status -> stand to status }
-        }
-        var changed = data.hives.removeIf { hive ->
-            val position = BlockPos(hive.x, hive.y, hive.z)
-            level.isLoaded(position) && level.getBlockState(position).block != Blocks.BEE_NEST
         }
 
         armorStands
@@ -102,28 +115,34 @@ object HoneyhiveHelper {
                 val position = hiveTag.blockPosition().above()
                 val hive = data.hives.firstOrNull { it.matches(position) }
                 if (hive == null) {
-                    data.hives += ProfileStorage.HoneyhiveData(position.x, position.y, position.z, readyAtMillis)
-                    changed = true
-                } else if (shouldUpdateReadyTime(hive.readyAtMillis, readyAtMillis, now)) {
-                    hive.readyAtMillis = readyAtMillis
-                    changed = true
+                    ProfileStorageApi.updateProfile { profile ->
+                        profile.honeyhiveTracker.hives +=
+                            ProfileStorage.HoneyhiveData(position.x, position.y, position.z, readyAtMillis, true)
+                    }
+                } else if (!hive.statusObserved || shouldUpdateReadyTime(hive.readyAtMillis, readyAtMillis, now)) {
+                    ProfileStorageApi.updateProfile { profile ->
+                        val updatedHive = profile.honeyhiveTracker.hives.first { it.matches(position) }
+                        updatedHive.readyAtMillis = readyAtMillis
+                        updatedHive.statusObserved = true
+                    }
                 }
             }
-        return changed
     }
 
-    private fun alertForNewlyReadyHives(data: ProfileStorage.HoneyhiveTrackerData, now: Long) {
-        val ready = data.hives.filterTo(mutableSetOf()) { it.readyAtMillis <= now }.mapTo(mutableSetOf()) { it.locationKey() }
+    private fun alertForNewlyReadyHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
+        val ready = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
+            .mapTo(mutableSetOf()) { it.locationKey() }
         alertedReadyHives.retainAll(ready)
         val newlyReady = ready - alertedReadyHives
         alertedReadyHives += ready
-        if (newlyReady.isNotEmpty() && soundsRemaining == 0) {
+        if (config.settings.readySound && newlyReady.isNotEmpty() && soundsRemaining == 0) {
             soundsRemaining = READY_SOUND_REPEATS
             soundDelayTicks = 0
         }
     }
 
     private fun playQueuedSound() {
+        if (!config.settings.readySound) soundsRemaining = 0
         if (soundsRemaining == 0 || soundDelayTicks-- > 0) return
         SoundUtilities.playUiSound(READY_SOUND_ID, READY_SOUND_PITCH, READY_SOUND_VOLUME)
         soundsRemaining--
@@ -132,42 +151,86 @@ object HoneyhiveHelper {
 
     private fun render(context: SkysoftRenderContext) {
         val now = System.currentTimeMillis()
-        activeData?.hives
-            ?.asSequence()
-            ?.filter { it.readyAtMillis <= now }
-            ?.sortedByDescending { hive -> context.camera.position().toWorldVec().distanceSq(hive.location()) }
-            ?.forEach { hive ->
+        currentHives().asSequence()
+            .filter { hasWaypoint(it, now) }
+            .sortedByDescending { hive -> context.camera.position().toWorldVec().distanceSq(hive.location()) }
+            .forEach { hive ->
                 val location = hive.location()
                 BlockHighlightRenderer.drawBlock(context, location, WAYPOINT_COLOR, WAYPOINT_FILL_COLOR)
-                WorldLabelRenderer.draw(
+                WorldLabelRenderer.drawAbove(
                     context,
                     location + LABEL_OFFSET,
-                    HONEYHIVE_LABEL,
+                    listOf(
+                        Component.literal(HONEYHIVE_NAME).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
+                        honeyhiveStatusComponent(hive, now),
+                    ),
                     WAYPOINT_LABEL_STYLE,
                 )
             }
     }
 
-    private fun isEnabled(): Boolean = config.honeyhiveHelper && SkyBlockIsland.TORRHUS_CANYON.isInIsland()
+    internal fun currentHives(): List<ProfileStorageView.HoneyhiveData> {
+        if (!config.enabled || !HypixelLocationState.inSkyBlock ||
+            activeProfile == null || activeProfile != SkyBlockProfileApi.currentProfileId
+        ) return emptyList()
+        return activeData?.hives.orEmpty()
+    }
+
+    internal fun toggleWaypoint(hive: ProfileStorageView.HoneyhiveData) {
+        if (currentHives().none { it === hive }) return
+        val now = System.currentTimeMillis()
+        if (hasWaypoint(hive, now)) {
+            dismissWaypoint(hive, now)
+        } else {
+            val key = hive.locationKey()
+            selectedHives.add(key)
+            dismissedReadyHives.remove(key)
+        }
+    }
+
+    internal fun hasWaypoint(hive: ProfileStorageView.HoneyhiveData, now: Long = System.currentTimeMillis()): Boolean =
+        hive.locationKey() in selectedHives || config.settings.readyWaypoints &&
+            hive.hasKnownStatus() && hive.readyAtMillis <= now && hive.locationKey() !in dismissedReadyHives
+
+    private fun clearReachedWaypoints(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
+        val readyKeys = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
+            .mapTo(mutableSetOf()) { it.locationKey() }
+        dismissedReadyHives.retainAll(readyKeys)
+        val playerPosition = Minecraft.getInstance().player?.position()?.toWorldVec() ?: return
+        data.hives.filter { it.locationKey() in selectedHives && playerPosition.distanceSq(it.location()) <= ARRIVAL_RANGE_SQ }
+            .forEach { dismissWaypoint(it, now) }
+    }
+
+    private fun dismissWaypoint(hive: ProfileStorageView.HoneyhiveData, now: Long) {
+        val key = hive.locationKey()
+        selectedHives.remove(key)
+        if (hive.hasKnownStatus() && hive.readyAtMillis <= now) dismissedReadyHives.add(key)
+    }
+
+    private fun isEnabled(): Boolean = config.enabled && SkyBlockIsland.TORRHUS_CANYON.isInIsland()
 
     private fun clear() {
         activeData = null
+        activeProfile = null
+        selectedHives.clear()
+        dismissedReadyHives.clear()
         alertedReadyHives.clear()
         soundsRemaining = 0
         soundDelayTicks = 0
         ticks = 0
+        HoneyhiveDisplay.clear()
     }
 
-    private fun ProfileStorage.HoneyhiveData.location(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
-    private fun ProfileStorage.HoneyhiveData.matches(position: BlockPos): Boolean =
+    private fun ProfileStorageView.HoneyhiveData.location(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
+    private fun ProfileStorageView.HoneyhiveData.matches(position: BlockPos): Boolean =
         x == position.x && y == position.y && z == position.z
 
     private fun KnownHoneyhive.locationKey(): String = "$x:$y:$z"
 
     private const val HONEYHIVE_NAME = "Honeyhive"
-    private const val READY_STATUS = "Click to loot!"
     private const val SCAN_INTERVAL_TICKS = 5
     private const val STATUS_PAIR_DISTANCE_SQ = 0.5 * 0.5
+    private const val ARRIVAL_RANGE_SQ = 12.0 * 12.0
     private const val READY_SOUND_ID = "skysoft:honeyhive.ready"
     private const val READY_SOUND_REPEATS = 3
     private const val READY_SOUND_INTERVAL_TICKS = 4
@@ -175,12 +238,8 @@ object HoneyhiveHelper {
     private const val READY_SOUND_VOLUME = 1f
     private val WAYPOINT_COLOR = Color(255, 170, 0, 230)
     private val WAYPOINT_FILL_COLOR = Color(255, 170, 0, 70)
-    private val LABEL_OFFSET = WorldVec(0.5, 1.8, 0.5)
+    private val LABEL_OFFSET = WorldVec(0.5, 2.0, 0.5)
     private val WAYPOINT_LABEL_STYLE = WorldLabelStyle(maxRenderDistance = 100.0, maxScale = 7.0)
-    private val HONEYHIVE_LABEL = listOf(
-        Component.literal(HONEYHIVE_NAME).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
-        Component.literal(READY_STATUS).withStyle(ChatFormatting.GREEN),
-    )
     private val KNOWN_HONEYHIVES = listOf(
         KnownHoneyhive(-696, 93, 150),
         KnownHoneyhive(-693, 94, 147),
@@ -200,6 +259,18 @@ object HoneyhiveHelper {
         KnownHoneyhive(-581, 152, 258),
         KnownHoneyhive(-578, 151, 256),
     )
+}
+
+internal fun honeyhiveStatusComponent(hive: ProfileStorageView.HoneyhiveData, now: Long): Component {
+    if (!hive.hasKnownStatus()) return Component.literal("Unchecked").withStyle(ChatFormatting.GRAY)
+    if (hive.readyAtMillis <= now) return Component.literal("Ready").withStyle(ChatFormatting.GREEN)
+    val duration = DurationParts.fromMilliseconds(hive.readyAtMillis - now, roundUp = true)
+    val text = buildList {
+        if (duration.totalHours > 0) add("${duration.totalHours}h")
+        if (duration.minutes > 0) add("${duration.minutes}m")
+        add("${duration.seconds}s")
+    }.joinToString(" ")
+    return Component.literal(text).withStyle(ChatFormatting.YELLOW)
 }
 
 internal fun parseHoneyhiveRefillMillis(text: String): Long? {

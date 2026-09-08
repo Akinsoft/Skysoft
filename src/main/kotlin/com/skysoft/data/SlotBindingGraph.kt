@@ -39,7 +39,7 @@ internal object SlotBindingGraph {
     }
 
     fun additionDecision(
-        bindings: List<ProfileStorage.SlotBindingData>,
+        bindings: List<ProfileStorageView.SlotBindingData>,
         sourceSlot: Int,
         targetSlot: Int,
     ): SlotBindingAdditionDecision {
@@ -75,12 +75,12 @@ internal object SlotBindingGraph {
     }
 
     fun bindingsForSlot(
-        bindings: List<ProfileStorage.SlotBindingData>,
+        bindings: List<ProfileStorageView.SlotBindingData>,
         slotIndex: Int,
-    ): List<ProfileStorage.SlotBindingData> = bindings.filter { it.contains(slotIndex) }
+    ): List<ProfileStorageView.SlotBindingData> = bindings.filter { it.contains(slotIndex) }
 
     fun shiftClickDecision(
-        bindings: List<ProfileStorage.SlotBindingData>,
+        bindings: List<ProfileStorageView.SlotBindingData>,
         slotIndex: Int,
     ): SlotBindingShiftClickDecision {
         val matchingBindings = bindingsForSlot(bindings, slotIndex)
@@ -117,10 +117,10 @@ internal object SlotBindingGraph {
         return ProfileStorage.SlotBindingData(anchorSlot, secondarySlot)
     }
 
-    private fun ProfileStorage.SlotBindingData.contains(slotIndex: Int): Boolean =
+    private fun ProfileStorageView.SlotBindingData.contains(slotIndex: Int): Boolean =
         firstSlot == slotIndex || secondSlot == slotIndex
 
-    private fun ProfileStorage.SlotBindingData.containsBoth(first: Int, second: Int): Boolean =
+    private fun ProfileStorageView.SlotBindingData.containsBoth(first: Int, second: Int): Boolean =
         contains(first) && contains(second)
 
     private fun isHotbarSlot(slotIndex: Int): Boolean = slotIndex in HOTBAR_SLOT_RANGE
@@ -139,5 +139,5 @@ internal enum class SlotBindingAdditionDecision {
 internal sealed interface SlotBindingShiftClickDecision {
     data object Unbound : SlotBindingShiftClickDecision
     data object AmbiguousAnchor : SlotBindingShiftClickDecision
-    data class Swap(val binding: ProfileStorage.SlotBindingData) : SlotBindingShiftClickDecision
+    data class Swap(val binding: ProfileStorageView.SlotBindingData) : SlotBindingShiftClickDecision
 }

@@ -125,26 +125,7 @@ internal object DianaArrowGuess {
                             candidate.location.distance(target.location) > skipCandidatesNearRejectedRadius
                         )
             }
-        for ((remainingIndex, indexedCandidate) in nextCandidates.withIndex()) {
-            val (index, candidate) = indexedCandidate
-            val next = DianaBurrowTargetTracker.trackGuess(
-                location = candidate.location,
-                now = now,
-                candidates = nextCandidates.drop(remainingIndex).map { (_, remaining) -> remaining.location },
-            ) ?: continue
-            DianaBurrowChainState.onTargetReplaced(target, next, now)
-            activeSequences.remove(target.targetId)
-            activeSequences[next.targetId] = sequence.copy(
-                targetId = next.targetId,
-                current = candidate,
-                currentIndex = index,
-                currentTrackedAtMillis = now,
-                missingParticlesFirstCheckAtMillis = null,
-            )
-            return ArrowGuessActionResult.HANDLED
-        }
-        activeSequences.remove(target.targetId)
-        return ArrowGuessActionResult.HANDLED
+        return advanceSequence(target, sequence, nextCandidates, now)
     }
 
     fun clear() {
@@ -277,6 +258,15 @@ internal object DianaArrowGuess {
             .withIndex()
             .drop(sequence.currentIndex + 1)
             .filter { (_, candidate) -> candidate.location.blockKey() !in invalidatedKeys }
+        return advanceSequence(target, sequence.copy(invalidatedBlockKeys = invalidatedKeys), nextCandidates, now)
+    }
+
+    private fun advanceSequence(
+        target: DianaBurrowTarget,
+        sequence: ArrowCandidateSequence,
+        nextCandidates: List<IndexedValue<ResolvedArrowCandidate>>,
+        now: Long,
+    ): ArrowGuessActionResult {
         for ((remainingIndex, indexedCandidate) in nextCandidates.withIndex()) {
             val (index, candidate) = indexedCandidate
             val next = DianaBurrowTargetTracker.trackGuess(
@@ -291,7 +281,6 @@ internal object DianaArrowGuess {
                 current = candidate,
                 currentIndex = index,
                 currentTrackedAtMillis = now,
-                invalidatedBlockKeys = invalidatedKeys,
                 missingParticlesFirstCheckAtMillis = null,
             )
             return ArrowGuessActionResult.HANDLED

@@ -103,6 +103,7 @@ internal class ProfitTrackerHudControls(
             resetTransition.hide()
         }
         ProfitTrackerControl.More -> wasLeftClickHandled(button, itemPanel::toggleOverview)
+        is ProfitTrackerControl.PestBreakdown -> false
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
         is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(target, action.itemId, button)
         is ProfitTrackerControl.ModifyItem -> wasLeftClickHandled(button) {
@@ -161,12 +162,8 @@ internal class ProfitTrackerHudControls(
 
     private fun wasPeriodCycled(target: ProfitTrackerTarget, button: Int): Boolean =
         OverlayControlCycle.wasClickHandled(button) { backwards ->
-            val periods = ProfitTrackingPeriod.entries.filter {
-                target.preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL || it != ProfitTrackingPeriod.MAYOR
-            }
-            val next = OverlayControlCycle.next(periods, ProfitTracker.displayPeriod(target), backwards)
-            ProfileStorageApi.storage.profitTracker.displayPeriods[target.storageKey] = next.name
-            ProfileStorageApi.markDirty()
+            val next = OverlayControlCycle.next(target.trackingPeriods, ProfitTracker.displayPeriod(target), backwards)
+            ProfileStorageApi.updateProfile { it.profitTracker.displayPeriods[target.storageKey] = next.name }
         }
 
     private fun wasTrackerPriceSourceCycled(target: ProfitTrackerTarget, button: Int): Boolean =
@@ -201,9 +198,6 @@ internal class ProfitTrackerHudControls(
         val period: ProfitTrackingPeriod,
     )
 }
-
-internal fun profitTrackerScrollOffset(current: Int, verticalAmount: Double, maximumOffset: Int): Int =
-    (current + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
 
 internal fun nextProfitTrackerPriceSource(
     current: ProfitTrackerPriceSource,

@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
@@ -87,7 +88,7 @@ internal fun setSlotPosition(slot: Slot, x: Int, y: Int) {
     slot.y = y
 }
 
-internal fun pageHeight(page: ProfileStorage.SkyBlockStoragePageData): Int =
+internal fun pageHeight(page: ProfileStorageView.SkyBlockStoragePageData): Int =
     if (page.rows <= 0) {
         StoragePages.EMPTY_HEIGHT
     } else {

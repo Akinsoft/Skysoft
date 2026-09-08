@@ -23,14 +23,26 @@ enum class SkyBlockSkill(val displayName: String, val maxLevel: Int) {
     }
 }
 
+interface SkyBlockSkillView {
+    val level: Int
+    val lastGain: String
+    val totalXp: Long
+    val currentXp: Long
+    val currentXpMax: Long
+    val overflowLevel: Int
+    val overflowTotalXp: Long
+    val overflowCurrentXp: Long
+    val overflowCurrentXpMax: Long
+}
+
 data class SkyBlockSkillInfo(
-    @Expose var level: Int = 0,
-    @Expose var lastGain: String = "",
-    @Expose var totalXp: Long = 0,
-    @Expose var currentXp: Long = 0,
-    @Expose var currentXpMax: Long = 0,
-    @Expose var overflowLevel: Int = 0,
-    @Expose var overflowTotalXp: Long = 0,
-    @Expose var overflowCurrentXp: Long = 0,
-    @Expose var overflowCurrentXpMax: Long = 0,
-)
+    @Expose override var level: Int = 0,
+    @Expose override var lastGain: String = "",
+    @Expose override var totalXp: Long = 0,
+    @Expose override var currentXp: Long = 0,
+    @Expose override var currentXpMax: Long = 0,
+    @Expose override var overflowLevel: Int = 0,
+    @Expose override var overflowTotalXp: Long = 0,
+    @Expose override var overflowCurrentXp: Long = 0,
+    @Expose override var overflowCurrentXpMax: Long = 0,
+) : SkyBlockSkillView

@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 20
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 23
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -40,20 +40,7 @@ internal object SkysoftConfigMigrations {
         if (migrationVersion < BETTER_SHURIKENS_CATEGORY_VERSION) {
             migrateBetterShurikensIntoCategory(json)
         }
-        if (migrationVersion < VANILLA_UI_CATEGORY_VERSION) {
-            val guiJson = json.getOrCreateObject("gui")
-            val vanillaUiJson = guiJson.getOrCreateObject("vanillaUi")
-            guiJson.remove("areVanillaStatusEffectsHidden")?.let { legacyValue ->
-                if (!vanillaUiJson.has("areVanillaStatusEffectsHidden")) {
-                    vanillaUiJson.add("areVanillaStatusEffectsHidden", legacyValue.deepCopy())
-                }
-            }
-            json.getObjectOrNull("inventory")?.remove("isVanillaRecipeBookHidden")?.let { legacyValue ->
-                if (!vanillaUiJson.has("isVanillaRecipeBookHidden")) {
-                    vanillaUiJson.add("isVanillaRecipeBookHidden", legacyValue.deepCopy())
-                }
-            }
-        }
+        if (migrationVersion < VANILLA_UI_CATEGORY_VERSION) migrateVanillaUiCategory(json)
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
                 ?.takeIf { it.has(SKYBLOCK_MENU_DROP_FIX_FIELD) }
@@ -76,7 +63,16 @@ internal object SkysoftConfigMigrations {
         if (migrationVersion < SERVER_INFO_METRIC_COLORS_VERSION) migrateServerInfoMetricColors(json)
         migrateCursorPositionPreservation(json, migrationVersion)
         migrateDianaParticleQualitySetup(json, migrationVersion)
+        if (migrationVersion < MOUSE_LOCK_FARMING_CATEGORY_VERSION) migrateMouseLockIntoFarming(json)
+        migrateHoneyhiveHelper(json, migrationVersion)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
+    }
+
+    private fun migrateVanillaUiCategory(json: JsonObject) {
+        val guiJson = json.getOrCreateObject("gui")
+        val vanillaUiJson = guiJson.getOrCreateObject("vanillaUi")
+        guiJson.moveFieldInto(vanillaUiJson, "areVanillaStatusEffectsHidden")
+        json.getObjectOrNull("inventory")?.moveFieldInto(vanillaUiJson, "isVanillaRecipeBookHidden")
     }
 
     private fun importLegacyStorage(json: JsonObject, gson: Gson) {
@@ -87,7 +83,10 @@ internal object SkysoftConfigMigrations {
     }
 
     private fun migrateBazaarIntoInventory(json: JsonObject) {
-        migrateObjectIntoSection(json, legacyName = "bazaar", sectionName = "inventory", targetName = "bazaar")
+        val legacyJson = json.getObjectOrNull("bazaar") ?: return
+        val inventoryJson = json.getOrCreateObject("inventory")
+        if (!inventoryJson.has("bazaar")) inventoryJson.add("bazaar", legacyJson.deepCopy())
+        json.remove("bazaar")
     }
 
     private fun migrateActionBarBackgroundIntoGui(json: JsonObject) {
@@ -106,13 +105,7 @@ internal object SkysoftConfigMigrations {
         val settingsJson = dianaJson.getOrCreateObject("settings")
         dianaJson.remove("waypoints")
         settingsJson.remove("waypoints")
-        DIANA_SETTINGS_FIELDS.forEach { fieldName ->
-            val legacyValue = dianaJson.get(fieldName) ?: return@forEach
-            if (!settingsJson.has(fieldName)) {
-                settingsJson.add(fieldName, legacyValue.deepCopy())
-            }
-            dianaJson.remove(fieldName)
-        }
+        dianaJson.moveFieldsInto(settingsJson, DIANA_SETTINGS_FIELDS)
     }
 
     private fun migrateBuggedNameplatesIntoMisc(json: JsonObject) {
@@ -134,13 +127,7 @@ internal object SkysoftConfigMigrations {
             ?.getObjectOrNull("settings")
             ?: return
         val miscJson = json.getOrCreateObject("misc")
-        RARE_LOOT_FIELDS.forEach { fieldName ->
-            val legacyValue = dianaSettingsJson.get(fieldName) ?: return@forEach
-            if (!miscJson.has(fieldName)) {
-                miscJson.add(fieldName, legacyValue.deepCopy())
-            }
-            dianaSettingsJson.remove(fieldName)
-        }
+        dianaSettingsJson.moveFieldsInto(miscJson, RARE_LOOT_FIELDS)
     }
 
     private fun migrateOrganizedConfigLayout(json: JsonObject) {
@@ -260,6 +247,20 @@ internal object SkysoftConfigMigrations {
         }
     }
 
+    private fun migrateMouseLockIntoFarming(json: JsonObject) {
+        val miscJson = json.getObjectOrNull("misc") ?: return
+        val mouseLockJson = miscJson.remove("mouseLock")
+            ?.takeIf { it.isJsonObject }
+            ?.asJsonObject
+            ?: return
+        val farmingJson = json.getOrCreateObject("farming")
+        mouseLockJson.getObjectOrNull("settings")?.remove("unlockOnPestSpawn")?.let { unlockOnWarp ->
+            val settingsJson = farmingJson.getOrCreateObject("pestHelper").getOrCreateObject("settings")
+            if (!settingsJson.has("unlockOnWarp")) settingsJson.add("unlockOnWarp", unlockOnWarp)
+        }
+        if (!farmingJson.has("mouseLock")) farmingJson.add("mouseLock", mouseLockJson)
+    }
+
     private fun migrateChatLayout(json: JsonObject) {
         val smoothChatJson = json.getObjectOrNull("chat")?.getObjectOrNull("smoothChat") ?: return
         smoothChatJson.moveFieldsInto("settings", SMOOTH_CHAT_SETTINGS_FIELDS)
@@ -315,20 +316,6 @@ internal object SkysoftConfigMigrations {
     private fun JsonObject.copyFieldInto(target: JsonObject, fieldName: String) {
         val value = get(fieldName) ?: return
         if (!target.has(fieldName)) target.add(fieldName, value.deepCopy())
-    }
-
-    private fun migrateObjectIntoSection(
-        json: JsonObject,
-        legacyName: String,
-        sectionName: String,
-        targetName: String,
-    ) {
-        val legacyJson = json.getObjectOrNull(legacyName) ?: return
-        val sectionJson = json.getOrCreateObject(sectionName)
-        if (!sectionJson.has(targetName)) {
-            sectionJson.add(targetName, legacyJson.deepCopy())
-        }
-        json.remove(legacyName)
     }
 
     private val DIANA_SETTINGS_FIELDS = listOf(
@@ -412,6 +399,7 @@ internal object SkysoftConfigMigrations {
     private const val SERVER_INFO_METRIC_COLORS_VERSION = 13
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
     private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 19
+    private const val MOUSE_LOCK_FARMING_CATEGORY_VERSION = 21
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
@@ -625,10 +613,24 @@ private fun JsonObject.moveBooleanToDisplayMode(target: JsonObject, fieldName: S
     remove(fieldName)
 }
 
+private fun migrateHoneyhiveHelper(json: JsonObject, migrationVersion: Int) {
+    if (migrationVersion >= HONEYHIVE_HELPER_CATEGORY_VERSION) return
+    val foraging = json.getObjectOrNull("foraging") ?: return
+    val legacy = foraging.get("honeyhiveHelper") ?: return
+    if (legacy.isJsonPrimitive) {
+        foraging.add("honeyhiveHelper", JsonObject().also { it.add("enabled", legacy.deepCopy()) })
+    }
+    val settings = foraging.getObjectOrNull("honeyhiveHelper")?.getObjectOrNull("settings") ?: return
+    mapOf("showDisplay" to "display", "maxRows" to "maximumLines", "showOutsideIsland" to "showOutsideTorrhus")
+        .forEach { (oldName, newName) -> settings.moveFieldInto(settings, oldName, newName) }
+}
+
+private const val HONEYHIVE_HELPER_CATEGORY_VERSION = 23
+
 private fun migratePriceTooltipCustomization(json: JsonObject) {
-    val settingsJson = json.get("inventory")?.takeIf { it.isJsonObject }?.asJsonObject
-        ?.get("priceTooltips")?.takeIf { it.isJsonObject }?.asJsonObject
-        ?.get("settings")?.takeIf { it.isJsonObject }?.asJsonObject
+    val settingsJson = json.getObjectOrNull("inventory")
+        ?.getObjectOrNull("priceTooltips")
+        ?.getObjectOrNull("settings")
         ?: return
     val legacyType = settingsJson.remove("bazaarPriceType") ?: return
     if (!settingsJson.has("priceLines")) {

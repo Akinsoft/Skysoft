@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Rect
@@ -119,7 +120,7 @@ private fun focusBackdropColor(progress: Float): Int {
 private fun drawPage(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    page: ProfileStorage.SkyBlockStoragePageData,
+    page: ProfileStorageView.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,
@@ -198,7 +199,7 @@ private fun drawPage(
 private fun drawPageSlots(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    page: ProfileStorage.SkyBlockStoragePageData,
+    page: ProfileStorageView.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,
@@ -222,14 +223,8 @@ private fun drawPageSlots(
         val hovered = isSlotHovered(mouseX, mouseY, slotX, slotY) && context.containsPointInScissor(mouseX, mouseY)
         val storedItem = page.items.getOrNull(index)
         val activeSlot = if (active) activeSlots[index] else null
-        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else stackFor(storedItem)
+        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else StorageItemStacks.stackFor(storedItem)
         if (!stack.isEmpty) {
-            if (
-                StorageSearchIndex.hasQuery &&
-                (if (active) StorageSearchIndex.matches(stack) else StorageSearchIndex.matches(storedItem))
-            ) {
-                InventoryItemSearchHighlight.render(context, slotX, slotY)
-            }
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
                 if (active) {
                     StorageOverlayItemRenderer.drawLiveItem(context, stack, slotX, slotY)
@@ -238,6 +233,10 @@ private fun drawPageSlots(
                 }
             }
             ItemProtectionManager.renderProtectedMarker(context, stack, slotX, slotY)
+        }
+        if (StorageSearchIndex.hasQuery) {
+            val isMatch = if (active) StorageSearchIndex.matches(stack) else StorageSearchIndex.matches(storedItem)
+            if (!isMatch) InventoryItemSearchHighlight.render(context, slotX, slotY, matches = false)
         }
         if (hovered) {
             drawSlotHover(context, slotX, slotY)
@@ -267,7 +266,11 @@ internal fun drawSearchBox(context: GuiGraphicsExtractor, measurements: Measurem
         box.height,
         "Search...",
         backgroundColor = StorageColors.SEARCH_BACKGROUND,
-        outlineColor = if (storageSearchField.focused) StorageColors.SELECTED else StorageColors.PANEL_OUTLINE,
+        outlineColor = when {
+            StorageSearchIndex.hasQuery -> InventoryItemSearchHighlight.outlineColor
+            storageSearchField.focused -> StorageColors.SELECTED
+            else -> StorageColors.PANEL_OUTLINE
+        },
         textColor = StorageColors.TEXT_WHITE,
         placeholderColor = StorageColors.SEARCH_PLACEHOLDER,
     )
@@ -322,6 +325,9 @@ private fun drawPlayerSlot(
     slot?.let { SlotLockManager.renderSlotOverlay(context, it, pos.x, pos.y) }
     if (shouldRenderItem) {
         ItemProtectionManager.renderProtectedMarker(context, stack, pos.x, pos.y)
+    }
+    if (StorageSearchIndex.hasQuery && !StorageSearchIndex.matches(stack)) {
+        InventoryItemSearchHighlight.render(context, pos.x, pos.y, matches = false)
     }
     if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
         drawSlotHover(context, pos.x, pos.y)
@@ -413,7 +419,7 @@ internal fun drawStorageSelectorPanel(
 private fun toolkitShortcutStack(type: ToolkitType): ItemStack {
     val isAvailable = storageEntryExists(type.pageIndex)
     if (isAvailable) {
-        val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
+        val stack = StorageItemStacks.stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
         if (!stack.isEmpty) return stack
     }
     return ItemStack(if (isAvailable) Items.CHEST else Items.BARRIER).apply {

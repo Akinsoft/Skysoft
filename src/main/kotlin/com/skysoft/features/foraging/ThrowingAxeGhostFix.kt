@@ -14,6 +14,6 @@ object ThrowingAxeGhostFix {
         val island = HypixelLocationState.currentIsland
         if (island != SkyBlockIsland.GALATEA && island != SkyBlockIsland.TORRHUS_CANYON) return false
         val state = display.blockRenderState()?.blockState() ?: return false
-        return ThrowingAxeHelper.isTreeBlock(island, state)
+        return ThrowingAxeTrees.treeKind(island, state) != null
     }
 }

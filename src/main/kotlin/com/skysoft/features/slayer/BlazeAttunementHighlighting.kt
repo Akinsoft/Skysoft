@@ -1,5 +1,6 @@
 package com.skysoft.features.slayer
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockSlayerType
@@ -36,7 +37,7 @@ object BlazeAttunementHighlighting {
         }
         if (++ticks % SCAN_INTERVAL_TICKS != 0) return
 
-        val entities = SkyBlockMobEntityMatcher.allEntities()
+        val entities = ClientEntitySnapshot.entities()
         val nextHighlights = entities.filterIsInstance<ArmorStand>().mapNotNull { nameplate ->
             val attunement = parseBlazeAttunement(nameplate.cleanName()) ?: return@mapNotNull null
             val entity = SkyBlockMobEntityMatcher.physicalEntityFor(nameplate, entities, ::isHellionShieldMob)

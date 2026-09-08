@@ -216,7 +216,7 @@ internal object ScreenshotManagerRenderer {
             font,
             layout.share,
             ScreenshotSharing.buttonLabel(screenshotPath),
-            areActionsEnabled && ScreenshotSharing.status(screenshotPath).state != ScreenshotShareState.UPLOADING,
+            areActionsEnabled && ScreenshotSharing.status(screenshotPath) != ScreenshotShareStatus.Uploading,
             mouseX,
             mouseY,
             alpha = visuals.chromeAlpha,

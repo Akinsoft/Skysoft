@@ -78,3 +78,11 @@ class SlotBindingsDetailsConfig {
     @field:ConfigEditorBoolean
     var showShiftHoverHighlight = true
 }
+
+enum class SlotBindingHighlightStyle(private val displayName: String) {
+    FILL("Fill"),
+    EDGES("Edges"),
+    ;
+
+    override fun toString(): String = displayName
+}

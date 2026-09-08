@@ -16,9 +16,6 @@ import net.minecraft.util.FormattedCharSequence
 import org.joml.Vector2i
 import org.joml.Vector2ic
 import org.lwjgl.glfw.GLFW
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 
 interface TooltipScrollExcludedScreen
 
@@ -28,7 +25,7 @@ interface TooltipScrollPriorityScreen {
 
 object TooltipViewport {
     private val minecraft = Minecraft.getInstance()
-    private var session: PanSession? = null
+    private var session: TooltipPanSession? = null
     private var wasResetKeyPressedLastTick = false
 
     @JvmStatic
@@ -145,7 +142,14 @@ object TooltipViewport {
     ): Vector2ic {
         val base = original.positionTooltip(viewportWidth, viewportHeight, x, y, tooltipWidth, tooltipHeight)
         val screen = MinecraftClient.screen(minecraft)
-        val frame = TooltipFrame(base.x(), base.y(), tooltipWidth, tooltipHeight, viewportWidth, viewportHeight)
+        val frame = TooltipPanFrame(
+            x = base.x(),
+            y = base.y(),
+            width = tooltipWidth,
+            height = tooltipHeight,
+            viewportWidth = viewportWidth,
+            viewportHeight = viewportHeight,
+        )
         val now = System.nanoTime()
         val isExpired = !hasVisibleSession(now)
         val activeSession = session
@@ -153,12 +157,20 @@ object TooltipViewport {
             activeSession.isDifferentTarget(identity, anchorX, anchorY)
 
         if (activeSession == null || activeSession.screen !== screen) {
-            session = PanSession(screen, identity, anchorX, anchorY, frame, now)
+            session = TooltipPanSession(
+                screen = screen,
+                identity = identity,
+                anchorX = anchorX,
+                anchorY = anchorY,
+                frame = frame,
+                observedAt = now,
+                startOnTop = config().details.startOnTop,
+            )
         } else {
             activeSession.observe(identity, anchorX, anchorY, frame, now)
             if (config().details.resetPositionWhenNotHovered && (isExpired || hasChangedTarget)) {
                 activeSession.center()
-                activeSession.alignTallTooltipToTop()
+                activeSession.alignTallTooltipToTop(config().details.startOnTop)
             }
         }
 
@@ -216,126 +228,6 @@ object TooltipViewport {
 
     private fun config(): TooltipScrollConfig = SkysoftConfigGui.config().inventory.tooltipScroll
 
-    private class PanSession(
-        val screen: Screen?,
-        identity: Int,
-        anchorX: Int,
-        anchorY: Int,
-        frame: TooltipFrame,
-        observedAt: Long,
-    ) {
-        private var identity = identity
-        private var anchorX = anchorX
-        private var anchorY = anchorY
-        private var frame = frame
-        var lastObservedNanos = observedAt
-            private set
-        private var targetX = 0.0
-        private var targetY = 0.0
-        private var displayedX = 0.0
-        private var displayedY = 0.0
-
-        init {
-            clampMotion()
-            alignTallTooltipToTop()
-        }
-
-        fun isDifferentTarget(nextIdentity: Int, nextAnchorX: Int, nextAnchorY: Int): Boolean =
-            identity != nextIdentity || abs(anchorX - nextAnchorX) > ANCHOR_TOLERANCE ||
-                abs(anchorY - nextAnchorY) > ANCHOR_TOLERANCE
-
-        fun observe(
-            nextIdentity: Int,
-            nextAnchorX: Int,
-            nextAnchorY: Int,
-            nextFrame: TooltipFrame,
-            observedAt: Long,
-        ) {
-            identity = nextIdentity
-            anchorX = nextAnchorX
-            anchorY = nextAnchorY
-            frame = nextFrame
-            lastObservedNanos = observedAt
-            clampMotion()
-        }
-
-        fun panBy(x: Double, y: Double) {
-            targetX += x
-            targetY += y
-            clampMotion()
-        }
-
-        fun center() {
-            targetX = 0.0
-            targetY = 0.0
-            displayedX = 0.0
-            displayedY = 0.0
-        }
-
-        fun alignTallTooltipToTop() {
-            if (
-                !config().details.startOnTop ||
-                frame.height <= frame.viewportHeight - EDGE_GAP * 2 ||
-                frame.y >= EDGE_GAP
-            ) return
-            targetY = EDGE_GAP - frame.y.toDouble()
-            displayedY = targetY
-            clampMotion()
-        }
-
-        fun advance(amount: Double) {
-            if (amount >= 1.0) {
-                displayedX = targetX
-                displayedY = targetY
-                return
-            }
-            displayedX = settle(displayedX + (targetX - displayedX) * amount, targetX)
-            displayedY = settle(displayedY + (targetY - displayedY) * amount, targetY)
-        }
-
-        private fun clampMotion() {
-            val bounds = frame.bounds()
-            targetX = bounds.clampX(targetX)
-            targetY = bounds.clampY(targetY)
-            displayedX = bounds.clampX(displayedX)
-            displayedY = bounds.clampY(displayedY)
-        }
-
-        fun roundedX(): Int = Math.round(displayedX).toInt()
-
-        fun roundedY(): Int = Math.round(displayedY).toInt()
-
-        private fun settle(value: Double, target: Double): Double =
-            if (abs(target - value) < SETTLE_TOLERANCE) target else value
-    }
-
-    private data class TooltipFrame(
-        val x: Int,
-        val y: Int,
-        val width: Int,
-        val height: Int,
-        val viewportWidth: Int,
-        val viewportHeight: Int,
-    ) {
-        fun bounds() = PanBounds(
-            EDGE_GAP - width - x,
-            viewportWidth - EDGE_GAP - x,
-            EDGE_GAP - height - y,
-            viewportHeight - EDGE_GAP - y,
-        )
-    }
-
-    private data class PanBounds(val minX: Int, val maxX: Int, val minY: Int, val maxY: Int) {
-        fun clampX(value: Double): Double = clamp(value, minX, maxX)
-
-        fun clampY(value: Double): Double = clamp(value, minY, maxY)
-
-        private fun clamp(value: Double, minimum: Int, maximum: Int): Double {
-            if (minimum > maximum) return 0.0
-            return max(minimum.toDouble(), min(value, maximum.toDouble()))
-        }
-    }
-
     private data class OffsetPositioner(
         val original: ClientTooltipPositioner,
         val identity: Int,
@@ -364,11 +256,8 @@ object TooltipViewport {
     }
 
     private const val VISIBILITY_GRACE_NANOS = 250_000_000L
-    private const val EDGE_GAP = 4
-    private const val ANCHOR_TOLERANCE = 12
     private const val HASH_MULTIPLIER = 31
     private const val PERCENT_SCALE = 100.0
-    private const val SETTLE_TOLERANCE = 0.05
 }
 
 private fun isTooltipScrollEnabledForScreen(screen: Screen?, isEnabledInChat: Boolean): Boolean =

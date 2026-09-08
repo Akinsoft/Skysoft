@@ -11,12 +11,13 @@ import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
+import net.minecraft.client.Minecraft
 
 object SkyBlockEventScheduleApi {
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
-    private val requestSlot = AsyncRequestSlot<SkyBlockEventSchedule>()
+    private val requestSlot = AsyncRequestSlot<SkyBlockEventSchedule>(completionExecutor = Minecraft.getInstance())
     private val refreshSchedule = RefreshSchedule()
 
     @Volatile
@@ -55,7 +56,7 @@ object SkyBlockEventScheduleApi {
 
     fun activeEvents(nowMillis: Long): Set<SkyBlockEvent> {
         val current = schedule
-        if (nowMillis - current.fetchedAt > MAX_SCHEDULE_AGE_MILLIS) return emptySet()
+        if (!current.isFreshAt(nowMillis, MAX_SCHEDULE_AGE_MILLIS)) return emptySet()
         return current.windows.asSequence()
             .filter { nowMillis in it.startsAt until it.endsAt }
             .mapTo(mutableSetOf()) { it.event }
@@ -112,7 +113,6 @@ object SkyBlockEventScheduleApi {
 internal data class SkyBlockEventSchedule(
     val fetchedAt: Long = 0L,
     val windows: List<SkyBlockEventWindow> = emptyList(),
-    val unknownEventIds: Set<String> = emptySet(),
 )
 
 internal data class SkyBlockEventWindow(
@@ -137,16 +137,12 @@ internal data class SkyBlockEventWindowResponse(
 internal fun normalizeSchedule(response: SkyBlockEventScheduleResponse): SkyBlockEventSchedule {
     check(response.success) { "Skysoft event schedule failed: ${response.cause ?: "unknown cause"}" }
     check(response.fetchedAt > 0L) { "Skysoft event schedule has no fetch timestamp" }
-    val unknownEventIds = mutableSetOf<String>()
     val windows = response.events.mapNotNull { window ->
-        val event = runCatching { SkyBlockEvent.valueOf(window.id) }.getOrNull() ?: run {
-            unknownEventIds += window.id
-            return@mapNotNull null
-        }
+        val event = SkyBlockEvent.entries.firstOrNull { it.name == window.id } ?: return@mapNotNull null
         check(window.startsAt < window.endsAt) { "Invalid ${window.id} event window" }
         SkyBlockEventWindow(event, window.startsAt, window.endsAt)
     }
-    return SkyBlockEventSchedule(response.fetchedAt, windows, unknownEventIds)
+    return SkyBlockEventSchedule(response.fetchedAt, windows)
 }
 
 internal fun scheduleAvailability(
@@ -157,7 +153,7 @@ internal fun scheduleAvailability(
     durationMinutes: Int,
     maximumAgeMillis: Long,
 ): Boolean? {
-    if (nowMillis - schedule.fetchedAt !in 0..maximumAgeMillis) return null
+    if (!schedule.isFreshAt(nowMillis, maximumAgeMillis)) return null
     val windows = schedule.windows.filter { it.event == event }
     if (windows.isEmpty()) return null
     return windows.any { window ->
@@ -166,5 +162,8 @@ internal fun scheduleAvailability(
         nowMillis in start until end
     }
 }
+
+private fun SkyBlockEventSchedule.isFreshAt(nowMillis: Long, maximumAgeMillis: Long): Boolean =
+    nowMillis - fetchedAt in 0..maximumAgeMillis
 
 private const val MILLIS_PER_MINUTE = 60_000L

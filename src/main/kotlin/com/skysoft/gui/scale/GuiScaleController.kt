@@ -137,10 +137,16 @@ class GuiScaleController private constructor() {
         @JvmStatic
         fun areOverlaysUsingNormalCoordinates(): Boolean = overlaysUseNormalCoordinates
 
-        @JvmStatic
-        fun setOverlaysUseNormalCoordinates(value: Boolean) {
-            overlaysUseNormalCoordinates = value
-        }
+        internal fun <T> withNormalOverlayCoordinates(window: Window, normalScale: Int, render: () -> T): T =
+            WindowScaleOverride.create(window, normalScale).use {
+                val previousCoordinates = overlaysUseNormalCoordinates
+                overlaysUseNormalCoordinates = true
+                try {
+                    render()
+                } finally {
+                    overlaysUseNormalCoordinates = previousCoordinates
+                }
+            }
 
         private fun resolve(window: Window, configuredScale: Int): Int =
             window.calculateScale(configuredScale.coerceAtLeast(0), minecraft.isEnforceUnicode).coerceAtLeast(1)

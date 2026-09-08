@@ -1,10 +1,10 @@
 package com.skysoft.features.safari
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.EntityHighlightTracker
@@ -36,7 +36,7 @@ object HighlightCritters {
         }
         if (++ticks % SCAN_INTERVAL_TICKS != 0L) return
 
-        val loadedEntities = SkyBlockMobEntityMatcher.allEntities()
+        val loadedEntities = ClientEntitySnapshot.entities()
             .filter(Entity::isAlive)
             .associateBy(Entity::getUUID)
         SafariCritterDetector.detectedCritters(loadedEntities.values.toList()).forEach { critter ->

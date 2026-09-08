@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.gui.tooltip.SkysoftTooltipComponent
+import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.ceil
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -37,8 +38,7 @@ internal class ClientStoragePreviewTooltip(
         height: Int,
         context: GuiGraphicsExtractor,
     ) {
-        context.pose().pushMatrix()
-        try {
+        context.withIsolatedPose {
             context.pose().translate(x.toFloat(), y.toFloat())
             context.pose().scale(preview.scale, preview.scale)
             preview.items.forEachIndexed { index, stack ->
@@ -51,8 +51,6 @@ internal class ClientStoragePreviewTooltip(
                     context.itemDecorations(font, stack, slotX + 1, slotY + 1)
                 }
             }
-        } finally {
-            context.pose().popMatrix()
         }
     }
 

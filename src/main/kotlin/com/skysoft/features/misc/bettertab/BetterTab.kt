@@ -5,6 +5,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.ColorUtilities.toColor
@@ -12,6 +13,7 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TabListOverlay
 import com.skysoft.utils.gui.OverlayPanelStyle
+import com.skysoft.utils.renderables.withIsolatedPose
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -44,11 +46,10 @@ object BetterTab {
     )
 
     private val config get() = SkysoftConfigGui.config().gui.betterTab
-    private var cachedLayoutKey: LayoutCacheKey? = null
-    private var cachedLayout: MeasuredLayout? = null
+    private var cachedLayout: CachedLayout? = null
 
     fun register() {
-        TabListApi.registerConsumer("Better TAB", ::isActive)
+        TabListApi.onChange("Better TAB", ::isActive) { cachedLayout = null }
         HudElementRegistry.replaceElement(VanillaHudElements.PLAYER_LIST) { vanilla ->
             HudElement { context, tick ->
                 if (isActive()) {
@@ -76,12 +77,9 @@ object BetterTab {
             override fun renderEditor(context: GuiGraphicsExtractor) {
                 val minecraft = Minecraft.getInstance()
                 val layout = currentLayout(minecraft) ?: return
-                context.pose().pushMatrix()
-                try {
+                context.withIsolatedPose {
                     context.pose().scale(defaultScale(layout), defaultScale(layout))
                     drawLayout(context, minecraft, layout, 0, 0)
-                } finally {
-                    context.pose().popMatrix()
                 }
             }
 
@@ -102,18 +100,10 @@ object BetterTab {
         ) return
         val layout = currentLayout(minecraft) ?: return
         val scale = defaultScale(layout) * config.position.scale
-        val width = (layout.panelWidth * scale).roundToInt()
-        val height = (layout.panelHeight * scale).roundToInt()
-        val x = config.position.getAbsX0AllowingOverflow(width)
-        val y = config.position.getAbsY0AllowingOverflow(height)
+        val transform = config.position.transform(layout.panelWidth, layout.panelHeight, scale)
         context.nextStratum()
-        context.pose().pushMatrix()
-        try {
-            context.pose().translate(x.toFloat(), y.toFloat())
-            context.pose().scale(scale, scale)
+        transform.render(context) {
             drawLayout(context, minecraft, layout, 0, 0)
-        } finally {
-            context.pose().popMatrix()
         }
     }
 
@@ -131,26 +121,26 @@ object BetterTab {
             areColumnPanelsShown = details.columnPanels,
             columnPadding = details.columnPadding.coerceIn(MIN_COLUMN_PADDING, MAX_COLUMN_PADDING),
         )
-        if (cachedLayoutKey != key) {
-            cachedLayoutKey = key
-            cachedLayout = measureLayout(
-                minecraft,
-                BetterTabLayoutBuilder.build(
-                    entries = TabListApi.entries,
-                    header = TabListApi.header,
-                    footer = TabListApi.footer,
-                    maximumRows = MAXIMUM_COLUMN_ROWS,
-                    isServerAddressHidden = key.isServerAddressHidden,
-                    isStoreBannerHidden = key.isStoreBannerHidden,
-                    isSecondPlayerColumnHidden = key.isSecondPlayerColumnHidden,
-                ),
-                key.arePlayerHeadsShown,
-                key.areColumnPanelsShown,
-                key.areFramesShown,
-                key.columnPadding,
-            )
-        }
-        return cachedLayout
+        val current = cachedLayout
+        if (current != null && current.key == key) return current.layout
+        val measured = measureLayout(
+            minecraft,
+            BetterTabLayoutBuilder.build(
+                entries = TabListApi.entries,
+                header = TabListApi.header,
+                footer = TabListApi.footer,
+                maximumRows = MAXIMUM_COLUMN_ROWS,
+                isServerAddressHidden = key.isServerAddressHidden,
+                isStoreBannerHidden = key.isStoreBannerHidden,
+                isSecondPlayerColumnHidden = key.isSecondPlayerColumnHidden,
+            ),
+            key.arePlayerHeadsShown,
+            key.areColumnPanelsShown,
+            key.areFramesShown,
+            key.columnPadding,
+        )
+        cachedLayout = CachedLayout(key, measured)
+        return measured
     }
 
     private fun measureLayout(
@@ -193,7 +183,6 @@ object BetterTab {
             columnsWidth = columnsWidth,
             columnsHeight = columnsHeight,
             contentWidth = contentWidth,
-            contentHeight = contentHeight,
             panelWidth = contentWidth + OverlayPanelStyle.PADDING * 2,
             panelHeight = contentHeight + OverlayPanelStyle.PADDING * 2,
             arePlayerHeadsShown = arePlayerHeadsShown,
@@ -381,6 +370,8 @@ object BetterTab {
         UNAVAILABLE,
     }
 
+    private data class CachedLayout(val key: LayoutCacheKey, val layout: MeasuredLayout?)
+
     private data class LayoutCacheKey(
         val sessionId: Long,
         val contentVersion: Long,
@@ -401,7 +392,6 @@ object BetterTab {
         val columnsWidth: Int,
         val columnsHeight: Int,
         val contentWidth: Int,
-        val contentHeight: Int,
         val panelWidth: Int,
         val panelHeight: Int,
         val arePlayerHeadsShown: Boolean,

@@ -19,7 +19,6 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 
 private const val NPC_SELL_PRICES_REFRESH_INTERVAL_NANOS = 24L * 60L * 60L * 1_000_000_000L
 private const val NPC_SELL_PRICES_FAILURE_RETRY_NANOS = 60L * 1_000_000_000L
@@ -51,41 +50,20 @@ object SkyBlockPriceData {
     private val bazaarConsumers = ActiveConsumerRegistry()
     private val lowestBinConsumers = ActiveConsumerRegistry()
     private val npcSellPriceConsumers = ActiveConsumerRegistry()
-    private val marketSnapshotVersion = AtomicLong()
-    private val rawCraftMarketSnapshotVersion = AtomicLong()
-    private val rawCraftMarketSnapshotLock = Any()
-
-    @Volatile
-    private var rawCraftMarketSnapshot = RawCraftMarketSnapshot()
-
-    @Volatile
-    private var bazaar = BazaarProducts()
-
-    @Volatile
-    var bazaarStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED)
-        private set
-
+    private val snapshotLock = Any()
     private val hasItemListMarketInterest = AtomicBoolean(false)
 
     @Volatile
-    private var lowestBins: Map<String, Long> = emptyMap()
+    private var snapshot = MarketPriceSnapshot()
 
-    @Volatile
-    var lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED)
-        private set
+    val bazaarStatus: BazaarDataStatus
+        get() = snapshot.bazaarStatus
 
-    @Volatile
-    private var npcSellPrices: Map<String, Double> = emptyMap()
+    val lowestBinsStatus: BazaarDataStatus
+        get() = snapshot.lowestBinsStatus
 
-    @Volatile
-    private var motesSellPrices: Map<String, Double> = emptyMap()
-
-    @Volatile
-    var npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED)
-        private set
-
-    val snapshotVersion: Long
-        get() = marketSnapshotVersion.get()
+    val npcSellPricesStatus: BazaarDataStatus
+        get() = snapshot.npcSellPricesStatus
 
     private var ticksUntilBazaarRefresh = 0
     private var ticksUntilLowestBinsRefresh = 0
@@ -165,7 +143,7 @@ object SkyBlockPriceData {
         }
     }
 
-    fun getBazaarPrice(itemId: String): BazaarPriceData? = bazaar.products[bazaarProductId(itemId)]?.let {
+    fun getBazaarPrice(itemId: String): BazaarPriceData? = snapshot.bazaar.products[bazaarProductId(itemId)]?.let {
         BazaarPriceData(
             instantBuyPrice = it.instantBuyPrice,
             instantSellPrice = it.instantSellPrice,
@@ -174,36 +152,33 @@ object SkyBlockPriceData {
         )
     }
 
-    fun getBazaarProduct(itemId: String): SkysoftBazaarProduct? = bazaar.products[bazaarProductId(itemId)]
+    fun getBazaarProduct(itemId: String): SkysoftBazaarProduct? = snapshot.bazaar.products[bazaarProductId(itemId)]
 
-    fun getBazaarUpdatedAtMillis(): Long = bazaar.updatedAtMillis
+    fun getBazaarUpdatedAtMillis(): Long = snapshot.bazaar.updatedAtMillis
 
-    fun bazaarAvailability(itemId: String): BazaarProductAvailability = bazaarProductAvailability(
-        bazaarStatus.state,
-        bazaar.products.keys,
-        bazaarProductId(itemId),
-    )
+    fun bazaarAvailability(itemId: String): BazaarProductAvailability = with(snapshot) {
+        bazaarProductAvailability(bazaarStatus.state, bazaar.products.keys, bazaarProductId(itemId))
+    }
 
     fun setItemListMarketInterest(isActive: Boolean) {
         hasItemListMarketInterest.set(isActive)
     }
 
-    fun getLowestBin(itemId: String): Long? = lowestBins[itemId]
+    fun getLowestBin(itemId: String): Long? = snapshot.lowestBins[itemId]
 
-    fun getNpcSellPrices(itemId: String): SkyBlockNpcSellPrices =
+    fun getNpcSellPrices(itemId: String): SkyBlockNpcSellPrices = with(snapshot) {
         SkyBlockNpcSellPrices(georgePetSellPrices[itemId] ?: npcSellPrices[itemId], motesSellPrices[itemId])
-
-    internal fun marketSnapshotForRawCraft(): RawCraftMarketSnapshot? {
-        if (bazaarStatus.state != BazaarDataLoadState.READY) return null
-        if (lowestBinsStatus.state != BazaarDataLoadState.READY) return null
-        return rawCraftMarketSnapshot
     }
 
-    fun lowestBinAvailability(itemId: String): BazaarProductAvailability = bazaarProductAvailability(
-        lowestBinsStatus.state,
-        lowestBins.keys,
-        itemId,
-    )
+    internal fun marketSnapshotForRawCraft(): RawCraftMarketSnapshot? = with(snapshot) {
+        if (bazaarStatus.state != BazaarDataLoadState.READY) return null
+        if (lowestBinsStatus.state != BazaarDataLoadState.READY) return null
+        rawCraftMarket
+    }
+
+    fun lowestBinAvailability(itemId: String): BazaarProductAvailability = with(snapshot) {
+        bazaarProductAvailability(lowestBinsStatus.state, lowestBins.keys, itemId)
+    }
 
     fun refreshAuctionHouse(itemId: String, page: Int): CompletableFuture<SkysoftAuctionHouseResponse> {
         val item = URLEncoder.encode(itemId, StandardCharsets.UTF_8)
@@ -264,7 +239,11 @@ object SkyBlockPriceData {
 
     private fun refreshBazaar() {
         if (bazaarRequest.isPending) return
-        if (bazaar.products.isEmpty()) bazaarStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
+        updateSnapshot { current ->
+            if (current.bazaar.products.isEmpty()) {
+                current.copy(bazaarStatus = BazaarDataStatus(BazaarDataLoadState.LOADING))
+            } else current
+        }
         bazaarRequest.startIfIdle(
             requestFactory = {
                 bazaarRequests.getString(BAZAAR_URL)
@@ -279,22 +258,22 @@ object SkyBlockPriceData {
         ) { response, error ->
             SkysoftErrorBoundary.run("Bazaar price async completion") {
                 if (error == null && response != null) {
-                    bazaar = BazaarProducts(response.products, response.updatedAtMillis())
-                    bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis())
-                    updateRawCraftMarketSnapshot()
-                    marketSnapshotVersion.incrementAndGet()
+                    updateSnapshot { current ->
+                        current.copy(
+                            bazaar = BazaarProducts(response.products, response.updatedAtMillis()),
+                            bazaarStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.updatedAtMillis()),
+                        ).withUpdatedRawCraftMarket()
+                    }
                 } else if (error?.isCancellationFailure() != true) {
                     SkysoftMod.LOGGER.warn("Failed to refresh bazaar prices", error)
-                    bazaarStatus = if (bazaar.products.isEmpty()) {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.FAILED,
-                            message = error?.message ?: "Bazaar request failed",
-                        )
-                    } else {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.READY,
-                            bazaar.updatedAtMillis,
-                            error?.message ?: "Bazaar refresh failed",
+                    updateSnapshot { current ->
+                        current.copy(
+                            bazaarStatus = priceRefreshFailureStatus(
+                                source = "Bazaar",
+                                hasPrices = current.bazaar.products.isNotEmpty(),
+                                updatedAtMillis = current.bazaar.updatedAtMillis,
+                                error = error,
+                            ),
                         )
                     }
                 }
@@ -304,7 +283,11 @@ object SkyBlockPriceData {
 
     private fun refreshLowestBins() {
         if (lowestBinRequest.isPending) return
-        if (lowestBins.isEmpty()) lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
+        updateSnapshot { current ->
+            if (current.lowestBins.isEmpty()) {
+                current.copy(lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.LOADING))
+            } else current
+        }
         lowestBinRequest.startIfIdle(
             requestFactory = {
                 lowestBinRequests.getString(LOWEST_BINS_URL)
@@ -319,22 +302,22 @@ object SkyBlockPriceData {
         ) { response, error ->
             SkysoftErrorBoundary.run("Lowest BIN async completion") {
                 if (error == null && response != null) {
-                    lowestBins = response.prices
-                    lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt)
-                    updateRawCraftMarketSnapshot()
-                    marketSnapshotVersion.incrementAndGet()
+                    updateSnapshot { current ->
+                        current.copy(
+                            lowestBins = response.prices,
+                            lowestBinsStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.fetchedAt),
+                        ).withUpdatedRawCraftMarket()
+                    }
                 } else if (error?.isCancellationFailure() != true) {
                     SkysoftMod.LOGGER.warn("Failed to refresh lowest BIN prices", error)
-                    lowestBinsStatus = if (lowestBins.isEmpty()) {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.FAILED,
-                            message = error?.message ?: "Lowest BIN request failed",
-                        )
-                    } else {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.READY,
-                            lowestBinsStatus.updatedAtMillis,
-                            error?.message ?: "Lowest BIN refresh failed",
+                    updateSnapshot { current ->
+                        current.copy(
+                            lowestBinsStatus = priceRefreshFailureStatus(
+                                source = "Lowest BIN",
+                                hasPrices = current.lowestBins.isNotEmpty(),
+                                updatedAtMillis = current.lowestBinsStatus.updatedAtMillis,
+                                error = error,
+                            ),
                         )
                     }
                 }
@@ -345,7 +328,11 @@ object SkyBlockPriceData {
     private fun refreshNpcSellPrices() {
         if (npcSellPriceRequest.isPending) return
         npcSellPriceRequestSchedule.recordAttempt(System.nanoTime())
-        if (npcSellPrices.isEmpty()) npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.LOADING)
+        updateSnapshot { current ->
+            if (current.npcSellPrices.isEmpty()) {
+                current.copy(npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.LOADING))
+            } else current
+        }
         npcSellPriceRequest.startIfIdle(
             requestFactory = {
                 npcSellPriceRequests.getString(NPC_SELL_PRICES_URL)
@@ -358,24 +345,27 @@ object SkyBlockPriceData {
         ) { response, error ->
             SkysoftErrorBoundary.run("NPC sell price async completion") {
                 if (error == null && response != null) {
-                    npcSellPrices = npcSellPrices(response)
-                    motesSellPrices = motesSellPrices(response)
-                    npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.lastUpdated)
+                    val coins = npcSellPrices(response)
+                    val motes = motesSellPrices(response)
+                    updateSnapshot { current ->
+                        current.copy(
+                            npcSellPrices = coins,
+                            motesSellPrices = motes,
+                            npcSellPricesStatus = BazaarDataStatus(BazaarDataLoadState.READY, response.lastUpdated),
+                        )
+                    }
                     npcSellPriceRequestSchedule.recordSuccess(System.nanoTime())
-                    marketSnapshotVersion.incrementAndGet()
                 } else if (error?.isCancellationFailure() != true) {
                     npcSellPriceRequestSchedule.recordFailure(System.nanoTime())
                     SkysoftMod.LOGGER.warn("Failed to refresh NPC sell prices", error)
-                    npcSellPricesStatus = if (npcSellPrices.isEmpty()) {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.FAILED,
-                            message = error?.message ?: "NPC sell price request failed",
-                        )
-                    } else {
-                        BazaarDataStatus(
-                            BazaarDataLoadState.READY,
-                            npcSellPricesStatus.updatedAtMillis,
-                            error?.message ?: "NPC sell price refresh failed",
+                    updateSnapshot { current ->
+                        current.copy(
+                            npcSellPricesStatus = priceRefreshFailureStatus(
+                                source = "NPC sell price",
+                                hasPrices = current.npcSellPrices.isNotEmpty(),
+                                updatedAtMillis = current.npcSellPricesStatus.updatedAtMillis,
+                                error = error,
+                            ),
                         )
                     }
                 }
@@ -413,10 +403,12 @@ object SkyBlockPriceData {
         }
         bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
         bazaarConsumers.register("Sack Display") { SkysoftConfigGui.config().inventory.sackDisplay.enabled }
+        bazaarConsumers.register("Crafting Helper") { SkysoftConfigGui.config().inventory.craftingHelper.enabled }
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
         lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
+        lowestBinConsumers.register("Crafting Helper") { SkysoftConfigGui.config().inventory.craftingHelper.enabled }
         npcSellPriceConsumers.register("Item List") { hasItemListMarketInterest.get() }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
@@ -424,16 +416,9 @@ object SkyBlockPriceData {
         npcSellPriceConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
     }
 
-    private fun updateRawCraftMarketSnapshot() {
-        synchronized(rawCraftMarketSnapshotLock) {
-            rawCraftMarketSnapshot = RawCraftMarketSnapshot(
-                version = rawCraftMarketSnapshotVersion.incrementAndGet(),
-                bazaarProducts = bazaarProductsWithAliases(
-                    bazaar.products,
-                    AttributeShardCatalog.bazaarProductAliases(),
-                ),
-                lowestBins = lowestBins,
-            )
+    private fun updateSnapshot(update: (MarketPriceSnapshot) -> MarketPriceSnapshot) {
+        synchronized(snapshotLock) {
+            snapshot = update(snapshot)
         }
     }
 
@@ -511,6 +496,24 @@ internal fun bazaarProductAvailability(
     -> BazaarProductAvailability.UNKNOWN
 }
 
+private fun priceRefreshFailureStatus(
+    source: String,
+    hasPrices: Boolean,
+    updatedAtMillis: Long,
+    error: Throwable?,
+): BazaarDataStatus = if (hasPrices) {
+    BazaarDataStatus(
+        BazaarDataLoadState.READY,
+        updatedAtMillis,
+        error?.message ?: "$source refresh failed",
+    )
+} else {
+    BazaarDataStatus(
+        BazaarDataLoadState.FAILED,
+        message = error?.message ?: "$source request failed",
+    )
+}
+
 private fun shouldRefreshPriceData(
     isInSkyBlock: Boolean,
     hasActiveConsumers: Boolean,
@@ -556,6 +559,25 @@ private fun itemSellPrices(
     val price = priceFor(item)
     if (item.id.isBlank() || price == null || !price.isFinite() || price <= 0.0) null else item.id to price
 }.toMap()
+
+private data class MarketPriceSnapshot(
+    val bazaar: BazaarProducts = BazaarProducts(),
+    val bazaarStatus: BazaarDataStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED),
+    val lowestBins: Map<String, Long> = emptyMap(),
+    val lowestBinsStatus: BazaarDataStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED),
+    val npcSellPrices: Map<String, Double> = emptyMap(),
+    val motesSellPrices: Map<String, Double> = emptyMap(),
+    val npcSellPricesStatus: BazaarDataStatus = BazaarDataStatus(BazaarDataLoadState.NOT_LOADED),
+    val rawCraftMarket: RawCraftMarketSnapshot = RawCraftMarketSnapshot(),
+) {
+    fun withUpdatedRawCraftMarket(): MarketPriceSnapshot = copy(
+        rawCraftMarket = RawCraftMarketSnapshot(
+            version = rawCraftMarket.version + 1,
+            bazaarProducts = bazaarProductsWithAliases(bazaar.products, AttributeShardCatalog.bazaarProductAliases()),
+            lowestBins = lowestBins,
+        ),
+    )
+}
 
 private data class BazaarProducts(
     val products: Map<String, SkysoftBazaarProduct> = emptyMap(),

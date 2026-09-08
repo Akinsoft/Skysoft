@@ -147,6 +147,7 @@ internal class KeyedAsyncRequestSlots<K, T>(
 }
 
 internal class RefreshSchedule {
+    @Volatile
     private var nextAtMillis: Long = 0L
 
     fun isDue(nowMillis: Long): Boolean = nowMillis >= nextAtMillis

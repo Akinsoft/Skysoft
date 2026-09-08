@@ -42,39 +42,39 @@ object BlockHighlightRenderer {
         color: Color,
     ) {
         val cameraPos = context.camera.position()
-        context.matrices.pushPose()
-        context.matrices.translate(
-            block.x - cameraPos.x,
-            block.y - cameraPos.y,
-            block.z - cameraPos.z,
-        )
-        context.submitNodeCollector.submitCustomGeometry(
-            context.matrices,
-            SkysoftRenderLayers.filledShape(),
-        ) { matrix, buffer ->
-            shape.forAllBoxes { minX, minY, minZ, maxX, maxY, maxZ ->
-                drawFilledBox(
-                    buffer,
-                    matrix,
-                    WorldVec(minX, minY, minZ),
-                    WorldVec(maxX, maxY, maxZ),
-                    color,
-                )
+        context.withIsolatedPose {
+            context.matrices.translate(
+                block.x - cameraPos.x,
+                block.y - cameraPos.y,
+                block.z - cameraPos.z,
+            )
+            context.submitNodeCollector.submitCustomGeometry(
+                context.matrices,
+                SkysoftRenderLayers.filledShape(),
+            ) { matrix, buffer ->
+                shape.forAllBoxes { minX, minY, minZ, maxX, maxY, maxZ ->
+                    drawFilledBox(
+                        buffer,
+                        matrix,
+                        WorldVec(minX, minY, minZ),
+                        WorldVec(maxX, maxY, maxZ),
+                        color,
+                    )
+                }
             }
         }
-        context.matrices.popPose()
     }
 
     private fun drawFilledBlock(context: SkysoftRenderContext, block: WorldVec, color: Color, expand: Double) {
         val min = WorldVec(block.x - expand, block.y - expand, block.z - expand)
         val max = WorldVec(block.x + 1 + expand, block.y + 1 + expand, block.z + 1 + expand)
         val cameraPos = context.camera.position()
-        context.matrices.pushPose()
-        context.matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-        context.submitNodeCollector.submitCustomGeometry(context.matrices, SkysoftRenderLayers.filledBox()) { matrix, buffer ->
-            drawFilledBox(buffer, matrix, min, max, color)
+        context.withIsolatedPose {
+            context.matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+            context.submitNodeCollector.submitCustomGeometry(context.matrices, SkysoftRenderLayers.filledBox()) { matrix, buffer ->
+                drawFilledBox(buffer, matrix, min, max, color)
+            }
         }
-        context.matrices.popPose()
     }
 
     private fun drawFilledBox(buffer: VertexConsumer, matrix: PoseStack.Pose, min: WorldVec, max: WorldVec, color: Color) {

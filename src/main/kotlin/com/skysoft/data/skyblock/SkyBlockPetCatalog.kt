@@ -7,16 +7,17 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.component.ItemLore
 
-internal object SkyBlockPetStacks {
+internal class SkyBlockPetCatalog(
+    private val pets: Map<String, SkyBlockPetInfo>,
+    private val maxLevels: Map<String, Int>,
+) {
     private val cache = boundedAccessOrderMap<String, ItemStack>(CACHE_SIZE)
 
     fun stack(
         ingredientId: String,
         level: Int,
-        pets: Map<String, SkyBlockPetInfo>,
-        maxLevels: Map<String, Int>,
     ): ItemStack? {
-        val identity = petIdentity(ingredientId, maxLevels) ?: return null
+        val identity = petIdentity(ingredientId) ?: return null
         val pet = pets[identity.name] ?: return null
         val tier = pet.tiers[identity.rarity.name] ?: return null
         if (tier.texture.isBlank()) return null
@@ -25,7 +26,7 @@ internal object SkyBlockPetStacks {
         synchronized(cache) {
             cache[cacheKey]?.let { return it.copy() }
         }
-        val tooltip = tooltip(ingredientId, selectedLevel, pets, maxLevels) ?: return null
+        val tooltip = tooltip(ingredientId, selectedLevel) ?: return null
         val stack = SkyBlockStackFactory.texturedHead(tier.texture, Component.literal(tooltip.name)).apply {
             set(
                 DataComponents.LORE,
@@ -39,13 +40,54 @@ internal object SkyBlockPetStacks {
         return stack.copy()
     }
 
-    fun tooltip(
+    fun maxLevel(ingredientId: String): Int =
+        petIdentity(ingredientId)?.maxLevel ?: DEFAULT_MAX_LEVEL
+
+    fun addTo(
+        entries: MutableList<ItemListEntry>,
+        info: MutableMap<ItemListEntryKey, SkyBlockItemInfo>,
+        providers: MutableMap<ItemListEntryKey, () -> ItemStack>,
+    ) {
+        pets.forEach { (id, pet) ->
+            pet.tiers.keys.forEach { tier ->
+                val ingredientId = "$id;$tier"
+                val key = requireNotNull(petItemKey(ingredientId)) {
+                    "Item List pet $ingredientId has an invalid rarity"
+                }
+                val rarity = requireNotNull(SkyBlockRarity.getByName(tier))
+                val tooltip = requireNotNull(tooltip(ingredientId, 1)) {
+                    "Item List pet $ingredientId has no tooltip"
+                }
+                val displayName = "${pet.name} Pet"
+                entries += ItemListEntry(
+                    key = key,
+                    displayName = displayName,
+                    source = CatalogSources.SKYBLOCK,
+                    searchableText = itemListSearchableText(displayName, key.id, tooltip.lore + tier + "pet"),
+                    formattedDisplayName = "${rarity.chatColorCode}$displayName",
+                )
+                info[key] = SkyBlockItemInfo(
+                    key = key,
+                    displayName = displayName,
+                    source = CatalogSources.SKYBLOCK,
+                    category = "PET",
+                    rarity = tier,
+                    lore = tooltip.lore,
+                )
+                providers[key] = {
+                    requireNotNull(stack(ingredientId, 1)) {
+                        "Item List pet $ingredientId has no display stack"
+                    }
+                }
+            }
+        }
+    }
+
+    private fun tooltip(
         ingredientId: String,
         level: Int,
-        pets: Map<String, SkyBlockPetInfo>,
-        maxLevels: Map<String, Int>,
     ): SkyBlockPetTooltip? {
-        val identity = petIdentity(ingredientId, maxLevels) ?: return null
+        val identity = petIdentity(ingredientId) ?: return null
         val pet = pets[identity.name] ?: return null
         val tier = pet.tiers[identity.rarity.name] ?: return null
         val selectedLevel = level.coerceIn(1, identity.maxLevel)
@@ -58,14 +100,7 @@ internal object SkyBlockPetStacks {
         )
     }
 
-    fun maxLevel(ingredientId: String, maxLevels: Map<String, Int>): Int =
-        petIdentity(ingredientId, maxLevels)?.maxLevel ?: DEFAULT_MAX_LEVEL
-
-    fun clear() {
-        synchronized(cache) { cache.clear() }
-    }
-
-    private fun petIdentity(ingredientId: String, maxLevels: Map<String, Int>): PetIdentity? {
+    private fun petIdentity(ingredientId: String): PetIdentity? {
         val separator = ingredientId.lastIndexOf(';')
         if (separator <= 0 || separator == ingredientId.lastIndex) return null
         val name = ingredientId.substring(0, separator)
@@ -105,54 +140,12 @@ internal object SkyBlockPetStacks {
         val maxLevel: Int,
     )
 
-    private const val DEFAULT_MAX_LEVEL = 100
-    private const val CACHE_SIZE = 512
-    private const val DECIMAL_SCALE = 10.0
-    private const val ROUNDING_EPSILON = 0.0000001
-    private val variablePattern = Regex("\\{([^{}]+)}")
-}
-
-internal object SkyBlockPetCatalog {
-    fun addTo(
-        pets: Map<String, SkyBlockPetInfo>,
-        maxLevels: Map<String, Int>,
-        entries: MutableList<ItemListEntry>,
-        info: MutableMap<ItemListEntryKey, SkyBlockItemInfo>,
-        providers: MutableMap<ItemListEntryKey, () -> ItemStack>,
-    ) {
-        pets.forEach { (id, pet) ->
-            pet.tiers.keys.forEach { tier ->
-                val ingredientId = "$id;$tier"
-                val key = requireNotNull(petItemKey(ingredientId)) {
-                    "Item List pet $ingredientId has an invalid rarity"
-                }
-                val rarity = requireNotNull(SkyBlockRarity.getByName(tier))
-                val tooltip = requireNotNull(SkyBlockPetStacks.tooltip(ingredientId, 1, pets, maxLevels)) {
-                    "Item List pet $ingredientId has no tooltip"
-                }
-                val displayName = "${pet.name} Pet"
-                entries += ItemListEntry(
-                    key = key,
-                    displayName = displayName,
-                    source = CatalogSources.SKYBLOCK,
-                    searchableText = itemListSearchableText(displayName, key.id, tooltip.lore + tier + "pet"),
-                    formattedDisplayName = "${rarity.chatColorCode}$displayName",
-                )
-                info[key] = SkyBlockItemInfo(
-                    key = key,
-                    displayName = displayName,
-                    source = CatalogSources.SKYBLOCK,
-                    category = "PET",
-                    rarity = tier,
-                    lore = tooltip.lore,
-                )
-                providers[key] = {
-                    requireNotNull(SkyBlockPetStacks.stack(ingredientId, 1, pets, maxLevels)) {
-                        "Item List pet $ingredientId has no display stack"
-                    }
-                }
-            }
-        }
+    private companion object {
+        private const val DEFAULT_MAX_LEVEL = 100
+        private const val CACHE_SIZE = 512
+        private const val DECIMAL_SCALE = 10.0
+        private const val ROUNDING_EPSILON = 0.0000001
+        private val variablePattern = Regex("\\{([^{}]+)}")
     }
 }
 
@@ -163,7 +156,7 @@ internal fun petItemKey(ingredientId: String): ItemListEntryKey? {
     return ItemListEntryKey(ItemListEntryKind.SKYBLOCK, "${ingredientId.substring(0, separator)};${rarity.id}")
 }
 
-internal data class SkyBlockPetTooltip(
+private data class SkyBlockPetTooltip(
     val name: String,
     val lore: List<String>,
 )

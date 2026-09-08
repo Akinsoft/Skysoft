@@ -21,7 +21,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object MouseLock {
     private var locked = false
-    private val config get() = SkysoftConfigGui.config().misc.mouseLock
+    private val config get() = SkysoftConfigGui.config().farming.mouseLock
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Mouse Lock reset") { locked = false }
@@ -30,9 +30,7 @@ object MouseLock {
                 id = "mouse_lock",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
                 contexts = GuiOverlayContextType.entries.toSet(),
-                visible = {
-                    config.settings.showDisplay && locked && !MinecraftClient.isGuiHidden(Minecraft.getInstance())
-                },
+                visible = { isDisplayVisible() },
                 render = { context, _ -> config.position.renderRenderable(context, renderable()) },
             ),
             object : HudEditorElement {
@@ -42,8 +40,10 @@ object MouseLock {
                 override val hasEditorBackground: Boolean get() = !config.details.background
                 override fun width(): Int = renderable().width
                 override fun height(): Int = renderable().height
-                override fun isVisible(): Boolean = config.settings.showDisplay
-                override fun renderEditor(context: GuiGraphicsExtractor) = renderable().render(context)
+                override fun isVisible(): Boolean = isDisplayVisible()
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    if (isVisible()) renderable().render(context)
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Mouse Lock")
             },
         )
@@ -61,8 +61,15 @@ object MouseLock {
         return Command.SINGLE_SUCCESS
     }
 
+    fun setLocked(isLocked: Boolean) {
+        locked = isLocked
+    }
+
     @JvmStatic
     fun apply(delta: Double): Double = if (locked) 0.0 else delta
+
+    private fun isDisplayVisible(): Boolean =
+        config.settings.showDisplay && locked && !MinecraftClient.isGuiHidden(Minecraft.getInstance())
 
     private fun renderable(): GuiRenderable =
         StringRenderable(MOUSE_LOCK_TEXT, color = config.details.color.get().toColor().rgb)

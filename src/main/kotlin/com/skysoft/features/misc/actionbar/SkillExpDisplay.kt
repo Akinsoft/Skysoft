@@ -53,10 +53,12 @@ object SkillExpDisplay {
                 override val label: String = "Skill EXP Display"
                 override val position get() = config.position
                 override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
-                override fun width(): Int = previewRenderable().width
-                override fun height(): Int = previewRenderable().height
-                override fun isVisible(): Boolean = config.enabled
-                override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
+                override fun width(): Int = currentRenderable()?.width ?: 0
+                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun isVisible(): Boolean = canRenderLive()
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    currentRenderable()?.render(context)
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Skill EXP Display")
             },
         )
@@ -83,10 +85,10 @@ object SkillExpDisplay {
     }
 
     private fun renderHud(context: GuiGraphicsExtractor) {
-        val state = current ?: return
+        val renderable = currentRenderable() ?: return
         context.withIsolatedPose {
             pose().translate(0f, -BottomHudLayout.reservedHeight().toFloat())
-            config.position.renderRenderable(context, renderable(state))
+            config.position.renderRenderable(context, renderable)
         }
     }
 
@@ -98,7 +100,10 @@ object SkillExpDisplay {
 
     private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
-    private fun previewRenderable(): GuiRenderable = renderable(PREVIEW_STATE)
+    private fun currentRenderable(): GuiRenderable? {
+        if (!canRenderLive()) return null
+        return current?.let(::renderable)
+    }
 
     private fun renderable(state: SkillExpDisplayState): GuiRenderable {
         val format = config.settings.format
@@ -162,10 +167,3 @@ private fun SkyBlockSkill.iconItem(): Item = when (this) {
 private const val PERCENT_DENOMINATOR = 100
 private const val ITEM_SIZE = 16.0
 private const val ICON_TEXT_SPACING = 2
-
-private val PREVIEW_STATE = SkillExpDisplayState(
-    skill = SkyBlockSkill.COMBAT,
-    gainedText = "169.5",
-    currentXp = 650_412_191,
-    neededXp = 0,
-)

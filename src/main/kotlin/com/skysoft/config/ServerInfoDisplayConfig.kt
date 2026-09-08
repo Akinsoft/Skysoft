@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -10,7 +11,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableLi
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
-import io.github.notenoughupdates.moulconfig.observer.GetSetter
 import io.github.notenoughupdates.moulconfig.observer.Property
 
 enum class ServerInfoMetric(
@@ -110,11 +110,9 @@ class ServerInfoDisplaySettingsConfig {
 }
 
 class ServerInfoDisplayDetailsConfig {
-    val simpleLayoutVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
-        override fun get(): Boolean = style == ServerInfoDisplayStyle.SIMPLE
-
-        override fun set(value: Boolean) = Unit
-    })
+    val simpleLayoutVisible: Property<Boolean> = configVisibility {
+        style == ServerInfoDisplayStyle.SIMPLE
+    }
 
     @JvmField
     @field:Expose

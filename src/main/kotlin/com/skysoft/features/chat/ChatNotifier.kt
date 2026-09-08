@@ -54,24 +54,13 @@ object ChatNotifier {
                 MatchingNotificationEntry(entry, text, index)
             }
         }
-        var pingVolumePercent = 0f
-        var pingVolume = 0f
-        var pingSound = SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID
-        matchingEntries.forEach { match ->
-            val entry = match.entry
-            if (entry.isSoundEnabled) {
-                val volume = entry.soundVolumePercent.coerceIn(
-                    TextListEntry.MIN_SOUND_VOLUME_PERCENT,
-                    TextListEntry.MAX_SOUND_VOLUME_PERCENT,
-                )
-                if (volume > pingVolumePercent) {
-                    pingVolumePercent = volume
-                    pingVolume = entry.playbackVolume
-                    pingSound = entry.sound.ifBlank { SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID }
-                }
-            }
+        val ping = matchingEntries.asSequence()
+            .map { it.entry }
+            .filter { it.isSoundEnabled && it.notificationVolumePercent > 0f }
+            .maxByOrNull { it.notificationVolumePercent }
+        if (ping != null && ping.playbackVolume > 0f) {
+            playPing(ping.sound.ifBlank { SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID }, ping.playbackVolume)
         }
-        if (pingVolume > 0f) playPing(pingSound, pingVolume)
         return if (matchingEntries.isEmpty()) content else highlight(content, matchingEntries)
     }
 
@@ -169,6 +158,9 @@ object ChatNotifier {
     ) {
         fun overlaps(other: HighlightRange): Boolean = start < other.endExclusive && other.start < endExclusive
     }
+
+    private val TextListEntry.notificationVolumePercent: Float
+        get() = soundVolumePercent.coerceIn(TextListEntry.MIN_SOUND_VOLUME_PERCENT, TextListEntry.MAX_SOUND_VOLUME_PERCENT)
 
     private fun playPing(sound: String, volume: Float) {
         SoundUtilities.playUiSound(sound, PING_PITCH, volume)

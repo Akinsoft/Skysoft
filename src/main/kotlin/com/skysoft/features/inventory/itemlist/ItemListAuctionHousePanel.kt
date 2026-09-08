@@ -106,9 +106,9 @@ internal class ItemListAuctionHousePanel {
         if (!refreshSchedule.isDue(now)) return
         if (listings.isEmpty()) state = AuctionHousePanelState.LOADING
         val requestedPage = page
-        val ops = registryOps()
         requestSlot.startIfIdle(
             requestFactory = {
+                val ops = registryOps()
                 SkyBlockPriceData.refreshAuctionHouse(key.id, requestedPage)
                     .thenApplyAsync { response -> decodedResponse(response, key, ops) }
             },
@@ -164,7 +164,7 @@ internal class ItemListAuctionHousePanel {
                 val tooltipStack = auctionTooltipStack(
                     listing.stack,
                     listing.data,
-                    sellerNames.state(listing.data.sellerUuid),
+                    sellerNames.displayName(listing.data.sellerUuid),
                     System.currentTimeMillis(),
                 )
                 context.setTooltipForNextFrame(font, tooltipStack, mouseX, mouseY)
@@ -246,11 +246,11 @@ private fun auctionRemainingTime(endMillis: Long, nowMillis: Long): String {
 
 internal fun auctionTooltipLines(
     listing: SkysoftAuctionListing,
-    seller: AuctionSellerName,
+    seller: String,
     nowMillis: Long,
 ): List<Component> = listOf(
     styled("-----------------", ChatFormatting.DARK_GRAY, strikethrough = true),
-    styled("Seller: ", ChatFormatting.GRAY).append(styled(seller.text, ChatFormatting.GRAY)),
+    styled("Seller: ", ChatFormatting.GRAY).append(styled(seller, ChatFormatting.GRAY)),
     styled("Buy it now: ", ChatFormatting.GRAY).append(
         styled("${ItemListFormatting.number(listing.price)} coins", ChatFormatting.GOLD),
     ),
@@ -265,7 +265,7 @@ internal fun auctionTooltipLines(
 private fun auctionTooltipStack(
     stack: ItemStack,
     listing: SkysoftAuctionListing,
-    seller: AuctionSellerName,
+    seller: String,
     nowMillis: Long,
 ): ItemStack = stack.copy().apply {
     val lore = get(DataComponents.LORE)?.lines().orEmpty() + auctionTooltipLines(listing, seller, nowMillis)
@@ -316,16 +316,8 @@ private fun styled(
     style.withColor(color).withItalic(false).withStrikethrough(strikethrough)
 }
 
-internal data class AuctionSellerName(val text: String, val state: AuctionSellerState)
-
-internal enum class AuctionSellerState {
-    LOADING,
-    RESOLVED,
-    FAILED,
-}
-
 private class AuctionSellerNames {
-    private val names = mutableMapOf<String, AuctionSellerName>()
+    private val names = mutableMapOf<String, String>()
     private var generation = 0
 
     fun clear() {
@@ -337,34 +329,31 @@ private class AuctionSellerNames {
         if (value in names) return
         val uuid = value.parseUUIDOrNull()
         if (uuid == null) {
-            names[value] = AuctionSellerName("Unavailable", AuctionSellerState.FAILED)
+            names[value] = "Unavailable"
             return
         }
         val visibleName = TabListApi.playerProfile(uuid)?.profileName
         if (!visibleName.isNullOrBlank()) {
-            names[value] = AuctionSellerName(visibleName, AuctionSellerState.RESOLVED)
+            names[value] = visibleName
             return
         }
-        names[value] = AuctionSellerName("Loading...", AuctionSellerState.LOADING)
+        names[value] = "Loading..."
         val requestedGeneration = generation
         MinecraftProfileLookup.byId(uuid).whenComplete { profile, _ ->
             SkysoftErrorBoundary.onClientThread("Auction seller name async completion") {
                 if (requestedGeneration != generation) return@onClientThread
                 val name = profile?.name
                 names[value] = if (name.isNullOrBlank()) {
-                    AuctionSellerName("Unavailable", AuctionSellerState.FAILED)
+                    "Unavailable"
                 } else {
-                    AuctionSellerName(name, AuctionSellerState.RESOLVED)
+                    name
                 }
             }
         }
     }
 
-    fun state(value: String): AuctionSellerName = names[value]
-        ?: AuctionSellerName("Loading...", AuctionSellerState.LOADING)
-
+    fun displayName(value: String): String = names[value] ?: "Loading..."
 }
-
 
 private fun errorMessage(error: Throwable?): String = generateSequence(error) { it.cause }
     .lastOrNull()

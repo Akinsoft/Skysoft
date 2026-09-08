@@ -1,9 +1,10 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.BazaarGraphWindow
 import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
-import com.skysoft.data.skyblock.price.SkysoftBazaarDepthRow
 import com.skysoft.data.skyblock.price.SkysoftBazaarFlowDelta
 import com.skysoft.features.bazaar.BazaarInvestmentPosition
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -18,15 +19,14 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object BazaarGraphPlotRenderer {
-    private val tradeVolumeRowsCache = IdentityRefreshCache<TradeVolumeRowsCriteria, BazaarTradeVolumeRows>(
+    private val tradeVolumeRowsCache = IdentityRefreshCache<BazaarGraphWindow, BazaarTradeVolumeRows>(
         PlotLayout.TRADE_VOLUME_CACHE_MILLIS,
     )
-    private var depthPlotCache = BazaarDepthPlotCache()
+    private val depthPlotCache = BazaarDepthPlotCache()
 
     fun renderPrice(
         context: GuiGraphicsExtractor,
@@ -46,7 +46,7 @@ internal object BazaarGraphPlotRenderer {
             )
             return
         }
-        val plot = depthPlot(
+        val plot = depthPlotCache.plot(
             bounds,
             product,
             preferences.showBazaarBuyData,
@@ -89,35 +89,18 @@ internal object BazaarGraphPlotRenderer {
         renderDepthAxis(context, plot)
     }
 
-    private fun depthPlot(
-        bounds: Rect,
-        product: SkysoftBazaarDepthProduct?,
-        showBuyOrders: Boolean,
-        showSellOrders: Boolean,
-    ): BazaarDepthPlot? {
-        val current = depthPlotCache
-        if (current.matches(product, bounds, showBuyOrders, showSellOrders)) return current.plot
-        return buildBazaarDepthPlot(bounds, product, showBuyOrders, showSellOrders).also { plot ->
-            depthPlotCache = BazaarDepthPlotCache(product, bounds, showBuyOrders, showSellOrders, plot)
-        }
-    }
-
     fun renderTradeVolume(
         context: GuiGraphicsExtractor,
         bounds: Rect,
         product: SkysoftBazaarDepthProduct?,
-        transactions: List<ProfileStorage.BazaarTransactionData>,
+        transactions: List<ProfileStorageView.BazaarTransactionData>,
         preferences: ItemListSourcesConfig,
         mouseX: Int,
         mouseY: Int,
     ) {
         val now = System.currentTimeMillis()
         val window = preferences.graphWindow()
-        val maximumPoints = (bounds.width / PlotLayout.TRADE_VOLUME_POINT_SPACING).coerceIn(
-            PlotLayout.MIN_TRADE_VOLUME_POINTS,
-            PlotLayout.MAX_TRADE_VOLUME_POINTS,
-        )
-        val rowSnapshot = tradeVolumeRows(product, window, maximumPoints, now)
+        val rowSnapshot = tradeVolumeRows(product, window, now)
         val cutoff = rowSnapshot.cutoff
         val rows = rowSnapshot.rows
         val visibleTransactions = transactions
@@ -159,17 +142,15 @@ internal object BazaarGraphPlotRenderer {
     private fun tradeVolumeRows(
         product: SkysoftBazaarDepthProduct?,
         window: BazaarGraphWindow,
-        maximumPoints: Int,
         now: Long,
     ): BazaarTradeVolumeRows =
-        tradeVolumeRowsCache.value(product, TradeVolumeRowsCriteria(window, maximumPoints), now) {
+        tradeVolumeRowsCache.value(product, window, now) {
             val cutoff = now - window.durationMillis
             BazaarTradeVolumeRows(
                 cutoff = cutoff,
-                rows = compactBazaarTradeVolumeRows(
-                    product?.flowDeltas.orEmpty().filter { it.at >= cutoff }.sortedBy(SkysoftBazaarFlowDelta::at),
-                    maximumPoints,
-                ),
+                rows = product?.flowDeltas.orEmpty()
+                    .filter { it.at >= cutoff }
+                    .sortedBy(SkysoftBazaarFlowDelta::at),
             )
         }
 
@@ -269,7 +250,7 @@ internal object BazaarGraphPlotRenderer {
     ) {
         if (cost == null || investment == null) return
         if (cost !in plot.minimumPrice..plot.maximumPrice) return
-        val x = depthPriceX(plot.layout, cost, plot.minimumPrice, plot.priceRange)
+        val x = plot.priceX(cost)
         GuiLineRenderer.drawStep(
             context,
             x,
@@ -341,7 +322,7 @@ internal object BazaarGraphPlotRenderer {
     private fun renderPlayerTrades(
         context: GuiGraphicsExtractor,
         bounds: Rect,
-        transactions: List<ProfileStorage.BazaarTransactionData>,
+        transactions: List<ProfileStorageView.BazaarTransactionData>,
         start: Long,
         end: Long,
         maximum: Double,
@@ -368,7 +349,7 @@ internal object BazaarGraphPlotRenderer {
 
     private fun renderTransactionTooltip(
         context: GuiGraphicsExtractor,
-        transaction: ProfileStorage.BazaarTransactionData,
+        transaction: ProfileStorageView.BazaarTransactionData,
         mouseX: Int,
         mouseY: Int,
     ) {
@@ -431,22 +412,6 @@ internal object BazaarGraphPlotRenderer {
     }
 }
 
-internal fun compactBazaarTradeVolumeRows(
-    rows: List<SkysoftBazaarFlowDelta>,
-    maximumPoints: Int,
-): List<SkysoftBazaarFlowDelta> {
-    require(maximumPoints > 0) { "Maximum Bazaar trade volume points must be positive" }
-    if (rows.size <= maximumPoints) return rows
-    val bucketSize = ceil(rows.size.toDouble() / maximumPoints).toInt()
-    return rows.chunked(bucketSize).map { bucket ->
-        SkysoftBazaarFlowDelta(
-            at = bucket.last().at,
-            buy = bucket.sumOf(SkysoftBazaarFlowDelta::buy),
-            sell = bucket.sumOf(SkysoftBazaarFlowDelta::sell),
-        )
-    }
-}
-
 private fun renderDepthGrid(context: GuiGraphicsExtractor, plot: BazaarDepthPlot) {
     val layout = plot.layout
     repeat(PlotLayout.DEPTH_GRID_DIVISIONS) { index ->
@@ -499,8 +464,8 @@ private fun renderSpread(
     val bestBid = plot.bestBid ?: return
     val bestAsk = plot.bestAsk ?: return
     if (!layout.hasDetails || bestAsk <= bestBid) return
-    val bidX = depthPriceX(layout, bestBid, plot.minimumPrice, plot.priceRange)
-    val askX = depthPriceX(layout, bestAsk, plot.minimumPrice, plot.priceRange)
+    val bidX = plot.priceX(bestBid)
+    val askX = plot.priceX(bestAsk)
     val markerY = layout.plotTop + layout.plotHeight / PlotLayout.HALF
     drawDashedVertical(context, bidX, markerY, layout.baselineY, PlotStyle.SPREAD)
     drawDashedVertical(context, askX, markerY, layout.baselineY, PlotStyle.SPREAD)
@@ -619,169 +584,15 @@ private fun drawDashedVertical(context: GuiGraphicsExtractor, x: Int, top: Int, 
     }
 }
 
-internal fun buildBazaarDepthPlot(
-    bounds: Rect,
-    product: SkysoftBazaarDepthProduct?,
-    showBuyOrders: Boolean,
-    showSellOrders: Boolean,
-): BazaarDepthPlot? {
-    val buyRows = product?.sellSummary.orEmpty()
-        .filter { showBuyOrders && it.amount > 0L && it.pricePerUnit > 0.0 }
-        .sortedByDescending(SkysoftBazaarDepthRow::pricePerUnit)
-    val sellRows = product?.buySummary.orEmpty()
-        .filter { showSellOrders && it.amount > 0L && it.pricePerUnit > 0.0 }
-        .sortedBy(SkysoftBazaarDepthRow::pricePerUnit)
-    val prices = (buyRows + sellRows).map(SkysoftBazaarDepthRow::pricePerUnit)
-    if (prices.isEmpty()) return null
-    val rawMinimum = prices.min()
-    val rawMaximum = prices.max()
-    val flatPadding = rawMaximum.coerceAtLeast(1.0) * PlotLayout.FLAT_PRICE_PADDING
-    val minimum = if (rawMinimum == rawMaximum) rawMinimum - flatPadding else rawMinimum
-    val maximum = if (rawMinimum == rawMaximum) rawMaximum + flatPadding else rawMaximum
-    val range = maximum - minimum
-    val layout = depthPlotLayout(bounds)
-    val maximumAmount = maxOf(
-        buyRows.sumOf(SkysoftBazaarDepthRow::amount),
-        sellRows.sumOf(SkysoftBazaarDepthRow::amount),
-        1L,
-    )
-    val buyPoints = depthPoints(layout, buyRows, maximumAmount, minimum, range)
-    val sellPoints = depthPoints(layout, sellRows, maximumAmount, minimum, range)
-    return BazaarDepthPlot(
-        layout = layout,
-        buyPoints = buyPoints,
-        sellPoints = sellPoints,
-        minimumPrice = minimum,
-        maximumPrice = maximum,
-        priceRange = range,
-        maximumAmount = maximumAmount,
-        bestBid = buyRows.firstOrNull()?.pricePerUnit,
-        bestAsk = sellRows.firstOrNull()?.pricePerUnit,
-    )
-}
-
-private fun depthPlotLayout(bounds: Rect): BazaarDepthPlotLayout {
-    val hasDetails = bounds.width >= PlotLayout.DETAIL_MIN_WIDTH && bounds.height >= PlotLayout.DETAIL_MIN_HEIGHT
-    val leftX = bounds.x + if (hasDetails) PlotLayout.QUANTITY_AXIS_WIDTH else PlotLayout.POINT_INSET
-    val rightX = bounds.x + bounds.width - PlotLayout.POINT_INSET
-    val plotTop = bounds.y + if (hasDetails) PlotLayout.DETAIL_TOP_INSET else PlotLayout.POINT_INSET
-    val baselineY = bounds.y + bounds.height - if (hasDetails) PlotLayout.DETAIL_BOTTOM_INSET else PlotLayout.POINT_INSET
-    return BazaarDepthPlotLayout(
-        leftX = leftX,
-        rightX = rightX,
-        plotTop = plotTop,
-        baselineY = baselineY.coerceAtLeast(plotTop + 1),
-        legendY = bounds.y + PlotLayout.LEGEND_Y,
-        quantityLabelX = bounds.x + PlotLayout.POINT_INSET,
-        hasDetails = hasDetails,
-        showEndpointPrices = hasDetails && bounds.width >= PlotLayout.ENDPOINT_PRICE_MIN_WIDTH,
-    )
-}
-
-private fun depthPoints(
-    layout: BazaarDepthPlotLayout,
-    rows: List<SkysoftBazaarDepthRow>,
-    maximumAmount: Long,
-    minimumPrice: Double,
-    priceRange: Double,
-): List<DepthGraphPoint> {
-    val best = rows.firstOrNull() ?: return emptyList()
-    var cumulative = 0L
-    return buildList {
-        add(
-            DepthGraphPoint(
-                x = depthPriceX(layout, best.pricePerUnit, minimumPrice, priceRange),
-                y = layout.baselineY,
-                row = null,
-                cumulative = 0L,
-            ),
-        )
-        rows.forEach { row ->
-            cumulative += row.amount
-            add(
-                DepthGraphPoint(
-                    x = depthPriceX(layout, row.pricePerUnit, minimumPrice, priceRange),
-                    y = depthAmountY(layout, cumulative, maximumAmount),
-                    row = row,
-                    cumulative = cumulative,
-                ),
-            )
-        }
-    }
-}
-
-private fun depthPriceX(layout: BazaarDepthPlotLayout, price: Double, minimum: Double, range: Double): Int =
-    layout.leftX + (layout.plotWidth * ((price - minimum) / range).coerceIn(0.0, 1.0)).roundToInt()
-
-private fun depthAmountY(layout: BazaarDepthPlotLayout, cumulative: Long, maximum: Long): Int =
-    layout.baselineY - (layout.plotHeight * (cumulative.toDouble() / maximum)).roundToInt()
-
-internal data class BazaarDepthPlot(
-    val layout: BazaarDepthPlotLayout,
-    val buyPoints: List<DepthGraphPoint>,
-    val sellPoints: List<DepthGraphPoint>,
-    val minimumPrice: Double,
-    val maximumPrice: Double,
-    val priceRange: Double,
-    val maximumAmount: Long,
-    val bestBid: Double?,
-    val bestAsk: Double?,
-)
-
-internal data class BazaarDepthPlotLayout(
-    val leftX: Int,
-    val rightX: Int,
-    val plotTop: Int,
-    val baselineY: Int,
-    val legendY: Int,
-    val quantityLabelX: Int,
-    val hasDetails: Boolean,
-    val showEndpointPrices: Boolean,
-) {
-    val plotWidth: Int get() = (rightX - leftX).coerceAtLeast(1)
-    val plotHeight: Int get() = (baselineY - plotTop).coerceAtLeast(1)
-}
-
-internal data class DepthGraphPoint(
-    val x: Int,
-    val y: Int,
-    val row: SkysoftBazaarDepthRow?,
-    val cumulative: Long,
-)
-
 private data class TransactionGraphPoint(
     val point: Pair<Int, Int>,
-    val transaction: ProfileStorage.BazaarTransactionData,
-)
-
-private data class TradeVolumeRowsCriteria(
-    val window: BazaarGraphWindow,
-    val maximumPoints: Int,
+    val transaction: ProfileStorageView.BazaarTransactionData,
 )
 
 private data class BazaarTradeVolumeRows(
     val cutoff: Long,
     val rows: List<SkysoftBazaarFlowDelta>,
 )
-
-private data class BazaarDepthPlotCache(
-    val product: SkysoftBazaarDepthProduct? = null,
-    val bounds: Rect? = null,
-    val showBuyOrders: Boolean = false,
-    val showSellOrders: Boolean = false,
-    val plot: BazaarDepthPlot? = null,
-) {
-    fun matches(
-        candidateProduct: SkysoftBazaarDepthProduct?,
-        candidateBounds: Rect,
-        candidateShowBuyOrders: Boolean,
-        candidateShowSellOrders: Boolean,
-    ): Boolean =
-        product === candidateProduct &&
-            bounds == candidateBounds &&
-            showBuyOrders == candidateShowBuyOrders &&
-            showSellOrders == candidateShowSellOrders
-}
 
 private object PlotLayout {
     const val PANEL_INSET = 6
@@ -794,21 +605,10 @@ private object PlotLayout {
     const val DOT_END = 2
     const val TRANSACTION_DOT_RADIUS = 2
     const val TRANSACTION_HIT_RADIUS = 4
-    const val TRADE_VOLUME_POINT_SPACING = 8
-    const val MIN_TRADE_VOLUME_POINTS = 24
-    const val MAX_TRADE_VOLUME_POINTS = 64
     const val TRADE_VOLUME_CACHE_MILLIS = 1_000L
-    const val FLAT_PRICE_PADDING = 0.02
-    const val DETAIL_MIN_WIDTH = 220
-    const val DETAIL_MIN_HEIGHT = 100
-    const val ENDPOINT_PRICE_MIN_WIDTH = 340
-    const val DETAIL_TOP_INSET = 29
-    const val DETAIL_BOTTOM_INSET = 29
-    const val QUANTITY_AXIS_WIDTH = 52
     const val QUANTITY_AXIS_GAP = 5
     const val QUANTITY_LABEL_LINE_HEIGHT = 9
     const val AXIS_TICK_LENGTH = 4
-    const val LEGEND_Y = 3
     const val LEGEND_SIDE_INSET = 8
     const val LEGEND_SWATCH = 5
     const val LEGEND_SWATCH_Y = 2

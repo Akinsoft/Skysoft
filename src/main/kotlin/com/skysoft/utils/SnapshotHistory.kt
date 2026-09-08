@@ -25,16 +25,18 @@ internal class SnapshotHistory<S>(
     }
 
     fun undo(restore: (S) -> Unit): ChangeResult {
-        val edit = undo.pollLast() ?: return ChangeResult.UNCHANGED
+        val edit = undo.peekLast() ?: return ChangeResult.UNCHANGED
         restore(edit.before)
+        undo.removeLast()
         redo.addLast(edit)
         redo.trimStartToSize(maximumSteps)
         return ChangeResult.CHANGED
     }
 
     fun redo(restore: (S) -> Unit): ChangeResult {
-        val edit = redo.pollLast() ?: return ChangeResult.UNCHANGED
+        val edit = redo.peekLast() ?: return ChangeResult.UNCHANGED
         restore(edit.after)
+        redo.removeLast()
         undo.addLast(edit)
         undo.trimStartToSize(maximumSteps)
         return ChangeResult.CHANGED

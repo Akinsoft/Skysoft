@@ -14,9 +14,8 @@ internal class ChatTabCommandResponseTracker {
         val response = commandResponse(command)
         clearPendingResponse()
         if (response == null) return
-        routedMessages.values.forEach { messages -> messages.removeIf { it !in existingMessages } }
-        messagesBeforeCommand.clear()
         messagesBeforeCommand.addAll(existingMessages)
+        routedMessages.values.forEach { messages -> messages.removeIf { it !in messagesBeforeCommand } }
         pendingResponse = PendingResponse(
             response = response,
             origin = origin,

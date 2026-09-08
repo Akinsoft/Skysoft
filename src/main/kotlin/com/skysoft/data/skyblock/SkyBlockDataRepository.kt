@@ -16,20 +16,18 @@ object SkyBlockDataRepository {
         private set
 
     @Volatile
-    private var snapshot: SkyBlockDataSnapshot? = null
+    private var catalog: LoadedCatalog? = null
+    private val snapshot: SkyBlockDataSnapshot? get() = catalog?.data
     private val loadingRequest = AsyncRequestSlot<SkyBlockDataUpdater.CachedCatalog>(
         completionExecutor = Minecraft.getInstance(),
     )
     private var wasDemanded = false
-    @Volatile
-    var snapshotVersion = 0L
-        internal set
+    val snapshotVersion: Long
+        get() = (catalog?.version ?: 0L) + MinecraftRecipeAdapter.version
     private var pricingRecipeSnapshot: SkyBlockRecipeSnapshot? = null
     @Volatile
     var updateMessage: String = "Using bundled item data"
         private set
-    private val stackCache = boundedAccessOrderMap<ItemListEntryKey, ItemStack>(STACK_CACHE_SIZE)
-    private val searchCache = boundedAccessOrderMap<String, List<ItemListEntry>>(SEARCH_CACHE_SIZE)
 
     fun register() {
         MinecraftRecipeAdapter.register()
@@ -83,17 +81,12 @@ object SkyBlockDataRepository {
                     )
                     SkysoftMod.LOGGER.error("Skysoft Item List data failed to load", error)
                 } else {
-                    snapshot = loaded.snapshot
-                    snapshotVersion++
-                    clearDerivedCaches()
-                    status = SkyBlockDataStatus(
-                        state = SkyBlockDataLoadState.READY,
-                        source = if (loaded.revision == "bundled") "Bundled" else "Updated",
-                        itemCount = loaded.snapshot.entries.size,
-                        recipeCount = loaded.snapshot.recipesByResult.values.sumOf(List<SkyBlockRecipe>::size),
-                        unresolvedReferenceCount = loaded.snapshot.unresolvedReferenceCount,
+                    val isBundled = loaded.revision == "bundled"
+                    installCatalog(
+                        loaded.snapshot,
+                        source = if (isBundled) "Bundled" else "Updated",
+                        message = if (isBundled) "Using bundled item data" else "Using updated item data",
                     )
-                    updateMessage = if (loaded.revision == "bundled") "Using bundled item data" else "Using updated item data"
                     SkyBlockDataUpdater.check()
                 }
             }
@@ -103,12 +96,13 @@ object SkyBlockDataRepository {
     val entries: List<ItemListEntry>
         get() = snapshot?.entries.orEmpty()
 
-    fun search(query: String): List<ItemListEntry> {
-        synchronized(searchCache) { searchCache[query]?.let { return it } }
-        val result = ItemListSearch.filter(entries, query)
-        synchronized(searchCache) { searchCache[query] = result }
-        return result
-    }
+    internal val itemNames: SkyBlockItemNameIndex?
+        get() = catalog?.itemNames
+
+    internal val petSkinEntries: List<ItemListEntry>
+        get() = catalog?.petSkinEntries.orEmpty()
+
+    fun search(query: String): List<ItemListEntry> = catalog?.search(query).orEmpty()
 
     fun entry(key: ItemListEntryKey): ItemListEntry? = snapshot?.entriesByKey?.get(key)
 
@@ -119,11 +113,11 @@ object SkyBlockDataRepository {
     internal object ViewerData {
         fun petStack(ingredientId: String, level: Int): ItemStack? {
             val current = snapshot ?: return null
-            return SkyBlockPetStacks.stack(ingredientId, level, current.pets, current.petMaxLevels)
+            return current.petCatalog.stack(ingredientId, level)
         }
 
         fun petMaxLevel(ingredientId: String): Int =
-            snapshot?.let { SkyBlockPetStacks.maxLevel(ingredientId, it.petMaxLevels) } ?: DEFAULT_PET_MAX_LEVEL
+            snapshot?.petCatalog?.maxLevel(ingredientId) ?: DEFAULT_PET_MAX_LEVEL
 
         fun bestWarpFor(entityId: String): SkyBlockWarpPoint? {
             val current = snapshot ?: return null
@@ -137,11 +131,11 @@ object SkyBlockDataRepository {
 
     internal object ItemListData {
         fun search(query: String): List<ItemListEntry> {
-            val current = snapshot ?: return emptyList()
+            val current = catalog ?: return emptyList()
             return ItemListTierFamilies.groupedEntries(
-                SkyBlockDataRepository.search(query),
-                TierFamilyIndex(current.tierFamilies, current.tierFamilyByItem),
-                current.entriesByKey,
+                current.search(query),
+                TierFamilyIndex(current.data.tierFamilies, current.data.tierFamilyByItem),
+                current.data.entriesByKey,
             )
         }
 
@@ -170,9 +164,10 @@ object SkyBlockDataRepository {
 
     internal val pricingRecipes: SkyBlockRecipeSnapshot?
         get() {
-            val repositorySnapshot = snapshot ?: return null
+            val current = catalog ?: return null
+            val repositorySnapshot = current.data
             val minecraftRecipes = MinecraftRecipeAdapter.recipesByResult
-            val version = snapshotVersion
+            val version = current.version + MinecraftRecipeAdapter.version
             pricingRecipeSnapshot?.takeIf { it.version == version }?.let { return it }
             val recipesByResult = if (minecraftRecipes.isEmpty()) {
                 repositorySnapshot.recipesByResult
@@ -188,35 +183,17 @@ object SkyBlockDataRepository {
         (snapshot?.recipesByIngredient?.get(key).orEmpty() + MinecraftRecipeAdapter.usagesFor(key)).distinct()
 
     fun stack(key: ItemListEntryKey): ItemStack? {
-        return cachedStack(key)?.copy()
+        ensureLoaded()
+        return catalog?.stack(key)?.copy()
     }
 
-    internal fun displayStack(key: ItemListEntryKey): ItemStack? = cachedStack(key)
-
-    private fun cachedStack(key: ItemListEntryKey): ItemStack? {
-        if (key.id.startsWith(ENCHANTMENT_PREFIX)) return snapshot?.stackProviders?.get(key)?.invoke()
-        synchronized(stackCache) {
-            stackCache[key]?.let { return it }
-        }
-        val created = snapshot?.stackProviders?.get(key)?.invoke() ?: return null
-        synchronized(stackCache) { stackCache[key] = created }
-        return created
-    }
+    internal fun displayStack(key: ItemListEntryKey): ItemStack? = catalog?.stack(key)
 
     fun itemKey(internalName: String): ItemListEntryKey = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, internalName)
 
     internal fun applyUpdated(updated: SkyBlockDataSnapshot, revision: String) {
-        snapshot = updated
-        snapshotVersion++
-        clearDerivedCaches()
-        status = SkyBlockDataStatus(
-            state = SkyBlockDataLoadState.READY,
-            source = "Updated",
-            itemCount = updated.entries.size,
-            recipeCount = updated.recipesByResult.values.sumOf(List<SkyBlockRecipe>::size),
-            unresolvedReferenceCount = updated.unresolvedReferenceCount,
-        )
-        updateMessage = "Item data updated (${revision.take(REVISION_DISPLAY_LENGTH)})"
+        loadingRequest.cancel()
+        installCatalog(updated, source = "Updated", message = "Item data updated (${revision.take(REVISION_DISPLAY_LENGTH)})")
     }
 
     internal fun markUpdateChecking() {
@@ -231,12 +208,45 @@ object SkyBlockDataRepository {
         updateMessage = "Item data update failed: $message"
     }
 
-    private fun clearDerivedCaches() {
-        synchronized(stackCache) { stackCache.clear() }
-        synchronized(searchCache) { searchCache.clear() }
+    private fun installCatalog(updated: SkyBlockDataSnapshot, source: String, message: String) {
+        catalog = LoadedCatalog(updated, (catalog?.version ?: 0L) + 1)
         pricingRecipeSnapshot = null
-        SkyBlockEntityStacks.clear()
-        SkyBlockPetStacks.clear()
+        status = SkyBlockDataStatus(
+            state = SkyBlockDataLoadState.READY,
+            source = source,
+            itemCount = updated.entries.size,
+            recipeCount = updated.recipesByResult.values.sumOf(List<SkyBlockRecipe>::size),
+            unresolvedReferenceCount = updated.unresolvedReferenceCount,
+        )
+        updateMessage = message
+    }
+
+    private class LoadedCatalog(val data: SkyBlockDataSnapshot, val version: Long) {
+        val itemNames by lazy { SkyBlockItemNameIndex(data) }
+        val petSkinEntries by lazy {
+            data.entries.filter {
+                it.key.kind == ItemListEntryKind.SKYBLOCK && it.key.id.startsWith("PET_SKIN_")
+            }
+        }
+        private val stackCache = boundedAccessOrderMap<ItemListEntryKey, ItemStack>(STACK_CACHE_SIZE)
+        private val searchCache = boundedAccessOrderMap<String, List<ItemListEntry>>(SEARCH_CACHE_SIZE)
+
+        fun search(query: String): List<ItemListEntry> {
+            synchronized(searchCache) { searchCache[query]?.let { return it } }
+            val result = ItemListSearch.filter(data.entries, query)
+            synchronized(searchCache) { searchCache[query] = result }
+            return result
+        }
+
+        fun stack(key: ItemListEntryKey): ItemStack? {
+            if (key.id.startsWith(ENCHANTMENT_PREFIX)) return data.stackProviders[key]?.invoke()
+            synchronized(stackCache) {
+                stackCache[key]?.let { return it }
+            }
+            val created = data.stackProviders[key]?.invoke() ?: return null
+            synchronized(stackCache) { stackCache[key] = created }
+            return created
+        }
     }
 
     private const val STACK_CACHE_SIZE = 384

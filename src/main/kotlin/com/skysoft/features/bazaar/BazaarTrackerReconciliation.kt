@@ -1,17 +1,18 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import kotlin.math.abs
 import kotlin.math.max
 
 internal data class BazaarOrderRowMatch(
-    val order: ProfileStorage.BazaarOrderData,
+    val order: ProfileStorageView.BazaarOrderData,
     val parsed: PendingOrder,
 )
 
 internal data class BazaarSnapshotReconciliation(
     val matches: List<BazaarOrderRowMatch>,
-    val unmatchedOrders: List<ProfileStorage.BazaarOrderData>,
+    val unmatchedOrders: List<ProfileStorageView.BazaarOrderData>,
     val unmatchedRows: List<PendingOrder>,
 )
 
@@ -21,7 +22,7 @@ internal data class BazaarGuiIdentityUpdate(
 )
 
 internal fun reconcileBazaarSnapshot(
-    orders: List<ProfileStorage.BazaarOrderData>,
+    orders: List<ProfileStorageView.BazaarOrderData>,
     rows: List<PendingOrder>,
 ): BazaarSnapshotReconciliation {
     if (orders.isEmpty()) return BazaarSnapshotReconciliation(emptyList(), emptyList(), rows)
@@ -71,10 +72,10 @@ internal fun findMatchingOrderMatch(parsed: PendingOrder, excludeIds: Set<String
         .matches
         .singleOrNull()
 
-internal fun findMatchingOrder(parsed: PendingOrder, excludeIds: Set<String>): ProfileStorage.BazaarOrderData? =
+internal fun findMatchingOrder(parsed: PendingOrder, excludeIds: Set<String>): ProfileStorageView.BazaarOrderData? =
     findMatchingOrderMatch(parsed, excludeIds)?.order
 
-internal fun bazaarIdentityCost(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Long {
+internal fun bazaarIdentityCost(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long {
     if (order.type != parsed.type) return IMPOSSIBLE_ASSIGNMENT_COST
     if (!productMatches(order.productId, parsed.productId) && !namesMatch(order.itemName, parsed.itemName)) {
         return IMPOSSIBLE_ASSIGNMENT_COST
@@ -169,12 +170,12 @@ internal fun updateOrderIdentityFromGui(
     return BazaarGuiIdentityUpdate(changed, meaningful)
 }
 
-private fun shouldUpdateUnconfirmedAmount(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean =
+private fun shouldUpdateUnconfirmedAmount(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean =
     !order.setupConfirmed &&
         parsed.amount > 0 &&
         (order.amountOrdered != parsed.amount || order.amountResolution != parsed.amountResolution)
 
-private fun shouldUpdateUnconfirmedTotal(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
+private fun shouldUpdateUnconfirmedTotal(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
     val total = parsed.totalCoins ?: return false
     return !order.setupConfirmed &&
         total > 0.0 &&
@@ -198,8 +199,8 @@ internal fun haveOverlappingRanges(
 }
 
 internal fun hasOverlappingFillEstimateIdentity(
-    order: ProfileStorage.BazaarOrderData,
-    other: ProfileStorage.BazaarOrderData,
+    order: ProfileStorageView.BazaarOrderData,
+    other: ProfileStorageView.BazaarOrderData,
 ): Boolean =
     order.id != other.id &&
         order.type == other.type &&

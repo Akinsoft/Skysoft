@@ -6,6 +6,7 @@ import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.net.KeyedAsyncRequestSlots
 import java.net.URI
 import java.nio.file.Path
+import java.time.Instant
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ConfirmScreen
@@ -20,24 +21,25 @@ internal object ScreenshotSharing {
 
     fun status(path: Path): ScreenshotShareStatus = synchronized(statuses) {
         val key = path.normalizedScreenshotPath()
-        statuses[key] ?: ScreenshotUploadMetadataStore.uploadFor(path).let { stored ->
+        statuses[key]?.takeUnless {
+            it is ScreenshotShareStatus.Uploaded && it.upload.expiresAtEpochSecond <= Instant.now().epochSecond
+        } ?: ScreenshotUploadMetadataStore.uploadFor(path).let { stored ->
             if (stored == null) {
-                ScreenshotShareStatus(ScreenshotShareState.READY)
+                ScreenshotShareStatus.Ready
             } else {
-                ScreenshotShareStatus(ScreenshotShareState.UPLOADED, stored)
+                ScreenshotShareStatus.Uploaded(stored)
             }.also { statuses[key] = it }
         }
     }
 
     fun request(path: Path, parent: Screen?) {
         val current = status(path)
-        if (current.state == ScreenshotShareState.UPLOADED) {
-            current.upload?.let(::copyLink)
+        if (current is ScreenshotShareStatus.Uploaded) {
+            copyLink(current.upload)
             return
         }
-        if (current.state == ScreenshotShareState.UPLOADING) return
+        if (current == ScreenshotShareStatus.Uploading) return
 
-        val minecraft = Minecraft.getInstance()
         MinecraftClient.setScreen(
             ConfirmScreen(
                 { accepted ->
@@ -58,13 +60,13 @@ internal object ScreenshotSharing {
         val key = path.normalizedScreenshotPath()
         synchronized(statuses) {
             val current = status(path)
-            if (current.state == ScreenshotShareState.UPLOADED) {
-                current.upload?.let(::copyLink)
+            if (current is ScreenshotShareStatus.Uploaded) {
+                copyLink(current.upload)
                 return
             }
-            if (current.state == ScreenshotShareState.UPLOADING) return
+            if (current == ScreenshotShareStatus.Uploading) return
 
-            statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADING)
+            statuses[key] = ScreenshotShareStatus.Uploading
             uploadRequests.startIfIdle(
                 key,
                 { SkysoftScreenshotUploadProvider.upload(path) },
@@ -73,11 +75,11 @@ internal object ScreenshotSharing {
     }
 
     fun buttonLabel(path: Path): String =
-        when (status(path).state) {
-            ScreenshotShareState.READY -> "Share"
-            ScreenshotShareState.UPLOADING -> "Uploading..."
-            ScreenshotShareState.UPLOADED -> "Copy Link"
-            ScreenshotShareState.FAILED -> "Retry Share"
+        when (status(path)) {
+            ScreenshotShareStatus.Ready -> "Share"
+            ScreenshotShareStatus.Uploading -> "Uploading..."
+            is ScreenshotShareStatus.Uploaded -> "Copy Link"
+            ScreenshotShareStatus.Failed -> "Retry Share"
         }
 
     fun invalidate(path: Path) {
@@ -91,14 +93,14 @@ internal object ScreenshotSharing {
 
     private fun completeUpload(path: Path, key: String, upload: ScreenshotUpload?, failure: Throwable?) {
         synchronized(statuses) {
-            if (statuses[key]?.state != ScreenshotShareState.UPLOADING) return
+            if (statuses[key] != ScreenshotShareStatus.Uploading) return
             if (failure != null || upload == null) {
-                statuses[key] = ScreenshotShareStatus(ScreenshotShareState.FAILED)
+                statuses[key] = ScreenshotShareStatus.Failed
                 SkysoftMod.LOGGER.warn("Screenshot upload failed", failure)
                 SkysoftChat.error("Could not upload the screenshot. See the log for details.")
             } else {
                 ScreenshotUploadMetadataStore.remember(path, upload)
-                statuses[key] = ScreenshotShareStatus(ScreenshotShareState.UPLOADED, upload)
+                statuses[key] = ScreenshotShareStatus.Uploaded(upload)
                 copyLink(upload)
                 announce(upload)
             }
@@ -121,14 +123,9 @@ internal object ScreenshotSharing {
     }
 }
 
-internal data class ScreenshotShareStatus(
-    val state: ScreenshotShareState,
-    val upload: ScreenshotUpload? = null,
-)
-
-internal enum class ScreenshotShareState {
-    READY,
-    UPLOADING,
-    UPLOADED,
-    FAILED,
+internal sealed interface ScreenshotShareStatus {
+    data object Ready : ScreenshotShareStatus
+    data object Uploading : ScreenshotShareStatus
+    data class Uploaded(val upload: ScreenshotUpload) : ScreenshotShareStatus
+    data object Failed : ScreenshotShareStatus
 }

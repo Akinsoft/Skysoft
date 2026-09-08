@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.TextUtilities.removeColor
 import java.util.Locale
 
 object ItemListSearch {
@@ -31,3 +32,9 @@ object ItemListSearch {
 
     private val whitespace = Regex("\\s+")
 }
+
+internal fun itemListSearchableText(displayName: String, id: String, lore: List<String>): String =
+    buildString {
+        append(displayName).append(' ').append(id).append(' ')
+        lore.forEach { append(it.removeColor()).append(' ') }
+    }.lowercase(Locale.ROOT)

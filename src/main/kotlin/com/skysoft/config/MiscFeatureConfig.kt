@@ -4,9 +4,11 @@ import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
+import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
@@ -15,18 +17,23 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 class MiscFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
+    @field:Category(name = "Hide Silly Buttons", desc = "Hide selected Minecraft menu buttons.")
+    val hideSillyButtons = HideSillyButtonsConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Block Overlay", desc = "Customize the targeted block highlight.")
     val blockOverlay = BlockOverlayConfig()
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Auto Sprint", desc = "Automatically sprint under configurable conditions.")
-    val autoSprint = AutoSprintConfig()
+    @field:Category(name = "Sky Color", desc = "Choose a custom color for the sky.")
+    val skyColor = SkyColorConfig()
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Mouse Lock", desc = "Lock mouse movement and show its status.")
-    val mouseLock = MouseLockConfig()
+    @field:Category(name = "Auto Sprint", desc = "Automatically sprint under configurable conditions.")
+    val autoSprint = AutoSprintConfig()
 
     @JvmField
     @field:Expose
@@ -108,6 +115,41 @@ class MiscFeatureConfig : ConfigRepairable {
         droppedItemScaling.repairLoadedValues()
         zoom.repairLoadedValues()
     }
+}
+
+class SkyColorConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Enabled", desc = "Use a custom color for the sky.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var enabled = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Sky color details.")
+    @field:Accordion
+    val details = SkyColorDetailsConfig()
+}
+
+class SkyColorDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Sky Color", desc = "Color used above the horizon.")
+    @field:ConfigEditorColour
+    val color: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(120, 167, 255, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Horizon Color", desc = "Color used for the horizon and distance fog.")
+    @field:ConfigEditorColour
+    val horizonColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(120, 167, 255, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Void Color", desc = "Color used below the horizon.")
+    @field:ConfigEditorColour
+    val voidColor: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(0, 0, 0, 0, 255))
 }
 
 class KeepTerrainLoadedConfig {

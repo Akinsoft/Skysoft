@@ -38,7 +38,7 @@ internal object StorageOverlayItemRenderer {
             } else {
                 val model = models.getOrPut(stack) { resolveModel(stack) }
                 val itemState = GuiItemRenderState(
-                    Matrix3x2f(context.pose()),
+                    HeadDisplaySize.scalePose(Matrix3x2f(context.pose()), stack, x, y),
                     model,
                     x,
                     y,
@@ -60,6 +60,9 @@ internal object StorageOverlayItemRenderer {
     ) {
         RarityHighlightRenderer.renderSlot(context, stack, x, y) {
             SkyblockerItemBackgrounds.draw(context, stack, x, y)
+            if (StorageSearchIndex.hasQuery && StorageSearchIndex.matches(stack)) {
+                InventoryItemSearchHighlight.render(context, x, y, matches = true)
+            }
             render()
         }
     }

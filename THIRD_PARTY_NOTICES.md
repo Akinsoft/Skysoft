@@ -28,7 +28,7 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 
 - Project: https://hypixelskyblock.minecraft.wiki/
 - License: Creative Commons Attribution-NonCommercial-ShareAlike 3.0
-- Usage: item facts, George pet sell prices, enchantment metadata, links, and event NPC availability
+- Usage: item facts, George pet sell prices, enchantment metadata, Bestiary families and icons, links, and event NPC availability
 
 ### SkyHanni Repository Data
 

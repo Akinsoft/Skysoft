@@ -1,52 +1,37 @@
 package com.skysoft.features.inventory
 
-import com.mojang.authlib.GameProfile
-import com.skysoft.config.DEFAULT_INVENTORY_BUTTON_SCALE
-import com.skysoft.config.INVENTORY_BUTTON_SCALE_STEP
+import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.config.InventoryButtonClickType
 import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
-import com.skysoft.config.MAX_INVENTORY_BUTTON_SCALE
-import com.skysoft.config.MIN_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.normalizedInventoryButtonScale
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
-import com.skysoft.data.skyblock.SkyBlockStackFactory
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.features.inventory.itemlist.ItemListController
-import com.skysoft.gui.HudEditorSnapshot
-import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ColorUtilities.withAlpha
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import java.util.Locale
 import kotlin.math.max
-import kotlin.math.roundToInt
-import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.core.component.DataComponents
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
-import net.minecraft.resources.Identifier
-import net.minecraft.world.item.Item
-import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
-import net.minecraft.world.item.component.ResolvableProfile
 import org.lwjgl.glfw.GLFW
 
 private const val ADD_ICON_X_OFFSET = 6
 private const val ADD_ICON_Y_OFFSET = 5
 
 object InventoryButtonManager {
-    const val BUTTON_SIZE = 18
+    const val BUTTON_SIZE = InventoryButtonLayout.BUTTON_SIZE
 
     private const val BUTTON_INNER_INSET = 1
     private const val BUTTON_HIGHLIGHT_INSET = 2
@@ -63,9 +48,10 @@ object InventoryButtonManager {
     private var hoveredMillis = 0L
 
     fun register() {
-        SkyBlockDataRepository.Demand.register("Inventory Buttons") { config.enabled }
+        SkyBlockDataRepository.Demand.register("Inventory Buttons") {
+            config.enabled || MinecraftClient.screen() is InventoryButtonEditorScreen.EditorScreen
+        }
         TabListApi.registerConsumer("Inventory Buttons") { config.enabled }
-        PetRepository.registerConsumer("Inventory Buttons") { config.enabled }
         InventoryButtonIcons.registerPlayerHeadCacheRefresh({ config.enabled }) {
             config.buttons.asSequence()
                 .filter { it.isActive() }
@@ -77,12 +63,6 @@ object InventoryButtonManager {
         val index: Int,
         val button: InventoryButtonConfig,
         val bounds: Rect,
-    )
-
-    data class IconCandidate(
-        val id: String,
-        val displayName: String,
-        val stack: ItemStack,
     )
 
     @JvmStatic
@@ -191,18 +171,6 @@ object InventoryButtonManager {
         )
     }
 
-    fun resetButtonPosition(index: Int) {
-        val button = config.buttons.getOrNull(index) ?: return
-        InventoryButtonDefaults.create().getOrNull(index)?.let { default ->
-            button.x = default.x
-            button.y = default.y
-            button.playerInvOnly = default.playerInvOnly
-            button.anchorRight = default.anchorRight
-            button.anchorBottom = default.anchorBottom
-        }
-        button.scale = DEFAULT_INVENTORY_BUTTON_SCALE
-    }
-
     fun drawButton(
         context: GuiGraphicsExtractor,
         x: Int,
@@ -214,11 +182,11 @@ object InventoryButtonManager {
         renderScale: Float = button.scale,
     ) {
         val scale = normalizedInventoryButtonScale(renderScale)
-        context.pose().pushMatrix()
-        context.pose().translate(x.toFloat(), y.toFloat())
-        context.pose().scale(scale, scale)
-        drawButtonContents(context, button, active, hovered, selected)
-        context.pose().popMatrix()
+        context.withIsolatedPose {
+            context.pose().translate(x.toFloat(), y.toFloat())
+            context.pose().scale(scale, scale)
+            drawButtonContents(context, button, active, hovered, selected)
+        }
     }
 
     fun drawButtonBackground(
@@ -267,11 +235,6 @@ object InventoryButtonManager {
         }
     }
 
-    fun iconStack(icon: String): ItemStack? = InventoryButtonIcons.iconStack(icon)
-
-    fun searchIconCandidates(query: String, limit: Int = 1024): List<IconCandidate> =
-        InventoryButtonIcons.searchIconCandidates(query, limit)
-
     fun displayCommand(command: String): String {
         val trimmed = command.trim()
         return if (trimmed.startsWith("/")) trimmed else "/$trimmed"
@@ -299,10 +262,6 @@ object InventoryButtonManager {
             button.backgroundIndex = preset.index % buttonStyles.size
         }
         config.replaceActiveButtons(defaults)
-    }
-
-    fun clearIconCache() {
-        InventoryButtonIcons.clearIconCache()
     }
 
     fun isAvailableInCurrentLocation(): Boolean = HypixelLocationState.inSkyBlock
@@ -352,168 +311,7 @@ object InventoryButtonManager {
         ButtonStyle(0xFF00A6A6.toInt(), 0xFF083B3B.toInt(), 0xFF0E5D5D.toInt()),
     )
 
-    internal val priorityIcons = setOf(
-        "minecraft:crafting_table",
-        "minecraft:chest",
-        "minecraft:ender_chest",
-        "minecraft:leather_chestplate",
-        "minecraft:bone",
-        "minecraft:gold_ingot",
-        "minecraft:compass",
-        "minecraft:emerald",
-        "minecraft:diamond_sword",
-        "minecraft:nether_star",
-        "minecraft:book",
-        "minecraft:command_block",
-    )
 
-    internal val iconAliases = mapOf(
-        "WORKBENCH" to "minecraft:crafting_table",
-        "CRAFTING_TABLE" to "minecraft:crafting_table",
-        "CHEST" to "minecraft:chest",
-        "ENDER_CHEST" to "minecraft:ender_chest",
-        "LEATHER_CHESTPLATE" to "minecraft:leather_chestplate",
-        "BONE" to "minecraft:bone",
-        "GOLD_BARDING" to "minecraft:golden_horse_armor",
-        "GOLD_BLOCK" to "minecraft:gold_block",
-        "EMPTY_MAP" to "minecraft:map",
-        "RAW_FISH" to "minecraft:cod",
-        "FISHING_ROD" to "minecraft:fishing_rod",
-        "EMERALD" to "minecraft:emerald",
-        "IRON_SWORD" to "minecraft:iron_sword",
-        "POTION" to "minecraft:potion",
-        "NETHER_STAR" to "minecraft:nether_star",
-        "PAINTING" to "minecraft:painting",
-        "COMMAND" to "minecraft:command_block",
-        "BOOK" to "minecraft:book",
-    )
-}
-
-internal fun inventoryButtonEditorState(): HudEditorSnapshot {
-    val config = SkysoftConfigGui.config().inventory.inventoryButtons
-    val buttons = config.buttons.map(InventoryButtonConfig::copy)
-    val values = buttons.map(InventoryButtonConfig::editorValue)
-    return hudEditorSnapshot(values) { config.replaceActiveButtons(buttons) }
-}
-
-private data class InventoryButtonEditorValue(
-    val x: Int,
-    val y: Int,
-    val icon: String?,
-    val playerInvOnly: Boolean,
-    val anchorRight: Boolean,
-    val anchorBottom: Boolean,
-    val backgroundIndex: Int,
-    val command: String,
-    val requiredKey: Int,
-    val scale: Float,
-    val isUserCreated: Boolean?,
-)
-
-private fun InventoryButtonConfig.editorValue(): InventoryButtonEditorValue = InventoryButtonEditorValue(
-    x,
-    y,
-    icon,
-    playerInvOnly,
-    anchorRight,
-    anchorBottom,
-    backgroundIndex,
-    command,
-    requiredKey,
-    scale,
-    isUserCreated,
-)
-
-internal enum class InventoryButtonResetShortcutResult {
-    IGNORED,
-    RESET,
-    REMOVED,
-}
-
-internal object InventoryButtonEditorActions {
-    private val config get() = SkysoftConfigGui.config().inventory.inventoryButtons
-
-    fun changeButtonScale(index: Int, scrollY: Double): InputHandlingResult {
-        val button = config.buttons.getOrNull(index) ?: return InputHandlingResult.IGNORED
-        if (scrollY == 0.0) return InputHandlingResult.IGNORED
-        button.scale = inventoryButtonScaleAfterScroll(normalizedInventoryButtonScale(button.scale), scrollY)
-        return InputHandlingResult.CONSUMED
-    }
-
-    fun addButtonSlot(): Int {
-        config.buttons.add(InventoryButtonLayout.nextEditorButtonSlot(config.buttons))
-        return config.buttons.lastIndex
-    }
-
-    fun resetOrRemoveButton(index: Int): InventoryButtonResetShortcutResult {
-        val button = config.buttons.getOrNull(index) ?: return InventoryButtonResetShortcutResult.IGNORED
-        if (button.isUserCreated == true) {
-            config.buttons.removeAt(index)
-            return InventoryButtonResetShortcutResult.REMOVED
-        }
-        InventoryButtonManager.resetButtonPosition(index)
-        return InventoryButtonResetShortcutResult.RESET
-    }
-}
-
-internal object InventoryButtonLayout {
-    internal val editorAddButtonBounds = Rect(
-        EDITOR_INVENTORY_WIDTH + EDITOR_ADD_BUTTON_GAP,
-        EDITOR_ADD_BUTTON_Y,
-        InventoryButtonManager.BUTTON_SIZE,
-        InventoryButtonManager.BUTTON_SIZE,
-    )
-
-    fun buttonBounds(canvas: InventoryButtonCanvas, button: InventoryButtonConfig): Rect {
-        val point = canvas.position(button)
-        val size = inventoryButtonSizeAtScale(button.scale)
-        val growth = size - InventoryButtonManager.BUTTON_SIZE
-        val x = if (point.x + InventoryButtonManager.BUTTON_SIZE <= canvas.container.x) point.x - growth else point.x
-        val y = if (point.y + InventoryButtonManager.BUTTON_SIZE <= canvas.container.y) point.y - growth else point.y
-        return Rect(x, y, size, size)
-    }
-
-    fun moveButton(
-        canvas: InventoryButtonCanvas,
-        button: InventoryButtonConfig,
-        screenX: Int,
-        screenY: Int,
-    ) {
-        val size = inventoryButtonSizeAtScale(button.scale)
-        val growth = size - InventoryButtonManager.BUTTON_SIZE
-        val baseX = if (screenX + size <= canvas.container.x) screenX + growth else screenX
-        val baseY = if (screenY + size <= canvas.container.y) screenY + growth else screenY
-        canvas.move(button, baseX, baseY)
-    }
-
-    fun nudgeButton(
-        canvas: InventoryButtonCanvas,
-        button: InventoryButtonConfig,
-        deltaX: Int,
-        deltaY: Int,
-    ) {
-        val bounds = buttonBounds(canvas, button)
-        moveButton(canvas, button, bounds.x + deltaX, bounds.y + deltaY)
-    }
-
-    fun nextEditorButtonSlot(buttons: List<InventoryButtonConfig>): InventoryButtonConfig {
-        val canvas = InventoryButtonCanvas(
-            Rect(0, 0, EDITOR_INVENTORY_WIDTH, InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT),
-            playerInventory = true,
-        )
-        val occupied = buttons.map { button -> buttonBounds(canvas, button) }
-        var x = editorAddButtonBounds.x + editorAddButtonBounds.width + EDITOR_BUTTON_GAP
-        while (occupied.any { it.intersects(Rect(x, EDITOR_ADD_BUTTON_Y, BUTTON_SIZE, BUTTON_SIZE)) }) {
-            x += BUTTON_SIZE + EDITOR_BUTTON_GAP
-        }
-        return InventoryButtonConfig(x = x, y = EDITOR_ADD_BUTTON_Y, isUserCreated = true)
-    }
-
-    private const val BUTTON_SIZE = InventoryButtonManager.BUTTON_SIZE
-    private const val EDITOR_INVENTORY_WIDTH = 176
-    private const val EDITOR_ADD_BUTTON_GAP = 2
-    private const val EDITOR_ADD_BUTTON_Y = -19
-    private const val EDITOR_BUTTON_GAP = 2
 }
 
 private fun drawButtonContents(
@@ -526,248 +324,36 @@ private fun drawButtonContents(
     InventoryButtonManager.drawButtonBackground(context, 0, 0, button.backgroundIndex, active, hovered, selected)
     if (active) {
         val icon = button.icon?.takeIf { it.isNotBlank() }
-        val stack = icon?.let(InventoryButtonManager::iconStack)
+        val stack = icon?.let(InventoryButtonIcons::iconStack)
         if (stack != null && !stack.isEmpty) {
             context.item(stack, 1, 1)
             return
         }
-        InventoryButtonIcons.drawFallbackIcon(context, 0, 0, button.command, icon)
+        drawFallbackIcon(context, 0, 0, button.command, icon)
     } else {
         val color = if (hovered || selected) 0xFFFFFFFF.toInt() else 0xFFCCCCCC.toInt()
         context.text(Minecraft.getInstance().font, "+", ADD_ICON_X_OFFSET, ADD_ICON_Y_OFFSET, color, false)
     }
 }
 
-private fun normalizedInventoryButtonScale(scale: Float): Float = scale
-    .takeIf(Float::isFinite)
-    ?.takeIf { it > 0f }
-    ?.coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
-    ?: DEFAULT_INVENTORY_BUTTON_SCALE
-
-internal fun inventoryButtonScaleAfterScroll(scale: Float, scrollY: Double): Float {
-    val current = normalizedInventoryButtonScale(scale)
-    if (scrollY == 0.0) return current
-    val direction = if (scrollY > 0.0) 1 else -1
-    val stepsPerUnit = (1f / INVENTORY_BUTTON_SCALE_STEP).roundToInt()
-    val steps = (current * stepsPerUnit).roundToInt() + direction
-    return (steps / stepsPerUnit.toFloat())
-        .coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
+private fun drawFallbackIcon(context: GuiGraphicsExtractor, x: Int, y: Int, command: String, icon: String?) {
+    val font = Minecraft.getInstance().font
+    val explicitText = icon?.takeIf { it.startsWith("text:", ignoreCase = true) }
+        ?.substringAfter(':')
+        ?.take(EXPLICIT_TEXT_ICON_MAX_LENGTH)
+    val text = when {
+        explicitText != null -> explicitText
+        icon != null -> "!"
+        command.isNotBlank() -> command.trim().removePrefix("/").take(COMMAND_FALLBACK_ICON_LENGTH)
+        else -> "?"
+    }.uppercase(Locale.ROOT)
+    val draw = text.take(max(MIN_FALLBACK_ICON_LENGTH, EXPLICIT_TEXT_ICON_MAX_LENGTH - text.length / 2))
+    val textX = x + (InventoryButtonManager.BUTTON_SIZE - font.width(draw)) / 2
+    val color = if (icon != null && explicitText == null) 0xFFFF5555.toInt() else 0xFFFFFFFF.toInt()
+    context.text(font, draw, textX, y + FALLBACK_ICON_TEXT_Y_OFFSET, color, true)
 }
 
-internal fun inventoryButtonSizeAtScale(scale: Float): Int =
-    (InventoryButtonManager.BUTTON_SIZE * normalizedInventoryButtonScale(scale)).roundToInt().coerceAtLeast(1)
-
-private object InventoryButtonIcons {
-    private const val PLAYER_HEAD_CACHE_REFRESH_INTERVAL_MILLIS = 4 * 60 * 1000L
-
-    private val iconStackCache = linkedMapOf<String, ItemStack>()
-    private val playerNamePattern = Regex("^[A-Za-z0-9_]{3,16}$")
-    private val playerIconPrefixes = listOf("player", "head", "skull")
-    private var nextPlayerHeadCacheRefreshMillis = 0L
-    private const val EXPLICIT_TEXT_ICON_MAX_LENGTH = 3
-    private const val COMMAND_FALLBACK_ICON_LENGTH = 2
-    private const val MIN_FALLBACK_ICON_LENGTH = 1
-    private const val FALLBACK_ICON_TEXT_Y_OFFSET = 5
-
-    fun registerPlayerHeadCacheRefresh(
-        isActive: () -> Boolean,
-        activeIcons: () -> Sequence<String>,
-    ) {
-        SkysoftClientEvents.onEndTick("Inventory Button player head cache", isActive) tick@{ minecraft ->
-            if (minecraft.connection == null) {
-                nextPlayerHeadCacheRefreshMillis = 0L
-                return@tick
-            }
-
-            val now = System.currentTimeMillis()
-            if (now < nextPlayerHeadCacheRefreshMillis) return@tick
-            nextPlayerHeadCacheRefreshMillis = now + PLAYER_HEAD_CACHE_REFRESH_INTERVAL_MILLIS
-
-            activeIcons()
-                .mapNotNull(::iconStack)
-                .filter { it.item == Items.PLAYER_HEAD }
-                .mapNotNull { it.get(DataComponents.PROFILE) }
-                .distinct()
-                .forEach { minecraft.playerSkinRenderCache().lookup(it) }
-        }
-    }
-
-    fun iconStack(icon: String): ItemStack? {
-        val trimmed = icon.trim()
-        if (trimmed.isEmpty() || trimmed.startsWith("text:", ignoreCase = true)) return null
-        inventoryButtonTextureHash(trimmed)?.let { textureHash ->
-            return iconStackCache.getOrPut("skull:$textureHash") {
-                texturedHeadStack(textureHash)
-            }.copy()
-        }
-        playerNameFromIcon(trimmed)?.let { playerName ->
-            return iconStackCache.getOrPut("player:${playerName.lowercase(Locale.ROOT)}") {
-                playerHeadStack(playerName)
-            }.copy()
-        }
-        skyBlockInternalName(trimmed)?.let { internalName ->
-            return PetRepository.itemStackOrNull(internalName)
-        }
-        return iconStackCache.getOrPut(trimmed.lowercase(Locale.ROOT)) {
-            resolveItem(trimmed)?.let { ItemStack(it) } ?: ItemStack.EMPTY
-        }.takeUnless { it.isEmpty }
-    }
-
-    fun searchIconCandidates(query: String, limit: Int): List<InventoryButtonManager.IconCandidate> {
-        explicitPlayerNameQuery(query)?.let { playerName ->
-            return listOf(playerHeadCandidate(playerName)).take(limit)
-        }
-
-        val results = linkedMapOf<String, InventoryButtonManager.IconCandidate>()
-        vanillaIconCandidates(query, limit).forEach { candidate ->
-            results.putIfAbsent(candidate.id, candidate)
-        }
-        if (query.isNotBlank()) {
-            PetRepository.searchItemIconCandidates(query, limit).forEach { candidate ->
-                val id = "skyblock:${candidate.internalName}"
-                results.putIfAbsent(
-                    id,
-                    InventoryButtonManager.IconCandidate(id, candidate.displayName, candidate.stack),
-                )
-            }
-        }
-        playerIconCandidates(query, limit).forEach { candidate ->
-            results.putIfAbsent(candidate.id, candidate)
-        }
-        return results.values.take(limit).toList()
-    }
-
-    fun drawFallbackIcon(context: GuiGraphicsExtractor, x: Int, y: Int, command: String, icon: String?) {
-        val font = Minecraft.getInstance().font
-        val explicitText = icon?.takeIf { it.startsWith("text:", ignoreCase = true) }
-            ?.substringAfter(':')
-            ?.take(EXPLICIT_TEXT_ICON_MAX_LENGTH)
-        val text = when {
-            explicitText != null -> explicitText
-            icon != null -> "!"
-            command.isNotBlank() -> command.trim().removePrefix("/").take(COMMAND_FALLBACK_ICON_LENGTH)
-            else -> "?"
-        }.uppercase(Locale.ROOT)
-        val draw = text.take(max(MIN_FALLBACK_ICON_LENGTH, EXPLICIT_TEXT_ICON_MAX_LENGTH - text.length / 2))
-        val textX = x + (InventoryButtonManager.BUTTON_SIZE - font.width(draw)) / 2
-        val color = if (icon != null && explicitText == null) 0xFFFF5555.toInt() else 0xFFFFFFFF.toInt()
-        context.text(font, draw, textX, y + FALLBACK_ICON_TEXT_Y_OFFSET, color, true)
-    }
-
-    fun clearIconCache() {
-        iconStackCache.clear()
-        nextPlayerHeadCacheRefreshMillis = 0L
-    }
-
-    private fun playerIconCandidates(query: String, limit: Int): List<InventoryButtonManager.IconCandidate> {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) return emptyList()
-        val words = trimmed.lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.isNotBlank() }
-        val results = linkedMapOf<String, InventoryButtonManager.IconCandidate>()
-
-        fun add(candidate: InventoryButtonManager.IconCandidate) {
-            results.putIfAbsent(candidate.id.lowercase(Locale.ROOT), candidate)
-        }
-
-        TabListApi.playerProfiles.asSequence()
-            .filter { player -> player.profileName.isNotBlank() && matchesPlayerQuery(player.profileName, words) }
-            .take(limit)
-            .forEach { player -> add(playerHeadCandidate(player.profileName, player.profile)) }
-
-        typedPlayerNameQuery(trimmed)?.let { playerName ->
-            add(playerHeadCandidate(playerName))
-        }
-
-        return results.values.take(limit).toList()
-    }
-
-    private fun playerHeadCandidate(
-        playerName: String,
-        profile: GameProfile? = null,
-    ): InventoryButtonManager.IconCandidate = InventoryButtonManager.IconCandidate(
-        id = "player:$playerName",
-        displayName = "$playerName's Head",
-        stack = playerHeadStack(playerName, profile),
-    )
-
-    private fun playerHeadStack(playerName: String, profile: GameProfile? = null): ItemStack {
-        val stack = ItemStack(Items.PLAYER_HEAD)
-        stack.set(
-            DataComponents.PROFILE,
-            if (profile != null) ResolvableProfile.createResolved(profile) else ResolvableProfile.createUnresolved(playerName),
-        )
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal("$playerName's Head"))
-        return stack
-    }
-
-    private fun texturedHeadStack(textureHash: String): ItemStack =
-        SkyBlockStackFactory.texturedHead(textureHash, name = null)
-
-    private fun playerNameFromIcon(icon: String): String? = explicitPlayerNameQuery(icon)
-
-    private fun explicitPlayerNameQuery(query: String): String? {
-        val trimmed = query.trim()
-        val prefix = playerIconPrefixes.firstOrNull { trimmed.startsWith("$it:", ignoreCase = true) } ?: return null
-        return typedPlayerNameQuery(trimmed.substring(prefix.length + 1))
-    }
-
-    private fun typedPlayerNameQuery(query: String): String? {
-        val name = query.trim().removePrefix("@").takeIf { it.isNotBlank() } ?: return null
-        return name.takeIf { playerNamePattern.matches(it) }
-    }
-
-    private fun matchesPlayerQuery(playerName: String, words: List<String>): Boolean {
-        if (words.isEmpty()) return false
-        val searchable = playerName.lowercase(Locale.ROOT)
-        return words.all { it in searchable }
-    }
-
-    private fun vanillaIconCandidates(query: String, limit: Int): List<InventoryButtonManager.IconCandidate> {
-        val normalizedQuery = query.trim().lowercase(Locale.ROOT)
-        val words = normalizedQuery.split(Regex("\\s+")).filter { it.isNotBlank() }
-        return BuiltInRegistries.ITEM.keySet().asSequence()
-            .mapNotNull { id ->
-                val item = BuiltInRegistries.ITEM.getValue(id)
-                if (item == Items.AIR) return@mapNotNull null
-                val stack = ItemStack(item)
-                val display = stack.hoverName.string
-                val searchable = buildString {
-                    append(id.toString()).append(' ')
-                    append(id.path.replace('_', ' ')).append(' ')
-                    append(display.lowercase(Locale.ROOT))
-                }.lowercase(Locale.ROOT)
-                if (words.isNotEmpty() && words.any { it !in searchable }) return@mapNotNull null
-                InventoryButtonManager.IconCandidate(id.toString(), display, stack)
-            }
-            .sortedWith(
-                compareByDescending<InventoryButtonManager.IconCandidate> {
-                    it.id in InventoryButtonManager.priorityIcons
-                }.thenBy { it.displayName },
-            )
-            .take(limit)
-            .toList()
-    }
-
-    private fun skyBlockInternalName(icon: String): String? {
-        if (icon.startsWith("skyblock:", ignoreCase = true)) return icon.substringAfter(':').trim().takeIf { it.isNotEmpty() }
-        if (':' in icon) return null
-        if (resolveItem(icon) != null) return null
-        return icon.trim().uppercase(Locale.ROOT).takeIf { it.isNotEmpty() }
-    }
-
-    private fun resolveItem(icon: String): Item? {
-        val id = inventoryButtonVanillaIconIdentifier(icon) ?: return null
-        return BuiltInRegistries.ITEM.getOptional(id).orElse(null)
-    }
-}
-
-internal fun inventoryButtonVanillaIconIdentifier(icon: String): Identifier? {
-    val alias = InventoryButtonManager.iconAliases[icon.uppercase(Locale.ROOT)] ?: icon
-    val normalized = when {
-        ':' in alias -> alias.lowercase(Locale.ROOT)
-        alias.startsWith("minecraft/", ignoreCase = true) ->
-            "minecraft:${alias.substringAfter('/').lowercase(Locale.ROOT)}"
-        else -> alias.lowercase(Locale.ROOT).replace(' ', '_')
-    }
-    return Identifier.tryParse(normalized)
-}
+private const val EXPLICIT_TEXT_ICON_MAX_LENGTH = 3
+private const val COMMAND_FALLBACK_ICON_LENGTH = 2
+private const val MIN_FALLBACK_ICON_LENGTH = 1
+private const val FALLBACK_ICON_TEXT_Y_OFFSET = 5

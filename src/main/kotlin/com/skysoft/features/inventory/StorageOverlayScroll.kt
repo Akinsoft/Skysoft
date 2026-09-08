@@ -10,10 +10,13 @@ import net.minecraft.client.input.MouseButtonEvent
 import org.lwjgl.glfw.GLFW
 
 internal var scroll = 0
+    private set
 internal var scrollPosition = 0.0
+    private set
 internal var scrollTarget = 0.0
+    private set
 internal var scrollbarDragOffset: Int? = null
-internal var lastScrollUpdateNanos = 0L
+private var lastScrollUpdateNanos = 0L
 
 internal fun focusPage(measurements: Measurements, layoutResult: PageLayoutResult, pageIndex: Int) {
     val layout = layoutResult.pages[pageIndex] ?: return

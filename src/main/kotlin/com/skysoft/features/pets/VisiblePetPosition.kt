@@ -22,8 +22,7 @@ object VisiblePetPosition {
     private var rawHeadZ: Double? = null
     private var headVisualYOffset = 0.0
     private var lastHeadRenderAge: Float? = null
-    private var lastVisualMode: String = "none"
-    private var lastVisualTargetRelativeY: Double? = null
+    private var isHeadIdle = false
     private var nameRelativeY: Double? = null
     private var lastTargetSeenTick = -PetPositionTiming.TARGET_GRACE_TICKS
     private var ticks = 0
@@ -55,8 +54,7 @@ object VisiblePetPosition {
         val rawY = state.y
         if (!config.settings.stopBouncing) {
             visualHeadY = rawY
-            lastVisualMode = "raw"
-            lastVisualTargetRelativeY = rawY - player.y
+            isHeadIdle = false
             state.y = rawY + offset
             rememberHeadRenderPosition(state.x, rawY, state.z, state.y)
             return
@@ -154,9 +152,8 @@ object VisiblePetPosition {
         val dz = state.z - player.z
         val isIdle = dx * dx + dz * dz <= PetHeadSmoothing.IDLE_HORIZONTAL_DISTANCE_SQ &&
             rawRelativeY in PetHeadSmoothing.IDLE_RELATIVE_Y_MIN..PetHeadSmoothing.IDLE_RELATIVE_Y_MAX
-        lastVisualMode = if (isIdle) "idle" else "follow"
+        isHeadIdle = isIdle
         val targetY = if (isIdle) player.y + PetHeadSmoothing.IDLE_HEAD_RELATIVE_Y else state.y
-        lastVisualTargetRelativeY = targetY - player.y
         return targetY
     }
 
@@ -179,7 +176,7 @@ object VisiblePetPosition {
     private fun visualHeadAlpha(previous: Double, rawY: Double, deltaTicks: Double): Double {
         val perTickAlpha = when (abs(rawY - previous)) {
             in 0.0..PetHeadSmoothing.BOB_DELTA_Y ->
-                if (lastVisualMode == "idle") PetHeadSmoothing.IDLE_ALPHA_PER_TICK else PetHeadSmoothing.BOB_ALPHA_PER_TICK
+                if (isHeadIdle) PetHeadSmoothing.IDLE_ALPHA_PER_TICK else PetHeadSmoothing.BOB_ALPHA_PER_TICK
             in 0.0..PetHeadSmoothing.FOLLOW_DELTA_Y -> PetHeadSmoothing.FOLLOW_ALPHA_PER_TICK
             else -> PetHeadSmoothing.JUMP_ALPHA_PER_TICK
         }
@@ -213,8 +210,7 @@ object VisiblePetPosition {
         visualHeadY = null
         clearHeadRenderPosition()
         lastHeadRenderAge = null
-        lastVisualMode = "none"
-        lastVisualTargetRelativeY = null
+        isHeadIdle = false
         nameRelativeY = null
     }
 

@@ -67,7 +67,7 @@ object StoragePreviews {
         val page = storage.skyBlockStoragePages[pageIndex] ?: return null
         if (page.rows <= 0) return null
         return StoragePreviewTooltip(
-            items = page.items.map(::stackFor),
+            items = page.items.map(StorageItemStacks::stackFor),
             columns = ProfileStorage.SLOTS_PER_STORAGE_ROW,
             rows = page.rows,
             scale = config.settings.gridScale,

@@ -1,11 +1,10 @@
 package com.skysoft.features.inventory
 
-import com.mojang.blaze3d.pipeline.RenderPipeline
-import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SlotBindingHighlightStyle
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.SlotBindingAdditionDecision
 import com.skysoft.data.SlotBindingGraph
 import com.skysoft.data.SlotBindingShiftClickDecision
@@ -18,25 +17,17 @@ import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ColorUtilities.hasVisibleAlpha
 import com.skysoft.utils.ColorUtilities.toPackedArgb
 import com.skysoft.utils.ColorUtilities.toColor
-import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.GuiRenderStateAccess
 import com.skysoft.utils.input.InputUtilities
-import kotlin.math.abs
-import kotlin.math.floor
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.navigation.ScreenRectangle
-import net.minecraft.client.gui.render.TextureSetup
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.client.renderer.state.gui.GuiElementRenderState
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import org.joml.Matrix3x2f
-import org.joml.Matrix3x2fc
 
 internal fun registerSlotBindingStorage() {
     ProfileStorageApi.registerConsumer("Slot Bindings") {
@@ -50,11 +41,8 @@ object SlotBindingManager {
     private const val SLOT_HIT_SIZE = 18
     private const val SLOT_OUTLINE_SIZE = 18
     private const val HOTBAR_FIRST_SLOT = 0
-    private const val HOTBAR_LAST_SLOT = 8
     private const val ARMOR_LAST_SLOT = 39
 
-    private const val PIXEL_SIZE = 1
-    private const val SUBPIXEL_CENTER = 0.5
     private const val FILL_ALPHA_SCALE = 0.25
     private const val LINE_ALPHA_SCALE = 0.80
     private const val WHITE_FILL = 0x50FFFFFF
@@ -161,20 +149,19 @@ object SlotBindingManager {
     @JvmStatic
     fun resetAllBindings() {
         val removed = bindings.isNotEmpty()
-        bindings.clear()
-        resetInputState()
-        if (removed) ProfileStorageApi.markDirty()
+        if (removed) ProfileStorageApi.updateProfile { it.slotBindings.clear() }
+        clearInputState()
     }
 
     private fun updateDragState(screen: AbstractContainerScreen<*>, hoveredSlot: Slot?) {
         if (!isAvailable()) {
-            resetInputState()
+            clearInputState()
             return
         }
 
         val containerId = screen.menu.containerId
         if (activeContainerId != containerId) {
-            resetInputState()
+            clearInputState()
             activeContainerId = containerId
         }
 
@@ -219,44 +206,48 @@ object SlotBindingManager {
         }
     }
 
-    private fun resetInputState() {
+    internal fun clearInputState() {
         dragState = null
         bindingKeyWasDown = false
         activeContainerId = null
+        pendingTooltip = null
     }
 
     private fun bindSlots(firstSlot: Slot, secondSlot: Slot) {
         if (!Geometry.isValidBindingPair(firstSlot, secondSlot)) return
         val firstSlotIndex = firstSlot.containerSlot
         val secondSlotIndex = secondSlot.containerSlot
-        val result = SlotBindingGraph.add(bindings, firstSlotIndex, secondSlotIndex)
-        if (result == SlotBindingAdditionDecision.ADD) {
-            ProfileStorageApi.markDirty()
+        if (SlotBindingGraph.additionDecision(bindings, firstSlotIndex, secondSlotIndex) == SlotBindingAdditionDecision.ADD) {
+            ProfileStorageApi.updateProfile { SlotBindingGraph.add(it.slotBindings, firstSlotIndex, secondSlotIndex) }
         }
     }
 
     private fun removeBindingsInvolving(slotIndex: Int) {
-        val removed = bindings.removeIf { Geometry.bindingContains(it, slotIndex) }
-        if (removed) {
-            ProfileStorageApi.markDirty()
+        if (bindings.any { Geometry.bindingContains(it, slotIndex) }) {
+            ProfileStorageApi.updateProfile { profile ->
+                profile.slotBindings.removeIf { Geometry.bindingContains(it, slotIndex) }
+            }
         }
     }
 
-    private fun bindingsFor(slotIndex: Int): List<ProfileStorage.SlotBindingData> =
+    private fun bindingsFor(slotIndex: Int): List<ProfileStorageView.SlotBindingData> =
         SlotBindingGraph.bindingsForSlot(bindings, slotIndex)
 
     private fun repairBindings(screen: AbstractContainerScreen<*>? = null) {
-        val repair = SlotBindingGraph.repair(bindings)
-        val menuBindingCount = bindings.count { Geometry.involvesSkyBlockMenuSlot(it, screen) }
-        if (menuBindingCount > 0) {
-            bindings.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
+        val repaired = bindings.map { ProfileStorage.SlotBindingData(it.firstSlot, it.secondSlot) }.toMutableList()
+        val repair = SlotBindingGraph.repair(repaired)
+        val removedMenuBindings = repaired.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
+        if (repair == ChangeResult.CHANGED || removedMenuBindings) {
+            ProfileStorageApi.updateProfile { profile ->
+                profile.slotBindings.clear()
+                profile.slotBindings.addAll(repaired)
+            }
         }
-        if (repair == ChangeResult.CHANGED || menuBindingCount > 0) ProfileStorageApi.markDirty()
     }
 
     private fun swapBoundSlots(
         screen: AbstractContainerScreen<*>,
-        binding: ProfileStorage.SlotBindingData,
+        binding: ProfileStorageView.SlotBindingData,
     ): InputHandlingResult {
         val firstSlot = Geometry.findPlayerSlot(screen, binding.firstSlot)
         val secondSlot = Geometry.findPlayerSlot(screen, binding.secondSlot)
@@ -316,7 +307,7 @@ object SlotBindingManager {
     private object Tooltips {
         fun invalidBindingReason(source: Slot, target: Slot): InvalidBindingReason? = when {
             Geometry.isSkyBlockMenuSlot(source) || Geometry.isSkyBlockMenuSlot(target) -> InvalidBindingReason.SKYBLOCK_MENU
-            !Geometry.isValidBindingPair(source.containerSlot, target.containerSlot) -> InvalidBindingReason.HOTBAR_REQUIRED
+            !SlotBindingGraph.isValidPair(source.containerSlot, target.containerSlot) -> InvalidBindingReason.HOTBAR_REQUIRED
             SlotBindingGraph.additionDecision(bindings, source.containerSlot, target.containerSlot) ==
                 SlotBindingAdditionDecision.SLOT_CONFLICT -> InvalidBindingReason.SLOT_CONFLICT
             else -> null
@@ -417,117 +408,6 @@ object SlotBindingManager {
             val color = config.details.highlightColor.get().toColor()
             return color.toPackedArgb(alphaScale)
         }
-
-        private class SlotBindingLineRenderState(
-            private val pose: Matrix3x2fc,
-            private val startX: Int,
-            private val startY: Int,
-            private val endX: Int,
-            private val endY: Int,
-            private val color: Int,
-        ) : GuiElementRenderState {
-            private val bounds = ScreenRectangle(
-                minOf(startX, endX) - PIXEL_SIZE,
-                minOf(startY, endY) - PIXEL_SIZE,
-                abs(endX - startX) + PIXEL_SIZE * 3,
-                abs(endY - startY) + PIXEL_SIZE * 3,
-            ).transformMaxBounds(pose)
-
-            override fun pipeline(): RenderPipeline = RenderPipelines.GUI
-
-            override fun textureSetup(): TextureSetup = TextureSetup.noTexture()
-
-            override fun scissorArea(): ScreenRectangle? = null
-
-            override fun bounds(): ScreenRectangle = bounds
-
-            override fun buildVertices(consumer: VertexConsumer) {
-                if (startX == endX && startY == endY) {
-                    drawPixel(consumer, startX, startY, 1.0)
-                    return
-                }
-
-                var x0 = startX.toDouble()
-                var y0 = startY.toDouble()
-                var x1 = endX.toDouble()
-                var y1 = endY.toDouble()
-                val steep = abs(y1 - y0) > abs(x1 - x0)
-                if (steep) {
-                    val oldX0 = x0
-                    x0 = y0
-                    y0 = oldX0
-                    val oldX1 = x1
-                    x1 = y1
-                    y1 = oldX1
-                }
-                if (x0 > x1) {
-                    val oldX0 = x0
-                    x0 = x1
-                    x1 = oldX0
-                    val oldY0 = y0
-                    y0 = y1
-                    y1 = oldY0
-                }
-
-                val dx = x1 - x0
-                val gradient = if (dx == 0.0) 1.0 else (y1 - y0) / dx
-                drawLineEndpoints(consumer, steep, LineValues(x0, y0, x1, y1, gradient))
-            }
-
-            private fun drawLineEndpoints(consumer: VertexConsumer, steep: Boolean, values: LineValues) {
-                val xEnd1 = roundLineCoordinate(values.x0)
-                val yEnd1 = values.y0 + values.gradient * (xEnd1 - values.x0)
-                val xGap1 = reverseFractionalPart(values.x0 + SUBPIXEL_CENTER)
-                val xPixel1 = xEnd1.toInt()
-                val yPixel1 = integerPart(yEnd1)
-                plotLinePixel(consumer, steep, xPixel1, yPixel1, reverseFractionalPart(yEnd1) * xGap1)
-                plotLinePixel(consumer, steep, xPixel1, yPixel1 + 1, fractionalPart(yEnd1) * xGap1)
-
-                val xEnd2 = roundLineCoordinate(values.x1)
-                val yEnd2 = values.y1 + values.gradient * (xEnd2 - values.x1)
-                val xGap2 = fractionalPart(values.x1 + SUBPIXEL_CENTER)
-                val xPixel2 = xEnd2.toInt()
-                val yPixel2 = integerPart(yEnd2)
-                plotLinePixel(consumer, steep, xPixel2, yPixel2, reverseFractionalPart(yEnd2) * xGap2)
-                plotLinePixel(consumer, steep, xPixel2, yPixel2 + 1, fractionalPart(yEnd2) * xGap2)
-
-                var interY = yEnd1 + values.gradient
-                for (x in (xPixel1 + 1) until xPixel2) {
-                    val y = integerPart(interY)
-                    plotLinePixel(consumer, steep, x, y, reverseFractionalPart(interY))
-                    plotLinePixel(consumer, steep, x, y + 1, fractionalPart(interY))
-                    interY += values.gradient
-                }
-            }
-
-            private fun plotLinePixel(
-                consumer: VertexConsumer,
-                steep: Boolean,
-                x: Int,
-                y: Int,
-                coverage: Double,
-            ) {
-                if (steep) drawPixel(consumer, y, x, coverage) else drawPixel(consumer, x, y, coverage)
-            }
-
-            private fun drawPixel(consumer: VertexConsumer, x: Int, y: Int, coverage: Double) {
-                if (coverage <= 0.0) return
-                val pixelColor = color.withScaledAlpha(coverage)
-                consumer.addVertexWith2DPose(pose, x.toFloat(), y.toFloat()).setColor(pixelColor)
-                consumer.addVertexWith2DPose(pose, x.toFloat(), y + PIXEL_SIZE.toFloat()).setColor(pixelColor)
-                consumer.addVertexWith2DPose(pose, x + PIXEL_SIZE.toFloat(), y + PIXEL_SIZE.toFloat())
-                    .setColor(pixelColor)
-                consumer.addVertexWith2DPose(pose, x + PIXEL_SIZE.toFloat(), y.toFloat()).setColor(pixelColor)
-            }
-
-            private fun integerPart(value: Double): Int = floor(value).toInt()
-
-            private fun roundLineCoordinate(value: Double): Double = floor(value + SUBPIXEL_CENTER)
-
-            private fun fractionalPart(value: Double): Double = value - floor(value)
-
-            private fun reverseFractionalPart(value: Double): Double = 1.0 - fractionalPart(value)
-        }
     }
 
     private object Geometry {
@@ -555,29 +435,21 @@ object SlotBindingManager {
         fun isValidBindingPair(firstSlot: Slot, secondSlot: Slot): Boolean =
             !isSkyBlockMenuSlot(firstSlot) &&
                 !isSkyBlockMenuSlot(secondSlot) &&
-                isValidBindingPair(firstSlot.containerSlot, secondSlot.containerSlot)
-
-        fun isValidBindingPair(firstSlot: Int, secondSlot: Int): Boolean =
-            firstSlot != secondSlot &&
-                firstSlot in HOTBAR_FIRST_SLOT..ARMOR_LAST_SLOT &&
-                secondSlot in HOTBAR_FIRST_SLOT..ARMOR_LAST_SLOT &&
-                (isHotbarSlot(firstSlot) || isHotbarSlot(secondSlot))
-
-        fun isHotbarSlot(slotIndex: Int): Boolean = slotIndex in HOTBAR_FIRST_SLOT..HOTBAR_LAST_SLOT
+                SlotBindingGraph.isValidPair(firstSlot.containerSlot, secondSlot.containerSlot)
 
         fun isSkyBlockMenuSlot(slot: Slot): Boolean = slot.item.isSkyBlockMenu()
 
-        fun bindingContains(binding: ProfileStorage.SlotBindingData, slotIndex: Int): Boolean =
+        fun bindingContains(binding: ProfileStorageView.SlotBindingData, slotIndex: Int): Boolean =
             binding.firstSlot == slotIndex || binding.secondSlot == slotIndex
 
-        fun otherSlot(binding: ProfileStorage.SlotBindingData, slotIndex: Int): Int? = when (slotIndex) {
+        fun otherSlot(binding: ProfileStorageView.SlotBindingData, slotIndex: Int): Int? = when (slotIndex) {
             binding.firstSlot -> binding.secondSlot
             binding.secondSlot -> binding.firstSlot
             else -> null
         }
 
         fun involvesSkyBlockMenuSlot(
-            binding: ProfileStorage.SlotBindingData,
+            binding: ProfileStorageView.SlotBindingData,
             screen: AbstractContainerScreen<*>?,
         ): Boolean {
             if (screen == null) return false
@@ -600,7 +472,6 @@ object SlotBindingManager {
 
     private data class DragState(val containerId: Int, val sourceSlot: Int, val wasBound: Boolean)
     private data class PendingTooltip(val lines: List<String>, val mouseX: Int, val mouseY: Int)
-    private data class LineValues(val x0: Double, val y0: Double, val x1: Double, val y1: Double, val gradient: Double)
 }
 
 private fun canRenderSlotBindingLine(

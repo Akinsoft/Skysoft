@@ -7,7 +7,7 @@ internal object PetLevels {
     private val fullTrees = ConcurrentHashMap<String, CachedLevelTree>()
 
     fun fullTree(petInternalName: String): List<Int> {
-        val constants = PetRepoCache.petsJson ?: return emptyList()
+        val constants = PetRepoConstants.data
         val properName = PetInternalNames.properName(petInternalName) ?: return constants.basePetLeveling
         fullTrees[properName]?.takeIf { it.constants === constants }?.let { return it.levels }
 
@@ -23,7 +23,7 @@ internal object PetLevels {
 
     fun rarityOffset(petInternalName: String): Int? {
         val (properName, rarity) = PetInternalNames.split(petInternalName) ?: return null
-        PetRepoCache.petsJson?.customPetLeveling?.get(properName)?.rarityOffset?.get(rarity)?.let { return it }
+        PetRepoConstants.data.customPetLeveling[properName]?.rarityOffset?.get(rarity)?.let { return it }
         return DEFAULT_RARITY_OFFSETS[rarity]
     }
 

@@ -1,7 +1,8 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.utils.ChangeResult
@@ -16,30 +17,17 @@ import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
 internal fun readConfirmInventory(snapshot: SkyBlockOpenInventorySnapshot, expectedType: BazaarOrderType) {
-    lastOrdersInventoryKey = null
-    pendingOrdersInventoryKey = null
-    pendingOrdersInventoryStableTicks = 0
+    BazaarTrackingState.resetOrderScan()
     for (cell in snapshot.cells) {
         val parsed = parseConfirmStack(cell.item, expectedType) ?: continue
-        pendingSetup = parsed
+        BazaarTrackingState.pendingSetup = parsed
         parsed.taxPercent?.let { updateTax(it) }
         return
     }
 }
 
 internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
-    val key = snapshot.key
-    if (key == lastOrdersInventoryKey && missingFromOrdersGuiScans.isEmpty()) return
-    if (key != pendingOrdersInventoryKey) {
-        pendingOrdersInventoryKey = key
-        pendingOrdersInventoryStableTicks = 1
-        return
-    }
-    pendingOrdersInventoryStableTicks++
-    if (pendingOrdersInventoryStableTicks < GUI_MISSING_PRUNE_INVENTORY_STABLE_TICKS) return
-    lastOrdersInventoryKey = key
-    pendingOrdersInventoryKey = null
-    pendingOrdersInventoryStableTicks = 0
+    if (BazaarTrackingState.observeOrderInventory(snapshot.key) == BazaarOrderScanDecision.SKIP) return
 
     val cells = snapshot.cells
     val scan = parseBazaarOrderScan(snapshot.title, cells) ?: return
@@ -55,39 +43,44 @@ internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
         return
     }
 
-    val reconciliation = reconcileBazaarSnapshot(storage.activeOrders.toList(), allParsedOrders)
-    val matchedOrderIds = mutableSetOf<String>()
-    var changed = false
-    for (match in reconciliation.matches) {
-        val parsed = match.parsed
-        if (parsed.guiSlot !in localOrderSlots) {
-            discardTrackedOrder(match.order)
-            changed = true
-            continue
+    ProfileStorageApi.updateProfile { profile ->
+        with(profile.bazaarTracker) {
+            val reconciliation = reconcileBazaarSnapshot(activeOrders.toList(), allParsedOrders)
+            val matchedOrderIds = mutableSetOf<String>()
+            var changed = false
+            for (match in reconciliation.matches) {
+                val parsed = match.parsed
+                val order = activeOrders.first { it.id == match.order.id }
+                if (parsed.guiSlot !in localOrderSlots) {
+                    discardTrackedOrder(match.order)
+                    changed = true
+                    continue
+                }
+                matchedOrderIds += match.order.id
+                parsed.taxPercent?.let { updateTax(it) }
+                val updateResult = updateOrderFromGui(order, parsed)
+                BazaarTrackingState.missingFromOrdersGuiScans.remove(match.order.id)
+                changed = updateResult == ChangeResult.CHANGED || changed
+            }
+            for (parsed in reconciliation.unmatchedRows) {
+                if (parsed.guiSlot !in localOrderSlots) continue
+                parsed.taxPercent?.let { updateTax(it) }
+                if (!parsed.canCreateOrderFromGui() || recentlyResolved(parsed)) continue
+                val added = parsed.toOrderData()
+                addActiveOrder(added, requireFreshMarketProof = false)
+                matchedOrderIds += added.id
+                changed = true
+            }
+            val parsedOrders = allParsedOrders.filter { order -> order.guiSlot in localOrderSlots }
+            changed = pruneOrdersMissingFromGui(
+                matchedOrderIds,
+                parsedOrders,
+                visibleOrderCount = allParsedOrders.size,
+            ) == ChangeResult.CHANGED || changed
+            if (changed) {
+                refreshBazaarTrackerMarketData(refreshFillEstimates = true)
+            }
         }
-        matchedOrderIds += match.order.id
-        parsed.taxPercent?.let { updateTax(it) }
-        val updateResult = updateOrderFromGui(match.order, parsed)
-        missingFromOrdersGuiScans.remove(match.order.id)
-        changed = updateResult == ChangeResult.CHANGED || changed
-    }
-    for (parsed in reconciliation.unmatchedRows) {
-        if (parsed.guiSlot !in localOrderSlots) continue
-        parsed.taxPercent?.let { updateTax(it) }
-        if (!parsed.canCreateOrderFromGui() || recentlyResolved(parsed)) continue
-        val added = parsed.toOrderData()
-        addActiveOrder(added, requireFreshMarketProof = false)
-        matchedOrderIds += added.id
-        changed = true
-    }
-    val parsedOrders = allParsedOrders.filter { order -> order.guiSlot in localOrderSlots }
-    changed = pruneOrdersMissingFromGui(
-        matchedOrderIds,
-        parsedOrders,
-        visibleOrderCount = allParsedOrders.size,
-    ) == ChangeResult.CHANGED || changed
-    if (changed) {
-        markBazaarTrackerChanged(refreshFillEstimates = true)
     }
 }
 
@@ -100,13 +93,11 @@ internal fun ordersMenuLoaded(items: Sequence<ItemStack>): Boolean {
 }
 
 internal fun readOrderOptionsInventory(snapshot: SkyBlockOpenInventorySnapshot) {
-    lastOrdersInventoryKey = null
-    pendingOrdersInventoryKey = null
-    pendingOrdersInventoryStableTicks = 0
-    val order = pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
+    BazaarTrackingState.resetOrderScan()
+    val order = BazaarTrackingState.pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
     for (cell in snapshot.cells) {
         val parsed = parseCancelStack(cell.item, order) ?: continue
-        pendingCancel = parsed
+        BazaarTrackingState.pendingCancel = parsed
         return
     }
 }
@@ -196,14 +187,14 @@ internal fun slotIndicator(screen: AbstractContainerScreen<*>, slot: Slot): Slot
     )
 }
 
-internal fun marketStatusFor(order: ProfileStorage.BazaarOrderData): OrderStatus {
+internal fun marketStatusFor(order: ProfileStorageView.BazaarOrderData): OrderStatus {
     val market = BazaarOrderBookApi.get(resolveOrderProductId(order)) ?: return OrderStatus.COMPETITIVE
     val status = rawMarketStatusFor(order, market)
     if (status.isWarning && !hasMarketProof(order, market)) return OrderStatus.COMPETITIVE
     return status
 }
 
-internal fun rawMarketStatusFor(order: ProfileStorage.BazaarOrderData, market: BazaarMarket): OrderStatus = when (order.type) {
+internal fun rawMarketStatusFor(order: ProfileStorageView.BazaarOrderData, market: BazaarMarket): OrderStatus = when (order.type) {
     BazaarOrderType.BUY -> if (order.pricePerUnit + BAZAAR_PRICE_EPSILON >= market.bestBuyOrder) {
         OrderStatus.COMPETITIVE
     } else {
@@ -216,14 +207,14 @@ internal fun rawMarketStatusFor(order: ProfileStorage.BazaarOrderData, market: B
     }
 }
 
-private fun hasMarketProof(order: ProfileStorage.BazaarOrderData, market: BazaarMarket): Boolean {
-    val proofMillis = marketProofMillis[order.id] ?: return true
+private fun hasMarketProof(order: ProfileStorageView.BazaarOrderData, market: BazaarMarket): Boolean {
+    val proofMillis = BazaarTrackingState.marketProofMillis[order.id] ?: return true
     if (market.updatedAtMillis <= 0L) {
-        marketProofMillis.remove(order.id)
+        BazaarTrackingState.marketProofMillis.remove(order.id)
         return true
     }
     if (market.updatedAtMillis <= proofMillis) return false
-    marketProofMillis.remove(order.id)
+    BazaarTrackingState.marketProofMillis.remove(order.id)
     return true
 }
 
@@ -249,12 +240,12 @@ internal fun recordClickedOrder(screen: AbstractContainerScreen<*>, click: Mouse
     val now = System.currentTimeMillis()
     val signature = "${screen.menu.containerId}|${slot.containerSlot}|${ItemStack.hashItemAndComponents(slot.item)}"
     if (
-        signature == lastOrdersGuiClickSignature &&
-        now - lastOrdersGuiClickMillis < DUPLICATE_CLICK_SUPPRESS_MILLIS
+        signature == BazaarTrackingState.lastOrdersGuiClickSignature &&
+        now - BazaarTrackingState.lastOrdersGuiClickMillis < DUPLICATE_CLICK_SUPPRESS_MILLIS
     ) return
-    lastOrdersGuiClickMillis = now
-    lastOrdersGuiClickSignature = signature
-    pendingOrderOptionId = findMatchingOrderMatch(parsed, emptySet())?.order?.id
+    BazaarTrackingState.lastOrdersGuiClickMillis = now
+    BazaarTrackingState.lastOrdersGuiClickSignature = signature
+    BazaarTrackingState.pendingOrderOptionId = findMatchingOrderMatch(parsed, emptySet())?.order?.id
 }
 
 private fun recordOrderOptionsClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent) {
@@ -265,8 +256,8 @@ private fun recordOrderOptionsClick(screen: AbstractContainerScreen<*>, click: M
     if (clean.none { it.contains("Cancel Order") }) return
     if (clean.any { it.startsWith("Cannot cancel order while", ignoreCase = true) }) return
 
-    val order = pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
-    val cancel = parseCancelStack(slot.item, order) ?: pendingCancel ?: order?.let {
+    val order = BazaarTrackingState.pendingOrderOptionId?.let { id -> storage.activeOrders.firstOrNull { it.id == id } }
+    val cancel = parseCancelStack(slot.item, order) ?: BazaarTrackingState.pendingCancel ?: order?.let {
         PendingCancel(
             orderId = it.id,
             type = it.type,
@@ -276,5 +267,28 @@ private fun recordOrderOptionsClick(screen: AbstractContainerScreen<*>, click: M
             refundedCoins = null,
         )
     } ?: return
-    pendingCancel = cancel
+    BazaarTrackingState.pendingCancel = cancel
 }
+
+internal data class SlotIndicator(
+    val fillColor: Int,
+    val outlineColor: Int,
+    val partial: Boolean,
+)
+
+private const val DUPLICATE_CLICK_SUPPRESS_MILLIS = 100L
+private const val SLOT_INDICATOR_INSET = 1
+private const val SLOT_INDICATOR_SIZE = 18
+private const val SLOT_INDICATOR_END_OFFSET = SLOT_INDICATOR_SIZE - SLOT_INDICATOR_INSET
+private const val PARTIAL_MARKER_X_OFFSET = 10
+private const val PARTIAL_MARKER_Y_OFFSET = 8
+private const val PARTIAL_MARKER_TEXT_X_OFFSET = 11
+private const val PARTIAL_MARKER_TEXT_Y_OFFSET = 8
+private const val SLOT_COMPETITIVE_FILL = 0x5530FF30
+private const val SLOT_COMPETITIVE_OUTLINE = 0xFF30FF30.toInt()
+private const val SLOT_UNDERCUT_FILL = 0x60FFD735
+private const val SLOT_UNDERCUT_OUTLINE = 0xFFFFD735.toInt()
+private const val SLOT_FILLED_FILL = 0x6045A3FF
+private const val SLOT_FILLED_OUTLINE = 0xFF45A3FF.toInt()
+private const val PARTIAL_MARKER_BACKGROUND = 0xB0000000.toInt()
+private val PARTIAL_MARKER_TEXT_COLOR = 0xFFFFFF55.toInt()

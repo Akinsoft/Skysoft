@@ -6,6 +6,8 @@ import com.skysoft.data.skyblock.SkyBlockStackFactory
 import com.skysoft.data.skyblock.pets.PetInternalNames
 import com.skysoft.data.skyblock.pets.PetItemFrame
 import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.pets.PetSkinCatalog
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.pets.isDragonEggStagePet
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
@@ -13,11 +15,11 @@ import java.util.UUID
 
 data class StoredPetData(
     @field:Expose val petInternalName: String,
-    @field:Expose var skinInternalName: String? = null,
-    @field:Expose var heldItemInternalName: String? = null,
-    @field:Expose var exp: Double? = null,
+    @field:Expose val skinInternalName: String? = null,
+    @field:Expose val heldItemInternalName: String? = null,
+    @field:Expose val exp: Double? = null,
     @field:Expose val uuid: UUID? = null,
-    @field:Expose var displayIconTexture: String? = null,
+    @field:Expose val displayIconTexture: String? = null,
     @Transient var exactItemStack: ItemStack? = null,
 ) {
     val hasPetInternalName: Boolean get() = rawPetInternalName?.isNotBlank() == true
@@ -34,7 +36,7 @@ data class StoredPetData(
     val displayName: String get() = if (isDragonEggStage) "$cleanName Egg" else cleanName
     val coloredDisplayName: String get() = "${rarity.chatColorCode}$displayName"
     val level: Int get() = PetRepository.xpToLevel(exp ?: 0.0, fauxInternalName)
-    val skinTag: String? get() = PetRepository.skinColorCodeOrNull(skinInternalName)?.let { "$it✦" }
+    val skinTag: String? get() = PetSkinCatalog.colorCode(skinInternalName)?.let { "$it✦" }
     val rarity: SkyBlockRarity get() = if (tierBoosted) specifiedRarity.oneAbove() ?: specifiedRarity else specifiedRarity
     private val shouldUseDisplayIconTexture: Boolean get() = displayIconTexture != null && isDragonEggStage
     val isDragonEggStage: Boolean get() = isDragonEggStagePet(fauxInternalName, exp)
@@ -74,7 +76,7 @@ data class StoredPetData(
         PetRepository.getSkinStackOrNull(skinInternalName, displayIconTexture)
             ?: displayIconStackOrNull()
             ?: exactItemStack?.copy()
-            ?: PetRepository.itemStackOrNull(requiredPetInternalName)
+            ?: SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(requiredPetInternalName))
 
     fun getAnimatedItemStackSequence(firstFrameOnly: Boolean = false, animationSpeed: Float = 1f): List<PetItemFrame>? =
         PetRepository.getAnimatedSkinFrames(

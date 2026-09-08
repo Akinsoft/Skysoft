@@ -15,14 +15,16 @@ import java.time.Duration
 import java.util.Comparator
 import java.util.concurrent.CompletableFuture
 import net.minecraft.client.Minecraft
+import net.minecraft.util.Util
 
 internal object SkyBlockDataUpdater {
     private val cacheDirectory by lazy { SkysoftConfigFiles.directory.resolve("item-list-data") }
     private val activeRevisionFile by lazy { cacheDirectory.resolve(ACTIVE_REVISION_FILE) }
     private val lastCheckFile by lazy { cacheDirectory.resolve("last-check.txt") }
-    private val requestSlot = AsyncRequestSlot<CachedCatalog?>(completionExecutor = Minecraft.getInstance())
+    private val cacheLock = Any()
+    private val requestSlot = AsyncRequestSlot<CheckResult>(completionExecutor = Minecraft.getInstance())
 
-    fun loadCached(cacheRoot: Path = cacheDirectory): CachedCatalog? {
+    fun loadCached(cacheRoot: Path = cacheDirectory): CachedCatalog? = synchronized(cacheLock) {
         val result = runCatching {
             val revision = readActiveRevision(cacheRoot) ?: return@runCatching null
             val directory = cacheRoot.resolve(revision)
@@ -40,20 +42,56 @@ internal object SkyBlockDataUpdater {
             runCatching { Files.deleteIfExists(cacheRoot.resolve(ACTIVE_REVISION_FILE)) }
                 .onFailure { SkysoftMod.LOGGER.warn("Could not invalidate Skysoft Item List cached data", it) }
         }
-        return result.getOrNull()
+        result.getOrNull()
     }
 
     fun check(force: Boolean = false) {
-        if (requestSlot.isPending) return
-        if (!force && !isCheckDue()) return
-        recordCheckAttempt()
-        SkyBlockDataRepository.markUpdateChecking()
-        val requests = CancellableRequestGroup()
-        val operation = requests.track(SkysoftHttp.getString(SHAS_URL, REQUEST_TIMEOUT))
+        requestSlot.startIfIdle(
+            requestFactory = {
+                val requests = CancellableRequestGroup()
+                val scheduled = requests.track(
+                    CompletableFuture.supplyAsync({
+                        (force || isCheckDue()).also { due -> if (due) recordCheckAttempt() }
+                    }, Util.ioPool()),
+                )
+                val operation = scheduled.thenComposeAsync({ due ->
+                    if (!due) {
+                        CompletableFuture.completedFuture<CheckResult>(CheckResult.Skipped)
+                    } else {
+                        SkyBlockDataRepository.markUpdateChecking()
+                        requests.track(download(requests)).thenApply { cached ->
+                            if (cached == null) CheckResult.Current else CheckResult.Updated(cached)
+                        }
+                    }
+                }, Minecraft.getInstance())
+                requests.result(operation)
+            },
+        ) { result, error ->
+            SkysoftErrorBoundary.run("Item List update async completion") {
+                if (error?.isCancellationFailure() == true) return@run
+                if (error != null) {
+                    SkyBlockDataRepository.markUpdateFailed(error.cause?.message ?: error.message ?: "Update failed")
+                    SkysoftMod.LOGGER.warn("Skysoft Item List update failed", error)
+                    return@run
+                }
+                when (val completed = checkNotNull(result)) {
+                    is CheckResult.Updated -> SkyBlockDataRepository.applyUpdated(
+                        completed.catalog.snapshot,
+                        completed.catalog.revision,
+                    )
+                    CheckResult.Current -> SkyBlockDataRepository.markUpdateCurrent()
+                    CheckResult.Skipped -> Unit
+                }
+            }
+        }
+    }
+
+    private fun download(requests: CancellableRequestGroup): CompletableFuture<CachedCatalog?> {
+        return requests.track(SkysoftHttp.getString(SHAS_URL, REQUEST_TIMEOUT))
             .thenApply(::parseRevision)
-            .thenCompose { revision ->
+            .thenComposeAsync({ revision ->
                 if (revision == readActiveRevision(cacheDirectory)) {
-                    return@thenCompose CompletableFuture.completedFuture<DownloadedCatalog?>(null)
+                    return@thenComposeAsync CompletableFuture.completedFuture<DownloadedCatalog?>(null)
                 }
                 val items = requests.track(
                     SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.ITEMS}", DOWNLOAD_TIMEOUT),
@@ -82,23 +120,8 @@ internal object SkyBlockDataUpdater {
                         pets.join(),
                     )
                 }
-            }
-            .thenApply { downloaded -> downloaded?.let(::validateAndStore) }
-        requestSlot.startIfIdle(
-            requestFactory = { requests.result(operation) },
-        ) { cached, error ->
-            SkysoftErrorBoundary.run("Item List update async completion") {
-                if (error?.isCancellationFailure() == true) return@run
-                when {
-                    error != null -> {
-                        SkyBlockDataRepository.markUpdateFailed(error.cause?.message ?: error.message ?: "Update failed")
-                        SkysoftMod.LOGGER.warn("Skysoft Item List update failed", error)
-                    }
-                    cached != null -> SkyBlockDataRepository.applyUpdated(cached.snapshot, cached.revision)
-                    else -> SkyBlockDataRepository.markUpdateCurrent()
-                }
-            }
-        }
+            }, Util.ioPool())
+            .thenApplyAsync({ downloaded -> downloaded?.let(::validateAndStore) }, Util.ioPool())
     }
 
     fun cancel() {
@@ -114,16 +137,18 @@ internal object SkyBlockDataUpdater {
             downloaded.npcs,
             downloaded.pets,
         )
-        val directory = cacheDirectory.resolve(downloaded.revision)
-        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.ITEMS), downloaded.items)
-        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.RECIPES), downloaded.recipes)
-        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.WIKI), downloaded.wiki)
-        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.MOBS), downloaded.mobs)
-        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.NPCS), downloaded.npcs)
-        SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.PETS), downloaded.pets)
-        SkysoftConfigFiles.writeStringSafely(activeRevisionFile, downloaded.revision)
-        runCatching { pruneInactiveRevisions(cacheDirectory, downloaded.revision) }
-            .onFailure { SkysoftMod.LOGGER.warn("Could not prune old Skysoft Item List data", it) }
+        synchronized(cacheLock) {
+            val directory = cacheDirectory.resolve(downloaded.revision)
+            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.ITEMS), downloaded.items)
+            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.RECIPES), downloaded.recipes)
+            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.WIKI), downloaded.wiki)
+            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.MOBS), downloaded.mobs)
+            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.NPCS), downloaded.npcs)
+            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.PETS), downloaded.pets)
+            SkysoftConfigFiles.writeStringSafely(activeRevisionFile, downloaded.revision)
+            runCatching { pruneInactiveRevisions(cacheDirectory, downloaded.revision) }
+                .onFailure { SkysoftMod.LOGGER.warn("Could not prune old Skysoft Item List data", it) }
+        }
         return CachedCatalog(downloaded.revision, compactSnapshot)
     }
 
@@ -137,13 +162,13 @@ internal object SkyBlockDataUpdater {
         }
     }
 
-    private fun readActiveRevision(cacheRoot: Path): String? {
+    private fun readActiveRevision(cacheRoot: Path): String? = synchronized(cacheLock) {
         val activeFile = cacheRoot.resolve(ACTIVE_REVISION_FILE)
-        if (!Files.isRegularFile(activeFile)) return null
+        if (!Files.isRegularFile(activeFile)) return@synchronized null
         val revision = Files.readString(activeFile).trim()
-        if (!revision.matches(revisionPattern)) return null
+        if (!revision.matches(revisionPattern)) return@synchronized null
         val directory = cacheRoot.resolve(revision)
-        return revision.takeIf { CatalogFiles.required.all { Files.isRegularFile(directory.resolve(it)) } }
+        revision.takeIf { CatalogFiles.required.all { Files.isRegularFile(directory.resolve(it)) } }
     }
 
     private fun splitEntities(json: String): Pair<String, String> {
@@ -171,7 +196,7 @@ internal object SkyBlockDataUpdater {
             .onFailure { SkysoftMod.LOGGER.warn("Could not record Skysoft Item List update check", it) }
     }
 
-    internal fun pruneInactiveRevisions(cacheRoot: Path, activeRevision: String) {
+    private fun pruneInactiveRevisions(cacheRoot: Path, activeRevision: String) {
         val staleDirectories = Files.list(cacheRoot).use { paths ->
             paths.filter { path ->
                 Files.isDirectory(path) && path.fileName.toString().matches(revisionPattern) &&
@@ -188,6 +213,12 @@ internal object SkyBlockDataUpdater {
     }
 
     data class CachedCatalog(val revision: String, val snapshot: SkyBlockDataSnapshot)
+
+    private sealed interface CheckResult {
+        data object Skipped : CheckResult
+        data object Current : CheckResult
+        data class Updated(val catalog: CachedCatalog) : CheckResult
+    }
 
     private data class DownloadedCatalog(
         val revision: String,

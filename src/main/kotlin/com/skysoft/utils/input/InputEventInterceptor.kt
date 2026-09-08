@@ -52,8 +52,8 @@ object InputEventInterceptor {
         val player = Minecraft.getInstance().player
         val itemConsumed = ItemUseEvents.hasActiveListeners() &&
             ItemUseEvents.shouldCancelItemUse(ItemUseEvent(clickType, player?.mainHandItem))
-        val targetConsumed = when (interactionTarget(hitResult?.type)) {
-            InteractionTarget.BLOCK -> BlockInteractionEvents.hasActiveListeners() &&
+        val targetConsumed = when (hitResult?.type) {
+            HitResult.Type.BLOCK -> BlockInteractionEvents.hasActiveListeners() &&
                 BlockInteractionEvents.shouldCancelBlockClick(
                     BlockInteractionEvent(
                         clickType,
@@ -61,25 +61,12 @@ object InputEventInterceptor {
                         (hitResult as BlockHitResult).blockPos.toWorldVec(),
                     ),
                 )
-            InteractionTarget.ENTITY -> EntityInteractionEvents.hasActiveListeners() &&
+            HitResult.Type.ENTITY -> EntityInteractionEvents.hasActiveListeners() &&
                 EntityInteractionEvents.shouldCancelEntityClick(
                     EntityInteractionEvent(clickType, entityAction, (hitResult as EntityHitResult).entity),
                 )
-            InteractionTarget.NONE -> false
+            HitResult.Type.MISS, null -> false
         }
         return if (itemConsumed || targetConsumed) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
     }
 }
-
-internal enum class InteractionTarget {
-    BLOCK,
-    ENTITY,
-    NONE,
-}
-
-private fun interactionTarget(type: HitResult.Type?): InteractionTarget =
-    when (type) {
-        HitResult.Type.BLOCK -> InteractionTarget.BLOCK
-        HitResult.Type.ENTITY -> InteractionTarget.ENTITY
-        HitResult.Type.MISS, null -> InteractionTarget.NONE
-    }

@@ -43,6 +43,13 @@ class SettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Search Highlight Color", desc = "Color used to highlight items you search for.")
+    @field:ConfigEditorColour
+    val searchHighlightColor: Property<ChromaColour> =
+        Property.of(ChromaColour.fromRGB(48, 255, 48, 0, 96))
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Selected Category Color", desc = "Color used for the selected category.")
     @field:ConfigEditorColour
     val selectedCategoryColor: Property<ChromaColour> =

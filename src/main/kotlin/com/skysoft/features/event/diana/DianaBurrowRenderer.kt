@@ -1,15 +1,9 @@
 package com.skysoft.features.event.diana
 
-import com.skysoft.config.DianaBurrowBoxColorMode
-import com.skysoft.config.DianaBurrowDistanceFormat
 import com.skysoft.config.DianaBurrowDistancePosition
 import com.skysoft.config.DianaClickCounterPosition
 import com.skysoft.config.WaypointLabelFormat
-import com.skysoft.config.DianaBurrowDetailsConfig
-import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
-import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
 import com.skysoft.utils.ColorUtilities.RGB_MASK
-import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.BlockHighlightRenderer
@@ -33,50 +27,15 @@ internal object DianaBurrowRenderer {
         targets: Collection<DianaBurrowTarget>,
         currentTarget: DianaBurrowTarget,
         playerLocation: WorldVec,
-        drawCrosshairLine: Boolean,
-        boldLabels: Boolean,
-        labelFormat: WaypointLabelFormat,
-        labelColors: Map<DianaBurrowType, Color>,
-        beamColors: Map<DianaBurrowType, Color>?,
-        boxStyle: DianaBurrowBoxStyle,
-        distanceStyle: DianaBurrowDistanceStyle?,
-        showClickCounter: Boolean,
-        clickCounterPosition: DianaClickCounterPosition,
-        visualAlphaScale: Double = 1.0,
+        style: DianaBurrowRenderStyle,
     ) {
         targets.forEach { target ->
             if (target != currentTarget) {
-                renderTarget(
-                    context,
-                    target,
-                    playerLocation,
-                    boldLabels,
-                    labelFormat,
-                    labelColors,
-                    beamColors,
-                    boxStyle,
-                    distanceStyle,
-                    showClickCounter,
-                    clickCounterPosition,
-                    visualAlphaScale,
-                )
+                renderTarget(context, target, playerLocation, style)
             }
         }
-        renderTarget(
-            context,
-            currentTarget,
-            playerLocation,
-            boldLabels,
-            labelFormat,
-            labelColors,
-            beamColors,
-            boxStyle,
-            distanceStyle,
-            showClickCounter,
-            clickCounterPosition,
-            visualAlphaScale,
-        )
-        if (drawCrosshairLine) {
+        renderTarget(context, currentTarget, playerLocation, style)
+        if (style.drawCrosshairLine) {
             val currentTargetType = DianaBurrowInteractions.clickProgress(currentTarget)?.displayType
                 ?: currentTarget.type
             context.drawLineToCrosshair(
@@ -91,19 +50,11 @@ internal object DianaBurrowRenderer {
         context: SkysoftRenderContext,
         target: DianaBurrowTarget,
         playerLocation: WorldVec,
-        boldLabels: Boolean,
-        labelFormat: WaypointLabelFormat,
-        labelColors: Map<DianaBurrowType, Color>,
-        beamColors: Map<DianaBurrowType, Color>?,
-        boxStyle: DianaBurrowBoxStyle,
-        distanceStyle: DianaBurrowDistanceStyle?,
-        showClickCounter: Boolean,
-        clickCounterPosition: DianaClickCounterPosition,
-        visualAlphaScale: Double,
+        style: DianaBurrowRenderStyle,
     ) {
         val clickProgress = DianaBurrowInteractions.clickProgress(target)
         val displayType = clickProgress?.displayType ?: target.type
-        val boxColors = boxStyle.colorsFor(displayType, visualAlphaScale)
+        val boxColors = style.boxStyle.colorsFor(displayType, style.visualAlphaScale)
         BlockHighlightRenderer.drawBlock(
             context,
             target.location,
@@ -111,19 +62,14 @@ internal object DianaBurrowRenderer {
             boxColors.fill,
             displayType.lineWidth,
         )
-        beamColors?.let { renderBeaconBeam(context, target.location, it.getValue(displayType)) }
+        style.beamColors?.let { renderBeaconBeam(context, target.location, it.getValue(displayType)) }
         renderLabel(
             context,
             target,
             playerLocation,
             displayType,
-            boldLabels,
-            labelFormat,
-            labelColors.getValue(displayType),
-            distanceStyle,
-            clickProgress.takeIf { showClickCounter },
-            clickCounterPosition,
-            visualAlphaScale,
+            style,
+            clickProgress.takeIf { style.showClickCounter },
         )
     }
 
@@ -169,31 +115,31 @@ internal object DianaBurrowRenderer {
         target: DianaBurrowTarget,
         playerLocation: WorldVec,
         displayType: DianaBurrowType,
-        boldLabels: Boolean,
-        labelFormat: WaypointLabelFormat,
-        labelColor: Color,
-        distanceStyle: DianaBurrowDistanceStyle?,
+        style: DianaBurrowRenderStyle,
         clickProgress: DianaBurrowClickProgress?,
-        clickCounterPosition: DianaClickCounterPosition,
-        visualAlphaScale: Double,
     ) {
-        val label = displayType.labelComponent(boldLabels, labelFormat, labelColor, visualAlphaScale)
-        val distance = distanceStyle?.let {
-            distanceComponent(playerLocation.distance(target.location.blockCenter()), it, visualAlphaScale)
+        val label = displayType.labelComponent(
+            style.boldLabels,
+            style.labelFormat,
+            style.labelColors.getValue(displayType),
+            style.visualAlphaScale,
+        )
+        val distance = style.distanceStyle?.let {
+            distanceComponent(playerLocation.distance(target.location.blockCenter()), it, style.visualAlphaScale)
         }
-        val progress = clickProgress?.let { progressComponent(it, visualAlphaScale) }
+        val progress = clickProgress?.let { progressComponent(it, style.visualAlphaScale) }
         val anchor = target.location + LABEL_OFFSET
-        val style = LABEL_STYLE.withAlpha(visualAlphaScale)
+        val labelStyle = LABEL_STYLE.withAlpha(style.visualAlphaScale)
         if (distance == null && progress == null) {
-            WorldLabelRenderer.draw(context, anchor, listOf(label), style)
+            WorldLabelRenderer.draw(context, anchor, listOf(label), labelStyle)
             return
         }
 
         WorldLabelRenderer.drawParts(
             context,
             anchor,
-            labelParts(label, distance, distanceStyle?.position, progress, clickCounterPosition),
-            style,
+            labelParts(label, distance, style.distanceStyle?.position, progress, style.clickCounterPosition),
+            labelStyle,
         )
     }
 
@@ -312,77 +258,3 @@ internal object DianaBurrowRenderer {
         val textAlpha: Int,
     )
 }
-
-internal class DianaBurrowBoxStyle(
-    private val labelColors: Map<DianaBurrowType, Color>,
-    private val customColor: Color?,
-) {
-    fun colorsFor(type: DianaBurrowType, visualAlphaScale: Double = 1.0): DianaBurrowBoxColors {
-        customColor?.let { color ->
-            return DianaBurrowBoxColors(
-                color.withScaledAlpha(visualAlphaScale),
-                color.withScaledAlpha(CUSTOM_FILL_ALPHA_SCALE * visualAlphaScale),
-            )
-        }
-        val color = labelColors.getValue(type)
-        return DianaBurrowBoxColors(
-            Color(color.red, color.green, color.blue, type.outlineColor.alpha).withScaledAlpha(visualAlphaScale),
-            Color(color.red, color.green, color.blue, type.fillColor.alpha).withScaledAlpha(visualAlphaScale),
-        )
-    }
-
-    private fun Color.withScaledAlpha(scale: Double): Color =
-        Color(red, green, blue, (alpha * scale).roundToInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX))
-
-    private companion object {
-        const val CUSTOM_FILL_ALPHA_SCALE = 0.25
-    }
-}
-
-internal data class DianaBurrowBoxColors(
-    val outline: Color,
-    val fill: Color,
-)
-
-internal data class DianaBurrowDistanceStyle(
-    val hideWithin: Int?,
-    val format: DianaBurrowDistanceFormat,
-    val color: Color,
-    val bold: Boolean,
-    val position: DianaBurrowDistancePosition,
-)
-
-internal fun DianaBurrowDetailsConfig.burrowDistanceStyle(): DianaBurrowDistanceStyle =
-    DianaBurrowDistanceStyle(
-        distanceHideRadius.takeIf { hideDistanceWithin },
-        distanceFormat,
-        distanceColor.get().toColor(),
-        distanceBold,
-        distancePosition,
-    )
-
-internal fun DianaBurrowDetailsConfig.burrowLabelColors(): Map<DianaBurrowType, Color> = mapOf(
-    DianaBurrowType.START to startTextColor.get().toColor(),
-    DianaBurrowType.MOB to mobTextColor.get().toColor(),
-    DianaBurrowType.TREASURE to treasureTextColor.get().toColor(),
-    DianaBurrowType.GUESS to guessTextColor.get().toColor(),
-)
-
-internal fun DianaBurrowDetailsConfig.burrowBeamColors(): Map<DianaBurrowType, Color> = mapOf(
-    DianaBurrowType.START to startBeamColor.get().toColor(),
-    DianaBurrowType.MOB to mobBeamColor.get().toColor(),
-    DianaBurrowType.TREASURE to treasureBeamColor.get().toColor(),
-    DianaBurrowType.GUESS to guessBeamColor.get().toColor(),
-)
-
-internal fun DianaBurrowDetailsConfig.burrowBoxStyle(
-    labelColors: Map<DianaBurrowType, Color> = burrowLabelColors(),
-): DianaBurrowBoxStyle =
-    DianaBurrowBoxStyle(
-        labelColors = labelColors,
-        customColor = if (burrowBoxColorMode == DianaBurrowBoxColorMode.CUSTOM) {
-            burrowBoxColor.get().toColor()
-        } else {
-            null
-        },
-    )

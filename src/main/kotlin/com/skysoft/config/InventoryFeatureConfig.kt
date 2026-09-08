@@ -21,6 +21,12 @@ class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Crafting Helper", desc = "Track the materials needed for selected recipes.")
+    val craftingHelper = CraftingHelperConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Bazaar", desc = "Bazaar order tracking and overlays.")
     val bazaar = SkysoftBazaarConfig()
 
@@ -58,6 +64,11 @@ class InventoryFeatureConfig : ConfigRepairable {
     @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Rarity Highlight", desc = "Highlight inventory items by SkyBlock rarity.")
     val rarityHighlight = RarityHighlightConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Head Display Size", desc = "Resize player head item icons.")
+    val headDisplaySize = HeadDisplaySizeConfig()
 
     @JvmField
     @field:Expose
@@ -160,6 +171,7 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     override fun repairLoadedValues() = repairLoadedConfigs(
         itemList,
+        craftingHelper,
         bazaar,
         sackDisplay,
         sackHud,
@@ -171,6 +183,7 @@ class InventoryFeatureConfig : ConfigRepairable {
         storagePreviews,
         storageOverlay,
         rarityHighlight,
+        headDisplaySize,
     )
 }
 

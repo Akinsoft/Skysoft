@@ -7,9 +7,7 @@ internal fun saveExactPetRead(petData: StoredPetData, syncXp: Boolean, assertCur
     val previousExp = petData.uuid?.let { uuid ->
         PetStorageService.petStorage.pets.firstOrNull { it.uuid == uuid }?.exp
     }
-    petData.uuid?.let { petUuid ->
-        PetStorageService.petStorage.pets.addOrReplace(petData) { it.uuid == petUuid }
-    }
+    PetStorageService.storePet(petData)
     if (syncXp) {
         PetXpEstimator.resyncFromPetDataRead(
             petData,

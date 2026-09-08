@@ -14,14 +14,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 internal class ItemListFusionSelectorPanel {
     private val selectedIds = mutableMapOf<FusionIngredientTarget, String>()
     private val sortedOptions = mutableMapOf<FusionIngredientTarget, List<RecipeIngredient>>()
-    private var openTarget: FusionIngredientTarget? = null
-    private var anchor: Rect? = null
+    private var openTrigger: FusionIngredientTrigger? = null
     private var page = 0
-    private var renderedDropdown: ItemListTierDropdown? = null
-    private var renderedOptions: List<Pair<Rect, RecipeIngredient>> = emptyList()
-    private var renderedPage: FusionDropdownPage? = null
+    private var renderedDropdown: RenderedDropdown? = null
 
-    val isOpen: Boolean get() = openTarget != null
+    val isOpen: Boolean get() = openTrigger != null
 
     fun selectedIngredient(target: FusionIngredientTarget): RecipeIngredient? {
         val selectedId = selectedIds[target] ?: return null
@@ -36,8 +33,8 @@ internal class ItemListFusionSelectorPanel {
         mouseX: Int,
         mouseY: Int,
     ) {
-        val target = openTarget ?: return
-        val currentAnchor = anchor ?: return resetSelector()
+        val trigger = openTrigger ?: return
+        val target = trigger.target
         if (target.recipe !in recipes) return resetSelector()
         val options = options(target)
         val currentPage = FusionDropdownPage.create(
@@ -46,9 +43,7 @@ internal class ItemListFusionSelectorPanel {
             FusionDropdownPage.optionsPerPage(panel.height),
         )
         page = currentPage.page
-        renderedPage = currentPage
-        val dropdown = ItemListTierDropdown.create(panel, currentAnchor, currentPage.cellCount, DROPDOWN_SLOT_SIZE)
-        renderedDropdown = dropdown
+        val dropdown = ItemListTierDropdown.create(panel, trigger.bounds, currentPage.cellCount, DROPDOWN_SLOT_SIZE)
         dropdown.renderBackground(context)
         val previous = dropdown.tierBounds[PREVIOUS_CELL]
         val next = dropdown.tierBounds[NEXT_CELL]
@@ -84,49 +79,48 @@ internal class ItemListFusionSelectorPanel {
             labelBounds.y + PAGE_LABEL_Y,
         )
         val visibleOptions = options.slice(currentPage.optionIndices)
-        renderedOptions = visibleOptions.mapIndexed { index, option ->
+        val renderedOptions = visibleOptions.mapIndexed { index, option ->
             val bounds = dropdown.tierBounds[HEADER_CELL_COUNT + index]
             renderOption(context, font, bounds, option, selectedIds[target] == option.id, mouseX, mouseY)
             bounds to option
         }
+        renderedDropdown = RenderedDropdown(dropdown, currentPage, renderedOptions)
     }
 
     fun click(triggers: List<FusionIngredientTrigger>, mouseX: Int, mouseY: Int): ViewerInputResult {
         val clickedTrigger = triggers.firstOrNull { it.bounds.contains(mouseX, mouseY) }
-        if (openTarget == null) {
+        val target = openTrigger?.target
+        if (target == null) {
             clickedTrigger ?: return ViewerInputResult.IGNORED
             open(clickedTrigger)
             return ViewerInputResult.HANDLED
         }
-        renderedOptions.firstOrNull { it.first.contains(mouseX, mouseY) }?.second?.let { option ->
-            selectedIds[requireNotNull(openTarget)] = option.id
+        val rendered = renderedDropdown ?: return ViewerInputResult.IGNORED
+        rendered.options.firstOrNull { it.first.contains(mouseX, mouseY) }?.second?.let { option ->
+            selectedIds[target] = option.id
             resetSelector()
             return ViewerInputResult.HANDLED
         }
-        val dropdown = renderedDropdown
-        val currentPage = renderedPage
-        if (dropdown != null && currentPage != null) {
-            return when {
-                dropdown.tierBounds[PREVIOUS_CELL].contains(mouseX, mouseY) && page > 0 -> {
-                    page--
-                    ViewerInputResult.PREVIOUS_PAGE
-                }
-                dropdown.tierBounds[NEXT_CELL].contains(mouseX, mouseY) && page + 1 < currentPage.pageCount -> {
-                    page++
-                    ViewerInputResult.NEXT_PAGE
-                }
-                clickedTrigger != null -> {
-                    open(clickedTrigger)
-                    ViewerInputResult.HANDLED
-                }
-                dropdown.bounds.contains(mouseX, mouseY) -> ViewerInputResult.HANDLED
-                else -> {
-                    resetSelector()
-                    ViewerInputResult.IGNORED
-                }
+        val dropdown = rendered.layout
+        return when {
+            dropdown.tierBounds[PREVIOUS_CELL].contains(mouseX, mouseY) && page > 0 -> {
+                page--
+                ViewerInputResult.PREVIOUS_PAGE
+            }
+            dropdown.tierBounds[NEXT_CELL].contains(mouseX, mouseY) && page + 1 < rendered.page.pageCount -> {
+                page++
+                ViewerInputResult.NEXT_PAGE
+            }
+            clickedTrigger != null -> {
+                open(clickedTrigger)
+                ViewerInputResult.HANDLED
+            }
+            dropdown.bounds.contains(mouseX, mouseY) -> ViewerInputResult.HANDLED
+            else -> {
+                resetSelector()
+                ViewerInputResult.IGNORED
             }
         }
-        return ViewerInputResult.IGNORED
     }
 
     fun closeSelector(): ViewerInputResult {
@@ -136,12 +130,9 @@ internal class ItemListFusionSelectorPanel {
     }
 
     private fun open(trigger: FusionIngredientTrigger) {
-        openTarget = trigger.target
-        anchor = trigger.bounds
+        openTrigger = trigger
         page = 0
         renderedDropdown = null
-        renderedOptions = emptyList()
-        renderedPage = null
     }
 
     private fun renderOption(
@@ -185,12 +176,15 @@ internal class ItemListFusionSelectorPanel {
         }
 
     private fun resetSelector() {
-        openTarget = null
-        anchor = null
+        openTrigger = null
         renderedDropdown = null
-        renderedOptions = emptyList()
-        renderedPage = null
     }
+
+    private data class RenderedDropdown(
+        val layout: ItemListTierDropdown,
+        val page: FusionDropdownPage,
+        val options: List<Pair<Rect, RecipeIngredient>>,
+    )
 
     private companion object {
         const val DROPDOWN_SLOT_SIZE = 18

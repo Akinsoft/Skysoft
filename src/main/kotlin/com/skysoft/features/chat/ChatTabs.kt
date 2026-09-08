@@ -17,6 +17,7 @@ object ChatTabs {
     private val commandResponseTracker = ChatTabCommandResponseTracker()
 
     fun register() {
+        SkysoftClientEvents.onDisconnect("Chat Tabs pending response reset", ::clearPendingResponses)
         SkysoftClientEvents.onEndTick(
             "Chat Tabs filter update",
             isActive = { isEnabled() || appliedState?.isEnabled == true },
@@ -134,12 +135,16 @@ object ChatTabs {
             chat.setVisibleMessageFilter { message -> isVisible(state.channel, message) }
             chat.resetChatScroll()
         } else if (appliedState?.isEnabled == true) {
-            feedbackTracker.clearPendingResponse()
-            commandResponseTracker.clearPendingResponse()
+            clearPendingResponses()
             chat.setVisibleMessageFilter { true }
             chat.resetChatScroll()
         }
         appliedState = state
+    }
+
+    private fun clearPendingResponses() {
+        feedbackTracker.clearPendingResponse()
+        commandResponseTracker.clearPendingResponse()
     }
 
     private data class FilterState(val isEnabled: Boolean, val channel: ChatTabChannel)

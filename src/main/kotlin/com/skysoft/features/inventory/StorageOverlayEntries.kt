@@ -1,11 +1,18 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 
-internal fun storageEntry(pageIndex: Int): ProfileStorage.SkyBlockStoragePageData? = when {
+internal fun storageEntry(pageIndex: Int): ProfileStorageView.SkyBlockStoragePageData? = when {
     isRiftStoragePage(pageIndex) -> storage.skyBlockRiftStoragePages[riftStoragePageNumber(pageIndex)]
     else -> ToolkitType.fromPageIndex(pageIndex)?.let { storage.skyBlockToolkits[it.storageKey] }
         ?: storage.skyBlockStoragePages[pageIndex]
+}
+
+internal fun ProfileStorage.ProfileSpecific.mutableStorageEntry(pageIndex: Int): ProfileStorage.SkyBlockStoragePageData? = when {
+    isRiftStoragePage(pageIndex) -> skyBlockRiftStoragePages[riftStoragePageNumber(pageIndex)]
+    else -> ToolkitType.fromPageIndex(pageIndex)?.let { skyBlockToolkits[it.storageKey] }
+        ?: skyBlockStoragePages[pageIndex]
 }
 
 internal fun storageEntryExists(pageIndex: Int): Boolean = when {
@@ -14,7 +21,7 @@ internal fun storageEntryExists(pageIndex: Int): Boolean = when {
         ?: (pageIndex in storage.skyBlockStoragePages)
 }
 
-internal fun displayStorageEntries(activePage: Int?): List<Pair<Int, ProfileStorage.SkyBlockStoragePageData>> = buildList {
+internal fun displayStorageEntries(activePage: Int?): List<Pair<Int, ProfileStorageView.SkyBlockStoragePageData>> = buildList {
     if (activePage != null && isRiftStoragePage(activePage)) {
         storage.skyBlockRiftStoragePages.toSortedMap().forEach { (pageNumber, page) ->
             if (pageNumber in 0 until ProfileStorage.SKYBLOCK_RIFT_STORAGE_PAGE_COUNT) {

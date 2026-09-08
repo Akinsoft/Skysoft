@@ -10,6 +10,7 @@ import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
@@ -30,6 +31,15 @@ class GuiFeatureConfig : ConfigRepairable {
     @field:Expose
     @field:Category(name = "Held Item", desc = "Customize first-person held item visuals and swing duration.")
     val heldItem = HeldItemConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Crosshair Visibility",
+        desc = "Choose which perspectives show the crosshair.",
+    )
+    @field:ConfigEditorDropdown
+    var crosshairVisibility = CrosshairVisibility.FIRST_PERSON
 
     @JvmField
     @field:Expose
@@ -147,6 +157,21 @@ class GuiFeatureConfig : ConfigRepairable {
     }
 }
 
+enum class CrosshairVisibility(private val displayName: String) {
+    FIRST_PERSON("1st person"),
+    THIRD_PERSON("3rd person"),
+    BOTH("Both"),
+    ;
+
+    fun isVisible(firstPerson: Boolean): Boolean = when (this) {
+        FIRST_PERSON -> firstPerson
+        THIRD_PERSON -> !firstPerson
+        BOTH -> true
+    }
+
+    override fun toString(): String = displayName
+}
+
 class VanillaUiConfig {
     @JvmField
     @field:Expose
@@ -191,6 +216,12 @@ class ScreenshotManagerConfig {
     @field:ConfigOption(name = "Settings", desc = "Screenshot Manager settings.")
     @field:Accordion
     val settings = ScreenshotManagerSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Details", desc = "Screenshot Manager appearance.")
+    @field:Accordion
+    val details = ScreenshotManagerDetailsConfig()
 }
 
 class ScreenshotManagerSettingsConfig {
@@ -210,6 +241,17 @@ class ScreenshotManagerSettingsConfig {
     @field:ConfigOption(name = "Open Manager", desc = "Open the Screenshot Manager.")
     @field:ConfigEditorButton(buttonText = "Open")
     val openManager = Runnable { ScreenshotManager.open() }
+}
+
+class ScreenshotManagerDetailsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Simple Preview",
+        desc = "Show new screenshot previews directly in the top-right corner without animation.",
+    )
+    @field:ConfigEditorBoolean
+    var isSimplePreviewEnabled = false
 }
 
 class PositionEditorConfig {

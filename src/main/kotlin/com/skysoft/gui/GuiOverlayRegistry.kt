@@ -5,6 +5,7 @@ import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.renderables.withIsolatedPose
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.minecraft.client.Minecraft
@@ -89,22 +90,16 @@ object GuiOverlayRegistry {
         val scales = GuiScaleController.resolve(screen, window)
         val inventoryScale = scales.inventory()
         val normalScale = scales.normal()
-        val previousScale = window.guiScale
-        context.pose().pushMatrix()
-        window.guiScale = normalScale
-        GuiScaleController.setOverlaysUseNormalCoordinates(true)
-        context.pose().scale(normalScale / inventoryScale.toFloat(), normalScale / inventoryScale.toFloat())
-        try {
-            renderLayer(
-                GuiOverlayLayer.BELOW_SCREEN,
-                context,
-                overlayContext,
-                GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND,
-            )
-        } finally {
-            GuiScaleController.setOverlaysUseNormalCoordinates(false)
-            window.guiScale = previousScale
-            context.pose().popMatrix()
+        context.withIsolatedPose {
+            GuiScaleController.withNormalOverlayCoordinates(window, normalScale) {
+                context.pose().scale(normalScale / inventoryScale.toFloat(), normalScale / inventoryScale.toFloat())
+                renderLayer(
+                    GuiOverlayLayer.BELOW_SCREEN,
+                    context,
+                    overlayContext,
+                    GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND,
+                )
+            }
         }
     }
 
