@@ -6,10 +6,20 @@ import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorInfoText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
 
 class MouseLockConfig {
+    @JvmField
+    @field:ConfigOption(
+        name = "How to Use",
+        desc = "Use §b/ss mouselock§7 to lock mouse rotation. Run it again to unlock.\n" +
+            "Pest Helper's Unlock on Warp and Lock on Return options can control it automatically.",
+    )
+    @field:ConfigEditorInfoText
+    val usageInfo: Unit = Unit
+
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Settings", desc = "Mouse Lock settings.")
