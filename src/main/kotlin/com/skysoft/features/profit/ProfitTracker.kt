@@ -69,7 +69,7 @@ object ProfitTracker {
         SkyBlockCurrencyChanges.onChange("Profit Tracker currency changes", { configs.isAnyEnabled() }) { change ->
             questCostCapture.recordChange(change.currency, change.amount)
             if (change.currency != SKYBLOCK_COINS) return@onChange
-            val preset = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset
+            val preset = currentAttributionPreset
             coinTrackingTargets(change.amount, preset, uptime::lastActivityAt).forEach { target ->
                 uptime.markActivity(target)
                 update(target) { stats -> stats.coins += change.amount }
@@ -165,6 +165,16 @@ object ProfitTracker {
     private val currentPreset: ProfitTrackerPreset?
         get() = locationPreset?.takeIf { preset -> presetConfig(preset).enabled }
 
+    private val currentAttributionPreset: ProfitTrackerPreset?
+        get() = currentPreset ?: attributionPreset?.takeIf(::canTrackPreset)
+
+    private fun canTrackPreset(preset: ProfitTrackerPreset): Boolean =
+        presetConfig(preset).enabled && ProfitTrackerPresets.forLocation(
+            HypixelLocationState.currentIsland?.displayName,
+            SkyBlockAreaState.currentArea,
+            preset,
+        ) == preset
+
     private val locationPreset: ProfitTrackerPreset?
         get() = ProfitTrackerPresets.forLocation(
             HypixelLocationState.currentIsland?.displayName,
@@ -182,7 +192,7 @@ object ProfitTracker {
 
     private val fishingHookPreset: ProfitTrackerPreset?
         get() = ProfitTrackerPreset.FISHING.takeIf {
-            presetConfig(it).enabled &&
+            canTrackPreset(it) &&
                 HypixelLocationState.inSkyBlock &&
                 Minecraft.getInstance().player?.fishing != null
         }
@@ -351,12 +361,12 @@ object ProfitTracker {
     }
 
     private fun itemAttributionPreset(batch: SkyBlockItemChangeBatch): ProfitTrackerPreset? {
-        val current = attributionPreset?.takeIf { presetConfig(it).enabled } ?: currentPreset
+        val current = currentAttributionPreset
         if (current != null) return current
         if (batch.source != SkyBlockItemChangeSource.SACKS) return null
         val windowMillis = (batch.sackWindowSeconds ?: return null) * MILLIS_PER_SECOND
         return previousPreset?.takeIf {
-            System.currentTimeMillis() - previousPresetLeftAtMillis <= windowMillis
+            canTrackPreset(it) && System.currentTimeMillis() - previousPresetLeftAtMillis <= windowMillis
         }
     }
 
