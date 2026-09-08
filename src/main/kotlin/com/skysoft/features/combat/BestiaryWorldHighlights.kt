@@ -2,8 +2,10 @@ package com.skysoft.features.combat
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ClientEntitySnapshot
+import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockBestiaryFamilies
+import com.skysoft.features.farming.PestEntities
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.render.EntityHighlightRenderer
@@ -42,7 +44,13 @@ internal object BestiaryWorldHighlights {
             return
         }
         if (++ticks % HIGHLIGHT_SCAN_INTERVAL_TICKS != 0) return
-        val highlights = SkyBlockMobEntityMatcher.visibleSignals(SkyBlockBestiaryFamilies.mobNames(config.selectedMobs))
+        val mobNames = SkyBlockBestiaryFamilies.mobNames(config.selectedMobs)
+        val pestTextures = if (SkyBlockIsland.GARDEN.isInIsland()) PestEntities.texturesByName() else emptyMap()
+        val selectedPestTextures = pestTextures.filterKeys { name -> mobNames.any { it.equals(name, ignoreCase = true) } }
+        val pestHighlights = PestEntities.matching(selectedPestTextures.values.toSet()).map { SkyBlockMobHighlight(it, it) }
+        val highlights = pestHighlights + SkyBlockMobEntityMatcher.visibleSignals(
+            mobNames.filterNot { name -> pestTextures.keys.any { it.equals(name, ignoreCase = true) } },
+        )
             .flatMap { signal ->
                 val parts = signal.nameplate?.let { nameplate ->
                     SegmentedMobHighlights.parts(nameplate, ClientEntitySnapshot.entities())
