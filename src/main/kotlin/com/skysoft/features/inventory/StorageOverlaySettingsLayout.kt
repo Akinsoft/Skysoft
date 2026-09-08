@@ -20,11 +20,11 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
 
     fun value(): Int = when (this) {
         MODE -> if (config.settings.mode == StorageOverlayMode.MODERN) 1 else 0
-        THEME -> if (config.settings.theme == StorageOverlayTheme.LIGHT) 1 else 0
+        THEME -> if (config.details.theme == StorageOverlayTheme.LIGHT) 1 else 0
         COLUMNS -> config.details.columns
         HEIGHT -> config.details.height
         PAGE_SPACING -> config.details.pageSpacing
-        SCROLL_SPEED -> config.details.scrollSpeed
+        SCROLL_SPEED -> config.settings.scrollSpeed
         AUTO_OPEN_PREVIOUS -> if (config.settings.autoOpenPrevious) 1 else 0
         SHORTCUT -> if (config.settings.miniMenu) 1 else 0
         DIM_BACKGROUND -> if (config.details.dimBackground) 1 else 0
@@ -56,11 +56,11 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
                 resetModernTransientState()
                 resetStorageScroll()
             }
-            THEME -> config.settings.theme = if (value != 0) StorageOverlayTheme.LIGHT else StorageOverlayTheme.DARK
+            THEME -> config.details.theme = if (value != 0) StorageOverlayTheme.LIGHT else StorageOverlayTheme.DARK
             COLUMNS -> config.details.columns = value
             HEIGHT -> config.details.height = value
             PAGE_SPACING -> config.details.pageSpacing = value
-            SCROLL_SPEED -> config.details.scrollSpeed = value
+            SCROLL_SPEED -> config.settings.scrollSpeed = value
             AUTO_OPEN_PREVIOUS -> config.settings.autoOpenPrevious = value != 0
             SHORTCUT -> config.settings.miniMenu = value != 0
             DIM_BACKGROUND -> config.details.dimBackground = value != 0
@@ -71,7 +71,7 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
     fun displayValue(): String = if (isToggle) {
         when (this) {
             MODE -> config.settings.mode.toString()
-            THEME -> config.settings.theme.toString()
+            THEME -> config.details.theme.toString()
             else -> if (value() != 0) "On" else "Off"
         }
     } else {
