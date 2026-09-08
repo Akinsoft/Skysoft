@@ -78,6 +78,8 @@ class InventoryFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Storage Overlay", desc = "Browse SkyBlock storage in a searchable overlay.")
     val storageOverlay = StorageOverlayConfig()
 
     @JvmField
@@ -111,14 +113,6 @@ class InventoryFeatureConfig : ConfigRepairable {
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var isExperimentationTableHelperEnabled = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:ConfigOption(name = "Storage Overlay", desc = "Replace SkyBlock storage screens with a searchable overlay.")
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var isStorageOverlayEnabled = false
 
     @JvmField
     @field:Expose
