@@ -150,7 +150,7 @@ internal fun isPartialFill(order: ProfileStorageView.BazaarOrderData, filled: Lo
 internal fun requireMarketProof(order: ProfileStorageView.BazaarOrderData) {
     val market = BazaarOrderBookApi.get(resolveOrderProductId(order))
     if (market == null || !rawMarketStatusFor(order, market).isWarning) {
-      BazaarTrackingState.marketProofMillis[order.id] = order.createdAtMillis
+        BazaarTrackingState.marketProofMillis[order.id] = order.createdAtMillis
     }
 }
 

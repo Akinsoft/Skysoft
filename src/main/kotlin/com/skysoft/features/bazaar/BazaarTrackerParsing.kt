@@ -4,7 +4,6 @@ import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import net.minecraft.world.item.ItemStack
 import java.util.UUID
 import kotlin.math.abs
@@ -235,7 +234,7 @@ internal fun PendingOrder.toOrderData(): ProfileStorage.BazaarOrderData =
         productId = productId,
         amountOrdered = amount,
         pricePerUnit = pricePerUnit,
-        totalCoins = totalCoins ?: amount * pricePerUnit,
+        totalCoins = totalCoins ?: (amount * pricePerUnit),
         filledAmount = filledAmount ?: 0L,
         claimedAmount = 0L,
         claimedCoins = 0.0,

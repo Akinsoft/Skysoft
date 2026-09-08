@@ -1,6 +1,5 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemNames
@@ -32,7 +31,7 @@ internal fun lotMatches(lot: ProfileStorageView.BazaarItemLotData, productId: St
 internal fun ItemStack.resolveBazaarOrderProductId(itemName: String): String? =
     skyBlockId().takeUnless(::isGenericBazaarProductId) ?: resolveProductId(itemName)
 
-internal fun resolveOrderProductId(order: ProfileStorage.BazaarOrderData): String? =
+internal fun resolveOrderProductId(order: ProfileStorageView.BazaarOrderData): String? =
     order.productId.takeUnless(::isGenericBazaarProductId) ?: resolveProductId(order.itemName)
 
 internal fun isGenericBazaarProductId(productId: String?): Boolean = productId == ENCHANTED_BOOK_ID
