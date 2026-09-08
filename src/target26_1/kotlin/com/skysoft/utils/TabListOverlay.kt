@@ -5,6 +5,10 @@ import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 
 object TabListOverlay {
+    fun overlay(minecraft: Minecraft) = minecraft.gui.tabList
+
+    fun areHeadsVisible(minecraft: Minecraft): Boolean = minecraft.isLocalServer || minecraft.connection!!.connection.isEncrypted
+
     fun readHeader(minecraft: Minecraft): Component? =
         (minecraft.gui.tabList as PlayerTabOverlayAccessor).skysoftGetHeader()
 

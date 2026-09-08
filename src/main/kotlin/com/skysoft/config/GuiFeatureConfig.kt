@@ -148,6 +148,7 @@ class GuiFeatureConfig : ConfigRepairable {
     var areTitlesRenderedInFront = false
 
     override fun repairLoadedValues() {
+        positionEditor.tabListPosition.rememberDefault(defaultTabListPosition())
         heldItem.repairLoadedValues()
         selectedItemName.repairLoadedValues()
         actionBar.repairLoadedValues()
@@ -257,6 +258,10 @@ class ScreenshotManagerDetailsConfig {
 class PositionEditorConfig {
     @JvmField
     @field:Expose
+    val tabListPosition = defaultTabListPosition().rememberDefault()
+
+    @JvmField
+    @field:Expose
     val titlePosition = HudPosition(0, -82, centerX = true, centerY = true).rememberDefault()
 
     @JvmField
@@ -284,6 +289,11 @@ class PositionEditorConfig {
     @field:Accordion
     val details = PositionEditorDetailsConfig()
 }
+
+private fun defaultTabListPosition() =
+    HudPosition(0, DEFAULT_TAB_LIST_TOP_MARGIN, centerX = true, centerY = false)
+
+private const val DEFAULT_TAB_LIST_TOP_MARGIN = 9
 
 class PositionEditorDetailsConfig {
     @JvmField
