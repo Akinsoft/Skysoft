@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import io.github.notenoughupdates.moulconfig.ChromaColour
+import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
@@ -43,31 +44,9 @@ class SettingsConfig {
 
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Search Highlight Color", desc = "Color used to highlight items you search for.")
-    @field:ConfigEditorColour
-    val searchHighlightColor: Property<ChromaColour> =
-        Property.of(ChromaColour.fromRGB(48, 255, 48, 0, 96))
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Selected Category Color", desc = "Color used for the selected category.")
-    @field:ConfigEditorColour
-    val selectedCategoryColor: Property<ChromaColour> =
-        Property.of(ChromaColour.fromRGB(85, 255, 255, 0, 255))
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Category Color", desc = "Color used for top-level categories.")
-    @field:ConfigEditorColour
-    val categoryColor: Property<ChromaColour> =
-        Property.of(ChromaColour.fromRGB(170, 170, 170, 0, 255))
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Subcategory Color", desc = "Color used for subcategories.")
-    @field:ConfigEditorColour
-    val subcategoryColor: Property<ChromaColour> =
-        Property.of(ChromaColour.fromRGB(85, 85, 85, 0, 255))
+    @field:ConfigOption(name = "Config Menu Appearance", desc = "Customize category and search highlight colors.")
+    @field:Accordion
+    val configMenuAppearance = ConfigMenuAppearanceConfig()
 
     @JvmField
     @field:Expose
@@ -111,4 +90,34 @@ class SettingsConfig {
         (option as? ProcessedOption.HasField)
             ?.field
             ?.isAnnotationPresent(MainFeatureToggle::class.java) == true
+}
+
+class ConfigMenuAppearanceConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Search Highlight Color", desc = "Color used to highlight items you search for.")
+    @field:ConfigEditorColour
+    val searchHighlightColor: Property<ChromaColour> =
+        Property.of(ChromaColour.fromRGB(48, 255, 48, 0, 96))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Selected Category Color", desc = "Color used for the selected category.")
+    @field:ConfigEditorColour
+    val selectedCategoryColor: Property<ChromaColour> =
+        Property.of(ChromaColour.fromRGB(85, 255, 255, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Category Color", desc = "Color used for top-level categories.")
+    @field:ConfigEditorColour
+    val categoryColor: Property<ChromaColour> =
+        Property.of(ChromaColour.fromRGB(170, 170, 170, 0, 255))
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Subcategory Color", desc = "Color used for subcategories.")
+    @field:ConfigEditorColour
+    val subcategoryColor: Property<ChromaColour> =
+        Property.of(ChromaColour.fromRGB(85, 85, 85, 0, 255))
 }

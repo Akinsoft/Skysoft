@@ -168,9 +168,9 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     override fun formatCategoryName(category: ProcessedCategory, isSelected: Boolean): StructuredText {
         val color = when {
-            isSelected -> settings.selectedCategoryColor
-            category.parentCategoryId == null -> settings.categoryColor
-            else -> settings.subcategoryColor
+            isSelected -> settings.configMenuAppearance.selectedCategoryColor
+            category.parentCategoryId == null -> settings.configMenuAppearance.categoryColor
+            else -> settings.configMenuAppearance.subcategoryColor
         }
         return category.displayName.copyShallow()
             .withColour(color.get().getEffectiveColourRGB() and RGB_MASK)

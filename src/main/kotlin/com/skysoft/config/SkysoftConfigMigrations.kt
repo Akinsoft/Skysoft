@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 24
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 25
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -66,6 +66,12 @@ internal object SkysoftConfigMigrations {
         if (migrationVersion < MOUSE_LOCK_FARMING_CATEGORY_VERSION) migrateMouseLockIntoFarming(json)
         migrateHoneyhiveHelper(json, migrationVersion)
         if (migrationVersion < STORAGE_OVERLAY_CATEGORY_VERSION) migrateStorageOverlayCategory(json)
+        if (migrationVersion < SETTINGS_APPEARANCE_ACCORDIONS_VERSION) {
+            json.getObjectOrNull("settings")?.moveFieldsInto(
+                "configMenuAppearance",
+                listOf("searchHighlightColor", "selectedCategoryColor", "categoryColor", "subcategoryColor"),
+            )
+        }
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -401,6 +407,7 @@ internal object SkysoftConfigMigrations {
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
     private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 19
     private const val MOUSE_LOCK_FARMING_CATEGORY_VERSION = 21
+    private const val SETTINGS_APPEARANCE_ACCORDIONS_VERSION = 25
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
