@@ -305,7 +305,7 @@ private class SackDisplayRenderable(
         mouseX: Int?,
         mouseY: Int?,
     ): OverlayControlArea<SackDisplayControl>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         var y = padding
         LegacyTextRenderer.draw(context, OverlayTextStyle.title(title), padding, y)
         y += OverlayTextStyle.TITLE_HEIGHT

@@ -181,7 +181,7 @@ private class HoneyhiveRenderable(
     }
 
     override fun render(context: GuiGraphicsExtractor) {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         LegacyTextRenderer.draw(context, OverlayTextStyle.title("Honeyhives"), padding, padding)
         var y = padding + OverlayTextStyle.TITLE_HEIGHT
         rows.forEach { row ->

@@ -50,6 +50,12 @@ class SettingsConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "HUD Appearance", desc = "Shared appearance settings for HUD elements.")
+    @field:Accordion
+    val hudAppearance = HudAppearanceConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(
         name = "For Intrests",
         desc = "A long long time ago, a wise Intrests said \"what if a mod did...\" and then this happened.",
@@ -120,4 +126,16 @@ class ConfigMenuAppearanceConfig {
     @field:ConfigEditorColour
     val subcategoryColor: Property<ChromaColour> =
         Property.of(ChromaColour.fromRGB(85, 85, 85, 0, 255))
+}
+
+class HudAppearanceConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Background Color",
+        desc = "Default color and opacity for HUD backgrounds. A display's own color or opacity setting takes precedence.",
+    )
+    @field:ConfigEditorColour
+    val backgroundColor: Property<ChromaColour> =
+        Property.of(ChromaColour.fromRGB(16, 16, 16, 0, 176))
 }
