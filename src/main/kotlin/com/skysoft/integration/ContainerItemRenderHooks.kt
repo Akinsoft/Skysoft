@@ -4,10 +4,12 @@ import com.skysoft.features.inventory.AnimatedDyeArmorCache
 import com.skysoft.features.inventory.ContainerSearchHighlighter
 import com.skysoft.features.inventory.ExperimentationTableHelper
 import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.MenuKeybinds
 import com.skysoft.features.inventory.RarityHighlightRenderer
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.utils.SkysoftErrorBoundary
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
@@ -34,6 +36,15 @@ object ContainerItemRenderHooks {
         return SkysoftErrorBoundary.value<ItemStack?>("Player Head Skin inventory item", rememberedStack) {
             PlayerHeadSkinFix.inventoryStack(slot, rememberedStack)
         }
+    }
+
+    @JvmStatic
+    fun menuKeybindLabel(screen: AbstractContainerScreen<*>, slot: Slot): String? =
+        SkysoftErrorBoundary.value<String?>("Menu Keybind label", null) { MenuKeybinds.keybindLabel(screen, slot) }
+
+    @JvmStatic
+    fun renderMenuKeybind(context: GuiGraphicsExtractor, font: Font, label: String, x: Int, y: Int) {
+        SkysoftErrorBoundary.run("Menu Keybind rendering") { MenuKeybinds.renderKeybind(context, font, label, x, y) }
     }
 
     @JvmStatic
