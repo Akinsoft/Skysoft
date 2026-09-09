@@ -128,7 +128,7 @@ internal fun drawCustomBarText(context: GuiGraphicsExtractor, text: String, x: I
     context.text(font, text, x, y, color, false)
 }
 
-private val config get() = SkysoftConfigGui.config().gui.customBars
+private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
 private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
 
 private const val RESOURCE_TEXT_Y = 1

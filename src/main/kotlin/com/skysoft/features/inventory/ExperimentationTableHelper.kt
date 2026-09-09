@@ -127,7 +127,7 @@ object ExperimentationTableHelper {
     }
 
     private fun activeGame(screen: AbstractContainerScreen<*>): ExperimentationGame? {
-        if (!SkysoftConfigGui.config().inventory.isExperimentationTableHelperEnabled) return null
+        if (!SkysoftConfigGui.config().enchanting.isExperimentationTableHelperEnabled) return null
         if (!HypixelLocationState.inSkyBlock) return null
         return experimentationGameFromTitle(screen.title.string.cleanSkyBlockText())
     }

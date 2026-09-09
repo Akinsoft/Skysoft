@@ -18,8 +18,8 @@ class SlayerFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Boss Alerts", desc = "Show alerts for Slayer boss events.")
-    val bossAlerts = SlayerBossAlertsConfig()
+    @field:Category(name = "Alerts", desc = "Boss and miniboss notifications.")
+    val alerts = SlayerAlertsConfig()
 
     @JvmField
     @field:Expose
@@ -35,6 +35,13 @@ class SlayerFeatureConfig {
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var blazeAttunementHighlights = false
+}
+
+class SlayerAlertsConfig {
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Boss Alerts", desc = "Show alerts for Slayer boss events.")
+    val bossAlerts = SlayerBossAlertsConfig()
 
     @JvmField
     @field:Expose

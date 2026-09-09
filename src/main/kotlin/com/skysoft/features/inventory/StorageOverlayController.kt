@@ -101,7 +101,7 @@ object StorageOverlayController {
 }
 
 internal val storage get() = ProfileStorageApi.storage
-internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
+internal val config get() = SkysoftConfigGui.config().storageFeatures.storageOverlay
 internal val isStorageOverlayEnabled get() = config.enabled
 internal val isModernStorageOverlay get() = config.settings.mode == StorageOverlayMode.MODERN
 internal val isLightStorageOverlay get() = config.details.theme == StorageOverlayTheme.LIGHT

@@ -37,7 +37,7 @@ import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
 
 object ProfitTracker {
-    private val configs get() = SkysoftConfigGui.config().profitTrackers
+    private val configs get() = SkysoftConfigGui.config().loot.profitTrackers
     private val statistics = ProfitTrackerStatistics()
     private val questCostCapture = SlayerQuestCostCapture()
     private var attributionPreset: ProfitTrackerPreset? = null
@@ -399,7 +399,7 @@ internal fun profitTrackerSourcePrice(
 }
 
 internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
-    with(SkysoftConfigGui.config().profitTrackers) {
+    with(SkysoftConfigGui.config().loot.profitTrackers) {
         when (preset) {
             ProfitTrackerPreset.FARMING -> farming
             ProfitTrackerPreset.FISHING -> fishing

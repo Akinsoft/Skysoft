@@ -42,5 +42,5 @@ object MinisterCalendarTooltip {
     }
 
     private fun isConfigured(): Boolean =
-        SkysoftConfigGui.config().inventory.isMinisterInCalendarShown && HypixelLocationState.inSkyBlock
+        SkysoftConfigGui.config().events.isMinisterInCalendarShown && HypixelLocationState.inSkyBlock
 }

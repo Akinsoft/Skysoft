@@ -103,7 +103,7 @@ object BlockOverlay {
     }
 
     private val config
-        get() = SkysoftConfigGui.config().misc.blockOverlay
+        get() = SkysoftConfigGui.config().world.blockOverlay
 
     private const val FILL_ALPHA_SCALE = 0.2
     private const val LINE_WIDTH = 3

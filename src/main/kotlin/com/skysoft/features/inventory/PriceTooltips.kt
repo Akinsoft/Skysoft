@@ -18,7 +18,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
 object PriceTooltips {
-    private val config get() = SkysoftConfigGui.config().inventory.priceTooltips
+    private val config get() = SkysoftConfigGui.config().items.priceTooltips
     private var catalogVersion = Long.MIN_VALUE
     private var catalogIdsByDisplayName: Map<String, Set<String>> = emptyMap()
 

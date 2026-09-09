@@ -15,7 +15,7 @@ import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
 object PestHelper {
-    private val config get() = SkysoftConfigGui.config().farming.pestHelper
+    private val config get() = SkysoftConfigGui.config().farming.pests.pestHelper
     private val settings get() = config.settings
     private var warpKeyWasDown = false
     private var returnKeyWasDown = false

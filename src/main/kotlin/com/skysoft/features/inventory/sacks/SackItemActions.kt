@@ -23,7 +23,7 @@ internal fun wasSackItemClickHandled(
         MinecraftClient.setScreen(null)
         true
     }
-    GLFW.GLFW_MOUSE_BUTTON_RIGHT -> if (SkysoftConfigGui.config().inventory.itemList.enabled) {
+    GLFW.GLFW_MOUSE_BUTTON_RIGHT -> if (SkysoftConfigGui.config().items.itemList.enabled) {
         MinecraftClient.setScreen(ItemListViewerScreen(screen, SkyBlockDataRepository.itemKey(itemId)))
         true
     } else {
@@ -34,7 +34,7 @@ internal fun wasSackItemClickHandled(
 
 internal fun sackItemActionLines(): List<String> = buildList {
     add("§eLeft-click §7to open Bazaar")
-    if (SkysoftConfigGui.config().inventory.itemList.enabled) {
+    if (SkysoftConfigGui.config().items.itemList.enabled) {
         add("§eRight-click §7to open Item List Info")
     }
 }

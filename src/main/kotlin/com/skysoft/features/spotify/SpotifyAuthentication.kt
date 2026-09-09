@@ -269,7 +269,7 @@ object SpotifyAuthentication {
         pending?.server?.stop(0)
     }
 
-    private fun settings() = SkysoftConfigGui.config().gui.spotifyDisplay.settings
+    private fun settings() = SkysoftConfigGui.config().gui.information.spotifyDisplay.settings
 
     private fun Throwable.unwrap(): Throwable = (this as? java.util.concurrent.CompletionException)?.cause ?: this
 

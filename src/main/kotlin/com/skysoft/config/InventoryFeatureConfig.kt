@@ -15,188 +15,31 @@ class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Item List", desc = "Browse items, mobs, recipes, drops, and usages.")
-    val itemList = ItemListConfig()
+    @field:Category(name = "Equipment", desc = "Equipment displays and menu keybinds.")
+    val equipment = InventoryEquipmentGroupConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Controls", desc = "Inventory buttons, item movement, and input controls.")
+    val controls = InventoryControlsConfig()
 
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Crafting Helper", desc = "Track the materials needed for selected recipes.")
-    val craftingHelper = CraftingHelperConfig()
+    @field:Category(name = "Protection & Warnings", desc = "Protect items and warn when inventory space is low.")
+    val protection = InventoryProtectionConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Bazaar", desc = "Bazaar order tracking and overlays.")
-    val bazaar = SkysoftBazaarConfig()
+    @field:Category(name = "Appearance", desc = "Inventory item appearance and screen scaling.")
+    val appearance = InventoryAppearanceConfig()
 
     @JvmField
     @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Sack Display", desc = "Show sack contents beside open sack menus.")
-    val sackDisplay = SackDisplayConfig()
+    @field:Category(name = "Tooltips", desc = "Tooltip navigation and appearance.")
+    val tooltips = InventoryTooltipsConfig()
 
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Sacks Tracker", desc = "Show selected sack item quantities on a movable HUD.")
-    val sackHud = SackHudConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Tooltip Scroll", desc = "Move oversized item tooltips.")
-    val tooltipScroll = TooltipScrollConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Price Tooltips", desc = "Market and craft values on item tooltips.")
-    val priceTooltips = PriceTooltipsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Item Change Log", desc = "Show recent inventory item gains and losses.")
-    val itemChangeLog = ItemChangeLogConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Rarity Highlight", desc = "Highlight inventory items by SkyBlock rarity.")
-    val rarityHighlight = RarityHighlightConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Head Display Size", desc = "Resize player head item icons.")
-    val headDisplaySize = HeadDisplaySizeConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Storage Previews", desc = "Preview the contents of SkyBlock storage items.")
-    val storagePreviews = StoragePreviewsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Storage Overlay", desc = "Browse SkyBlock storage in a searchable overlay.")
-    val storageOverlay = StorageOverlayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Solid Tooltip Background", desc = "Make tooltip backgrounds fully opaque.")
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var isTooltipBackgroundSolid = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Max Enchant Chroma", desc = "Show maximum-level enchantments in animated chroma.")
-    val maxEnchantChroma = MaxEnchantChromaConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:ConfigOption(name = "Minister in Calendar", desc = "Show the current minister and perk beside the mayor tooltip.")
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var isMinisterInCalendarShown = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:ConfigOption(
-        name = "Experimentation Helper",
-        desc = "Show Chronomatron notes, reveal Ultrasequencer numbers, and keep seen Superpairs rewards visible.",
-    )
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var isExperimentationTableHelperEnabled = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Inventory Equipment", desc = "Show cached equipment beside your inventory.")
-    val inventoryEquipment = InventoryEquipmentConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Wardrobe Keybinds", desc = "Equip armor sets with keys while the Armor Sets menu is open.")
-    val wardrobeKeybinds = SetMenuKeybindsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Equipment Keybinds", desc = "Equip equipment sets with keys while the Equipment Sets menu is open.")
-    val equipmentKeybinds = SetMenuKeybindsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Loadout Keybinds", desc = "Equip loadouts with keys while the Loadouts menu is open.")
-    val loadoutKeybinds = LoadoutMenuKeybindsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Inventory Buttons", desc = "Custom command buttons shown on inventory screens.")
-    val inventoryButtons = InventoryButtonsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Full Inventory", desc = "Warn when your inventory is nearly full.")
-    val fullInventory = FullInventoryConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Slot Bindings", desc = "Bind inventory slots together and shift-click either slot to swap them.")
-    val slotBindings = SlotBindingsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Slot Locking", desc = "Protect inventory slots from item movement and drops.")
-    val slotLocking = SlotLockingConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Protect Item", desc = "Keep specific SkyBlock items from being dropped.")
-    val protectItem = ProtectItemConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Smooth Swapping", desc = "Animate items moving between inventory slots.")
-    val smoothSwapping = SmoothSwappingConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(
-        name = "Preserve Cursor Position",
-        desc = "Keep cursor positions through brief inventory closures.",
-    )
-    val cursorPositionPreservation = PreserveCursorPositionConfig()
-
-    override fun repairLoadedValues() = repairLoadedConfigs(
-        itemList,
-        craftingHelper,
-        bazaar,
-        sackDisplay,
-        sackHud,
-        tooltipScroll,
-        priceTooltips,
-        smoothSwapping,
-        inventoryButtons,
-        fullInventory,
-        storagePreviews,
-        storageOverlay,
-        rarityHighlight,
-        headDisplaySize,
-    )
+    override fun repairLoadedValues() = repairLoadedConfigs(controls, protection, appearance, tooltips)
 }
 
 class PreserveCursorPositionConfig {

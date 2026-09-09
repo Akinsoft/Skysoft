@@ -24,61 +24,13 @@ class GuiFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Screenshot Manager", desc = "Browse and manage Minecraft screenshots.")
-    val screenshotManager = ScreenshotManagerConfig()
+    @field:Category(name = "Player HUD", desc = "Player status, action bar, and inventory displays.")
+    val playerHud = PlayerHudConfig()
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Held Item", desc = "Customize first-person held item visuals and swing duration.")
-    val heldItem = HeldItemConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(
-        name = "Crosshair Visibility",
-        desc = "Choose which perspectives show the crosshair.",
-    )
-    @field:ConfigEditorDropdown
-    var crosshairVisibility = CrosshairVisibility.FIRST_PERSON
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Selected Item Name", desc = "Customize the item name shown above the hotbar.")
-    val selectedItemName = SelectedItemNameConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Action Bar", desc = "Customize the action bar position and visuals.")
-    val actionBar = SkysoftActionBarConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Skill EXP Display", desc = "Move Skill EXP gains out of the action bar.")
-    val skillExpDisplay = SkillExpDisplayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Inventory HUD", desc = "Show your inventory, armor, and equipment in-game.")
-    val inventoryHud = InventoryHudConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Custom Bars", desc = "Replace SkyBlock status displays with custom bars.")
-    val customBars = CustomBarsConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:ConfigOption(
-        name = "SkyBlock Level Bar",
-        desc = "Show your SkyBlock Level and progress on Minecraft's experience bar.",
-    )
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var isSkyBlockLevelBarEnabled = false
+    @field:Category(name = "Information Displays", desc = "Party, time, music, and server information.")
+    val information = InformationDisplaysConfig()
 
     @JvmField
     @field:Expose
@@ -88,57 +40,8 @@ class GuiFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Party Display", desc = "Show your current party on screen.")
-    val partyDisplay = PartyDisplayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Day Display", desc = "Show the current Minecraft day.")
-    val dayDisplay = DayDisplayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Spotify Display", desc = "Show your current Spotify playback.")
-    val spotifyDisplay = SpotifyDisplayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Real Time Display", desc = "Show your local time.")
-    val realTimeDisplay = RealTimeDisplayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Server Info Display", desc = "Show FPS, TPS, and ping.")
-    val serverInfoDisplay = ServerInfoDisplayConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Inventory & Tooltip Scale", desc = "GUI scaling for inventory screens and tooltips.")
-    val inventoryScreen = InventoryScreenConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Vanilla UI", desc = "Choose which parts of Minecraft's interface to hide.")
+    @field:Category(name = "Vanilla UI", desc = "Customize or hide parts of Minecraft's interface.")
     val vanillaUi = VanillaUiConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(
-        name = "Merge Absorption Hearts",
-        desc = "Show absorption within the normal heart grid instead of extending the health bar.",
-    )
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var areAbsorptionHeartsMerged = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Stop Heart Bobbing", desc = "Stop regeneration and low-health heart movement.")
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var isHeartBobbingDisabled = false
 
     @JvmField
     @field:Expose
@@ -149,11 +52,7 @@ class GuiFeatureConfig : ConfigRepairable {
 
     override fun repairLoadedValues() {
         positionEditor.tabListPosition.rememberDefault(defaultTabListPosition())
-        heldItem.repairLoadedValues()
-        selectedItemName.repairLoadedValues()
-        actionBar.repairLoadedValues()
-        inventoryHud.repairLoadedValues()
-        customBars.repairLoadedValues()
+        playerHud.repairLoadedValues()
         betterTab.repairLoadedValues()
     }
 }
@@ -202,6 +101,37 @@ class VanillaUiConfig {
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var areVanillaStatusEffectsHidden = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Crosshair Visibility",
+        desc = "Choose which perspectives show the crosshair.",
+    )
+    @field:ConfigEditorDropdown
+    var crosshairVisibility = CrosshairVisibility.FIRST_PERSON
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Merge Absorption Hearts",
+        desc = "Show absorption within the normal heart grid instead of extending the health bar.",
+    )
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var areAbsorptionHeartsMerged = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Stop Heart Bobbing", desc = "Stop regeneration and low-health heart movement.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var isHeartBobbingDisabled = false
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Hide Silly Buttons", desc = "Hide selected Minecraft menu buttons.")
+    val hideSillyButtons = HideSillyButtonsConfig()
 }
 
 class ScreenshotManagerConfig {

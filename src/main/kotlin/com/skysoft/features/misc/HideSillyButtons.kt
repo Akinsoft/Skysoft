@@ -14,7 +14,7 @@ import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
 
 internal object HideSillyButtons {
-    private val config get() = SkysoftConfigGui.config().misc.hideSillyButtons
+    private val config get() = SkysoftConfigGui.config().gui.vanillaUi.hideSillyButtons
 
     fun register() {
         val phase = Identifier.fromNamespaceAndPath("skysoft", "menu_button_layout")

@@ -10,7 +10,7 @@ internal object ItemListState {
     var page = 0
     var isTemporarilyHidden = false
 
-    private val config: ItemListConfig get() = SkysoftConfigGui.config().inventory.itemList
+    private val config: ItemListConfig get() = SkysoftConfigGui.config().items.itemList
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Item List disconnect reset") {

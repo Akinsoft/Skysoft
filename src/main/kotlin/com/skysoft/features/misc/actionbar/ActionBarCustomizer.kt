@@ -27,7 +27,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.util.ARGB
 
 object ActionBarCustomizer {
-    private val config get() = SkysoftConfigGui.config().gui.actionBar
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.actionBar
 
     fun register() {
         HudEditorRegistry.register(object : HudEditorElement {

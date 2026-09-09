@@ -74,12 +74,12 @@ class InventoryCursorMemory private constructor() {
         private fun isUsable(snapshot: CursorSnapshot?): Boolean =
             snapshot?.let {
                 val durationSeconds = SkysoftConfigGui.config()
-                    .inventory.cursorPositionPreservation.settings.durationSeconds
+                    .inventory.controls.cursorPositionPreservation.settings.durationSeconds
                 System.nanoTime() - it.capturedAt <=
                     durationSeconds * NANOS_PER_SECOND
             } == true
 
-        private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.cursorPositionPreservation.enabled
+        private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.controls.cursorPositionPreservation.enabled
 
         private fun discard() {
             inventoryScreenClosed = false

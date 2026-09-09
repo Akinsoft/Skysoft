@@ -30,7 +30,7 @@ object ServerInfoDisplay {
     private val pingTracker = ServerPingTracker()
     private var isPingTrackingActive = false
     private var hasActiveMetrics = false
-    private val config get() = SkysoftConfigGui.config().gui.serverInfoDisplay
+    private val config get() = SkysoftConfigGui.config().gui.information.serverInfoDisplay
 
     fun register() {
         ServerTpsProvider.registerConsumer(TPS_CONSUMER_ID)

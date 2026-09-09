@@ -277,7 +277,7 @@ internal class ItemListBazaarGraph {
 
     private fun rangeRow(bounds: Rect, index: Int) = bazaarRangeRow(bounds, index)
 
-    private fun preferences(): ItemListSourcesConfig = SkysoftConfigGui.config().inventory.itemList.sources
+    private fun preferences(): ItemListSourcesConfig = SkysoftConfigGui.config().items.itemList.sources
 
     private fun savePreferences() = SkysoftConfigGui.config().saveNow()
 }

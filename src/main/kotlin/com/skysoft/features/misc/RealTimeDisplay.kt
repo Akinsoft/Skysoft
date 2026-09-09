@@ -19,7 +19,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object RealTimeDisplay {
-    private val config get() = SkysoftConfigGui.config().gui.realTimeDisplay
+    private val config get() = SkysoftConfigGui.config().gui.information.realTimeDisplay
 
     fun register() {
         GuiOverlayRegistry.registerHud(

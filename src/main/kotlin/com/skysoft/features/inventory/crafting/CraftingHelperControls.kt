@@ -177,7 +177,7 @@ private fun wasCraftingHelperLineClickHandled(
     }
     GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
         val key = line.key ?: return false
-        if (!SkysoftConfigGui.config().inventory.itemList.enabled) return false
+        if (!SkysoftConfigGui.config().items.itemList.enabled) return false
         MinecraftClient.setScreen(ItemListViewerScreen(screen, key))
         true
     }

@@ -33,7 +33,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
 object SkillExpDisplay {
-    private val config get() = SkysoftConfigGui.config().gui.skillExpDisplay
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.skillExpDisplay
     private var current: SkillExpDisplayState? = null
 
     fun register() {

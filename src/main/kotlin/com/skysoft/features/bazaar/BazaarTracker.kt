@@ -44,5 +44,5 @@ object BazaarTracker {
         shouldBlockBazaarOrderInteraction(screen, slotId)
 }
 
-internal val config get() = SkysoftConfigGui.config().inventory.bazaar
+internal val config get() = SkysoftConfigGui.config().items.bazaar
 internal val storage get() = ProfileStorageApi.storage.bazaarTracker

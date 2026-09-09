@@ -22,7 +22,7 @@ import net.minecraft.util.ARGB
 import net.minecraft.world.item.ItemStack
 
 object SelectedItemName {
-    private val config get() = SkysoftConfigGui.config().gui.selectedItemName
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.selectedItemName
 
     fun register() {
         HudEditorRegistry.register(object : HudEditorElement {

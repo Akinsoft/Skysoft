@@ -120,12 +120,12 @@ private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
     )
 
     private fun repairAndSave() {
-        SkysoftConfigGui.config().profitTrackers.custom.repairLoadedValues()
+        SkysoftConfigGui.config().loot.profitTrackers.custom.repairLoadedValues()
         SkysoftConfigGui.config().saveNow()
     }
 
     private fun customTrackers(): MutableList<CustomProfitTrackerConfig> =
-        SkysoftConfigGui.config().profitTrackers.custom.trackers
+        SkysoftConfigGui.config().loot.profitTrackers.custom.trackers
 }
 
 private class CustomProfitTrackerScreen(
