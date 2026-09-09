@@ -1,12 +1,12 @@
 package com.skysoft.features.farming
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
 import com.skysoft.data.skyblock.pets.PetSkins
-import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.EntityHighlightTracker
@@ -36,7 +36,7 @@ object HighlightPests {
         if (++ticks % SCAN_INTERVAL_TICKS != 0) return
 
         val pestTextures = pestTextureIdentities()
-        val pests = SkyBlockMobEntityMatcher.allEntities().asSequence()
+        val pests = ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<ArmorStand>()
             .filterTo(mutableSetOf()) { armorStand ->
                 armorStand.isAlive && armorStand.isInvisible && !armorStand.isMarker &&

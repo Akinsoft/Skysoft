@@ -33,7 +33,7 @@ public class MultiPlayerGameModeMixin {
     private static final String INSERT_INVENTORY_NAME = "Insert inventory";
 
     @Inject(method = "handleContainerInput", at = @At("HEAD"))
-    protected void skysoftTrackContainerItemDrop(int containerId, int slotNum, int buttonNum, ContainerInput input, Player player, CallbackInfo ci) {
+    protected void skysoftTrackContainerTransfers(int containerId, int slotNum, int buttonNum, ContainerInput input, Player player, CallbackInfo ci) {
         if (ci.isCancelled() || player.containerMenu.containerId != containerId) return;
         Screen current = MinecraftClient.INSTANCE.screen();
         AbstractContainerScreen<?> screen = current instanceof AbstractContainerScreen<?> container ? container : null;
@@ -45,10 +45,14 @@ public class MultiPlayerGameModeMixin {
             SkyBlockSackTransfers.INSTANCE.recordInsertInventory();
         }
         ItemStack stack;
-        if (input == ContainerInput.THROW && validSlot) stack = player.containerMenu.getSlot(slotNum).getItem();
-        else if (input == ContainerInput.PICKUP && slotNum == OUTSIDE_SLOT) stack = player.containerMenu.getCarried();
-        else return;
-        int amount = buttonNum == 0 ? input == ContainerInput.THROW ? 1 : stack.getCount() : input == ContainerInput.THROW ? stack.getCount() : 1;
+        int amount;
+        if (input == ContainerInput.THROW && validSlot) {
+            stack = player.containerMenu.getSlot(slotNum).getItem();
+            amount = buttonNum == 0 ? 1 : stack.getCount();
+        } else if (input == ContainerInput.PICKUP && slotNum == OUTSIDE_SLOT) {
+            stack = player.containerMenu.getCarried();
+            amount = buttonNum == 0 ? stack.getCount() : 1;
+        } else return;
         SkyBlockDroppedItems.INSTANCE.recordIntent(stack, amount);
     }
 

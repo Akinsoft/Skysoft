@@ -18,7 +18,7 @@ object SkyBlockProfileApi {
         private set
 
     val currentProfileKey: String?
-        get() = currentProfileName?.normalizeProfileName()
+        get() = currentProfileName
 
     val currentProfileId: SkyBlockProfileId?
         get() = SkyBlockProfileId.fromExactKeys(currentPlayerKeyOrNull(), currentProfileKey)

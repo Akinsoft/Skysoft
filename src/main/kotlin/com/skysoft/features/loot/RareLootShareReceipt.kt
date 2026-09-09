@@ -8,7 +8,7 @@ internal object RareLootShareReceipt {
         assistedPlayer(message) != null
 
     fun isWithinWindow(lastReceiptAtMillis: Long, now: Long): Boolean =
-        lastReceiptAtMillis > 0L && now - lastReceiptAtMillis <= RECEIPT_WINDOW_MILLIS
+        lastReceiptAtMillis > 0L && now - lastReceiptAtMillis in 0..RECEIPT_WINDOW_MILLIS
 
     private val receiptPattern = Regex(
         """^LOOT SHARE You received(?: .+?)? for assisting (?<player>[A-Z0-9_]{1,16})!(?: \(\d+\))?$""",

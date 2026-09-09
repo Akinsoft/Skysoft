@@ -1,27 +1,27 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import kotlin.math.roundToInt
 
 internal fun renderHud(context: GuiGraphicsExtractor) {
     val minecraft = Minecraft.getInstance()
     if (!isBazaarTrackerVisible(minecraft)) {
-        hoveredControlArea = null
+        BazaarDisplayState.hoveredControlArea = null
         return
     }
     val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
     val inventoryOpen = inventoryScreen != null
     val renderable = buildRenderable(inventoryOpen)
     if (renderable.width <= 0 || renderable.height <= 0) {
-        hoveredControlArea = null
+        BazaarDisplayState.hoveredControlArea = null
         return
     }
     val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
@@ -53,28 +53,26 @@ internal fun renderPositioned(
     mouseX: Int? = null,
     mouseY: Int? = null,
 ) {
-    val scale = config.position.effectiveScale
-    val scaledWidth = (renderable.width * scale).roundToInt()
-    val scaledHeight = (renderable.height * scale).roundToInt()
-    val x = config.position.getAbsX0AllowingOverflow(scaledWidth)
-    val y = config.position.getAbsY0AllowingOverflow(scaledHeight)
-    val localMouseX = mouseX?.let { OverlayControlMouse.localCoordinate(it, x, scale) }
-    val localMouseY = mouseY?.let { OverlayControlMouse.localCoordinate(it, y, scale) }
-    context.pose().pushMatrix()
-    context.pose().translate(x.toFloat(), y.toFloat())
-    context.pose().scale(scale, scale)
-    val hoveredArea = if (updateControls) renderable.render(context, localMouseX, localMouseY) else {
-        renderable.render(context)
+    val transform = config.position.transform(renderable.width, renderable.height)
+    val localMouseX = mouseX?.let(transform::localX)
+    val localMouseY = mouseY?.let(transform::localY)
+    val hoveredArea = transform.render(context) {
+        if (updateControls) renderable.render(context, localMouseX, localMouseY) else {
+            renderable.render(context)
+            null
+        }
+    }
+    BazaarDisplayState.hoveredControlArea = if (updateControls) {
+        hoveredArea?.copy(bounds = transform.screenBounds(hoveredArea.bounds))
+    } else {
         null
     }
-    context.pose().popMatrix()
-    hoveredControlArea = if (updateControls) hoveredArea?.toOverlayArea(x, y, scale) else null
 }
 
 internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
     val orders = displayOrders()
     val lines = buildList {
-        add(DisplayLine.title("§e§lBazaar Tracker"))
+        add(DisplayLine.text("§e§lBazaar Tracker"))
         if (orders.isEmpty()) {
             add(DisplayLine.text("§7Open §eBazaar Orders §7to load orders."))
         } else {
@@ -88,7 +86,11 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
         }
         if (config.details.flippingInfo) {
             val activeValue = trackedInvestedValue(storage)
-            val profit = if (displayMode == TrackerDisplayMode.SESSION) sessionKnownProfit else storage.totalKnownProfit
+            val profit = if (BazaarDisplayState.mode == TrackerDisplayMode.SESSION) {
+                BazaarSessionState.knownProfit
+            } else {
+                storage.totalKnownProfit
+            }
             add(DisplayLine.text("§7Invested: §6${formatCoins(activeValue)}"))
             add(DisplayLine.text("§7Profit: §a${formatSigned(profit)}"))
             if (inventoryOpen) add(displayModeLine())
@@ -101,23 +103,23 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
 private fun displayModeLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§7Display Mode "),
     LineSegment(
-        if (displayMode == TrackerDisplayMode.SESSION) "§a§l[Session]" else "§a§l[Total]",
+        if (BazaarDisplayState.mode == TrackerDisplayMode.SESSION) "§a§l[Session]" else "§a§l[Total]",
         TrackerControl.TOGGLE_MODE,
     ),
 )
 
 internal fun resetLine(): DisplayLine = DisplayLine.segments(
-    LineSegment("§c[Reset ${displayMode.displayName}]", TrackerControl.RESET),
+    LineSegment("§c[Reset ${BazaarDisplayState.mode.displayName}]", TrackerControl.RESET),
 )
 
-private fun displayOrders(): List<ProfileStorage.BazaarOrderData> =
+private fun displayOrders(): List<ProfileStorageView.BazaarOrderData> =
     storage.activeOrders.sortedWith(
-        compareByDescending<ProfileStorage.BazaarOrderData> { statusPriority(statusFor(it)) }
+        compareByDescending<ProfileStorageView.BazaarOrderData> { statusPriority(statusFor(it)) }
             .thenByDescending { it.updatedAtMillis }
             .thenBy { it.createdAtMillis },
     )
 
-internal fun orderLine(order: ProfileStorage.BazaarOrderData): DisplayLine {
+internal fun orderLine(order: ProfileStorageView.BazaarOrderData): DisplayLine {
     val status = statusFor(order)
     val typeColor = if (order.type == BazaarOrderType.BUY) "§b" else "§d"
     val progress = "${fillProgressStyle(order)}(${formatAmount(visibleFilledAmount(order))}/${formatOrderAmount(order)})"
@@ -126,31 +128,33 @@ internal fun orderLine(order: ProfileStorage.BazaarOrderData): DisplayLine {
     return DisplayLine(status.label, status.color, listOf(LineSegment(text)))
 }
 
-internal fun markFillHighlight(order: ProfileStorage.BazaarOrderData, filled: Long) {
+internal fun markFillHighlight(order: ProfileStorageView.BazaarOrderData, filled: Long) {
     if (isPartialFill(order, filled)) {
-        fillHighlightExpiresAt[order.id] = System.currentTimeMillis() + FILL_HIGHLIGHT_MILLIS
+        BazaarTrackingState.fillHighlightExpiresAt[order.id] = System.currentTimeMillis() + FILL_HIGHLIGHT_MILLIS
     }
 }
 
-private fun fillProgressStyle(order: ProfileStorage.BazaarOrderData): String {
-    val expiresAt = fillHighlightExpiresAt[order.id] ?: return "§8"
+private fun fillProgressStyle(order: ProfileStorageView.BazaarOrderData): String {
+    val expiresAt = BazaarTrackingState.fillHighlightExpiresAt[order.id] ?: return "§8"
     val filled = visibleFilledAmount(order)
     if (System.currentTimeMillis() >= expiresAt || !isPartialFill(order, filled)) {
-        fillHighlightExpiresAt.remove(order.id)
+        BazaarTrackingState.fillHighlightExpiresAt.remove(order.id)
         return "§8"
     }
     return "§a§l"
 }
 
-internal fun isPartialFill(order: ProfileStorage.BazaarOrderData, filled: Long): Boolean =
+internal fun isPartialFill(order: ProfileStorageView.BazaarOrderData, filled: Long): Boolean =
     order.amountOrdered > 0 && filled > order.claimedAmount && filled < order.maximumAmount()
 
-internal fun requireMarketProof(order: ProfileStorage.BazaarOrderData) {
-    val market = BazaarOrderBookApi.get(order.productId)
-    if (market == null || !rawMarketStatusFor(order, market).isWarning) marketProofMillis[order.id] = order.createdAtMillis
+internal fun requireMarketProof(order: ProfileStorageView.BazaarOrderData) {
+    val market = BazaarOrderBookApi.get(resolveOrderProductId(order))
+    if (market == null || !rawMarketStatusFor(order, market).isWarning) {
+        BazaarTrackingState.marketProofMillis[order.id] = order.createdAtMillis
+    }
 }
 
-internal fun statusFor(order: ProfileStorage.BazaarOrderData): OrderStatus {
+internal fun statusFor(order: ProfileStorageView.BazaarOrderData): OrderStatus {
     if (order.amountOrdered > 0 && visibleFilledAmount(order) >= order.maximumAmount()) return OrderStatus.FILLED
     return marketStatusFor(order)
 }
@@ -161,3 +165,9 @@ private fun statusPriority(status: OrderStatus): Int = when (status) {
     OrderStatus.COMPETITIVE -> COMPETITIVE_STATUS_PRIORITY
 }
 
+private const val FILL_HIGHLIGHT_MILLIS = 3_000L
+private const val MIN_TRACKER_DISPLAY_ORDERS = 1
+private const val MAX_TRACKER_DISPLAY_ORDERS = 20
+private const val FILLED_STATUS_PRIORITY = 3
+private const val WARNING_STATUS_PRIORITY = 2
+private const val COMPETITIVE_STATUS_PRIORITY = 1

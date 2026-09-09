@@ -28,8 +28,7 @@ object ExperimentationTableHelper {
             return
         }
         val slots = screen.nonPlayerSlots()
-        val attached = activeScreen !== screen
-        if (attached) {
+        if (activeScreen !== screen) {
             detach()
             activeScreen = screen
             experimentSlots = slots.toSet()
@@ -110,8 +109,7 @@ object ExperimentationTableHelper {
 
     @JvmStatic
     fun onMenuSlotChanged(menu: AbstractContainerMenu, menuSlotId: Int, stack: ItemStack) {
-        val screen = activeScreen?.takeIf { it.menu === menu } ?: return
-        if (currentGame != ExperimentationGame.CHRONOMATRON) return
+        if (activeScreen?.menu !== menu || currentGame != ExperimentationGame.CHRONOMATRON) return
         val slot = menu.slots.getOrNull(menuSlotId)?.takeIf { it in experimentSlots } ?: return
         when (slot.index) {
             ROUND_STATUS_SLOT -> state.updateRound(stack.chronomatronRound())

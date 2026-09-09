@@ -108,3 +108,9 @@ internal fun normalizeEnchantmentLore(source: List<String>): List<String> {
 
 private val COLOR_CODE = Regex("§.")
 private val RARITY_LINE = Regex("(COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC|DIVINE|SPECIAL|VERY SPECIAL).*", RegexOption.IGNORE_CASE)
+
+internal fun enchantmentItemId(id: String, level: Int): String {
+    require(id.isNotBlank()) { "Item List enchantment recipe is missing an ID" }
+    require(level > 0) { "Item List enchantment recipe has an invalid level" }
+    return "ENCHANTMENT_${id.uppercase(Locale.ROOT)}_$level"
+}

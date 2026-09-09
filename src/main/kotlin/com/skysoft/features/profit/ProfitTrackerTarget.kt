@@ -114,3 +114,17 @@ private fun shouldTrackCoinGain(
 private const val TALISMAN_OF_COINS_AMOUNT = 1.0
 private const val MAXIMUM_COIN_GAIN = 100_000.0
 private const val BOUNTIFUL_ATTRIBUTION_MILLIS = 2_000L
+
+internal val ProfitTrackerTarget.trackingPeriods: List<ProfitTrackingPeriod>
+    get() = if (preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL) {
+        MYTHOLOGICAL_RITUAL_TRACKING_PERIODS
+    } else {
+        STANDARD_TRACKING_PERIODS
+    }
+
+private val STANDARD_TRACKING_PERIODS = listOf(
+    ProfitTrackingPeriod.SESSION,
+    ProfitTrackingPeriod.TODAY,
+    ProfitTrackingPeriod.TOTAL,
+)
+private val MYTHOLOGICAL_RITUAL_TRACKING_PERIODS = ProfitTrackingPeriod.entries

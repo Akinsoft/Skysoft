@@ -18,6 +18,7 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.renderRenderable
+import com.skysoft.utils.renderables.withIsolatedPose
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -55,7 +56,7 @@ object InventoryHud {
                     get() = !config.details.background && !config.details.outline && !config.details.slotBackgrounds
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
-                override fun isVisible(): Boolean = config.enabled && part.isEnabled()
+                override fun isVisible(): Boolean = isLiveVisible() && part.isEnabled()
                 override fun renderEditor(context: GuiGraphicsExtractor) = currentRenderable(part).render(context)
                 override fun openConfig() = SkysoftConfigGui.open("Inventory HUD")
             })
@@ -88,12 +89,9 @@ object InventoryHud {
                 if (offset == 0) {
                     vanilla.extractRenderState(context, tick)
                 } else {
-                    context.pose().pushMatrix()
-                    context.pose().translate(0f, -offset.toFloat())
-                    try {
+                    context.withIsolatedPose {
+                        pose().translate(0f, -offset.toFloat())
                         vanilla.extractRenderState(context, tick)
-                    } finally {
-                        context.pose().popMatrix()
                     }
                 }
             }

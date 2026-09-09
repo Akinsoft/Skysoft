@@ -7,7 +7,6 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SmoothSwappingCurve
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.EasingUtilities
-import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.gui.itemWithDecorations
 import kotlin.math.abs
@@ -30,14 +29,6 @@ object SmoothSwapping {
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Smooth Swapping disconnect reset", ::clearTransientState)
-        SkysoftClientEvents.onEndTick(
-            "Smooth Swapping tick",
-            isActive = { config.enabled || hasTransientState() },
-        ) {
-            if (MinecraftClient.screen() !is AbstractContainerScreen<*>) {
-                clearTransientState()
-            }
-        }
     }
 
     @JvmStatic
@@ -112,10 +103,7 @@ object SmoothSwapping {
 
     private fun isAvailable(): Boolean = config.enabled
 
-    private fun hasTransientState(): Boolean =
-        activeScreenKey != null || animations.isNotEmpty() || suppressedSlots.isNotEmpty()
-
-    private fun clearTransientState() {
+    internal fun clearTransientState() {
         activeScreenKey = null
         animations.clear()
         suppressedSlots.clear()
@@ -147,11 +135,7 @@ object SmoothSwapping {
         if (previous.isEmpty() || current.isEmpty()) return
 
         val usedSources = mutableSetOf<Int>()
-        val destinations = current.values
-            .filter { !it.stack.isEmpty }
-            .filter { destination -> !sameStack(previous[destination.slotId]?.stack ?: ItemStack.EMPTY, destination.stack) }
-
-        for (destination in destinations) {
+        for (destination in current.values) {
             val previousDestination = previous[destination.slotId]?.stack ?: ItemStack.EMPTY
             val change = destinationChange(previousDestination, destination.stack) ?: continue
             val source = findSource(previous, current, destination, usedSources) ?: continue
@@ -269,9 +253,6 @@ object SmoothSwapping {
 
 private const val OFFSCREEN_THRESHOLD = 10_000
 private const val SPEED_PERCENT_SCALE = 100.0
-
-private fun sameStack(first: ItemStack, second: ItemStack): Boolean =
-    ItemStack.isSameItemSameComponents(first, second) && first.count == second.count
 
 private fun slotDistance(first: SlotSnapshot, second: SlotSnapshot): Int =
     abs(first.x - second.x) + abs(first.y - second.y)

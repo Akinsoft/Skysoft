@@ -9,6 +9,7 @@ import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.isSackContentsMenu
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.features.inventory.InventoryTrackerFrame
 import com.skysoft.features.profit.profitTrackerSourcePrice
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
@@ -17,7 +18,6 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlCycle
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -33,13 +33,10 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
-import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
-import kotlin.math.floor
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -181,43 +178,12 @@ private fun renderSackDisplay(context: GuiGraphicsExtractor) {
     }
     val sack = openSack ?: return
     val renderable = buildRenderable(sack)
-    val minecraft = Minecraft.getInstance()
-    val screen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*> ?: return
-    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
-    val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-    val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
-    val interactive = !InventoryOverlayInput.isPointCovered(screen, screenMouseX.toDouble(), screenMouseY.toDouble())
-    val scale = config.position.effectiveScale
-    val x = config.position.getAbsX0AllowingOverflow(0)
-    val y = config.position.getAbsY0AllowingOverflow(0)
-    val localMouseX = floor((normalMouseX - x) / scale).toInt()
-    val localMouseY = floor((normalMouseY - y) / scale).toInt()
-
-    context.nextStratum()
-    context.pose().pushMatrix()
-    context.pose().translate(x.toFloat(), y.toFloat())
-    context.pose().scale(scale, scale)
-    val localControl = renderable.renderInteractive(
-        context,
-        localMouseX.takeIf { interactive },
-        localMouseY.takeIf { interactive },
-    )
-    context.pose().popMatrix()
-
-    isDisplayHovered = interactive && localMouseX in 0 until renderable.width && localMouseY in 0 until renderable.height
-    hoveredControl = localControl?.let { control ->
-        OverlayControlArea(
-            action = control.action,
-            bounds = Rect(
-                x = x + (control.bounds.x * scale).roundToInt(),
-                y = y + (control.bounds.y * scale).roundToInt(),
-                width = (control.bounds.width * scale).roundToInt().coerceAtLeast(1),
-                height = (control.bounds.height * scale).roundToInt().coerceAtLeast(1),
-            ),
-            tooltipLines = control.tooltipLines,
-        )
+    val frame = InventoryTrackerFrame(config.position, renderable.width, renderable.height)
+    hoveredControl = frame.render(context) { mouseX, mouseY, _ ->
+        renderable.renderInteractive(context, mouseX, mouseY)
     }
-    if (interactive) hoveredControl?.let { control ->
+    isDisplayHovered = frame.isHovered
+    if (frame.interactive) hoveredControl?.let { control ->
         context.nextStratum()
         val item = (control.action as? SackDisplayControl.Item)?.item
         if (item != null) {
@@ -226,16 +192,16 @@ private fun renderSackDisplay(context: GuiGraphicsExtractor) {
                 item.stack ?: ItemStack.EMPTY,
                 null,
                 item.name,
-                screenMouseX,
-                screenMouseY,
+                frame.screenMouseX,
+                frame.screenMouseY,
                 actionLines = sackItemActionLines(),
             )
         } else {
             SkysoftNativeTooltip.setForNextFrame(
                 context,
                 control.tooltipLines,
-                screenMouseX,
-                screenMouseY,
+                frame.screenMouseX,
+                frame.screenMouseY,
                 scrollable = false,
             )
         }
@@ -300,10 +266,14 @@ private class SackDisplayRenderable(
         )
     }
     private val emptyText = "§7No stored items."
-    private val indicatorText = buildList {
-        if (hiddenAbove > 0) add("$hiddenAbove above")
-        if (hiddenBelow > 0) add("$hiddenBelow more")
-    }.joinToString(" §8• §7", prefix = "§7", postfix = if (hiddenAbove > 0 || hiddenBelow > 0) "..." else "")
+    private val indicatorText = if (hiddenAbove <= 0 && hiddenBelow <= 0) {
+        ""
+    } else {
+        buildList {
+            if (hiddenAbove > 0) add("$hiddenAbove above")
+            if (hiddenBelow > 0) add("$hiddenBelow more")
+        }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
+    }
     private val modeLine = "§7Mode: §a§l[${mode.displayName}]"
     private val priceSourceLine = "§7Price Source: §e§l[$priceSource]"
     private val totalText = totalValue?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
@@ -330,12 +300,16 @@ private class SackDisplayRenderable(
         renderInteractive(context, null, null)
     }
 
-    fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): LocalSackControl? {
+    fun renderInteractive(
+        context: GuiGraphicsExtractor,
+        mouseX: Int?,
+        mouseY: Int?,
+    ): OverlayControlArea<SackDisplayControl>? {
         if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
         var y = padding
         LegacyTextRenderer.draw(context, OverlayTextStyle.title(title), padding, y)
         y += OverlayTextStyle.TITLE_HEIGHT
-        var hoveredItem: LocalSackControl? = null
+        var hoveredItem: OverlayControlArea<SackDisplayControl>? = null
         if (rows.isEmpty()) {
             LegacyTextRenderer.draw(context, emptyText, padding, y)
             y += OverlayTextStyle.ROW_HEIGHT
@@ -350,7 +324,7 @@ private class SackDisplayRenderable(
             LegacyTextRenderer.draw(context, indicatorText, (width - LegacyTextRenderer.width(indicatorText)) / 2, y)
             y += OverlayTextStyle.ROW_HEIGHT
         }
-        var hoveredPriceSource: LocalSackControl? = null
+        var hoveredPriceSource: OverlayControlArea<SackDisplayControl>? = null
         if (mode == SackDisplayMode.TOTAL_VALUE) {
             LegacyTextRenderer.draw(context, "§7Total", padding, y)
             LegacyTextRenderer.draw(context, totalText, width - padding - LegacyTextRenderer.width(totalText), y)
@@ -394,12 +368,12 @@ private class SackDisplayRenderable(
         tooltipLines: List<String>,
         mouseX: Int?,
         mouseY: Int?,
-    ): LocalSackControl? {
+    ): OverlayControlArea<SackDisplayControl>? {
         val bounds = Rect(padding, y, LegacyTextRenderer.width(line), CONTROL_ROW_HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         LegacyTextRenderer.draw(context, line, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
-        return LocalSackControl(action, bounds, tooltipLines).takeIf { hovered }
+        return OverlayControlArea<SackDisplayControl>(action, bounds, tooltipLines).takeIf { hovered }
     }
 }
 
@@ -421,7 +395,7 @@ private data class SackDisplayRow(
         y: Int,
         mouseX: Int?,
         mouseY: Int?,
-    ): LocalSackControl? {
+    ): OverlayControlArea<SackDisplayControl>? {
         val bounds = Rect(left, y, right - left, OverlayItemRowStyle.HEIGHT)
         val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
@@ -435,7 +409,7 @@ private data class SackDisplayRow(
             right - LegacyTextRenderer.width(value),
             y + OverlayItemRowStyle.TEXT_Y_OFFSET,
         )
-        return LocalSackControl(SackDisplayControl.Item(item), bounds, emptyList()).takeIf { hovered }
+        return OverlayControlArea<SackDisplayControl>(SackDisplayControl.Item(item), bounds, emptyList()).takeIf { hovered }
     }
 }
 
@@ -479,12 +453,6 @@ private data class OpenSack(
     val title: String,
     val containerId: Int,
     val items: List<SackDisplayItem>,
-)
-
-private data class LocalSackControl(
-    val action: SackDisplayControl,
-    val bounds: Rect,
-    val tooltipLines: List<String>,
 )
 
 private enum class SackDisplayMode(val displayName: String) {

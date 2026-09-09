@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.config.BazaarGraphWindow
 import com.skysoft.config.ItemListSourcesConfig
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.data.skyblock.price.SkysoftBazaarPriceSnapshot
@@ -12,10 +13,11 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object BazaarPriceHistoryRenderer {
-    private val rowsCache = IdentityRefreshCache<PriceRowsCriteria, List<SkysoftBazaarPriceSnapshot>>(
+    private val rowsCache = IdentityRefreshCache<BazaarGraphWindow, List<SkysoftBazaarPriceSnapshot>>(
         PriceHistoryLayout.CACHE_MILLIS,
     )
 
@@ -53,7 +55,7 @@ internal object BazaarPriceHistoryRenderer {
         product: SkysoftBazaarDepthProduct?,
         window: BazaarGraphWindow,
         now: Long,
-    ): List<SkysoftBazaarPriceSnapshot> = rowsCache.value(product, PriceRowsCriteria(window), now) {
+    ): List<SkysoftBazaarPriceSnapshot> = rowsCache.value(product, window, now) {
         val cutoff = now - window.durationMillis
         product?.priceHistory.orEmpty()
             .filter { it.at >= cutoff }
@@ -160,7 +162,7 @@ internal object BazaarPriceHistoryRenderer {
     ) {
         if (!plot.bounds.contains(mouseX, mouseY) || rows.isEmpty()) return
         val progress = ((mouseX - plot.bounds.x).toDouble() / plot.bounds.width).coerceIn(0.0, 1.0)
-        val hoveredAt = start + ((end - start) * progress).roundToInt()
+        val hoveredAt = start + ((end - start) * progress).roundToLong()
         val row = rows.minByOrNull { abs(it.at - hoveredAt) } ?: return
         val x = pricePoint(plot, row.at, plot.minimumPrice, start, end).first
         context.fill(x, plot.bounds.y, x + 1, plot.bounds.y + plot.bounds.height, PriceHistoryStyle.CROSSHAIR)
@@ -204,8 +206,6 @@ private data class BazaarPricePlot(
 ) {
     val priceRange = maximumPrice - minimumPrice
 }
-
-private data class PriceRowsCriteria(val window: BazaarGraphWindow)
 
 private enum class BazaarPriceSeries(
     val coloredLabel: String,

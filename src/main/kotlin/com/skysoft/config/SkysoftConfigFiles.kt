@@ -42,7 +42,10 @@ object SkysoftConfigFiles {
         val configuredName = System.getProperty(CONFIG_DIRECTORY_PROPERTY)?.trim()
         val directoryName = configuredName?.takeIf { it.isNotEmpty() }
             ?: SkysoftMod.MOD_ID
-        require(directoryName.none { it == '/' || it == '\\' }) {
+        require(
+            directoryName != "." && directoryName != ".." &&
+                directoryName.none { it == '/' || it == '\\' } && Path.of(directoryName).root == null,
+        ) {
             "Skysoft config directory must be a directory name, not a path: $directoryName"
         }
         return directoryName
@@ -140,11 +143,9 @@ internal object SkysoftConfigFileIo {
         }
     }
 
-    private fun writeStringSafelyOnce(path: Path, text: String) {
+    private fun writeStringSafelyOnce(path: Path, text: String) = withTempSibling(path) { tempPath ->
         val backupPath = backupPath(path)
-        val tempPath = createTempSibling(path)
         var createdBackup = false
-        var replacedTarget = false
         try {
             writeStringDurably(tempPath, text)
             if (Files.exists(path)) {
@@ -153,10 +154,8 @@ internal object SkysoftConfigFileIo {
                 createdBackup = true
             }
             moveReplacing(tempPath, path)
-            replacedTarget = true
         } catch (e: Exception) {
-            Files.deleteIfExists(tempPath)
-            if (createdBackup && !replacedTarget) {
+            if (createdBackup) {
                 try {
                     restoreBackup(path, backupPath)
                 } catch (restoreException: Exception) {
@@ -187,20 +186,16 @@ internal object SkysoftConfigFileIo {
         }
     }
 
-    private fun copyFileSafely(source: Path, target: Path) {
-        val tempPath = createTempSibling(target, ".copy")
-        try {
-            Files.copy(source, tempPath, StandardCopyOption.REPLACE_EXISTING)
-            forceFile(tempPath)
-            moveReplacing(tempPath, target)
-        } finally {
-            Files.deleteIfExists(tempPath)
-        }
+    private fun copyFileSafely(source: Path, target: Path) = withTempSibling(target, ".copy") { tempPath ->
+        Files.copy(source, tempPath, StandardCopyOption.REPLACE_EXISTING)
+        forceFile(tempPath)
+        moveReplacing(tempPath, target)
     }
 
-    private fun createTempSibling(path: Path, nameSuffix: String = ""): Path {
+    private fun withTempSibling(path: Path, nameSuffix: String = "", action: (Path) -> Unit) {
         Files.createDirectories(path.parent)
-        return Files.createTempFile(path.parent, "${path.fileName}$nameSuffix.", ".tmp")
+        val tempPath = Files.createTempFile(path.parent, "${path.fileName}$nameSuffix.", ".tmp")
+        AutoCloseable { Files.deleteIfExists(tempPath) }.use { action(tempPath) }
     }
 
     private fun writeStringDurably(path: Path, text: String) {

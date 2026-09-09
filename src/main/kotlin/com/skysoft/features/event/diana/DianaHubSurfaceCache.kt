@@ -121,15 +121,13 @@ internal object DianaHubSurfaceCache {
     }
 
     private fun nextLoadedChunk(level: ClientLevel): ChunkKey? {
-        val unloadedChunks = mutableListOf<ChunkKey>()
-        while (pendingChunks.isNotEmpty()) {
+        repeat(pendingChunks.size) {
             val chunk = pendingChunks.removeFirst()
             queuedChunks.remove(chunk)
-            if (chunk.key in data.observedChunks) continue
+            if (chunk.key in data.observedChunks) return@repeat
             if (isChunkLoaded(level, chunk)) return chunk
-            unloadedChunks += chunk
+            enqueue(chunk)
         }
-        unloadedChunks.forEach(::enqueue)
         return null
     }
 

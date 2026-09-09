@@ -1,6 +1,5 @@
 package com.skysoft.features.loot
 
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.config.RareLootShareChannel
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -24,7 +23,6 @@ internal object RareLootChatFeatures {
     fun register() {
         HypixelPartyApi.registerConsumer("Rare Loot Sharing") { isSharingEnabled }
         SkyBlockDataRepository.Demand.register("Rare Loot Features") { miscConfig.isAnyRareLootFeatureEnabled() }
-        PetRepository.registerConsumer("Rare Loot Features") { miscConfig.isAnyRareLootFeatureEnabled() }
         SkysoftClientEvents.onDisconnect("Rare Loot Features disconnect reset", ::clear)
         ChatEvents.onVisibleGameMessageModify(
             "Rare Loot party glyph rendering",

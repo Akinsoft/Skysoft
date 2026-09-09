@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
 import com.skysoft.config.HeldItemSwingStyle
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.SkysoftErrorBoundary
 import kotlin.math.sin
 import kotlin.math.sqrt
 import net.minecraft.world.entity.HumanoidArm
@@ -14,7 +15,18 @@ object HeldItemSwingVisuals {
     private var itemOnlySwing: ItemOnlySwing? = null
 
     @JvmStatic
-    fun begin(itemStack: ItemStack, attack: Float, arm: HumanoidArm) {
+    fun renderWithSwing(itemStack: ItemStack, attack: Float, arm: HumanoidArm, render: Runnable) {
+        val previousSwing = itemOnlySwing
+        itemOnlySwing = null
+        try {
+            SkysoftErrorBoundary.run("Held Item swing state") { begin(itemStack, attack, arm) }
+            render.run()
+        } finally {
+            itemOnlySwing = previousSwing
+        }
+    }
+
+    private fun begin(itemStack: ItemStack, attack: Float, arm: HumanoidArm) {
         if (!HeldItemCustomization.isEligible(itemStack)) {
             itemOnlySwing = null
             return
@@ -41,11 +53,6 @@ object HeldItemSwingVisuals {
             it.itemStack === itemStack && it.isVanillaSwingReplaced
         } ?: return
         applyItemOnlySwing(poseStack, swing.attack, swing.arm)
-    }
-
-    @JvmStatic
-    fun end() {
-        itemOnlySwing = null
     }
 
     internal fun applyItemOnlySwing(poseStack: PoseStack, attack: Float, arm: HumanoidArm) {

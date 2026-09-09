@@ -18,7 +18,7 @@ object MinisterCalendarTooltip {
     private val mayorNamePattern = Regex("Mayor .+")
 
     fun register() {
-        MayorPerkApi.registerConsumer("Minister in Calendar", ::isDemandActive)
+        MayorPerkApi.registerConsumer("Minister in Calendar", ::isConfigured)
     }
 
     fun prepare(
@@ -40,8 +40,6 @@ object MinisterCalendarTooltip {
         }
         AdjacentTooltipRenderer.prepare(context, lines)
     }
-
-    private fun isDemandActive(): Boolean = isConfigured()
 
     private fun isConfigured(): Boolean =
         SkysoftConfigGui.config().inventory.isMinisterInCalendarShown && HypixelLocationState.inSkyBlock

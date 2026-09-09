@@ -10,7 +10,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockEvent
 import com.skysoft.data.skyblock.SkyBlockEventState
-import com.skysoft.features.pets.CanonicalItemNames
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.util.Locale
@@ -60,7 +60,8 @@ object FeatureConditions {
     private fun FeatureCondition.matches(context: FeatureConditionContext): Boolean = when (kind) {
         FeatureConditionKind.EVENT ->
             context.isInSkyBlock && runCatching { SkyBlockEvent.valueOf(value) }.getOrNull() in context.activeEvents
-        FeatureConditionKind.ISLAND -> SkyBlockIsland.getByConditionValue(value) == context.island
+        FeatureConditionKind.ISLAND ->
+            context.island != null && SkyBlockIsland.getByConditionValue(value) == context.island
         FeatureConditionKind.ITEM -> context.heldItemId?.normalizedValue() == value.normalizedValue()
     }
 
@@ -199,7 +200,7 @@ object FeatureItemConditionCommand {
             val result = FeatureItemConditionInput.resolve(
                 isEmpty = stack == null || stack.isEmpty,
                 itemId = rawItemId,
-                canonicalName = rawItemId?.let(CanonicalItemNames::resolve),
+                canonicalName = SkyBlockItemNames.displayName(rawItemId),
             )
         ) {
             is FeatureItemInputResult.Rejected -> reject(source, result.reason)
@@ -241,13 +242,18 @@ internal data class FeatureConditionActivationKey(
 )
 
 internal class FeatureConditionActivationCache {
-    private var cachedKey: FeatureConditionActivationKey? = null
-    private var cachedValue = false
+    private var cachedActivation: CachedActivation? = null
 
     fun isActivationAllowed(key: FeatureConditionActivationKey, calculateIsActivationAllowed: () -> Boolean): Boolean {
-        if (key == cachedKey) return cachedValue
-        cachedKey = key
-        cachedValue = calculateIsActivationAllowed()
-        return cachedValue
+        val cached = cachedActivation
+        if (key == cached?.key) return cached.isActivationAllowed
+        val isActivationAllowed = calculateIsActivationAllowed()
+        cachedActivation = CachedActivation(key, isActivationAllowed)
+        return isActivationAllowed
     }
+
+    private data class CachedActivation(
+        val key: FeatureConditionActivationKey,
+        val isActivationAllowed: Boolean,
+    )
 }

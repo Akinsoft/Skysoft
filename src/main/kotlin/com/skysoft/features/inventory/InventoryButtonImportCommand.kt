@@ -146,7 +146,7 @@ internal object InventoryButtonImportCommand {
     }
 
     private fun cancel(source: FabricClientCommandSource): Int {
-        if (InventoryButtonImportService.cancelPendingImport() == null) {
+        if (!InventoryButtonImportService.didCancelPendingImport()) {
             SkysoftChat.error(source, "There is no pending inventory button import.")
             return 0
         }
@@ -155,7 +155,7 @@ internal object InventoryButtonImportCommand {
     }
 
     private fun undo(source: FabricClientCommandSource, openEditor: () -> Int): Int {
-        if (InventoryButtonImportService.undoImport() == null) {
+        if (!InventoryButtonImportService.didUndoImport()) {
             SkysoftChat.error(source, "There is no inventory button import to undo in this session.")
             return 0
         }

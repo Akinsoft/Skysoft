@@ -27,11 +27,13 @@ internal class BackgroundSave<T>(
         }
     }
 
+    @Synchronized
     fun saveIfDue() {
         if (lastSaveAttempt.passedSince() < SAVE_INTERVAL || !hasUnsavedChanges) return
         saveInBackground()
     }
 
+    @Synchronized
     fun saveInBackground() {
         if (pendingSave() != null || !hasUnsavedChanges) return
         lastSaveAttempt = ElapsedTimeMark.now()
@@ -44,7 +46,9 @@ internal class BackgroundSave<T>(
             return
         }
         val request = try {
-            CompletableFuture.runAsync({ write(save.value) }, Util.ioPool())
+            CompletableFuture.runAsync({ writeSave(save) }, Util.ioPool()).whenComplete { _, failure ->
+                if (failure != null) SkysoftMod.LOGGER.error("Failed to save $name", failure)
+            }
         } catch (e: Exception) {
             SkysoftMod.LOGGER.error("Failed to start $name save", e)
             return
@@ -52,15 +56,9 @@ internal class BackgroundSave<T>(
         synchronized(lock) {
             pendingSave = request
         }
-        request.whenComplete { _, failure ->
-            synchronized(lock) {
-                if (pendingSave === request) pendingSave = null
-                if (failure == null) savedVersion = maxOf(savedVersion, save.version)
-            }
-            if (failure != null) SkysoftMod.LOGGER.error("Failed to save $name", failure)
-        }
     }
 
+    @Synchronized
     fun flush() {
         if (pendingSave() == null && !hasUnsavedChanges) return
         lastSaveAttempt = ElapsedTimeMark.now()
@@ -68,11 +66,7 @@ internal class BackgroundSave<T>(
         if (!hasUnsavedChanges || !canSave()) return
 
         try {
-            val save = prepareSave()
-            write(save.value)
-            synchronized(lock) {
-                savedVersion = maxOf(savedVersion, save.version)
-            }
+            writeSave(prepareSave())
         } catch (e: Exception) {
             SkysoftMod.LOGGER.error("Failed to save $name", e)
         }
@@ -83,12 +77,22 @@ internal class BackgroundSave<T>(
         return PreparedSave(version, prepare())
     }
 
+    private fun writeSave(save: PreparedSave<T>) {
+        write(save.value)
+        synchronized(lock) {
+            savedVersion = maxOf(savedVersion, save.version)
+        }
+    }
+
     private fun waitForPendingSave() {
         val request = pendingSave() ?: return
         runCatching(request::join)
     }
 
-    private fun pendingSave(): CompletableFuture<Void>? = synchronized(lock) { pendingSave }
+    private fun pendingSave(): CompletableFuture<Void>? = synchronized(lock) {
+        if (pendingSave?.isDone == true) pendingSave = null
+        pendingSave
+    }
 
     private data class PreparedSave<T>(val version: Long, val value: T)
 

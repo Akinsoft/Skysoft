@@ -1,5 +1,6 @@
 package com.skysoft.features.misc
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
@@ -32,7 +33,7 @@ internal object StaleSkyBlockMobPlayerModels {
             !hasVisibleMobNameplate()
 
     private fun Player.hasVisibleMobNameplate(): Boolean {
-        val entities = SkyBlockMobEntityMatcher.allEntities()
+        val entities = ClientEntitySnapshot.entities()
         return entities.filterIsInstance<ArmorStand>().any { nameplate ->
             SkyBlockMobEntityMatcher.canPairWithNameplate(this, nameplate) &&
                 SkyBlockMobTextParser.parseHealth(nameplate.cleanName()) != null &&

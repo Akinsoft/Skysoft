@@ -46,9 +46,7 @@ object LassoDisplay {
                 contexts = TabDataOverlays.contexts,
                 visible = TabDataOverlays::canRender,
                 render = { context, _ ->
-                    if (!MinecraftClient.isGuiHidden(Minecraft.getInstance())) {
-                        currentRenderable()?.let { config.position.renderRenderable(context, it) }
-                    }
+                    currentRenderable()?.let { config.position.renderRenderable(context, it) }
                 },
             ),
             object : HudEditorElement {
@@ -125,7 +123,7 @@ object LassoDisplay {
     }
 
     private fun currentRenderable(): GuiRenderable? {
-        if (!isEnabled()) return null
+        if (!isEnabled() || MinecraftClient.isGuiHidden(Minecraft.getInstance())) return null
         val barText = currentBar()?.customName?.formattedText() ?: return null
         val reelText = reel?.takeIf { it.isAlive }?.customName?.formattedText()?.takeIf { it == REEL_TEXT }.orEmpty()
         return verticalLayout(

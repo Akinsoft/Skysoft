@@ -2,6 +2,8 @@ package com.skysoft.features.pets
 
 import com.skysoft.data.skyblock.pets.PetInternalNames
 import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.pets.PetSkinCatalog
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
@@ -70,23 +72,22 @@ internal object PetStoragePetItems {
     fun readExactSelectedPetData(item: ItemStack): PetDataReadResult {
         val currentPetData = item.toExactPetDataOrNull() ?: return PetDataReadResult.UNAVAILABLE
         saveExactPetRead(currentPetData, syncXp = true, assertCurrent = true)
-        PetStorageService.markDirty()
         return PetDataReadResult.READ
     }
 
     fun isCurrentPetStack(item: ItemStack): Boolean =
         item.loreLines().any { it.contains("Click to despawn") }
 
-    fun applyKnownData(
+    fun withKnownData(
         petData: StoredPetData,
         exp: Double? = null,
         skinInternalName: String? = null,
         heldItemInternalName: String? = null,
-    ) {
-        petData.exp = exp ?: petData.exp
-        petData.skinInternalName = skinInternalName ?: petData.skinInternalName
-        petData.heldItemInternalName = heldItemInternalName ?: petData.heldItemInternalName
-    }
+    ): StoredPetData = petData.copy(
+        exp = exp ?: petData.exp,
+        skinInternalName = skinInternalName ?: petData.skinInternalName,
+        heldItemInternalName = heldItemInternalName ?: petData.heldItemInternalName,
+    )
 
     fun reconcileDisplayedExp(petData: StoredPetData, readExp: Double): Double {
         val storedExp = petData.exp ?: return readExp
@@ -123,7 +124,7 @@ internal object PetStoragePetItems {
 
     fun matchesHeldItemName(petData: StoredPetData, heldItemName: String): Boolean {
         val internalName = petData.heldItemInternalName ?: return false
-        return PetRepository.itemName(internalName)
+        return SkyBlockItemNames.displayName(internalName)
             ?.removeColor()
             ?.equals(heldItemName.removeColor(), ignoreCase = true) == true
     }
@@ -134,7 +135,7 @@ internal object PetStoragePetItems {
     } ?: true
 
     fun petSkinInternalNameOrNull(match: MatchResult, petInternalName: String): String? =
-        PetRepository.findPetSkinInternalNameOrNull(
+        PetSkinCatalog.findInternalName(
             petInternalName,
             match.groupOrNull("skin") ?: match.groupOrNull("altskin"),
         )

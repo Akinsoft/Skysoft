@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock.pets
 
+import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
@@ -8,6 +9,8 @@ import java.nio.file.Files
 import java.util.Base64
 
 internal object PetSkins {
+    private val gson = Gson()
+
     @Volatile
     private var learnedLoaded = false
 
@@ -17,10 +20,10 @@ internal object PetSkins {
                 "Missing bundled pet animations"
             }
             val animations = stream.bufferedReader().use { reader ->
-                PetRepoCache.gson.fromJson(reader, PetAnimationsJson::class.java)
+                gson.fromJson(reader, PetAnimationsJson::class.java)
             }
             require(animations.skins.isNotEmpty()) { "Bundled pet animations are empty" }
-            PetRepoCache.petAnimations = animations
+            PetRepoCache.petAnimations = PetAnimationCatalog(animations)
         }
         loadLearnedOnce()
     }
@@ -45,16 +48,16 @@ internal object PetSkins {
         animation: AnimatedSkinJson,
     ): Result<String> = runCatching {
         val key = learnedAnimationKey(skinInternalName, displayIconTexture)
-        val learned = PetRepoCache.learnedPetAnimations.skins.toMutableMap()
+        val learned = PetRepoCache.learnedPetAnimations.data.skins.toMutableMap()
         learned[key] = animation.copy(
             matchTextures = (animation.matchTextures + displayIconTexture).distinct(),
         )
         val updated = PetAnimationsJson(learned.toSortedMap())
         SkysoftConfigFiles.writeStringSafely(
             SkysoftConfigFiles.learnedPetAnimations,
-            PetRepoCache.gson.toJson(updated),
+            gson.toJson(updated),
         )
-        PetRepoCache.learnedPetAnimations = updated
+        PetRepoCache.learnedPetAnimations = PetAnimationCatalog(updated)
         key
     }
 
@@ -64,7 +67,7 @@ internal object PetSkins {
             String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)
         }.getOrNull() ?: return encoded
         val url = runCatching {
-            PetRepoCache.gson.fromJson(decoded, JsonObject::class.java)
+            gson.fromJson(decoded, JsonObject::class.java)
                 .getAsJsonObject("textures")
                 .getAsJsonObject("SKIN")
                 .get("url")
@@ -74,51 +77,10 @@ internal object PetSkins {
     }
 
     private fun bundled(skinInternalName: String, displayIconTexture: String?): AnimatedSkinJson? =
-        PetRepoCache.petAnimations?.let { animations ->
-            resolve(animations, "bundled", skinInternalName, displayIconTexture)
-        }
+        PetRepoCache.petAnimations?.resolve(skinInternalName, displayIconTexture)
 
     private fun learned(skinInternalName: String, displayIconTexture: String?): AnimatedSkinJson? =
-        resolve(PetRepoCache.learnedPetAnimations, "learned", skinInternalName, displayIconTexture)
-
-    private fun resolve(
-        animations: PetAnimationsJson,
-        source: String,
-        skinInternalName: String,
-        displayIconTexture: String?,
-    ): AnimatedSkinJson? {
-        if (displayIconTexture != null) {
-            return animationMatchingTexture(animations, source, skinInternalName, displayIconTexture)
-        }
-        animations.skins[skinInternalName]?.let { return it }
-        return animations.skins.asSequence()
-            .filter { (internalName) -> internalName.startsWith("${skinInternalName}_LOCAL_") }
-            .map { it.value }
-            .singleOrNull()
-    }
-
-    private fun animationMatchingTexture(
-        animated: PetAnimationsJson,
-        source: String,
-        skinInternalName: String,
-        displayIconTexture: String,
-    ): AnimatedSkinJson? {
-        val texture = textureIdentity(displayIconTexture)
-        val cacheKey = "$source:$skinInternalName:$texture"
-        PetRepoCache.animatedSkinMatches[cacheKey]?.let { return it }
-        if (!PetRepoCache.missingAnimatedSkinMatches.add(cacheKey)) return null
-        val match = animated.skins.asSequence()
-            .filter { (internalName) ->
-                internalName == skinInternalName || internalName.startsWith("${skinInternalName}_")
-            }
-            .map { it.value }
-            .firstOrNull { animation ->
-                (animation.matchTextures + animation.textures).any { textureIdentity(it) == texture }
-            } ?: return null
-        PetRepoCache.missingAnimatedSkinMatches.remove(cacheKey)
-        PetRepoCache.animatedSkinMatches[cacheKey] = match
-        return match
-    }
+        PetRepoCache.learnedPetAnimations.resolve(skinInternalName, displayIconTexture)
 
     private fun learnedAnimationKey(skinInternalName: String, displayIconTexture: String): String {
         val suffix = textureIdentity(displayIconTexture)
@@ -134,13 +96,13 @@ internal object PetSkins {
         runCatching {
             SkysoftConfigFiles.readWithBackup(path) { source ->
                 Files.newBufferedReader(source).use { reader ->
-                    requireNotNull(PetRepoCache.gson.fromJson(reader, PetAnimationsJson::class.java)) {
+                    requireNotNull(gson.fromJson(reader, PetAnimationsJson::class.java)) {
                         "Learned pet animations are null"
                     }
                 }
             }
         }.onSuccess { learned ->
-            PetRepoCache.learnedPetAnimations = learned
+            PetRepoCache.learnedPetAnimations = PetAnimationCatalog(learned)
         }.onFailure { error ->
             SkysoftMod.LOGGER.error("Failed to load learned pet animations from $path", error)
         }

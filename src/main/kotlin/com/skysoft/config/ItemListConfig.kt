@@ -171,11 +171,11 @@ class ItemListSourcesConfig {
 
     @JvmField
     @field:Expose
-    var bazaarGraphMode = "PRICE_HISTORY"
+    var bazaarGraphMode = BazaarGraphMode.PRICE_HISTORY.name
 
     @JvmField
     @field:Expose
-    var bazaarGraphWindow = "ONE_HOUR"
+    var bazaarGraphWindow = BazaarGraphWindow.ONE_HOUR.name
 
     @JvmField
     @field:Expose
@@ -193,14 +193,13 @@ class ItemListSourcesConfig {
     fun repairLoadedValues() {
         searchPosition.scale = HudPosition.DEFAULT_SCALE
         searchWidth = searchWidth.coerceIn(MIN_SEARCH_WIDTH, MAX_SEARCH_WIDTH)
-        bazaarGraphMode = when (bazaarGraphMode) {
-            "PRICE" -> "ORDER_BOOK"
-            "ACTIVITY" -> "TRADE_VOLUME"
-            in BAZAAR_GRAPH_MODES -> bazaarGraphMode
-            else -> "PRICE_HISTORY"
-        }
-        if (bazaarGraphWindow !in BAZAAR_GRAPH_WINDOWS) bazaarGraphWindow = "ONE_HOUR"
+        bazaarGraphMode = graphMode().name
+        bazaarGraphWindow = graphWindow().name
     }
+
+    internal fun graphMode(): BazaarGraphMode = BazaarGraphMode.fromStoredName(bazaarGraphMode)
+
+    internal fun graphWindow(): BazaarGraphWindow = BazaarGraphWindow.fromStoredName(bazaarGraphWindow)
 
     companion object {
         const val DEFAULT_SEARCH_WIDTH = 162
@@ -215,15 +214,5 @@ class ItemListSourcesConfig {
         )
 
         private const val DEFAULT_SEARCH_OFFSET = -4
-        private val BAZAAR_GRAPH_MODES = setOf("PRICE_HISTORY", "ORDER_BOOK", "TRADE_VOLUME")
-        private val BAZAAR_GRAPH_WINDOWS = setOf(
-            "FIFTEEN_MINUTES",
-            "THIRTY_MINUTES",
-            "ONE_HOUR",
-            "SIX_HOURS",
-            "TWENTY_FOUR_HOURS",
-            "SEVEN_DAYS",
-            "THIRTY_DAYS",
-        )
     }
 }

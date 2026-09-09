@@ -9,6 +9,7 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.HudTransform
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.toPackedArgb
@@ -137,9 +138,7 @@ object ItemChangeLog {
             height = scaledHeight,
             growsDownward = config.settings.invertDirection,
         )
-        context.withIsolatedPose {
-            pose().translate(x.toFloat(), y.toFloat())
-            pose().scale(scale, scale)
+        HudTransform(x, y, scale).render(context) {
             renderable.render(context)
         }
     }

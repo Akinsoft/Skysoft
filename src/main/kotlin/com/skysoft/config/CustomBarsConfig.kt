@@ -301,20 +301,14 @@ class CustomBarsDetailsConfig {
     @field:ConfigOrder(1000)
     val resetColors = Runnable {
         val defaults = CustomBarsDetailsConfig()
-        colorProperties().zip(defaults.colorProperties()).forEach { (current, default) ->
-            current.set(default.get())
-        }
-    }
-
-    private fun colorProperties(): List<Property<ChromaColour>> = buildList {
-        add(textOutlineColor)
-        addAll(health.colorProperties())
-        addAll(mana.colorProperties())
-        addAll(vitality.colorProperties())
-        addAll(experience.colorProperties())
-        addAll(defense.colorProperties())
-        addAll(speed.colorProperties())
-        addAll(air.colorProperties())
+        textOutlineColor.set(defaults.textOutlineColor.get())
+        health.resetColors(defaults.health)
+        mana.resetColors(defaults.mana)
+        vitality.resetColors(defaults.vitality)
+        experience.resetColors(defaults.experience)
+        defense.resetColors(defaults.defense)
+        speed.resetColors(defaults.speed)
+        air.resetColors(defaults.air)
     }
 }
 
@@ -343,7 +337,10 @@ open class CustomElementDetailsConfig(
     @field:ConfigOrder(40)
     val textColor: Property<ChromaColour> = Property.of(textDefault)
 
-    internal open fun colorProperties(): List<Property<ChromaColour>> = listOf(backgroundColor, textColor)
+    protected fun resetBaseColors(defaults: CustomElementDetailsConfig) {
+        backgroundColor.set(defaults.backgroundColor.get())
+        textColor.set(defaults.textColor.get())
+    }
 }
 
 class CustomResourceBarDetailsConfig(
@@ -374,8 +371,12 @@ class CustomResourceBarDetailsConfig(
     @field:ConfigOrder(50)
     val iconColor: Property<ChromaColour> = Property.of(iconDefault)
 
-    internal override fun colorProperties(): List<Property<ChromaColour>> =
-        listOf(barColor, overflowColor, iconColor) + super.colorProperties()
+    internal fun resetColors(defaults: CustomResourceBarDetailsConfig) {
+        barColor.set(defaults.barColor.get())
+        overflowColor.set(defaults.overflowColor.get())
+        iconColor.set(defaults.iconColor.get())
+        resetBaseColors(defaults)
+    }
 }
 
 class CustomProgressBarDetailsConfig(
@@ -390,8 +391,10 @@ class CustomProgressBarDetailsConfig(
     @field:ConfigOrder(10)
     val barColor: Property<ChromaColour> = Property.of(barDefault)
 
-    internal override fun colorProperties(): List<Property<ChromaColour>> =
-        listOf(barColor) + super.colorProperties()
+    internal fun resetColors(defaults: CustomProgressBarDetailsConfig) {
+        barColor.set(defaults.barColor.get())
+        resetBaseColors(defaults)
+    }
 }
 
 class CustomReadoutDetailsConfig(
@@ -406,8 +409,10 @@ class CustomReadoutDetailsConfig(
     @field:ConfigOrder(50)
     val iconColor: Property<ChromaColour> = Property.of(iconDefault)
 
-    internal override fun colorProperties(): List<Property<ChromaColour>> =
-        listOf(iconColor) + super.colorProperties()
+    internal fun resetColors(defaults: CustomReadoutDetailsConfig) {
+        iconColor.set(defaults.iconColor.get())
+        resetBaseColors(defaults)
+    }
 }
 
 enum class CustomBarIconPosition(private val displayName: String) {

@@ -2,6 +2,8 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.skysoft.utils.TextUtilities.removeColor
+import net.minecraft.world.item.ItemStack
 
 internal object AttributeShardItemCatalog {
     private val gson = Gson()
@@ -27,7 +29,8 @@ internal object AttributeShardItemCatalog {
             "Item List Attribute Shard data contains only ${catalog.items.size} entries"
         }
         val ids = catalog.items.map { it.item.internalName }
-        require(ids.toSet().size == ids.size && ids.all(attributeShardIdPattern::matches)) {
+        val knownIds = ids.toSet()
+        require(knownIds.size == ids.size && ids.all(attributeShardIdPattern::matches)) {
             "Item List Attribute Shard data contains invalid or duplicate IDs"
         }
         require(
@@ -40,7 +43,6 @@ internal object AttributeShardItemCatalog {
         ) {
             "Item List Attribute Shard data contains incomplete wiki metadata"
         }
-        val knownIds = ids.toSet()
         require(
             catalog.items.flatMap(BundledAttributeShard::fusions).all { fusion ->
                 fusion.description.startsWith("Fusing ") && fusion.ingredients.size == FUSION_INPUT_COUNT &&
@@ -65,6 +67,56 @@ internal object AttributeShardItemCatalog {
                 )
             }
         }
+    }
+
+    fun addTo(
+        attributeShards: List<BundledAttributeShard>,
+        entries: MutableList<ItemListEntry>,
+        info: MutableMap<ItemListEntryKey, SkyBlockItemInfo>,
+        providers: MutableMap<ItemListEntryKey, () -> ItemStack>,
+        wiki: MutableMap<ItemListEntryKey, String>,
+    ): Map<String, SkyBlockObtainInfo> = attributeShards.associate { shard ->
+        val item = shard.item
+        val key = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, item.internalName)
+        if (key !in info) {
+            val formattedDisplayName = item.displayName ?: item.internalName
+            val displayName = formattedDisplayName.removeColor()
+            val searchTerms = item.lore + listOf(
+                shard.attributeName,
+                shard.shardName,
+                shard.effect,
+                shard.family,
+                shard.skill,
+                shard.category,
+            ) + shard.hunting
+            entries += ItemListEntry(
+                key = key,
+                displayName = displayName,
+                source = CatalogSources.SKYBLOCK,
+                searchableText = itemListSearchableText(displayName, item.internalName, searchTerms),
+                formattedDisplayName = formattedDisplayName,
+            )
+            info[key] = SkyBlockItemInfo(
+                key = key,
+                displayName = displayName,
+                source = CatalogSources.SKYBLOCK,
+                category = "ATTRIBUTE SHARD",
+                rarity = item.lore.lastOrNull { it.isNotBlank() }?.removeColor(),
+                lore = item.lore,
+            )
+            providers[key] = { SkyBlockItemStacks.fromNeuItem(item) }
+        }
+        wiki.putIfAbsent(
+            key,
+            "$SKYBLOCK_WIKI_PAGE_URL${shard.wikiPage.replace(' ', '_')}",
+        )
+        item.internalName to SkyBlockObtainInfo(
+            status = SkyBlockObtainStatus.OBTAINABLE,
+            summary = shard.hunting.joinToString("; "),
+            page = shard.wikiPage,
+            revision = shard.wikiRevision,
+            source = SkyBlockObtainSource.INDEPENDENT_WIKI,
+        )
     }
 
     private fun fusionIngredient(

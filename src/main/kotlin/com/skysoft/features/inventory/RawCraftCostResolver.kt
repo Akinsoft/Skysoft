@@ -7,57 +7,19 @@ import com.skysoft.data.skyblock.RecipeIngredientKeyContext
 import com.skysoft.data.skyblock.RecipeIngredientKind
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.SkyBlockRecipeType
+import com.skysoft.data.skyblock.SkyBlockRecipeSnapshot
+import com.skysoft.data.skyblock.price.RawCraftMarketSnapshot
 import com.skysoft.data.skyblock.expandedOptions
 import com.skysoft.data.skyblock.itemListKey
 import java.util.ArrayDeque
 import java.util.concurrent.CancellationException
 
-internal interface RawCraftPriceSource {
-    val recipeVersion: Long
-    val marketVersion: Long
-    val recipeKeys: Set<ItemListEntryKey>
-
-    fun recipesFor(key: ItemListEntryKey): List<SkyBlockRecipe>
-    fun bazaarInstantBuy(itemId: String): Double?
-    fun lowestBin(itemId: String): Double?
-}
-
 internal class RawCraftCostResolver(
-    private val source: RawCraftPriceSource,
+    private val recipeSnapshot: SkyBlockRecipeSnapshot,
+    private val market: RawCraftMarketSnapshot,
 ) {
-    private var recipeVersion = Long.MIN_VALUE
-    private var marketVersion = Long.MIN_VALUE
-    private val cachedCosts = mutableMapOf<String, Double?>()
-    private val cachedRecipes = mutableMapOf<ItemListEntryKey, List<SkyBlockRecipe>>()
-
-    fun cost(itemId: String): Double? {
-        invalidateIfNeeded()
-        if (cachedCosts.containsKey(itemId)) return cachedCosts[itemId]
-        val key = ItemListEntryKey(ItemListEntryKind.SKYBLOCK, itemId)
-        resolve(setOf(key)) { false }
-        return cachedCosts[itemId]
-    }
-
-    fun resolveAll(isCancelled: () -> Boolean = { false }): Map<String, Double> {
-        invalidateIfNeeded()
-        val roots = source.recipeKeys.filterTo(linkedSetOf()) { it.kind == ItemListEntryKind.SKYBLOCK }
-        return resolve(roots, isCancelled)
-    }
-
-    private fun invalidateIfNeeded() {
-        val currentRecipeVersion = source.recipeVersion
-        val currentMarketVersion = source.marketVersion
-        if (recipeVersion == currentRecipeVersion && marketVersion == currentMarketVersion) return
-        recipeVersion = currentRecipeVersion
-        marketVersion = currentMarketVersion
-        cachedCosts.clear()
-        cachedRecipes.clear()
-    }
-
-    private fun resolve(
-        roots: Set<ItemListEntryKey>,
-        isCancelled: () -> Boolean,
-    ): Map<String, Double> {
+    fun resolveAll(isCancelled: () -> Boolean): Map<String, Double> {
+        val roots = recipeSnapshot.recipesByResult.keys.filterTo(linkedSetOf()) { it.kind == ItemListEntryKind.SKYBLOCK }
         val recipesByResult = collectReachableRecipes(roots, isCancelled)
         val keys = recipesByResult.keys
         val directMarketCosts = keys.mapNotNull { key ->
@@ -95,13 +57,9 @@ internal class RawCraftCostResolver(
             acquisitionCosts = nextAcquisitionCosts
             if (isStable) break
         }
-        recipesByResult.keys.asSequence()
-            .filter { it.kind == ItemListEntryKind.SKYBLOCK }
-            .forEach { key -> cachedCosts[key.id] = productionCosts[key] }
-        val costs = roots.mapNotNull { key ->
+        return roots.mapNotNull { key ->
             productionCosts[key]?.positivePrice()?.let { key.id to it }
         }.toMap()
-        return costs
     }
 
     private fun collectReachableRecipes(
@@ -115,7 +73,7 @@ internal class RawCraftCostResolver(
             checkCancellation(isCancelled)
             val key = pending.removeFirst()
             if (!visited.add(key)) continue
-            val recipes = cachedRecipes.getOrPut(key) { source.recipesFor(key) }
+            val recipes = recipeSnapshot.recipesByResult[key].orEmpty()
                 .filter { it.type in ALL_ACQUISITION_RECIPE_TYPES }
             recipesByResult[key] = recipes
             recipes.asSequence()
@@ -167,8 +125,8 @@ internal class RawCraftCostResolver(
     private fun directMarketCost(key: ItemListEntryKey): Double? {
         if (key.kind != ItemListEntryKind.SKYBLOCK) return null
         return listOfNotNull(
-            source.bazaarInstantBuy(key.id).positivePrice(),
-            source.lowestBin(key.id).positivePrice(),
+            market.bazaarProducts[key.id]?.instantBuyPrice.positivePrice(),
+            market.lowestBins[key.id]?.toDouble().positivePrice(),
         ).minOrNull()
     }
 

@@ -77,7 +77,7 @@ internal object BetterTabLayoutBuilder {
                         !otherPlayersPattern.matches(entry.displayName.string.trim())
                 }
             }
-            group.sections += splitEntrySections(sourceEntries.drop(1))
+            group.sections += splitSections(sourceEntries.drop(1)) { it.displayName.isVisuallyBlank() }
         }
         return groups.values.flatMap { group ->
             val sections = group.sections.ifEmpty {
@@ -111,46 +111,29 @@ internal object BetterTabLayoutBuilder {
         return rows.coerceAtLeast(1)
     }
 
-    private fun splitEntrySections(entries: List<TabListEntry>): List<List<TabListEntry>> {
-        val sections = mutableListOf<List<TabListEntry>>()
-        var current = mutableListOf<TabListEntry>()
-        for (entry in entries) {
-            if (entry.displayName.isVisuallyBlank()) {
-                if (current.isNotEmpty()) {
-                    sections += current
-                    current = mutableListOf()
-                }
-            } else {
-                current += entry
-            }
-        }
-        if (current.isNotEmpty()) sections += current
-        return sections
-    }
-
     private fun parseFooter(footer: Component?, isStoreBannerHidden: Boolean): FooterContent {
         val lines = footer?.splitStyledLines().orEmpty()
         val bannerLines = if (isStoreBannerHidden) emptyList() else lines.filter { it.isHypixelAdvertisingLine() }
         val contentLines = lines.map { line ->
             if (line.isHypixelAdvertisingLine()) Component.empty() else line
         }
-        val blocks = splitComponentSections(contentLines).map { section ->
+        val blocks = splitSections(contentLines) { it.isVisuallyBlank() }.map { section ->
             ContentBlock(groupKey = null, title = null, rows = section.map(::BetterTabRow))
         }
         return FooterContent(blocks, bannerLines)
     }
 
-    private fun splitComponentSections(lines: List<Component>): List<List<Component>> {
-        val sections = mutableListOf<List<Component>>()
-        var current = mutableListOf<Component>()
-        for (line in lines) {
-            if (line.isVisuallyBlank()) {
+    private fun <T> splitSections(values: List<T>, isBlank: (T) -> Boolean): List<List<T>> {
+        val sections = mutableListOf<List<T>>()
+        var current = mutableListOf<T>()
+        for (value in values) {
+            if (isBlank(value)) {
                 if (current.isNotEmpty()) {
                     sections += current
                     current = mutableListOf()
                 }
             } else {
-                current += line
+                current += value
             }
         }
         if (current.isNotEmpty()) sections += current

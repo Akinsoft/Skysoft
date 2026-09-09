@@ -6,6 +6,7 @@ import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.withAlpha
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.renderRenderable
@@ -31,7 +32,7 @@ object SelectedItemName {
             override val hasEditorBackground: Boolean get() = !config.details.background
             override fun width(): Int = currentRenderable()?.width ?: 0
             override fun height(): Int = currentRenderable()?.height ?: 0
-            override fun isVisible(): Boolean = config.enabled && currentRenderable() != null
+            override fun isVisible(): Boolean = currentRenderable() != null
             override fun renderEditor(context: GuiGraphicsExtractor) {
                 currentRenderable()?.render(context)
             }
@@ -41,11 +42,9 @@ object SelectedItemName {
 
     fun isEnabled(): Boolean = config.enabled
 
-    fun render(context: GuiGraphicsExtractor, stack: ItemStack, timer: Int) {
-        val alpha = selectedItemNameAlpha(timer, config.settings.alwaysVisible)
-        if (!stack.isEmpty && alpha > 0) {
-            config.position.renderRenderable(context, renderable(itemName(stack), alpha))
-        }
+    fun render(context: GuiGraphicsExtractor) {
+        val renderable = currentRenderable() ?: return
+        config.position.renderRenderable(context, renderable)
     }
 
     private fun itemName(stack: ItemStack): MutableComponent =
@@ -53,10 +52,15 @@ object SelectedItemName {
             if (stack.has(DataComponents.CUSTOM_NAME)) name.withStyle(ChatFormatting.ITALIC)
         }
 
-    private fun currentRenderable(): SelectedItemNameRenderable? =
-        Minecraft.getInstance().player?.mainHandItem
-            ?.takeUnless(ItemStack::isEmpty)
-            ?.let { renderable(itemName(it), COLOR_CHANNEL_MAX) }
+    private fun currentRenderable(): SelectedItemNameRenderable? {
+        val minecraft = Minecraft.getInstance()
+        if (!config.enabled || minecraft.player == null || MinecraftClient.isGuiHidden(minecraft)) return null
+        val highlight = MinecraftClient.selectedItemNameState(minecraft)
+        val stack = highlight.skysoftSelectedItemNameStack()
+        val alpha = selectedItemNameAlpha(highlight.skysoftSelectedItemNameTimer(), config.settings.alwaysVisible)
+        if (stack.isEmpty || alpha <= 0) return null
+        return renderable(itemName(stack), alpha)
+    }
 
     private fun renderable(name: Component, alpha: Int) = SelectedItemNameRenderable(name, alpha)
 
@@ -87,6 +91,11 @@ object SelectedItemName {
             context.text(font, name, HORIZONTAL_PADDING, VERTICAL_PADDING, ARGB.white(alpha), true)
         }
     }
+}
+
+interface SelectedItemNameState {
+    fun skysoftSelectedItemNameStack(): ItemStack
+    fun skysoftSelectedItemNameTimer(): Int
 }
 
 internal fun selectedItemNameAlpha(timer: Int, alwaysVisible: Boolean): Int =

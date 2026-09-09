@@ -1,5 +1,6 @@
 package com.skysoft.utils.renderables.primitives
 
+import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.utils.gui.GuiAlignment
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
@@ -18,9 +19,9 @@ data class StringRenderable(
     override val height: Int = (Minecraft.getInstance().font.lineHeight * scale).roundToInt()
 
     override fun render(context: GuiGraphicsExtractor) {
-        context.pose().pushMatrix()
-        context.pose().scale(scale.toFloat(), scale.toFloat())
-        LegacyTextRenderer.draw(context, text, 0, 0, defaultColor = color)
-        context.pose().popMatrix()
+        context.withIsolatedPose {
+            context.pose().scale(scale.toFloat(), scale.toFloat())
+            LegacyTextRenderer.draw(context, text, 0, 0, defaultColor = color)
+        }
     }
 }

@@ -92,11 +92,3 @@ class ProtectItemDetailsConfig {
     @field:ConfigVisibleIf("showProtectedItemStar")
     var protectedItemStarOpacity = 100
 }
-
-enum class SlotBindingHighlightStyle(private val displayName: String) {
-    FILL("Fill"),
-    EDGES("Edges"),
-    ;
-
-    override fun toString(): String = displayName
-}

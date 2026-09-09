@@ -1,26 +1,12 @@
 package com.skysoft.utils.chat
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import java.util.Optional
+import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FormattedText
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
-import net.minecraft.ChatFormatting
-import java.util.Optional
-
-data class ChatMessageSender(
-    val name: String,
-    val color: Int?,
-) {
-    fun nameComponent(): Component {
-        val component = Component.literal(name)
-        return if (color != null) {
-            component.withColor(color)
-        } else {
-            component.withStyle(ChatFormatting.WHITE)
-        }
-    }
-}
 
 object ChatSenderParser {
     fun senderBefore(message: ChatMessage, marker: String): ChatMessageSender? =
@@ -34,14 +20,14 @@ object ChatSenderParser {
     }
 
     fun senderBefore(message: String, marker: String): ChatMessageSender? =
-        senderBeforeMarker(message, marker)?.let { ChatMessageSender(it.name, it.color) }
+        senderBeforeMarker(message, marker)
 
-    private fun senderBeforeMarker(message: String, marker: String): ParsedSender? {
+    private fun senderBeforeMarker(message: String, marker: String): ChatMessageSender? {
         val prefix = message.substringBefore(marker, "").trim().removeSuffix(":").trim()
         if (prefix.isBlank()) return null
         val sender = prefix.substringAfterLast(">").trim().removeSuffix(":").trim()
         val rawName = senderPattern.find(sender)?.groups["name"]?.value ?: return null
-        return ParsedSender(rawName.cleanSkyBlockText(), rawName.legacyColor())
+        return ChatMessageSender(rawName.cleanSkyBlockText(), rawName.legacyColor())
     }
 
     private fun colorAtText(component: Component, text: String, marker: String): Int? {
@@ -83,11 +69,6 @@ object ChatSenderParser {
         }
         return color
     }
-
-    private data class ParsedSender(
-        val name: String,
-        val color: Int?,
-    )
 
     private val senderPattern = Regex("""(?<name>(?:§.)*[A-Za-z0-9_]{1,16})(?:§.)*$""")
     private const val LEGACY_FORMATTING_CODE_LENGTH = 2

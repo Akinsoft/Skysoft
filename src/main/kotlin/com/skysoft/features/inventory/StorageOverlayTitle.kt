@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.takeAtCharacterBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
@@ -9,6 +10,13 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import org.lwjgl.glfw.GLFW
+
+internal var editingTitlePage: Int? = null
+    private set
+internal var editingTitleText = ""
+    private set
+internal var editingTitleSelected = false
+    private set
 
 internal fun titlePageAt(layouts: Map<Int, PageLayout>, mouseX: Int, mouseY: Int): Int? =
     layouts.values.firstOrNull { layout ->
@@ -58,9 +66,12 @@ internal fun finishTitleEdit() {
     val page = storageEntry(pageIndex)
     val title = editingTitleText.ifBlank { defaultPageTitle(pageIndex) }
     if (page != null && page.title != title) {
-        page.title = title
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.mutableStorageEntry(pageIndex)?.title = title }
     }
+    resetTitleEdit()
+}
+
+internal fun resetTitleEdit() {
     editingTitlePage = null
     editingTitleText = ""
     editingTitleSelected = false
@@ -103,7 +114,7 @@ internal fun handleStorageOverlayCharTyped(
 
 private fun appendTitleText(value: String) {
     val text = if (editingTitleSelected) "" else editingTitleText
-    editingTitleText = (text + value).filterTitle().take(StorageTitle.MAX_LENGTH)
+    editingTitleText = (text + value).filterTitle().takeAtCharacterBoundary(StorageTitle.MAX_LENGTH)
     editingTitleSelected = false
 }
 
@@ -111,7 +122,7 @@ private fun removeTitleText() {
     if (editingTitleSelected) {
         clearTitleText()
     } else if (editingTitleText.isNotEmpty()) {
-        editingTitleText = editingTitleText.dropLast(1)
+        editingTitleText = editingTitleText.substring(0, editingTitleText.offsetByCodePoints(editingTitleText.length, -1))
     }
     editingTitleSelected = false
 }

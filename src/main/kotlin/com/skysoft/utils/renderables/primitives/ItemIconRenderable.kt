@@ -1,5 +1,6 @@
 package com.skysoft.utils.renderables.primitives
 
+import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.utils.gui.GuiAlignment
 import com.skysoft.utils.render.item.SkysoftItemRenderSupport
 import com.skysoft.utils.renderables.GuiRenderable
@@ -53,10 +54,10 @@ data class ItemIconRenderable(
             return
         }
 
-        context.pose().pushMatrix()
-        context.pose().scale(renderScale.toFloat(), renderScale.toFloat())
-        context.item(stack, 0, 0)
-        context.pose().popMatrix()
+        context.withIsolatedPose {
+            context.pose().scale(renderScale.toFloat(), renderScale.toFloat())
+            context.item(stack, 0, 0)
+        }
     }
 
     private companion object {

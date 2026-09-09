@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.gui.OverlayControlArea
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -18,12 +19,6 @@ internal sealed interface TrackedItemQuantityAction {
     data class BeginCustom(val direction: Int) : TrackedItemQuantityAction
     data class Field(val localMouseX: Int, val bounds: Rect) : TrackedItemQuantityAction
 }
-
-internal data class TrackedItemQuantityControl(
-    val action: TrackedItemQuantityAction,
-    val bounds: Rect,
-    val tooltipLines: List<String> = emptyList(),
-)
 
 internal class TrackedItemQuantityModifier {
     private val field = TextFieldState(maxLength = QUANTITY_MAXIMUM_LENGTH)
@@ -87,7 +82,7 @@ internal class TrackedItemQuantityModifier {
         mouseY: Int,
         opacity: Double,
         interactive: Boolean,
-    ): TrackedItemQuantityControl? {
+    ): OverlayControlArea<TrackedItemQuantityAction>? {
         val font = Minecraft.getInstance().font
         val text = label()
         val textX = panelX + OverlayPanelStyle.PADDING
@@ -95,7 +90,7 @@ internal class TrackedItemQuantityModifier {
             Rect(textX + font.width(text) + QUANTITY_FIELD_GAP, y, QUANTITY_FIELD_WIDTH, height)
         }
         val hovered = if (fieldBounds != null) {
-            TrackedItemQuantityControl(
+            OverlayControlArea<TrackedItemQuantityAction>(
                 TrackedItemQuantityAction.Field(mouseX, fieldBounds),
                 fieldBounds,
                 listOf("§7Press Enter to confirm. Escape to cancel."),
@@ -162,14 +157,14 @@ internal class TrackedItemQuantityModifier {
         textX: Int,
         y: Int,
         font: net.minecraft.client.gui.Font,
-    ): List<TrackedItemQuantityControl> {
+    ): List<OverlayControlArea<TrackedItemQuantityAction>> {
         var offset = font.width(quantityText("Modify ", QUANTITY_MUTED_COLOR))
         return MODIFY_ITEM_AMOUNTS.mapIndexed { index, amount ->
             if (index > 0) offset += font.width(" ")
             val buttonDirection = if (index < MODIFY_MINUS_BUTTON_COUNT) -1 else 1
             val label = "[${amount?.let { if (it > 0) "+$it" else it.toString() } ?: if (buttonDirection < 0) "-" else "+"}]"
             val width = font.width(label)
-            TrackedItemQuantityControl(
+            OverlayControlArea<TrackedItemQuantityAction>(
                 amount?.let(TrackedItemQuantityAction::Modify)
                     ?: TrackedItemQuantityAction.BeginCustom(buttonDirection),
                 Rect(textX + offset, y, width, height),

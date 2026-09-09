@@ -16,8 +16,8 @@ internal fun applyGuiFilledAmount(order: ProfileStorage.BazaarOrderData, parsed:
 }
 
 private fun clearGuiContradictedFillEstimate(order: ProfileStorage.BazaarOrderData): Long? {
-    val estimate = fillEstimateStates.remove(order.id) ?: return null
-    fillHighlightExpiresAt.remove(order.id)
+    val estimate = BazaarTrackingState.fillEstimateStates.remove(order.id) ?: return null
+    BazaarTrackingState.fillHighlightExpiresAt.remove(order.id)
     val confirmedFilled = confirmedFilledAmount(order)
     return maxOf(confirmedFilled, estimate.estimatedFilled)
 }

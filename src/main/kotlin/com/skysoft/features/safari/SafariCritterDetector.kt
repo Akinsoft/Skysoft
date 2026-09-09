@@ -1,5 +1,6 @@
 package com.skysoft.features.safari
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.features.combat.SegmentedMobHighlights
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
@@ -19,14 +20,14 @@ internal data class SafariCritter(
 
 internal object SafariCritterDetector {
     fun detectedCritters(
-        entities: List<Entity> = SkyBlockMobEntityMatcher.allEntities(),
+        entities: List<Entity> = ClientEntitySnapshot.entities(),
     ): List<SafariCritter> {
         val nameplates = critterNameplates(entities)
         return nameplates.map { named -> named.toCritter(entities, nameplates) }
     }
 
     fun critterFor(entity: LivingEntity): SafariCritter? {
-        val entities = SkyBlockMobEntityMatcher.allEntities()
+        val entities = ClientEntitySnapshot.entities()
         val nameplates = critterNameplates(entities)
         return nameplates
             .asSequence()
@@ -36,7 +37,7 @@ internal object SafariCritterDetector {
     }
 
     fun critterNear(entity: Entity): SafariCritter? {
-        val entities = SkyBlockMobEntityMatcher.allEntities()
+        val entities = ClientEntitySnapshot.entities()
         val nameplates = critterNameplates(entities)
         return nameplates
             .asSequence()

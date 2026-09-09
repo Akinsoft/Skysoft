@@ -1,28 +1,31 @@
 package com.skysoft.utils.animation
 
+import com.skysoft.utils.ElapsedTimeMark
+import kotlin.time.Duration.Companion.milliseconds
+
 internal class TimedHighlightTracker<K>(
-    private val durationMillis: Long = DEFAULT_HIGHLIGHT_DURATION_MILLIS,
+    durationMillis: Long = DEFAULT_HIGHLIGHT_DURATION_MILLIS,
 ) {
-    private val expirations = mutableMapOf<K, Long>()
+    private val duration = durationMillis.milliseconds
+    private val highlights = mutableMapOf<K, ElapsedTimeMark>()
 
     fun highlight(key: K) {
-        val now = System.currentTimeMillis()
-        expirations.entries.removeIf { (_, expiresAt) -> now >= expiresAt }
-        expirations[key] = now + durationMillis
+        highlights.entries.removeIf { (_, startedAt) -> startedAt.passedSince() >= duration }
+        highlights[key] = ElapsedTimeMark.now()
     }
 
     fun isHighlighted(key: K): Boolean {
-        val expiresAt = expirations[key] ?: return false
-        if (System.currentTimeMillis() < expiresAt) return true
-        expirations.remove(key)
+        val startedAt = highlights[key] ?: return false
+        if (startedAt.passedSince() < duration) return true
+        highlights.remove(key)
         return false
     }
 
     fun remove(key: K) {
-        expirations.remove(key)
+        highlights.remove(key)
     }
 
-    fun clear() = expirations.clear()
+    fun clear() = highlights.clear()
 }
 
 private const val DEFAULT_HIGHLIGHT_DURATION_MILLIS = 3_000L

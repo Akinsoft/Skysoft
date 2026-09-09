@@ -153,17 +153,18 @@ object SlotLockManager {
     @JvmStatic
     fun resetAllLocks() {
         if (lockedSlots.isEmpty()) return
-        lockedSlots.clear()
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.slotLocks.clear() }
         clearInputState()
     }
 
     private fun toggleLock(slotIndex: Int) {
-        if (!lockedSlots.remove(slotIndex)) {
-            lockedSlots.add(slotIndex)
-            lockedSlots.sort()
+        ProfileStorageApi.updateProfile { profile ->
+            val lockedSlots = profile.slotLocks
+            if (!lockedSlots.remove(slotIndex)) {
+                lockedSlots.add(slotIndex)
+                lockedSlots.sort()
+            }
         }
-        ProfileStorageApi.markDirty()
         SoundUtilities.playClickSound()
     }
 

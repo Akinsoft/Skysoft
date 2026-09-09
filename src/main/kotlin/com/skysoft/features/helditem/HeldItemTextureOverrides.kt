@@ -4,7 +4,6 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import net.minecraft.core.component.DataComponents
 import net.minecraft.resources.Identifier
-import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
@@ -13,14 +12,14 @@ object HeldItemTextureOverrides {
 
     @JvmStatic
     fun renderStack(itemStack: ItemStack): ItemStack {
-        if (!isEligibleItem(itemStack.item)) return itemStack
+        if (!HeldItemCustomization.isEligible(itemStack)) return itemStack
         val config = SkysoftConfigGui.config().gui.heldItem
         if (!config.enabled || (!config.usesVanillaTexture(null) && config.itemTextureModes.isEmpty())) return itemStack
         return vanillaStackIfConfigured(itemStack)
     }
 
     fun previewStack(itemStack: ItemStack): ItemStack =
-        if (isEligibleItem(itemStack.item)) vanillaStackIfConfigured(itemStack) else itemStack
+        if (HeldItemCustomization.isEligible(itemStack)) vanillaStackIfConfigured(itemStack) else itemStack
 
     fun hasPackTexture(itemStack: ItemStack): Boolean {
         val model = itemStack.get(DataComponents.ITEM_MODEL) ?: return false
@@ -35,13 +34,9 @@ object HeldItemTextureOverrides {
     }
 
     fun canUseVanillaTexture(itemStack: ItemStack): Boolean =
-        isEligibleItem(itemStack.item) && hasPackTexture(itemStack) && !isPaper(itemStack)
+        HeldItemCustomization.isEligible(itemStack) && hasPackTexture(itemStack) && !isPaper(itemStack)
 
-    internal fun isEligibleItem(item: Item): Boolean = HeldItemCustomization.isEligible(item)
-
-    fun isPaper(itemStack: ItemStack): Boolean = isPaperItem(itemStack.item)
-
-    internal fun isPaperItem(item: Item): Boolean = item == Items.PAPER
+    fun isPaper(itemStack: ItemStack): Boolean = itemStack.item == Items.PAPER
 
     internal fun isHypixelPackModel(model: Identifier, vanillaModel: Identifier?): Boolean =
         model != vanillaModel && model.namespace == HYPIXEL_MODEL_NAMESPACE

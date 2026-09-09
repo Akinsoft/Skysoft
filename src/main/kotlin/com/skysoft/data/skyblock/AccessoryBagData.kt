@@ -1,140 +1,109 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.RegexUtilities.group
-import com.skysoft.utils.ChangeResult
-import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
-import net.minecraft.world.inventory.Slot
-import net.minecraft.world.item.ItemStack
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
+import net.minecraft.world.inventory.Slot
+import net.minecraft.world.item.ItemStack
 
 object AccessoryBagData {
     private val storage get() = ProfileStorageApi.storage
-    private var currentInventoryId: Int? = null
-    private var pendingSnapshot: Map<String, AccessorySnapshot>? = null
-    private var stableSnapshotReads = 0
-    private var processedSnapshot: Map<String, AccessorySnapshot>? = null
-    private var baselineEstablished = false
-    private var forceNextSnapshotBaseline = false
-    private var changeLoggingArmedAt = ElapsedTimeMark.farPast()
+    private var session: AccessoryBagSession? = null
+
+    internal fun register(isActive: () -> Boolean) {
+        SkyBlockOpenInventoryApi.onChange("Accessory Bag inventory", isActive, ::readOpenInventory)
+        SkyBlockProfileApi.onProfileChange("Accessory Bag profile reset", { session != null }) {
+            session = null
+        }
+        SkysoftClientEvents.onEndTick("Accessory Bag snapshot settlement", { isActive() || session != null }) {
+            if (isActive()) processPendingSnapshot() else session = null
+        }
+        SkysoftClientEvents.onDisconnect("Accessory Bag disconnect reset") { session = null }
+    }
 
     fun onSlotClick(slot: Slot?, clickedButton: Int) {
+        val current = session ?: return
         if (clickedButton !in ACCESSORY_BAG_CHANGE_BUTTONS) return
         val itemName = slot?.item?.takeUnless { it.isEmpty }
             ?.formattedHoverName()
             ?.cleanSkyBlockText()
         if (itemName == "Next Page" || itemName == "Previous Page") {
-            forceNextSnapshotBaseline = true
-            changeLoggingArmedAt = ElapsedTimeMark.farPast()
+            current.forceNextSnapshotBaseline = true
+            current.changeLoggingArmedAt = ElapsedTimeMark.farPast()
         } else {
-            changeLoggingArmedAt = ElapsedTimeMark.now()
+            current.changeLoggingArmedAt = ElapsedTimeMark.now()
         }
     }
 
-    fun readOpenInventory(inventoryName: String?, inventoryItems: Map<Int, ItemStack>, inventoryId: Int? = null) {
-        if (!accessoryBagNamePattern.matches(inventoryName.orEmpty())) {
-            resetOpenInventoryState()
+    private fun readOpenInventory(inventory: SkyBlockOpenInventorySnapshot?) {
+        if (inventory == null || !accessoryBagNamePattern.matches(inventory.title)) {
+            session = null
             return
         }
-        resetIfNewInventory(inventoryId)
-
-        // Keep lore-derived accessory state outside the snapshot gate. Add future lore parsers here,
-        // not in AccessorySnapshot, unless they should emit explicit accessory update events.
-        if (updateBeastmasterMultiplier(inventoryItems.values) == ChangeResult.CHANGED) ProfileStorageApi.markDirty()
-
-        val snapshot = accessorySnapshot(inventoryItems)
-        if (!hasStableSnapshot(snapshot)) return
-        if (snapshot == processedSnapshot) return
-        processStableSnapshot(snapshot)
+        val current = session?.takeIf { it.inventoryId == inventory.containerId }
+            ?: AccessoryBagSession(inventory.containerId).also { session = it }
+        updateBeastmasterMultiplier(inventory.items.values)
+        current.stage(accessorySnapshot(inventory.items))
     }
 
-    private fun resetIfNewInventory(inventoryId: Int?) {
-        if (currentInventoryId == inventoryId) return
-        resetOpenInventoryState()
-        currentInventoryId = inventoryId
-    }
-
-    private fun hasStableSnapshot(snapshot: Map<String, AccessorySnapshot>): Boolean {
-        if (snapshot == pendingSnapshot) {
-            stableSnapshotReads++
-        } else {
-            pendingSnapshot = snapshot
-            stableSnapshotReads = 1
-        }
-        return stableSnapshotReads >= STABLE_SNAPSHOT_READS
-    }
-
-    private fun processStableSnapshot(snapshot: Map<String, AccessorySnapshot>) {
-        val previousSnapshot = processedSnapshot
-        val emitChanges = shouldEmitChanges(previousSnapshot, snapshot)
-        forceNextSnapshotBaseline = false
-        changeLoggingArmedAt = ElapsedTimeMark.farPast()
-
-        val accessoriesChanged = storeVisibleAccessories(snapshot) == ChangeResult.CHANGED
-        val removedAccessoriesChanged = removeMissingAccessories(snapshot, previousSnapshot, emitChanges) == ChangeResult.CHANGED
-
-        if (accessoriesChanged || removedAccessoriesChanged) ProfileStorageApi.markDirty()
-        processedSnapshot = snapshot
-        baselineEstablished = true
-    }
-
-    private fun shouldEmitChanges(
-        previousSnapshot: Map<String, AccessorySnapshot>?,
-        snapshot: Map<String, AccessorySnapshot>,
-    ): Boolean =
-        baselineEstablished &&
-            !forceNextSnapshotBaseline &&
-            changeLoggingArmedAt.passedSince() <= ACCESSORY_CHANGE_LOG_MAX_AGE &&
+    private fun processPendingSnapshot() {
+        val current = session ?: return
+        val snapshot = current.stableSnapshot() ?: return
+        val previousSnapshot = current.processedSnapshot
+        val removeMissing = !current.forceNextSnapshotBaseline &&
+            current.changeLoggingArmedAt.passedSince() in 0.seconds..ACCESSORY_CHANGE_LOG_MAX_AGE &&
             previousSnapshot.isLikelySameAccessoryBagView(snapshot)
+        current.forceNextSnapshotBaseline = false
+        current.changeLoggingArmedAt = ElapsedTimeMark.farPast()
+
+        storeVisibleAccessories(snapshot)
+        if (removeMissing) removeMissingAccessories(snapshot, previousSnapshot)
+        current.processedSnapshot = snapshot
+    }
 
     private fun storeVisibleAccessories(
         snapshot: Map<String, AccessorySnapshot>,
-    ): ChangeResult {
-        var changed = false
+    ) {
         for ((internalName, accessory) in snapshot) {
             val previous = storage.accessories[internalName]
             if (previous != null && previous.displayName == accessory.displayName && previous.lastSeenSlot == accessory.slot) {
                 continue
             }
-            storage.accessories[internalName] = accessory.toStorageData()
-            changed = true
+            ProfileStorageApi.updateProfile { it.accessories[internalName] = accessory.toStorageData() }
         }
-        return ChangeResult.from(changed)
     }
 
     private fun removeMissingAccessories(
         snapshot: Map<String, AccessorySnapshot>,
         previousSnapshot: Map<String, AccessorySnapshot>?,
-        emitChanges: Boolean,
-    ): ChangeResult {
-        if (!emitChanges) return ChangeResult.UNCHANGED
-        var changed = false
+    ) {
         val removedAccessories = previousSnapshot.orEmpty().filterKeys { it !in snapshot }
         for (internalName in removedAccessories.keys) {
-            changed = storage.accessories.remove(internalName) != null || changed
+            if (internalName in storage.accessories) {
+                ProfileStorageApi.updateProfile { it.accessories.remove(internalName) }
+            }
         }
-        return ChangeResult.from(changed)
     }
 
-    private fun updateBeastmasterMultiplier(inventoryItems: Collection<ItemStack>): ChangeResult {
-        var changed = false
+    private fun updateBeastmasterMultiplier(inventoryItems: Collection<ItemStack>) {
         for (item in inventoryItems) {
             val beastmasterMultiplier = readBeastmasterMultiplier(item) ?: continue
             if (beastmasterMultiplier > (storage.beastmasterPetXpMultiplier ?: 1.0)) {
-                storage.beastmasterPetXpMultiplier = beastmasterMultiplier
-                changed = true
+                ProfileStorageApi.updateProfile { it.beastmasterPetXpMultiplier = beastmasterMultiplier }
             }
         }
-        return ChangeResult.from(changed)
     }
 
     fun readBeastmasterMultiplier(item: ItemStack): Double? {
@@ -177,14 +146,25 @@ object AccessoryBagData {
             previousSnapshot.keys.intersect(currentSnapshot.keys).isNotEmpty()
     }
 
-    private fun resetOpenInventoryState() {
-        currentInventoryId = null
-        pendingSnapshot = null
-        stableSnapshotReads = 0
-        processedSnapshot = null
-        baselineEstablished = false
-        forceNextSnapshotBaseline = false
-        changeLoggingArmedAt = ElapsedTimeMark.farPast()
+    private class AccessoryBagSession(val inventoryId: Int) {
+        private var pendingSnapshot: Map<String, AccessorySnapshot>? = null
+        private var stableTicks = 0
+        var processedSnapshot: Map<String, AccessorySnapshot>? = null
+        var forceNextSnapshotBaseline = false
+        var changeLoggingArmedAt = ElapsedTimeMark.farPast()
+
+        fun stage(snapshot: Map<String, AccessorySnapshot>) {
+            if (snapshot == pendingSnapshot) return
+            pendingSnapshot = snapshot
+            stableTicks = 0
+        }
+
+        fun stableSnapshot(): Map<String, AccessorySnapshot>? {
+            val snapshot = pendingSnapshot ?: return null
+            if (snapshot == processedSnapshot) return null
+            stableTicks++
+            return snapshot.takeIf { stableTicks >= STABLE_SNAPSHOT_TICKS }
+        }
     }
 
     private fun AccessorySnapshot.toStorageData(): ProfileStorage.AccessoryData =
@@ -198,7 +178,7 @@ object AccessoryBagData {
         val slot: Int,
     )
 
-    private const val STABLE_SNAPSHOT_READS = 2
+    private const val STABLE_SNAPSHOT_TICKS = 2
     private val ACCESSORY_BAG_CHANGE_BUTTONS = setOf(0, 1)
     private val ACCESSORY_CHANGE_LOG_MAX_AGE = 5.seconds
     private const val BEASTMASTER_CREST_PREFIX = "BEASTMASTER_CREST_"

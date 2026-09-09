@@ -36,7 +36,9 @@ data class SkyBlockSupercraft(
 internal fun parseSkyBlockSupercraft(message: String): SkyBlockSupercraft? {
     val match = SUPERCRAFT_PATTERN.matchEntire(message) ?: return null
     val displayName = match.groups["item"]?.value?.trim().orEmpty()
-    val amount = match.groups["amount"]?.value?.replace(",", "")?.toIntOrNull() ?: 1
+    val amount = match.groups["amount"]?.value?.let { value ->
+        value.replace(",", "").toIntOrNull() ?: return null
+    } ?: 1
     return SkyBlockSupercraft(displayName, amount).takeIf { displayName.isNotEmpty() && amount > 0 }
 }
 

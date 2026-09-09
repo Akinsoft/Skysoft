@@ -30,16 +30,16 @@ object WorldItemBadgeRenderer {
         val itemScale = BASE_ITEM_SCALE * scale
         val displayAnchor = anchor + (cameraPosition - anchor).normalize() * cameraOffset
 
-        context.matrices.pushPose()
-        context.matrices.translate(
-            displayAnchor.x - cameraPosition.x,
-            displayAnchor.y - cameraPosition.y,
-            displayAnchor.z - cameraPosition.z,
-        )
-        context.matrices.mulPose(context.cameraRenderState.orientation)
-        renderItem(context, stack, itemScale)
-        renderBadge(context, badge, itemScale)
-        context.matrices.popPose()
+        context.withIsolatedPose {
+            context.matrices.translate(
+                displayAnchor.x - cameraPosition.x,
+                displayAnchor.y - cameraPosition.y,
+                displayAnchor.z - cameraPosition.z,
+            )
+            context.matrices.mulPose(context.cameraRenderState.orientation)
+            renderItem(context, stack, itemScale)
+            renderBadge(context, badge, itemScale)
+        }
     }
 
     private fun renderItem(context: SkysoftRenderContext, stack: ItemStack, scale: Float) {
@@ -53,40 +53,40 @@ object WorldItemBadgeRenderer {
             null,
             0,
         )
-        context.matrices.pushPose()
-        context.matrices.scale(scale, -scale, -scale)
-        itemState.submit(
-            context.matrices,
-            context.submitNodeCollector,
-            LightCoordsUtil.FULL_BRIGHT,
-            OverlayTexture.NO_OVERLAY,
-            THROUGH_WALLS_MARKER,
-        )
-        context.matrices.popPose()
+        context.withIsolatedPose {
+            context.matrices.scale(scale, -scale, -scale)
+            itemState.submit(
+                context.matrices,
+                context.submitNodeCollector,
+                LightCoordsUtil.FULL_BRIGHT,
+                OverlayTexture.NO_OVERLAY,
+                THROUGH_WALLS_MARKER,
+            )
+        }
     }
 
     private fun renderBadge(context: SkysoftRenderContext, badge: Component, itemScale: Float) {
         val textScale = itemScale * BADGE_SCALE
-        context.matrices.pushPose()
-        context.matrices.translate(
-            (itemScale * BADGE_X_OFFSET).toDouble(),
-            (-itemScale * BADGE_Y_OFFSET).toDouble(),
-            BADGE_Z_OFFSET,
-        )
-        context.matrices.scale(textScale, -textScale, textScale)
-        context.submitNodeCollector.submitText(
-            context.matrices,
-            0f,
-            0f,
-            badge.visualOrderText,
-            true,
-            Font.DisplayMode.SEE_THROUGH,
-            LightCoordsUtil.FULL_BRIGHT,
-            0xFFFFFFFF.toInt(),
-            0,
-            0,
-        )
-        context.matrices.popPose()
+        context.withIsolatedPose {
+            context.matrices.translate(
+                (itemScale * BADGE_X_OFFSET).toDouble(),
+                (-itemScale * BADGE_Y_OFFSET).toDouble(),
+                BADGE_Z_OFFSET,
+            )
+            context.matrices.scale(textScale, -textScale, textScale)
+            context.submitNodeCollector.submitText(
+                context.matrices,
+                0f,
+                0f,
+                badge.visualOrderText,
+                true,
+                Font.DisplayMode.SEE_THROUGH,
+                LightCoordsUtil.FULL_BRIGHT,
+                0xFFFFFFFF.toInt(),
+                0,
+                0,
+            )
+        }
     }
 
     const val THROUGH_WALLS_MARKER = Int.MIN_VALUE

@@ -3,9 +3,10 @@ package com.skysoft.features.profit
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.ProfileStorageView
 
 internal object ProfitTrackerItemCustomizations {
-    fun data(target: ProfitTrackerTarget): ProfileStorage.ProfitTrackerItemCustomizations? =
+    fun data(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerItemCustomizations? =
         target.custom?.let { custom ->
             ProfileStorage.ProfitTrackerItemCustomizations(
                 customItems = custom.items,
@@ -62,18 +63,16 @@ internal object ProfitTrackerItemCustomizations {
         action: (ProfileStorage.ProfitTrackerItemCustomizations) -> Unit,
     ) {
         val custom = target.custom
-        val customizations = custom?.let {
-            ProfileStorage.ProfitTrackerItemCustomizations(
-                customItems = it.items,
-                priceSources = it.priceSources,
-            )
-        } ?: ProfileStorageApi.storage.profitTracker.itemCustomizations
-            .getOrPut(target.storageKey) { ProfileStorage.ProfitTrackerItemCustomizations() }
-        action(customizations)
         if (custom != null) {
+            action(ProfileStorage.ProfitTrackerItemCustomizations(customItems = custom.items, priceSources = custom.priceSources))
             com.skysoft.config.SkysoftConfigGui.config().saveNow()
         } else {
-            ProfileStorageApi.markDirty()
+            ProfileStorageApi.updateProfile { profile ->
+                val customizations = profile.profitTracker.itemCustomizations.getOrPut(target.storageKey) {
+                    ProfileStorage.ProfitTrackerItemCustomizations()
+                }
+                action(customizations)
+            }
         }
     }
 }

@@ -67,8 +67,6 @@ internal object SkyBlockMobEntityMatcher {
     fun canPairWithNameplate(entity: LivingEntity, nameplate: ArmorStand): Boolean =
         entity.isTightPair(nameplate)
 
-    fun allEntities(): List<Entity> = ClientEntitySnapshot.entities()
-
     fun physicalEntityFor(
         nameplate: ArmorStand,
         entities: Iterable<Entity> = ClientEntitySnapshot.entities(),

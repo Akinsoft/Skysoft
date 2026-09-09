@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Rect
@@ -119,7 +120,7 @@ private fun focusBackdropColor(progress: Float): Int {
 private fun drawPage(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    page: ProfileStorage.SkyBlockStoragePageData,
+    page: ProfileStorageView.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,
@@ -198,7 +199,7 @@ private fun drawPage(
 private fun drawPageSlots(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
-    page: ProfileStorage.SkyBlockStoragePageData,
+    page: ProfileStorageView.SkyBlockStoragePageData,
     layout: PageLayout,
     visibleBounds: Rect,
     active: Boolean,
@@ -222,7 +223,7 @@ private fun drawPageSlots(
         val hovered = isSlotHovered(mouseX, mouseY, slotX, slotY) && context.containsPointInScissor(mouseX, mouseY)
         val storedItem = page.items.getOrNull(index)
         val activeSlot = if (active) activeSlots[index] else null
-        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else stackFor(storedItem)
+        val stack = activeSlot?.item ?: if (active) ItemStack.EMPTY else StorageItemStacks.stackFor(storedItem)
         if (!stack.isEmpty) {
             if (!SmoothSwapping.shouldSuppressSlot(screen, activeSlot)) {
                 if (active) {
@@ -418,7 +419,7 @@ internal fun drawStorageSelectorPanel(
 private fun toolkitShortcutStack(type: ToolkitType): ItemStack {
     val isAvailable = storageEntryExists(type.pageIndex)
     if (isAvailable) {
-        val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
+        val stack = StorageItemStacks.stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
         if (!stack.isEmpty) return stack
     }
     return ItemStack(if (isAvailable) Items.CHEST else Items.BARRIER).apply {

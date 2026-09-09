@@ -48,13 +48,9 @@ object HypixelLocationState {
 
         val modApi = HypixelModAPI.getInstance()
         modApi.subscribeToEventPacket(ClientboundLocationPacket::class.java)
-        modApi.createHandler(ClientboundLocationPacket::class.java, ::onLocationPacket)
+        modApi.createHandler(ClientboundLocationPacket::class.java, ::acceptLocation)
 
         SkysoftClientEvents.onDisconnect("Hypixel Location reset", ::reset)
-    }
-
-    private fun onLocationPacket(packet: ClientboundLocationPacket) {
-        acceptLocation(packet)
     }
 
     fun onChange(

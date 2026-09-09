@@ -44,8 +44,6 @@ internal object FishingHotspotShareParser {
         return "$SHARE_MARKER (${share.cleanStat}) @ $x $y $z"
     }
 
-    fun partyCommand(share: FishingHotspotShare): String = "pc ${format(share)}"
-
     fun parse(message: String): FishingHotspotShare? {
         val match = sharePattern.find(message) ?: return null
         return FishingHotspotShare(

@@ -3,7 +3,6 @@ package com.skysoft.features.inventory
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.SkyBlockItemStackCodec
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.core.component.DataComponents
@@ -11,6 +10,7 @@ import net.minecraft.nbt.Tag
 import net.minecraft.resources.RegistryOps
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Item
 
 internal fun storageOverviewSlotState(name: String, isPlaceholderItem: Boolean): StorageOverviewSlotState = when {
     name == "Locked Page" || name.startsWith("Locked Backpack Slot") -> StorageOverviewSlotState.LOCKED
@@ -30,18 +30,16 @@ internal fun emptyBackpackShortcutStack(backpackSlot: Int): ItemStack = ItemStac
     )
 }
 
-internal fun ensureUnloadedPage(pageIndex: Int): ChangeResult {
-    val page = storage.skyBlockStoragePages[pageIndex] ?: run {
-        storage.skyBlockStoragePages[pageIndex] =
+internal fun ProfileStorage.ProfileSpecific.ensureUnloadedPage(pageIndex: Int) {
+    val page = skyBlockStoragePages[pageIndex] ?: run {
+        skyBlockStoragePages[pageIndex] =
             ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(pageIndex), 0)
-        return ChangeResult.CHANGED
+        return
     }
-    var changed = ensurePageTitle(page, pageIndex) == ChangeResult.CHANGED
+    ensurePageTitle(page, pageIndex)
     if (page.overviewIcon.isNotEmpty()) {
         page.overviewIcon = ""
-        changed = true
     }
-    return ChangeResult.from(changed)
 }
 
 internal fun isEnderChestPage(pageIndex: Int): Boolean =
@@ -55,13 +53,12 @@ internal fun defaultPageTitle(pageIndex: Int): String = fixedPageTitle(pageIndex
     else -> "Backpack #${pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1}"
 }
 
-internal fun ensurePageTitle(page: ProfileStorage.SkyBlockStoragePageData, pageIndex: Int): ChangeResult {
+internal fun ensurePageTitle(page: ProfileStorage.SkyBlockStoragePageData, pageIndex: Int) {
     val title = fixedPageTitle(pageIndex)
         ?: page.title.takeIf { it.isNotBlank() }
         ?: defaultPageTitle(pageIndex)
-    if (page.title == title) return ChangeResult.UNCHANGED
+    if (page.title == title) return
     page.title = title
-    return ChangeResult.CHANGED
 }
 
 internal fun encodeItem(stack: ItemStack): ProfileStorage.SkyBlockStorageItemData =
@@ -71,19 +68,16 @@ internal fun encodeItem(stack: ItemStack): ProfileStorage.SkyBlockStorageItemDat
         ProfileStorage.SkyBlockStorageItemData(SkyBlockItemStackCodec.encode(stack.copy()))
     }
 
-internal fun stackFor(item: ProfileStorage.SkyBlockStorageItemData?): ItemStack {
-    val encoded = item?.encodedStack?.takeIf { it.isNotBlank() } ?: return ItemStack.EMPTY
-    decodedStacks[encoded]?.let { return it }
-    val decodedStack = SkyBlockItemStackCodec.decode(encoded) ?: return ItemStack.EMPTY
-    decodedStacks[encoded] = decodedStack
-    return decodedStack
-}
-
 internal fun registryOps(): RegistryOps<Tag> = SkyBlockItemStackCodec.registryOps()
 
 internal enum class StorageOverviewSlotState {
     LOCKED,
     PLACEHOLDER,
     PAGE,
+}
+
+private val emptyOverviewItems: Set<Item> = buildSet {
+    addAll(MinecraftItems.stainedGlassPanes())
+    add(MinecraftItems.grayDye())
 }
 

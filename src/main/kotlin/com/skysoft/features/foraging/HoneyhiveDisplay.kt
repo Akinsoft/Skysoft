@@ -1,7 +1,7 @@
 package com.skysoft.features.foraging
 
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.GuiOverlay
@@ -10,6 +10,7 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.transform
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.TextUtilities.formattedText
@@ -25,7 +26,6 @@ import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import com.skysoft.utils.renderables.renderRenderable
-import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -36,7 +36,7 @@ import org.lwjgl.glfw.GLFW
 internal object HoneyhiveDisplay {
     private val config get() = SkysoftConfigGui.config().foraging.honeyhiveHelper
     private var scrollOffset = 0
-    private var hoveredHive: ProfileStorage.HoneyhiveData? = null
+    private var hoveredHive: ProfileStorageView.HoneyhiveData? = null
     private var isDisplayHovered = false
     private var hoveredScreen: AbstractContainerScreen<*>? = null
 
@@ -101,11 +101,8 @@ internal object HoneyhiveDisplay {
 
     private fun localPoint(view: HoneyhiveRenderable, mouseX: Int, mouseY: Int): Pair<Int, Int> {
         val (normalX, normalY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-        val position = config.position
-        val scale = position.effectiveScale
-        val x = position.getAbsX0AllowingOverflow((view.width * scale).roundToInt())
-        val y = position.getAbsY0AllowingOverflow((view.height * scale).roundToInt())
-        return OverlayControlMouse.localCoordinate(normalX, x, scale) to OverlayControlMouse.localCoordinate(normalY, y, scale)
+        val transform = config.position.transform(view.width, view.height)
+        return transform.localX(normalX) to transform.localY(normalY)
     }
 
     private fun isDisplayVisible(): Boolean = config.settings.display &&
@@ -175,9 +172,9 @@ private class HoneyhiveRenderable(
     ) + padding * 2
     override val height: Int = padding * 2 + OverlayTextStyle.TITLE_HEIGHT + rows.size * OverlayItemRowStyle.HEIGHT +
         if (footer.isEmpty()) 0 else OverlayTextStyle.ROW_HEIGHT
-    var hoveredHive: ProfileStorage.HoneyhiveData? = null
+    var hoveredHive: ProfileStorageView.HoneyhiveData? = null
 
-    fun hiveAt(y: Int): ProfileStorage.HoneyhiveData? {
+    fun hiveAt(y: Int): ProfileStorageView.HoneyhiveData? {
         val rowY = y - padding - OverlayTextStyle.TITLE_HEIGHT
         if (rowY < 0) return null
         return rows.getOrNull(rowY / OverlayItemRowStyle.HEIGHT)?.hive
@@ -207,7 +204,7 @@ private class HoneyhiveRenderable(
     }
 }
 
-private class HoneyhiveRow(val number: Int, val hive: ProfileStorage.HoneyhiveData, now: Long) {
+private class HoneyhiveRow(val number: Int, val hive: ProfileStorageView.HoneyhiveData, now: Long) {
     val name = "§6Hive $number"
     val status = honeyhiveStatusComponent(hive, now).formattedText()
     val width = OverlayItemRowStyle.ICON_TEXT_OFFSET + LegacyTextRenderer.width(name) +

@@ -134,7 +134,7 @@ internal object ItemListNpcWaypoint {
         val waypoint = activeWaypoint ?: return
         if (HypixelLocationState.currentIsland != waypoint.island) return
         val entity = SkyBlockDataRepository.entity(waypoint.entityId) ?: return
-        val texture = SkyBlockEntityStacks.skinTexture(waypoint.entityId) ?: return
+        val texture = SkyBlockEntityStacks.skinTexture(entity) ?: return
         WorldLabelRenderer.drawHeadLabel(
             context,
             waypoint.target.up(WAYPOINT_HEIGHT),
@@ -250,3 +250,7 @@ private const val MINIMUM_WARP_MOVEMENT_SQ = 12.0 * 12.0
 private const val WARP_ARRIVAL_RANGE_SQ = 40.0 * 40.0
 private const val NPC_ARRIVAL_RANGE_SQ = 6.0 * 6.0
 private const val WAYPOINT_LIFETIME_MILLIS = 120_000L
+
+internal fun SkyBlockEntityInfo.canNavigateToEntity(): Boolean =
+    SkyBlockDataRepository.ViewerData.bestWarpFor(id) != null &&
+        (position != null || island != com.skysoft.data.hypixel.HypixelLocationState.currentIsland)

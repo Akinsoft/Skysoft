@@ -3,9 +3,11 @@ package com.skysoft.data.skyblock
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.world.item.ItemStack
 import kotlin.math.min
+import kotlin.time.Duration.Companion.seconds
 
 object SkyBlockDroppedItems {
     private val listeners = ActiveListenerRegistry<(SkyBlockDroppedItem) -> Unit>()
@@ -38,16 +40,14 @@ object SkyBlockDroppedItems {
     private fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
 }
 
-internal class SkyBlockDropIntents(
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
-) {
+private class SkyBlockDropIntents {
     private val pending = mutableMapOf<String, Intent>()
 
     fun add(itemId: String, amount: Int) {
         if (amount <= 0) return
         discardExpired()
         val current = pending[itemId]
-        pending[itemId] = Intent((current?.amount ?: 0) + amount, currentTimeMillis() + DROP_INTENT_MILLIS)
+        pending[itemId] = Intent((current?.amount ?: 0) + amount, ElapsedTimeMark.now())
     }
 
     fun confirm(changes: Map<String, Int>): List<SkyBlockDroppedItem> {
@@ -67,13 +67,12 @@ internal class SkyBlockDropIntents(
     fun clear() = pending.clear()
 
     private fun discardExpired() {
-        val now = currentTimeMillis()
-        pending.entries.removeIf { (_, intent) -> intent.expiresAtMillis <= now }
+        pending.values.removeIf { intent -> intent.started.passedSince() >= DROP_INTENT_WINDOW }
     }
 
     private data class Intent(
         val amount: Int,
-        val expiresAtMillis: Long,
+        val started: ElapsedTimeMark,
     )
 }
 
@@ -82,4 +81,4 @@ data class SkyBlockDroppedItem(
     val amount: Int,
 )
 
-private const val DROP_INTENT_MILLIS = 3_000L
+private val DROP_INTENT_WINDOW = 3.seconds

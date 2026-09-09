@@ -1,6 +1,7 @@
 package com.skysoft.features.profit
 
 import com.google.gson.Gson
+import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 
 internal object ProfitTrackerPresets {
@@ -17,7 +18,8 @@ internal object ProfitTrackerPresets {
     ): ProfitTrackerPreset? {
         if (island == null) return null
         val matches = presets.filter { (type, preset) ->
-            (!type.requiresPreference || preferred == type) &&
+            (type != ProfitTrackerPreset.FISHING || island != SkyBlockIsland.GARDEN.displayName) &&
+                (!type.requiresPreference || preferred == type) &&
                 (preset.anyIsland || island in preset.islands) &&
                 (preset.areas.isEmpty() || area in preset.areas) &&
                 (preset.islandAreas[island]?.let { area in it } != false)
@@ -78,7 +80,7 @@ internal enum class ProfitTrackerPreset(
     val slayerType: SkyBlockSlayerType? = null,
     val coinLabel: String = "Mob Kill Coins",
     val actionLabel: String = "Bosses Killed",
-    val requiresPreference: Boolean = false,
+    val requiresPreference: Boolean = slayerType != null,
 ) {
     ZOMBIE("Zombie Slayer", SkyBlockSlayerType.ZOMBIE),
     SPIDER("Spider Slayer", SkyBlockSlayerType.SPIDER),

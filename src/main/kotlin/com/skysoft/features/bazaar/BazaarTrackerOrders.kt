@@ -6,24 +6,23 @@ import com.skysoft.utils.ChangeResult
 import kotlin.math.max
 import kotlin.math.roundToLong
 
-internal fun applyCancel(cancel: PendingCancel) {
+internal fun ProfileStorage.BazaarTrackerData.applyCancel(cancel: PendingCancel) {
     val order = findCancelOrder(cancel)
         ?: run {
-            pendingCancel = null
+            BazaarTrackingState.pendingCancel = null
             return
         }
 
     rememberResolvedOrder(order)
-    storage.activeOrders.remove(order)
+    this.activeOrders.remove(order)
     clearPendingOrderAction()
-    markBazaarTrackerChanged()
 }
 
-private fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
+private fun ProfileStorage.BazaarTrackerData.findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderData? {
     cancel.orderId?.let { id ->
-        storage.activeOrders.firstOrNull { it.id == id && it.type == cancel.type }?.let { return it }
+        this.activeOrders.firstOrNull { it.id == id && it.type == cancel.type }?.let { return it }
     }
-    return storage.activeOrders
+    return this.activeOrders
         .asSequence()
         .filter { it.type == cancel.type }
         .filter { cancel.itemName.isBlank() || namesMatch(it.itemName, cancel.itemName) }
@@ -31,7 +30,7 @@ private fun findCancelOrder(cancel: PendingCancel): ProfileStorage.BazaarOrderDa
         .filter { isPlausibleCancelOrder(it, cancel) }
         .minWithOrNull(
             compareBy<ProfileStorage.BazaarOrderData> { cancelDistance(it, cancel) }
-                .thenBy { if (pendingOrderOptionId == it.id) 0 else 1 }
+                .thenBy { if (BazaarTrackingState.pendingOrderOptionId == it.id) 0 else 1 }
                 .thenByDescending { it.updatedAtMillis }
         )
 }
@@ -55,7 +54,7 @@ private fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: Pendin
     return amountDistance(expectedUnfilled, amount)
 }
 
-internal fun removeOrReduceOrderAfterClaim(order: ProfileStorage.BazaarOrderData, amount: Long) {
+internal fun ProfileStorage.BazaarTrackerData.removeOrReduceOrderAfterClaim(order: ProfileStorage.BazaarOrderData, amount: Long) {
     applyClaimedAmount(order, amount, alert = false)
 }
 
@@ -70,23 +69,23 @@ internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: P
     }
     if (changed) {
         if (identityUpdate.meaningful) order.updatedAtMillis = System.currentTimeMillis()
-        playProgressAlert(order, progressAlertBaseline)
+        BazaarTrackerAlerts.playProgressAlert(order, progressAlertBaseline)
     }
     return ChangeResult.from(changed)
 }
 
-internal fun findClaimOrder(
+internal fun ProfileStorage.BazaarTrackerData.findClaimOrder(
     type: BazaarOrderType,
     itemName: String,
     amount: Long,
     unitPrice: Double,
 ): ProfileStorage.BazaarOrderData? {
-    pendingOrderOptionId?.let { id ->
-        storage.activeOrders.firstOrNull { isPlausibleClaimOrder(it, id, type, itemName, amount, unitPrice) }?.let {
+    BazaarTrackingState.pendingOrderOptionId?.let { id ->
+        this.activeOrders.firstOrNull { isPlausibleClaimOrder(it, id, type, itemName, amount, unitPrice) }?.let {
             return it
         }
     }
-    val candidates = storage.activeOrders
+    val candidates = this.activeOrders
         .filter { isPlausibleClaimOrder(it, it.id, type, itemName, amount, unitPrice) }
     return candidates.minWithOrNull(
         compareBy<ProfileStorage.BazaarOrderData> {
@@ -130,32 +129,32 @@ private fun isPlausibleClaimOrder(
     return true
 }
 
-internal fun pruneOrdersMissingFromGui(
+internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
     matchedOrderIds: Set<String>,
     parsedOrders: List<PendingOrder>,
     visibleOrderCount: Int,
 ): ChangeResult {
     val now = System.currentTimeMillis()
-    val recentlyClickedOrder = now - lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
+    val recentlyClickedOrder = now - BazaarTrackingState.lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
     val visibleScanMayBeWindowed = visibleOrderCount >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
-        storage.activeOrders.any { it.id !in matchedOrderIds }
+        this.activeOrders.any { it.id !in matchedOrderIds }
     var changed = false
-    val iterator = storage.activeOrders.iterator()
+    val iterator = this.activeOrders.iterator()
     while (iterator.hasNext()) {
         val order = iterator.next()
         if (order.id in matchedOrderIds) {
-            missingFromOrdersGuiScans.remove(order.id)
+            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else if (visibleScanMayBeWindowed) {
-            missingFromOrdersGuiScans.remove(order.id)
+            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else if (!shouldPruneMissingFromGui(order, parsedOrders, recentlyClickedOrder, now)) {
-            missingFromOrdersGuiScans.remove(order.id)
+            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else {
-            val previous = missingFromOrdersGuiScans[order.id]
+            val previous = BazaarTrackingState.missingFromOrdersGuiScans[order.id]
             val observation = MissingOrderObservation(
                 scans = (previous?.scans ?: 0) + 1,
                 firstObservedAtMillis = previous?.firstObservedAtMillis ?: now,
             )
-            missingFromOrdersGuiScans[order.id] = observation
+            BazaarTrackingState.missingFromOrdersGuiScans[order.id] = observation
             if (
                 parsedOrders.isEmpty() ||
                 (
@@ -179,7 +178,7 @@ private fun shouldPruneMissingFromGui(
     now: Long,
 ): Boolean {
     if (recentlyClickedOrder) return false
-    if (pendingCancel?.orderId == order.id) return false
+    if (BazaarTrackingState.pendingCancel?.orderId == order.id) return false
     if (now - order.createdAtMillis < GUI_MISSING_PRUNE_NEW_ORDER_GRACE_MILLIS) return false
 
     // If we have seen this order in a real Bazaar Orders slot before, then a stable scan
@@ -199,3 +198,12 @@ private fun parsedRepresentsOrder(order: ProfileStorage.BazaarOrderData, parsed:
     return guiMatchIsPlausible(order, parsed)
 }
 
+private const val GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS = 1_500L
+private const val GUI_MISSING_PRUNE_NEW_ORDER_GRACE_MILLIS = 1_500L
+private const val BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT = 21
+private const val GUI_MISSING_PRUNE_CONFIRM_SCANS = 3
+private const val GUI_MISSING_PRUNE_MIN_CONFIRMATION_MILLIS = 1_500L
+private const val BAZAAR_MATCH_TOLERANCE_RATE = 0.08
+private const val MIN_CANCEL_AMOUNT_TOLERANCE = 1L
+private const val MIN_CLAIM_AMOUNT_TOLERANCE = 2L
+private const val MIN_UNIT_PRICE_TOLERANCE = 2.0

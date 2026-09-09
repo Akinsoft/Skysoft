@@ -37,12 +37,8 @@ internal object DianaBurrowSurfaceValidator {
         }
     }
 
-    fun isValid(level: ClientLevel, blockPos: BlockPos): Boolean {
-        val above = blockPos.above()
-        val secondAbove = blockPos.above(SECOND_BLOCK_ABOVE_OFFSET)
-        if (!level.isLoaded(blockPos) || !level.isLoaded(above) || !level.isLoaded(secondAbove)) return false
-        return isValidSurface(level.getBlockState(blockPos), level.getBlockState(above), level.getBlockState(secondAbove))
-    }
+    fun isValid(level: ClientLevel, blockPos: BlockPos): Boolean =
+        check(level, blockPos) == DianaBurrowSurfaceStatus.VALID
 
     private fun isValidSurface(block: BlockState, above: BlockState, secondAbove: BlockState): Boolean =
         block.isGrassSurface() && above.isAir && secondAbove.isAir

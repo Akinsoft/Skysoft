@@ -8,7 +8,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.util.LightCoordsUtil
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.resources.Identifier
-import kotlin.math.sqrt
 
 object WorldLabelRenderer {
     fun draw(
@@ -60,10 +59,10 @@ object WorldLabelRenderer {
 
         drawTransformed(context, anchor, style) { _, _ ->
             parts.forEach { part ->
-                context.matrices.pushPose()
-                context.matrices.translate(part.x.toDouble(), part.y.toDouble(), 0.0)
-                submitText(context, part.component, 0f, 0f, style)
-                context.matrices.popPose()
+                context.withIsolatedPose {
+                    context.matrices.translate(part.x.toDouble(), part.y.toDouble(), 0.0)
+                    submitText(context, part.component, 0f, 0f, style)
+                }
             }
         }
     }
@@ -95,7 +94,7 @@ object WorldLabelRenderer {
     ) {
         val font = Minecraft.getInstance().font
         val cameraPosition = context.camera.position().toWorldVec()
-        val distance = distance(cameraPosition, anchor).coerceAtLeast(MIN_DISTANCE)
+        val distance = cameraPosition.distance(anchor).coerceAtLeast(MIN_DISTANCE)
         val renderDistance = distance.coerceAtMost(style.maxRenderDistance)
         val renderLocation = cameraPosition + (anchor - cameraPosition) * (renderDistance / distance)
         val scale = (renderDistance / style.scaleDistance * style.scaleMultiplier)
@@ -103,16 +102,16 @@ object WorldLabelRenderer {
             .toFloat()
         val worldScale = (style.worldScale * scale).toFloat()
 
-        context.matrices.pushPose()
-        context.matrices.translate(
-            renderLocation.x - cameraPosition.x,
-            renderLocation.y - cameraPosition.y,
-            renderLocation.z - cameraPosition.z,
-        )
-        context.matrices.mulPose(context.cameraRenderState.orientation)
-        context.matrices.scale(worldScale, -worldScale, worldScale)
-        render(font, scale)
-        context.matrices.popPose()
+        context.withIsolatedPose {
+            context.matrices.translate(
+                renderLocation.x - cameraPosition.x,
+                renderLocation.y - cameraPosition.y,
+                renderLocation.z - cameraPosition.z,
+            )
+            context.matrices.mulPose(context.cameraRenderState.orientation)
+            context.matrices.scale(worldScale, -worldScale, worldScale)
+            render(font, scale)
+        }
     }
 
     private fun submitText(
@@ -197,11 +196,6 @@ object WorldLabelRenderer {
         vertices.addVertex(pose, HeadGeometry.HALF_SIZE, -HeadGeometry.SIZE, z)
             .setColor(HeadGeometry.COLOR).setUv(maxU, minV)
             .setLight(LightCoordsUtil.FULL_BRIGHT)
-    }
-
-    private fun distance(from: WorldVec, to: WorldVec): Double {
-        val delta = to - from
-        return sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z)
     }
 
     private const val MIN_DISTANCE = 0.001

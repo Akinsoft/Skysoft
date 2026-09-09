@@ -2,6 +2,7 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.ChangeResult
 
 internal fun activeFlipBatch(data: ProfileStorage.BazaarTrackerData): Long {
@@ -20,7 +21,7 @@ internal fun ensureTrackedBuyOrder(
     if (trackingEnabled && order.flipBatchId == null) order.flipBatchId = activeFlipBatch(data)
 }
 
-internal fun trackedInvestedValue(data: ProfileStorage.BazaarTrackerData): Double =
+internal fun trackedInvestedValue(data: ProfileStorageView.BazaarTrackerData): Double =
     data.activeOrders
         .asSequence()
         .filter { it.type == BazaarOrderType.BUY && it.flipBatchId != null }
@@ -45,13 +46,17 @@ internal fun addTrackedBuyLot(
     return ChangeResult.CHANGED
 }
 
-internal fun prepareCraftedCostBasis(productId: String?, itemName: String, neededAmount: Long): CraftPreparationResult {
-    if (productId == null || neededAmount <= trackedLotAmount(storage, productId, itemName)) {
+internal fun ProfileStorage.BazaarTrackerData.prepareCraftedCostBasis(
+    productId: String?,
+    itemName: String,
+    neededAmount: Long,
+): CraftPreparationResult {
+    if (productId == null || neededAmount <= trackedLotAmount(this, productId, itemName)) {
         return CraftPreparationResult.NOT_NEEDED
     }
     val recipes = BazaarCraftingRecipes.recipesFor(productId)
         ?: return CraftPreparationResult.RECIPE_DATA_UNAVAILABLE
-    return prepareCraftedCostBasis(storage, productId, itemName, neededAmount, recipes)
+    return prepareCraftedCostBasis(this, productId, itemName, neededAmount, recipes)
 }
 
 internal fun prepareCraftedCostBasis(
@@ -165,5 +170,28 @@ private fun applyCraftPlan(
         unitCost = totalCost / plan.outputAmount,
         flipBatchId = plan.batchId,
         source = ProfileStorage.BazaarLotSource.CRAFTED,
+    )
+}
+
+data class BazaarInvestmentPosition(
+    val amount: Long,
+    val investedCoins: Double,
+    val averageCost: Double,
+)
+
+internal fun bazaarInvestmentPosition(
+    lots: List<ProfileStorageView.BazaarItemLotData>,
+    productId: String,
+): BazaarInvestmentPosition? {
+    val matching = lots.asSequence()
+        .filter { it.flipBatchId != null && it.productId.equals(productId, ignoreCase = true) }
+        .toList()
+    val amount = matching.sumOf { it.amount }
+    if (amount <= 0L) return null
+    val investedCoins = matching.sumOf { it.amount * it.unitCost }
+    return BazaarInvestmentPosition(
+        amount = amount,
+        investedCoins = investedCoins,
+        averageCost = investedCoins / amount,
     )
 }

@@ -1,6 +1,7 @@
 package com.skysoft.features.pets
 
 import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.config.features.pets.display.text.PetTextDisplaySettings
 import com.skysoft.config.features.pets.display.text.PetTextConfig
 import com.skysoft.data.StoredPetData
@@ -21,7 +22,7 @@ object PetDisplayTextFormatter {
         val xpFormat = textConfig.xpFormat.get()
         when (textElement) {
             TextElement.PET_NAME -> getUserFriendlyName(textConfig.nameLevel.get(), textConfig.nameSkinSymbol.get())
-            TextElement.HELD_ITEM -> heldItemInternalName?.let { PetRepository.itemName(it) }
+            TextElement.HELD_ITEM -> SkyBlockItemNames.displayName(heldItemInternalName)
             TextElement.OVERFLOW_XP -> overflowXp.takeIf { it > 0.0 }?.let { "§7+§b${formatExp(it, xpFormat)}" }
             TextElement.TOTAL_XP -> exp?.takeIf { it > 0.0 }?.let { "§b${formatExp(it, xpFormat)}" }
             TextElement.NEXT_LEVEL -> formatNextLevel(petData, textConfig, xpFormat)

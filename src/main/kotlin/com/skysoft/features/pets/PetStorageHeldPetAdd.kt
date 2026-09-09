@@ -50,15 +50,14 @@ internal object PetStorageHeldPetAdd {
         }
         val pending = pendingAdds.removeAt(pendingIndex)
 
-        val petUuid = pending.petData.uuid ?: run {
+        pending.petData.uuid ?: run {
             SkysoftMod.LOGGER.warn(
                 "Saw pet-menu add confirmation for {} but the held pet item did not include a UUID",
                 confirmedPetName,
             )
             return
         }
-        PetStorageService.petStorage.pets.addOrReplace(pending.petData) { it.uuid == petUuid }
-        PetStorageService.markDirty()
+        PetStorageService.storePet(pending.petData)
     }
 
     private fun heldPetAddOrNull(): PendingPetMenuAdd? {

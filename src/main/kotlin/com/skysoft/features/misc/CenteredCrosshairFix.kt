@@ -1,6 +1,7 @@
 package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.renderables.withIsolatedPose
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -32,12 +33,9 @@ object CenteredCrosshairFix {
             return
         }
 
-        graphics.pose().pushMatrix()
-        try {
+        graphics.withIsolatedPose {
             graphics.pose().translate(offset.x, offset.y)
             drawVanillaCrosshair()
-        } finally {
-            graphics.pose().popMatrix()
         }
     }
 }

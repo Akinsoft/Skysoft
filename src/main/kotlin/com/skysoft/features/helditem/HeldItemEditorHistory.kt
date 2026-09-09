@@ -56,7 +56,7 @@ internal class HeldItemHistoryStore(
     fun undo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult {
         expireInactiveHistories()
         val history = histories[key] ?: return ChangeResult.UNCHANGED
-        val result = history.snapshots.undo { snapshot -> config.restoreCustomization(key.itemId, snapshot) }
+        val result = history.snapshots.undo(config::restoreCustomization)
         if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = clockNanos()
         return result
     }
@@ -64,7 +64,7 @@ internal class HeldItemHistoryStore(
     fun redo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult {
         expireInactiveHistories()
         val history = histories[key] ?: return ChangeResult.UNCHANGED
-        val result = history.snapshots.redo { snapshot -> config.restoreCustomization(key.itemId, snapshot) }
+        val result = history.snapshots.redo(config::restoreCustomization)
         if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = clockNanos()
         return result
     }

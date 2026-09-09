@@ -1,5 +1,8 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.data.skyblock.CatalogJson.string
+import com.skysoft.data.skyblock.CatalogJson.long
+import com.skysoft.data.skyblock.CatalogJson.array
 import com.google.gson.JsonObject
 import com.skysoft.utils.TextUtilities.removeColor
 import java.util.Locale
@@ -91,11 +94,8 @@ internal object SkyBlockEntityCatalog {
         else -> string("id").readableName()
     }
 
-    private fun JsonObject.string(name: String): String = get(name)?.takeUnless { it.isJsonNull }?.asString.orEmpty()
-    private fun JsonObject.long(name: String): Long = get(name)?.takeUnless { it.isJsonNull }?.asLong ?: 0L
     private fun JsonObject.positiveInt(name: String): Int? =
         get(name)?.takeUnless { it.isJsonNull }?.asInt?.takeIf { it > 0 }
-    private fun JsonObject.array(name: String) = get(name)?.takeIf { it.isJsonArray }?.asJsonArray
     private fun String.readableName(): String =
         replace('_', ' ').lowercase(Locale.ROOT).replaceFirstChar(Char::uppercase)
 

@@ -9,8 +9,7 @@ internal var farmingKernelProfitItem: FarmingKernelProfitItem
         .let { stored -> FarmingKernelProfitItem.entries.firstOrNull { it.name == stored } }
         ?: FarmingKernelProfitItem.FEAST
     set(value) {
-        ProfileStorageApi.storage.profitTracker.farmingKernelItem = value.name
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.profitTracker.farmingKernelItem = value.name }
     }
 
 internal var farmingKernelProfitPriceSource: FarmingKernelProfitPriceSource
@@ -18,8 +17,7 @@ internal var farmingKernelProfitPriceSource: FarmingKernelProfitPriceSource
         .let { stored -> FarmingKernelProfitPriceSource.entries.firstOrNull { it.name == stored } }
         ?: FarmingKernelProfitPriceSource.TRACKER_DEFAULT
     set(value) {
-        ProfileStorageApi.storage.profitTracker.farmingKernelPriceSource = value.name
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.profitTracker.farmingKernelPriceSource = value.name }
     }
 
 internal fun farmingKernelProfit(
