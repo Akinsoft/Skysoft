@@ -123,6 +123,24 @@ class InventoryFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Wardrobe Keybinds", desc = "Equip armor sets with keys while the Armor Sets menu is open.")
+    val wardrobeKeybinds = SetMenuKeybindsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Equipment Keybinds", desc = "Equip equipment sets with keys while the Equipment Sets menu is open.")
+    val equipmentKeybinds = SetMenuKeybindsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Loadout Keybinds", desc = "Equip loadouts with keys while the Loadouts menu is open.")
+    val loadoutKeybinds = LoadoutMenuKeybindsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Inventory Buttons", desc = "Custom command buttons shown on inventory screens.")
     val inventoryButtons = InventoryButtonsConfig()
 

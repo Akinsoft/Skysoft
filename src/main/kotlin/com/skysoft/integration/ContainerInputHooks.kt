@@ -5,6 +5,7 @@ import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.features.inventory.InventoryEquipment
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.inventory.ItemProtectionManager
+import com.skysoft.features.inventory.MenuKeybinds
 import com.skysoft.features.inventory.SlotLockManager
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.crafting.CraftingHelperInput
@@ -13,6 +14,7 @@ import com.skysoft.features.inventory.sacks.SackHudInput
 import com.skysoft.features.profit.ProfitTrackerHudInput
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -25,12 +27,14 @@ object ContainerInputHooks {
             didConsume("Storage Overlay mouse input") { StorageOverlayController.handleMouseClick(screen, click) } ||
             didConsume("Bazaar Tracker mouse input") { BazaarTracker.handleMouseClick(screen, click) } ||
             didConsume("Inventory Equipment mouse input") { InventoryEquipment.handleMouseClick(screen, click) } ||
-            didConsume("Inventory Button mouse input") { InventoryButtonManager.handleMouseClick(screen, click) }
+            didConsume("Inventory Button mouse input") { InventoryButtonManager.handleMouseClick(screen, click) } ||
+            didConsume("Menu Keybind mouse input") { MenuKeybinds.handleBinding(screen, click.button()) }
 
     @JvmStatic
     fun didConsumeMouseRelease(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): Boolean =
         didConsume("Storage Overlay mouse release") { StorageOverlayController.handleMouseRelease(click) } ||
-            didConsume("Inventory Button mouse release") { InventoryButtonManager.handleMouseRelease(screen, click) }
+            didConsume("Inventory Button mouse release") { InventoryButtonManager.handleMouseRelease(screen, click) } ||
+            didConsume("Menu Keybind mouse release") { MenuKeybinds.handleMouseRelease(screen, click.button()) }
 
     @JvmStatic
     fun didConsumeMouseDrag(
@@ -59,6 +63,10 @@ object ContainerInputHooks {
         if (didConsume("Sacks Tracker key input") { SackHudInput.handleKeyPress(event) }) return true
         if (didConsume("Profit Tracker key input") { ProfitTrackerHudInput.handleKeyPress(event) }) return true
         if (didConsume("Storage Overlay key input") { StorageOverlayController.handleKeyPress(screen, event) }) return true
+        if (!ItemListController.isSearchFocused(screen) && didConsume("Menu Keybind key input") {
+                MenuKeybinds.handleBinding(screen, event.key(), InputUtilities.isRepeatedBindingInput)
+            }
+        ) return true
         if (didConsume("Item List key input") { ItemListController.handleKeyPress(screen, event) }) return true
         val slotLockConsumed = didConsume("Slot Lock key input") { SlotLockManager.handleKeyPress(screen, event) }
         val itemProtectionConsumed = didConsume("Item Protection key input") {
