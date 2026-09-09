@@ -2,6 +2,7 @@ package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.skysoft.integration.ContainerItemRenderHooks;
 import com.skysoft.integration.ContainerRenderHooks;
 import net.minecraft.client.gui.Font;
@@ -10,15 +11,12 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenRenderingMixin {
-    @Unique private Slot skysoftCurrentSlot;
-
     @Inject(method = "extractContents", at = @At("HEAD"))
     protected void skysoftBeginContainerFrame(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         ContainerRenderHooks.beginContents((AbstractContainerScreen<?>) (Object) this, context);
@@ -54,27 +52,17 @@ public abstract class AbstractContainerScreenRenderingMixin {
         ContainerRenderHooks.renderSlotOverlays((AbstractContainerScreen<?>) (Object) this, context, slot);
     }
 
-    @Inject(method = "extractSlot", at = @At("HEAD"))
-    protected void skysoftRememberCurrentSlot(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
-        skysoftCurrentSlot = slot;
-    }
-
-    @Inject(method = "extractSlot", at = @At("RETURN"))
-    protected void skysoftClearCurrentSlot(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
-        skysoftCurrentSlot = null;
-    }
-
     @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;item(Lnet/minecraft/world/item/ItemStack;III)V"))
-    protected void skysoftRenderContainerItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original) {
+    protected void skysoftRenderContainerItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        if (!ContainerItemRenderHooks.shouldRenderSlotItem("Smooth Swapping item suppression", screen, skysoftCurrentSlot)) return;
-        ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, skysoftCurrentSlot, stack);
+        if (!ContainerItemRenderHooks.shouldRenderSlotItem("Smooth Swapping item suppression", screen, slot)) return;
+        ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, slot, stack);
         if (renderStack != null) {
             ContainerItemRenderHooks.renderItemWithRarity(
                 "Rarity Highlight item rendering",
                 screen,
                 context,
-                skysoftCurrentSlot,
+                slot,
                 renderStack,
                 () -> original.call(context, renderStack, x, y, seed)
             );
@@ -82,16 +70,16 @@ public abstract class AbstractContainerScreenRenderingMixin {
     }
 
     @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;III)V"))
-    protected void skysoftRenderContainerFakeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original) {
+    protected void skysoftRenderContainerFakeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        if (!ContainerItemRenderHooks.shouldRenderSlotItem("Smooth Swapping fake item suppression", screen, skysoftCurrentSlot)) return;
-        ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, skysoftCurrentSlot, stack);
+        if (!ContainerItemRenderHooks.shouldRenderSlotItem("Smooth Swapping fake item suppression", screen, slot)) return;
+        ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, slot, stack);
         if (renderStack != null) {
             ContainerItemRenderHooks.renderItemWithRarity(
                 "Rarity Highlight fake item rendering",
                 screen,
                 context,
-                skysoftCurrentSlot,
+                slot,
                 renderStack,
                 () -> original.call(context, renderStack, x, y, seed)
             );
@@ -99,14 +87,14 @@ public abstract class AbstractContainerScreenRenderingMixin {
     }
 
     @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"))
-    protected void skysoftRenderContainerItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text, Operation<Void> original) {
+    protected void skysoftRenderContainerItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
         if (!ContainerItemRenderHooks.shouldRenderSlotItem(
             "Smooth Swapping item decoration suppression",
             screen,
-            skysoftCurrentSlot
+            slot
         )) return;
-        ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, skysoftCurrentSlot, stack);
+        ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, slot, stack);
         if (renderStack != null) original.call(context, font, renderStack, x, y, text);
     }
 }

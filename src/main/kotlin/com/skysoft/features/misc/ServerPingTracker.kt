@@ -6,8 +6,7 @@ internal class ServerPingTracker(
     private val requestIntervalNanos: Long = DEFAULT_REQUEST_INTERVAL_NANOS,
     private val requestTimeoutNanos: Long = DEFAULT_REQUEST_TIMEOUT_NANOS,
 ) {
-    private var pendingRequestId: Long? = null
-    private var pendingSentAtNanos: Long? = null
+    private var pendingRequest: PendingPing? = null
     private var lastRequestAtNanos: Long? = null
 
     var pingMs: Int? = null
@@ -21,7 +20,7 @@ internal class ServerPingTracker(
     }
 
     fun requestForTick(timestampNanos: Long, requestId: Long): Long? {
-        val pendingTimestamp = pendingSentAtNanos
+        val pendingTimestamp = pendingRequest?.sentAtNanos
         if (pendingTimestamp != null) {
             val pendingElapsedNanos = timestampNanos - pendingTimestamp
             if (pendingElapsedNanos < 0L) {
@@ -29,8 +28,7 @@ internal class ServerPingTracker(
             } else if (pendingElapsedNanos < requestTimeoutNanos) {
                 return null
             } else {
-                pendingRequestId = null
-                pendingSentAtNanos = null
+                pendingRequest = null
                 pingMs = null
             }
         }
@@ -45,25 +43,24 @@ internal class ServerPingTracker(
             }
         }
 
-        pendingRequestId = requestId
-        pendingSentAtNanos = timestampNanos
+        pendingRequest = PendingPing(requestId, timestampNanos)
         lastRequestAtNanos = timestampNanos
         return requestId
     }
 
     fun recordPong(requestId: Long, timestampNanos: Long): PingSampleResult {
-        if (requestId != pendingRequestId) return PingSampleResult.IGNORED_UNMATCHED_RESPONSE
+        val pending = pendingRequest ?: return PingSampleResult.IGNORED_UNMATCHED_RESPONSE
+        if (requestId != pending.requestId) return PingSampleResult.IGNORED_UNMATCHED_RESPONSE
 
-        val sentAtNanos = pendingSentAtNanos
-        if (sentAtNanos == null || timestampNanos < sentAtNanos) {
+        val sentAtNanos = pending.sentAtNanos
+        if (timestampNanos < sentAtNanos) {
             clearMeasurements()
             return PingSampleResult.RESET_NON_MONOTONIC_TIME
         }
 
         val roundTripNanos = timestampNanos - sentAtNanos
         pingMs = (roundTripNanos / NANOS_PER_MILLISECOND).roundToInt()
-        pendingRequestId = null
-        pendingSentAtNanos = null
+        pendingRequest = null
         return PingSampleResult.ACCEPTED
     }
 
@@ -71,10 +68,11 @@ internal class ServerPingTracker(
 
     private fun clearMeasurements() {
         pingMs = null
-        pendingRequestId = null
-        pendingSentAtNanos = null
+        pendingRequest = null
         lastRequestAtNanos = null
     }
+
+    private data class PendingPing(val requestId: Long, val sentAtNanos: Long)
 
     private companion object {
         const val DEFAULT_REQUEST_INTERVAL_NANOS = 1_000_000_000L

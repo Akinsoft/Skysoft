@@ -1,10 +1,11 @@
 package com.skysoft.features.bazaar
 
-import com.skysoft.data.skyblock.pets.PetRepository
-import com.skysoft.data.ProfileStorage
+import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.world.item.ItemStack
 import java.util.Locale
@@ -24,15 +25,36 @@ internal fun canonicalBazaarProductId(productId: String): String = productId.rep
 internal fun productMatches(a: String?, b: String?): Boolean =
     a != null && b != null && canonicalBazaarProductId(a) == canonicalBazaarProductId(b)
 
-internal fun lotMatches(lot: ProfileStorage.BazaarItemLotData, productId: String?, itemName: String): Boolean =
+internal fun lotMatches(lot: ProfileStorageView.BazaarItemLotData, productId: String?, itemName: String): Boolean =
     productMatches(lot.productId, productId) || namesMatch(lot.itemName, itemName)
 
-internal fun resolveProductId(itemName: String): String? =
-    SkyBlockItemNames.itemId(itemName.clean()) ?: PetRepository.resolvePetItemOrNull(itemName)
+internal fun ItemStack.resolveBazaarOrderProductId(itemName: String): String? =
+    skyBlockId().takeUnless(::isGenericBazaarProductId) ?: resolveProductId(itemName)
 
-internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(Regex("\\s+"), " ")
+internal fun resolveOrderProductId(order: ProfileStorageView.BazaarOrderData): String? =
+    order.productId.takeUnless(::isGenericBazaarProductId) ?: resolveProductId(order.itemName)
 
-internal fun orderMatchesParsedIdentity(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
+internal fun isGenericBazaarProductId(productId: String?): Boolean = productId == ENCHANTED_BOOK_ID
+
+internal fun resolveProductId(itemName: String): String? {
+    val cleanName = itemName.clean()
+    return SkyBlockItemNames.itemId(cleanName)
+        ?: resolveEnchantmentProductId(cleanName)
+        ?: SkyBlockItemNames.resolveItemId(itemName)
+}
+
+private fun resolveEnchantmentProductId(itemName: String): String? {
+    val tierText = itemName.substringAfterLast(' ')
+    val tier = tierText.romanToDecimal().takeIf { it > 0 } ?: return null
+    val catalogName = itemName.removeSuffix(tierText) + tier
+    return SkyBlockItemNames.itemId(catalogName)?.takeIf { it.startsWith(ENCHANTMENT_PRODUCT_PREFIX) }
+}
+
+private val nameWhitespacePattern = Regex("\\s+")
+
+internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(nameWhitespacePattern, " ")
+
+internal fun orderMatchesParsedIdentity(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (
         parsed.amount > 0 &&
         !haveOverlappingRanges(
@@ -69,3 +91,8 @@ internal fun PendingOrder.canCreateOrderFromGui(): Boolean {
 
 internal fun amountDistance(a: Long, b: Long): Long = abs(a - b)
 
+private const val ENCHANTED_BOOK_ID = "ENCHANTED_BOOK"
+private const val ENCHANTMENT_PRODUCT_PREFIX = "ENCHANTMENT_"
+
+internal const val EXACT_AMOUNT_EPSILON = 0.5
+internal const val TOTAL_RECALCULATION_EPSILON = 0.5

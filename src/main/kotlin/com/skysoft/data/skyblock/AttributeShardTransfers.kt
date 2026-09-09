@@ -1,20 +1,21 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.world.item.ItemStack
+import kotlin.time.Duration.Companion.seconds
 
 object AttributeShardTransfers {
     private val listeners = ActiveListenerRegistry<(SkyBlockAttributeShardTransfer) -> Unit>()
-    private val removalIntents = mutableMapOf<String, Long>()
+    private val removalIntents = mutableMapOf<String, ElapsedTimeMark>()
 
     fun register() {
         SkyBlockInventoryChanges.onChange(
             "Attribute Shard Hunting Box removals",
             isActive = ::hasActiveListeners,
         ) { change ->
-            val now = System.currentTimeMillis()
-            removalIntents.entries.removeIf { (_, expiresAt) -> expiresAt <= now }
+            removalIntents.values.removeIf { it.passedSince() >= HUNTING_BOX_REMOVAL_WINDOW }
             change.changes.forEach { (itemId, amount) ->
                 if (amount <= 0 || removalIntents.remove(itemId) == null) return@forEach
                 dispatch(SkyBlockAttributeShardTransfer(itemId, amount, AttributeShardTransferDirection.FROM_BOX))
@@ -33,8 +34,8 @@ object AttributeShardTransfers {
 
     fun recordRemoval(item: ItemStack) {
         if (!hasActiveListeners()) return
-        val itemId = AttributeShardItemResolver.internalNameOrNull(item, "Hunting Box") ?: return
-        removalIntents[itemId] = System.currentTimeMillis() + HUNTING_BOX_REMOVAL_MILLIS
+        val itemId = AttributeShardItemReader.internalNameOrNull(item, "Hunting Box") ?: return
+        removalIntents[itemId] = ElapsedTimeMark.now()
     }
 
     fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
@@ -55,4 +56,4 @@ enum class AttributeShardTransferDirection {
     FROM_BOX,
 }
 
-private const val HUNTING_BOX_REMOVAL_MILLIS = 3_000L
+private val HUNTING_BOX_REMOVAL_WINDOW = 3.seconds

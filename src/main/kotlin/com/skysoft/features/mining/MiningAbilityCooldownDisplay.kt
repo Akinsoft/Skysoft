@@ -37,10 +37,7 @@ object MiningAbilityCooldownDisplay {
     private val conditions = FeatureConditionState()
     private var widget = MiningAbilityWidgetState(false, null)
     private var currentStatus: MiningAbilityStatus? = null
-    private var cooldownStartedAtNanos = 0L
-    private var cooldownDurationNanos = 0L
-    private var animateEmpty = false
-    private var waitingForTabCooldown = false
+    private var cooldown = MiningAbilityCooldownTimer()
 
     fun register() {
         conditions.startSession(config.settings.locations)
@@ -59,11 +56,7 @@ object MiningAbilityCooldownDisplay {
                 id = "mining_ability_cooldown",
                 layer = GuiOverlayLayer.BELOW_SCREEN,
                 contexts = TabDataOverlays.contexts,
-                visible = { context ->
-                    isActive() &&
-                        TabDataOverlays.canRender(context) &&
-                        !MinecraftClient.isGuiHidden(Minecraft.getInstance())
-                },
+                visible = TabDataOverlays::canRender,
                 render = { context, _ -> renderHud(context) },
             ),
             object : HudEditorElement {
@@ -71,10 +64,12 @@ object MiningAbilityCooldownDisplay {
                 override val label: String = "Mining Ability Cooldown"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean = false
-                override fun width(): Int = previewRenderable().width
-                override fun height(): Int = previewRenderable().height
-                override fun isVisible(): Boolean = config.enabled
-                override fun renderEditor(context: GuiGraphicsExtractor) = previewRenderable().render(context)
+                override fun width(): Int = currentRenderable()?.width ?: 0
+                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun isVisible(): Boolean = currentRenderable() != null
+                override fun renderEditor(context: GuiGraphicsExtractor) {
+                    currentRenderable()?.render(context)
+                }
                 override fun openConfig() = SkysoftConfigGui.open("Mining Ability Cooldown")
             },
         )
@@ -91,10 +86,12 @@ object MiningAbilityCooldownDisplay {
         val nowNanos = System.nanoTime()
         if (!widget.isVisible || currentStatus == null) return
         currentStatus = MiningAbilityStatus(remainingSeconds = 0)
-        cooldownStartedAtNanos = nowNanos
-        cooldownDurationNanos = Long.MAX_VALUE
-        animateEmpty = true
-        waitingForTabCooldown = true
+        cooldown = MiningAbilityCooldownTimer(
+            startedAtNanos = nowNanos,
+            durationNanos = Long.MAX_VALUE,
+            animateEmpty = true,
+            waitingForTabCooldown = true,
+        )
     }
 
     private fun renderHud(context: GuiGraphicsExtractor) {
@@ -109,35 +106,27 @@ object MiningAbilityCooldownDisplay {
 
     private fun updateStatus(next: MiningAbilityStatus?, nowNanos: Long) {
         val previous = currentStatus
-        if (next == previous || waitingForTabCooldown && next?.isReady == true) return
+        if (next == previous || cooldown.waitingForTabCooldown && next?.isReady == true) return
         currentStatus = next
         val remaining = next?.remainingSeconds
-        if (waitingForTabCooldown && remaining != null) {
-            val elapsed = (nowNanos - cooldownStartedAtNanos).coerceAtLeast(0L)
-            cooldownDurationNanos = (elapsed + remaining * NANOS_PER_SECOND).coerceAtLeast(NANOS_PER_SECOND)
-            waitingForTabCooldown = false
-            return
-        }
-        waitingForTabCooldown = false
-        when {
-            remaining == null -> {
-                cooldownStartedAtNanos = 0L
-                cooldownDurationNanos = 0L
-                animateEmpty = false
-            }
-
-            previous == null || previous.isReady || previous.remainingSeconds?.let { remaining > it } == true -> {
-                cooldownStartedAtNanos = nowNanos
-                cooldownDurationNanos = (remaining * NANOS_PER_SECOND).coerceAtLeast(NANOS_PER_SECOND)
-                animateEmpty = previous?.isReady == true
-            }
+        cooldown = when {
+            cooldown.waitingForTabCooldown && remaining != null -> cooldown.confirmRemaining(remaining, nowNanos)
+            remaining == null -> MiningAbilityCooldownTimer()
+            previous == null || previous.isReady || previous.remainingSeconds?.let { remaining > it } == true ->
+                MiningAbilityCooldownTimer(
+                    startedAtNanos = nowNanos,
+                    durationNanos = (remaining * NANOS_PER_SECOND).coerceAtLeast(NANOS_PER_SECOND),
+                    animateEmpty = previous?.isReady == true,
+                )
+            else -> cooldown
         }
     }
 
     private fun currentRenderable(nowNanos: Long = System.nanoTime()): GuiRenderable? {
+        if (!isActive() || MinecraftClient.isGuiHidden(Minecraft.getInstance())) return null
         val status = currentStatus
         if (status != null) {
-            return abilityRenderable(status.isReady, cooldownProgress(status, nowNanos))
+            return abilityRenderable(status.isReady, if (status.isReady) 1f else cooldown.progress(nowNanos))
         }
         return missingWidgetRenderable().takeIf {
             !widget.isVisible &&
@@ -145,17 +134,6 @@ object MiningAbilityCooldownDisplay {
                 TabListApi.hasWaitedForSkyBlockData(WIDGET_LOAD_GRACE)
         }
     }
-
-    private fun cooldownProgress(status: MiningAbilityStatus, nowNanos: Long): Float {
-        if (status.isReady) return 1f
-        val elapsed = (nowNanos - cooldownStartedAtNanos).coerceAtLeast(0L)
-        val fill = (elapsed.toDouble() / cooldownDurationNanos.coerceAtLeast(1L)).coerceIn(0.0, 1.0)
-        if (!animateEmpty || elapsed >= EMPTY_ANIMATION_NANOS) return fill.toFloat()
-        val emptying = EasingUtilities.smoothStep(elapsed.toDouble() / EMPTY_ANIMATION_NANOS)
-        return (1.0 + (fill - 1.0) * emptying).toFloat()
-    }
-
-    private fun previewRenderable(): GuiRenderable = abilityRenderable(isReady = true, progress = 1f)
 
     private fun abilityRenderable(isReady: Boolean, progress: Float): GuiRenderable {
         val details = config.details
@@ -207,6 +185,28 @@ object MiningAbilityCooldownDisplay {
             MiningAbilityReadyTextPosition.BOTTOM -> verticalLayout(listOf(bar, readyText), READY_TEXT_SPACING)
         }
     }
+}
+
+private data class MiningAbilityCooldownTimer(
+    val startedAtNanos: Long = 0L,
+    val durationNanos: Long = 0L,
+    val animateEmpty: Boolean = false,
+    val waitingForTabCooldown: Boolean = false,
+) {
+    fun confirmRemaining(remainingSeconds: Int, nowNanos: Long): MiningAbilityCooldownTimer = copy(
+        durationNanos = (elapsed(nowNanos) + remainingSeconds * NANOS_PER_SECOND).coerceAtLeast(NANOS_PER_SECOND),
+        waitingForTabCooldown = false,
+    )
+
+    fun progress(nowNanos: Long): Float {
+        val elapsed = elapsed(nowNanos)
+        val fill = (elapsed.toDouble() / durationNanos.coerceAtLeast(1L)).coerceIn(0.0, 1.0)
+        if (!animateEmpty || elapsed >= EMPTY_ANIMATION_NANOS) return fill.toFloat()
+        val emptying = EasingUtilities.smoothStep(elapsed.toDouble() / EMPTY_ANIMATION_NANOS)
+        return (1.0 + (fill - 1.0) * emptying).toFloat()
+    }
+
+    private fun elapsed(nowNanos: Long): Long = (nowNanos - startedAtNanos).coerceAtLeast(0L)
 }
 
 private fun missingWidgetRenderable(): GuiRenderable = verticalLayout(

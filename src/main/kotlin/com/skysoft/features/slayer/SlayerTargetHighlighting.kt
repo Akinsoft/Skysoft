@@ -1,5 +1,6 @@
 package com.skysoft.features.slayer
 
+import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SlayerQuestState
@@ -47,7 +48,7 @@ object SlayerTargetHighlighting {
 
         val bossNames = SlayerQuestState.bossNames
         val playerName = Minecraft.getInstance().player?.gameProfile?.name ?: return
-        val entities = SkyBlockMobEntityMatcher.allEntities()
+        val entities = ClientEntitySnapshot.entities()
         val ownerLabels = entities.filterIsInstance<ArmorStand>().mapNotNull(ArmorStand::slayerBossOwnerLabel)
         targets = SkyBlockMobEntityMatcher.visibleSignals(SlayerQuestState.targetNames()).mapNotNull { signal ->
             val entity = signal.entity

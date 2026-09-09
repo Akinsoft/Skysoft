@@ -53,7 +53,7 @@ object SlayerTimeToKill {
         val periodStats = tier?.let {
             when (period) {
                 ProfitTrackingPeriod.SESSION -> sessionStats
-                ProfitTrackingPeriod.TODAY -> todayStats(data)
+                ProfitTrackingPeriod.TODAY -> data.today.takeIf { data.todayEpochDay == LocalDate.now().toEpochDay() }.orEmpty()
                 ProfitTrackingPeriod.MAYOR -> error("Slayer trackers do not support the Mayor period")
                 ProfitTrackingPeriod.TOTAL -> data.totals
             }[slayerType]?.get(it)
@@ -65,11 +65,10 @@ object SlayerTimeToKill {
     internal fun reset(slayerType: SkyBlockSlayerType, period: ProfitTrackingPeriod) {
         when (period) {
             ProfitTrackingPeriod.SESSION -> sessionStats.remove(slayerType)
-            ProfitTrackingPeriod.TODAY -> todayStats(ProfileStorageApi.storage.slayerTimeToKill).remove(slayerType)
+            ProfitTrackingPeriod.TODAY -> ProfileStorageApi.updateProfile { todayStats(it.slayerTimeToKill).remove(slayerType) }
             ProfitTrackingPeriod.MAYOR -> error("Slayer trackers do not support the Mayor period")
-            ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.storage.slayerTimeToKill.totals.remove(slayerType)
+            ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.updateProfile { it.slayerTimeToKill.totals.remove(slayerType) }
         }
-        if (period != ProfitTrackingPeriod.SESSION) ProfileStorageApi.markDirty()
     }
 
     private fun onQuestStarted() {
@@ -118,12 +117,14 @@ object SlayerTimeToKill {
     }
 
     private fun record(slayerType: SkyBlockSlayerType, tier: Int, durationMillis: Long): Long {
-        val data = ProfileStorageApi.storage.slayerTimeToKill
-        val previousBestMillis = data.totals.stats(slayerType, tier).record(durationMillis)
-        sessionStats.stats(slayerType, tier).record(durationMillis)
-        todayStats(data).stats(slayerType, tier).record(durationMillis)
-        data.lastTiers[slayerType] = tier
-        ProfileStorageApi.markDirty()
+        val previousBestMillis = ProfileStorageApi.storage.slayerTimeToKill.totals[slayerType]?.get(tier)?.bestMillis ?: 0L
+        ProfileStorageApi.updateProfile { profile ->
+            val data = profile.slayerTimeToKill
+            data.totals.stats(slayerType, tier).record(durationMillis)
+            sessionStats.stats(slayerType, tier).record(durationMillis)
+            todayStats(data).stats(slayerType, tier).record(durationMillis)
+            data.lastTiers[slayerType] = tier
+        }
         return previousBestMillis
     }
 
@@ -134,7 +135,6 @@ object SlayerTimeToKill {
         if (data.todayEpochDay != today) {
             data.todayEpochDay = today
             data.today.clear()
-            ProfileStorageApi.markDirty()
         }
         return data.today
     }

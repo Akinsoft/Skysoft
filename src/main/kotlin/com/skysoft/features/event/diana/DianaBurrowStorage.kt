@@ -2,22 +2,21 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.SkyBlockProfileId
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.WorldVec
 
 internal object DianaBurrowStorage {
     private var loadedStorageKey: SkyBlockProfileId? = null
-    private var storageKeyProvider: () -> SkyBlockProfileId? = { SkyBlockProfileApi.currentProfileId }
-    private var persistentStorageProvider: () -> ProfileStorage.ProfileSpecific? = { ProfileStorageApi.storage }
-    private var persistentDirtyMarker: () -> Unit = { ProfileStorageApi.markDirty() }
+    private val persistentStorage get() = ProfileStorageApi.storage
 
     fun register() {
         DianaBurrowTargetTracker.setChangeListener { targets, now -> saveTargets(targets, now) }
     }
 
     fun restoreCurrentProfile(now: Long = System.currentTimeMillis()) {
-        val storageKey = currentStorageKey() ?: return
+        val storageKey = SkyBlockProfileApi.currentProfileId ?: return
         if (loadedStorageKey == storageKey) return
         loadedStorageKey = storageKey
         val targets = persistentTargets(now).map { target -> target.copy(updatedAtMillis = now) }
@@ -39,7 +38,7 @@ internal object DianaBurrowStorage {
         now: Long = System.currentTimeMillis(),
         refreshTimestamp: Boolean = false,
     ) {
-        val storageKey = loadedStorageKey ?: currentStorageKey() ?: return
+        val storageKey = loadedStorageKey ?: SkyBlockProfileApi.currentProfileId ?: return
         val cachedTargets = targets
             .filter { target -> target.targetId > 0L }
             .sortedWith(compareBy({ it.location.x }, { it.location.y }, { it.location.z }, { it.type.name }))
@@ -52,41 +51,36 @@ internal object DianaBurrowStorage {
         now: Long,
         refreshTimestamp: Boolean,
     ) {
-        if (currentStorageKey() != storageKey) return
-        val cache = persistentStorageProvider()?.dianaBurrowCache ?: return
+        if (SkyBlockProfileApi.currentProfileId != storageKey) return
+        val cache = persistentStorage.dianaBurrowCache
         val storageTargets = targets.map { target -> target.toStorageData() }
         if (cache.targets == storageTargets && (!refreshTimestamp || targets.isEmpty())) return
-        cache.savedAtMillis = if (targets.isEmpty()) 0L else now
-        cache.targets.clear()
-        cache.targets += storageTargets
-        persistentDirtyMarker()
+        ProfileStorageApi.updateProfile { profile ->
+            val updatedCache = profile.dianaBurrowCache
+            updatedCache.savedAtMillis = if (targets.isEmpty()) 0L else now
+            updatedCache.targets.clear()
+            updatedCache.targets += storageTargets
+        }
     }
 
     private fun persistentTargets(now: Long): List<DianaBurrowTarget> {
-        val cache = persistentStorageProvider()?.dianaBurrowCache ?: return emptyList()
-        cache.repairLoadedValues()
+        val cache = persistentStorage.dianaBurrowCache
         if (cache.targets.isEmpty()) {
             if (cache.savedAtMillis != 0L) {
-                cache.clear()
-                persistentDirtyMarker()
+                ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
             }
             return emptyList()
         }
         if (now - cache.savedAtMillis > RESTORE_WINDOW_MILLIS) {
-            cache.clear()
-            persistentDirtyMarker()
+            ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
             return emptyList()
         }
         val targets = cache.targets.mapNotNull { target -> target.toDianaTarget() }
         if (targets.isEmpty()) {
-            cache.clear()
-            persistentDirtyMarker()
+            ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
         }
         return targets
     }
-
-    private fun currentStorageKey(): SkyBlockProfileId? =
-        storageKeyProvider()
 
     private const val RESTORE_WINDOW_MILLIS = 30 * 60 * 1_000L
 }
@@ -109,7 +103,7 @@ private fun DianaBurrowTarget.toStorageData(): ProfileStorage.DianaBurrowTargetD
         }.toMutableList(),
     )
 
-private fun ProfileStorage.DianaBurrowTargetData.toDianaTarget(): DianaBurrowTarget? {
+private fun ProfileStorageView.DianaBurrowTargetData.toDianaTarget(): DianaBurrowTarget? {
     val burrowType = DianaBurrowType.entries.firstOrNull { type -> type.name == this.type } ?: return null
     val location = WorldVec(x, y, z).roundToBlock()
     val source = if (burrowType == DianaBurrowType.GUESS) DianaBurrowSource.GUESS else DianaBurrowSource.DETECTED

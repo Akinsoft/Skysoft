@@ -71,13 +71,12 @@ class LineBoxRenderer private constructor(
             depth: Boolean,
             draws: LineBoxRenderer.() -> Unit,
         ) {
-            context.matrices.pushPose()
-            val cameraPos = context.camera.position()
-            context.matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+            context.withIsolatedPose {
+                val cameraPos = context.camera.position()
+                context.matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
 
-            LineBoxRenderer(context, lineWidth, depth).draws()
-
-            context.matrices.popPose()
+                LineBoxRenderer(context, lineWidth, depth).draws()
+            }
         }
     }
 }

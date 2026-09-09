@@ -30,10 +30,8 @@ import kotlin.math.sqrt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
-import net.minecraft.tags.BlockTags
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.LeavesBlock
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.phys.Vec3
@@ -100,23 +98,23 @@ object ThrowingAxeHelper {
             return
         }
         val target = aimedLog(level, island, player.eyePosition, player.lookAngle)
-        val kind = target?.let { treeKind(island, level.getBlockState(it)) }
+        val kind = target?.let { ThrowingAxeTrees.treeKind(island, level.getBlockState(it)) }
         if (target == null || kind == null) {
             highlights = HighlightSnapshot()
             return
         }
-        val connected = connectedLogs(level, target)
+        val connected = ThrowingAxeTrees.connectedLogs(level, target)
         if (connected.isEmpty()) {
             highlights = HighlightSnapshot()
             return
         }
 
         val positions = connected.toSet()
-        val section = section(kind, target, positions)
+        val section = ThrowingAxeTrees.section(kind, target, positions)
         val activePet = ActivePetTracker.currentPet
         val effectiveSweep = sharpenedSweep(baseSweep + currentStronkArmSweep(activePet), kind)
-        val toughness = toughness(kind, section)
-        val wrongStyle = hasWrongStylePenalty(level, kind, section, connected, positions)
+        val toughness = ThrowingAxeTrees.toughness(kind, section)
+        val wrongStyle = ThrowingAxeTrees.hasWrongStylePenalty(level, kind, section, connected, positions)
         val missile = axe.extraAttributes()?.skyBlockEnchantments()?.get("ultimate_missile") ?: 0
         val throwMultiplier = throwMultiplier(
             missile,
@@ -165,95 +163,10 @@ object ThrowingAxeHelper {
         for (tick in 1..MAX_AXE_FLIGHT_TICKS) {
             val position = BlockPos.containing(throwingAxePosition(eye, look, tick))
             val state = level.getBlockState(position)
-            if (treeKind(island, state) != null) return position
+            if (ThrowingAxeTrees.treeKind(island, state) != null) return position
             if (!isThrowingAxePassable(level, position, state)) return null
         }
         return null
-    }
-
-    private fun connectedLogs(level: ClientLevel, start: BlockPos): List<BlockPos> {
-        val targetBlock = level.getBlockState(start).block
-        val queue = ArrayDeque<BlockPos>()
-        val visited = mutableSetOf(start)
-        val result = mutableListOf<BlockPos>()
-        queue += start
-        while (queue.isNotEmpty() && result.size < MAX_CONNECTED_BLOCKS) {
-            val position = queue.removeFirst()
-            if (level.getBlockState(position).block != targetBlock) continue
-            result += position
-            for (x in -1..1) {
-                for (y in -1..1) {
-                    for (z in -1..1) {
-                        if (x == 0 && y == 0 && z == 0) continue
-                        val neighbor = position.offset(x, y, z)
-                        if (neighbor.isInsideCapture(start) && visited.add(neighbor)) queue += neighbor
-                    }
-                }
-            }
-        }
-        return result
-    }
-
-    private fun BlockPos.isInsideCapture(origin: BlockPos): Boolean =
-        kotlin.math.abs(x - origin.x) <= CAPTURE_RADIUS &&
-            kotlin.math.abs(y - origin.y) <= CAPTURE_RADIUS &&
-            kotlin.math.abs(z - origin.z) <= CAPTURE_RADIUS
-
-    private fun section(kind: TreeKind, target: BlockPos, positions: Set<BlockPos>): TreeSection {
-        if (kind == TreeKind.HELIX_BEIGE) return TreeSection.BEIGE
-        if (kind == TreeKind.HELIX_RED) return TreeSection.RED
-        if (kind == TreeKind.PARK) return TreeSection.TRUNK
-        val minimumY = positions.minOf(BlockPos::getY)
-        val height = positions.maxOf(BlockPos::getY) - minimumY
-        val normalizedHeight = if (height == 0) 0.0 else (target.y - minimumY).toDouble() / height
-        val verticalRun = verticalRun(target, positions)
-        return when (kind) {
-            TreeKind.FIG -> if (normalizedHeight >= FIG_BRANCH_HEIGHT && verticalRun <= BRANCH_VERTICAL_RUN) {
-                TreeSection.BRANCH
-            } else {
-                TreeSection.TRUNK
-            }
-            TreeKind.MANGROVE -> when {
-                normalizedHeight <= MANGROVE_ROOT_HEIGHT -> TreeSection.ROOT
-                normalizedHeight >= MANGROVE_BRANCH_HEIGHT && verticalRun <= BRANCH_VERTICAL_RUN -> TreeSection.BRANCH
-                else -> TreeSection.TRUNK
-            }
-            TreeKind.PARK, TreeKind.HELIX_BEIGE, TreeKind.HELIX_RED -> error("Handled above")
-        }
-    }
-
-    private fun verticalRun(position: BlockPos, positions: Set<BlockPos>): Int {
-        var minimumY = position.y
-        while (position.atY(minimumY - 1) in positions) minimumY--
-        var maximumY = position.y
-        while (position.atY(maximumY + 1) in positions) maximumY++
-        return maximumY - minimumY + 1
-    }
-
-    private fun hasWrongStylePenalty(
-        level: ClientLevel,
-        kind: TreeKind,
-        targetSection: TreeSection,
-        connected: List<BlockPos>,
-        positions: Set<BlockPos>,
-    ): Boolean = when (kind) {
-        TreeKind.FIG ->
-            targetSection == TreeSection.BRANCH &&
-                connected.any { section(kind, it, positions) == TreeSection.TRUNK }
-        TreeKind.MANGROVE ->
-            when (targetSection) {
-                TreeSection.BRANCH -> false
-                TreeSection.TRUNK -> connected.any { section(kind, it, positions) == TreeSection.BRANCH }
-                TreeSection.ROOT -> connected.any { section(kind, it, positions) != TreeSection.ROOT }
-                else -> false
-            }
-        TreeKind.HELIX_RED -> connected.any { position ->
-            BlockPos.betweenClosed(
-                position.offset(-HELIX_PAIR_DISTANCE, -HELIX_PAIR_DISTANCE, -HELIX_PAIR_DISTANCE),
-                position.offset(HELIX_PAIR_DISTANCE, HELIX_PAIR_DISTANCE, HELIX_PAIR_DISTANCE),
-            ).any { treeKind(SkyBlockIsland.TORRHUS_CANYON, level.getBlockState(it)) == TreeKind.HELIX_BEIGE }
-        }
-        else -> false
     }
 
     private fun currentStronkArmSweep(pet: StoredPetData?): Double =
@@ -272,34 +185,6 @@ object ThrowingAxeHelper {
         }
         val echoLevel = AttributeShardCatalog.getActiveLevelByAbilityName(ECHO_OF_SHARPENING)
         return baseSweep + sharpeningLevel * sweepPerLevel * (1.0 + echoLevel * ECHO_BONUS_PER_LEVEL)
-    }
-
-    private fun toughness(kind: TreeKind, section: TreeSection): Double = when (kind) {
-        TreeKind.PARK -> 0.0
-        TreeKind.FIG -> if (section == TreeSection.BRANCH) FIG_BRANCH_TOUGHNESS else FIG_TRUNK_TOUGHNESS
-        TreeKind.MANGROVE -> if (section == TreeSection.BRANCH) {
-            MANGROVE_BRANCH_TOUGHNESS
-        } else {
-            MANGROVE_TRUNK_TOUGHNESS
-        }
-        TreeKind.HELIX_BEIGE, TreeKind.HELIX_RED -> HELIX_TOUGHNESS
-    }
-
-    internal fun isTreeBlock(island: SkyBlockIsland, state: BlockState): Boolean = treeKind(island, state) != null
-
-    private fun treeKind(island: SkyBlockIsland, state: BlockState): TreeKind? = when (island) {
-        SkyBlockIsland.THE_PARK -> TreeKind.PARK.takeIf { state.`is`(BlockTags.LOGS) }
-        SkyBlockIsland.GALATEA -> when (state.block) {
-            Blocks.STRIPPED_SPRUCE_LOG, Blocks.STRIPPED_SPRUCE_WOOD -> TreeKind.FIG
-            Blocks.MANGROVE_LOG, Blocks.MANGROVE_WOOD -> TreeKind.MANGROVE
-            else -> null
-        }
-        SkyBlockIsland.TORRHUS_CANYON -> when (state.block) {
-            Blocks.STRIPPED_BIRCH_LOG, Blocks.STRIPPED_BIRCH_WOOD -> TreeKind.HELIX_BEIGE
-            Blocks.STRIPPED_MANGROVE_LOG, Blocks.STRIPPED_MANGROVE_WOOD -> TreeKind.HELIX_RED
-            else -> null
-        }
-        else -> null
     }
 
     private fun render(context: SkysoftRenderContext) {
@@ -340,22 +225,6 @@ object ThrowingAxeHelper {
         val expectedBlock: Block? = null,
     )
 
-    private enum class TreeKind {
-        PARK,
-        FIG,
-        MANGROVE,
-        HELIX_BEIGE,
-        HELIX_RED,
-    }
-
-    private enum class TreeSection {
-        TRUNK,
-        BRANCH,
-        ROOT,
-        BEIGE,
-        RED,
-    }
-
     private val FORAGING_ISLANDS = setOf(SkyBlockIsland.THE_PARK, SkyBlockIsland.GALATEA, SkyBlockIsland.TORRHUS_CANYON)
     private const val SWEEP_PREFIX = "Sweep:"
     private val SWEEP_VALUE = Regex("""\d+(?:\.\d+)?""")
@@ -369,21 +238,9 @@ object ThrowingAxeHelper {
     private const val FIG_SHARPENING_PER_LEVEL = 5.0
     private const val MANGROVE_SHARPENING_PER_LEVEL = 10.0
     private const val ECHO_BONUS_PER_LEVEL = 0.02
-    private const val FIG_TRUNK_TOUGHNESS = 10.0
-    private const val FIG_BRANCH_TOUGHNESS = 5.0
-    private const val MANGROVE_TRUNK_TOUGHNESS = 50.0
-    private const val MANGROVE_BRANCH_TOUGHNESS = 25.0
-    private const val HELIX_TOUGHNESS = 200.0
     private const val WRONG_STYLE_MULTIPLIER = 0.5
     private const val MAX_AIM_DISTANCE = 50.0
     private val MAX_AXE_FLIGHT_TICKS = ceil(MAX_AIM_DISTANCE / AXE_SPEED).toInt()
-    private const val CAPTURE_RADIUS = 24
-    private const val MAX_CONNECTED_BLOCKS = 4_096
-    private const val HELIX_PAIR_DISTANCE = 2
-    private const val FIG_BRANCH_HEIGHT = 0.65
-    private const val MANGROVE_BRANCH_HEIGHT = 0.72
-    private const val MANGROVE_ROOT_HEIGHT = 0.45
-    private const val BRANCH_VERTICAL_RUN = 2
     private const val TREE_SECTION_UNCERTAINTY = 3
     private val OVERLAP_COLOR = Color(255, 85, 85, 204)
     private const val FILL_ALPHA_SCALE = 0.2

@@ -1,23 +1,26 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import kotlin.math.roundToLong
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 object SlayerQuestState {
     private var snapshot = SlayerQuestSnapshot.NONE
     private var lastActiveSnapshot = SlayerQuestSnapshot.NONE
-    private var completionListeners: List<Listener<(SlayerQuestSnapshot) -> Unit>> = emptyList()
-    private var startListeners: List<Listener<() -> Unit>> = emptyList()
-    private var bossSpawnListeners: List<Listener<(SlayerQuestSnapshot) -> Unit>> = emptyList()
+    private val completionListeners = ActiveListenerRegistry<(SlayerQuestSnapshot) -> Unit>()
+    private val startListeners = ActiveListenerRegistry<() -> Unit>()
+    private val bossSpawnListeners = ActiveListenerRegistry<(SlayerQuestSnapshot) -> Unit>()
     private val minibossNames = mutableSetOf<String>()
-    private val recentlyClearedMinibossNames = mutableMapOf<String, Long>()
+    private val recentlyClearedMinibossNames = mutableMapOf<String, ElapsedTimeMark>()
 
     val isActive: Boolean get() = snapshot.bossName != null
     val isBossActive: Boolean get() = snapshot.isBossActive
@@ -28,6 +31,8 @@ object SlayerQuestState {
             .orEmpty()
     val slayerType: SkyBlockSlayerType? get() = snapshot.slayerType
     val tier: Int? get() = snapshot.tier
+    internal var scoreboardSlayerType: SkyBlockSlayerType? = null
+        private set
 
     fun register() {
         ChatEvents.onVisibleMessage(
@@ -38,17 +43,13 @@ object SlayerQuestState {
                 SlayerMessageParser.parseMinibossSpawn(message.cleanText)?.let(minibossNames::add)
                 when {
                     SlayerMessageParser.isQuestStarted(message.cleanText) -> {
-                        snapshot = SlayerQuestSnapshot.NONE
-                        lastActiveSnapshot = SlayerQuestSnapshot.NONE
-                        clearMinibossNames()
-                        startListeners.dispatch { it() }
+                        clearQuest()
+                        startListeners.forEachActive { it() }
                     }
                     SlayerMessageParser.isQuestComplete(message.cleanText) -> {
                         val completedQuest = snapshot.takeIf(SlayerQuestSnapshot::isActive) ?: lastActiveSnapshot
-                        snapshot = SlayerQuestSnapshot.NONE
-                        lastActiveSnapshot = SlayerQuestSnapshot.NONE
-                        clearMinibossNames()
-                        if (completedQuest.isActive) completionListeners.dispatch { it(completedQuest) }
+                        clearQuest()
+                        if (completedQuest.isActive) completionListeners.forEachActive { it(completedQuest) }
                     }
                 }
             }
@@ -56,30 +57,30 @@ object SlayerQuestState {
         }
         SidebarScoreboardState.onChange(
             "Slayer Quest State scoreboard",
-            isActive = { HypixelLocationState.inSkyBlock || isActive },
+            isActive = { HypixelLocationState.inSkyBlock || isActive || scoreboardSlayerType != null },
             listener = ::update,
         )
         SkysoftClientEvents.onDisconnect("Slayer Quest State disconnect reset", ::clear)
     }
 
     internal fun onQuestStarted(boundary: String, listener: () -> Unit) {
-        startListeners += Listener(boundary, listener)
+        startListeners.register(boundary, { true }, listener)
     }
 
     internal fun onQuestComplete(boundary: String, listener: (SlayerQuestSnapshot) -> Unit) {
-        completionListeners += Listener(boundary, listener)
+        completionListeners.register(boundary, { true }, listener)
     }
 
     internal fun onBossSpawn(boundary: String, listener: (SlayerQuestSnapshot) -> Unit) {
-        bossSpawnListeners += Listener(boundary, listener)
+        bossSpawnListeners.register(boundary, { true }, listener)
     }
 
     fun isSlayerTarget(mobName: String): Boolean =
         bossNames.any { bossName -> bossName.endsWith(mobName, ignoreCase = true) } ||
             minibossNames.any { it.equals(mobName, ignoreCase = true) } ||
-            recentlyClearedMinibossNames.any { (name, clearedAtMillis) ->
+            recentlyClearedMinibossNames.any { (name, clearedAt) ->
                 name.equals(mobName, ignoreCase = true) &&
-                    isWithinMinibossCocoonWindow(clearedAtMillis, System.currentTimeMillis())
+                    clearedAt.isWithinMinibossCocoonWindow()
             }
 
     fun targetNames(): Set<String> = buildSet {
@@ -93,42 +94,34 @@ object SlayerQuestState {
             return
         }
         val next = parseSlayerQuestSnapshot(lines)
-        val now = System.currentTimeMillis()
-        recentlyClearedMinibossNames.entries.removeIf { (_, clearedAtMillis) ->
-            !isWithinMinibossCocoonWindow(clearedAtMillis, now)
-        }
+        scoreboardSlayerType = next.slayerType
+        recentlyClearedMinibossNames.values.removeIf { !it.isWithinMinibossCocoonWindow() }
         if (!next.isActive || (snapshot.bossName != null && snapshot.bossName != next.bossName)) {
-            minibossNames.forEach { name -> recentlyClearedMinibossNames[name] = now }
+            val clearedAt = ElapsedTimeMark.now()
+            minibossNames.forEach { name -> recentlyClearedMinibossNames[name] = clearedAt }
             minibossNames.clear()
         }
         val bossSpawned = snapshot.isActive && !snapshot.isBossActive && next.isBossActive
         snapshot = next
         if (next.isActive) lastActiveSnapshot = next
-        if (bossSpawned) bossSpawnListeners.dispatch { it(next) }
-    }
-
-    private fun <T> List<Listener<T>>.dispatch(action: (T) -> Unit) {
-        forEach { listener ->
-            SkysoftErrorBoundary.run(listener.boundary) { action(listener.callback) }
-        }
+        if (bossSpawned) bossSpawnListeners.forEachActive { it(next) }
     }
 
     private fun clear() {
-        snapshot = SlayerQuestSnapshot.NONE
-        lastActiveSnapshot = SlayerQuestSnapshot.NONE
-        clearMinibossNames()
+        scoreboardSlayerType = null
+        clearQuest()
     }
 
-    private fun clearMinibossNames() {
+    private fun clearQuest() {
+        snapshot = SlayerQuestSnapshot.NONE
+        lastActiveSnapshot = SlayerQuestSnapshot.NONE
         minibossNames.clear()
         recentlyClearedMinibossNames.clear()
     }
-
-    private data class Listener<T>(val boundary: String, val callback: T)
 }
 
-internal fun isWithinMinibossCocoonWindow(clearedAtMillis: Long, now: Long): Boolean =
-    now - clearedAtMillis in 0..MINIBOSS_COCOON_WINDOW_MILLIS
+private fun ElapsedTimeMark.isWithinMinibossCocoonWindow(): Boolean =
+    passedSince() in Duration.ZERO..MINIBOSS_COCOON_WINDOW
 
 object SlayerMessageParser {
     fun parseMinibossSpawn(message: String): String? =
@@ -236,7 +229,7 @@ internal fun parseSlayerQuestSnapshot(scoreboardLines: List<String>): SlayerQues
 private const val SLAYER_QUEST_HEADER = "Slayer Quest"
 private const val SLAYER_BOSS_ACTIVE_LINE = "Slay the boss!"
 private const val TIER_FIVE = 5
-private const val MINIBOSS_COCOON_WINDOW_MILLIS = 1_500L
+private val MINIBOSS_COCOON_WINDOW = 1_500.milliseconds
 private fun slayerTier(romanNumeral: String): Int? =
     romanNumeral.uppercase().romanToDecimal().takeIf { it in 1..TIER_FIVE }
 

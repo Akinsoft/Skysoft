@@ -10,6 +10,7 @@ import com.skysoft.utils.net.RefreshSchedule
 import com.skysoft.utils.net.isCancellationFailure
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
+import net.minecraft.client.Minecraft
 
 object MayorPerkApi {
     private const val ELECTION_URL = "https://api.hypixel.net/v2/resources/skyblock/election"
@@ -24,41 +25,19 @@ object MayorPerkApi {
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
     private val requests = PendingHttpRequests()
-    private val requestSlot = AsyncRequestSlot<ElectionResponse>()
+    private val requestSlot = AsyncRequestSlot<ElectionResponse>(completionExecutor = Minecraft.getInstance())
     private val refreshSchedule = RefreshSchedule()
     private var ticks = 0
 
     @Volatile
-    var currentMinister: CurrentMinister? = null
+    internal var currentPerks = MayorPerks()
         private set
 
-    @Volatile
-    var sharingIsCaringActive: Boolean = false
-        private set
-
-    @Volatile
-    var petXpBuffActive: Boolean = false
-        private set
-
-    @Volatile
-    var mythologicalRitualActive: Boolean = false
-        private set
-
-    @Volatile
-    var carnivalActive: Boolean = false
-        private set
-
-    @Volatile
-    var fishingFestivalActive: Boolean = false
-        private set
-
-    @Volatile
-    var miningFiestaActive: Boolean = false
-        private set
-
-    @Volatile
-    var mythologicalRitualEventKey: String? = null
-        private set
+    val currentMinister: CurrentMinister? get() = currentPerks.currentMinister
+    val sharingIsCaringActive: Boolean get() = currentPerks.sharingIsCaringActive
+    val petXpBuffActive: Boolean get() = currentPerks.petXpBuffActive
+    val mythologicalRitualActive: Boolean get() = currentPerks.mythologicalRitualActive
+    val mythologicalRitualEventKey: String? get() = currentPerks.mythologicalRitualEventKey
 
     fun register() {
         SkysoftClientEvents.onEndTick(
@@ -96,14 +75,16 @@ object MayorPerkApi {
             SkysoftErrorBoundary.run("Mayor Perk async completion") {
                 val now = System.currentTimeMillis()
                 if (error == null && response != null) {
-                    currentMinister = response.currentMinister()
-                    sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING)
-                    petXpBuffActive = response.hasPerk(PET_XP_BUFF)
-                    mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL)
-                    carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL)
-                    fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL)
-                    miningFiestaActive = response.hasPerk(MINING_FIESTA)
-                    mythologicalRitualEventKey = response.mythologicalRitualEventKey()
+                    currentPerks = MayorPerks(
+                        currentMinister = response.currentMinister(),
+                        sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING),
+                        petXpBuffActive = response.hasPerk(PET_XP_BUFF),
+                        mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL),
+                        carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL),
+                        fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL),
+                        miningFiestaActive = response.hasPerk(MINING_FIESTA),
+                        mythologicalRitualEventKey = response.mythologicalRitualEventKey(),
+                    )
                     refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
                 } else if (error?.isCancellationFailure() != true) {
                     refreshSchedule.schedule(now, FAILURE_RETRY_MILLIS)
@@ -122,14 +103,7 @@ object MayorPerkApi {
         requests.cancelAll()
         refreshSchedule.reset()
         ticks = 0
-        currentMinister = null
-        sharingIsCaringActive = false
-        petXpBuffActive = false
-        mythologicalRitualActive = false
-        carnivalActive = false
-        fishingFestivalActive = false
-        miningFiestaActive = false
-        mythologicalRitualEventKey = null
+        currentPerks = MayorPerks()
     }
 
     private fun ElectionResponse.currentMinister(): CurrentMinister? {
@@ -199,6 +173,17 @@ object MayorPerkApi {
         val year: Int?,
     )
 }
+
+internal data class MayorPerks(
+    val currentMinister: CurrentMinister? = null,
+    val sharingIsCaringActive: Boolean = false,
+    val petXpBuffActive: Boolean = false,
+    val mythologicalRitualActive: Boolean = false,
+    val carnivalActive: Boolean = false,
+    val fishingFestivalActive: Boolean = false,
+    val miningFiestaActive: Boolean = false,
+    val mythologicalRitualEventKey: String? = null,
+)
 
 data class CurrentMinister(
     val name: String,

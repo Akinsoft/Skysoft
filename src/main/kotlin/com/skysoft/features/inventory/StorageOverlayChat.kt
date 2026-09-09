@@ -2,7 +2,6 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 
@@ -13,16 +12,14 @@ internal fun registerStorageOverlayChat() {
     }
 }
 
-private fun recordBackpackRemoval(message: String): ChangeResult {
-    val pageIndex = removedBackpackPageIndex(message) ?: return ChangeResult.UNCHANGED
+private fun recordBackpackRemoval(message: String) {
+    val pageIndex = removedBackpackPageIndex(message) ?: return
     val backpackSlot = pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1
-    emptyOverviewStacks[pageIndex] = emptyBackpackShortcutStack(backpackSlot)
-    val changed = storage.skyBlockStoragePages.remove(pageIndex) != null
-    if (changed) {
+    StorageItemStacks.rememberOverviewPlaceholder(pageIndex, emptyBackpackShortcutStack(backpackSlot))
+    if (pageIndex in storage.skyBlockStoragePages) {
         StorageSearchIndex.invalidatePages()
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { it.skyBlockStoragePages.remove(pageIndex) }
     }
-    return ChangeResult.from(changed)
 }
 
 internal fun removedBackpackPageIndex(message: String): Int? {

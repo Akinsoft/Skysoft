@@ -26,69 +26,48 @@ object MinecraftProfileLookup {
         SkysoftClientEvents.onClientStopping("Minecraft profile lookup shutdown") { clear() }
     }
 
-    fun byName(name: String): CompletableFuture<GameProfile?> {
-        val key = name.lowercase(Locale.ROOT)
-        synchronized(lock) {
-            profilesByName[key]?.let { cached ->
-                if (cached.expiresAtMillis >= System.currentTimeMillis()) {
-                    return CompletableFuture.completedFuture(cached.profile)
-                }
-                profilesByName.remove(key)
-            }
-            val requestGeneration = generation
-            return nameRequests.getOrStart(
-                key,
-                requestFactory = {
-                    CompletableFuture.supplyAsync {
-                        Minecraft.getInstance().services().profileResolver().fetchByName(name).orElse(null)
-                    }.handle { profile, failure ->
-                        if (failure != null) {
-                            SkysoftMod.LOGGER.warn("Failed to resolve Minecraft profile by name $name", failure)
-                            null
-                        } else {
-                            profile
-                        }
-                    }
-                },
-                completion = { profile, _ ->
-                    synchronized(lock) {
-                        if (generation == requestGeneration) cache(profile, nameKey = key)
-                    }
-                },
-            )
+    fun byName(name: String): CompletableFuture<GameProfile?> =
+        lookup(name.lowercase(Locale.ROOT), profilesByName, nameRequests, "name $name") {
+            Minecraft.getInstance().services().profileResolver().fetchByName(name).orElse(null)
         }
-    }
 
-    fun byId(uuid: UUID): CompletableFuture<GameProfile?> {
-        synchronized(lock) {
-            profilesById[uuid]?.let { cached ->
-                if (cached.expiresAtMillis >= System.currentTimeMillis()) {
-                    return CompletableFuture.completedFuture(cached.profile)
-                }
-                profilesById.remove(uuid)
-            }
-            val requestGeneration = generation
-            return idRequests.getOrStart(
-                uuid,
-                requestFactory = {
-                    CompletableFuture.supplyAsync {
-                        Minecraft.getInstance().services().profileResolver().fetchById(uuid).orElse(null)
-                    }.handle { profile, failure ->
-                        if (failure != null) {
-                            SkysoftMod.LOGGER.warn("Failed to resolve Minecraft profile by UUID $uuid", failure)
-                            null
-                        } else {
-                            profile
-                        }
-                    }
-                },
-                completion = { profile, _ ->
-                    synchronized(lock) {
-                        if (generation == requestGeneration) cache(profile, uuid = uuid)
-                    }
-                },
-            )
+    fun byId(uuid: UUID): CompletableFuture<GameProfile?> =
+        lookup(uuid, profilesById, idRequests, "UUID $uuid") {
+            Minecraft.getInstance().services().profileResolver().fetchById(uuid).orElse(null)
         }
+
+    private fun <K> lookup(
+        key: K,
+        profiles: MutableMap<K, CachedProfile>,
+        requests: KeyedAsyncRequestSlots<K, GameProfile?>,
+        description: String,
+        fetch: () -> GameProfile?,
+    ): CompletableFuture<GameProfile?> = synchronized(lock) {
+        profiles[key]?.let { cached ->
+            if (cached.expiresAtMillis >= System.currentTimeMillis()) {
+                return CompletableFuture.completedFuture(cached.profile)
+            }
+            profiles.remove(key)
+        }
+        val requestGeneration = generation
+        requests.getOrStart(
+            key,
+            requestFactory = {
+                CompletableFuture.supplyAsync(fetch).handle { profile, failure ->
+                    if (failure != null) {
+                        SkysoftMod.LOGGER.warn("Failed to resolve Minecraft profile by $description", failure)
+                        null
+                    } else {
+                        profile
+                    }
+                }
+            },
+            completion = { profile, _ ->
+                synchronized(lock) {
+                    if (generation == requestGeneration) cache(profile, profiles, key)
+                }
+            },
+        )
     }
 
     fun skin(profile: GameProfile): PlayerSkin = synchronized(lock) {
@@ -97,15 +76,14 @@ object MinecraftProfileLookup {
         }
     }.get()
 
-    private fun cache(profile: GameProfile?, nameKey: String? = null, uuid: UUID? = null) {
+    private fun <K> cache(profile: GameProfile?, profiles: MutableMap<K, CachedProfile>, key: K) {
         val expiresAtMillis = if (profile == null) {
             System.currentTimeMillis() + NEGATIVE_CACHE_MILLIS
         } else {
             Long.MAX_VALUE
         }
         val cached = CachedProfile(profile, expiresAtMillis)
-        nameKey?.let { profilesByName[it] = cached }
-        uuid?.let { profilesById[it] = cached }
+        profiles[key] = cached
         profile?.let {
             profilesByName[it.name.lowercase(Locale.ROOT)] = cached
             profilesById[it.id] = cached

@@ -1,23 +1,25 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.utils.boundedAccessOrderMap
-import java.util.function.Supplier
 import net.minecraft.client.Minecraft
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.entity.player.PlayerSkin
 
 internal object SkyBlockEntityStacks {
-    private val cache = boundedAccessOrderMap<String, ItemStack>(CACHE_SIZE)
-    private val skinLookups = mutableMapOf<String, Supplier<PlayerSkin>>()
+    private val cache = boundedAccessOrderMap<EntityStackKey, CachedEntityStack>(CACHE_SIZE)
 
     fun stack(id: String): ItemStack? = SkyBlockDataRepository.entity(id)?.let(::stack)
 
-    fun stack(entity: SkyBlockEntityInfo): ItemStack? {
-        synchronized(cache) { cache[entity.id]?.let { return it } }
+    fun stack(entity: SkyBlockEntityInfo): ItemStack? = cachedStack(entity)?.stack
+
+    fun skinTexture(entity: SkyBlockEntityInfo): Identifier? = cachedStack(entity)?.skinTexture()
+
+    private fun cachedStack(entity: SkyBlockEntityInfo): CachedEntityStack? {
+        val key = EntityStackKey(entity.name, entity.texture, entity.itemId)
+        synchronized(cache) { cache[key]?.let { return it } }
         val stack = when {
             entity.texture != null -> SkyBlockStackFactory.texturedHead(entity.texture, Component.literal(entity.name))
             entity.itemId != null -> Identifier.tryParse(entity.itemId)
@@ -25,25 +27,22 @@ internal object SkyBlockEntityStacks {
                 ?.let(::ItemStack)
             else -> null
         } ?: return null
-        synchronized(cache) { cache[entity.id] = stack }
-        return stack
+        val cached = CachedEntityStack(stack)
+        synchronized(cache) { cache[key] = cached }
+        return cached
     }
 
-    fun clear() {
-        synchronized(cache) { cache.clear() }
-        synchronized(skinLookups) { skinLookups.clear() }
-    }
-
-    fun skinTexture(id: String): Identifier? {
-        val stack = stack(id) ?: return null
-        val profile = stack.get(DataComponents.PROFILE) ?: return null
-        val lookup = synchronized(skinLookups) {
-            skinLookups.getOrPut(id) {
+    private class CachedEntityStack(val stack: ItemStack) {
+        private val skinLookup by lazy {
+            stack.get(DataComponents.PROFILE)?.let { profile ->
                 Minecraft.getInstance().skinManager.createLookup(profile.partialProfile(), false)
             }
         }
-        return lookup.get().body().texturePath()
+
+        fun skinTexture(): Identifier? = skinLookup?.get()?.body()?.texturePath()
     }
+
+    private data class EntityStackKey(val name: String, val texture: String?, val itemId: String?)
 
     private const val CACHE_SIZE = 128
 }

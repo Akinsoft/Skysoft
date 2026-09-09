@@ -9,8 +9,7 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 internal object MythologicalRitualPartyCommands {
-    private val commandOptions = mutableMapOf<String, DianaPartyCommand>()
-    private val commandMap: Map<String, (MythologicalRitualTrackerState) -> String> =
+    private val commandMap: Map<String, Command> =
         buildMap {
             add(DianaPartyCommand.CHIMERA, listOf("!chim", "!chimera", "!chims", "!chimeras", "!book", "!books")) { state ->
                 state.fmt("Chimera", MythologicalRitualItemKey.CHIMERA, MythologicalRitualMobKey.MINOS_INQUISITOR) +
@@ -77,11 +76,11 @@ internal object MythologicalRitualPartyCommands {
             "!totalstats", "!totalstat" -> statsResponse(secondArg, localPlayerName, state.total, state)
             "!sessionstats", "!sessionstat" -> statsResponse(secondArg, localPlayerName, state.session, state)
             "!since" -> sinceResponse(secondArg, state.since)
-            else -> commandMap[command]?.invoke(state)
+            else -> commandMap[command]?.response?.invoke(state)
         }
     }
 
-    private fun MutableMap<String, (MythologicalRitualTrackerState) -> String>.addBasicDropCommands() {
+    private fun MutableMap<String, Command>.addBasicDropCommands() {
         add(DianaPartyCommand.SHIMMERING_WOOL, listOf("!wool", "!wools", "!shimmering", "!shimmeringwool", "!shimmeringwools")) {
             it.fmt("Wool", MythologicalRitualItemKey.SHIMMERING_WOOL, MythologicalRitualMobKey.KING_MINOS)
         }
@@ -103,7 +102,7 @@ internal object MythologicalRitualPartyCommands {
         add(DianaPartyCommand.PROFITS, listOf("!profits", "!profit")) { it.profitResponse() }
     }
 
-    private fun MutableMap<String, (MythologicalRitualTrackerState) -> String>.addShardAndTreasureCommands() {
+    private fun MutableMap<String, Command>.addShardAndTreasureCommands() {
         add(DianaPartyCommand.KING_SHARDS, listOf("!kingshard", "!kingshards")) {
             it.fmt("King Shards", MythologicalRitualItemKey.KING_MINOS_SHARD, MythologicalRitualMobKey.KING_MINOS)
         }
@@ -142,15 +141,13 @@ internal object MythologicalRitualPartyCommands {
         }
     }
 
-    private fun MutableMap<String, (MythologicalRitualTrackerState) -> String>.add(
+    private fun MutableMap<String, Command>.add(
         option: DianaPartyCommand,
         aliases: List<String>,
         response: (MythologicalRitualTrackerState) -> String,
     ) {
-        aliases.forEach { alias ->
-            put(alias, response)
-            commandOptions[alias] = option
-        }
+        val command = Command(option, response)
+        aliases.forEach { alias -> put(alias, command) }
     }
 
     private fun MythologicalRitualTrackerState.fmt(label: String, key: String, denominatorMob: String? = null): String {
@@ -262,8 +259,13 @@ internal object MythologicalRitualPartyCommands {
         "!totalstats", "!totalstat" -> DianaPartyCommand.TOTAL_STATS
         "!sessionstats", "!sessionstat" -> DianaPartyCommand.SESSION_STATS
         "!since" -> DianaPartyCommand.SINCE
-        else -> commandOptions[command]
+        else -> commandMap[command]?.option
     }
+
+    private data class Command(
+        val option: DianaPartyCommand,
+        val response: (MythologicalRitualTrackerState) -> String,
+    )
 
     private val commandsWithArgs = setOf(
         "!since",

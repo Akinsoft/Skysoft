@@ -224,9 +224,7 @@ private const val SHA_256 = "SHA-256"
 internal data class NewSettingsDetection(
     val addedIds: Set<String>,
     val changedIds: Set<String>,
-) {
-    val discoveredIds: Set<String> = addedIds + changedIds
-}
+)
 
 internal fun detectNewSettings(
     previousSignatures: Map<String, String>,

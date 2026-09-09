@@ -1,6 +1,7 @@
 package com.skysoft.data.skyblock
 
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
@@ -25,34 +26,29 @@ object SkyBlockSackContents {
 
     private fun readOpenInventory(snapshot: SkyBlockOpenInventorySnapshot?) {
         if (snapshot == null || !isSackContentsMenu(snapshot.title) || SkyBlockProfileApi.currentProfileKey == null) return
-        var changed = false
         snapshot.items.values.forEach { stack ->
             val itemId = stack.skyBlockId() ?: return@forEach
             val amount = storedSackAmount(stack.loreLines()) ?: return@forEach
             val displayName = stack.hoverName.string
             val current = ProfileStorageApi.storage.sackContents[itemId]
             if (current?.amount != amount || !current.exact || current.displayName != displayName) {
-                ProfileStorageApi.storage.sackContents[itemId] = ProfileStorage.SackItemData(
-                    amount = amount,
-                    exact = true,
-                    displayName = displayName,
-                )
-                changed = true
+                ProfileStorageApi.updateProfile { profile ->
+                    profile.sackContents[itemId] = ProfileStorage.SackItemData(
+                        amount = amount,
+                        exact = true,
+                        displayName = displayName,
+                    )
+                }
             }
         }
-        if (changed) ProfileStorageApi.markDirty()
     }
 
     private fun applyChanges(batch: SkyBlockSackChangeBatch) {
         if (SkyBlockProfileApi.currentProfileKey == null) return
         val contents = ProfileStorageApi.storage.sackContents
-        var changed = false
-        if (batch.incomplete) {
-            contents.values.forEach { item ->
-                if (item.exact) {
-                    item.exact = false
-                    changed = true
-                }
+        if (batch.incomplete && contents.values.any { it.exact }) {
+            ProfileStorageApi.updateProfile { profile ->
+                profile.sackContents.values.forEach { it.exact = false }
             }
         }
         batch.changes.forEach { change ->
@@ -64,11 +60,9 @@ object SkyBlockSackContents {
             val current = contents[itemId]
             val updated = updatedSackItem(current, change.amount, batch.incomplete, change.displayName)
             if (current != updated) {
-                contents[itemId] = updated
-                changed = true
+                ProfileStorageApi.updateProfile { it.sackContents[itemId] = updated }
             }
         }
-        if (changed) ProfileStorageApi.markDirty()
     }
 
 }
@@ -84,7 +78,7 @@ internal fun storedSackAmount(loreLines: Iterable<String>): Long? =
         .firstOrNull()
 
 internal fun updatedSackItem(
-    current: ProfileStorage.SackItemData?,
+    current: ProfileStorageView.SackItemData?,
     change: Int,
     incomplete: Boolean,
     displayName: String = current?.displayName.orEmpty(),

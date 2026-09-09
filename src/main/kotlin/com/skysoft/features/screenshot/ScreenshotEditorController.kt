@@ -12,7 +12,7 @@ internal data class ScreenshotEditorPresentation(
 internal class ScreenshotEditorController {
     private val sessions = mutableMapOf<Path, ScreenshotEditSession>()
     private var geometry: ScreenshotEditorGeometry? = null
-    private var drag: ScreenshotEditorDrag? = null
+    private var drag: ActiveDrag? = null
 
     fun session(path: Path): ScreenshotEditSession =
         sessions.getOrPut(path) { ScreenshotEditSession() }
@@ -23,6 +23,8 @@ internal class ScreenshotEditorController {
         texture: RegisteredImageTexture?,
     ): ScreenshotEditorPresentation {
         val session = session(path)
+        val activeDrag = drag
+        if (activeDrag != null && activeDrag.session !== session) processRelease()
         val geometry = texture?.let {
             ScreenshotEditorGeometry.create(viewport, it.width, it.height, session)
         }
@@ -32,21 +34,31 @@ internal class ScreenshotEditorController {
     }
 
     fun clearPresentation() {
+        processRelease()
         geometry = null
-        drag = null
     }
 
     fun remove(path: Path) {
-        sessions.remove(path)
         clearPresentation()
+        sessions.remove(path)
     }
 
     fun clear() {
-        sessions.clear()
         clearPresentation()
+        sessions.clear()
     }
 
     fun firstUnsavedPath(): Path? = sessions.entries.firstOrNull { it.value.hasEdits }?.key
+
+    fun undo(path: Path) {
+        processRelease()
+        session(path).undo()
+    }
+
+    fun redo(path: Path) {
+        processRelease()
+        session(path).redo()
+    }
 
     fun processClick(
         layout: ScreenshotFocusLayout,
@@ -60,9 +72,10 @@ internal class ScreenshotEditorController {
         else -> InputHandlingResult.IGNORED
     }
 
-    fun processDrag(path: Path, mouseX: Double, mouseY: Double): InputHandlingResult {
-        val drag = drag ?: return InputHandlingResult.IGNORED
-        val session = session(path)
+    fun processDrag(mouseX: Double, mouseY: Double): InputHandlingResult {
+        val active = drag ?: return InputHandlingResult.IGNORED
+        val drag = active.gesture
+        val session = active.session
         val geometry = geometry ?: return InputHandlingResult.IGNORED
         when (drag) {
             is ScreenshotEditorDrag.Pan -> {
@@ -87,10 +100,10 @@ internal class ScreenshotEditorController {
         return InputHandlingResult.CONSUMED
     }
 
-    fun processRelease(path: Path): InputHandlingResult {
+    fun processRelease(): InputHandlingResult {
         val drag = drag ?: return InputHandlingResult.IGNORED
         this.drag = null
-        drag.before?.let { session(path).commitEdit(it) }
+        drag.gesture.before?.let(drag.session::commitEdit)
         return InputHandlingResult.CONSUMED
     }
 
@@ -133,8 +146,8 @@ internal class ScreenshotEditorController {
         val selectedTool = layout.toolButtons.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
         return when {
             selectedTool != null -> {
+                processRelease()
                 session.selectTool(selectedTool)
-                drag = null
                 true
             }
             layout.zoomOut.contains(mouseX, mouseY) -> {
@@ -150,14 +163,15 @@ internal class ScreenshotEditorController {
                 true
             }
             layout.undo.contains(mouseX, mouseY) -> {
-                session.undo()
+                undo(path)
                 true
             }
             layout.redo.contains(mouseX, mouseY) -> {
-                session.redo()
+                redo(path)
                 true
             }
             layout.reset.contains(mouseX, mouseY) -> {
+                processRelease()
                 session.reset()
                 true
             }
@@ -175,7 +189,10 @@ internal class ScreenshotEditorController {
         return when (session.tool) {
             ScreenshotEditorTool.VIEW -> false
             ScreenshotEditorTool.CROP -> layout.resetCrop.contains(mouseX, mouseY).also {
-                if (it) session.resetCrop()
+                if (it) {
+                    processRelease()
+                    session.resetCrop()
+                }
             }
             ScreenshotEditorTool.DRAW -> {
                 val color = layout.colorSwatches.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
@@ -204,7 +221,8 @@ internal class ScreenshotEditorController {
         if (!layout.editorViewport().contains(mouseX, mouseY)) return false
         val session = session(path)
         val geometry = geometry ?: return false
-        drag = when (session.tool) {
+        processRelease()
+        val gesture = when (session.tool) {
             ScreenshotEditorTool.VIEW -> {
                 ScreenshotEditorDrag.Pan(mouseX.toDouble(), mouseY.toDouble()).takeIf {
                     geometry.imageBounds.contains(mouseX.toDouble(), mouseY.toDouble())
@@ -213,6 +231,7 @@ internal class ScreenshotEditorController {
             ScreenshotEditorTool.CROP -> beginCropDrag(session, geometry, mouseX, mouseY)
             ScreenshotEditorTool.DRAW -> beginDrawDrag(session, geometry, mouseX, mouseY)
         }
+        drag = gesture?.let { ActiveDrag(session, it) }
         return drag != null
     }
 
@@ -250,6 +269,11 @@ internal class ScreenshotEditorController {
             steps,
         )
     }
+
+    private data class ActiveDrag(
+        val session: ScreenshotEditSession,
+        val gesture: ScreenshotEditorDrag,
+    )
 
     private sealed interface ScreenshotEditorDrag {
         val before: ScreenshotEditSnapshot?

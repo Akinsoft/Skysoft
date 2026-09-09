@@ -9,11 +9,11 @@ import com.skysoft.features.inventory.TrackedItemQuantityAction
 import com.skysoft.features.inventory.TrackedItemSelectionAction
 import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
 import com.skysoft.features.inventory.itemlist.itemListQuickCraftCommand
+import com.skysoft.gui.OverlayControlArea
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
-import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -31,11 +31,6 @@ internal sealed interface CraftingHelperControl {
     data class Quantity(val action: TrackedItemQuantityAction) : CraftingHelperControl
     data class Line(val line: CraftingHelperLine) : CraftingHelperControl
 }
-
-internal data class LocalCraftingHelperControl(
-    val action: CraftingHelperControl,
-    val bounds: Rect,
-)
 
 internal class CraftingHelperItemPanel {
     private val panel = TrackedItemManagerPanel(
@@ -85,15 +80,16 @@ internal class CraftingHelperItemPanel {
         placeRight: Boolean,
         mouseX: Int,
         mouseY: Int,
-    ): LocalCraftingHelperControl? = panel.render(context, trackerWidth, placeRight, mouseX, mouseY)?.let { control ->
-        val action = when (val action = control.action) {
-            TrackedItemManagerAction.AddItems -> CraftingHelperControl.AddItems
-            TrackedItemManagerAction.RemoveItems -> CraftingHelperControl.DecreaseItems
-            is TrackedItemManagerAction.ItemSelection -> CraftingHelperControl.ItemSelection(action.action)
-            is TrackedItemManagerAction.Quantity -> CraftingHelperControl.Quantity(action.action)
+    ): OverlayControlArea<CraftingHelperControl>? =
+        panel.render(context, trackerWidth, placeRight, mouseX, mouseY)?.let { control ->
+            val action = when (val action = control.action) {
+                TrackedItemManagerAction.AddItems -> CraftingHelperControl.AddItems
+                TrackedItemManagerAction.RemoveItems -> CraftingHelperControl.DecreaseItems
+                is TrackedItemManagerAction.ItemSelection -> CraftingHelperControl.ItemSelection(action.action)
+                is TrackedItemManagerAction.Quantity -> CraftingHelperControl.Quantity(action.action)
+            }
+            OverlayControlArea(action, control.bounds)
         }
-        LocalCraftingHelperControl(action, control.bounds)
-    }
 }
 
 internal object CraftingHelperInput {

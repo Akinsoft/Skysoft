@@ -2,7 +2,7 @@ package com.skysoft.utils.chat
 
 internal class SkysoftPartyCommandQueue(
     private val partyCommand: (String) -> String,
-    private val blockedReason: (Boolean) -> String?,
+    private val canSendParty: (Boolean) -> Boolean,
     private val rememberSentMessage: (String, Long) -> Unit,
 ) {
     private val queuedPartyMessages = ArrayDeque<QueuedPartyMessage>()
@@ -30,7 +30,7 @@ internal class SkysoftPartyCommandQueue(
     fun nextPartyCommand(now: Long = System.currentTimeMillis()): String? {
         if (now < nextPartyCommandAtMillis) return null
         val queued = queuedPartyMessages.firstOrNull() ?: return null
-        if (queued.requireParty && blockedReason(queued.allowRecentPartyChatEvidence) != null) {
+        if (queued.requireParty && !canSendParty(queued.allowRecentPartyChatEvidence)) {
             queuedPartyMessages.removeFirst()
             return null
         }
@@ -50,38 +50,28 @@ internal class SkysoftPartyCommandQueue(
     fun recordCommandCooldownFailure(
         cleanText: String,
         now: Long = System.currentTimeMillis(),
-    ): CommandCooldownRecoveryResult {
-        if (!isCommandCooldownFailure(cleanText)) return CommandCooldownRecoveryResult.IGNORED
+    ) {
+        if (!isCommandCooldownFailure(cleanText)) return
         prunePendingSentMessages(now)
-        val pending = pendingSentMessages.removeLastOrNull() ?: run {
-            return CommandCooldownRecoveryResult.NO_PENDING_MESSAGE
-        }
+        val pending = pendingSentMessages.removeLastOrNull()?.queued ?: return
         if (pending.cooldownRetries >= MAX_COMMAND_COOLDOWN_RETRIES) {
-            return CommandCooldownRecoveryResult.RETRY_LIMIT_REACHED
+            return
         }
         queuedPartyMessages.addFirst(
-            QueuedPartyMessage(
-                message = pending.message,
-                allowRecentPartyChatEvidence = pending.allowRecentPartyChatEvidence,
-                command = pending.command,
-                requireParty = pending.requireParty,
-                cooldownRetries = pending.cooldownRetries + 1,
-            ),
+            pending.copy(cooldownRetries = pending.cooldownRetries + 1),
         )
         while (queuedPartyMessages.size > MAX_QUEUED_PARTY_MESSAGES) {
             queuedPartyMessages.removeLast()
         }
         nextPartyCommandAtMillis = maxOf(nextPartyCommandAtMillis, now + PARTY_COMMAND_COOLDOWN_RETRY_MILLIS)
-        return CommandCooldownRecoveryResult.RETRY_QUEUED
     }
 
-    fun recordPartyEcho(message: String, now: Long = System.currentTimeMillis()): PartyEchoDeliveryResult {
+    fun recordPartyEcho(message: String, now: Long = System.currentTimeMillis()) {
         prunePendingSentMessages(now)
         val normalized = message.trim()
-        val index = pendingSentMessages.indexOfFirst { sent -> sent.message == normalized }
-        if (index < 0) return PartyEchoDeliveryResult.NOT_PENDING
+        val index = pendingSentMessages.indexOfFirst { sent -> sent.queued.message == normalized }
+        if (index < 0) return
         pendingSentMessages.removeAt(index)
-        return PartyEchoDeliveryResult.DELIVERED
     }
 
     fun clear() {
@@ -93,11 +83,7 @@ internal class SkysoftPartyCommandQueue(
     private fun rememberPendingSentMessage(queued: QueuedPartyMessage, now: Long) {
         prunePendingSentMessages(now)
         pendingSentMessages += PendingSentPartyMessage(
-            message = queued.message,
-            allowRecentPartyChatEvidence = queued.allowRecentPartyChatEvidence,
-            command = queued.command,
-            requireParty = queued.requireParty,
-            cooldownRetries = queued.cooldownRetries,
+            queued = queued,
             expiresAtMillis = now + PENDING_SENT_MESSAGE_MILLIS,
         )
     }
@@ -122,11 +108,7 @@ internal class SkysoftPartyCommandQueue(
     )
 
     private data class PendingSentPartyMessage(
-        val message: String,
-        val allowRecentPartyChatEvidence: Boolean,
-        val command: String?,
-        val requireParty: Boolean,
-        val cooldownRetries: Int,
+        val queued: QueuedPartyMessage,
         val expiresAtMillis: Long,
     )
 
@@ -138,16 +120,4 @@ internal class SkysoftPartyCommandQueue(
         const val MAX_COMMAND_COOLDOWN_RETRIES = 2
         const val MAX_QUEUED_PARTY_MESSAGES = 5
     }
-}
-
-internal enum class CommandCooldownRecoveryResult {
-    IGNORED,
-    NO_PENDING_MESSAGE,
-    RETRY_QUEUED,
-    RETRY_LIMIT_REACHED,
-}
-
-internal enum class PartyEchoDeliveryResult {
-    DELIVERED,
-    NOT_PENDING,
 }

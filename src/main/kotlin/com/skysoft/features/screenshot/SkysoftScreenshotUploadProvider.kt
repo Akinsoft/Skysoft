@@ -1,6 +1,7 @@
 package com.skysoft.features.screenshot
 
 import com.google.gson.JsonParser
+import com.skysoft.utils.net.CancellableRequestGroup
 import com.skysoft.utils.net.SkysoftHttp
 import java.net.URI
 import java.net.http.HttpRequest
@@ -10,25 +11,32 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
+import net.minecraft.util.Util
 
 internal object SkysoftScreenshotUploadProvider {
     private const val EXPIRATION_SECONDS = 30L * 24L * 60L * 60L
 
     fun upload(path: Path): CompletableFuture<ScreenshotUpload> {
+        val requests = CancellableRequestGroup()
+        val preparation = requests.track(CompletableFuture.supplyAsync({ createRequest(path) }, Util.ioPool()))
+        val operation = preparation.thenCompose { request -> requests.track(SkysoftHttp.sendString(request)) }
+            .thenApply { response -> readUpload(response.statusCode(), response.body()) }
+        return requests.result(operation)
+    }
+
+    private fun createRequest(path: Path): HttpRequest {
         val boundary = "Skysoft-${UUID.randomUUID()}"
         val body = HttpRequest.BodyPublishers.concat(
             HttpRequest.BodyPublishers.ofByteArray(uploadHeader(boundary, path)),
             HttpRequest.BodyPublishers.ofFile(path),
             HttpRequest.BodyPublishers.ofByteArray("\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8)),
         )
-        val request = HttpRequest.newBuilder(URI.create(UPLOAD_URL))
+        return HttpRequest.newBuilder(URI.create(UPLOAD_URL))
             .timeout(Duration.ofSeconds(UPLOAD_TIMEOUT_SECONDS))
             .header("User-Agent", "Skysoft")
             .header("Content-Type", "multipart/form-data; boundary=$boundary")
             .POST(body)
             .build()
-        return SkysoftHttp.sendString(request)
-            .thenApply { response -> readUpload(response.statusCode(), response.body()) }
     }
 
     private fun uploadHeader(boundary: String, path: Path): ByteArray {

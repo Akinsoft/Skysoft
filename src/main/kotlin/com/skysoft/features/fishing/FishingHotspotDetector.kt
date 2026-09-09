@@ -12,7 +12,7 @@ import net.minecraft.world.entity.decoration.ArmorStand
 
 internal object FishingHotspotDetector {
     fun detect(): List<FishingHotspotObservation> {
-        val armorStands = allEntities().filterIsInstance<ArmorStand>().filter { it.isAlive }
+        val armorStands = ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>().filter { it.isAlive }
         val hotspotTags = armorStands.filter { it.cleanName() == HOTSPOT_NAME }
         val statTags = armorStands.filter { it.cleanName().isHotspotStatLine() }
 
@@ -44,8 +44,6 @@ internal object FishingHotspotDetector {
 
     private fun String.isHotspotStatLine(): Boolean =
         startsWith("+") && length <= MAX_STAT_LINE_LENGTH && any { it.isLetter() }
-
-    private fun allEntities(): List<Entity> = ClientEntitySnapshot.entities()
 
     private const val HOTSPOT_NAME = "HOTSPOT"
     private const val STAT_PAIR_DISTANCE_SQ = 1.0

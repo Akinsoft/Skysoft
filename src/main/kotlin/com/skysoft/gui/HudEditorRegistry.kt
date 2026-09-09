@@ -23,7 +23,7 @@ object HudEditorRegistry {
         providers[id] = provider
     }
 
-    fun visibleElements(hasInventoryScreen: Boolean = false): List<HudEditorElement> {
+    internal fun editorElements(hasInventoryScreen: Boolean): List<HudEditorElement> {
         val providedElements = providers.flatMap { (id, provider) ->
             SkysoftErrorBoundary.value("HUD editor provider $id", emptyList(), provider)
         }
@@ -33,7 +33,7 @@ object HudEditorRegistry {
             ?.key
         require(duplicateId == null) { "Duplicate HUD editor element id: $duplicateId" }
         return allElements.filter { element ->
-            element.isVisible() && (hasInventoryScreen || !element.requiresInventoryScreen)
+            hasInventoryScreen || !element.requiresInventoryScreen
         }
     }
 }

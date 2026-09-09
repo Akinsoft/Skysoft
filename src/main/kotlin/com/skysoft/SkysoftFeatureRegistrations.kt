@@ -1,5 +1,6 @@
 package com.skysoft
 
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.discovery.NewSettingsDiscovery
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.MinecraftProfileLookup
@@ -28,7 +29,6 @@ import com.skysoft.data.skyblock.SkyBlockSackContents
 import com.skysoft.data.skyblock.SkyBlockSackTransfers
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.chat.ChatHistoryPersistence
@@ -165,6 +165,7 @@ internal object SkysoftFeatureRegistrations {
         register("SkyBlock Mob Tracker", SkyBlockMobTracker::register)
         register("Entity Lifecycle Events", EntityLifecycleEvents::register)
         register("Profile Storage", ProfileStorageApi::register)
+        register("Config Saving") { SkysoftConfigGui.config().registerSaving() }
         register("SkyBlock Sack Contents", SkyBlockSackContents::register)
         register("Storage Cache", StorageCache::register)
         register("Attribute Shard Catalog", AttributeShardCatalog::register)
@@ -257,7 +258,6 @@ internal object SkysoftFeatureRegistrations {
     }
 
     private fun registerPetFeatures() {
-        register("Pet Repository", PetRepository::register)
         register("Active Pet Tracker", ActivePetTracker::register)
         register("Skill Experience API", SkillExpGainApi::register)
         register("Pet Experience Estimator", PetXpEstimator::register)

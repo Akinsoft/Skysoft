@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.HudPosition
 import com.skysoft.features.spotify.SpotifyAuthentication
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -12,7 +13,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
-import io.github.notenoughupdates.moulconfig.observer.GetSetter
 import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 
@@ -118,11 +118,9 @@ class SpotifyDisplaySettingsConfig {
 }
 
 class SpotifyDisplayDetailsConfig {
-    val lyricOptionsVisible: Property<Boolean> = Property.wrap(object : GetSetter<Boolean> {
-        override fun get(): Boolean = lyricsMode != SpotifyLyricsMode.OFF
-
-        override fun set(value: Boolean) = Unit
-    })
+    val lyricOptionsVisible: Property<Boolean> = configVisibility {
+        lyricsMode != SpotifyLyricsMode.OFF
+    }
 
     @JvmField
     @field:Expose

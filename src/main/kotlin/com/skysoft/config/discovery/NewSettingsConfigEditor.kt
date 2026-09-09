@@ -12,73 +12,42 @@ import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 import java.lang.reflect.Field
 import java.util.LinkedHashMap
 
-internal data class NewSettingsEditor<T : Config>(
-    val editor: MoulConfigEditor<T>,
-    val requestedOptionCount: Int,
-    val includedOptionCount: Int,
-    val includedCategoryCount: Int,
-    val includedOptionPaths: List<String>,
-)
-
-internal data class NewSettingsFilter<T : Config>(
-    val config: T,
-    val categories: LinkedHashMap<String, ProcessedCategoryImpl>,
-    val requestedOptionCount: Int,
-    val includedOptionCount: Int,
-) {
-    val includedCategoryCount: Int = categories.size
-    val options: List<ProcessedOption> = categories.values.flatMap { it.options }
-    val includedOptionPaths: List<String> = options.map { it.path }
-}
-
 internal object NewSettingsConfigEditor {
     fun <T : Config> create(
         config: T,
         requestedOptionIds: Set<String>,
-        game: SkysoftGame? = null,
-    ): NewSettingsEditor<T>? {
-        val filter = filter(config, requestedOptionIds) ?: return null
-        val categories = if (game == null) filter.categories else categoriesForGame(filter.categories, game)
-        val includedOptions = categories.values.flatMap { it.options }
-        if (includedOptions.isEmpty()) return null
-        return NewSettingsEditor(
-            editor = MoulConfigEditor(categories, config),
-            requestedOptionCount = filter.requestedOptionCount,
-            includedOptionCount = includedOptions.size,
-            includedCategoryCount = categories.size,
-            includedOptionPaths = includedOptions.map { it.path },
-        )
+        game: SkysoftGame,
+    ): MoulConfigEditor<T>? {
+        val filteredCategories = filter(config, requestedOptionIds) ?: return null
+        val categories = categoriesForGame(filteredCategories, game)
+        if (categories.values.all { it.options.isEmpty() }) return null
+        return MoulConfigEditor(categories, config)
     }
 
-    fun <T : Config> filter(config: T, requestedOptionIds: Set<String>): NewSettingsFilter<T>? {
+    private fun filter(config: Config, requestedOptionIds: Set<String>): LinkedHashMap<String, ProcessedCategoryImpl>? {
         val processor = SkysoftMoulConfigGuis.processConfig(config)
         val schema = NewSettingsSchema.from(processor)
         val requestedOptions = requestedOptionIds.mapNotNullTo(linkedSetOf()) { schema.byId[it]?.option }
         if (requestedOptions.isEmpty()) return null
 
         val includedOptions = requiredOptions(processor, schema, requestedOptions)
-        val categories = processor.allCategories.values.map { category ->
+        val categories = processor.allCategories.mapValues { (_, category) ->
             require(category is ProcessedCategoryImpl) {
                 "SoftConfig returned an unsupported category implementation: ${category.javaClass.name}"
             }
             category
         }
-        categories.forEach { category ->
+        categories.values.forEach { category ->
             category.options.removeIf { it !in includedOptions }
             category.accordionAnchors.entries.removeIf { it.value !in includedOptions }
         }
 
         val requiredCategoryIds = requiredCategoryIds(includedOptions, processor)
         val filteredCategories = LinkedHashMap<String, ProcessedCategoryImpl>()
-        processor.allCategories.forEach { (id, category) ->
-            if (id in requiredCategoryIds) filteredCategories[id] = category as ProcessedCategoryImpl
+        categories.forEach { (id, category) ->
+            if (id in requiredCategoryIds) filteredCategories[id] = category
         }
-        return NewSettingsFilter(
-            config = config,
-            categories = filteredCategories,
-            requestedOptionCount = requestedOptions.size,
-            includedOptionCount = includedOptions.size,
-        )
+        return filteredCategories
     }
 
     private fun requiredOptions(

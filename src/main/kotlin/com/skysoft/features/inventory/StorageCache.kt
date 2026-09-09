@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 
 internal object StorageCache {
     private val consumers = ActiveConsumerRegistry()
+    private var lastInventoryKey: String? = null
 
     fun register() {
         ProfileStorageApi.registerConsumer("Storage Cache") { consumers.hasActiveConsumers }
@@ -39,6 +40,10 @@ internal object StorageCache {
         consumers.register(id, isActive)
     }
 
+    fun invalidateSnapshot() {
+        lastInventoryKey = null
+    }
+
     private fun updateCurrentSnapshot(snapshot: SkyBlockOpenInventorySnapshot?) {
         val handle = snapshot?.let(::storageHandleFor) ?: run {
             lastInventoryKey = null
@@ -48,13 +53,14 @@ internal object StorageCache {
             lastInventoryKey = null
             return
         }
+        if (snapshot.key == lastInventoryKey) return
+        lastInventoryKey = snapshot.key
         readSnapshot(snapshot, handle)
     }
 
     private fun resetCacheTransientState() {
         lastInventoryKey = null
-        decodedStacks.clear()
-        emptyOverviewStacks.clear()
+        StorageItemStacks.clear()
         StorageSearchIndex.clear()
     }
 }

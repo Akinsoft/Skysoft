@@ -1,6 +1,6 @@
 package com.skysoft.features.loot
 
-import com.skysoft.data.skyblock.pets.PetRepository
+import com.skysoft.data.skyblock.SkyBlockItemNames
 
 internal fun RareLootChatDrop.toRareLootDrop(): RareLootDrop {
     val resolvedItemId = bestItemId()
@@ -16,7 +16,7 @@ internal fun RareLootChatDrop.bestItemId(): String? {
     val candidates = buildList {
         addAll(itemIdCandidates)
         RareLootItemIds.fromDisplayName(displayName)?.let(::add)
-        PetRepository.resolvePetItemOrNull(displayName)?.let(::add)
+        SkyBlockItemNames.resolveItemId(displayName)?.let(::add)
     }.distinct()
     return candidates.firstOrNull { itemId ->
         RareLootValueResolver.resolve(itemId, amount) != null

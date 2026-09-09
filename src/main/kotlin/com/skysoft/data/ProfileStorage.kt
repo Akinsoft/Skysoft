@@ -12,11 +12,11 @@ import java.util.UUID
 import kotlin.math.ceil
 
 data class ProfileStorage(
-    @Expose val players: MutableMap<String, PlayerSpecific> = mutableMapOf(),
+    @Expose override val players: MutableMap<String, PlayerSpecific> = mutableMapOf(),
 
     // Kept for migration from the first Skysoft pet-storage layout.
-    @Expose val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
-) {
+    @Expose override val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
+) : ProfileStorageView {
     @Expose private val pets: MutableList<StoredPetData> = mutableListOf()
     @Expose private val expSharePets: MutableList<UUID?> = mutableListOf()
     @Expose private var currentPetUuid: UUID? = null
@@ -59,26 +59,36 @@ data class ProfileStorage(
             skillData.putAll(legacy.skillData)
             attributeShards.putAll(legacy.attributeShards)
         }
-        repairLoadedValues()
     }
 
-    fun activeProfile(): ProfileSpecific {
-        val profileKey = SkyBlockProfileApi.currentProfileKey ?: return transientProfile
-        val playerStorage = activePlayer()
-        migrateLegacyStorage(playerStorage, profileKey)
-        return playerStorage.profiles.getOrPut(profileKey) { ProfileSpecific(profileName = profileKey) }
+    internal fun activeProfile(onChange: () -> Unit): ProfileSpecific {
+        val profileId = SkyBlockProfileApi.currentProfileId ?: return transientProfile
+        val profileKey = profileId.profileKey
+        val playerStorage = playerStorage(profileId.playerKey, onChange)
+        if (profiles.isNotEmpty() || hasLegacyFlatStorage()) {
+            migrateLegacyStorage(playerStorage, profileKey)
+            onChange()
+        }
+        return playerStorage.profiles.getOrPut(profileKey) {
+            onChange()
+            ProfileSpecific(profileName = profileKey)
+        }
     }
 
-    fun activePlayer(): PlayerSpecific {
+    internal fun activePlayer(onChange: () -> Unit): PlayerSpecific {
         val playerKey = SkyBlockProfileApi.currentPlayerKeyOrNull() ?: return transientPlayer
-        return players.getOrPut(playerKey) { PlayerSpecific() }
+        return playerStorage(playerKey, onChange)
     }
+
+    private fun playerStorage(playerKey: String, onChange: () -> Unit): PlayerSpecific =
+        players.getOrPut(playerKey) {
+            onChange()
+            PlayerSpecific()
+        }
 
     private fun migrateLegacyStorage(playerStorage: PlayerSpecific, profileKey: String) {
-        repairLegacyFlatStorage()
         if (profiles.isNotEmpty()) {
             profiles.forEach { (profile, data) ->
-                data.repairLoadedValues()
                 playerStorage.profiles.putIfAbsent(profile, data)
             }
             profiles.clear()
@@ -118,54 +128,48 @@ data class ProfileStorage(
     }
 
     data class PlayerSpecific(
-        @Expose val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
-        @Expose var cookieBuffExpiresAtMillis: Long = 0L,
-    ) {
+        @Expose override val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
+        @Expose override var cookieBuffExpiresAtMillis: Long = 0L,
+    ) : ProfileStorageView.PlayerSpecific {
         fun repairLoadedValues() {
             if (cookieBuffExpiresAtMillis < 0L) cookieBuffExpiresAtMillis = 0L
         }
     }
 
     data class ProfileSpecific(
-        @Expose var profileName: String = "",
-        @Expose val pets: MutableList<StoredPetData> = mutableListOf(),
-        @Expose val expSharePets: MutableList<UUID?> = mutableListOf(),
-        @Expose var currentPetUuid: UUID? = null,
-        @Expose var beastmasterPetXpMultiplier: Double? = null,
-        @Expose val accessories: MutableMap<String, AccessoryData> = mutableMapOf(),
-        @Expose val skyBlockStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
-        @Expose val skyBlockRiftStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
-        @Expose val skyBlockToolkits: MutableMap<String, SkyBlockStoragePageData> = mutableMapOf(),
-        @Expose var skyBlockToolkitIcon: String = "",
-        @Expose val inventoryEquipment: MutableList<SkyBlockStorageItemData> = mutableListOf(),
-        @Expose val skillData: MutableMap<SkyBlockSkill, SkyBlockSkillInfo> = mutableMapOf(),
-        @Expose val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf(),
-        @Expose val slotBindings: MutableList<SlotBindingData> = mutableListOf(),
-        @Expose val slotLocks: MutableList<Int> = mutableListOf(),
-        @Expose val protectedItemUuids: MutableList<UUID> = mutableListOf(),
-        @Expose val inventoryItemCounts: MutableMap<String, Int> = mutableMapOf(),
-        @Expose val sackContents: MutableMap<String, SackItemData> = mutableMapOf(),
-        @Expose val profitTracker: ProfitTrackerData = ProfitTrackerData(),
-        @Expose val slayerTimeToKill: SlayerTimeToKillData = SlayerTimeToKillData(),
-        @Expose val bazaarTracker: BazaarTrackerData = BazaarTrackerData(),
-        @Expose val honeyhiveTracker: HoneyhiveTrackerData = HoneyhiveTrackerData(),
-        @Expose val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
-        @Expose val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
-    ) {
+        @Expose override var profileName: String = "",
+        @Expose override val pets: MutableList<StoredPetData> = mutableListOf(),
+        @Expose override val expSharePets: MutableList<UUID?> = mutableListOf(),
+        @Expose override var currentPetUuid: UUID? = null,
+        @Expose override var beastmasterPetXpMultiplier: Double? = null,
+        @Expose override val accessories: MutableMap<String, AccessoryData> = mutableMapOf(),
+        @Expose override val skyBlockStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
+        @Expose override val skyBlockRiftStoragePages: MutableMap<Int, SkyBlockStoragePageData> = mutableMapOf(),
+        @Expose override val skyBlockToolkits: MutableMap<String, SkyBlockStoragePageData> = mutableMapOf(),
+        @Expose override var skyBlockToolkitIcon: String = "",
+        @Expose override val inventoryEquipment: MutableList<SkyBlockStorageItemData> =
+            MutableList(INVENTORY_EQUIPMENT_SLOT_COUNT) { SkyBlockStorageItemData() },
+        @Expose override val skillData: MutableMap<SkyBlockSkill, SkyBlockSkillInfo> = mutableMapOf(),
+        @Expose override val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf(),
+        @Expose override val slotBindings: MutableList<SlotBindingData> = mutableListOf(),
+        @Expose override val slotLocks: MutableList<Int> = mutableListOf(),
+        @Expose override val protectedItemUuids: MutableList<UUID> = mutableListOf(),
+        @Expose override val inventoryItemCounts: MutableMap<String, Int> = mutableMapOf(),
+        @Expose override val sackContents: MutableMap<String, SackItemData> = mutableMapOf(),
+        @Expose override val profitTracker: ProfitTrackerData = ProfitTrackerData(),
+        @Expose override val slayerTimeToKill: SlayerTimeToKillData = SlayerTimeToKillData(),
+        @Expose override val bazaarTracker: BazaarTrackerData = BazaarTrackerData(
+            flipAccountingVersion = BazaarTrackerData.FLIP_ACCOUNTING_VERSION,
+        ),
+        @Expose override val honeyhiveTracker: HoneyhiveTrackerData = HoneyhiveTrackerData(),
+        @Expose override val dianaBurrowCache: DianaBurrowCacheData = DianaBurrowCacheData(),
+        @Expose override val dianaBurrowChain: DianaBurrowChainData = DianaBurrowChainData(),
+    ) : ProfileStorageView.ProfileSpecific {
         fun repairLoadedValues() {
             currentPetUuid = repairPetReferences(pets, expSharePets, currentPetUuid)
-            if (attributeShards.isNotEmpty() && attributeShards.values.none { it.enabled }) {
-                attributeShards.values.forEach { it.enabled = true }
-            }
-            skyBlockStoragePages.entries.removeIf { (page, data) ->
-                page !in 0 until SKYBLOCK_STORAGE_PAGE_COUNT || !data.isUsable()
-            }
-            skyBlockRiftStoragePages.entries.removeIf { (page, data) ->
-                page !in 0 until SKYBLOCK_RIFT_STORAGE_PAGE_COUNT || !data.isUsable()
-            }
-            skyBlockToolkits.entries.removeIf { (toolkit, data) ->
-                toolkit !in SKYBLOCK_TOOLKIT_KEYS || !data.isUsable()
-            }
+            skyBlockStoragePages.repairStoragePages { it in 0 until SKYBLOCK_STORAGE_PAGE_COUNT }
+            skyBlockRiftStoragePages.repairStoragePages { it in 0 until SKYBLOCK_RIFT_STORAGE_PAGE_COUNT }
+            skyBlockToolkits.repairStoragePages { it in SKYBLOCK_TOOLKIT_KEYS }
             repairInventoryEquipment()
             repairSlotBindings()
             repairSlotLocks()
@@ -181,6 +185,17 @@ data class ProfileStorage(
             honeyhiveTracker.repairLoadedValues()
             dianaBurrowCache.repairLoadedValues()
             dianaBurrowChain.repairLoadedValues()
+        }
+
+        private fun <K> MutableMap<K, SkyBlockStoragePageData>.repairStoragePages(isValidKey: (K) -> Boolean) {
+            entries.removeIf { (key, page) ->
+                if (!isValidKey(key)) {
+                    true
+                } else {
+                    page.repairLoadedValues()
+                    page.title.isBlank()
+                }
+            }
         }
 
         private fun repairInventoryEquipment() {
@@ -200,17 +215,17 @@ data class ProfileStorage(
     }
 
     data class ProfitTrackerData(
-        @Expose val totals: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
-        @Expose var todayEpochDay: Long = 0L,
-        @Expose val today: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
-        @Expose var mythologicalRitualMayorKey: String = "",
-        @Expose val mythologicalRitualMayor: ProfitTrackerStats = ProfitTrackerStats(),
-        @Expose val displayPeriods: MutableMap<String, String> = mutableMapOf(),
-        @Expose val itemCustomizations: MutableMap<String, ProfitTrackerItemCustomizations> = mutableMapOf(),
+        @Expose override val totals: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
+        @Expose override var todayEpochDay: Long = 0L,
+        @Expose override val today: MutableMap<String, ProfitTrackerStats> = mutableMapOf(),
+        @Expose override var mythologicalRitualMayorKey: String = "",
+        @Expose override val mythologicalRitualMayor: ProfitTrackerStats = ProfitTrackerStats(),
+        @Expose override val displayPeriods: MutableMap<String, String> = mutableMapOf(),
+        @Expose override val itemCustomizations: MutableMap<String, ProfitTrackerItemCustomizations> = mutableMapOf(),
         @Expose
         @SerializedName(value = "lastPreset", alternate = ["lastSlayerType"])
-        var lastPreset: String = "",
-    ) {
+        override var lastPreset: String = "",
+    ) : ProfileStorageView.ProfitTrackerData {
         fun repairLoadedValues() {
             totals.keys.removeIf(String::isBlank)
             today.keys.removeIf(String::isBlank)
@@ -228,10 +243,10 @@ data class ProfileStorage(
     }
 
     data class ProfitTrackerItemCustomizations(
-        @Expose val excludedItems: MutableList<String> = mutableListOf(),
-        @Expose val customItems: MutableList<String> = mutableListOf(),
-        @Expose val priceSources: MutableMap<String, String> = mutableMapOf(),
-    ) {
+        @Expose override val excludedItems: MutableList<String> = mutableListOf(),
+        @Expose override val customItems: MutableList<String> = mutableListOf(),
+        @Expose override val priceSources: MutableMap<String, String> = mutableMapOf(),
+    ) : ProfileStorageView.ProfitTrackerItemCustomizations {
         fun repairLoadedValues() {
             excludedItems.repairItemIds()
             customItems.repairItemIds()
@@ -248,17 +263,17 @@ data class ProfileStorage(
     }
 
     data class ProfitTrackerStats(
-        @Expose val itemCounts: MutableMap<String, Long> = mutableMapOf(),
-        @Expose val costs: MutableMap<String, Long> = mutableMapOf(),
+        @Expose override val itemCounts: MutableMap<String, Long> = mutableMapOf(),
+        @Expose override val costs: MutableMap<String, Long> = mutableMapOf(),
         @Expose
         @SerializedName(value = "coins", alternate = ["mobKillCoins"])
-        var coins: Double = 0.0,
-        @Expose var activeMillis: Long = 0L,
+        override var coins: Double = 0.0,
+        @Expose override var activeMillis: Long = 0L,
         @Expose
         @SerializedName(value = "actions", alternate = ["bosses"])
-        var actions: Long = 0L,
-        @Expose val pestKills: MutableMap<String, Long> = mutableMapOf(),
-    ) {
+        override var actions: Long = 0L,
+        @Expose override val pestKills: MutableMap<String, Long> = mutableMapOf(),
+    ) : ProfileStorageView.ProfitTrackerStats {
         fun repairLoadedValues() {
             itemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0L }
             costs.entries.removeIf { (currency, amount) -> currency.isBlank() || amount <= 0L }
@@ -279,11 +294,11 @@ data class ProfileStorage(
     }
 
     data class SlayerTimeToKillData(
-        @Expose val totals: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>> = mutableMapOf(),
-        @Expose var todayEpochDay: Long = 0L,
-        @Expose val today: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>> = mutableMapOf(),
-        @Expose val lastTiers: MutableMap<SkyBlockSlayerType, Int> = mutableMapOf(),
-    ) {
+        @Expose override val totals: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>> = mutableMapOf(),
+        @Expose override var todayEpochDay: Long = 0L,
+        @Expose override val today: MutableMap<SkyBlockSlayerType, MutableMap<Int, SlayerKillTimeStats>> = mutableMapOf(),
+        @Expose override val lastTiers: MutableMap<SkyBlockSlayerType, Int> = mutableMapOf(),
+    ) : ProfileStorageView.SlayerTimeToKillData {
         fun repairLoadedValues() {
             repairStats(totals)
             repairStats(today)
@@ -306,11 +321,11 @@ data class ProfileStorage(
     }
 
     data class SlayerKillTimeStats(
-        @Expose var kills: Long = 0L,
-        @Expose var totalMillis: Long = 0L,
-        @Expose var bestMillis: Long = 0L,
-    ) {
-        val averageMillis: Double?
+        @Expose override var kills: Long = 0L,
+        @Expose override var totalMillis: Long = 0L,
+        @Expose override var bestMillis: Long = 0L,
+    ) : ProfileStorageView.SlayerKillTimeStats {
+        override val averageMillis: Double?
             get() = totalMillis.takeIf { kills > 0L }?.toDouble()?.div(kills)
 
         fun record(durationMillis: Long): Long {
@@ -334,10 +349,10 @@ data class ProfileStorage(
     }
 
     data class SackItemData(
-        @Expose var amount: Long = 0L,
-        @Expose var exact: Boolean = false,
-        @Expose var displayName: String = "",
-    ) {
+        @Expose override var amount: Long = 0L,
+        @Expose override var exact: Boolean = false,
+        @Expose override var displayName: String = "",
+    ) : ProfileStorageView.SackItemData {
         fun repairLoadedValues() {
             if (amount < 0L) {
                 amount = 0L
@@ -347,9 +362,9 @@ data class ProfileStorage(
     }
 
     data class HoneyhiveTrackerData(
-        @Expose var initialized: Boolean = false,
-        @Expose val hives: MutableList<HoneyhiveData> = mutableListOf(),
-    ) {
+        @Expose override var initialized: Boolean = false,
+        @Expose override val hives: MutableList<HoneyhiveData> = mutableListOf(),
+    ) : ProfileStorageView.HoneyhiveTrackerData {
         fun repairLoadedValues() {
             hives.removeIf { !it.isUsable() }
             val repaired = hives.associateBy { it.locationKey() }.values
@@ -359,21 +374,21 @@ data class ProfileStorage(
     }
 
     data class HoneyhiveData(
-        @Expose var x: Int = 0,
-        @Expose var y: Int = 0,
-        @Expose var z: Int = 0,
-        @Expose var readyAtMillis: Long = 0L,
-        @Expose var statusObserved: Boolean = false,
-    ) {
-        fun hasKnownStatus(): Boolean = statusObserved || readyAtMillis > 0L
-        fun isUsable(): Boolean = readyAtMillis >= 0L
-        fun locationKey(): String = "$x:$y:$z"
+        @Expose override var x: Int = 0,
+        @Expose override var y: Int = 0,
+        @Expose override var z: Int = 0,
+        @Expose override var readyAtMillis: Long = 0L,
+        @Expose override var statusObserved: Boolean = false,
+    ) : ProfileStorageView.HoneyhiveData {
+        override fun hasKnownStatus(): Boolean = statusObserved || readyAtMillis > 0L
+        override fun isUsable(): Boolean = readyAtMillis >= 0L
+        override fun locationKey(): String = "$x:$y:$z"
     }
 
     data class DianaBurrowCacheData(
-        @Expose var savedAtMillis: Long = 0L,
-        @Expose val targets: MutableList<DianaBurrowTargetData> = mutableListOf(),
-    ) {
+        @Expose override var savedAtMillis: Long = 0L,
+        @Expose override val targets: MutableList<DianaBurrowTargetData> = mutableListOf(),
+    ) : ProfileStorageView.DianaBurrowCacheData {
         fun repairLoadedValues() {
             if (savedAtMillis < 0L) savedAtMillis = 0L
             targets.forEach { target -> target.repairLoadedValues() }
@@ -387,20 +402,20 @@ data class ProfileStorage(
     }
 
     data class DianaBurrowTargetData(
-        @Expose var targetId: Long = 0L,
-        @Expose var x: Double = 0.0,
-        @Expose var y: Double = 0.0,
-        @Expose var z: Double = 0.0,
-        @Expose var type: String = "",
-        @Expose var createdAtMillis: Long = 0L,
-        @Expose var updatedAtMillis: Long = 0L,
-        @Expose val guessCandidates: MutableList<DianaBurrowGuessCandidateData> = mutableListOf(),
-    ) {
+        @Expose override var targetId: Long = 0L,
+        @Expose override var x: Double = 0.0,
+        @Expose override var y: Double = 0.0,
+        @Expose override var z: Double = 0.0,
+        @Expose override var type: String = "",
+        @Expose override var createdAtMillis: Long = 0L,
+        @Expose override var updatedAtMillis: Long = 0L,
+        @Expose override val guessCandidates: MutableList<DianaBurrowGuessCandidateData> = mutableListOf(),
+    ) : ProfileStorageView.DianaBurrowTargetData {
         fun repairLoadedValues() {
             guessCandidates.removeIf { candidate -> !candidate.isUsable() }
         }
 
-        fun isUsable(): Boolean =
+        override fun isUsable(): Boolean =
             targetId > 0L &&
                 type.isNotBlank() &&
                 x.isFinite() &&
@@ -409,21 +424,21 @@ data class ProfileStorage(
     }
 
     data class DianaBurrowGuessCandidateData(
-        @Expose var x: Double = 0.0,
-        @Expose var y: Double = 0.0,
-        @Expose var z: Double = 0.0,
-    ) {
-        fun isUsable(): Boolean = x.isFinite() && y.isFinite() && z.isFinite()
+        @Expose override var x: Double = 0.0,
+        @Expose override var y: Double = 0.0,
+        @Expose override var z: Double = 0.0,
+    ) : ProfileStorageView.DianaBurrowGuessCandidateData {
+        override fun isUsable(): Boolean = x.isFinite() && y.isFinite() && z.isFinite()
     }
 
     data class DianaBurrowChainData(
-        @Expose var savedAtMillis: Long = 0L,
-        @Expose var completed: Int = 0,
-        @Expose var total: Int = 0,
-        @Expose var nextTargetId: Long = 0L,
-        @Expose var sameBlockStartTargetId: Long = 0L,
-        @Expose val activeTargets: MutableList<DianaBurrowChainTargetData> = mutableListOf(),
-    ) {
+        @Expose override var savedAtMillis: Long = 0L,
+        @Expose override var completed: Int = 0,
+        @Expose override var total: Int = 0,
+        @Expose override var nextTargetId: Long = 0L,
+        @Expose override var sameBlockStartTargetId: Long = 0L,
+        @Expose override val activeTargets: MutableList<DianaBurrowChainTargetData> = mutableListOf(),
+    ) : ProfileStorageView.DianaBurrowChainData {
         fun repairLoadedValues() {
             activeTargets.removeIf { target -> !target.isUsable() }
             if (activeTargets.isEmpty() && hasLegacyTarget()) {
@@ -447,7 +462,7 @@ data class ProfileStorage(
             activeTargets.clear()
         }
 
-        fun isUsable(): Boolean =
+        override fun isUsable(): Boolean =
             activeTargets.isNotEmpty() || hasLegacyTarget()
 
         private fun hasLegacyTarget(): Boolean =
@@ -459,13 +474,13 @@ data class ProfileStorage(
     }
 
     data class DianaBurrowChainTargetData(
-        @Expose var savedAtMillis: Long = 0L,
-        @Expose var completed: Int = 0,
-        @Expose var total: Int = 0,
-        @Expose var nextTargetId: Long = 0L,
-        @Expose var sameBlockStartTargetId: Long = 0L,
-    ) {
-        fun isUsable(): Boolean =
+        @Expose override var savedAtMillis: Long = 0L,
+        @Expose override var completed: Int = 0,
+        @Expose override var total: Int = 0,
+        @Expose override var nextTargetId: Long = 0L,
+        @Expose override var sameBlockStartTargetId: Long = 0L,
+    ) : ProfileStorageView.DianaBurrowChainTargetData {
+        override fun isUsable(): Boolean =
             savedAtMillis >= 0L &&
                 total > 0 &&
                 completed in 0..total &&
@@ -474,15 +489,15 @@ data class ProfileStorage(
     }
 
     data class BazaarTrackerData(
-        @Expose var taxPercent: Double = 1.0,
-        @Expose val activeOrders: MutableList<BazaarOrderData> = mutableListOf(),
-        @Expose val itemLots: MutableList<BazaarItemLotData> = mutableListOf(),
-        @Expose val transactions: MutableList<BazaarTransactionData> = mutableListOf(),
-        @Expose var totalKnownProfit: Double = 0.0,
-        @Expose var activeFlipBatchId: Long = 0L,
-        @Expose var nextFlipBatchId: Long = 1L,
-        @Expose var flipAccountingVersion: Int? = null,
-    ) {
+        @Expose override var taxPercent: Double = 1.0,
+        @Expose override val activeOrders: MutableList<BazaarOrderData> = mutableListOf(),
+        @Expose override val itemLots: MutableList<BazaarItemLotData> = mutableListOf(),
+        @Expose override val transactions: MutableList<BazaarTransactionData> = mutableListOf(),
+        @Expose override var totalKnownProfit: Double = 0.0,
+        @Expose override var activeFlipBatchId: Long = 0L,
+        @Expose override var nextFlipBatchId: Long = 1L,
+        @Expose override var flipAccountingVersion: Int? = null,
+    ) : ProfileStorageView.BazaarTrackerData {
         fun repairLoadedValues() {
             activeOrders.removeIf { !it.isUsable() }
             activeOrders.forEach { it.repairLoadedValues() }
@@ -529,48 +544,48 @@ data class ProfileStorage(
     }
 
     data class BazaarOrderData(
-        @Expose var id: String = UUID.randomUUID().toString(),
-        @Expose var type: BazaarOrderType = BazaarOrderType.BUY,
-        @Expose var itemName: String = "",
-        @Expose var productId: String? = null,
-        @Expose var amountOrdered: Long = 0L,
-        @Expose var pricePerUnit: Double = 0.0,
-        @Expose var totalCoins: Double = 0.0,
-        @Expose var filledAmount: Long = 0L,
-        @Expose var claimedAmount: Long = 0L,
-        @Expose var claimedCoins: Double = 0.0,
-        @Expose var createdAtMillis: Long = System.currentTimeMillis(),
-        @Expose var updatedAtMillis: Long = System.currentTimeMillis(),
-        @Expose var lastGuiSlot: Int = -1,
-        @Expose var amountResolution: Double = 0.0,
-        @Expose var pricePerUnitResolution: Double = 0.0,
-        @Expose var totalCoinsResolution: Double = 0.0,
-        @Expose var setupConfirmed: Boolean = false,
-        @Expose var flipBatchId: Long? = null,
-    ) {
-        fun isUsable(): Boolean = itemName.isNotBlank() && amountOrdered > 0 && pricePerUnit > 0.0
+        @Expose override var id: String = UUID.randomUUID().toString(),
+        @Expose override var type: BazaarOrderType = BazaarOrderType.BUY,
+        @Expose override var itemName: String = "",
+        @Expose override var productId: String? = null,
+        @Expose override var amountOrdered: Long = 0L,
+        @Expose override var pricePerUnit: Double = 0.0,
+        @Expose override var totalCoins: Double = 0.0,
+        @Expose override var filledAmount: Long = 0L,
+        @Expose override var claimedAmount: Long = 0L,
+        @Expose override var claimedCoins: Double = 0.0,
+        @Expose override var createdAtMillis: Long = System.currentTimeMillis(),
+        @Expose override var updatedAtMillis: Long = System.currentTimeMillis(),
+        @Expose override var lastGuiSlot: Int = -1,
+        @Expose override var amountResolution: Double = 0.0,
+        @Expose override var pricePerUnitResolution: Double = 0.0,
+        @Expose override var totalCoinsResolution: Double = 0.0,
+        @Expose override var setupConfirmed: Boolean = false,
+        @Expose override var flipBatchId: Long? = null,
+    ) : ProfileStorageView.BazaarOrderData {
+        override fun isUsable(): Boolean = itemName.isNotBlank() && amountOrdered > 0 && pricePerUnit > 0.0
         fun repairLoadedValues() {
             if (!amountResolution.isFinite() || amountResolution < 0.0) amountResolution = 0.0
             if (!pricePerUnitResolution.isFinite() || pricePerUnitResolution < 0.0) pricePerUnitResolution = 0.0
             if (!totalCoinsResolution.isFinite() || totalCoinsResolution < 0.0) totalCoinsResolution = 0.0
         }
-        fun maximumAmount(): Long = if (amountResolution > 0.0) {
+        override fun maximumAmount(): Long = if (amountResolution > 0.0) {
             (ceil(amountOrdered + amountResolution).toLong() - 1L).coerceAtLeast(amountOrdered)
         } else {
             amountOrdered
         }
-        fun remainingAmount(): Long = (maximumAmount() - claimedAmount).coerceAtLeast(0L)
-        fun activeValue(): Double = remainingAmount() * pricePerUnit
+        override fun remainingAmount(): Long = (maximumAmount() - claimedAmount).coerceAtLeast(0L)
+        override fun activeValue(): Double = remainingAmount() * pricePerUnit
     }
 
     data class BazaarItemLotData(
-        @Expose var itemName: String = "",
-        @Expose var productId: String? = null,
-        @Expose var amount: Long = 0L,
-        @Expose var unitCost: Double = 0.0,
-        @Expose var flipBatchId: Long? = null,
-        @Expose var source: BazaarLotSource = BazaarLotSource.BUY_ORDER,
-    )
+        @Expose override var itemName: String = "",
+        @Expose override var productId: String? = null,
+        @Expose override var amount: Long = 0L,
+        @Expose override var unitCost: Double = 0.0,
+        @Expose override var flipBatchId: Long? = null,
+        @Expose override var source: BazaarLotSource = BazaarLotSource.BUY_ORDER,
+    ) : ProfileStorageView.BazaarItemLotData
 
     enum class BazaarLotSource {
         BUY_ORDER,
@@ -578,15 +593,15 @@ data class ProfileStorage(
     }
 
     data class BazaarTransactionData(
-        @Expose var type: BazaarTransactionType = BazaarTransactionType.INSTANT_BUY,
-        @Expose var itemName: String = "",
-        @Expose var productId: String? = null,
-        @Expose var amount: Long = 0L,
-        @Expose var totalCoins: Double = 0.0,
-        @Expose var atMillis: Long = 0L,
-    ) {
-        fun isUsable(): Boolean = itemName.isNotBlank() && amount > 0L && totalCoins > 0.0 && atMillis > 0L
-        fun pricePerUnit(): Double = totalCoins / amount
+        @Expose override var type: BazaarTransactionType = BazaarTransactionType.INSTANT_BUY,
+        @Expose override var itemName: String = "",
+        @Expose override var productId: String? = null,
+        @Expose override var amount: Long = 0L,
+        @Expose override var totalCoins: Double = 0.0,
+        @Expose override var atMillis: Long = 0L,
+    ) : ProfileStorageView.BazaarTransactionData {
+        override fun isUsable(): Boolean = itemName.isNotBlank() && amount > 0L && totalCoins > 0.0 && atMillis > 0L
+        override fun pricePerUnit(): Double = totalCoins / amount
     }
 
     enum class BazaarTransactionType(val displayName: String) {
@@ -597,45 +612,40 @@ data class ProfileStorage(
     }
 
     data class SlotBindingData(
-        @Expose var firstSlot: Int = -1,
-        @Expose var secondSlot: Int = -1,
-    ) {
-        fun isValid(): Boolean = SlotBindingGraph.isValidPair(firstSlot, secondSlot)
+        @Expose override var firstSlot: Int = -1,
+        @Expose override var secondSlot: Int = -1,
+    ) : ProfileStorageView.SlotBindingData {
+        override fun isValid(): Boolean = SlotBindingGraph.isValidPair(firstSlot, secondSlot)
     }
 
     data class AttributeShardData(
-        @Expose var amountSyphoned: Int = 0,
-        @Expose var amountInBox: Int = 0,
-        @Expose var enabled: Boolean = true,
-    )
+        @Expose override var amountSyphoned: Int = 0,
+        @Expose override var amountInBox: Int = 0,
+        @Expose override var enabled: Boolean = true,
+    ) : ProfileStorageView.AttributeShardData
 
     data class AccessoryData(
-        @Expose var displayName: String = "",
-        @Expose var lastSeenSlot: Int = -1,
-    )
+        @Expose override var displayName: String = "",
+        @Expose override var lastSeenSlot: Int = -1,
+    ) : ProfileStorageView.AccessoryData
 
     data class SkyBlockStoragePageData(
-        @Expose var title: String = "",
-        @Expose var rows: Int = 0,
-        @Expose var overviewIcon: String = "",
-        @Expose val items: MutableList<SkyBlockStorageItemData> = mutableListOf(),
-    ) {
+        @Expose override var title: String = "",
+        @Expose override var rows: Int = 0,
+        @Expose override var overviewIcon: String = "",
+        @Expose override val items: MutableList<SkyBlockStorageItemData> = mutableListOf(),
+    ) : ProfileStorageView.SkyBlockStoragePageData {
         fun repairLoadedValues() {
             rows = rows.coerceIn(0, SKYBLOCK_CONTAINER_MAX_ROWS)
             val targetSize = rows * SLOTS_PER_STORAGE_ROW
             while (items.size > targetSize) items.removeAt(items.lastIndex)
             while (items.size < targetSize) items.add(SkyBlockStorageItemData())
         }
-
-        fun isUsable(): Boolean {
-            repairLoadedValues()
-            return title.isNotBlank()
-        }
     }
 
     data class SkyBlockStorageItemData(
-        @Expose var encodedStack: String = "",
-    )
+        @Expose override var encodedStack: String = "",
+    ) : ProfileStorageView.SkyBlockStorageItemData
 
     companion object {
         const val SKYBLOCK_STORAGE_ENDER_CHEST_PAGES = 9

@@ -61,8 +61,11 @@ internal object DamageSplashAttribution {
     ): AttributedDamage<T>? {
         val candidates = targets
             .asSequence()
-            .map { target -> AttributionCandidate(target, view(target)) }
-            .mapNotNull { candidate -> candidate.withScore(candidate.targetView.score(splash, now, config)) }
+            .mapNotNull { target ->
+                val targetView = view(target)
+                val score = targetView.score(splash, now, config) ?: return@mapNotNull null
+                ScoredAttributionCandidate(target, targetView, score)
+            }
             .toList()
         val attribution = candidates
             .minWithOrNull(
@@ -148,14 +151,6 @@ internal object DamageSplashAttribution {
         val entityBonus = if (exactEntity) EXACT_ENTITY_BONUS else 0.0
         val healthBonus = if (healthConfirmed) HEALTH_CONFIRMED_BONUS else 0.0
         return attackDistance + targetDistance + attackAge / MILLIS_PER_SECOND + entityBonus + healthBonus
-    }
-
-    private data class AttributionCandidate<T>(
-        val target: T,
-        val targetView: DamageSplashTargetView,
-    ) {
-        fun withScore(score: AttributionScore?): ScoredAttributionCandidate<T>? =
-            score?.let { ScoredAttributionCandidate(target, targetView, it) }
     }
 
     private data class ScoredAttributionCandidate<T>(

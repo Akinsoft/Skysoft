@@ -1,12 +1,12 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.gui.OverlayControlArea
 import com.skysoft.data.skyblock.ItemListEntry
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.TextUtilities.removeColor
@@ -31,11 +31,6 @@ internal sealed interface TrackedItemSelectionAction {
     data class SearchField(val localMouseX: Int) : TrackedItemSelectionAction
     data class SearchResult(val itemId: String) : TrackedItemSelectionAction
 }
-
-internal data class TrackedItemSelectionControl(
-    val action: TrackedItemSelectionAction,
-    val bounds: Rect,
-)
 
 internal class TrackedItemSelectionPanel {
     var mode = TrackedItemSelectionMode.INVENTORY
@@ -134,7 +129,7 @@ internal class TrackedItemSelectionPanel {
         opacity: Double,
         interactive: Boolean,
         isSelectable: (String) -> Boolean,
-    ): TrackedItemSelectionControl? {
+    ): OverlayControlArea<TrackedItemSelectionAction>? {
         val height = if (mode == TrackedItemSelectionMode.SEARCH) SEARCH_PANEL_HEIGHT else INVENTORY_PANEL_HEIGHT
         val panelX = if (placeRight) trackerWidth + PANEL_GAP else -PANEL_WIDTH - PANEL_GAP
         isHovered = Rect(panelX, 0, PANEL_WIDTH, height).contains(mouseX, mouseY)
@@ -169,7 +164,7 @@ internal class TrackedItemSelectionPanel {
         return hoveredMode
     }
 
-    private fun renderModeSelector(frame: RenderFrame, y: Int): TrackedItemSelectionControl? {
+    private fun renderModeSelector(frame: RenderFrame, y: Int): OverlayControlArea<TrackedItemSelectionAction>? {
         val inventoryLabel = styledText(
             "[Inventory]",
             if (mode == TrackedItemSelectionMode.INVENTORY) TITLE_COLOR else ACTION_COLOR,
@@ -189,9 +184,9 @@ internal class TrackedItemSelectionPanel {
         )
         val hovered = when {
             frame.interactive && inventoryBounds.contains(frame.mouseX, frame.mouseY) ->
-                TrackedItemSelectionControl(TrackedItemSelectionAction.Inventory, inventoryBounds)
+                OverlayControlArea<TrackedItemSelectionAction>(TrackedItemSelectionAction.Inventory, inventoryBounds)
             frame.interactive && searchBounds.contains(frame.mouseX, frame.mouseY) ->
-                TrackedItemSelectionControl(TrackedItemSelectionAction.Search, searchBounds)
+                OverlayControlArea<TrackedItemSelectionAction>(TrackedItemSelectionAction.Search, searchBounds)
             else -> null
         }
         hovered?.bounds?.let { bounds ->
@@ -226,8 +221,8 @@ internal class TrackedItemSelectionPanel {
         frame: RenderFrame,
         isSelectable: (String) -> Boolean,
         modeY: Int,
-        hoveredMode: TrackedItemSelectionControl?,
-    ): TrackedItemSelectionControl? {
+        hoveredMode: OverlayControlArea<TrackedItemSelectionAction>?,
+    ): OverlayControlArea<TrackedItemSelectionAction>? {
         val fieldBounds = Rect(
             frame.contentX,
             modeY + SEARCH_FIELD_TOP_GAP,
@@ -244,7 +239,7 @@ internal class TrackedItemSelectionPanel {
             "Search items...",
             alpha = frame.opacity,
         )
-        val fieldControl = TrackedItemSelectionControl(
+        val fieldControl = OverlayControlArea<TrackedItemSelectionAction>(
             TrackedItemSelectionAction.SearchField(frame.mouseX),
             fieldBounds,
         ).takeIf { frame.interactive && fieldBounds.contains(frame.mouseX, frame.mouseY) }
@@ -262,9 +257,9 @@ internal class TrackedItemSelectionPanel {
         frame: RenderFrame,
         isSelectable: (String) -> Boolean,
         resultBounds: Rect,
-    ): TrackedItemSelectionControl? {
+    ): OverlayControlArea<TrackedItemSelectionAction>? {
         val results = searchResults(isSelectable)
-        var hoveredResult: TrackedItemSelectionControl? = null
+        var hoveredResult: OverlayControlArea<TrackedItemSelectionAction>? = null
         results.drop(searchOffset).take(SEARCH_VISIBLE_RESULTS).forEachIndexed { visibleIndex, entry ->
             val resultIndex = searchOffset + visibleIndex
             val rowY = resultBounds.y + visibleIndex * SEARCH_RESULT_HEIGHT
@@ -295,7 +290,7 @@ internal class TrackedItemSelectionPanel {
                 false,
             )
             if (hovered) {
-                hoveredResult = TrackedItemSelectionControl(
+                hoveredResult = OverlayControlArea<TrackedItemSelectionAction>(
                     TrackedItemSelectionAction.SearchResult(entry.key.id),
                     bounds,
                 )
@@ -384,8 +379,8 @@ internal data class TrackedItemPresentation(
 internal fun trackedItemPresentation(itemId: String): TrackedItemPresentation {
     val key = SkyBlockDataRepository.itemKey(itemId)
     val entry = SkyBlockDataRepository.entry(key)
-    val stack = SkyBlockDataRepository.displayStack(key) ?: PetRepository.itemStackOrNull(itemId)
-    val formattedName = (entry?.formattedDisplayName ?: PetRepository.itemName(itemId) ?: itemId)
+    val stack = SkyBlockDataRepository.displayStack(key)
+    val formattedName = (entry?.formattedDisplayName ?: itemId)
         .replace("Enchanted ", "Ench ")
     val name = formattedName.removeColor()
     val rarity = LEGACY_COLOR_PATTERN.find(formattedName)?.groupValues?.get(1)?.singleOrNull()

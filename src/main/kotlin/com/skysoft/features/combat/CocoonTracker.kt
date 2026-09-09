@@ -90,6 +90,7 @@ object CocoonTracker {
 
     private fun handleLocalCocoon(mobName: String?, isSlayerCocoon: Boolean) {
         val now = System.currentTimeMillis()
+        removeFinishedCocoons(now)
         val playerLocation = Minecraft.getInstance().player?.position()?.toWorldVec()
         val message = PendingCocoonMessage(
             mobName = mobName,
@@ -111,9 +112,9 @@ object CocoonTracker {
     }
 
     private fun rememberCocoon(entityId: Int, location: WorldVec, now: Long) {
+        removeFinishedCocoons(now)
         val existing = cocoons.firstOrNull { tracked ->
-            now < tracked.expiresAtMillis &&
-                (entityId in tracked.entityIds || areSameCocoon(tracked.location, location))
+            entityId in tracked.entityIds || areSameCocoon(tracked.location, location)
         }
         if (existing != null) {
             existing.entityIds += entityId
@@ -177,12 +178,20 @@ object CocoonTracker {
         }
         val now = System.currentTimeMillis()
         pendingMessages.removeIf { now - it.receivedAtMillis > MESSAGE_LINK_WINDOW_MILLIS }
-        cocoons.removeIf { now >= it.expiresAtMillis }
+        removeFinishedCocoons(now)
         if (lastLocalAttack?.let { now - it.attackedAtMillis > MESSAGE_LINK_WINDOW_MILLIS } == true) {
             lastLocalAttack = null
         }
         if (++ticks % NAME_SCAN_INTERVAL_TICKS == 0) {
             updateMissingMobNames()
+        }
+    }
+
+    private fun removeFinishedCocoons(now: Long) {
+        val level = Minecraft.getInstance().level
+        cocoons.removeIf { cocoon ->
+            now >= cocoon.expiresAtMillis ||
+                cocoon.entityIds.none { level?.getEntity(it)?.isRemoved == false }
         }
     }
 

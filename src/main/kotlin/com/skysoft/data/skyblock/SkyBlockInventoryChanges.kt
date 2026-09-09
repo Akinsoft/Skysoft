@@ -121,9 +121,10 @@ object SkyBlockInventoryChanges {
         cachedCounts[owner] = counts
         val storedCounts = ProfileStorageApi.storage.inventoryItemCounts
         if (storedCounts == counts) return
-        storedCounts.clear()
-        storedCounts.putAll(counts)
-        ProfileStorageApi.markDirty()
+        ProfileStorageApi.updateProfile { profile ->
+            profile.inventoryItemCounts.clear()
+            profile.inventoryItemCounts.putAll(counts)
+        }
     }
 
     private fun dispatch(changes: Map<String, Int>) {

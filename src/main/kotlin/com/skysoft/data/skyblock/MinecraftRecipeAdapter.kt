@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
@@ -9,6 +10,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.util.context.ContextMap
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.level.Level
 import net.minecraft.world.item.alchemy.PotionContents
 import net.minecraft.world.item.alchemy.PotionBrewing
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay
@@ -22,9 +24,12 @@ import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay
 
 internal object MinecraftRecipeAdapter {
     private var snapshot: ClientRecipeSnapshot? = null
+    @Volatile
+    var version = 0L
+        private set
     private val resetSnapshot = {
         snapshot = null
-        SkyBlockDataRepository.snapshotVersion++
+        version++
         Unit
     }
 
@@ -42,26 +47,28 @@ internal object MinecraftRecipeAdapter {
 
     private fun current(): ClientRecipeSnapshot? {
         val player = Minecraft.getInstance().player ?: return null
-        val recipeCount = player.recipeBook.collections.sumOf { it.recipes.size }
-        snapshot?.takeIf { it.recipeCount == recipeCount }?.let { return it }
-        val entries = player.recipeBook.collections
+        val collections = player.recipeBook.collections
+        val level = player.level()
+        snapshot?.takeIf { it.collections === collections && it.level === level }?.let { return it }
+        val entries = collections
             .asSequence()
             .flatMap { it.recipes.asSequence() }
             .distinctBy { it.id() }
             .toList()
-        val context = SlotDisplayContext.fromLevel(player.level())
+        val context = SlotDisplayContext.fromLevel(level)
         val recipes = entries
             .mapNotNull { entry -> toRecipe(entry.display(), context) }
             .filter(::isVanillaRecipe)
             .toMutableList()
-        recipes += brewingRecipes().filter(::isVanillaRecipe)
+        recipes += brewingRecipes(level).filter(::isVanillaRecipe)
         return ClientRecipeSnapshot(
-            recipeCount = recipeCount,
+            collections = collections,
+            level = level,
             byResult = recipes.groupBy { recipe -> recipe.result.registryKey() },
             byIngredient = buildUsageIndex(recipes) { it.registryKeyOrNull() },
         ).also {
             snapshot = it
-            SkyBlockDataRepository.snapshotVersion++
+            version++
         }
     }
 
@@ -121,8 +128,7 @@ internal object MinecraftRecipeAdapter {
         return SkyBlockRecipe.Process(SkyBlockRecipeType.UNSUPPORTED, result, emptyList())
     }
 
-    private fun brewingRecipes(): List<SkyBlockRecipe> {
-        val level = Minecraft.getInstance().player?.level() ?: return emptyList()
+    private fun brewingRecipes(level: Level): List<SkyBlockRecipe> {
         val brewing = level.potionBrewing()
         val potionRegistry = level.registryAccess().lookupOrThrow(Registries.POTION)
         val reagents = BuiltInRegistries.ITEM.asSequence()
@@ -214,7 +220,8 @@ internal object MinecraftRecipeAdapter {
     }
 
     private data class ClientRecipeSnapshot(
-        val recipeCount: Int,
+        val collections: List<RecipeCollection>,
+        val level: Level,
         val byResult: Map<ItemListEntryKey, List<SkyBlockRecipe>>,
         val byIngredient: Map<ItemListEntryKey, List<SkyBlockRecipe>>,
     )

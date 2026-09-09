@@ -92,7 +92,7 @@ internal fun focusActivePageIfNeeded(
 
 internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
     val sent = if (isRiftStoragePage(pageIndex)) {
-        clickRiftStorageNavigation(screen, pageIndex) == RiftNavigationResult.CLICKED
+        tryNavigateRiftStorage(screen, pageIndex)
     } else {
         trySendPageCommand(pageIndex)
     }
@@ -121,25 +121,20 @@ private fun tryNavigateToRememberedPage(pageIndex: Int): Boolean {
     return sent
 }
 
-internal enum class RiftNavigationResult {
-    CLICKED,
-    UNAVAILABLE,
-}
-
-private fun clickRiftStorageNavigation(
+private fun tryNavigateRiftStorage(
     screen: AbstractContainerScreen<*>,
     pageIndex: Int,
-): RiftNavigationResult {
-    val current = handleFor(screen) as? StorageHandle.Rift ?: return RiftNavigationResult.UNAVAILABLE
+): Boolean {
+    val current = handleFor(screen) as? StorageHandle.Rift ?: return false
     val currentPageNumber = riftStoragePageNumber(current.pageIndex)
     val targetPageNumber = riftStoragePageNumber(pageIndex)
     val navigationSlot = when (targetPageNumber - currentPageNumber) {
         -1 -> RiftStorage.PREVIOUS_PAGE_SLOT
         1 -> RiftStorage.NEXT_PAGE_SLOT
-        else -> return RiftNavigationResult.UNAVAILABLE
+        else -> return false
     }
     val slot = screen.nonPlayerSlots().firstOrNull { it.containerSlot == navigationSlot && it.hasItem() }
-        ?: return RiftNavigationResult.UNAVAILABLE
+        ?: return false
     freezeStorageScroll()
     val carried = screen.menu.carried.copy()
     (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
@@ -150,7 +145,7 @@ private fun clickRiftStorageNavigation(
     )
     screen.menu.setCarried(carried)
     screen.skysoftSetSkipNextRelease(true)
-    return RiftNavigationResult.CLICKED
+    return true
 }
 
 private fun trySendPageCommand(pageIndex: Int): Boolean {

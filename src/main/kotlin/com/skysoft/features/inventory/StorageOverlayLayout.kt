@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.StorageOverlayConfigBounds
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageView
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.nonPlayerSlots
@@ -191,7 +192,7 @@ internal fun selectorPageAt(
         if (selectorSlotBounds(pos).contains(mouseX, mouseY)) {
             return pageIndex.takeIf {
                 storageEntryExists(it) ||
-                    emptyOverviewStacks[it]?.let(::storageOverviewSlotState) == StorageOverviewSlotState.PLACEHOLDER
+                    StorageItemStacks.overviewPlaceholder(it)?.let(::storageOverviewSlotState) == StorageOverviewSlotState.PLACEHOLDER
             }
         }
     }
@@ -225,12 +226,12 @@ internal fun selectorSlotPosition(measurements: Measurements, slot: Int): Point 
 private fun selectorSlotBounds(pos: Point): Rect =
     Rect(pos.x - 1, pos.y - 1, StorageSelector.SLOT_SIZE, StorageSelector.SLOT_SIZE)
 
-internal fun selectorIconStack(pageIndex: Int, page: ProfileStorage.SkyBlockStoragePageData?): ItemStack {
+internal fun selectorIconStack(pageIndex: Int, page: ProfileStorageView.SkyBlockStoragePageData?): ItemStack {
     if (page != null && page.overviewIcon.isNotBlank()) {
-        val stack = stackFor(ProfileStorage.SkyBlockStorageItemData(page.overviewIcon))
+        val stack = StorageItemStacks.stackFor(ProfileStorage.SkyBlockStorageItemData(page.overviewIcon))
         if (!stack.isEmpty) return stack
     }
-    emptyOverviewStacks[pageIndex]?.let { return it }
+    StorageItemStacks.overviewPlaceholder(pageIndex)?.let { return it }
     if (page == null) return ItemStack.EMPTY
     return if (
         pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES ||

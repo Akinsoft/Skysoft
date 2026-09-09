@@ -20,8 +20,6 @@ import org.lwjgl.glfw.GLFW
 
 internal var isStorageSettingsPanelOpen = false
     private set
-internal var storageSettingsPanelProgress = 0f
-    private set
 internal var draggedStorageVisualSetting: StorageVisualSetting? = null
     private set
 
@@ -37,7 +35,6 @@ internal fun drawStorageSettingsPanel(
 ) {
     val layout = storageSettingsPanelLayout(screenWidth, screenHeight, measurements)
     val progress = storageSettingsTransition.value(if (isStorageSettingsPanelOpen) 1f else 0f)
-    storageSettingsPanelProgress = progress
     if (progress <= MIN_VISIBLE_PROGRESS) {
         drawStorageSettingsButton(context, layout, mouseX, mouseY)
         return
@@ -117,7 +114,7 @@ internal fun processStorageSettingsDrag(
 }
 
 internal fun processStorageSettingsRelease(click: MouseButtonEvent): InputHandlingResult {
-    val setting = draggedStorageVisualSetting ?: return InputHandlingResult.IGNORED
+    if (draggedStorageVisualSetting == null) return InputHandlingResult.IGNORED
     if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
     draggedStorageVisualSetting = null
     saveStorageSettings()
@@ -217,7 +214,6 @@ private fun processOpenStorageSettingsClick(
 
 internal fun resetStorageSettingsPanel() {
     isStorageSettingsPanelOpen = false
-    storageSettingsPanelProgress = 0f
     draggedStorageVisualSetting = null
     storageSettingsTransition.snap(0f)
 }

@@ -1,9 +1,9 @@
 package com.skysoft.utils.renderables
 
 import com.skysoft.config.core.HudPosition
+import com.skysoft.gui.transform
 import com.skysoft.utils.gui.GuiAlignment
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import kotlin.math.roundToInt
 
 interface GuiRenderable {
     val width: Int
@@ -26,13 +26,7 @@ fun GuiRenderable.renderAt(context: GuiGraphicsExtractor, x: Float, y: Float) {
 }
 
 fun HudPosition.renderRenderable(context: GuiGraphicsExtractor, renderable: GuiRenderable) {
-    val scaledWidth = (renderable.width * effectiveScale).roundToInt()
-    val scaledHeight = (renderable.height * effectiveScale).roundToInt()
-    val x = getAbsX0AllowingOverflow(scaledWidth)
-    val y = getAbsY0AllowingOverflow(scaledHeight)
-    context.withIsolatedPose {
-        pose().translate(x.toFloat(), y.toFloat())
-        pose().scale(effectiveScale, effectiveScale)
+    transform(renderable.width, renderable.height).render(context) {
         renderable.render(context)
     }
 }

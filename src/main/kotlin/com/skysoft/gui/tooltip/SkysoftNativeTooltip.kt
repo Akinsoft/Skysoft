@@ -146,23 +146,29 @@ object SkysoftNativeTooltip {
         override fun clientComponent(): ClientTooltipComponent = ClientItemRowsTooltip(this)
     }
 
+    private data class FormattedItemRow(
+        val stack: ItemStack?,
+        val label: FormattedCharSequence,
+        val value: FormattedCharSequence,
+    )
+
     private class ClientItemRowsTooltip(tooltip: ItemRowsTooltip) : ClientTooltipComponent {
         private val title = LegacyTextRenderer.formattedSequence(tooltip.title)
         private val rows = tooltip.rows.map { row ->
-            Triple(
+            FormattedItemRow(
                 row.stack,
                 LegacyTextRenderer.formattedSequence(row.label),
                 LegacyTextRenderer.formattedSequence(row.value),
             )
         }
-        private val labelWidth = rows.maxOfOrNull { Minecraft.getInstance().font.width(it.second) } ?: 0
+        private val labelWidth = rows.maxOfOrNull { Minecraft.getInstance().font.width(it.label) } ?: 0
         private val valueX = OverlayItemRowStyle.ICON_TEXT_OFFSET + labelWidth + OverlayItemRowStyle.VALUE_COLUMN_GAP
 
         override fun getHeight(font: Font): Int = ITEM_TOOLTIP_HEIGHT + rows.size * OverlayItemRowStyle.HEIGHT
 
         override fun getWidth(font: Font): Int = maxOf(
             font.width(title),
-            valueX + (rows.maxOfOrNull { font.width(it.third) } ?: 0),
+            valueX + (rows.maxOfOrNull { font.width(it.value) } ?: 0),
         )
 
         override fun extractImage(

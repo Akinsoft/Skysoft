@@ -41,9 +41,9 @@ object ImageLinkPreview {
         minecraft = Minecraft.getInstance(),
         maximumSize = CACHE_SIZE,
         maximumPending = 1,
-    ) { _, image ->
-        val id = SkysoftMod.id("image_preview/remote_${nextTextureId++}")
-        RegisteredImageTexture.register(id, "Skysoft Image Preview", image)
+        textureDescription = "Skysoft Image Preview",
+    ) {
+        SkysoftMod.id("image_preview/remote_${nextTextureId++}")
     }
     private var candidate: ImageLinkCandidate? = null
 

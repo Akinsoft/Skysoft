@@ -3,7 +3,6 @@ package com.skysoft.features.helditem
 import com.skysoft.config.HeldItemConfig
 import com.skysoft.config.HeldItemSwingStyle
 import com.skysoft.config.HeldItemTransformConfig
-import com.skysoft.config.HeldItemTransformLimits
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.SkysoftEditorScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -20,7 +19,6 @@ import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.gui.elide
-import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -74,7 +72,7 @@ object HeldItemEditorScreen {
             HeldItemHistoryController(
                 config = config,
                 store = historyStore,
-                keyProvider = { editorState.historyKey() },
+                keyProvider = { editorState.historyKey },
             )
         }
         private val controlActions by lazy {
@@ -464,112 +462,6 @@ private class HeldItemEditorOpeningAnimation {
 
 }
 
-internal class HeldItemEditorState(
-    private val config: HeldItemConfig,
-    initialTarget: EditTarget = EditTarget.GLOBAL,
-    private val targetSelection: (EditTarget) -> Unit = {},
-    private val currentItemIdProvider: () -> String? = {
-        HeldItemTransforms.itemId(HeldItemTransforms.currentItem())
-    },
-) {
-    private var preferredTarget = initialTarget
-    var target = initialTarget
-        private set
-
-    fun ensureTargetAvailable() {
-        target = if (preferredTarget == EditTarget.ITEM && currentItemId() == null) {
-            EditTarget.GLOBAL
-        } else {
-            preferredTarget
-        }
-    }
-
-    fun selectTarget(selectedTarget: EditTarget) {
-        if (selectedTarget == EditTarget.ITEM && currentItemId() == null) return
-        preferredTarget = selectedTarget
-        target = selectedTarget
-        targetSelection(selectedTarget)
-    }
-
-    fun currentItem(): ItemStack = HeldItemTransforms.currentItem()
-
-    fun currentItemId(): String? = currentItemIdProvider()
-
-    fun displayTransform(): HeldItemTransformConfig =
-        if (target == EditTarget.ITEM) config.transformFor(currentItemId()) else config.global
-
-    fun canResetCurrentTarget(): Boolean = when (target) {
-        EditTarget.GLOBAL -> config.hasGlobalCustomization()
-        EditTarget.ITEM -> config.hasItemCustomization(currentItemId())
-    }
-
-    fun isTextureToggleVisible(): Boolean = HeldItemTextureOverrides.hasPackTexture(currentItem())
-
-    fun canToggleTexture(): Boolean =
-        HeldItemTextureOverrides.canUseVanillaTexture(currentItem()) &&
-            (target == EditTarget.GLOBAL || currentItemId() != null)
-
-    fun usesVanillaTexture(): Boolean = when (target) {
-        EditTarget.GLOBAL -> config.usesVanillaTexture(null)
-        EditTarget.ITEM -> config.usesVanillaTexture(currentItemId())
-    }
-
-    fun previewItem(): ItemStack = HeldItemTextureOverrides.previewStack(currentItem())
-
-    fun toggleTexture(): ChangeResult {
-        if (!canToggleTexture()) return ChangeResult.UNCHANGED
-        return when (target) {
-            EditTarget.GLOBAL -> config.toggleGlobalTexture()
-            EditTarget.ITEM -> currentItemId()?.let(config::toggleItemTexture) ?: ChangeResult.UNCHANGED
-        }
-    }
-
-    fun moveItem(deltaX: Int, deltaY: Int, unitsPerPixel: Float) {
-        val transform = editableTransform() ?: return
-        setFieldValue(transform, TransformField.X, transform.x + deltaX * unitsPerPixel)
-        setFieldValue(transform, TransformField.Y, transform.y - deltaY * unitsPerPixel)
-    }
-
-    fun moveItemDepth(deltaX: Int) {
-        val transform = editableTransform() ?: return
-        setFieldValue(transform, TransformField.Z, transform.z + deltaX * EditorInput.DEPTH_PER_PIXEL)
-    }
-
-    fun updateSlider(field: TransformField, mouseX: Int, track: Rect) {
-        val progress = ((mouseX - track.x) / track.width.toFloat()).coerceIn(0f, 1f)
-        setField(field, field.min + (field.max - field.min) * progress)
-    }
-
-    fun changeFieldBy(field: TransformField, amount: Float) {
-        setField(field, field.value(displayTransform()) + amount)
-    }
-
-    fun selectSwingStyle(style: HeldItemSwingStyle) {
-        editableTransform()?.swingStyle = style
-    }
-
-    fun resetCurrentTarget(): ChangeResult {
-        return if (target == EditTarget.GLOBAL) {
-            config.resetGlobalCustomization()
-        } else {
-            currentItemId()?.let(config::removeItemCustomization) ?: ChangeResult.UNCHANGED
-        }
-    }
-
-    private fun setField(field: TransformField, value: Float) {
-        editableTransform()?.let { setFieldValue(it, field, value) }
-    }
-
-    private fun setFieldValue(transform: HeldItemTransformConfig, field: TransformField, value: Float) {
-        field.setValue(transform, value.coerceIn(field.min, field.max))
-    }
-
-    private fun editableTransform(): HeldItemTransformConfig? = when (target) {
-        EditTarget.GLOBAL -> config.global
-        EditTarget.ITEM -> currentItemId()?.let(config::customize)
-    }
-}
-
 private fun HeldItemEditorState.textureTooltip(): String = when {
     HeldItemTextureOverrides.isPaper(currentItem()) -> "Unavailable for paper items"
     target == EditTarget.ITEM && currentItemId() == null -> "Requires a SkyBlock ID"
@@ -577,11 +469,6 @@ private fun HeldItemEditorState.textureTooltip(): String = when {
     target == EditTarget.GLOBAL -> "Use vanilla textures globally"
     usesVanillaTexture() -> "Restore pack texture for this item"
     else -> "Use vanilla texture for this item"
-}
-
-private fun HeldItemEditorState.historyKey(): HeldItemHistoryKey? = when (target) {
-    EditTarget.GLOBAL -> HeldItemHistoryKey.GLOBAL
-    EditTarget.ITEM -> currentItemId()?.let(HeldItemHistoryKey::item)
 }
 
 private class HeldItemEditorLayout {
@@ -637,11 +524,11 @@ private class HeldItemEditorLayout {
     }
 
     fun sliderRowBounds(field: TransformField): Rect {
-        val basicIndex = EditorSliderFields.BASIC.indexOf(field)
+        val basicIndex = HeldItemEditorFields.BASIC.indexOf(field)
         val rowY = if (basicIndex >= 0) {
             EditorSliders.START_Y + basicIndex * EditorSliders.ROW_HEIGHT
         } else {
-            val rotationIndex = EditorSliderFields.ROTATION.indexOf(field)
+            val rotationIndex = HeldItemEditorFields.ROTATION.indexOf(field)
             require(rotationIndex >= 0) { "Unknown held item slider field $field" }
             EditorAdvanced.ROTATION_START_Y + rotationIndex * EditorAdvanced.ROTATION_ROW_HEIGHT
         }
@@ -656,7 +543,7 @@ private class HeldItemEditorLayout {
 
     fun sliderTrackBounds(field: TransformField): Rect {
         val row = sliderRowBounds(field)
-        val isRotation = field in EditorSliderFields.ROTATION
+        val isRotation = field in HeldItemEditorFields.ROTATION
         val labelWidth = if (isRotation) EditorAdvanced.ROTATION_LABEL_WIDTH else EditorSliders.LABEL_WIDTH
         val reservedWidth = if (isRotation) EditorAdvanced.ROTATION_RESERVED_WIDTH else EditorSliders.RESERVED_WIDTH
         return Rect(
@@ -771,9 +658,9 @@ private fun HeldItemEditorLayout.swingStyleRowBounds(): Rect {
 }
 
 private fun HeldItemEditorLayout.visibleSliderFields(): List<TransformField> = if (isAdvancedExpanded) {
-    EditorSliderFields.ALL
+    HeldItemEditorFields.ALL
 } else {
-    EditorSliderFields.BASIC
+    HeldItemEditorFields.BASIC
 }
 
 private data class EditorActionBounds(
@@ -1097,11 +984,6 @@ private object HeldItemEditorRenderer {
 
 }
 
-internal enum class EditTarget {
-    GLOBAL,
-    ITEM,
-}
-
 private enum class DragKind {
     PANEL,
     MOVE_ITEM,
@@ -1115,89 +997,6 @@ private enum class EditorInputHandlingResult {
 }
 
 private val EDITOR_MOUSE_BUTTONS = setOf(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT)
-
-internal enum class TransformField(
-    val label: String,
-    val min: Float,
-    val max: Float,
-    val step: Float,
-) {
-    X("X", HeldItemTransformLimits.MIN_X, HeldItemTransformLimits.MAX_X, EditorInput.POSITION_SCROLL_STEP),
-    Y("Y", HeldItemTransformLimits.MIN_Y, HeldItemTransformLimits.MAX_Y, EditorInput.POSITION_SCROLL_STEP),
-    Z("Z", HeldItemTransformLimits.MIN_Z, HeldItemTransformLimits.MAX_Z, EditorInput.DEPTH_SCROLL_STEP),
-    SCALE("Scale", HeldItemTransformLimits.MIN_SCALE, HeldItemTransformLimits.MAX_SCALE, EditorInput.SCALE_SCROLL_STEP),
-    SWING(
-        "Swing",
-        HeldItemTransformLimits.MIN_SWING_SPEED,
-        HeldItemTransformLimits.MAX_SWING_SPEED,
-        EditorInput.SWING_SCROLL_STEP,
-    ),
-    ROTATION_X(
-        "Rotate X",
-        HeldItemTransformLimits.MIN_ROTATION,
-        HeldItemTransformLimits.MAX_ROTATION,
-        EditorInput.ROTATION_SCROLL_STEP,
-    ),
-    ROTATION_Y(
-        "Rotate Y",
-        HeldItemTransformLimits.MIN_ROTATION,
-        HeldItemTransformLimits.MAX_ROTATION,
-        EditorInput.ROTATION_SCROLL_STEP,
-    ),
-    ROTATION_Z(
-        "Rotate Z",
-        HeldItemTransformLimits.MIN_ROTATION,
-        HeldItemTransformLimits.MAX_ROTATION,
-        EditorInput.ROTATION_SCROLL_STEP,
-    ),
-    ;
-
-    fun value(transform: HeldItemTransformConfig): Float = when (this) {
-        X -> transform.x
-        Y -> transform.y
-        Z -> transform.z
-        SCALE -> transform.scale
-        SWING -> transform.swingSpeed
-        ROTATION_X -> transform.rotationX
-        ROTATION_Y -> transform.rotationY
-        ROTATION_Z -> transform.rotationZ
-    }
-
-    fun setValue(transform: HeldItemTransformConfig, value: Float) {
-        when (this) {
-            X -> transform.x = value
-            Y -> transform.y = value
-            Z -> transform.z = value
-            SCALE -> transform.scale = value
-            SWING -> transform.swingSpeed = value
-            ROTATION_X -> transform.rotationX = value
-            ROTATION_Y -> transform.rotationY = value
-            ROTATION_Z -> transform.rotationZ = value
-        }
-    }
-
-    fun formattedValue(value: Float): String {
-        if (this in EditorSliderFields.ROTATION) return String.format(Locale.US, "%.0f°", value)
-        val text = String.format(Locale.US, "%.2f", value)
-        return if (this == SCALE || this == SWING) "${text}x" else text
-    }
-}
-
-private object EditorSliderFields {
-    val BASIC = listOf(
-        TransformField.X,
-        TransformField.Y,
-        TransformField.Z,
-        TransformField.SCALE,
-        TransformField.SWING,
-    )
-    val ROTATION = listOf(
-        TransformField.ROTATION_X,
-        TransformField.ROTATION_Y,
-        TransformField.ROTATION_Z,
-    )
-    val ALL = BASIC + ROTATION
-}
 
 private val HeldItemSwingStyle.label: String
     get() = when (this) {
@@ -1292,12 +1091,6 @@ private object EditorActions {
 
 private object EditorInput {
     const val SAVE_DELAY_MILLIS = 400L
-    const val DEPTH_PER_PIXEL = 0.004f
-    const val POSITION_SCROLL_STEP = 0.05f
-    const val DEPTH_SCROLL_STEP = 0.05f
-    const val SCALE_SCROLL_STEP = 0.05f
-    const val SWING_SCROLL_STEP = 0.05f
-    const val ROTATION_SCROLL_STEP = 5f
 }
 
 private object EditorAnimation {
@@ -1312,5 +1105,4 @@ private object EditorAnimation {
 private object EditorColors {
     val WHITE_TEXT = PixelControlColors.TEXT
     val MUTED_TEXT = PixelControlColors.MUTED_TEXT
-    val DISABLED_TEXT = 0xFF606870.toInt()
 }

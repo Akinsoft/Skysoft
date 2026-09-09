@@ -4,6 +4,8 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.HudTransform
+import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
@@ -33,10 +35,10 @@ object ActionBarCustomizer {
             override val position get() = config.position
             override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
             override val hasEditorBackground: Boolean get() = !config.background
-            override fun width(): Int = editorLayout().width
-            override fun height(): Int = editorLayout().height
-            override fun isVisible(): Boolean = config.settings.customPosition
-            override fun renderEditor(context: GuiGraphicsExtractor) = renderEditorPreview(context)
+            override fun width(): Int = editorLayout()?.width ?: 0
+            override fun height(): Int = editorLayout()?.height ?: 0
+            override fun isVisible(): Boolean = editorLayout() != null
+            override fun renderEditor(context: GuiGraphicsExtractor) = renderEditorMessage(context)
             override fun openConfig() = SkysoftConfigGui.open("Action Bar")
         })
         HudElementRegistry.replaceElement(VanillaHudElements.OVERLAY_MESSAGE) { vanilla ->
@@ -71,17 +73,12 @@ object ActionBarCustomizer {
         val layout = layout(context, message, useCustomPosition = true)
         val vanillaTextX = (context.guiWidth() - layout.textWidth) / 2
         val vanillaTextY = context.guiHeight() - VANILLA_TEXT_Y_FROM_BOTTOM
-        context.pose().pushMatrix()
-        try {
-            context.pose().translate(layout.x.toFloat(), layout.y.toFloat())
-            context.pose().scale(layout.scale, layout.scale)
-            context.pose().translate(
+        HudTransform(layout.x, layout.y, layout.scale).render(context) {
+            pose().translate(
                 (X_PADDING - vanillaTextX).toFloat(),
                 (Y_PADDING - vanillaTextY).toFloat(),
             )
             drawVanillaActionBar()
-        } finally {
-            context.pose().popMatrix()
         }
     }
 
@@ -103,8 +100,8 @@ object ActionBarCustomizer {
         context.nextStratum()
     }
 
-    private fun renderEditorPreview(context: GuiGraphicsExtractor) {
-        val layout = editorLayout()
+    private fun renderEditorMessage(context: GuiGraphicsExtractor) {
+        val layout = editorLayout() ?: return
         if (config.background) {
             drawBackground(context, 0, 0, layout.width, layout.height, COLOR_CHANNEL_MAX)
             context.nextStratum()
@@ -146,8 +143,9 @@ object ActionBarCustomizer {
         }
     }
 
-    private fun editorLayout(): ActionBarLayout {
-        val message = currentMessage() ?: EDITOR_MESSAGE
+    private fun editorLayout(): ActionBarLayout? {
+        if (!config.settings.customPosition || MinecraftClient.isGuiHidden(Minecraft.getInstance())) return null
+        val message = currentMessage() ?: return null
         return layout(message, scale = 1f, x = 0, y = 0)
     }
 
@@ -165,10 +163,8 @@ object ActionBarCustomizer {
             )
         }
 
-        return measured.copy(
-            x = config.position.getAbsX0AllowingOverflow(measured.scaledWidth),
-            y = config.position.getAbsY0AllowingOverflow(measured.scaledHeight),
-        )
+        val transform = config.position.transform(measured.width, measured.height)
+        return measured.copy(x = transform.x, y = transform.y)
     }
 
     private fun layout(message: Component, scale: Float, x: Int, y: Int): ActionBarLayout {
@@ -201,7 +197,6 @@ private data class ActionBarLayout(
     val y: Int,
 )
 
-private val EDITOR_MESSAGE = Component.literal("Action Bar")
 private const val BACKGROUND_RGB = 0x101010
 private const val X_PADDING = 4
 private const val Y_PADDING = 3
