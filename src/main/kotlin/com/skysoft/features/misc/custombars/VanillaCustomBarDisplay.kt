@@ -42,7 +42,7 @@ internal enum class VanillaCustomBarDisplay {
             } == true
             EXPERIENCE -> gameMode.hasExperience() && (
                 (
-                    !SkysoftConfigGui.config().gui.customBars.settings.numbers.experience &&
+                    !SkysoftConfigGui.config().gui.playerHud.customBars.settings.numbers.experience &&
                         SkyBlockLevelBar.experienceLevelVisibility(player.experienceLevel) > 0
                     ) || isExperienceBarVisible()
                 )

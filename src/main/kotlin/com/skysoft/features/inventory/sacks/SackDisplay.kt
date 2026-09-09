@@ -47,7 +47,7 @@ object SackDisplay {
     fun register() = registerSackDisplay()
 }
 
-private val config get() = SkysoftConfigGui.config().inventory.sackDisplay
+private val config get() = SkysoftConfigGui.config().storageFeatures.sackDisplay
 private var openSack: OpenSack? = null
 private var displayMode = SackDisplayMode.ITEM_QUANTITIES
 private var scrollOffset = 0

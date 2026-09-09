@@ -20,7 +20,7 @@ import net.minecraft.world.item.ItemStack
 
 object StoragePreviews {
     private val embeddedPreviews = WeakHashMap<ItemStack, CachedEmbeddedPreview>()
-    private val config get() = SkysoftConfigGui.config().inventory.storagePreviews
+    private val config get() = SkysoftConfigGui.config().storageFeatures.storagePreviews
 
     fun register() {
         StorageCache.registerConsumer("Storage Previews") {

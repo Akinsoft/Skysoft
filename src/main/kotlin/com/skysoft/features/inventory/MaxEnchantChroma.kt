@@ -17,7 +17,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 
 object MaxEnchantChroma {
-    private val config get() = SkysoftConfigGui.config().inventory.maxEnchantChroma
+    private val config get() = SkysoftConfigGui.config().inventory.tooltips.maxEnchantChroma
     private val enchantments by lazy(::loadGeneratedMaxEnchantments)
 
     fun register() {

@@ -10,7 +10,7 @@ import java.awt.Color
 import net.minecraft.world.entity.decoration.ArmorStand
 
 object HighlightPests {
-    private val config get() = SkysoftConfigGui.config().farming
+    private val config get() = SkysoftConfigGui.config().farming.pests
     private val highlightedEntities = EntityHighlightTracker<ArmorStand>(this)
     private var ticks = 0
 

@@ -21,7 +21,7 @@ object SmoothSwapping {
     private const val MIN_DURATION_MS = 60
     private const val MAX_DURATION_MS = 720
 
-    private val config get() = SkysoftConfigGui.config().inventory.smoothSwapping
+    private val config get() = SkysoftConfigGui.config().inventory.controls.smoothSwapping
 
     private var activeScreenKey: ScreenKey? = null
     private val animations = mutableListOf<SlotAnimation>()

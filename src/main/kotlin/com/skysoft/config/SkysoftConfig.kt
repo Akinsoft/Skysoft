@@ -4,7 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.annotations.Expose
-import com.google.gson.annotations.SerializedName
 import com.skysoft.SkysoftMod
 import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
@@ -58,14 +57,44 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK, RAVENGARD)
-    @field:Category(name = "GUI", desc = "GUI and HUD editor settings.")
+    @field:Category(name = "HUD & Interface", desc = "HUD displays, layout, and Minecraft interface settings.")
     val gui = GuiFeatureConfig()
 
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Items & Trading", desc = "Browse items and recipes, track Bazaar orders, and configure prices.")
+    val items = ItemsAndTradingConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigGames(SKYBLOCK, RAVENGARD)
-    @field:Category(name = "Inventory", desc = "Inventory and item tooltip settings.")
+    @field:Category(name = "World & Camera", desc = "World appearance, camera controls, and held item visuals.")
+    val world = WorldFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Loot & Profit", desc = "Track activity profit, item changes, and valuable drops.")
+    val loot = LootFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Events & Mayors", desc = "Event helpers and mayor information.")
+    val events = EventFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK, RAVENGARD)
+    @field:Category(name = "Inventory", desc = "Equipment, inventory controls, protection, and appearance.")
     val inventory = InventoryFeatureConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Storage", desc = "Browse storage and monitor sack contents.")
+    val storageFeatures = StorageFeatureConfig()
 
     @JvmField
     @field:Expose
@@ -78,13 +107,6 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Slayer", desc = "Slayer quest helpers.")
     val slayer = SlayerFeatureConfig()
-
-    @JvmField
-    @field:Expose
-    @field:SerializedName(value = "profitTrackers", alternate = ["profitTracker"])
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Profit Trackers", desc = "Configure activity profit trackers.")
-    val profitTrackers = ProfitTrackersConfig()
 
     @JvmField
     @field:Expose
@@ -131,8 +153,8 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Events", desc = "Event settings.")
-    val events = EventFeatureConfig()
+    @field:Category(name = "Enchanting", desc = "Experimentation Table helpers.")
+    val enchanting = EnchantingFeatureConfig()
 
     @JvmField
     @field:Expose
@@ -146,8 +168,8 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK, RAVENGARD)
-    @field:Category(name = "Misc", desc = "Miscellaneous settings.")
-    val misc = MiscFeatureConfig()
+    @field:Category(name = "Utilities", desc = "Movement shortcuts, screenshots, and other conveniences.")
+    val utilities = UtilitiesFeatureConfig()
 
     @JvmField
     @field:Expose
@@ -260,12 +282,14 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
             ravengard,
             gui,
             inventory,
+            items,
+            storageFeatures,
+            world,
             combat,
             chat,
             events,
-            misc,
         )
-        profitTrackers.custom.repairLoadedValues()
+        loot.profitTrackers.custom.repairLoadedValues()
         repairLoadedConfigs(pets)
     }
 

@@ -44,7 +44,7 @@ object SkyBlockSackChanges {
     }
 
     private fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-    private val config get() = SkysoftConfigGui.config().chat.messageFiltering
+    private val config get() = SkysoftConfigGui.config().storageFeatures
 }
 
 data class SkyBlockSackChangeBatch(

@@ -23,7 +23,7 @@ object Zoom {
     private var transitionStartedAt = 0L
 
     private val config
-        get() = SkysoftConfigGui.config().misc.zoom
+        get() = SkysoftConfigGui.config().world.zoom
 
     fun register() {
         SkysoftClientEvents.onEndTick("Zoom input", ::hasInputWork) { updateInput(it) }

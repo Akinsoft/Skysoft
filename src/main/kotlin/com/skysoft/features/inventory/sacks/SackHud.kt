@@ -27,7 +27,7 @@ object SackHud {
     fun register() = registerSackHud()
 }
 
-internal val sackHudConfig get() = SkysoftConfigGui.config().inventory.sackHud
+internal val sackHudConfig get() = SkysoftConfigGui.config().storageFeatures.sackHud
 internal val sackHudItemPanel = TrackedItemManagerPanel(
     overviewTitle = "Manage Tracked Items",
     addTitle = "Add Item",

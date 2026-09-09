@@ -243,7 +243,7 @@ internal class ItemListBazaarPanel {
     }
 
     private fun selectedWindow(): BazaarGraphWindow =
-        SkysoftConfigGui.config().inventory.itemList.sources.graphWindow()
+        SkysoftConfigGui.config().items.itemList.sources.graphWindow()
 
     private fun openButton(bounds: Rect) = Rect(
         bounds.x + bounds.width - INSET - OPEN_WIDTH,

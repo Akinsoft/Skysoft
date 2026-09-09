@@ -31,7 +31,7 @@ private const val SLOT_OUTLINE_INSET = 1
 private const val SLOT_OUTLINE_SIZE = 18
 
 object SlotLockManager {
-    private val config get() = SkysoftConfigGui.config().inventory.slotLocking
+    private val config get() = SkysoftConfigGui.config().inventory.protection.slotLocking
     private val lockedSlots get() = ProfileStorageApi.storage.slotLocks
     private var activeLockKey: Int? = null
     private var pendingLockSlot: Int? = null

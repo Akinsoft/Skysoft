@@ -40,7 +40,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 
-private val partyDisplayConfig get() = SkysoftConfigGui.config().gui.partyDisplay
+private val partyDisplayConfig get() = SkysoftConfigGui.config().gui.information.partyDisplay
 private val cancelLabel = Component.literal("[Cancel]").withStyle(ChatFormatting.RED)
 private val confirmLabel = Component.literal("[Confirm]").withStyle(ChatFormatting.GREEN)
 private var hoveredControl: OverlayControlArea<PartyDisplayControl>? = null

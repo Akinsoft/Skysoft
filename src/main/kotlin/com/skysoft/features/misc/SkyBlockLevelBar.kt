@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 
 object SkyBlockLevelBar {
-    private val isEnabled get() = SkysoftConfigGui.config().gui.isSkyBlockLevelBarEnabled
+    private val isEnabled get() = SkysoftConfigGui.config().gui.playerHud.isSkyBlockLevelBarEnabled
     private var cachedLevel: SkyBlockLevelProgress? = null
 
     internal val isReplacingExperience: Boolean get() = currentLevel() != null

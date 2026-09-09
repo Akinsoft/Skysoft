@@ -70,7 +70,7 @@ internal data class ItemListLayout(
         fun create(screen: AbstractContainerScreen<*>, hasFavorites: Boolean): ItemListLayout? {
             val accessor = screen as AbstractContainerScreenAccessor
             val containerRight = accessor.skysoftGetLeftPos() + accessor.skysoftGetImageWidth()
-            val itemList = SkysoftConfigGui.config().inventory.itemList
+            val itemList = SkysoftConfigGui.config().items.itemList
             return create(
                 screen.width,
                 screen.height,

@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvent
 
 object PestSpawnCooldownWarning {
-    private val config get() = SkysoftConfigGui.config().farming.pestSpawnCooldownWarning
+    private val config get() = SkysoftConfigGui.config().farming.pests.pestSpawnCooldownWarning
     private var cooldownReadyAtNanos: Long? = null
     private var earlyWarningShown = false
     private var readyWarningShown = false

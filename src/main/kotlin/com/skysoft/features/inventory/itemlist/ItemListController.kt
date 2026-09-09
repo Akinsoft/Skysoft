@@ -42,7 +42,7 @@ import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 
 object ItemListController {
-    private val config get() = SkysoftConfigGui.config().inventory.itemList
+    private val config get() = SkysoftConfigGui.config().items.itemList
     private val searchField = TextFieldState(maxLength = 128)
     private var hoveredKey: ItemListEntryKey? = null
     private var lastLayout: ItemListLayout? = null
@@ -538,7 +538,7 @@ object ItemListController {
 }
 
 private fun isItemListActive(): Boolean =
-    SkysoftConfigGui.config().inventory.itemList.enabled || isItemListViewerOpen()
+    SkysoftConfigGui.config().items.itemList.enabled || isItemListViewerOpen()
 
 private fun isItemListViewerOpen(): Boolean = MinecraftClient.screen() is ItemListViewerScreen
 

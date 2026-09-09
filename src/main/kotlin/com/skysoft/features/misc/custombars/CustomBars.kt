@@ -23,7 +23,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.resources.Identifier
 
 object CustomBars {
-    private val config get() = SkysoftConfigGui.config().gui.customBars
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
     private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
     private val textElements by lazy {
         CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextElement)

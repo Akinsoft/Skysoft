@@ -10,15 +10,19 @@ import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
-import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class MiscFeatureConfig : ConfigRepairable {
+class WorldFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
-    @field:Category(name = "Hide Silly Buttons", desc = "Hide selected Minecraft menu buttons.")
-    val hideSillyButtons = HideSillyButtonsConfig()
+    @field:Category(name = "Held Item", desc = "Customize first-person held item visuals and swing duration.")
+    val heldItem = HeldItemConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Zoom", desc = "Magnify the camera with configurable controls.")
+    val zoom = ZoomConfig()
 
     @JvmField
     @field:Expose
@@ -32,59 +36,9 @@ class MiscFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Auto Sprint", desc = "Automatically sprint under configurable conditions.")
-    val autoSprint = AutoSprintConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "Zoom", desc = "Magnify the camera with configurable controls.")
-    val zoom = ZoomConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Rare Drop Titles", desc = "Show valuable rare drops as titles.")
-    val rareDropTitles = RareDropTitlesConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Rare Loot Sharing", desc = "Share valuable drops in selected chat channels.")
-    val rareLootSharing = RareLootSharingConfig()
-
-    @JvmField
-    @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:Category(name = "Dropped Item Scaling", desc = "Customize dropped SkyBlock item sizes by rarity.")
     val droppedItemScaling = DroppedItemScalingConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Keep Terrain Loaded", desc = "Keep visited terrain beyond the server's view distance loaded.")
-    val keepTerrainLoaded = KeepTerrainLoadedConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:ConfigOption(
-        name = "Input Math",
-        desc = "Calculate equations in SkyBlock number inputs when pressing Enter or Done.",
-    )
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var inputMath = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:ConfigOption(
-        name = "Short Warp Commands",
-        desc = "Use warp names such as /garden and /crypts without typing /warp.",
-    )
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var shortWarpCommands = false
 
     @JvmField
     @field:Expose
@@ -99,6 +53,12 @@ class MiscFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Keep Terrain Loaded", desc = "Keep visited terrain beyond the server's view distance loaded.")
+    val keepTerrainLoaded = KeepTerrainLoadedConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "Keep SkyBlock Resource Pack",
         desc = "Keep Hypixel's SkyBlock resource pack loaded between servers.",
@@ -107,11 +67,8 @@ class MiscFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
-    fun isAnyRareLootFeatureEnabled(): Boolean =
-        rareDropTitles.enabled ||
-            (rareLootSharing.enabled && rareLootSharing.settings.channels.get().isNotEmpty())
-
     override fun repairLoadedValues() {
+        heldItem.repairLoadedValues()
         droppedItemScaling.repairLoadedValues()
         zoom.repairLoadedValues()
     }
@@ -199,65 +156,4 @@ enum class TerrainCacheIsland(val island: SkyBlockIsland) {
     ;
 
     override fun toString(): String = island.toString()
-}
-
-class RareDropTitlesConfig {
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Show valuable rare drops as titles.")
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var enabled = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Rare drop title settings.")
-    @field:Accordion
-    val settings = RareDropTitlesSettingsConfig()
-}
-
-class RareDropTitlesSettingsConfig {
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Minimum Value", desc = "Minimum coin value needed to show a title.")
-    @field:ConfigEditorText
-    var minimumValue = "2,000,000"
-}
-
-class RareLootSharingConfig {
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Share valuable drops in selected chat channels.")
-    @field:MainFeatureToggle
-    @field:ConfigEditorBoolean
-    var enabled = false
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Settings", desc = "Rare loot sharing settings.")
-    @field:Accordion
-    val settings = RareLootSharingSettingsConfig()
-}
-
-class RareLootSharingSettingsConfig {
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Channels", desc = "Chat channels where Skysoft should share valuable drops.")
-    @field:ConfigEditorDraggableList
-    val channels: Property<MutableList<RareLootShareChannel>> =
-        Property.of(mutableListOf(RareLootShareChannel.PARTY))
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Rare Loot Value", desc = "Minimum coin value to share.")
-    @field:ConfigEditorText
-    var rareLootValue = "1,000,000"
-}
-
-enum class RareLootShareChannel(private val displayName: String) {
-    PARTY("Party"),
-    GUILD("Guild"),
-    ;
-
-    override fun toString(): String = displayName
 }

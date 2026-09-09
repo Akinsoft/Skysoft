@@ -118,7 +118,7 @@ class ItemListSettingsConfig {
     @field:ConfigOption(name = "Clear Favorites", desc = "Clear all favorite items.")
     @field:ConfigEditorButton(buttonText = "Clear")
     val clearFavorites = Runnable {
-        SkysoftConfigGui.config().inventory.itemList.favorites.clear()
+        SkysoftConfigGui.config().items.itemList.favorites.clear()
         SkysoftConfigGui.config().saveNow()
     }
 

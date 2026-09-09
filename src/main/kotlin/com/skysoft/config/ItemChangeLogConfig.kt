@@ -15,7 +15,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 class ItemChangeLogConfig {
     @JvmField
     @field:Expose
-    @field:ConfigOption(name = "Enabled", desc = "Show recent inventory item gains and losses.")
+    @field:ConfigOption(name = "Enabled", desc = "Show recent item gains and losses.")
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
     var enabled = false

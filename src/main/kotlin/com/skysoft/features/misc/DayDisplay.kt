@@ -17,7 +17,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object DayDisplay {
     private const val TICKS_PER_DAY = 24_000L
-    private val config get() = SkysoftConfigGui.config().gui.dayDisplay
+    private val config get() = SkysoftConfigGui.config().gui.information.dayDisplay
 
     fun register() {
         GuiOverlayRegistry.registerHud(

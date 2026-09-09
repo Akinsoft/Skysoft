@@ -77,7 +77,7 @@ object SkyBlockPriceData {
         registerConsumers()
         AttributeShardCatalog.registerConsumer("SkyBlock Price Data", ::hasDemand)
         ProfileStorageApi.registerConsumer("SkyBlock Price Data") {
-            SkysoftConfigGui.config().inventory.bazaar.enabled
+            SkysoftConfigGui.config().items.bazaar.enabled
         }
         SkysoftClientEvents.onEndTick(
             "SkyBlock Price refresh",
@@ -399,21 +399,21 @@ object SkyBlockPriceData {
         bazaarConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsBazaarData } }
         bazaarConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
         bazaarConsumers.register("Bazaar Tracker") {
-            SkysoftConfigGui.config().inventory.bazaar.enabled && hasCurrentBazaarTrackerOrders()
+            SkysoftConfigGui.config().items.bazaar.enabled && hasCurrentBazaarTrackerOrders()
         }
-        bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
-        bazaarConsumers.register("Sack Display") { SkysoftConfigGui.config().inventory.sackDisplay.enabled }
-        bazaarConsumers.register("Crafting Helper") { SkysoftConfigGui.config().inventory.craftingHelper.enabled }
+        bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().loot.profitTrackers.isAnyEnabled() }
+        bazaarConsumers.register("Sack Display") { SkysoftConfigGui.config().storageFeatures.sackDisplay.enabled }
+        bazaarConsumers.register("Crafting Helper") { SkysoftConfigGui.config().items.craftingHelper.enabled }
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
-        lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
-        lowestBinConsumers.register("Crafting Helper") { SkysoftConfigGui.config().inventory.craftingHelper.enabled }
+        lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().loot.profitTrackers.isAnyEnabled() }
+        lowestBinConsumers.register("Crafting Helper") { SkysoftConfigGui.config().items.craftingHelper.enabled }
         npcSellPriceConsumers.register("Item List") { hasItemListMarketInterest.get() }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
         }
-        npcSellPriceConsumers.register("Profit Tracker") { SkysoftConfigGui.config().profitTrackers.isAnyEnabled() }
+        npcSellPriceConsumers.register("Profit Tracker") { SkysoftConfigGui.config().loot.profitTrackers.isAnyEnabled() }
     }
 
     private fun updateSnapshot(update: (MarketPriceSnapshot) -> MarketPriceSnapshot) {
@@ -439,12 +439,12 @@ internal fun bazaarProductsWithAliases(
 }
 
 private fun arePriceTooltipLinesActive(predicate: (PriceTooltipLine) -> Boolean): Boolean {
-    val config = SkysoftConfigGui.config().inventory.priceTooltips
+    val config = SkysoftConfigGui.config().items.priceTooltips
     return config.enabled && config.settings.priceLines.get().any(predicate)
 }
 
 private fun isRareLootPricingActive(): Boolean =
-    SkysoftConfigGui.config().misc.isAnyRareLootFeatureEnabled()
+    SkysoftConfigGui.config().loot.isAnyRareLootFeatureEnabled()
 
 private fun hasCurrentBazaarTrackerOrders(): Boolean {
     if (SkyBlockProfileApi.currentProfileId == null) return false

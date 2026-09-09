@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.gui.OverlayControlArea
 
-internal val craftingHelperConfig get() = SkysoftConfigGui.config().inventory.craftingHelper
+internal val craftingHelperConfig get() = SkysoftConfigGui.config().items.craftingHelper
 internal val craftingHelperItemPanel = CraftingHelperItemPanel()
 internal var craftingHelperScrollOffset = 0
 internal var craftingHelperHovered = false

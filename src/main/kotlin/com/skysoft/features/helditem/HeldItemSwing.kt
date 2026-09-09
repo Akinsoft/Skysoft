@@ -16,7 +16,7 @@ object HeldItemSwing {
         val itemStack = entity.getItemInHand(hand)
         if (!HeldItemCustomization.isEligible(itemStack)) return vanillaDuration
 
-        val config = SkysoftConfigGui.config().gui.heldItem
+        val config = SkysoftConfigGui.config().world.heldItem
         if (!config.enabled) return vanillaDuration
 
         val transform = HeldItemTransforms.effectiveTransform(itemStack)

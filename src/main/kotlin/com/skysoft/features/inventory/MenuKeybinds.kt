@@ -18,7 +18,7 @@ import net.minecraft.world.inventory.Slot
 import org.lwjgl.glfw.GLFW
 
 object MenuKeybinds {
-    private val config get() = SkysoftConfigGui.config().inventory
+    private val config get() = SkysoftConfigGui.config().inventory.equipment
     private val menuTitle = Regex("\\([1-9]\\d*/[1-9]\\d*\\) (Armor Sets|Equipment Sets|Loadouts)")
     private val setSlots = (36..44).toList()
     private val loadoutSlots = listOf(14, 15, 16, 23, 24, 25, 32, 33, 34, 41, 42, 43)

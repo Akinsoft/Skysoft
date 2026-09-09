@@ -221,7 +221,7 @@ object TooltipViewport {
         return result
     }
 
-    private fun config(): TooltipScrollConfig = SkysoftConfigGui.config().inventory.tooltipScroll
+    private fun config(): TooltipScrollConfig = SkysoftConfigGui.config().inventory.tooltips.tooltipScroll
 
     private data class OffsetPositioner(
         val original: ClientTooltipPositioner,
