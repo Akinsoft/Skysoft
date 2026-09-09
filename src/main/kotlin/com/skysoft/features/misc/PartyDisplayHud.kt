@@ -267,7 +267,7 @@ private class PartyDisplayRenderable(
         mouseX: Int?,
         mouseY: Int?,
     ): OverlayControlArea<PartyDisplayControl>? {
-        if (padding > 0) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (padding > 0) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         context.text(font, title, lineX(font.width(title)), padding, TEXT_COLOR, true)
         var hovered: OverlayControlArea<PartyDisplayControl>? = null
         members.forEachIndexed { index, member ->

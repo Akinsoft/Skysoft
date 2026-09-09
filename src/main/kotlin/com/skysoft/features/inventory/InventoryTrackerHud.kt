@@ -79,7 +79,7 @@ internal class InventoryTrackerLayout(
         moreTooltip: List<String> = emptyList(),
         renderRow: (index: Int, left: Int, right: Int, y: Int) -> OverlayControlArea<T>?,
     ): OverlayControlArea<T>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         var y = padding
         if (showTitle) {
             LegacyTextRenderer.draw(context, titleText, padding, y)

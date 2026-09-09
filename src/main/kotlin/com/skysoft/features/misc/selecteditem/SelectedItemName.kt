@@ -7,6 +7,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.renderRenderable
@@ -83,7 +84,7 @@ object SelectedItemName {
                     0,
                     width,
                     height,
-                    BACKGROUND_RGB.withAlpha(backgroundAlpha),
+                    OverlayPanelStyle.hudBackgroundColor.withAlpha(backgroundAlpha),
                     config.details.roundedCorners,
                 )
                 context.nextStratum()
@@ -102,7 +103,6 @@ internal fun selectedItemNameAlpha(timer: Int, alwaysVisible: Boolean): Int =
     if (alwaysVisible) COLOR_CHANNEL_MAX else
         (timer * FADE_ALPHA_SCALE / FADE_TICKS).coerceIn(0, COLOR_CHANNEL_MAX)
 
-private const val BACKGROUND_RGB = 0x101010
 private const val HORIZONTAL_PADDING = 4
 private const val VERTICAL_PADDING = 3
 private const val PERCENT_MAX = 100

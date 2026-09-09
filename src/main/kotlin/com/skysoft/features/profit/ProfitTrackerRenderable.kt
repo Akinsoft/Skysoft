@@ -96,7 +96,7 @@ internal class ProfitTrackerRenderable(
     }
 
     fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): OverlayControlArea<ProfitTrackerControl>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         var y = padding
         var hovered: OverlayControlArea<ProfitTrackerControl>? = null
         lines.forEach { line ->
