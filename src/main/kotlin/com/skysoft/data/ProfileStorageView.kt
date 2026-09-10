@@ -52,6 +52,7 @@ interface ProfileStorageView {
         val itemCustomizations: Map<String, ProfitTrackerItemCustomizations>
         val farmingKernelItem: String
         val farmingKernelPriceSource: String
+        val farmingKernelDiscountEnabled: Boolean
         val lastPreset: String
     }
 

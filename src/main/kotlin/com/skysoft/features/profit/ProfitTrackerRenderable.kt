@@ -51,6 +51,7 @@ internal class ProfitTrackerRenderable(
             stats.kernels,
             farmingKernelProfitItem,
             farmingKernelProfitPriceSource.source ?: config.settings.priceSource,
+            farmingKernelProfitDiscountEnabled,
         )
     } else {
         0.0

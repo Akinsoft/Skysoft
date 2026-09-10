@@ -106,6 +106,9 @@ internal class ProfitTrackerHudControls(
         ProfitTrackerControl.ManageKernels -> wasLeftClickHandled(button, itemPanel::toggleKernels)
         ProfitTrackerControl.KernelItem -> wasKernelItemCycled(button)
         ProfitTrackerControl.KernelPriceSource -> wasKernelPriceSourceCycled(button)
+        ProfitTrackerControl.KernelDiscount -> wasLeftClickHandled(button) {
+            farmingKernelProfitDiscountEnabled = !farmingKernelProfitDiscountEnabled
+        }
         is ProfitTrackerControl.PestBreakdown -> false
         is ProfitTrackerControl.ManageItem -> wasLeftClickHandled(button) { itemPanel.toggleItem(action.itemId) }
         is ProfitTrackerControl.ItemPriceSource -> wasItemPriceSourceCycled(target, action.itemId, button)

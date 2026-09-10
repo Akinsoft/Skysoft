@@ -3,6 +3,7 @@ package com.skysoft.features.profit
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
+import kotlin.math.ceil
 
 internal var farmingKernelProfitItem: FarmingKernelProfitItem
     get() = ProfileStorageApi.storage.profitTracker.farmingKernelItem
@@ -20,10 +21,17 @@ internal var farmingKernelProfitPriceSource: FarmingKernelProfitPriceSource
         ProfileStorageApi.updateProfile { it.profitTracker.farmingKernelPriceSource = value.name }
     }
 
+internal var farmingKernelProfitDiscountEnabled: Boolean
+    get() = ProfileStorageApi.storage.profitTracker.farmingKernelDiscountEnabled
+    set(value) {
+        ProfileStorageApi.updateProfile { it.profitTracker.farmingKernelDiscountEnabled = value }
+    }
+
 internal fun farmingKernelProfit(
     kernels: Long,
     item: FarmingKernelProfitItem,
     priceSource: ProfitTrackerPriceSource,
+    discountEnabled: Boolean,
 ): Double? {
     if (kernels == 0L) return 0.0
     val price = if (item.isBazaar) {
@@ -35,7 +43,12 @@ internal fun farmingKernelProfit(
     } else {
         SkyBlockPriceData.getLowestBin(item.itemId)?.toDouble()
     }
-    return price?.takeIf { it.isFinite() && it > 0.0 }?.let { kernels * it / item.totalKernelCost }
+    val kernelCost = if (discountEnabled) {
+        ceil(item.totalKernelCost * KERNEL_DISCOUNT_MULTIPLIER)
+    } else {
+        item.totalKernelCost.toDouble()
+    }
+    return price?.takeIf { it.isFinite() && it > 0.0 }?.let { kernels * it / kernelCost }
 }
 
 internal enum class FarmingKernelProfitItem(
@@ -72,3 +85,5 @@ internal enum class FarmingKernelProfitPriceSource(
 
     override fun toString(): String = displayName
 }
+
+private const val KERNEL_DISCOUNT_MULTIPLIER = 0.95

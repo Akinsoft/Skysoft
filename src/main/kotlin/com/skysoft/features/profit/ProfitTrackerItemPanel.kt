@@ -35,6 +35,7 @@ internal sealed interface ProfitTrackerControl {
     data object ManageKernels : ProfitTrackerControl
     data object KernelItem : ProfitTrackerControl
     data object KernelPriceSource : ProfitTrackerControl
+    data object KernelDiscount : ProfitTrackerControl
     data class PestBreakdown(val rows: List<SkysoftNativeTooltip.ItemRow>) : ProfitTrackerControl
     data class ManageItem(
         val itemId: String,
@@ -289,6 +290,7 @@ private fun itemRows(
 private fun kernelProfitRows(): List<PanelRow> {
     val item = farmingKernelProfitItem
     val source = farmingKernelProfitPriceSource
+    val discountEnabled = farmingKernelProfitDiscountEnabled
     val sourceName = if (item.isBazaar) source.toString() else "Lowest BIN"
     return listOf(
         PanelRow(styledText("Kernel Profit", TITLE_COLOR, bold = true)),
@@ -309,6 +311,17 @@ private fun kernelProfitRows(): List<PanelRow> {
             } else {
                 emptyList()
             },
+        ),
+        PanelRow(
+            styledText("5% Discount ", MUTED_COLOR).append(
+                styledText(
+                    if (discountEnabled) "[On]" else "[Off]",
+                    if (discountEnabled) ACTION_COLOR else MUTED_COLOR,
+                    bold = true,
+                ),
+            ),
+            ProfitTrackerControl.KernelDiscount,
+            listOf("§7Apply the 5% discount to Kernel item costs."),
         ),
     )
 }

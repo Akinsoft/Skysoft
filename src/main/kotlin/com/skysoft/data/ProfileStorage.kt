@@ -224,6 +224,7 @@ data class ProfileStorage(
         @Expose override val itemCustomizations: MutableMap<String, ProfitTrackerItemCustomizations> = mutableMapOf(),
         @Expose override var farmingKernelItem: String = "",
         @Expose override var farmingKernelPriceSource: String = "",
+        @Expose override var farmingKernelDiscountEnabled: Boolean = false,
         @Expose
         @SerializedName(value = "lastPreset", alternate = ["lastSlayerType"])
         override var lastPreset: String = "",
