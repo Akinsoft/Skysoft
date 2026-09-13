@@ -31,7 +31,7 @@ object HeldItemSwingVisuals {
             itemOnlySwing = null
             return
         }
-        val config = SkysoftConfigGui.config().gui.heldItem
+        val config = SkysoftConfigGui.config().world.heldItem
         val transform = HeldItemTransforms.effectiveTransform(itemStack)
         itemOnlySwing = ItemOnlySwing(itemStack, attack, arm).takeIf {
             config.enabled &&

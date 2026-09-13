@@ -22,7 +22,7 @@ object FullInventoryWarning {
     private const val ALERT_SOUND_VOLUME = 0.5f
     private const val ALERT_SOUND_PITCH = 1.0f
 
-    private val config get() = SkysoftConfigGui.config().inventory.fullInventory
+    private val config get() = SkysoftConfigGui.config().inventory.protection.fullInventory
     private val title = Component.literal(TITLE).withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
 
     private var wasWarning = false

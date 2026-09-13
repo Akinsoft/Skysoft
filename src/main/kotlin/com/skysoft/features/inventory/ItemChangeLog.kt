@@ -33,7 +33,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.item.ItemStack
 
 object ItemChangeLog {
-    private val config get() = SkysoftConfigGui.config().inventory.itemChangeLog
+    private val config get() = SkysoftConfigGui.config().loot.itemChangeLog
     private val state = ItemChangeLogState()
     private var wasEnabled = false
     private var retainedEditorWidth = EDITOR_MINIMUM_WIDTH

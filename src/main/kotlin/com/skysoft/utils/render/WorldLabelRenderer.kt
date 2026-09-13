@@ -97,9 +97,7 @@ object WorldLabelRenderer {
         val distance = cameraPosition.distance(anchor).coerceAtLeast(MIN_DISTANCE)
         val renderDistance = distance.coerceAtMost(style.maxRenderDistance)
         val renderLocation = cameraPosition + (anchor - cameraPosition) * (renderDistance / distance)
-        val scale = (renderDistance / style.scaleDistance * style.scaleMultiplier)
-            .coerceIn(style.minScale, style.maxScale)
-            .toFloat()
+        val scale = style.scaleAt(renderDistance)
         val worldScale = (style.worldScale * scale).toFloat()
 
         context.withIsolatedPose {
@@ -238,4 +236,7 @@ data class WorldLabelStyle(
     val outlineColor: Int = 0,
     val shadow: Boolean = true,
     val displayMode: Font.DisplayMode = Font.DisplayMode.SEE_THROUGH,
-)
+) {
+    fun scaleAt(distance: Double): Float = (distance.coerceAtMost(maxRenderDistance) / scaleDistance * scaleMultiplier)
+        .coerceIn(minScale, maxScale).toFloat()
+}

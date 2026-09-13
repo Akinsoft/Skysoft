@@ -29,7 +29,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 
 object InventoryHud {
-    private val config get() = SkysoftConfigGui.config().gui.inventoryHud
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.inventoryHud
 
     fun register() {
         InventoryEquipmentCache.registerConsumer("Inventory HUD") {
@@ -181,7 +181,7 @@ private enum class InventoryHudPart(val label: String, val width: Int, val heigh
     }
 }
 
-private fun inventoryHudConfig() = SkysoftConfigGui.config().gui.inventoryHud
+private fun inventoryHudConfig() = SkysoftConfigGui.config().gui.playerHud.inventoryHud
 
 private class InventoryHudRenderable(
     private val part: InventoryHudPart,
@@ -191,7 +191,7 @@ private class InventoryHudRenderable(
     override val width: Int = part.width
     override val height: Int = part.height
 
-    private val details = SkysoftConfigGui.config().gui.inventoryHud.details
+    private val details = SkysoftConfigGui.config().gui.playerHud.inventoryHud.details
     private val backgroundColor = details.backgroundColor.get().toColor().rgb
     private val outlineColor = details.outlineColor.get().toColor().rgb
     private val slotBackgroundColor = details.slotBackgroundColor.get().toColor().rgb

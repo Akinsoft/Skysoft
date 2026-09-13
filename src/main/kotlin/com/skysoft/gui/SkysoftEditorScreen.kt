@@ -8,7 +8,7 @@ abstract class SkysoftEditorScreen(
     title: Component,
     private val returnScreen: Screen?,
 ) : Screen(title) {
-    final override fun onClose() {
+    override fun onClose() {
         beforeEditorClose()
         if (returnScreen == null) {
             super.onClose()

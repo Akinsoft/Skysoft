@@ -8,13 +8,13 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 
 object ForIntrests {
-    private val config get() = SkysoftConfigGui.config().settings
+    private val config get() = SkysoftConfigGui.config().utilities.deathSounds
     private val recentDeaths = ArrayDeque<Long>()
 
     fun register() {
         ChatEvents.onVisibleMessage(
             "For Intrests death sound",
-            { config.forIntrests && HypixelLocationState.inSkyBlock },
+            { config.enabled && HypixelLocationState.inSkyBlock },
         ) { message ->
             if (message.isSystemLike && message.body.startsWith(DEATH_MESSAGE_PREFIX)) playDeathSound()
             ChatMessageVisibility.SHOW
@@ -32,7 +32,7 @@ object ForIntrests {
         } else {
             DEATH_SOUND_ID
         }
-        SoundUtilities.playUiSound(sound, 1f, config.forIntrestsVolume / MAX_VOLUME_PERCENT)
+        SoundUtilities.playUiSound(sound, 1f, config.settings.volume / MAX_VOLUME_PERCENT)
     }
 
     private const val DEATH_MESSAGE_PREFIX = "☠ You "

@@ -58,12 +58,21 @@ object OverlayControlMouse {
         val screen = MinecraftClient.screen(minecraft)
         val scales = GuiScaleController.resolve(screen, window)
         if (GuiScaleController.usesSeparateInventoryScale(screen)) {
-            if (window.guiScale == scales.normal()) return mouseX to mouseY
+            if (GuiScaleController.areOverlaysUsingNormalCoordinates()) return mouseX to mouseY
             return GuiScaleController.convertCoordinate(mouseX, scales.inventory(), scales.normal()) to
                 GuiScaleController.convertCoordinate(mouseY, scales.inventory(), scales.normal())
         }
         return GuiScaleController.convertCoordinate(mouseX, window.guiScale, scales.normal()) to
             GuiScaleController.convertCoordinate(mouseY, window.guiScale, scales.normal())
+    }
+
+    fun normalPointFromScreen(mouseX: Int, mouseY: Int): Pair<Int, Int> {
+        val minecraft = Minecraft.getInstance()
+        val screen = MinecraftClient.screen(minecraft)
+        if (!GuiScaleController.usesSeparateInventoryScale(screen)) return mouseX to mouseY
+        val scales = GuiScaleController.resolve(screen, minecraft.window)
+        return GuiScaleController.convertCoordinate(mouseX, scales.inventory(), scales.normal()) to
+            GuiScaleController.convertCoordinate(mouseY, scales.inventory(), scales.normal())
     }
 
     fun screenPoint(mouseX: Int, mouseY: Int): Pair<Int, Int> {

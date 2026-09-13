@@ -43,7 +43,7 @@ object InventoryButtonManager {
     private const val BUTTON_HOVER_COLOR = 0x35FFFFFF
     private const val BUTTON_SELECTED_COLOR = 0xFF55FFFF.toInt()
 
-    private val config get() = SkysoftConfigGui.config().inventory.inventoryButtons
+    private val config get() = SkysoftConfigGui.config().inventory.controls.inventoryButtons
     private var hoveredButton: InventoryButtonConfig? = null
     private var hoveredMillis = 0L
 

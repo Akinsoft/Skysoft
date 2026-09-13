@@ -4,6 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.StorageOverlayMode
 import com.skysoft.config.StorageOverlayTheme
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
@@ -18,6 +19,14 @@ import net.minecraft.client.input.MouseButtonEvent
 
 object StorageOverlayController {
     fun register() = registerStorageOverlay()
+
+    fun rewriteCommand(command: String): String {
+        if (!HypixelLocationState.inSkyBlock || !isStorageOverlayEnabled || config.settings.autoOpenPrevious) return command
+        return when (command.trim().lowercase()) {
+            "ec", "enderchest", "bp", "backpack" -> "storage"
+            else -> command
+        }
+    }
 
     @JvmStatic
     fun isActive(screen: AbstractContainerScreen<*>?): Boolean = storageOverlayIsActive(screen)
@@ -92,10 +101,10 @@ object StorageOverlayController {
 }
 
 internal val storage get() = ProfileStorageApi.storage
-internal val config get() = SkysoftConfigGui.config().inventory.storageOverlay
-internal val isStorageOverlayEnabled get() = SkysoftConfigGui.config().inventory.isStorageOverlayEnabled
+internal val config get() = SkysoftConfigGui.config().storageFeatures.storageOverlay
+internal val isStorageOverlayEnabled get() = config.enabled
 internal val isModernStorageOverlay get() = config.settings.mode == StorageOverlayMode.MODERN
-internal val isLightStorageOverlay get() = config.settings.theme == StorageOverlayTheme.LIGHT
+internal val isLightStorageOverlay get() = config.details.theme == StorageOverlayTheme.LIGHT
 
 internal val storageSearchField = TextFieldState()
 internal var lastCommandMillis = 0L

@@ -13,7 +13,7 @@ object DeadEntityHider {
 
     @JvmStatic
     fun shouldHide(entity: Entity): Boolean {
-        if (!SkysoftConfigGui.config().misc.hideDeadEntities) return false
+        if (!SkysoftConfigGui.config().world.hideDeadEntities) return false
         return when {
             entity is LivingEntity && entity.isDeadOrDying -> true
             entity is ArmorStand -> entity.hasLinkedDyingEntity()

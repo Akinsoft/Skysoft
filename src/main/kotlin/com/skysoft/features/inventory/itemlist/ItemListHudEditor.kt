@@ -66,7 +66,7 @@ internal class ItemListHudEditorElement(private val currentLayout: () -> ItemLis
 
     override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
         if (!editorIsResizing) return InputHandlingResult.IGNORED
-        SkysoftConfigGui.config().inventory.itemList.settings.columns = itemListColumnsAfterEditorDrag(
+        SkysoftConfigGui.config().items.itemList.settings.columns = itemListColumnsAfterEditorDrag(
             editorResizeStartColumns,
             -deltaX,
             ItemListLayout.DEFAULT_SLOT_SIZE,
@@ -76,13 +76,13 @@ internal class ItemListHudEditorElement(private val currentLayout: () -> ItemLis
     }
 
     override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-        val settings = SkysoftConfigGui.config().inventory.itemList.settings
+        val settings = SkysoftConfigGui.config().items.itemList.settings
         settings.itemScale = itemListScaleAfterEditorScroll(settings.itemScale, scrollY)
         return InputHandlingResult.CONSUMED
     }
 
     override fun resetEditorState() {
-        val settings = SkysoftConfigGui.config().inventory.itemList.settings
+        val settings = SkysoftConfigGui.config().items.itemList.settings
         settings.itemScale = ItemListSettingsConfig.DEFAULT_ITEM_SCALE
         settings.columns = ItemListSettingsConfig.DEFAULT_COLUMNS
         settings.rows = ItemListSettingsConfig.DEFAULT_ROWS
@@ -90,7 +90,7 @@ internal class ItemListHudEditorElement(private val currentLayout: () -> ItemLis
 
     override fun captureEditorState(): HudEditorSnapshot {
         val positionSnapshot = position.snapshot()
-        val settings = SkysoftConfigGui.config().inventory.itemList.settings
+        val settings = SkysoftConfigGui.config().items.itemList.settings
         val settingsSnapshot = Triple(settings.itemScale, settings.columns, settings.rows)
         return hudEditorSnapshot(positionSnapshot to settingsSnapshot) {
             position.restore(positionSnapshot)
@@ -101,7 +101,7 @@ internal class ItemListHudEditorElement(private val currentLayout: () -> ItemLis
     }
 
     override fun editorDetailsLines(): List<String> {
-        val settings = SkysoftConfigGui.config().inventory.itemList.settings
+        val settings = SkysoftConfigGui.config().items.itemList.settings
         val visibleRows = currentLayout()?.rows ?: settings.rows
         val rows = if (settings.rows == ItemListSettingsConfig.DEFAULT_ROWS) {
             "$visibleRows (auto)"
@@ -132,7 +132,7 @@ internal class ItemListSearchHudEditorElement(
 ) : HudEditorElement {
     override val id: String = "item_list_search"
     override val label: String = "Item List Search"
-    override val position get() = SkysoftConfigGui.config().inventory.itemList.sources.searchPosition
+    override val position get() = SkysoftConfigGui.config().items.itemList.sources.searchPosition
     override val canScale: Boolean = false
     override val keepsInsideScreen: Boolean = true
     override val editorSelectionPriority: Int = ITEM_LIST_EDITOR_SELECTION_PRIORITY
@@ -142,7 +142,7 @@ internal class ItemListSearchHudEditorElement(
     override fun height(): Int = ItemListLayout.FOOTER_HEIGHT
     override fun isVisible(): Boolean = currentLayout() != null
     override fun renderEditor(context: GuiGraphicsExtractor) {
-        val isSettingsButtonHidden = SkysoftConfigGui.config().inventory.itemList.sources.isSettingsButtonHidden
+        val isSettingsButtonHidden = SkysoftConfigGui.config().items.itemList.sources.isSettingsButtonHidden
         val footerWidth = width()
         val searchWidth = if (isSettingsButtonHidden) {
             footerWidth
@@ -165,12 +165,12 @@ internal class ItemListSearchHudEditorElement(
     }
 
     override fun beginEditorDrag(localX: Int, localY: Int, width: Int, height: Int) {
-        val sources = SkysoftConfigGui.config().inventory.itemList.sources
+        val sources = SkysoftConfigGui.config().items.itemList.sources
         if (sources.searchPosition.isAtDefault()) sources.searchWidth = width
     }
 
     override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-        val itemList = SkysoftConfigGui.config().inventory.itemList
+        val itemList = SkysoftConfigGui.config().items.itemList
         if (itemList.sources.searchPosition.isAtDefault()) {
             itemList.settings.itemScale = itemListScaleAfterEditorScroll(itemList.settings.itemScale, scrollY)
         } else {
@@ -183,13 +183,13 @@ internal class ItemListSearchHudEditorElement(
     }
 
     override fun resetEditorState() {
-        val sources = SkysoftConfigGui.config().inventory.itemList.sources
+        val sources = SkysoftConfigGui.config().items.itemList.sources
         sources.searchPosition.resetToDefault()
         sources.searchWidth = ItemListSourcesConfig.DEFAULT_SEARCH_WIDTH
     }
 
     override fun captureEditorState(): HudEditorSnapshot {
-        val itemList = SkysoftConfigGui.config().inventory.itemList
+        val itemList = SkysoftConfigGui.config().items.itemList
         val sources = itemList.sources
         val positionSnapshot = sources.searchPosition.snapshot()
         val values = positionSnapshot to (sources.searchWidth to itemList.settings.itemScale)
@@ -201,7 +201,7 @@ internal class ItemListSearchHudEditorElement(
     }
 
     override fun editorDetailsLines(): List<String> {
-        val sources = SkysoftConfigGui.config().inventory.itemList.sources
+        val sources = SkysoftConfigGui.config().items.itemList.sources
         return listOf(
             if (sources.searchPosition.isAtDefault()) {
                 "§7Attached to Item List sizing"
@@ -212,7 +212,7 @@ internal class ItemListSearchHudEditorElement(
     }
 
     override fun editorActionLines(): List<String> {
-        val isAttached = SkysoftConfigGui.config().inventory.itemList.sources.searchPosition.isAtDefault()
+        val isAttached = SkysoftConfigGui.config().items.itemList.sources.searchPosition.isAtDefault()
         return listOf(
             if (isAttached) "§eDrag §7to detach and move" else "§eDrag §7to move",
             if (isAttached) "§eScroll-Wheel §7to resize item slots" else "§eScroll-Wheel §7to resize width",

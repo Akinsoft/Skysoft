@@ -169,7 +169,7 @@ internal enum class CustomBarPart(val label: String) {
         const val READOUT_WIDTH = 44
         private const val READOUT_ELEMENT_HEIGHT = 11
 
-        private fun usesInventoryHudWidth(): Boolean = SkysoftConfigGui.config().gui.inventoryHud.enabled
+        private fun usesInventoryHudWidth(): Boolean = SkysoftConfigGui.config().gui.playerHud.inventoryHud.enabled
 
         private fun resourceRowWidth(): Int =
             if (usesInventoryHudWidth()) InventoryHudLayout.MAIN_PANEL_WIDTH else HOTBAR_WIDTH
@@ -181,5 +181,5 @@ internal enum class CustomBarPart(val label: String) {
     }
 }
 
-private val config get() = SkysoftConfigGui.config().gui.customBars
+private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
 private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()

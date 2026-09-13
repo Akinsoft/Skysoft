@@ -13,8 +13,8 @@ import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.chat.SkysoftPartyShare
 
 internal object RareLootChatFeatures {
-    private val miscConfig get() = SkysoftConfigGui.config().misc
-    private val sharingConfig get() = miscConfig.rareLootSharing
+    private val lootConfig get() = SkysoftConfigGui.config().loot
+    private val sharingConfig get() = lootConfig.rareLootSharing
     private val sharingThreshold = RareLootThresholdReader("rare loot value")
     private val isSharingEnabled: Boolean
         get() = sharingConfig.enabled && sharingConfig.settings.channels.get().isNotEmpty()
@@ -22,7 +22,7 @@ internal object RareLootChatFeatures {
 
     fun register() {
         HypixelPartyApi.registerConsumer("Rare Loot Sharing") { isSharingEnabled }
-        SkyBlockDataRepository.Demand.register("Rare Loot Features") { miscConfig.isAnyRareLootFeatureEnabled() }
+        SkyBlockDataRepository.Demand.register("Rare Loot Features") { lootConfig.isAnyRareLootFeatureEnabled() }
         SkysoftClientEvents.onDisconnect("Rare Loot Features disconnect reset", ::clear)
         ChatEvents.onVisibleGameMessageModify(
             "Rare Loot party glyph rendering",
@@ -32,7 +32,7 @@ internal object RareLootChatFeatures {
         ChatEvents.onVisibleMessage(
             "Rare Loot chat",
             isActive = {
-                miscConfig.isAnyRareLootFeatureEnabled() || RareLootContextRegistry.hasActiveContributors()
+                lootConfig.isAnyRareLootFeatureEnabled() || RareLootContextRegistry.hasActiveContributors()
             },
         ) { message ->
             onMessage(message)
@@ -53,7 +53,7 @@ internal object RareLootChatFeatures {
         val chatDrop = RareLootChatParser.parse(cleanText) ?: return
         val lootshare = isLootShareDrop(now)
         val dropCount = RareLootContextRegistry.recordDrop(chatDrop, lootshare, now)
-        val titlesEnabled = miscConfig.rareDropTitles.enabled
+        val titlesEnabled = lootConfig.rareDropTitles.enabled
         if (!sharingEnabled && !titlesEnabled) return
 
         val drop = chatDrop.toRareLootDrop()

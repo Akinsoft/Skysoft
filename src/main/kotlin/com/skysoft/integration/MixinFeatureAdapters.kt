@@ -12,6 +12,7 @@ import com.skysoft.features.chat.ChatTimestamps
 import com.skysoft.features.chat.PreparedChatMessage
 import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.features.inventory.SmoothSwapping
+import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.StoragePreviews
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.SkyBlockLevelBar
@@ -55,7 +56,7 @@ object MixinFeatureAdapters {
     fun prepareOutgoingChatCommand(message: String): String? = ChatTabs.prepareOutgoingCommand(message)
 
     @JvmStatic
-    fun rewriteOutgoingCommand(command: String): String = WarpAliases.rewrite(command)
+    fun rewriteOutgoingCommand(command: String): String = StorageOverlayController.rewriteCommand(WarpAliases.rewrite(command))
 
     @JvmStatic
     fun recordOutgoingChatCommand(command: String) = ChatTabs.recordOutgoingCommand(command)

@@ -10,6 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class CrosshairVisibilityMixin {
     @ModifyExpressionValue(method = "extractCrosshair", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
     private boolean skysoftCrosshairVisibility(boolean firstPerson) {
-        return SkysoftConfigGui.INSTANCE.config().gui.crosshairVisibility.isVisible(firstPerson);
+        return SkysoftConfigGui.INSTANCE.config().gui.vanillaUi.crosshairVisibility.isVisible(firstPerson);
     }
 }

@@ -29,7 +29,7 @@ import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
 
 object ItemProtectionManager {
-    private val config get() = SkysoftConfigGui.config().inventory.protectItem
+    private val config get() = SkysoftConfigGui.config().inventory.protection.protectItem
     private val protectedItemUuids get() = ProfileStorageApi.storage.protectedItemUuids
     private var activeProtectKey: Int? = null
 

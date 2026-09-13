@@ -9,7 +9,7 @@ import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.input.InputHandlingResult
 
 internal fun inventoryButtonEditorState(): HudEditorSnapshot {
-    val config = SkysoftConfigGui.config().inventory.inventoryButtons
+    val config = SkysoftConfigGui.config().inventory.controls.inventoryButtons
     val buttons = config.buttons.map(InventoryButtonConfig::copy)
     val values = buttons.map(InventoryButtonConfig::editorValue)
     return hudEditorSnapshot(values) { config.replaceActiveButtons(buttons) }
@@ -50,7 +50,7 @@ internal enum class InventoryButtonResetShortcutResult {
 }
 
 internal object InventoryButtonEditorActions {
-    private val config get() = SkysoftConfigGui.config().inventory.inventoryButtons
+    private val config get() = SkysoftConfigGui.config().inventory.controls.inventoryButtons
 
     fun resetButtonPosition(index: Int) {
         val button = config.buttons.getOrNull(index) ?: return

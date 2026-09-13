@@ -7,6 +7,7 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -36,6 +37,7 @@ public class TabListPacketMixin {
             || packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER);
     }
 
+    @Unique
     private static void markDirty() {
         MixinErrorBoundary.run("Tab list packet", MixinFeatureAdapters::markTabListDirty);
     }

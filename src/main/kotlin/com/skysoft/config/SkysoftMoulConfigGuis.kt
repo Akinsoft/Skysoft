@@ -2,7 +2,9 @@ package com.skysoft.config
 
 import com.skysoft.data.hypixel.SkysoftGame
 import com.skysoft.features.profit.ConfigEditorSkyBlockLocations
+import com.skysoft.features.profit.ConfigEditorTrackerItems
 import com.skysoft.features.profit.SkyBlockLocationsEditor
+import com.skysoft.features.profit.TrackerItemsEditor
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor
 import io.github.notenoughupdates.moulconfig.processor.BuiltinMoulConfigGuis
@@ -37,6 +39,9 @@ object SkysoftMoulConfigGuis {
         }
         processor.registerConfigEditor(ConfigEditorSkyBlockLocations::class.java) { option, _ ->
             SkyBlockLocationsEditor(option)
+        }
+        processor.registerConfigEditor(ConfigEditorTrackerItems::class.java) { option, _ ->
+            TrackerItemsEditor(option)
         }
     }
 }

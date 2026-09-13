@@ -93,7 +93,7 @@ object ScreenshotManager {
         return Path.of(openFile.path())
     }
 
-    private fun config() = SkysoftConfigGui.config().gui.screenshotManager
+    private fun config() = SkysoftConfigGui.config().utilities.screenshotManager
 
     internal fun screenshotsDirectory() = Minecraft.getInstance().gameDirectory.toPath().resolve(Screenshot.SCREENSHOT_DIR)
 

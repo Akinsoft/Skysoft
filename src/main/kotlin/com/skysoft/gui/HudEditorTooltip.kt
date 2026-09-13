@@ -13,8 +13,6 @@ internal fun hudEditorTooltipLines(
     when {
         activeButton != null -> {
             val button = activeButton.button
-            add("§cSkysoft Position Editor")
-            add("§bInventory Button")
             add("§7Command: §e${button.command.takeIf { it.isNotBlank() } ?: "empty"}")
             add("§7Scale: §e${"%.2f".format(Locale.US, button.scale)}")
             add(inventoryButtonHoldKeyLine(button.requiredKey))
@@ -27,7 +25,6 @@ internal fun hudEditorTooltipLines(
         }
 
         active == null -> {
-            add("§cSkysoft Position Editor")
             add("§7Hover a HUD element or inventory button to move it.")
             add("§eDouble-click §7to select")
             add("§eLeft-click drag §7to move")
@@ -35,8 +32,6 @@ internal fun hudEditorTooltipLines(
         }
 
         else -> {
-            add("§cSkysoft Position Editor")
-            add("§b${active.label}")
             val details = active.editorDetailsLines()
             if (details != null) {
                 addAll(details)
@@ -55,6 +50,13 @@ internal fun hudEditorTooltipLines(
         }
     }
     addAll(editorGlobalTooltipLines(gridEnabled))
+}.let { lines ->
+    buildList {
+        add("§cSkysoft Position Editor")
+        val subject = if (activeButton != null) "Inventory Button" else active?.label
+        subject?.let { add("§b$it") }
+        addAll(lines.map { "§7$it" })
+    }
 }
 
 private fun defaultHudEditorActionLines(element: HudEditorElement): List<String> = buildList {

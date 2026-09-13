@@ -10,7 +10,7 @@ class OverlayPanelRenderable(private val child: GuiRenderable) : GuiRenderable {
     override val height: Int = child.height + OverlayPanelStyle.PADDING * 2
 
     override fun render(context: GuiGraphicsExtractor) {
-        OverlayPanelStyle.draw(context, 0, 0, width, height)
+        OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         child.renderAt(context, OverlayPanelStyle.PADDING, OverlayPanelStyle.PADDING)
     }
 }

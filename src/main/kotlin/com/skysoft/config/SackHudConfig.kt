@@ -81,7 +81,7 @@ class SackHudSettingsConfig {
     @field:ConfigOption(name = "Clear Tracked Items", desc = "Remove every item from the Sacks Tracker.")
     @field:ConfigEditorButton(buttonText = "Clear")
     val clearTrackedItems = Runnable {
-        val config = SkysoftConfigGui.config().inventory.sackHud
+        val config = SkysoftConfigGui.config().storageFeatures.sackHud
         if (config.trackedItems.isEmpty()) return@Runnable
         config.trackedItems.clear()
         SkysoftConfigGui.config().saveNow()

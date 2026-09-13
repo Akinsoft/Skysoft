@@ -117,7 +117,7 @@ internal object PriceTooltipRawCraftCosts {
 
     private fun isActive(): Boolean {
         if (!HypixelLocationState.inSkyBlock) return false
-        val config = SkysoftConfigGui.config().inventory.priceTooltips
+        val config = SkysoftConfigGui.config().items.priceTooltips
         return config.enabled && PriceTooltipLine.RAW_CRAFT_COST in config.settings.priceLines.get()
     }
 

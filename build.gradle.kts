@@ -131,6 +131,8 @@ configure(targetProjects) {
         add("compileOnly", "maven.modrinth:modmenu:$modMenuVersion")
         add("compileOnly", "maven.modrinth:skyblocker-liap:$skyblockerVersion")
         add("implementation", hypixelModApi)
+        add("implementation", "org.brotli:dec:0.1.2")
+        add("include", "org.brotli:dec:0.1.2")
         add("runtimeOnly", hypixelModApiFabric)
         add("detektPlugins", "dev.detekt:detekt-rules-ktlint-wrapper:$detektVersion")
         add("detektPlugins", project(":detekt-rules"))

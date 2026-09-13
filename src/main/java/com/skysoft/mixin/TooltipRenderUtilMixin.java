@@ -33,7 +33,7 @@ public class TooltipRenderUtilMixin {
         Operation<Void> original
     ) {
         RenderPipeline backgroundPipeline = MixinErrorBoundary.value("Solid tooltip background", pipeline,
-            () -> SkysoftConfigGui.INSTANCE.config().inventory.isTooltipBackgroundSolid
+            () -> SkysoftConfigGui.INSTANCE.config().inventory.tooltips.isTooltipBackgroundSolid
                 ? RenderPipelines.GUI_OPAQUE_TEXTURED_BACKGROUND
                 : pipeline);
         original.call(graphics, backgroundPipeline, sprite, x, y, width, height);

@@ -273,7 +273,7 @@ internal class ItemListRecipeView(
             PixelButtonRenderer.draw(context, font, button, "+", false, isHovered, true)
             if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eQuick Craft"), mouseX, mouseY)
         }
-        if (SkysoftConfigGui.config().inventory.craftingHelper.enabled) {
+        if (SkysoftConfigGui.config().items.craftingHelper.enabled) {
             val button = itemListCraftingHelperButtonBounds(crafting.result)
             craftingHelperBounds += button to recipe.result.id
             val isHovered = button.contains(mouseX, mouseY)
@@ -406,7 +406,7 @@ internal class ItemListRecipeView(
 
     fun navigateIngredient(mouseX: Int, mouseY: Int, canQuickCraft: Boolean = false): ViewerInputResult {
         val craftingHelperTarget = craftingHelperBounds.firstOrNull { it.first.contains(mouseX, mouseY) }?.second
-        if (canQuickCraft && SkysoftConfigGui.config().inventory.craftingHelper.enabled && craftingHelperTarget != null) {
+        if (canQuickCraft && SkysoftConfigGui.config().items.craftingHelper.enabled && craftingHelperTarget != null) {
             addCraftingHelperTarget(craftingHelperTarget)
             return ViewerInputResult.HANDLED
         }

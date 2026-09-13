@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.math.abs
 
 internal object KeepTerrainLoaded {
-    private val config get() = SkysoftConfigGui.config().misc.keepTerrainLoaded
+    private val config get() = SkysoftConfigGui.config().world.keepTerrainLoaded
     private val retainedChunks = linkedSetOf<ChunkPos>()
     private val loadingChunks = mutableSetOf<LoadingChunk>()
     private val pendingSaves = linkedMapOf<LoadingChunk, PendingSave>()

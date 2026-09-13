@@ -16,7 +16,7 @@ object AbsorptionHeartLayout {
         }
 
     private fun absorptionSlotPoints(player: Player?): Int {
-        if (!SkysoftConfigGui.config().gui.areAbsorptionHeartsMerged || player == null) return 0
+        if (!SkysoftConfigGui.config().gui.vanillaUi.areAbsorptionHeartsMerged || player == null) return 0
         val absorptionPoints = kotlin.math.ceil(player.absorptionAmount).toInt()
         return ((absorptionPoints + 1) / 2) * 2
     }

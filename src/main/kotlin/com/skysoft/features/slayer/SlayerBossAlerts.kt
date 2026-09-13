@@ -18,7 +18,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 
 object SlayerBossAlerts {
-    private val config get() = SkysoftConfigGui.config().slayer.bossAlerts
+    private val config get() = SkysoftConfigGui.config().slayer.alerts.bossAlerts
 
     fun register() {
         ChatEvents.onVisibleMessage(

@@ -9,6 +9,7 @@ import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundSetScorePacket;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -41,6 +42,7 @@ public class ScoreboardPacketMixin {
         MixinErrorBoundary.run("Tab list player team packet", MixinFeatureAdapters::markTabListDirty);
     }
 
+    @Unique
     private static void markDirty() {
         MixinErrorBoundary.run("Sidebar scoreboard packet", MixinFeatureAdapters::markSidebarScoreboardDirty);
     }

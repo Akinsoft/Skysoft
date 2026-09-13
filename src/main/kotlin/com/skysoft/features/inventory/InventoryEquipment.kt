@@ -47,7 +47,7 @@ object InventoryEquipment {
 }
 
 internal val inventoryEquipmentConfig
-    get() = SkysoftConfigGui.config().inventory.inventoryEquipment
+    get() = SkysoftConfigGui.config().inventory.equipment.inventoryEquipment
 
 internal fun isInventoryEquipmentAvailable(): Boolean =
     inventoryEquipmentConfig.enabled && HypixelLocationState.inSkyBlock

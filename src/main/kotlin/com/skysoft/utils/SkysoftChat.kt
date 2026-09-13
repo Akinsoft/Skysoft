@@ -15,8 +15,8 @@ import net.minecraft.network.chat.TextColor
 
 object SkysoftChat {
     internal const val BRAND_BLUE = 0x2BB1FB
-    private const val PREFIX_LEFT = 0x1A87C4
-    private const val PREFIX_RIGHT = BRAND_BLUE
+    internal const val PREFIX_LEFT = 0x1A87C4
+    internal const val PREFIX_RIGHT = BRAND_BLUE
     internal const val MESSAGE_GRADIENT_START = 0xE8E8E8
     internal const val MESSAGE_GRADIENT_END = 0xFFFFFF
 
@@ -87,7 +87,7 @@ object SkysoftChat {
         return result
     }
 
-    private fun mix(start: Int, end: Int, progress: Float): Int {
+    internal fun mix(start: Int, end: Int, progress: Float): Int {
         val r = channel(start, end, RED_SHIFT, progress)
         val g = channel(start, end, GREEN_SHIFT, progress)
         val b = channel(start, end, BLUE_SHIFT, progress)

@@ -18,7 +18,7 @@ import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 
 object PartyDisplay {
-    private val config get() = SkysoftConfigGui.config().gui.partyDisplay
+    private val config get() = SkysoftConfigGui.config().gui.information.partyDisplay
     private val roster = PartyDisplayRoster()
     private var requestedParty: Set<UUID>? = null
     private var pendingPartyList: PendingPartyList? = null

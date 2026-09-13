@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.skysoft.config.ConfigCategoryLayoutMigration
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
@@ -70,7 +71,7 @@ internal data class NewSettingsSchema(
             val field = persistentOption.field
             val fieldIdentity = persistentFieldIdentity(field)
             val identity = if (fieldIdentity in repeatedIdentities) {
-                "$fieldIdentity@${persistentOption.fullPath}"
+                "$fieldIdentity@${ConfigCategoryLayoutMigration.originalPath(persistentOption.fullPath)}"
             } else {
                 fieldIdentity
             }
@@ -141,7 +142,7 @@ private fun persistentField(option: ProcessedOption): java.lang.reflect.Field? {
 }
 
 private fun persistentFieldIdentity(field: java.lang.reflect.Field): String =
-    "${field.declaringClass.name}#${field.name}"
+    ConfigCategoryLayoutMigration.originalFieldIdentity(field)
 
 private fun fullOptionPath(
     option: ProcessedOption,

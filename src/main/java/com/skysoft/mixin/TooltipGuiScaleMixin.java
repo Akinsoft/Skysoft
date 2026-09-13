@@ -26,8 +26,8 @@ public class TooltipGuiScaleMixin {
     }
 
     @WrapOperation(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;positionTooltip(IIIIII)Lorg/joml/Vector2ic;"))
-    protected Vector2ic skysoftPositionScrollableTooltip(ClientTooltipPositioner positioner, int screenWidth, int screenHeight, int x, int y, int tooltipWidth, int tooltipHeight, Operation<Vector2ic> original, @Local(argsOnly = true) Font font, @Local(argsOnly = true) List<ClientTooltipComponent> tooltip) {
-        ClientTooltipPositioner scrolling = MixinErrorBoundary.value("Scrollable tooltip positioning", positioner, () -> TooltipViewport.decorate(font, tooltip, x, y, positioner));
+    protected Vector2ic skysoftPositionScrollableTooltip(ClientTooltipPositioner positioner, int screenWidth, int screenHeight, int x, int y, int tooltipWidth, int tooltipHeight, Operation<Vector2ic> original, @Local(argsOnly = true) List<ClientTooltipComponent> tooltip) {
+        ClientTooltipPositioner scrolling = MixinErrorBoundary.value("Scrollable tooltip positioning", positioner, () -> TooltipViewport.decorate(tooltip, x, y, positioner));
         Vector2ic result = original.call(scrolling, screenWidth, screenHeight, x, y, tooltipWidth, tooltipHeight);
         AdjacentTooltipRenderer.INSTANCE.captureMainFrame((GuiGraphicsExtractor) (Object) this, result, tooltipWidth);
         return result;

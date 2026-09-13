@@ -13,7 +13,7 @@ object HeldItemTextureOverrides {
     @JvmStatic
     fun renderStack(itemStack: ItemStack): ItemStack {
         if (!HeldItemCustomization.isEligible(itemStack)) return itemStack
-        val config = SkysoftConfigGui.config().gui.heldItem
+        val config = SkysoftConfigGui.config().world.heldItem
         if (!config.enabled || (!config.usesVanillaTexture(null) && config.itemTextureModes.isEmpty())) return itemStack
         return vanillaStackIfConfigured(itemStack)
     }
@@ -30,7 +30,7 @@ object HeldItemTextureOverrides {
     fun usesVanillaTexture(itemStack: ItemStack): Boolean {
         if (!canUseVanillaTexture(itemStack)) return false
         HeldItemEditorScreen.previewUsesVanillaTexture(itemStack)?.let { return it }
-        return SkysoftConfigGui.config().gui.heldItem.usesVanillaTexture(HeldItemTransforms.itemId(itemStack))
+        return SkysoftConfigGui.config().world.heldItem.usesVanillaTexture(HeldItemTransforms.itemId(itemStack))
     }
 
     fun canUseVanillaTexture(itemStack: ItemStack): Boolean =

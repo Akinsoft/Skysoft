@@ -363,7 +363,7 @@ internal fun handleStorageOverlayMouseScroll(
     }
     if (!measurements.scrollPanel.contains(mouseX.toInt(), mouseY.toInt())) return InputHandlingResult.IGNORED
     moveStorageScrollTarget(
-        -(scrollY * config.details.scrollSpeed),
+        -(scrollY * config.settings.scrollSpeed),
         maxScroll(measurements, layoutState.pageLayoutResult.contentHeight),
     )
     return InputHandlingResult.CONSUMED

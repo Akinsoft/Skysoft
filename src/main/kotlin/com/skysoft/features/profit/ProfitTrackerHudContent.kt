@@ -11,12 +11,14 @@ internal class ProfitTrackerHudContent(private val hudControls: ProfitTrackerHud
     private var profitRenderableTick = Long.MIN_VALUE
     private val profitRenderables = mutableMapOf<ProfitTrackerTarget, ProfitTrackerRenderable>()
     private val inventoryProfitRenderables = mutableMapOf<ProfitTrackerTarget, ProfitTrackerRenderable>()
+    private val profitWidths = mutableMapOf<ProfitTrackerWidthKey, ProfitTrackerWidthState>()
 
     fun clear() {
         itemScrollOffsets.clear()
         profitRenderableTick = Long.MIN_VALUE
         profitRenderables.clear()
         inventoryProfitRenderables.clear()
+        profitWidths.clear()
     }
 
     fun build(target: ProfitTrackerTarget, inventoryOpen: Boolean): ProfitTrackerRenderable {
@@ -25,6 +27,7 @@ internal class ProfitTrackerHudContent(private val hudControls: ProfitTrackerHud
             profitRenderableTick = tick
             profitRenderables.clear()
             inventoryProfitRenderables.clear()
+            profitWidths.keys.removeAll { !it.target.isAvailable }
         }
         val cache = if (inventoryOpen) inventoryProfitRenderables else profitRenderables
         return cache.getOrPut(target) {
@@ -46,6 +49,7 @@ internal class ProfitTrackerHudContent(private val hudControls: ProfitTrackerHud
                 config = config,
                 background = config.details.showBackground,
                 hudControls = hudControls,
+                widthState = profitWidths.getOrPut(ProfitTrackerWidthKey(target, inventoryOpen), ::ProfitTrackerWidthState),
             )
         }
     }
@@ -68,6 +72,30 @@ private data class ItemScrollKey(
     val period: ProfitTrackingPeriod,
 )
 
+private data class ProfitTrackerWidthKey(
+    val target: ProfitTrackerTarget,
+    val inventoryOpen: Boolean,
+)
+
+internal class ProfitTrackerWidthState {
+    private var width = 0
+    private var pendingWidth = 0
+    private var pendingSince = 0L
+
+    fun update(targetWidth: Int, nowNanos: Long = System.nanoTime()): Int {
+        if (targetWidth >= width) {
+            width = targetWidth
+            pendingWidth = targetWidth
+        } else if (targetWidth != pendingWidth) {
+            pendingWidth = targetWidth
+            pendingSince = nowNanos
+        } else if (nowNanos - pendingSince >= WIDTH_SHRINK_DELAY_NANOS) {
+            width = targetWidth
+        }
+        return width
+    }
+}
+
 private fun profitDisplayItems(
     target: ProfitTrackerTarget,
     stats: ProfileStorageView.ProfitTrackerStats,
@@ -87,3 +115,4 @@ private fun profitDisplayItems(
 }
 
 private const val MAXIMUM_ITEMS = 15
+private const val WIDTH_SHRINK_DELAY_NANOS = 2_000_000_000L

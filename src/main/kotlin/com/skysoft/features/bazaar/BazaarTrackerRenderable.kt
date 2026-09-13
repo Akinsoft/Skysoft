@@ -56,7 +56,7 @@ internal class BazaarTrackerRenderable(
 
     fun render(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): OverlayControlArea<TrackerControl>? {
         if (background) {
-            OverlayPanelStyle.draw(context, 0, 0, width, height)
+            OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         }
         var hovered: OverlayControlArea<TrackerControl>? = null
         var y = padding

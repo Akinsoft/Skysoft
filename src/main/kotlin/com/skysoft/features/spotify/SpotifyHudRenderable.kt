@@ -254,7 +254,7 @@ internal class SpotifyHudRenderable(
             y + PANEL_BORDER,
             DISPLAY_WIDTH - PANEL_BORDER,
             y + panelHeight - PANEL_BORDER,
-            OverlayPanelStyle.BACKGROUND.withScaledAlpha(alpha),
+            OverlayPanelStyle.hudBackgroundColor.withScaledAlpha(alpha),
             roundedCorners,
         )
     }

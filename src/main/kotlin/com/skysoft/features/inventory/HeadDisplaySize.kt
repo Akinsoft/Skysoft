@@ -9,7 +9,7 @@ object HeadDisplaySize {
     @JvmStatic
     fun scalePose(pose: Matrix3x2f, stack: ItemStack, x: Int, y: Int): Matrix3x2f {
         if (stack.item != Items.PLAYER_HEAD) return pose
-        val config = SkysoftConfigGui.config().inventory.headDisplaySize
+        val config = SkysoftConfigGui.config().inventory.appearance.headDisplaySize
         if (!config.enabled) return pose
         val scale = config.details.size / PERCENT_SCALE
         return pose.translate(x + ITEM_CENTER, y + ITEM_CENTER)

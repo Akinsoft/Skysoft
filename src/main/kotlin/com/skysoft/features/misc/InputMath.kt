@@ -8,7 +8,7 @@ import java.math.RoundingMode
 object InputMath {
     @JvmStatic
     fun compile(lines: Array<String>): String? {
-        if (!SkysoftConfigGui.config().misc.inputMath ||
+        if (!SkysoftConfigGui.config().inventory.controls.inputMath ||
             !HypixelLocationState.inSkyBlock ||
             !isNumberInput(lines)
         ) {

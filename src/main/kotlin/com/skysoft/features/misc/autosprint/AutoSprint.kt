@@ -49,5 +49,5 @@ object AutoSprint {
     internal fun markConditionsChanged() = conditions.markChanged()
 
     private val config
-        get() = SkysoftConfigGui.config().misc.autoSprint
+        get() = SkysoftConfigGui.config().utilities.autoSprint
 }

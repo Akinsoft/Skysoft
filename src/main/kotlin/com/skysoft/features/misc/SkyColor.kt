@@ -8,7 +8,7 @@ import net.minecraft.world.level.material.FogType
 import org.joml.Vector4f
 
 object SkyColor {
-    private val config get() = SkysoftConfigGui.config().misc.skyColor
+    private val config get() = SkysoftConfigGui.config().world.skyColor
 
     @JvmStatic
     fun skyColor(original: Int): Int {

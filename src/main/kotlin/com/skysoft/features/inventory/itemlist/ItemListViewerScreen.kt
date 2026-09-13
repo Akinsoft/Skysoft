@@ -113,7 +113,7 @@ internal class ItemListViewerScreen(
             onClose()
             return true
         }
-        itemListShortcutMode(event.key(), SkysoftConfigGui.config().inventory.itemList.settings)?.let {
+        itemListShortcutMode(event.key(), SkysoftConfigGui.config().items.itemList.settings)?.let {
             selection.changeMode(it)
             return true
         }
