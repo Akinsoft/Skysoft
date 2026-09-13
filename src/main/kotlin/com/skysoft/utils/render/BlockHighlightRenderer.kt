@@ -5,8 +5,14 @@ import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.utils.WorldVec
 import net.minecraft.world.phys.shapes.VoxelShape
 import java.awt.Color
+import kotlin.math.roundToInt
 
 object BlockHighlightRenderer {
+    fun drawOverlay(context: SkysoftRenderContext, block: WorldVec, shape: VoxelShape, color: Color) {
+        val fill = Color(color.red, color.green, color.blue, (color.alpha * OVERLAY_FILL_ALPHA_SCALE).roundToInt())
+        drawShape(context, block, shape, color, fill, lineWidth = DEFAULT_LINE_WIDTH, depth = true)
+    }
+
     fun drawBlock(
         context: SkysoftRenderContext,
         block: WorldVec,
@@ -135,6 +141,7 @@ object BlockHighlightRenderer {
         }
     }
 
+    private const val OVERLAY_FILL_ALPHA_SCALE = 0.2
     private const val DEFAULT_LINE_WIDTH = 3
     private const val DEFAULT_EXPAND = 0.02
 }

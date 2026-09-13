@@ -16,6 +16,12 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 class WorldFeatureConfig : ConfigRepairable {
     @JvmField
     @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:Category(name = "Waypoints", desc = "Save places and build routes for each SkyBlock island.")
+    val waypoints = WaypointsConfig()
+
+    @JvmField
+    @field:Expose
     @field:Category(name = "Held Item", desc = "Customize first-person held item visuals and swing duration.")
     val heldItem = HeldItemConfig()
 
@@ -68,6 +74,7 @@ class WorldFeatureConfig : ConfigRepairable {
     var keepSkyBlockResourcePack = false
 
     override fun repairLoadedValues() {
+        waypoints.repairLoadedValues()
         heldItem.repairLoadedValues()
         droppedItemScaling.repairLoadedValues()
         zoom.repairLoadedValues()

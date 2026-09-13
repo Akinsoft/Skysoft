@@ -14,6 +14,7 @@ import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.pets.ActivePetHighlighter
 import com.skysoft.features.ravengard.CrownValueOverlay
+import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -48,7 +49,10 @@ object ContainerRenderHooks {
     }
 
     @JvmStatic
-    fun renderContentsTail(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+    fun renderContentsTail(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, pointerX: Int, pointerY: Int) {
+        val covered = GuiOverlayRegistry.isScreenPointCovered(pointerX, pointerY)
+        val mouseX = if (covered) -1 else pointerX
+        val mouseY = if (covered) -1 else pointerY
         SkysoftErrorBoundary.run("Smooth Swapping rendering") {
             SmoothSwapping.render(screen, context)
         }
@@ -68,7 +72,8 @@ object ContainerRenderHooks {
     @JvmStatic
     fun renderEquipment(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         SkysoftErrorBoundary.run("Inventory Equipment rendering") {
-            InventoryEquipment.render(screen, context, mouseX, mouseY)
+            val covered = GuiOverlayRegistry.isScreenPointCovered(mouseX, mouseY)
+            InventoryEquipment.render(screen, context, if (covered) -1 else mouseX, if (covered) -1 else mouseY)
         }
     }
 

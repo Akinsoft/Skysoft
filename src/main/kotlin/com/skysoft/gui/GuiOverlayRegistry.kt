@@ -5,6 +5,7 @@ import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.withIsolatedPose
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -14,6 +15,7 @@ import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
+import net.minecraft.client.renderer.state.gui.GuiRenderState
 
 object GuiOverlayRegistry {
     private val overlays = mutableListOf<GuiOverlay>()
@@ -67,6 +69,33 @@ object GuiOverlayRegistry {
         } else {
             renderLayer(layer, context, overlayContext)
         }
+    }
+
+    @JvmStatic
+    fun isScreenPointCovered(mouseX: Int, mouseY: Int): Boolean {
+        val context = context()
+        return overlays.asReversed().any { overlay ->
+            overlay.layer == GuiOverlayLayer.ABOVE_SCREEN && overlay.coversScreenPoint != null &&
+                SkysoftErrorBoundary.value(overlay.errorBoundary, false) {
+                    overlay.isVisible(context) && overlay.coversScreenPoint.invoke(mouseX, mouseY)
+                }
+        }
+    }
+
+    @JvmStatic
+    fun isPointerCovered(): Boolean {
+        val mouse = InputUtilities.scaledMousePosition(Minecraft.getInstance())
+        val (x, y) = OverlayControlMouse.screenPoint(mouse.x, mouse.y)
+        return isScreenPointCovered(x, y)
+    }
+
+    @JvmStatic
+    fun extractAboveScreen(renderState: GuiRenderState) {
+        val minecraft = Minecraft.getInstance()
+        val mouse = InputUtilities.scaledMousePosition(minecraft)
+        val graphics = GuiGraphicsExtractor(minecraft, renderState, mouse.x, mouse.y)
+        renderLayer(GuiOverlayLayer.ABOVE_SCREEN, graphics)
+        graphics.extractDeferredElements(mouse.x, mouse.y, 0f)
     }
 
     private fun renderWorldLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor) {
@@ -148,6 +177,7 @@ data class GuiOverlay(
     val contexts: Set<GuiOverlayContextType>,
     val screenForegroundContexts: Set<GuiOverlayContextType> = emptySet(),
     val visible: (GuiOverlayContext) -> Boolean = { true },
+    val coversScreenPoint: ((Int, Int) -> Boolean)? = null,
     val render: (GuiGraphicsExtractor, GuiOverlayContext) -> Unit,
 ) {
     internal val errorBoundary = "GUI overlay $id"

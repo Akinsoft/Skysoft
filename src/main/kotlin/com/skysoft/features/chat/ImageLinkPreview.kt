@@ -60,7 +60,7 @@ object ImageLinkPreview {
     }
 
     fun updateHoveredLink(mouseX: Int, mouseY: Int, displayMode: ChatComponent.DisplayMode) {
-        if (!SkysoftConfigGui.config().chat.previewImage.enabled) {
+        if (!SkysoftConfigGui.config().chat.previewImage.enabled || GuiOverlayRegistry.isScreenPointCovered(mouseX, mouseY)) {
             if (candidate != null || !textures.isEmpty || textures.hasPending) clear()
             return
         }

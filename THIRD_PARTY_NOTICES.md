@@ -4,6 +4,19 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 
 ## Bundled
 
+### Brotli Decoder
+
+- Project: https://github.com/google/brotli
+- License: MIT License
+- Usage: Java decoder (`org.brotli:dec:0.1.2`) for Skytils V2 waypoint shares
+
+### Waypointer Protocol Data
+
+- Project: https://github.com/ethanrjs/waypointer
+- License: GNU General Public License v3.0 only (see `LICENSE-GPL-3.0`)
+- Usage: wire-format tables for V10 waypoint imports. Skysoft's reader is an independent implementation of the published format.
+- Protocol and data source: https://github.com/ethanrjs/waypointer/tree/ede82afa635dcfcfee79f4f250a41e0f4d552058
+
 ### MoulConfig
 
 - Project: https://github.com/akinsoft/MoulConfig

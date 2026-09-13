@@ -16,8 +16,6 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.shapes.CollisionContext
 import net.minecraft.world.phys.shapes.VoxelShape
-import java.awt.Color
-import kotlin.math.roundToInt
 
 object BlockOverlay {
     private var pendingTarget: BlockOverlayTarget? = null
@@ -84,29 +82,11 @@ object BlockOverlay {
     private fun renderWorld(context: SkysoftRenderContext) {
         val target = pendingTarget ?: return
         pendingTarget = null
-        val color = config.details.color.get().toColor()
-        val fillColor = Color(
-            color.red,
-            color.green,
-            color.blue,
-            (color.alpha * FILL_ALPHA_SCALE).roundToInt(),
-        )
-        BlockHighlightRenderer.drawShape(
-            context,
-            target.position.toWorldVec(),
-            target.shape,
-            color,
-            fillColor,
-            lineWidth = LINE_WIDTH,
-            depth = true,
-        )
+        BlockHighlightRenderer.drawOverlay(context, target.position.toWorldVec(), target.shape, config.details.color.get().toColor())
     }
 
     private val config
         get() = SkysoftConfigGui.config().world.blockOverlay
-
-    private const val FILL_ALPHA_SCALE = 0.2
-    private const val LINE_WIDTH = 3
 }
 
 enum class BlockOutlineSelection(val rendersVanilla: Boolean) {
