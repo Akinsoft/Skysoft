@@ -11,6 +11,12 @@ Skysoft uses selected implementation ideas and adapted code from SkyHanni. SkyHa
 - Project: https://github.com/hannibal002/SkyHanni
 - License: GNU Lesser General Public License v2.1 only
 
+## Waypoints
+
+Skysoft's waypoint system is inspired by Waypointer, created by babbur.
+
+- Project: https://github.com/ethanrjs/waypointer
+
 ## SkyblockOverhaul Diana Command Compatibility
 
 Thanks to Swift for giving Skysoft permission to follow SBO's Diana party-command style for compatibility.

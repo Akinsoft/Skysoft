@@ -15,6 +15,7 @@
     "AbstractRecipeBookScreenMixin",
     "BufferBuilderMixin",
     "ChatComponentMixin",
+    "ChatHoverMixin",
     "ChatComponentAccessor",
     "ChatScreenAccessor",
     "ChatScreenMixin",

@@ -1,5 +1,6 @@
 package com.skysoft.utils.gui
 
+import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -28,21 +29,28 @@ object PixelControlPanelRenderer {
 }
 
 object PixelSliderRenderer {
-    fun draw(context: GuiGraphicsExtractor, track: Rect, progress: Float, isHovered: Boolean) {
+    fun valueAt(pointerX: Int, track: Rect, range: IntRange, step: Int): Int {
+        if (range.first >= range.last) return range.first
+        val progress = ((pointerX - track.x).toDouble() / track.width.coerceAtLeast(1)).coerceIn(0.0, 1.0)
+        val raw = range.first + (range.last - range.first) * progress
+        return (raw / step).roundToInt().times(step).coerceIn(range)
+    }
+
+    fun draw(context: GuiGraphicsExtractor, track: Rect, progress: Float, isHovered: Boolean, opacity: Double = 1.0) {
         val fillWidth = (track.width * progress.coerceIn(0f, 1f)).roundToInt()
         context.fill(
             track.x,
             track.y,
             track.x + track.width,
             track.y + track.height,
-            PixelControlColors.SLIDER_TRACK,
+            PixelControlColors.SLIDER_TRACK.withScaledAlpha(opacity),
         )
         context.fill(
             track.x,
             track.y,
             track.x + fillWidth,
             track.y + track.height,
-            PixelControlColors.ACCENT,
+            PixelControlColors.ACCENT.withScaledAlpha(opacity),
         )
         val knobX = (track.x + fillWidth).coerceIn(track.x, track.x + track.width)
         context.fill(
@@ -50,7 +58,7 @@ object PixelSliderRenderer {
             track.y - KNOB_OVERHANG,
             knobX + KNOB_HALF_WIDTH,
             track.y + track.height + KNOB_OVERHANG,
-            if (isHovered) PixelControlColors.TEXT else PixelControlColors.SLIDER_KNOB,
+            (if (isHovered) PixelControlColors.TEXT else PixelControlColors.SLIDER_KNOB).withScaledAlpha(opacity),
         )
     }
 

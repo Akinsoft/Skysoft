@@ -34,7 +34,7 @@ internal fun rewriteWarpAlias(command: String, island: SkyBlockIsland?): String?
             return normalized.removePrefix("tp ").trim().takeIf(String::isNotEmpty)?.let { "plottp $it" }
         }
     }
-    if (normalized == "jerry" && island == SkyBlockIsland.PRIVATE_ISLANDS) return null
+    if (normalized == "jerry" && island == SkyBlockIsland.PRIVATE_ISLAND) return null
     return normalized.takeIf(WARP_ALIASES::contains)?.let { "warp $it" }
 }
 

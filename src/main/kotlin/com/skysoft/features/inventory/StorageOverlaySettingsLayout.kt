@@ -4,7 +4,6 @@ import com.skysoft.config.StorageOverlayConfigBounds
 import com.skysoft.config.StorageOverlayMode
 import com.skysoft.config.StorageOverlayTheme
 import com.skysoft.utils.gui.Rect
-import kotlin.math.roundToInt
 
 internal enum class StorageVisualSetting(val label: String, val isToggle: Boolean = false) {
     MODE("Mode", true),
@@ -202,13 +201,6 @@ internal data class StorageSettingsPanelLayout(
             )
         }
     }
-}
-
-internal fun storageSettingValueAt(pointerX: Int, track: Rect, range: IntRange, step: Int): Int {
-    if (range.first >= range.last) return range.first
-    val progress = ((pointerX - track.x).toDouble() / track.width.coerceAtLeast(1)).coerceIn(0.0, 1.0)
-    val raw = range.first + (range.last - range.first) * progress
-    return (raw / step).roundToInt().times(step).coerceIn(range)
 }
 
 internal fun maximumStorageColumns(screenWidth: Int, isModern: Boolean, pageSpacing: Int): Int {

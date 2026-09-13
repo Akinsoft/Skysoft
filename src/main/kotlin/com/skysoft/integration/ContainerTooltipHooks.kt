@@ -6,6 +6,7 @@ import com.skysoft.features.inventory.MinisterCalendarTooltip
 import com.skysoft.features.inventory.SlotBindingManager
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.ravengard.RavengardItemComparisonTooltip
+import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -17,6 +18,7 @@ object ContainerTooltipHooks {
     @JvmStatic
     fun shouldSuppressTooltip(screen: AbstractContainerScreen<*>): Boolean {
         AdjacentTooltipRenderer.clear()
+        if (GuiOverlayRegistry.isPointerCovered()) return true
         return SkysoftErrorBoundary.value("Slot Binding tooltip suppression", false) {
             SlotBindingManager.shouldSuppressRegularTooltips(screen)
         }

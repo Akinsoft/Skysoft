@@ -75,6 +75,11 @@ internal class FeatureConditionState {
     private var version = 0L
 
     fun startSession(combinations: List<FeatureConditionCombination>) {
+        combinations.flatMap { it.conditions }.filter { it.kind == FeatureConditionKind.ISLAND }.forEach { condition ->
+            val island = SkyBlockIsland.getByConditionValue(condition.value) ?: return@forEach
+            condition.value = island.name
+            condition.displayName = "On Island: ${island.displayName}"
+        }
         itemCatalogue.startSession(combinations)
     }
 

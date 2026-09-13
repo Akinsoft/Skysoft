@@ -12,6 +12,14 @@ data class Rect(val x: Int, val y: Int, val width: Int, val height: Int) {
             y < other.y + other.height &&
             y + height > other.y
 
+    fun intersection(other: Rect): Rect? {
+        val left = maxOf(x, other.x)
+        val top = maxOf(y, other.y)
+        val right = minOf(x + width, other.x + other.width)
+        val bottom = minOf(y + height, other.y + other.height)
+        return if (right > left && bottom > top) Rect(left, top, right - left, bottom - top) else null
+    }
+
     fun interpolateTo(target: Rect, progress: Double): Rect {
         val normalizedProgress = progress.coerceIn(0.0, 1.0)
         return Rect(

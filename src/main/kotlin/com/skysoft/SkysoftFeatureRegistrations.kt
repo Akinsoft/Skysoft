@@ -102,6 +102,7 @@ import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
 import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.Zoom
+import com.skysoft.features.waypoints.Waypoints
 import com.skysoft.features.misc.actionbar.ActionBarCustomizer
 import com.skysoft.features.misc.actionbar.SkillExpDisplay
 import com.skysoft.features.misc.autosprint.AutoSprint
@@ -146,6 +147,7 @@ import com.skysoft.utils.render.item.SkysoftItemRenderSupport
 internal object SkysoftFeatureRegistrations {
     fun registerAll() {
         registerDataAndInfrastructure()
+        register("Waypoints", Waypoints::register)
         registerInventoryFeatures()
         registerInterfaceFeatures()
         registerPetFeatures()
