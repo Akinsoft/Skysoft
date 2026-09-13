@@ -8,12 +8,12 @@ import net.minecraft.world.item.ItemStack
 
 object DroppedItemScaling {
     fun isActive(): Boolean =
-        SkysoftConfigGui.config().misc.droppedItemScaling.isEnabled && HypixelLocationState.inSkyBlock
+        SkysoftConfigGui.config().world.droppedItemScaling.isEnabled && HypixelLocationState.inSkyBlock
 
     fun scaleFor(stack: ItemStack): Float {
         if (!isActive()) return DEFAULT_SCALE
         val rarity = SkyBlockItemRarity.from(stack) ?: return DEFAULT_SCALE
-        return SkysoftConfigGui.config().misc.droppedItemScaling.settings.sizePercentFor(rarity) / PERCENT_SCALE
+        return SkysoftConfigGui.config().world.droppedItemScaling.settings.sizePercentFor(rarity) / PERCENT_SCALE
     }
 
     fun applyRenderScale(poseStack: PoseStack, scale: Float, modelMinY: Float) {

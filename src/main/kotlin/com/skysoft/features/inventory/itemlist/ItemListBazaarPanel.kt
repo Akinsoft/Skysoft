@@ -18,6 +18,7 @@ import com.skysoft.features.bazaar.bazaarRemoteAccess
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
+import com.skysoft.utils.NumberUtilities.romanNumeral
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
@@ -151,7 +152,7 @@ internal class ItemListBazaarPanel {
             }
             SkysoftNativeTooltip.setForNextFrame(context, listOf("§c$reason"), mouseX, mouseY)
         } else if (button.contains(mouseX, mouseY)) {
-            val name = SkyBlockDataRepository.entry(key)?.displayName ?: key.id
+            val name = bazaarSearchName(key)
             SkysoftNativeTooltip.setForNextFrame(context, listOf("§e/bz $name"), mouseX, mouseY)
         }
     }
@@ -161,10 +162,16 @@ internal class ItemListBazaarPanel {
         val access = bazaarRemoteAccess(HypixelLocationState.inSkyBlock, SkyBlockCookieBuffApi.status)
         if (!access.canOpen) return BazaarPanelClickResult.IGNORED
         val connection = Minecraft.getInstance().connection ?: return BazaarPanelClickResult.IGNORED
-        val itemName = SkyBlockDataRepository.entry(key)?.displayName ?: key.id.replace('_', ' ')
-        connection.sendCommand("bz $itemName")
+        connection.sendCommand("bz ${bazaarSearchName(key)}")
         MinecraftClient.setScreen(null)
         return BazaarPanelClickResult.OPENED
+    }
+
+    private fun bazaarSearchName(key: ItemListEntryKey): String {
+        val itemName = SkyBlockDataRepository.entry(key)?.displayName ?: key.id.replace('_', ' ')
+        if (!key.id.startsWith("ENCHANTMENT_")) return itemName
+        val tier = key.id.substringAfterLast('_').toInt().romanNumeral()
+        return "${itemName.substringBeforeLast(' ')} $tier"
     }
 
     private fun prepare(key: ItemListEntryKey) {
@@ -236,7 +243,7 @@ internal class ItemListBazaarPanel {
     }
 
     private fun selectedWindow(): BazaarGraphWindow =
-        SkysoftConfigGui.config().inventory.itemList.sources.graphWindow()
+        SkysoftConfigGui.config().items.itemList.sources.graphWindow()
 
     private fun openButton(bounds: Rect) = Rect(
         bounds.x + bounds.width - INSET - OPEN_WIDTH,

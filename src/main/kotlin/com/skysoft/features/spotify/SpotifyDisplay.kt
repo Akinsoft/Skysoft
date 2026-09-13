@@ -378,7 +378,7 @@ object SpotifyDisplay {
         )
     }
 
-    private fun config() = SkysoftConfigGui.config().gui.spotifyDisplay
+    private fun config() = SkysoftConfigGui.config().gui.information.spotifyDisplay
 
     private const val FADE_DURATION_MILLIS = 400L
     private const val LYRIC_TRANSITION_DURATION_MILLIS = 260L

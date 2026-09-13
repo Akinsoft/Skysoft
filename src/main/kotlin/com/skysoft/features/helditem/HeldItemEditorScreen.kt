@@ -56,7 +56,7 @@ object HeldItemEditorScreen {
 
     class EditorScreen(parent: Screen?) : SkysoftEditorScreen(Component.literal("Skysoft Held Item"), parent) {
         private val config: HeldItemConfig
-            get() = SkysoftConfigGui.config().gui.heldItem
+            get() = SkysoftConfigGui.config().world.heldItem
 
         private val editorState by lazy {
             HeldItemEditorState(

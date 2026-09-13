@@ -42,6 +42,7 @@ internal class ProfitTrackerRenderable(
     private val config: ProfitTrackerConfig,
     private val background: Boolean,
     private val hudControls: ProfitTrackerHudControls,
+    widthState: ProfitTrackerWidthState,
 ) : GuiRenderable {
     private val displayedItems = items.drop(scrollOffset).take(maximumItems)
     private val remainingItems = (items.size - scrollOffset - displayedItems.size).coerceAtLeast(0)
@@ -102,12 +103,13 @@ internal class ProfitTrackerRenderable(
     }
     private val lines = buildLines()
 
-    override val width: Int = maxOf(
+    private val contentWidth = maxOf(
         MINIMUM_WIDTH,
         lines.maxOfOrNull(ProfitLine::width) ?: 0,
         resetLine.width.takeIf { inventoryOpen } ?: 0,
         resetConfirmationLine.width.takeIf { inventoryOpen } ?: 0,
     ) + padding * 2
+    override val width: Int = widthState.update(contentWidth)
     override val height: Int = lines.sumOf(ProfitLine::height) +
         (if (inventoryOpen) resetLine.height else 0) + padding * 2
 
@@ -116,7 +118,7 @@ internal class ProfitTrackerRenderable(
     }
 
     fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): OverlayControlArea<ProfitTrackerControl>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         var y = padding
         var hovered: OverlayControlArea<ProfitTrackerControl>? = null
         lines.forEach { line ->

@@ -42,7 +42,7 @@ import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 
 object ItemListController {
-    private val config get() = SkysoftConfigGui.config().inventory.itemList
+    private val config get() = SkysoftConfigGui.config().items.itemList
     private val searchField = TextFieldState(maxLength = 128)
     private var hoveredKey: ItemListEntryKey? = null
     private var lastLayout: ItemListLayout? = null
@@ -290,7 +290,7 @@ object ItemListController {
     @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
         val isItemListVisible = isVisible(screen)
-        if (isItemListVisible && searchField.focused) {
+        if (isSearchFocused(screen)) {
             if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
                 itemListCompiledCalculation(searchField.text)?.let { result ->
                     searchField.text = result
@@ -337,9 +337,11 @@ object ItemListController {
         }
     }
 
+    fun isSearchFocused(screen: AbstractContainerScreen<*>): Boolean = isVisible(screen) && searchField.focused
+
     @JvmStatic
     fun handleCharTyped(screen: AbstractContainerScreen<*>, event: CharacterEvent): InputHandlingResult {
-        if (!isVisible(screen) || !searchField.focused || !event.isAllowedChatCharacter) return InputHandlingResult.IGNORED
+        if (!isSearchFocused(screen) || !event.isAllowedChatCharacter) return InputHandlingResult.IGNORED
         searchField.charTyped(event)
         updateSearch(searchField.text)
         return InputHandlingResult.CONSUMED
@@ -536,7 +538,7 @@ object ItemListController {
 }
 
 private fun isItemListActive(): Boolean =
-    SkysoftConfigGui.config().inventory.itemList.enabled || isItemListViewerOpen()
+    SkysoftConfigGui.config().items.itemList.enabled || isItemListViewerOpen()
 
 private fun isItemListViewerOpen(): Boolean = MinecraftClient.screen() is ItemListViewerScreen
 

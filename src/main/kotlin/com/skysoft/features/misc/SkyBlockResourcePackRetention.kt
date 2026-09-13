@@ -6,7 +6,7 @@ import java.net.URL
 
 object SkyBlockResourcePackRetention {
     @JvmStatic
-    fun isEnabled(): Boolean = SkysoftConfigGui.config().misc.keepSkyBlockResourcePack
+    fun isEnabled(): Boolean = SkysoftConfigGui.config().world.keepSkyBlockResourcePack
 
     @JvmStatic
     fun isOfficialPackUrl(url: URL): Boolean =

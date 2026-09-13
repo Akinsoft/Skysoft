@@ -11,6 +11,7 @@ import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorInfoText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigLink
@@ -87,6 +88,16 @@ internal class CustomProfitTrackerPage(
     val deletePending: Property<Boolean> = Property.of(false)
 
     @JvmField
+    @field:ConfigOption(
+        name = "Managing Items",
+        desc = "You can also manage all tracked items in the tracker display. Open your inventory and click " +
+            "... at the bottom-right of the tracker.",
+    )
+    @field:ConfigEditorInfoText
+    @field:ConfigOrder(5)
+    val itemInstructions: Unit = Unit
+
+    @JvmField
     @field:ConfigOption(name = "Enabled", desc = "Track profit at the configured locations.")
     @field:ConfigEditorBoolean
     @field:ConfigOrder(10)
@@ -100,6 +111,20 @@ internal class CustomProfitTrackerPage(
     @field:ConfigOrder(20)
     val name: Property<String> = Property.of(tracker.name).also { property ->
         property.addObserver { _, value -> tracker.name = value }
+    }
+
+    @JvmField
+    @field:ConfigOption(
+        name = "Tracked Items",
+        desc = "Click Add to search for items to track. Drag an item to the bin, or click the bin to choose items to remove.",
+    )
+    @field:ConfigEditorTrackerItems
+    @field:ConfigOrder(25)
+    val trackedItems: Property<MutableList<Int>> = Property.of<MutableList<Int>>(TrackerItemSelection(tracker.items)).also {
+        it.addObserver { _, _ ->
+            tracker.priceSources.keys.retainAll(tracker.items.toSet())
+            SkysoftConfigGui.config().saveNow()
+        }
     }
 
     @JvmField

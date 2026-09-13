@@ -1,5 +1,6 @@
 package com.skysoft.utils
 
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.world.scores.Objective
 import net.minecraft.world.scores.PlayerScoreEntry
 
@@ -9,6 +10,9 @@ object SidebarScoreboardState {
 
     internal val current: SidebarScoreboardSnapshot
         get() = publisher.state
+
+    val title: String
+        get() = publisher.state.title
 
     fun register() {
         publisher.register()
@@ -41,6 +45,7 @@ object SidebarScoreboardState {
 
 internal data class SidebarScoreboardSnapshot(
     val objective: Objective? = null,
+    val title: String = objective?.displayName?.cleanSkyBlockText().orEmpty(),
     val entries: List<PlayerScoreEntry> = emptyList(),
     val lines: List<String> = emptyList(),
 )

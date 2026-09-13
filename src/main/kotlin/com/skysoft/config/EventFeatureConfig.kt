@@ -25,6 +25,13 @@ class EventFeatureConfig : ConfigRepairable {
     @field:Category(name = "Diana", desc = "Diana Event Features")
     val diana = SkysoftDianaConfig()
 
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Minister in Calendar", desc = "Show the current minister and perk beside the mayor tooltip.")
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var isMinisterInCalendarShown = false
+
     override fun repairLoadedValues() {
         diana.repairLoadedValues()
     }
@@ -58,6 +65,12 @@ class SkysoftDianaConfig {
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(name = "Quick Warps", desc = "Suggest quick warps to get to burrows faster.")
+    @field:Accordion
+    val quickWarps = DianaQuickWarpsConfig()
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Rare Mob Sharing", desc = "Share and display selected rare mobs.")
     @field:Accordion
     val rareMobSharing = DianaRareMobSharingConfig()
@@ -85,12 +98,6 @@ class SkysoftDianaConfig {
     @field:ConfigOption(name = "Sphinx Helper", desc = "Highlight correct Sphinx answers.")
     @field:Accordion
     val sphinxHelper = DianaSphinxHelperConfig()
-
-    @JvmField
-    @field:Expose
-    @field:ConfigOption(name = "Quick Warps", desc = "Suggest quick warps to get to burrows faster.")
-    @field:Accordion
-    val quickWarps = DianaQuickWarpsConfig()
 
     fun isAnyFeatureEnabled(): Boolean =
         burrowHelper.enabled ||

@@ -184,7 +184,7 @@ private fun craftingHelperLineActionLines(line: CraftingHelperLine): List<String
             add("§eLeft-click §7to copy missing amount")
         }
     }
-    if (line.key != null && SkysoftConfigGui.config().inventory.itemList.enabled) {
+    if (line.key != null && SkysoftConfigGui.config().items.itemList.enabled) {
         add("§eRight-click §7to open Item List Info")
     }
 }

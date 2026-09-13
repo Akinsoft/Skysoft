@@ -44,12 +44,6 @@ class ChatFeatureConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    @field:ConfigGames(SKYBLOCK)
-    @field:Category(name = "Message Filtering", desc = "Hide selected game messages.")
-    val messageFiltering = MessageFilteringConfig()
-
-    @JvmField
-    @field:Expose
     @field:Category(name = "Chat Notify", desc = "Highlight chosen words and optionally play a ping.")
     val notify = ChatNotifyConfig()
 
@@ -83,15 +77,6 @@ class ChatFeatureConfig : ConfigRepairable {
         smoothChat.repairLoadedValues()
         history.repairLoadedValues()
         compacting.repairLoadedValues()
-    }
-
-    class MessageFilteringConfig {
-        @JvmField
-        @field:Expose
-        @field:ConfigOption(name = "Hide Sacks Messages", desc = "Hide item transfer summaries from Sacks.")
-        @field:MainFeatureToggle
-        @field:ConfigEditorBoolean
-        var hideSacksMessages = false
     }
 
     class ImagePreviewConfig {

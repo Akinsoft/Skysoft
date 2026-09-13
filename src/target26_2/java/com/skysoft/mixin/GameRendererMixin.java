@@ -9,7 +9,6 @@ import com.skysoft.gui.GuiOverlayRegistry;
 import com.skysoft.utils.MinecraftClient;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.state.GameRenderState;
@@ -68,14 +67,13 @@ public class GameRendererMixin {
         GuiRenderState aboveScreenRenderState = renderStates == null
             ? new GuiRenderState()
             : renderStates.overlays();
-        skysoftRenderAboveScreenState(defaultRenderState, aboveScreenRenderState, window, renderStates != null);
+        skysoftRenderAboveScreenState(defaultRenderState, aboveScreenRenderState, renderStates != null);
     }
 
     @Unique
     private void skysoftRenderAboveScreenState(
         GuiRenderState defaultRenderState,
         GuiRenderState aboveScreenRenderState,
-        Window window,
         boolean hasSeparatedInventory
     ) {
         boolean hasSkysoftOverlays = GuiOverlayRegistry.shouldRenderLayer(GuiOverlayLayer.ABOVE_SCREEN);
@@ -84,15 +82,7 @@ public class GameRendererMixin {
         }
 
         if (hasSkysoftOverlays) {
-            int mouseX = (int) minecraft.mouseHandler.getScaledXPos(window);
-            int mouseY = (int) minecraft.mouseHandler.getScaledYPos(window);
-            GuiGraphicsExtractor overlayGraphics = new GuiGraphicsExtractor(
-                minecraft,
-                aboveScreenRenderState,
-                mouseX,
-                mouseY
-            );
-            GuiOverlayRegistry.renderLayer(GuiOverlayLayer.ABOVE_SCREEN, overlayGraphics);
+            GuiOverlayRegistry.extractAboveScreen(aboveScreenRenderState);
         }
 
         try {

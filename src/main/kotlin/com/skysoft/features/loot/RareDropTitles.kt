@@ -13,7 +13,7 @@ import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 
 internal object RareDropTitles {
-    private val config get() = SkysoftConfigGui.config().misc.rareDropTitles
+    private val config get() = SkysoftConfigGui.config().loot.rareDropTitles
     private val minimumValue = RareLootThresholdReader("rare drop title minimum value")
 
     fun show(drop: RareLootDrop, value: RareLootValue?) {

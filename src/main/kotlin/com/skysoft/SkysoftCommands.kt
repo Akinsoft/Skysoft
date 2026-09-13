@@ -7,6 +7,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.discovery.NewSettingsDiscovery
 import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.helditem.HeldItemEditorScreen
+import com.skysoft.features.waypoints.WaypointPanel
 import com.skysoft.features.inventory.InventoryButtonEditorScreen
 import com.skysoft.features.inventory.InventoryButtonImportCommand
 import com.skysoft.features.inventory.ItemProtectionManager
@@ -33,6 +34,12 @@ internal object SkysoftCommands {
             child { InventoryButtonImportCommand.command(::openButtonEditor) }
             child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
             child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
+            child("waypoints") { name ->
+                literal(name).executes {
+                    DeferredScreenRequests.request("Waypoints Display", WaypointPanel::open)
+                    Command.SINGLE_SUCCESS
+                }
+            }
             child("customtrackers") { name -> literal(name).executes { openCustomTrackers() } }
             child("clearburrows") { name -> literal(name).executes { clearBurrows(it.source) } }
             child("mouselock", "ssmouselock") { name -> literal(name).executes { MouseLock.toggle(it.source) } }

@@ -82,7 +82,7 @@ class CraftingHelperSettingsConfig {
     @field:ConfigOption(name = "Clear Targets", desc = "Remove every Crafting Helper target.")
     @field:ConfigEditorButton(buttonText = "Clear")
     val clearTargets = Runnable {
-        val config = SkysoftConfigGui.config().inventory.craftingHelper
+        val config = SkysoftConfigGui.config().items.craftingHelper
         if (config.targets.isEmpty()) return@Runnable
         config.targets.clear()
         SkysoftConfigGui.config().saveNow()

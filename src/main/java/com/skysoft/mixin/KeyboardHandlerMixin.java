@@ -1,5 +1,6 @@
 package com.skysoft.mixin;
 
+import com.skysoft.features.waypoints.WaypointPanelInput;
 import com.skysoft.integration.ContainerInputHooks;
 import com.skysoft.utils.MinecraftClient;
 import com.skysoft.utils.input.InputUtilities;
@@ -22,6 +23,10 @@ public class KeyboardHandlerMixin {
 
     @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
     protected void skysoftTypeContainerOverlay(long window, CharacterEvent event, CallbackInfo ci) {
+        if (WaypointPanelInput.didType(event)) {
+            ci.cancel();
+            return;
+        }
         Screen current = MinecraftClient.INSTANCE.screen();
         if (current instanceof AbstractContainerScreen<?> screen && ContainerInputHooks.didConsumeCharacterInput(screen, event)) {
             ci.cancel();

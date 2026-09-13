@@ -52,7 +52,7 @@ internal object SkyBlockEnchantments {
                 },
             )
             providers[key] = {
-                val name = if (SkysoftConfigGui.config().inventory.itemList.sources.useRomanNumerals) {
+                val name = if (SkysoftConfigGui.config().items.itemList.sources.useRomanNumerals) {
                     enchantment.name
                 } else {
                     displayName

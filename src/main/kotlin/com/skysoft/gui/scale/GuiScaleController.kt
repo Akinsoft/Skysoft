@@ -183,7 +183,7 @@ class GuiScaleController private constructor() {
                 StorageOverlayController.isActive(screen as? AbstractContainerScreen<*>)
             }
 
-        private fun config(): InventoryScreenConfig = SkysoftConfigGui.config().gui.inventoryScreen
+        private fun config(): InventoryScreenConfig = SkysoftConfigGui.config().inventory.appearance.inventoryScreen
     }
 }
 

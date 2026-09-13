@@ -14,6 +14,7 @@ import com.skysoft.features.chat.ChatTabBounds;
 import com.skysoft.features.chat.ChatTabs;
 import com.skysoft.features.chat.CopyChatResult;
 import com.skysoft.features.chat.ImageLinkPreview;
+import com.skysoft.gui.GuiOverlayRegistry;
 import com.skysoft.utils.SoundUtilities;
 import com.skysoft.utils.animation.AnimationClock;
 import com.skysoft.utils.gui.PixelButtonTone;
@@ -71,6 +72,7 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     protected void skysoftCopyHoveredMessage(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (GuiOverlayRegistry.isScreenPointCovered(skysoftMouseX, skysoftMouseY)) return;
         boolean copied = MixinErrorBoundary.value("Chat Copy key input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED);
         if (copied) cir.setReturnValue(true);
     }
@@ -80,6 +82,7 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     protected void skysoftCopyHoveredMessageOnClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (GuiOverlayRegistry.isScreenPointCovered((int) click.x(), (int) click.y())) { cir.setReturnValue(true); return; }
         boolean trust = MixinErrorBoundary.value("Chat image trust input", false, () -> ImageLinkPreview.INSTANCE.processTrustClick(click.button()) == InputHandlingResult.CONSUMED);
         boolean copied = !trust && MixinErrorBoundary.value("Chat Copy mouse input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(click.button(), (int) click.x(), (int) click.y()) == CopyChatResult.COPIED);
         if (trust || copied) cir.setReturnValue(true);

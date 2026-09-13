@@ -13,6 +13,7 @@ import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.OverlayMessages
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.fillOverlayBackground
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -26,7 +27,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.util.ARGB
 
 object ActionBarCustomizer {
-    private val config get() = SkysoftConfigGui.config().gui.actionBar
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.actionBar
 
     fun register() {
         HudEditorRegistry.register(object : HudEditorElement {
@@ -125,7 +126,7 @@ object ActionBarCustomizer {
         alpha: Int,
     ) {
         val maxAlpha = config.details.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX
-        val color = BACKGROUND_RGB.withAlpha(min(maxAlpha, alpha))
+        val color = OverlayPanelStyle.hudBackgroundColor.withAlpha(min(maxAlpha, alpha))
         context.fillOverlayBackground(
             x,
             y,
@@ -197,7 +198,6 @@ private data class ActionBarLayout(
     val y: Int,
 )
 
-private const val BACKGROUND_RGB = 0x101010
 private const val X_PADDING = 4
 private const val Y_PADDING = 3
 private const val PERCENT_MAX = 100

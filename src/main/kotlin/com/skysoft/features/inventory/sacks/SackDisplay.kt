@@ -47,7 +47,7 @@ object SackDisplay {
     fun register() = registerSackDisplay()
 }
 
-private val config get() = SkysoftConfigGui.config().inventory.sackDisplay
+private val config get() = SkysoftConfigGui.config().storageFeatures.sackDisplay
 private var openSack: OpenSack? = null
 private var displayMode = SackDisplayMode.ITEM_QUANTITIES
 private var scrollOffset = 0
@@ -305,7 +305,7 @@ private class SackDisplayRenderable(
         mouseX: Int?,
         mouseY: Int?,
     ): OverlayControlArea<SackDisplayControl>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height)
+        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         var y = padding
         LegacyTextRenderer.draw(context, OverlayTextStyle.title(title), padding, y)
         y += OverlayTextStyle.TITLE_HEIGHT

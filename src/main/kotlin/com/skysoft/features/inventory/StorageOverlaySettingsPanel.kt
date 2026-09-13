@@ -226,7 +226,7 @@ private fun updateStorageSettingFromPointer(
     pointerX: Int,
 ) {
     setting.set(
-        storageSettingValueAt(
+        PixelSliderRenderer.valueAt(
             pointerX,
             layout.track(setting),
             setting.range(screen.width, screen.height, measurements),

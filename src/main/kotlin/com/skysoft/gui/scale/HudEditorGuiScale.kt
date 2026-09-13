@@ -53,7 +53,7 @@ internal class HudEditorGuiScale(private val hasInventoryScreen: Boolean) {
 
     private fun activeInventoryGuiScale(): Int {
         val minecraft = Minecraft.getInstance()
-        val inventoryConfig = SkysoftConfigGui.config().gui.inventoryScreen
+        val inventoryConfig = SkysoftConfigGui.config().inventory.appearance.inventoryScreen
         if (!hasInventoryScreen || !shouldUseConfiguredInventoryScale(
                 inventoryConfig.separateInventoryGuiScale,
                 inventoryConfig.settings.isInventoryGuiScaleStorageOnly,

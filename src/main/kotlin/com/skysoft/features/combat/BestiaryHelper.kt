@@ -342,7 +342,7 @@ private class BestiaryRenderable(
     }
 
     fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): LocalBestiaryControl? {
-        OverlayPanelStyle.draw(context, 0, 0, width, height)
+        OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
         var y = OverlayPanelStyle.PADDING
         LegacyTextRenderer.draw(context, title, OverlayPanelStyle.PADDING, y)
         y += OverlayTextStyle.TITLE_HEIGHT

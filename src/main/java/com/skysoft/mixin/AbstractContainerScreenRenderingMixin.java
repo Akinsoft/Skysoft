@@ -95,6 +95,10 @@ public abstract class AbstractContainerScreenRenderingMixin {
             slot
         )) return;
         ItemStack renderStack = ContainerItemRenderHooks.containerRenderStack(screen, slot, stack);
-        if (renderStack != null) original.call(context, font, renderStack, x, y, text);
+        if (renderStack != null) {
+            String keybind = ContainerItemRenderHooks.menuKeybindLabel(screen, slot);
+            original.call(context, font, renderStack, x, y, keybind == null ? text : "");
+            if (keybind != null) ContainerItemRenderHooks.renderMenuKeybind(context, font, keybind, x, y);
+        }
     }
 }

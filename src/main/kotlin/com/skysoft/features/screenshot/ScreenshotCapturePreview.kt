@@ -55,12 +55,12 @@ internal object ScreenshotCapturePreview {
     }
 
     fun present(path: Path) {
-        if (!SkysoftConfigGui.config().gui.screenshotManager.enabled) return
+        if (!SkysoftConfigGui.config().utilities.screenshotManager.enabled) return
         clear()
         imageRequest.replace(
             loadScaledScreenshotImage(path, MAXIMUM_TEXTURE_WIDTH, MAXIMUM_TEXTURE_HEIGHT),
         ) { image, failure ->
-            if (failure != null || image == null || !SkysoftConfigGui.config().gui.screenshotManager.enabled) {
+            if (failure != null || image == null || !SkysoftConfigGui.config().utilities.screenshotManager.enabled) {
                 image?.close()
             } else {
                 replacePresentation(path, image)
@@ -113,7 +113,7 @@ internal object ScreenshotCapturePreview {
     private fun render(context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
         val current = presentation ?: return
         val elapsedMillis = current.elapsedMillis()
-        if (!SkysoftConfigGui.config().gui.screenshotManager.enabled || elapsedMillis >= DISPLAY_MILLIS) {
+        if (!SkysoftConfigGui.config().utilities.screenshotManager.enabled || elapsedMillis >= DISPLAY_MILLIS) {
             clear()
             return
         }
@@ -245,7 +245,7 @@ internal object ScreenshotCapturePreview {
             path,
             texture,
             System.currentTimeMillis(),
-            isSimplePreview = SkysoftConfigGui.config().gui.screenshotManager.details.isSimplePreviewEnabled,
+            isSimplePreview = SkysoftConfigGui.config().utilities.screenshotManager.details.isSimplePreviewEnabled,
         )
     }
 

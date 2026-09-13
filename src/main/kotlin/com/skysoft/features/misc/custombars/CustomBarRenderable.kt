@@ -269,7 +269,7 @@ internal class CustomBarRenderable private constructor(
     }
 }
 
-private val config get() = SkysoftConfigGui.config().gui.customBars
+private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
 private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
 
 private fun net.minecraft.world.entity.player.Player.skyBlockSpeed(): Int =

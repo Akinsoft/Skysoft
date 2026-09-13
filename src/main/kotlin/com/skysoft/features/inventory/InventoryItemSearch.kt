@@ -52,7 +52,7 @@ internal object InventoryItemSearchIndex {
 
 internal object InventoryItemSearchHighlight {
     private val fillColor: Int
-        get() = SkysoftConfigGui.config().settings.searchHighlightColor.get().toColor().rgb
+        get() = SkysoftConfigGui.config().settings.configMenuAppearance.searchHighlightColor.get().toColor().rgb
     val outlineColor: Int
         get() = fillColor.withAlpha(255)
 

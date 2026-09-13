@@ -14,6 +14,23 @@ import org.lwjgl.glfw.GLFW
 class FarmingFeatureConfig {
     @JvmField
     @field:Expose
+    @field:Category(name = "Pests", desc = "Pest highlights, plot warps, and cooldown warnings.")
+    val pests = FarmingPestsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "Mouse Lock", desc = "Lock mouse movement and show its status.")
+    val mouseLock = MouseLockConfig()
+
+    @JvmField
+    @field:Expose
+    @field:Category(name = "No Crop Rotation", desc = "Remove coordinate-based visual variation from crops.")
+    val noCropRotation = NoCropRotationConfig()
+}
+
+class FarmingPestsConfig {
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Highlight Pests", desc = "Highlight visible Pests in the Garden.")
     @field:MainFeatureToggle
     @field:ConfigEditorBoolean
@@ -26,18 +43,8 @@ class FarmingFeatureConfig {
 
     @JvmField
     @field:Expose
-    @field:Category(name = "Mouse Lock", desc = "Lock mouse movement and show its status.")
-    val mouseLock = MouseLockConfig()
-
-    @JvmField
-    @field:Expose
     @field:Category(name = "Pest Cooldown Warning", desc = "Warn before Pests can spawn again.")
     val pestSpawnCooldownWarning = PestSpawnCooldownWarningConfig()
-
-    @JvmField
-    @field:Expose
-    @field:Category(name = "No Crop Rotation", desc = "Remove coordinate-based visual variation from crops.")
-    val noCropRotation = NoCropRotationConfig()
 }
 
 class PestHelperConfig {

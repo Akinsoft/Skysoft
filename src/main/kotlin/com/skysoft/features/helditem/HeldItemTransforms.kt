@@ -23,7 +23,7 @@ object HeldItemTransforms {
     @JvmStatic
     fun apply(itemStack: ItemStack, poseStack: PoseStack) {
         if (!HeldItemCustomization.isEligible(itemStack)) return
-        val config = SkysoftConfigGui.config().gui.heldItem
+        val config = SkysoftConfigGui.config().world.heldItem
         if (!config.enabled) return
         val transform = effectiveTransform(itemStack)
         if (!transform.hasRenderChanges()) return
@@ -52,11 +52,11 @@ object HeldItemTransforms {
     }
 
     fun effectiveTransform(itemId: String?): HeldItemTransformConfig =
-        SkysoftConfigGui.config().gui.heldItem.transformFor(itemId)
+        SkysoftConfigGui.config().world.heldItem.transformFor(itemId)
 
     fun effectiveTransform(itemStack: ItemStack): HeldItemTransformConfig {
         HeldItemEditorScreen.previewTransform(itemStack)?.let { return it }
-        val config = SkysoftConfigGui.config().gui.heldItem
+        val config = SkysoftConfigGui.config().world.heldItem
         return if (config.itemTransforms.isEmpty()) config.global else config.transformFor(itemId(itemStack))
     }
 

@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 23
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 26
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -65,6 +65,14 @@ internal object SkysoftConfigMigrations {
         migrateDianaParticleQualitySetup(json, migrationVersion)
         if (migrationVersion < MOUSE_LOCK_FARMING_CATEGORY_VERSION) migrateMouseLockIntoFarming(json)
         migrateHoneyhiveHelper(json, migrationVersion)
+        if (migrationVersion < STORAGE_OVERLAY_CATEGORY_VERSION) migrateStorageOverlayCategory(json)
+        if (migrationVersion < SETTINGS_APPEARANCE_ACCORDIONS_VERSION) {
+            json.getObjectOrNull("settings")?.moveFieldsInto(
+                "configMenuAppearance",
+                listOf("searchHighlightColor", "selectedCategoryColor", "categoryColor", "subcategoryColor"),
+            )
+        }
+        if (migrationVersion < CATEGORY_LAYOUT_VERSION) ConfigCategoryLayoutMigration.apply(json)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -400,6 +408,8 @@ internal object SkysoftConfigMigrations {
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
     private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 19
     private const val MOUSE_LOCK_FARMING_CATEGORY_VERSION = 21
+    private const val SETTINGS_APPEARANCE_ACCORDIONS_VERSION = 25
+    private const val CATEGORY_LAYOUT_VERSION = 26
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 
@@ -626,6 +636,17 @@ private fun migrateHoneyhiveHelper(json: JsonObject, migrationVersion: Int) {
 }
 
 private const val HONEYHIVE_HELPER_CATEGORY_VERSION = 23
+private const val STORAGE_OVERLAY_CATEGORY_VERSION = 24
+
+private fun migrateStorageOverlayCategory(json: JsonObject) {
+    val inventory = json.getObjectOrNull("inventory") ?: return
+    val overlay = inventory.getOrCreateObject("storageOverlay")
+    inventory.moveFieldInto(overlay, "isStorageOverlayEnabled", "enabled")
+    val settings = overlay.getOrCreateObject("settings")
+    val details = overlay.getOrCreateObject("details")
+    settings.moveFieldInto(details, "theme")
+    details.moveFieldInto(settings, "scrollSpeed")
+}
 
 private fun migratePriceTooltipCustomization(json: JsonObject) {
     val settingsJson = json.getObjectOrNull("inventory")

@@ -35,7 +35,7 @@ import net.minecraft.client.renderer.state.gui.GuiRenderState
 import net.minecraft.world.item.ItemStack
 
 object RarityHighlightRenderer {
-    private val skyBlockConfig get() = SkysoftConfigGui.config().inventory.rarityHighlight
+    private val skyBlockConfig get() = SkysoftConfigGui.config().inventory.appearance.rarityHighlight
     private val ravengardConfig get() = SkysoftConfigGui.config().ravengard.rarityHighlight
     private val contourColors = IdentityHashMap<GuiItemRenderState, Int>()
     private var pendingContourColor: Int? = null

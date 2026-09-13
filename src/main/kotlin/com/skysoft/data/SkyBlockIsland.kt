@@ -1,12 +1,14 @@
 package com.skysoft.data
 
+import com.google.gson.annotations.SerializedName
 import com.skysoft.data.hypixel.HypixelLocationState
 
 enum class SkyBlockIsland(
     val displayName: String,
     private vararg val apiNames: String,
 ) {
-    PRIVATE_ISLANDS("Private Islands", "dynamic"),
+    @SerializedName(value = "PRIVATE_ISLAND", alternate = ["PRIVATE_ISLANDS"])
+    PRIVATE_ISLAND("Private Island", "dynamic"),
     THE_END("The End", "combat_3"),
     KUUDRA("Kuudra", "kuudra"),
     DWARVEN_MINES("Dwarven Mines", "mining_3"),
@@ -46,18 +48,15 @@ enum class SkyBlockIsland(
         }
 
         fun getByConditionValue(value: String): SkyBlockIsland? = when (value) {
-            "PRIVATE_ISLAND", "PRIVATE_ISLAND_GUEST" -> PRIVATE_ISLANDS
+            "PRIVATE_ISLANDS" -> PRIVATE_ISLAND
+            "PRIVATE_ISLAND_GUEST", "GARDEN_GUEST" -> null
             "CATACOMBS" -> DUNGEONS
-            "GARDEN_GUEST" -> GARDEN
             "MINESHAFT" -> GLACITE_MINESHAFTS
             "DARK_AUCTION" -> null
             else -> runCatching { valueOf(value) }.getOrNull()
         }
 
         private fun String.legacyMapIsland(): SkyBlockIsland? = when {
-            equals("Private Island", ignoreCase = true) || equals("Private Island Guest", ignoreCase = true) ->
-                PRIVATE_ISLANDS
-            equals("Garden Guest", ignoreCase = true) -> GARDEN
             equals("Catacombs", ignoreCase = true) || startsWith("The Catacombs", ignoreCase = true) -> DUNGEONS
             equals("Mineshaft", ignoreCase = true) || equals("Glacite Mineshaft", ignoreCase = true) ->
                 GLACITE_MINESHAFTS

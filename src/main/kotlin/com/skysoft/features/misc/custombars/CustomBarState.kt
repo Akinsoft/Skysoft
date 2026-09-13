@@ -13,7 +13,7 @@ import net.minecraft.client.Minecraft
 import kotlin.math.ceil
 
 internal object CustomBarState {
-    private val config get() = SkysoftConfigGui.config().gui.customBars
+    private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
     private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
     var health: BarValue? = null
         private set

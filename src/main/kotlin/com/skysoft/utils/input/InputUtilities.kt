@@ -9,11 +9,14 @@ import org.lwjgl.glfw.GLFW
 
 object InputUtilities {
     private val bindingPressScreens = mutableMapOf<Int, Screen?>()
+    var isRepeatedBindingInput = false
+        private set
 
     @JvmStatic
     fun recordBindingInput(window: Long, binding: Int, action: Int) {
         val minecraft = Minecraft.getInstance()
         if (window != minecraft.window.handle()) return
+        isRepeatedBindingInput = action == GLFW.GLFW_REPEAT
         when (action) {
             GLFW.GLFW_PRESS -> bindingPressScreens[binding] = MinecraftClient.screen(minecraft)
             GLFW.GLFW_RELEASE -> bindingPressScreens.remove(binding)
@@ -49,12 +52,12 @@ object InputUtilities {
         )
     }
 
-    fun bindingName(binding: Int): String =
-        if (binding == GLFW.GLFW_KEY_UNKNOWN) {
-            "None"
-        } else {
-            InputConstants.Type.KEYSYM.getOrCreate(binding).displayName.string
-        }
+    fun bindingName(binding: Int): String = when (binding) {
+        GLFW.GLFW_KEY_UNKNOWN -> "None"
+        in GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST ->
+            InputConstants.Type.MOUSE.getOrCreate(binding).displayName.string
+        else -> InputConstants.Type.KEYSYM.getOrCreate(binding).displayName.string
+    }
 
     fun clipboardAscii(): String = Minecraft.getInstance().keyboardHandler.clipboard.filter { it.code in 32..126 }
 }

@@ -11,11 +11,11 @@ class LineBoxRenderer private constructor(
     private val lineWidth: Int,
     private val depth: Boolean,
 ) {
-    fun draw3DLine(p1: WorldVec, p2: WorldVec, color: Color) {
+    fun draw3DLine(p1: WorldVec, p2: WorldVec, color: Color, endColor: Color = color) {
         val layer = SkysoftRenderLayers.getLines(!depth)
         val normal = (p2 - p1).normalize()
         context.submitNodeCollector.submitCustomGeometry(context.matrices, layer) { matrix, buffer ->
-            addLine(buffer, matrix, p1, p2, normal, color)
+            addLine(buffer, matrix, p1, p2, normal, color, endColor)
         }
     }
 
@@ -37,6 +37,7 @@ class LineBoxRenderer private constructor(
         p2: WorldVec,
         normal: WorldVec,
         color: Color,
+        endColor: Color = color,
     ) {
         buffer.addVertex(matrix.pose(), p1.x.toFloat(), p1.y.toFloat(), p1.z.toFloat())
             .setNormal(matrix, normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
@@ -45,7 +46,7 @@ class LineBoxRenderer private constructor(
 
         buffer.addVertex(matrix.pose(), p2.x.toFloat(), p2.y.toFloat(), p2.z.toFloat())
             .setNormal(matrix, normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
-            .setColor(color.red, color.green, color.blue, color.alpha)
+            .setColor(endColor.red, endColor.green, endColor.blue, endColor.alpha)
             .setLineWidth(lineWidth.toFloat())
     }
 

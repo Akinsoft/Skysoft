@@ -11,14 +11,14 @@ object WarpAliases {
     fun registerSuggestions(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
         WARP_ALIASES.forEach { alias ->
             dispatcher.register(
-                literal(alias).requires { SkysoftConfigGui.config().misc.shortWarpCommands },
+                literal(alias).requires { SkysoftConfigGui.config().utilities.shortWarpCommands },
             )
         }
     }
 
     @JvmStatic
     fun rewrite(command: String): String =
-        if (SkysoftConfigGui.config().misc.shortWarpCommands && HypixelLocationState.inSkyBlock) {
+        if (SkysoftConfigGui.config().utilities.shortWarpCommands && HypixelLocationState.inSkyBlock) {
             rewriteWarpAlias(command, HypixelLocationState.currentIsland) ?: command
         } else {
             command
@@ -34,7 +34,7 @@ internal fun rewriteWarpAlias(command: String, island: SkyBlockIsland?): String?
             return normalized.removePrefix("tp ").trim().takeIf(String::isNotEmpty)?.let { "plottp $it" }
         }
     }
-    if (normalized == "jerry" && island == SkyBlockIsland.PRIVATE_ISLANDS) return null
+    if (normalized == "jerry" && island == SkyBlockIsland.PRIVATE_ISLAND) return null
     return normalized.takeIf(WARP_ALIASES::contains)?.let { "warp $it" }
 }
 

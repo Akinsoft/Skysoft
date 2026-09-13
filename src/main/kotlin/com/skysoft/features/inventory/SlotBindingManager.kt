@@ -31,7 +31,7 @@ import org.joml.Matrix3x2f
 
 internal fun registerSlotBindingStorage() {
     ProfileStorageApi.registerConsumer("Slot Bindings") {
-        SkysoftConfigGui.config().inventory.slotBindings.enabled
+        SkysoftConfigGui.config().inventory.controls.slotBindings.enabled
     }
 }
 
@@ -48,7 +48,7 @@ object SlotBindingManager {
     private const val WHITE_FILL = 0x50FFFFFF
     private const val WHITE_OUTLINE = 0xFFFFFFFF.toInt()
     private const val WHITE_LINE = 0xDDFFFFFF.toInt()
-    private val config get() = SkysoftConfigGui.config().inventory.slotBindings
+    private val config get() = SkysoftConfigGui.config().inventory.controls.slotBindings
     private val bindings get() = ProfileStorageApi.storage.slotBindings
 
     private var dragState: DragState? = null
