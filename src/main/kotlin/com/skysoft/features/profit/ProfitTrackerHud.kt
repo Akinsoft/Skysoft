@@ -266,7 +266,7 @@ private data class ProfitTrackerHoveredControl(
 )
 
 private fun ProfitTrackerControl?.usesItemPanel(): Boolean =
-    this == ProfitTrackerControl.More || this is ProfitTrackerControl.ManageItem
+    this == ProfitTrackerControl.More || this is ProfitTrackerControl.ManageItem || this == ProfitTrackerControl.ManageKernels
 
 private fun selectItemPanelTarget(target: ProfitTrackerTarget) {
     if (itemPanelTarget == target) return

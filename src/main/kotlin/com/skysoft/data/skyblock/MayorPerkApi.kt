@@ -20,6 +20,7 @@ object MayorPerkApi {
     private const val CHIVALROUS_CARNIVAL = "Chivalrous Carnival"
     private const val FISHING_FESTIVAL = "Fishing Festival"
     private const val MINING_FIESTA = "Mining Fiesta"
+    private const val GRAND_FEAST = "Grand Feast"
     private const val REFRESH_CHECK_INTERVAL_TICKS = 40
 
     private val gson = Gson()
@@ -37,6 +38,7 @@ object MayorPerkApi {
     val sharingIsCaringActive: Boolean get() = currentPerks.sharingIsCaringActive
     val petXpBuffActive: Boolean get() = currentPerks.petXpBuffActive
     val mythologicalRitualActive: Boolean get() = currentPerks.mythologicalRitualActive
+    val grandFeastActive: Boolean get() = currentPerks.grandFeastActive
     val mythologicalRitualEventKey: String? get() = currentPerks.mythologicalRitualEventKey
 
     fun register() {
@@ -83,6 +85,7 @@ object MayorPerkApi {
                         carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL),
                         fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL),
                         miningFiestaActive = response.hasPerk(MINING_FIESTA),
+                        grandFeastActive = response.hasPerk(GRAND_FEAST),
                         mythologicalRitualEventKey = response.mythologicalRitualEventKey(),
                     )
                     refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
@@ -182,6 +185,7 @@ internal data class MayorPerks(
     val carnivalActive: Boolean = false,
     val fishingFestivalActive: Boolean = false,
     val miningFiestaActive: Boolean = false,
+    val grandFeastActive: Boolean = false,
     val mythologicalRitualEventKey: String? = null,
 )
 

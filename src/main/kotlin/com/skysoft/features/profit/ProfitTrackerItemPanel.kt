@@ -32,6 +32,10 @@ internal sealed interface ProfitTrackerControl {
     data object CancelReset : ProfitTrackerControl
     data object ConfirmReset : ProfitTrackerControl
     data object More : ProfitTrackerControl
+    data object ManageKernels : ProfitTrackerControl
+    data object KernelItem : ProfitTrackerControl
+    data object KernelPriceSource : ProfitTrackerControl
+    data object KernelDiscount : ProfitTrackerControl
     data class PestBreakdown(val rows: List<SkysoftNativeTooltip.ItemRow>) : ProfitTrackerControl
     data class ManageItem(
         val itemId: String,
@@ -71,6 +75,10 @@ internal class ProfitTrackerItemPanel(
 
     fun toggleItem(itemId: String) {
         if (content == Content.Item(itemId) && !transition.isClosing) close() else openItem(itemId)
+    }
+
+    fun toggleKernels() {
+        if (content == Content.Kernels && !transition.isClosing) close() else open(Content.Kernels)
     }
 
     fun beginAddingItem() {
@@ -196,7 +204,8 @@ internal class ProfitTrackerItemPanel(
     private fun rows(content: Content, target: ProfitTrackerTarget): List<PanelRow> = when (content) {
         Content.Overview -> overviewRows(target)
         Content.AddItem, Content.ManageItem -> emptyList()
-        is Content.Item -> itemRows(target, content.itemId)
+        Content.Kernels -> kernelProfitRows()
+        is Content.Item -> itemRows(target, content.itemId, itemModifier)
     }
 
     private fun overviewRows(target: ProfitTrackerTarget): List<PanelRow> {
@@ -243,34 +252,78 @@ internal class ProfitTrackerItemPanel(
         }
     }
 
-    private fun itemRows(target: ProfitTrackerTarget, itemId: String): List<PanelRow> {
-        val override = ProfitTrackerItemCustomizations.priceSourceOverride(target, itemId)
-        val source = override?.toString() ?: "Tracker Default"
-        val sources = listOf("Tracker Default") + ProfitTrackerPriceSource.entries.map { it.toString() }
-        val presentation = trackedItemPresentation(itemId)
-        return listOf(
-            PanelRow(presentation.component, icon = presentation.stack),
-            PanelRow(
-                styledText("Price Source ", MUTED_COLOR).append(styledText("[$source]", PRICE_COLOR, bold = true)),
-                ProfitTrackerControl.ItemPriceSource(itemId),
-                OverlayControlTooltips.cycle("Item Price Source", sources, (override?.ordinal ?: -1) + 1),
-            ),
-            PanelRow(Component.empty(), quantityItemId = itemId, quantityModifier = itemModifier),
-            if (target.custom == null) {
-                PanelRow(styledText("Exclude", DANGER_COLOR), ProfitTrackerControl.ExcludeItem(itemId))
-            } else {
-                PanelRow(styledText("Remove", DANGER_COLOR), ProfitTrackerControl.RemoveCustomItem(itemId))
-            },
-        )
-    }
-
     private sealed interface Content {
         data object Overview : Content
         data object AddItem : Content
         data object ManageItem : Content
+        data object Kernels : Content
         data class Item(val itemId: String) : Content
     }
 
+}
+
+private fun itemRows(
+    target: ProfitTrackerTarget,
+    itemId: String,
+    itemModifier: TrackedItemQuantityModifier,
+): List<PanelRow> {
+    val override = ProfitTrackerItemCustomizations.priceSourceOverride(target, itemId)
+    val source = override?.toString() ?: "Tracker Default"
+    val sources = listOf("Tracker Default") + ProfitTrackerPriceSource.entries.map { it.toString() }
+    val presentation = trackedItemPresentation(itemId)
+    return listOf(
+        PanelRow(presentation.component, icon = presentation.stack),
+        PanelRow(
+            styledText("Price Source ", MUTED_COLOR).append(styledText("[$source]", PRICE_COLOR, bold = true)),
+            ProfitTrackerControl.ItemPriceSource(itemId),
+            OverlayControlTooltips.cycle("Item Price Source", sources, (override?.ordinal ?: -1) + 1),
+        ),
+        PanelRow(Component.empty(), quantityItemId = itemId, quantityModifier = itemModifier),
+        if (target.custom == null) {
+            PanelRow(styledText("Exclude", DANGER_COLOR), ProfitTrackerControl.ExcludeItem(itemId))
+        } else {
+            PanelRow(styledText("Remove", DANGER_COLOR), ProfitTrackerControl.RemoveCustomItem(itemId))
+        },
+    )
+}
+
+private fun kernelProfitRows(): List<PanelRow> {
+    val item = farmingKernelProfitItem
+    val source = farmingKernelProfitPriceSource
+    val discountEnabled = farmingKernelProfitDiscountEnabled
+    val sourceName = if (item.isBazaar) source.toString() else "Lowest BIN"
+    return listOf(
+        PanelRow(styledText("Kernel Profit", TITLE_COLOR, bold = true)),
+        PanelRow(
+            styledText("Item ", MUTED_COLOR).append(styledText("[$item]", PRICE_COLOR, bold = true)),
+            ProfitTrackerControl.KernelItem,
+            OverlayControlTooltips.cycle("Kernel Item", FarmingKernelProfitItem.entries.map { it.toString() }, item.ordinal),
+        ),
+        PanelRow(
+            styledText("Price Source ", MUTED_COLOR).append(styledText("[$sourceName]", PRICE_COLOR, bold = true)),
+            ProfitTrackerControl.KernelPriceSource.takeIf { item.isBazaar },
+            if (item.isBazaar) {
+                OverlayControlTooltips.cycle(
+                    "Kernel Price Source",
+                    FarmingKernelProfitPriceSource.entries.map { it.toString() },
+                    source.ordinal,
+                )
+            } else {
+                emptyList()
+            },
+        ),
+        PanelRow(
+            styledText("5% Discount ", MUTED_COLOR).append(
+                styledText(
+                    if (discountEnabled) "[On]" else "[Off]",
+                    if (discountEnabled) ACTION_COLOR else MUTED_COLOR,
+                    bold = true,
+                ),
+            ),
+            ProfitTrackerControl.KernelDiscount,
+            listOf("§7Apply the 5% discount to Kernel item costs."),
+        ),
+    )
 }
 
 internal data class PanelRow(

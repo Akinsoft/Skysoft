@@ -63,7 +63,7 @@ object ProfitTracker {
     fun register() {
         ProfileStorageApi.registerConsumer("Profit Tracker") { configs.isAnyEnabled() }
         SkyBlockDataRepository.Demand.register("Profit Tracker") { configs.isAnyEnabled() }
-        MayorPerkApi.registerConsumer("Profit Tracker") { configs.mythologicalRitual.enabled }
+        MayorPerkApi.registerConsumer("Profit Tracker") { configs.farming.enabled || configs.mythologicalRitual.enabled }
         itemTracking.register({ configs.isAnyEnabled() }, ::recordItemChanges)
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, state -> recordFarmingBlock(state.block) }
         SkyBlockCurrencyChanges.onChange("Profit Tracker currency changes", { configs.isAnyEnabled() }) { change ->
@@ -273,6 +273,12 @@ object ProfitTracker {
     }
 
     private fun recordImmediateMessage(preset: ProfitTrackerPreset, message: String) {
+        if (preset == ProfitTrackerPreset.FARMING && message == KERNEL_DONATION_MESSAGE) {
+            val target = ProfitTrackerTarget.preset(preset)
+            uptime.markActivity(target)
+            update(target) { stats -> stats.kernels++ }
+            return
+        }
         val activityDrop = when (preset) {
             ProfitTrackerPreset.FARMING -> parseFarmingChatDrop(message)
             ProfitTrackerPreset.FORAGING -> foragingTreeGiftParser.parse(message)
@@ -439,6 +445,8 @@ private const val ATTRIBUTION_GRACE_TICKS = 2
 private const val MILLIS_PER_SECOND = 1_000
 private const val MINIMUM_PAUSE_AFTER_SECONDS = 15
 private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
+private const val KERNEL_DONATION_MESSAGE =
+    "[NPC] Feast Chef Ted: Thanks for the donation! I've added a Kernel to your purse."
 
 private fun isFarmingCropBlock(block: Block): Boolean = when (block) {
     Blocks.WHEAT,

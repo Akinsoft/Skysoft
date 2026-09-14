@@ -6,6 +6,7 @@ import com.skysoft.config.ProfitTrackerQuantityPosition
 import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.ItemListEntryKind
+import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.features.slayer.formatSlayerKillTimeForHud
@@ -46,8 +47,18 @@ internal class ProfitTrackerRenderable(
     private val displayedItems = items.drop(scrollOffset).take(maximumItems)
     private val remainingItems = (items.size - scrollOffset - displayedItems.size).coerceAtLeast(0)
     private val hiddenItemsAbove = scrollOffset
-    private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins
-    private val hasUnknownPrices = items.any { it.value == null }
+    private val kernelProfit = if (target.preset == ProfitTrackerPreset.FARMING) {
+        farmingKernelProfit(
+            stats.kernels,
+            farmingKernelProfitItem,
+            farmingKernelProfitPriceSource.source ?: config.settings.priceSource,
+            farmingKernelProfitDiscountEnabled,
+        )
+    } else {
+        0.0
+    }
+    private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins + (kernelProfit ?: 0.0)
+    private val hasUnknownPrices = items.any { it.value == null } || kernelProfit == null
     private val profitLabel = when {
         stats.costs.keys.any { it != COIN_CURRENCY } -> "Coin Profit"
         hasUnknownPrices -> "Known Profit"
@@ -76,6 +87,17 @@ internal class ProfitTrackerRenderable(
     )
     private val pestBreakdownControl = if (inventoryOpen && target.preset == ProfitTrackerPreset.FARMING) {
         ProfitTrackerControl.PestBreakdown(pestBreakdownRows())
+    } else {
+        null
+    }
+    private val kernelProfitLine = if (
+        target.preset == ProfitTrackerPreset.FARMING && MayorPerkApi.grandFeastActive
+    ) {
+        ProfitLine(
+            "§7Kernel Profit",
+            kernelProfit?.let { "§6${it.coinFormat()}" } ?: "§8Unknown",
+            control = ProfitTrackerControl.ManageKernels.takeIf { inventoryOpen },
+        )
     } else {
         null
     }
@@ -231,6 +253,7 @@ internal class ProfitTrackerRenderable(
                 ProfitTrackerSummaryLine.COINS -> if (stats.coins > 0.0) {
                     add(ProfitLine("§7${target.coinLabel}", "§6${stats.coins.coinFormat()}"))
                 }
+                ProfitTrackerSummaryLine.KERNEL_PROFIT -> kernelProfitLine?.let(::add)
                 ProfitTrackerSummaryLine.QUEST_COSTS -> stats.costs.forEach { (currency, amount) ->
                     val value = if (currency == COIN_CURRENCY) amount.toDouble().coinFormat() else amount.addSeparators()
                     add(ProfitLine("§7Quest Costs", "§c-$value"))
@@ -319,6 +342,7 @@ internal class ProfitTrackerRenderable(
         -> listOf("§7Reset ${period.displayName} ${target.displayName} data.")
         ProfitTrackerControl.CancelReset -> emptyList()
         ProfitTrackerControl.More -> listOf("§7Manage tracked items.")
+        ProfitTrackerControl.ManageKernels -> listOf("§7Manage Kernel profit.")
         is ProfitTrackerControl.PestBreakdown -> listOf("§ePests Vacuumed", "§7No pests vacuumed yet.")
         is ProfitTrackerControl.ManageItem -> emptyList()
         else -> emptyList()
@@ -347,7 +371,8 @@ private data class ProfitLine(
         (right?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.VALUE_COLUMN_GAP } ?: 0)
 
     fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {
-        control is ProfitTrackerControl.ManageItem || control is ProfitTrackerControl.PestBreakdown ->
+        control is ProfitTrackerControl.ManageItem || control is ProfitTrackerControl.PestBreakdown ||
+            control == ProfitTrackerControl.ManageKernels ->
             totalWidth - padding * 2
         secondaryControl == null -> width
         else -> LegacyTextRenderer.width(left)

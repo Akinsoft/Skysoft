@@ -222,6 +222,9 @@ data class ProfileStorage(
         @Expose override val mythologicalRitualMayor: ProfitTrackerStats = ProfitTrackerStats(),
         @Expose override val displayPeriods: MutableMap<String, String> = mutableMapOf(),
         @Expose override val itemCustomizations: MutableMap<String, ProfitTrackerItemCustomizations> = mutableMapOf(),
+        @Expose override var farmingKernelItem: String = "",
+        @Expose override var farmingKernelPriceSource: String = "",
+        @Expose override var farmingKernelDiscountEnabled: Boolean = false,
         @Expose
         @SerializedName(value = "lastPreset", alternate = ["lastSlayerType"])
         override var lastPreset: String = "",
@@ -268,6 +271,7 @@ data class ProfileStorage(
         @Expose
         @SerializedName(value = "coins", alternate = ["mobKillCoins"])
         override var coins: Double = 0.0,
+        @Expose override var kernels: Long = 0L,
         @Expose override var activeMillis: Long = 0L,
         @Expose
         @SerializedName(value = "actions", alternate = ["bosses"])
@@ -279,6 +283,7 @@ data class ProfileStorage(
             costs.entries.removeIf { (currency, amount) -> currency.isBlank() || amount <= 0L }
             pestKills.entries.removeIf { (pest, amount) -> pest.isBlank() || amount <= 0L }
             if (!coins.isFinite() || coins < 0.0) coins = 0.0
+            if (kernels < 0L) kernels = 0L
             if (activeMillis < 0L) activeMillis = 0L
             if (actions < 0L) actions = 0L
         }
@@ -288,6 +293,7 @@ data class ProfileStorage(
             costs.clear()
             pestKills.clear()
             coins = 0.0
+            kernels = 0L
             activeMillis = 0L
             actions = 0L
         }
