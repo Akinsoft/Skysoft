@@ -50,6 +50,9 @@ interface ProfileStorageView {
         val mythologicalRitualMayor: ProfitTrackerStats
         val displayPeriods: Map<String, String>
         val itemCustomizations: Map<String, ProfitTrackerItemCustomizations>
+        val farmingKernelItem: String
+        val farmingKernelPriceSource: String
+        val farmingKernelDiscountEnabled: Boolean
         val lastPreset: String
     }
 
@@ -63,6 +66,7 @@ interface ProfileStorageView {
         val itemCounts: Map<String, Long>
         val costs: Map<String, Long>
         val coins: Double
+        val kernels: Long
         val activeMillis: Long
         val actions: Long
         val pestKills: Map<String, Long>
