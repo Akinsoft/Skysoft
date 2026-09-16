@@ -1,6 +1,8 @@
 package com.skysoft.features.pets
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.core.HudAnchor
+import com.skysoft.config.features.pets.display.PetOverlayConfig.GeneralPetOverlaySettingsConfig.HorizontalAnchor
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -20,8 +22,15 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
-private fun anchorPetPositionToTop(renderable: GuiRenderable) {
-    val position = SkysoftConfigGui.config().pets.display.general.position
+private fun anchorPetPosition(renderable: GuiRenderable) {
+    val config = SkysoftConfigGui.config().pets.display.general
+    val position = config.position
+    val horizontalAnchor = when (config.settings.horizontalAnchor.get()) {
+        HorizontalAnchor.LEFT -> HudAnchor.START
+        HorizontalAnchor.CENTER -> HudAnchor.CENTER
+        HorizontalAnchor.RIGHT -> HudAnchor.END
+    }
+    position.anchorHorizontally(horizontalAnchor, (renderable.width * position.effectiveScale).roundToInt())
     position.anchorToTop((renderable.height * position.effectiveScale).roundToInt())
 }
 
@@ -85,7 +94,7 @@ object ActivePetOverlay {
         buildDisplayRenderable(displayState)
             ?: renderer.build(xpAnimations.withAnimatedEquipped(previewPet), emptyList())
                 ?.withOverlayPanel(config.general.settings.background.get())
-        )?.also(::anchorPetPositionToTop)
+        )?.also(::anchorPetPosition)
 
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
@@ -97,7 +106,7 @@ object ActivePetOverlay {
         context.nextStratum()
         val renderable = currentDisplayRenderable
         renderable?.also {
-            anchorPetPositionToTop(it)
+            anchorPetPosition(it)
             config.general.position.renderRenderable(context, it)
         }
     }
