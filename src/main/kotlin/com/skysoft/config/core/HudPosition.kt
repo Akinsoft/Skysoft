@@ -80,6 +80,17 @@ class HudPosition @JvmOverloads constructor(
         setAxis(horizontal = false, absoluteY, screenHeight, objHeight, HudAnchor.START)
     }
 
+    internal fun anchorHorizontally(
+        anchor: HudAnchor,
+        objWidth: Int,
+        screenWidth: Int = Minecraft.getInstance().window.guiScaledWidth,
+    ) {
+        if (horizontalAnchor == anchor) return
+        val currentAnchor = effectiveAnchor(x, centerX, horizontalAnchor)
+        val absoluteX = calcAbs0(x, screenWidth, objWidth, currentAnchor, clampEnd = false)
+        setAxis(horizontal = true, absoluteX, screenWidth, objWidth, anchor)
+    }
+
     fun moveToAbsoluteAllowingOverflow(absX: Int, absY: Int, objWidth: Int, objHeight: Int): HudPosition =
         moveToAbsolute(absX, absY, objWidth, objHeight, clampEnd = false)
 
