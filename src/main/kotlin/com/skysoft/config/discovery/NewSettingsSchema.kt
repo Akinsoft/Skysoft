@@ -186,7 +186,7 @@ internal fun discoverySignature(field: java.lang.reflect.Field): String {
         .orEmpty()
     val enumChoices = enumChoices(field.genericType).sorted().joinToString(separator = ",")
     val signatureSource = listOf(
-        field.genericType.typeName,
+        field.genericType.typeName.replace(Config::class.java.packageName, ORIGINAL_MOULCONFIG_PACKAGE),
         editorNames(field).joinToString(separator = ","),
         dropdownChoices,
         enumChoices,
@@ -199,7 +199,7 @@ internal fun discoverySignature(field: java.lang.reflect.Field): String {
 private fun editorNames(field: java.lang.reflect.Field): List<String> =
     field.annotations
         .map { it.annotationClass.java }
-        .filter { it.packageName == MOULCONFIG_ANNOTATION_PACKAGE }
+        .filter { it.packageName == ConfigOption::class.java.packageName }
         .map(Class<*>::getSimpleName)
         .filter { it.startsWith(CONFIG_EDITOR_PREFIX) }
         .sorted()
@@ -217,7 +217,7 @@ private fun enumChoices(type: Type): Set<String> =
         else -> emptySet()
     }
 
-private const val MOULCONFIG_ANNOTATION_PACKAGE = "io.github.notenoughupdates.moulconfig.annotations"
+private val ORIGINAL_MOULCONFIG_PACKAGE = listOf("io", "github", "notenoughupdates", "moulconfig").joinToString(".")
 private const val CONFIG_EDITOR_PREFIX = "ConfigEditor"
 private val EXCLUDED_EDITOR_NAMES = setOf("ConfigEditorButton", "ConfigEditorInfoText")
 private const val SHA_256 = "SHA-256"
