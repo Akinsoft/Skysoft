@@ -93,9 +93,19 @@ class PetTextConfig {
         override val nameSkinSymbol: Property<Boolean> = Property.of(true)
 
         @Expose
-        @ConfigOption(name = "Next Level %", desc = "Show a percentage after your exp progress.\n§eNext Level must be enabled above.")
+        @ConfigOption(
+            name = "Show Overflow XP",
+            desc = "Show exact Pet XP for max-level pets instead of MAX LEVEL.\n" +
+                "§eRequires Pet XP under Enabled Text and overflow XP in Hypixel's Pet widget.",
+        )
         @ConfigEditorBoolean
         @ConfigOrder(50)
+        val showOverflowXp: Property<Boolean> = Property.of(false)
+
+        @Expose
+        @ConfigOption(name = "Next Level %", desc = "Show a percentage after your exp progress.\n§eNext Level must be enabled above.")
+        @ConfigEditorBoolean
+        @ConfigOrder(60)
         override val nextLevelPercent: Property<Boolean> = Property.of(true)
 
         @Expose
@@ -105,13 +115,13 @@ class PetTextConfig {
                 "§eFormatted: §72.2k/2.2k\n§eUnformatted: §72,240/2,200",
         )
         @ConfigEditorDropdown
-        @ConfigOrder(60)
+        @ConfigOrder(70)
         override val xpFormat: Property<NumberFormatEntry> = Property.of(NumberFormatEntry.DEFAULT)
 
         @Expose
         @ConfigOption(name = "Text Scale", desc = "How large equipped pet text should be.")
         @ConfigEditorSlider(minValue = 0.5f, maxValue = 2.0f, minStep = 0.05f)
-        @ConfigOrder(70)
+        @ConfigOrder(80)
         override val textScale: Property<Float> = Property.of(1.0f)
 
         @Expose
@@ -121,13 +131,13 @@ class PetTextConfig {
                 "§eOnly has any effect if one or more Visual Elements are enabled.",
         )
         @ConfigEditorDropdown
-        @ConfigOrder(80)
+        @ConfigOrder(90)
         override val textLocation: Property<TextLocationOption> = Property.of(TextLocationOption.RIGHT)
 
         @Expose
         @ConfigOption(name = "Center Target", desc = "What equipped pet text should center around.")
         @ConfigEditorDropdown
-        @ConfigOrder(90)
+        @ConfigOrder(100)
         val centerTarget: Property<CenterTarget> = Property.of(CenterTarget.ALL_PET_VISUALS)
 
         enum class CenterTarget(private val displayName: String) {
@@ -141,14 +151,14 @@ class PetTextConfig {
         @Expose
         @ConfigOption(name = "Vertical Alignment", desc = "How text elements will align vertically.")
         @ConfigEditorDropdown
-        @ConfigOrder(100)
+        @ConfigOrder(110)
         override val verticalAlign: Property<GuiAlignment.VerticalAlignment> =
             Property.of(GuiAlignment.VerticalAlignment.CENTER)
 
         @Expose
         @ConfigOption(name = "Horizontal Alignment", desc = "How text elements will align horizontally.")
         @ConfigEditorDropdown
-        @ConfigOrder(110)
+        @ConfigOrder(120)
         override val horizontalAlign: Property<GuiAlignment.HorizontalAlignment> =
             Property.of(GuiAlignment.HorizontalAlignment.LEFT)
     }
