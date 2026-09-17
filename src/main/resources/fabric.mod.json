@@ -19,6 +19,11 @@
       "minecraft_version": "${minecraftRaw}"
     }
   },
+  "jars": [
+    {
+      "file": "META-INF/jars/skysoft-softconfig-${moulconfigVersion}-mc${minecraftRaw}.jar"
+    }
+  ],
   "accessWidener": "skysoft.classtweaker",
   "mixins": [
     "skysoft.mixins.json",

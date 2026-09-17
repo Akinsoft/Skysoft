@@ -17,12 +17,12 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 - Usage: wire-format tables for V10 waypoint imports. Skysoft's reader is an independent implementation of the published format.
 - Protocol and data source: https://github.com/ethanrjs/waypointer/tree/ede82afa635dcfcfee79f4f250a41e0f4d552058
 
-### MoulConfig
+### SoftConfig
 
-- Project: https://github.com/akinsoft/MoulConfig
+- Project: https://github.com/Akinsoft/SoftConfig
 - Upstream: https://github.com/NotEnoughUpdates/MoulConfig
 - License: GNU Lesser General Public License v3.0 or later
-- Usage: modified fork included in release jars
+- Usage: bundled config library, relocated into Skysoft's private namespace to prevent conflicts with other mods
 
 ### SkyBlock API Repo Data
 

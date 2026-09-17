@@ -2,6 +2,7 @@ pluginManagement {
     val detektVersion = providers.gradleProperty("detekt.version").get()
     val kotlinVersion = providers.gradleProperty("kotlin.version").get()
     val loomVersion = providers.gradleProperty("loom.version").get()
+    val shadowVersion = providers.gradleProperty("shadow.version").get()
 
     repositories {
         mavenCentral()
@@ -11,6 +12,7 @@ pluginManagement {
     plugins {
         id("dev.detekt") version detektVersion
         id("net.fabricmc.fabric-loom") version loomVersion
+        id("com.gradleup.shadow") version shadowVersion
         kotlin("jvm") version kotlinVersion
     }
 }
