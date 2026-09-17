@@ -6,6 +6,7 @@ import com.skysoft.config.features.pets.display.PetOverlayConfig.GeneralPetOverl
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.features.pets.PetDisplayRenderer.Companion.ANIMATION_TICK_MILLIS
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
@@ -52,6 +53,14 @@ object ActivePetOverlay {
             exp = 25_353_230.0,
         )
     }
+    private val anchorPreviewPets: List<StoredPetData> by lazy {
+        listOf(
+            anchorPreviewPet("GOLDEN_DRAGON;4", 200),
+            anchorPreviewPet("PHOENIX;4", 100),
+            anchorPreviewPet("ENDER_DRAGON;4", 100),
+            anchorPreviewPet("BEE;4", 100),
+        )
+    }
 
     fun register() {
         SkyBlockDataRepository.Demand.register("Pet Features", PetFeatureDemand::isActive)
@@ -95,6 +104,33 @@ object ActivePetOverlay {
             ?: renderer.build(xpAnimations.withAnimatedEquipped(previewPet), emptyList())
                 ?.withOverlayPanel(config.general.settings.background.get())
         )?.also(::anchorPetPosition)
+
+    internal fun settingsPreview(): PetDisplayPreview? {
+        if (!config.general.settings.visualizeAnchor.get()) {
+            return previewRenderable()?.let(::PetDisplayPreview)
+        }
+        val renderables = anchorPreviewPets.mapNotNull { pet ->
+            renderer.build(pet, emptyList())
+                ?.withOverlayPanel(config.general.settings.background.get())
+        }
+        if (renderables.isEmpty()) return null
+        val renderable = renderables[
+            ((System.currentTimeMillis() / ANCHOR_PREVIEW_INTERVAL_MILLIS) % renderables.size).toInt()
+        ]
+        anchorPetPosition(renderable)
+        return PetDisplayPreview(
+            renderable = renderable,
+            width = renderables.maxOf(GuiRenderable::width),
+            height = renderables.maxOf(GuiRenderable::height),
+            horizontalAnchor = config.general.settings.horizontalAnchor.get(),
+        )
+    }
+
+    private fun anchorPreviewPet(internalName: String, level: Int): StoredPetData =
+        StoredPetData(
+            petInternalName = internalName,
+            exp = requireNotNull(PetRepository.levelToXp(level, internalName)),
+        )
 
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
@@ -190,6 +226,14 @@ object ActivePetOverlay {
     )
 
     private const val EXP_SHARE = "PET_ITEM_EXP_SHARE"
+    private const val ANCHOR_PREVIEW_INTERVAL_MILLIS = 2_000L
     private const val PREVIEW_WIDTH = 120
     private const val PREVIEW_HEIGHT = 40
 }
+
+internal data class PetDisplayPreview(
+    val renderable: GuiRenderable,
+    val width: Int = renderable.width,
+    val height: Int = renderable.height,
+    val horizontalAnchor: HorizontalAnchor? = null,
+)

@@ -73,6 +73,15 @@ class PetOverlayConfig : Config() {
         @field:ConfigEditorDropdown
         val horizontalAnchor: Property<HorizontalAnchor> = Property.of(HorizontalAnchor.CENTER)
 
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(
+            name = "Visualize Anchor",
+            desc = "Show the selected anchor as a red line while cycling differently sized pets in the preview.",
+        )
+        @field:ConfigEditorBoolean
+        val visualizeAnchor: Property<Boolean> = Property.of(false)
+
         enum class HorizontalAnchor(private val displayName: String) {
             LEFT("Left"),
             CENTER("Center"),

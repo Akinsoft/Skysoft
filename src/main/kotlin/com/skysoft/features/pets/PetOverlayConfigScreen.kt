@@ -4,8 +4,8 @@ import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SkysoftMoulConfigGuis
 import com.skysoft.config.features.pets.display.PetOverlayConfig
+import com.skysoft.config.features.pets.display.PetOverlayConfig.GeneralPetOverlaySettingsConfig.HorizontalAnchor
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.renderables.GuiRenderable
 import io.github.notenoughupdates.moulconfig.gui.GuiContext
 import io.github.notenoughupdates.moulconfig.gui.GuiElementComponent
 import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor
@@ -54,9 +54,10 @@ object PetOverlayConfigScreen {
     }
 
     private fun renderPreview(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val renderable = ActivePetOverlay.previewRenderable() ?: return
+        val preview = ActivePetOverlay.settingsPreview() ?: return
+        val renderable = preview.renderable
         val minecraft = Minecraft.getInstance()
-        val pane = previewPane(renderable)
+        val pane = previewPane(preview)
         val position = updatePreviewPosition(
             pane.defaultLeft,
             pane.defaultTop,
@@ -98,24 +99,48 @@ object PetOverlayConfigScreen {
         val labelX = bounds.left + (pane.width - font.width(label)) / 2
         context.text(font, label, labelX, bounds.top + PREVIEW_PADDING / 2, PREVIEW_LABEL_COLOR, false)
 
-        val renderX = bounds.left + PREVIEW_PADDING
-        val renderY = bounds.top + PREVIEW_PADDING + PREVIEW_LABEL_HEIGHT + PREVIEW_LABEL_GAP
+        val contentLeft = bounds.left + PREVIEW_PADDING
+        val contentTop = bounds.top + PREVIEW_PADDING + PREVIEW_LABEL_HEIGHT + PREVIEW_LABEL_GAP
+        val renderWidth = (renderable.width * pane.scale).roundToInt()
+        val renderHeight = (renderable.height * pane.scale).roundToInt()
+        val renderX = contentLeft + when (preview.horizontalAnchor) {
+            HorizontalAnchor.CENTER -> (pane.contentWidth - renderWidth) / 2
+            HorizontalAnchor.RIGHT -> pane.contentWidth - renderWidth
+            HorizontalAnchor.LEFT, null -> 0
+        }
+        val renderY = contentTop + (pane.contentHeight - renderHeight) / 2
         context.withIsolatedPose {
             context.pose().translate(renderX.toFloat(), renderY.toFloat())
             context.pose().scale(pane.scale, pane.scale)
             renderable.render(context)
         }
+        preview.horizontalAnchor?.let { horizontalAnchor ->
+            val anchorX = contentLeft + when (horizontalAnchor) {
+                HorizontalAnchor.LEFT -> 0
+                HorizontalAnchor.CENTER -> pane.contentWidth / 2
+                HorizontalAnchor.RIGHT -> pane.contentWidth
+            }
+            context.fill(
+                anchorX,
+                contentTop - ANCHOR_LINE_OVERHANG,
+                anchorX + ANCHOR_LINE_WIDTH,
+                contentTop + pane.contentHeight + ANCHOR_LINE_OVERHANG,
+                ANCHOR_LINE_COLOR,
+            )
+        }
     }
 
-    private fun previewPane(renderable: GuiRenderable): PreviewPane {
+    private fun previewPane(preview: PetDisplayPreview): PreviewPane {
         val window = Minecraft.getInstance().window
         val screenWidth = window.guiScaledWidth
         val screenHeight = window.guiScaledHeight
         val margin = PREVIEW_MARGIN_AT_NORMAL_SCALE / window.guiScale.coerceAtLeast(1)
         val editorBottom = (screenHeight + (screenHeight - margin).coerceAtMost(MAX_EDITOR_BOTTOM)) / 2
         val scale = config.preview.scale.get()
-        val width = (renderable.width * scale).roundToInt() + PREVIEW_PADDING * 2
-        val height = (renderable.height * scale).roundToInt() + PREVIEW_PADDING * 2 + PREVIEW_LABEL_HEIGHT + PREVIEW_LABEL_GAP
+        val contentWidth = (preview.width * scale).roundToInt()
+        val contentHeight = (preview.height * scale).roundToInt()
+        val width = contentWidth + PREVIEW_PADDING * 2
+        val height = contentHeight + PREVIEW_PADDING * 2 + PREVIEW_LABEL_HEIGHT + PREVIEW_LABEL_GAP
         return PreviewPane(
             width = width,
             height = height,
@@ -124,6 +149,8 @@ object PetOverlayConfigScreen {
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             scale = scale,
+            contentWidth = contentWidth,
+            contentHeight = contentHeight,
         )
     }
 
@@ -210,6 +237,9 @@ object PetOverlayConfigScreen {
     private const val PREVIEW_BORDER_COLOR = 0xFF202026.toInt()
     private const val PREVIEW_BACKGROUND_COLOR = 0xFF17171D.toInt()
     private const val PREVIEW_LABEL_COLOR = 0xFF888888.toInt()
+    private const val ANCHOR_LINE_COLOR = 0xFFFF5555.toInt()
+    private const val ANCHOR_LINE_WIDTH = 1
+    private const val ANCHOR_LINE_OVERHANG = 4
 
     private data class PreviewPosition(val left: Int, val top: Int)
 
@@ -221,6 +251,8 @@ object PetOverlayConfigScreen {
         val screenWidth: Int,
         val screenHeight: Int,
         val scale: Float,
+        val contentWidth: Int,
+        val contentHeight: Int,
     ) {
         fun boundsAt(position: PreviewPosition): PreviewBounds =
             PreviewBounds(position.left, position.top, position.left + width, position.top + height)
