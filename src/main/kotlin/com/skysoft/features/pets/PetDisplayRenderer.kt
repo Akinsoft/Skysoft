@@ -49,7 +49,11 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
     fun build(pet: StoredPetData, expSharePets: List<ExpSharePetState>): GuiRenderable? {
         val itemRenderable = pet.buildMainIconRenderableOrNull()
             ?.wrapInExpShareIconsOrSelf(expSharePets)
-        val mainTextRenderable = pet.buildTextRenderableOrNull(config.text.equippedPet)
+        val mainTextConfig = config.text.equippedPet
+        val mainTextRenderable = pet.buildTextRenderableOrNull(
+            mainTextConfig,
+            showOverflowXp = mainTextConfig.showOverflowXp.get(),
+        )
         val expShareTextRenderables = expSharePets.buildBundledExpShareTextRenderables()
         val textRenderable = combineMainAndExpShareTextRenderables(mainTextRenderable, expShareTextRenderables)
         return combineVisualAndTextRenderables(
@@ -234,12 +238,18 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
         textConfig: PetTextDisplaySettings,
         opacity: Float = 1.0f,
         textScale: Double = textConfig.textScale.get().toDouble(),
+        showOverflowXp: Boolean = true,
     ): GuiRenderable? {
         val textAlpha = (COLOR_CHANNEL_MAX * opacity).roundToInt()
             .coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
         val textColor = RGB_MASK.withAlpha(textAlpha)
         val lines = textConfig.enabledTexts.get().mapNotNull { textElement ->
-            val textElementFormat = PetDisplayTextFormatter.formatElement(this, textElement, textConfig) ?: return@mapNotNull null
+            val textElementFormat = PetDisplayTextFormatter.formatElement(
+                this,
+                textElement,
+                textConfig,
+                showOverflowXp,
+            ) ?: return@mapNotNull null
             val labelFormat = textElement.getFormattedLabel().takeIf { textConfig.textLabels.get() }.orEmpty()
             StringRenderable(
                 "$labelFormat$textElementFormat",

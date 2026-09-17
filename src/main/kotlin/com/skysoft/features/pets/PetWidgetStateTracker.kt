@@ -1,5 +1,7 @@
 package com.skysoft.features.pets
 
+import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.features.pets.display.text.PetTextConfig.TextElement
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import kotlin.time.Duration.Companion.seconds
@@ -10,7 +12,11 @@ object PetWidgetStateTracker {
     private var tabSessionId = Long.MIN_VALUE
 
     val isReadyForDisplay: Boolean
-        get() = isCurrentWidgetState && state == State.READY
+        get() = isCurrentWidgetState && when (state) {
+            State.READY -> true
+            State.MAXED_WITHOUT_OVERFLOW_XP -> !requiresOverflowXp
+            else -> false
+        }
 
     internal val displayDataSource: PetDisplayDataSource
         get() = petDisplayDataSource(isReadyForDisplay, HypixelLocationState.currentIsland)
@@ -26,7 +32,7 @@ object PetWidgetStateTracker {
                 "§cDo /widget and enable the pet widget",
             )
 
-            isCurrentWidgetState && state == State.MAXED_WITHOUT_OVERFLOW_XP -> listOf(
+            isCurrentWidgetState && state == State.MAXED_WITHOUT_OVERFLOW_XP && requiresOverflowXp -> listOf(
                 "§cPet Widget Overflow XP Missing",
                 "§cEnable overflow XP in the pet widget",
             )
@@ -36,6 +42,11 @@ object PetWidgetStateTracker {
 
     private val isCurrentWidgetState: Boolean
         get() = TabListApi.isSkyBlockDataLoaded && tabSessionId == TabListApi.sessionId
+
+    private val requiresOverflowXp: Boolean
+        get() = SkysoftConfigGui.config().pets.display.text.equippedPet.let { textConfig ->
+            textConfig.showOverflowXp.get() && TextElement.TOTAL_XP in textConfig.enabledTexts.get()
+        }
 
     fun syncLoadingState() {
         if (!isCurrentWidgetState && state != State.LOADING) {
