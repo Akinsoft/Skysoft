@@ -20,6 +20,7 @@ object PestHelper {
     private var sharedKeyWasDown = false
     private var warpKeyWasDown = false
     private var returnKeyWasDown = false
+    private var sharedKeyReturns = false
     private var pendingWarp: PendingWarp? = null
 
     fun register() {
@@ -38,7 +39,7 @@ object PestHelper {
 
     private fun hasKeyWork(): Boolean =
         config.enabled && hasConfiguredKey() ||
-            sharedKeyWasDown || warpKeyWasDown || returnKeyWasDown || pendingWarp != null
+            sharedKeyWasDown || warpKeyWasDown || returnKeyWasDown || sharedKeyReturns || pendingWarp != null
 
     private fun hasConfiguredKey(): Boolean = if (settings.sharedKeybind) {
         settings.sharedKey != GLFW.GLFW_KEY_UNKNOWN
@@ -52,6 +53,7 @@ object PestHelper {
             return
         }
         updatePendingWarp()
+        if (!settings.sharedKeybind) sharedKeyReturns = false
 
         val sharedKeyDown = isKeyDown(settings.sharedKey)
         val warpKeyDown = isKeyDown(settings.warpKey)
@@ -75,20 +77,26 @@ object PestHelper {
     }
 
     private fun processSharedKey() {
-        val totalPests = GardenPestState.current.totalPests ?: return
-        if (totalPests > 0) {
-            warpToPests(savePosition = true, unlockMouse = settings.unlockAndLock)
-        } else {
+        if (sharedKeyReturns) {
             returnToPosition(lockMouse = settings.unlockAndLock)
+            return
         }
+        if ((GardenPestState.current.totalPests ?: 0) <= 0) return
+        warpToPests(savePosition = true, unlockMouse = settings.unlockAndLock, returnWithSharedKey = true)
     }
 
-    private fun warpToPests(savePosition: Boolean, unlockMouse: Boolean) {
+    private fun warpToPests(savePosition: Boolean, unlockMouse: Boolean, returnWithSharedKey: Boolean = false) {
         if (pendingWarp != null || !SkyBlockIsland.GARDEN.isInIsland()) return
         val plot = GardenPestState.current.lastSpawn?.plot ?: return
         val connection = Minecraft.getInstance().connection ?: return
         if (savePosition) {
-            pendingWarp = PendingWarp(plot, unlockMouse, System.nanoTime(), HypixelLocationState.locationVersion)
+            pendingWarp = PendingWarp(
+                plot = plot,
+                unlockMouse = unlockMouse,
+                returnWithSharedKey = returnWithSharedKey,
+                requestedAtNanos = System.nanoTime(),
+                locationVersion = HypixelLocationState.locationVersion,
+            )
             connection.sendCommand("setspawn")
         } else {
             teleportToPlot(plot, unlockMouse)
@@ -100,6 +108,7 @@ object PestHelper {
         pendingWarp = null
         val connection = Minecraft.getInstance().connection ?: return
         connection.sendCommand("warp garden")
+        sharedKeyReturns = false
         if (lockMouse) MouseLock.setLocked(true)
     }
 
@@ -122,6 +131,7 @@ object PestHelper {
         val pending = pendingWarp ?: return
         pendingWarp = null
         teleportToPlot(pending.plot, pending.unlockMouse)
+        if (pending.returnWithSharedKey) sharedKeyReturns = true
     }
 
     private fun teleportToPlot(plot: String, unlockMouse: Boolean) {
@@ -139,12 +149,14 @@ object PestHelper {
         sharedKeyWasDown = false
         warpKeyWasDown = false
         returnKeyWasDown = false
+        sharedKeyReturns = false
         pendingWarp = null
     }
 
     private data class PendingWarp(
         val plot: String,
         val unlockMouse: Boolean,
+        val returnWithSharedKey: Boolean,
         val requestedAtNanos: Long,
         val locationVersion: Long,
     )
