@@ -1,11 +1,14 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.extensions.DetektExtension
 import net.fabricmc.loom.api.LoomGradleExtensionAPI
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.quality.CheckstyleExtension
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.language.jvm.tasks.ProcessResources
@@ -16,6 +19,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     base
     kotlin("jvm") apply false
+    id("com.gradleup.shadow") apply false
     id("dev.detekt") apply false
     id("net.fabricmc.fabric-loom") apply false
 }
@@ -90,9 +94,15 @@ configure(targetProjects) {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("targets/$name"))
 
     apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "com.gradleup.shadow")
     apply(plugin = "dev.detekt")
     apply(plugin = "net.fabricmc.fabric-loom")
     apply(plugin = "checkstyle")
+
+    val shadowLibraries = configurations.create("shadowLibraries") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+    }
 
     repositories {
         mavenCentral()
@@ -131,15 +141,16 @@ configure(targetProjects) {
         add("compileOnly", "maven.modrinth:modmenu:$modMenuVersion")
         add("compileOnly", "maven.modrinth:skyblocker-liap:$skyblockerVersion")
         add("implementation", hypixelModApi)
-        add("implementation", "org.brotli:dec:0.1.2")
-        add("include", "org.brotli:dec:0.1.2")
+        val brotli = "org.brotli:dec:0.1.2"
+        add("implementation", brotli)
+        add(shadowLibraries.name, brotli)
         add("runtimeOnly", hypixelModApiFabric)
         add("detektPlugins", "dev.detekt:detekt-rules-ktlint-wrapper:$detektVersion")
         add("detektPlugins", project(":detekt-rules"))
 
         val moulconfig = "$moulconfigGroup:modern-$minecraftVersion:$moulconfigVersion"
         add("implementation", moulconfig)
-        add("include", moulconfig)
+        add(shadowLibraries.name, moulconfig)
     }
 
     val resourceProperties = mapOf(
@@ -218,6 +229,24 @@ configure(targetProjects) {
         archiveVersion.set("${project.version}-mc$minecraftVersion")
     }
 
+    tasks.named<Jar>("jar") {
+        archiveClassifier.set("unshaded")
+    }
+
+    tasks.named<ShadowJar>("shadowJar") {
+        configurations = listOf(shadowLibraries)
+        archiveClassifier.set("")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        filesMatching("META-INF/services/**") {
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        }
+        filesMatching("META-INF/*.kotlin_module") {
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        }
+        mergeServiceFiles()
+        relocate("io.github.notenoughupdates.moulconfig", "com.skysoft.deps.moulconfig")
+    }
+
 }
 
 val collectVersionJars = tasks.register<Sync>("collectVersionJars") {
@@ -226,7 +255,7 @@ val collectVersionJars = tasks.register<Sync>("collectVersionJars") {
     into(rootLibsDirectory)
     supportedMinecraftVersions.forEach { minecraftVersion ->
         val targetProject = targetProjectFor(minecraftVersion)
-        dependsOn(targetProject.tasks.named("jar"))
+        dependsOn(targetProject.tasks.named("shadowJar"))
         from(targetProject.layout.buildDirectory.dir("libs")) {
             include(skysoftJarName(minecraftVersion))
         }
@@ -239,7 +268,7 @@ val collectReleaseJars = tasks.register<Sync>("collectReleaseJars") {
     into(releaseAssetsDirectory)
     supportedMinecraftVersions.forEach { minecraftVersion ->
         val targetProject = targetProjectFor(minecraftVersion)
-        dependsOn(targetProject.tasks.named("jar"))
+        dependsOn(targetProject.tasks.named("shadowJar"))
         from(targetProject.layout.buildDirectory.dir("libs")) {
             include(skysoftJarName(minecraftVersion))
         }
