@@ -12,6 +12,9 @@ object GardenPestState {
     private val publisher = ActiveStatePublisher("Garden Pest State", GardenPestSnapshot())
     private val spawnListeners = ActiveListenerRegistry<(GardenPestSpawn) -> Unit>()
     private val killListeners = ActiveListenerRegistry<(String) -> Unit>()
+    private var lastScoreboardPestCount: Int? = null
+    private var unmatchedChatKills = 0
+    private var unmatchedScoreboardKills = 0
 
     val current: GardenPestSnapshot
         get() = publisher.state
@@ -37,7 +40,7 @@ object GardenPestState {
             "Garden Pest State location",
             isActive = { SkyBlockIsland.GARDEN.isInIsland() || current != GardenPestSnapshot() },
         ) { location ->
-            if (location.currentIsland != SkyBlockIsland.GARDEN) publisher.update(GardenPestSnapshot())
+            if (location.currentIsland != SkyBlockIsland.GARDEN) reset()
         }
     }
 
@@ -54,6 +57,7 @@ object GardenPestState {
     }
 
     private fun recordSpawn(spawn: GardenPestSpawn) {
+        clearUnmatchedKills()
         val knownPests = current.knownPestsByPlot.toMutableMap()
         knownPests[spawn.plot] = maxOf(knownPests[spawn.plot] ?: 0, spawn.amount)
         publisher.update(
@@ -72,7 +76,13 @@ object GardenPestState {
     }
 
     private fun recordKill(pest: String) {
+        if (unmatchedScoreboardKills > 0) {
+            unmatchedScoreboardKills--
+            killListeners.forEachActive { listener -> listener(pest) }
+            return
+        }
         val totalPests = current.totalPests?.let { (it - 1).coerceAtLeast(0) }
+        if (current.totalPests?.let { it > 0 } == true) unmatchedChatKills++
         val knownPests = current.knownPestsByPlot.toMutableMap()
         current.currentPlot?.let { plot ->
             knownPests[plot]?.let { pests ->
@@ -92,7 +102,8 @@ object GardenPestState {
 
     private fun updateScoreboard(lines: List<String>) {
         val garden = lines.firstNotNullOfOrNull { line -> GARDEN_PATTERN.matchEntire(line.trim()) } ?: return
-        val totalPests = garden.groups["count"]?.value?.toInt() ?: 0
+        val scoreboardPestCount = garden.groups["count"]?.value?.toInt() ?: 0
+        val totalPests = reconcileScoreboardPestCount(scoreboardPestCount)
         val plotWithPests = lines.firstNotNullOfOrNull { line -> PLOT_PESTS_PATTERN.matchEntire(line.trim()) }
         val plotWithoutPests = if (plotWithPests == null) {
             lines.firstNotNullOfOrNull { line -> PLOT_PATTERN.matchEntire(line.trim()) }
@@ -100,11 +111,12 @@ object GardenPestState {
             null
         }
         val plot = (plotWithPests ?: plotWithoutPests)?.groups?.get("plot")?.value?.trim()
-        val pestsInPlot = when {
+        val scoreboardPestsInPlot = when {
             plotWithPests != null -> plotWithPests.groups["count"]?.value?.toInt()
             plotWithoutPests != null -> 0
             else -> null
         }
+        val pestsInPlot = scoreboardPestsInPlot?.let { (it - unmatchedChatKills).coerceAtLeast(0) }
         val knownPests = current.knownPestsByPlot.toMutableMap()
         if (plot != null && pestsInPlot != null) {
             if (pestsInPlot == 0) knownPests.remove(plot) else knownPests[plot] = pestsInPlot
@@ -118,6 +130,31 @@ object GardenPestState {
                 lastSpawn = current.lastSpawn.takeIf { totalPests > 0 },
             ),
         )
+    }
+
+    private fun reconcileScoreboardPestCount(scoreboardPestCount: Int): Int {
+        val previousPestCount = lastScoreboardPestCount
+        lastScoreboardPestCount = scoreboardPestCount
+        if (previousPestCount == null || scoreboardPestCount > previousPestCount) {
+            clearUnmatchedKills()
+            return scoreboardPestCount
+        }
+        val scoreboardKills = previousPestCount - scoreboardPestCount
+        val matchedKills = minOf(scoreboardKills, unmatchedChatKills)
+        unmatchedChatKills -= matchedKills
+        unmatchedScoreboardKills += scoreboardKills - matchedKills
+        return (scoreboardPestCount - unmatchedChatKills).coerceAtLeast(0)
+    }
+
+    private fun clearUnmatchedKills() {
+        unmatchedChatKills = 0
+        unmatchedScoreboardKills = 0
+    }
+
+    private fun reset() {
+        lastScoreboardPestCount = null
+        clearUnmatchedKills()
+        publisher.update(GardenPestSnapshot())
     }
 
     private fun parseSpawn(message: String): GardenPestSpawn? {
