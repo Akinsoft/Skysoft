@@ -45,7 +45,9 @@ object PetWidgetStateTracker {
 
     private val requiresOverflowXp: Boolean
         get() = SkysoftConfigGui.config().pets.display.text.equippedPet.let { textConfig ->
-            textConfig.showOverflowXp.get() && TextElement.TOTAL_XP in textConfig.enabledTexts.get()
+            val enabledTexts = textConfig.enabledTexts.get()
+            TextElement.OVERFLOW_XP in enabledTexts ||
+                textConfig.showOverflowXp.get() && TextElement.TOTAL_XP in enabledTexts
         }
 
     fun syncLoadingState() {
