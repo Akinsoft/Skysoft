@@ -8,6 +8,7 @@ import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.skyblock.GardenPestState
 import com.skysoft.data.skyblock.MayorPerkApi
 import com.skysoft.data.skyblock.SkyBlockAreaState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -84,6 +85,7 @@ object ProfitTracker {
                 ChatMessageVisibility.SHOW
             }
         }
+        GardenPestState.onKill("Profit Tracker pest kills", { isInPresetArea(ProfitTrackerPreset.FARMING) }, ::recordPestKill)
         ChatEvents.onVisibleMessage(
             "Profit Tracker auto-slayer bank costs",
             { configs.isAnyEnabled() },
@@ -302,19 +304,22 @@ object ProfitTracker {
                 update(target, listOf(itemId)) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
             }
         }
-        val pest = if (preset == ProfitTrackerPreset.FARMING) parseCountedPestKill(message) else null
-        val actionOccurred = when (preset) {
-            ProfitTrackerPreset.FARMING -> pest != null
-            ProfitTrackerPreset.MYTHOLOGICAL_RITUAL -> MythologicalRitualMessageTracker.isBurrowMessage(message)
-            else -> false
-        }
-        if (actionOccurred) {
+        if (
+            preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL &&
+            MythologicalRitualMessageTracker.isBurrowMessage(message)
+        ) {
             val target = ProfitTrackerTarget.preset(preset)
             uptime.markActivity(target)
-            update(target) { stats ->
-                stats.actions++
-                if (pest != null) stats.pestKills.merge(pest, 1L, Long::plus)
-            }
+            update(target) { stats -> stats.actions++ }
+        }
+    }
+
+    private fun recordPestKill(pest: String) {
+        val target = ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING)
+        uptime.markActivity(target)
+        update(target) { stats ->
+            stats.actions++
+            stats.pestKills.merge(pest, 1L, Long::plus)
         }
     }
 

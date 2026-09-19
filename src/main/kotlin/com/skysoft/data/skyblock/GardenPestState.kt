@@ -11,6 +11,7 @@ import com.skysoft.utils.chat.ChatMessageVisibility
 object GardenPestState {
     private val publisher = ActiveStatePublisher("Garden Pest State", GardenPestSnapshot())
     private val spawnListeners = ActiveListenerRegistry<(GardenPestSpawn) -> Unit>()
+    private val killListeners = ActiveListenerRegistry<(String) -> Unit>()
 
     val current: GardenPestSnapshot
         get() = publisher.state
@@ -18,10 +19,13 @@ object GardenPestState {
     fun register() {
         publisher.register()
         ChatEvents.onVisibleMessage(
-            "Garden Pest State spawn chat",
+            "Garden Pest State chat",
             isActive = { SkyBlockIsland.GARDEN.isInIsland() },
         ) { message ->
-            if (message.isSystemLike) parseSpawn(message.cleanText)?.let(::recordSpawn)
+            if (message.isSystemLike) {
+                parseSpawn(message.cleanText)?.let(::recordSpawn)
+                parseGardenPestKill(message.cleanText)?.takeIf { it.countsAsKill }?.let { recordKill(it.pest) }
+            }
             ChatMessageVisibility.SHOW
         }
         SidebarScoreboardState.onChange(
@@ -45,6 +49,10 @@ object GardenPestState {
         spawnListeners.register(boundary, isActive, listener)
     }
 
+    fun onKill(boundary: String, isActive: () -> Boolean, listener: (String) -> Unit) {
+        killListeners.register(boundary, isActive, listener)
+    }
+
     private fun recordSpawn(spawn: GardenPestSpawn) {
         val knownPests = current.knownPestsByPlot.toMutableMap()
         knownPests[spawn.plot] = maxOf(knownPests[spawn.plot] ?: 0, spawn.amount)
@@ -61,6 +69,25 @@ object GardenPestState {
             ),
         )
         spawnListeners.forEachActive { listener -> listener(spawn) }
+    }
+
+    private fun recordKill(pest: String) {
+        val totalPests = current.totalPests?.let { (it - 1).coerceAtLeast(0) }
+        val knownPests = current.knownPestsByPlot.toMutableMap()
+        current.currentPlot?.let { plot ->
+            knownPests[plot]?.let { pests ->
+                if (pests <= 1) knownPests.remove(plot) else knownPests[plot] = pests - 1
+            }
+        }
+        publisher.update(
+            current.copy(
+                totalPests = totalPests,
+                pestsInCurrentPlot = current.pestsInCurrentPlot?.let { (it - 1).coerceAtLeast(0) },
+                knownPestsByPlot = if (totalPests == 0) emptyMap() else knownPests.toMap(),
+                lastSpawn = current.lastSpawn.takeUnless { totalPests == 0 },
+            ),
+        )
+        killListeners.forEachActive { listener -> listener(pest) }
     }
 
     private fun updateScoreboard(lines: List<String>) {
