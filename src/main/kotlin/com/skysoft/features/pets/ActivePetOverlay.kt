@@ -23,7 +23,12 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
-private fun anchorPetPosition(renderable: GuiRenderable) {
+private fun anchorPetPositionToTop(renderable: GuiRenderable) {
+    val position = SkysoftConfigGui.config().pets.display.general.position
+    position.anchorToTop((renderable.height * position.effectiveScale).roundToInt())
+}
+
+private fun anchorPetContentsHorizontally(renderable: GuiRenderable) {
     val config = SkysoftConfigGui.config().pets.display.general
     val position = config.position
     val horizontalAnchor = when (config.settings.horizontalAnchor.get()) {
@@ -31,8 +36,7 @@ private fun anchorPetPosition(renderable: GuiRenderable) {
         HorizontalAnchor.CENTER -> HudAnchor.CENTER
         HorizontalAnchor.RIGHT -> HudAnchor.END
     }
-    position.anchorHorizontally(horizontalAnchor, (renderable.width * position.effectiveScale).roundToInt())
-    position.anchorToTop((renderable.height * position.effectiveScale).roundToInt())
+    position.anchorContentsHorizontally(horizontalAnchor, (renderable.width * position.effectiveScale).roundToInt())
 }
 
 object ActivePetOverlay {
@@ -103,7 +107,7 @@ object ActivePetOverlay {
         buildDisplayRenderable(displayState)
             ?: renderer.build(xpAnimations.withAnimatedEquipped(previewPet), emptyList())
                 ?.withOverlayPanel(config.general.settings.background.get())
-        )?.also(::anchorPetPosition)
+        )?.also(::anchorPetPositionToTop)
 
     internal fun settingsPreview(): PetDisplayPreview? {
         if (!config.general.settings.visualizeAnchor.get()) {
@@ -117,7 +121,6 @@ object ActivePetOverlay {
         val renderable = renderables[
             ((System.currentTimeMillis() / ANCHOR_PREVIEW_INTERVAL_MILLIS) % renderables.size).toInt()
         ]
-        anchorPetPosition(renderable)
         return PetDisplayPreview(
             renderable = renderable,
             width = renderables.maxOf(GuiRenderable::width),
@@ -142,7 +145,8 @@ object ActivePetOverlay {
         context.nextStratum()
         val renderable = currentDisplayRenderable
         renderable?.also {
-            anchorPetPosition(it)
+            anchorPetPositionToTop(it)
+            anchorPetContentsHorizontally(it)
             config.general.position.renderRenderable(context, it)
         }
     }
