@@ -11,6 +11,7 @@ import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorInfoText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigLink
@@ -62,6 +63,33 @@ class PetOverlayConfig : Config() {
         @field:ConfigOption(name = "Hide in menus", desc = "Hide Pet Display while a container menu is open.")
         @field:ConfigEditorBoolean
         val hideInMenus: Property<Boolean> = Property.of(false)
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(
+            name = "Horizontal Anchor",
+            desc = "Which part of the Pet Display stays in place when its width changes.",
+        )
+        @field:ConfigEditorDropdown
+        val horizontalAnchor: Property<HorizontalAnchor> = Property.of(HorizontalAnchor.CENTER)
+
+        @JvmField
+        @field:Expose
+        @field:ConfigOption(
+            name = "Visualize Anchor",
+            desc = "Show the selected anchor as a red line while cycling differently sized pets in the preview.",
+        )
+        @field:ConfigEditorBoolean
+        val visualizeAnchor: Property<Boolean> = Property.of(false)
+
+        enum class HorizontalAnchor(private val displayName: String) {
+            LEFT("Left"),
+            CENTER("Center"),
+            RIGHT("Right"),
+            ;
+
+            override fun toString(): String = displayName
+        }
 
         @JvmField
         @field:ConfigOption(
