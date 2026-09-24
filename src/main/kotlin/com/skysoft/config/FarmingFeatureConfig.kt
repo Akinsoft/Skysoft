@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.configVisibility
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -9,6 +10,8 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
+import io.github.notenoughupdates.moulconfig.observer.Property
 import org.lwjgl.glfw.GLFW
 
 class FarmingFeatureConfig {
@@ -65,32 +68,70 @@ class PestHelperConfig {
 class PestHelperSettingsConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Shared Keybind",
+        desc = "Use one keybind to warp to Pests and return to your saved Garden position.",
+    )
+    @field:ConfigEditorBoolean
+    var sharedKeybind = false
+
+    val sharedKeybindSettingsVisible: Property<Boolean> = configVisibility { sharedKeybind }
+    val separateKeybindSettingsVisible: Property<Boolean> = configVisibility { !sharedKeybind }
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Warp & Return",
+        desc = "Press this key to warp to the latest Pest spawn plot while Pests exist, " +
+            "or return to your saved Garden position when none remain.",
+    )
+    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigVisibleIf("sharedKeybindSettingsVisible")
+    var sharedKey = GLFW.GLFW_KEY_UNKNOWN
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Unlock & Lock",
+        desc = "Unlock Mouse Lock when warping to Pests and lock it when returning to your saved position.",
+    )
+    @field:ConfigEditorBoolean
+    @field:ConfigVisibleIf("sharedKeybindSettingsVisible")
+    var unlockAndLock = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Warp to Pests", desc = "Press this key to warp to the latest Pest spawn plot.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigVisibleIf("separateKeybindSettingsVisible")
     var warpKey = GLFW.GLFW_KEY_UNKNOWN
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Unlock on Warp", desc = "Unlock Mouse Lock when warping to Pests.")
     @field:ConfigEditorBoolean
+    @field:ConfigVisibleIf("separateKeybindSettingsVisible")
     var unlockOnWarp = false
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Save Position", desc = "Set your Garden spawn at your position before warping to Pests.")
     @field:ConfigEditorBoolean
+    @field:ConfigVisibleIf("separateKeybindSettingsVisible")
     var savePosition = true
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Return to Position", desc = "Press this key to return to your saved Garden position.")
     @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigVisibleIf("separateKeybindSettingsVisible")
     var returnKey = GLFW.GLFW_KEY_UNKNOWN
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Lock on Return", desc = "Enable Mouse Lock when returning to your saved position.")
     @field:ConfigEditorBoolean
+    @field:ConfigVisibleIf("separateKeybindSettingsVisible")
     var lockOnReturn = false
 }
 

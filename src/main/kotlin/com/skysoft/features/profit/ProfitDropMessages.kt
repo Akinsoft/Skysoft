@@ -1,6 +1,9 @@
 package com.skysoft.features.profit
 
+import com.skysoft.data.skyblock.parseGardenPestKill
+
 internal fun parseFarmingChatDrop(message: String): ParsedItemAmount? {
+    parseGardenPestKill(message)?.let { return ParsedItemAmount(it.itemName, it.itemAmount) }
     val match = FARMING_DROP_PATTERNS.firstNotNullOfOrNull { it.matchEntire(message) } ?: return null
     return match.parsedItemAmount()
 }
@@ -22,25 +25,10 @@ private fun MatchResult.parsedItemAmount(): ParsedItemAmount? {
     return ParsedItemAmount(itemName, amount)
 }
 
-internal fun parseCountedPestKill(message: String): String? {
-    val match = PEST_KILL_PATTERN.matchEntire(message) ?: return null
-    val pest = match.groups["pest"]?.value ?: return null
-    val counted = when (pest) {
-        "Field Mouse" -> match.groups["item"]?.value == "Dung"
-        "Lunar Moth" -> match.groups["item"]?.value == "Enchanted Sunflower"
-        else -> match.groups["item"]?.value != "Overclocker 3000"
-    }
-    return pest.takeIf { counted }
-}
-
-private val PEST_KILL_PATTERN = Regex(
-    "^You received (?<amount>\\d+)x (?<item>.+) for killing an? (?<pest>.+)!$",
-)
 private val FARMING_DROP_PATTERNS = listOf(
     Regex("^BLESSED! You found an? (?<item>.+)!$"),
     Regex("^(?:VERY )?RARE CROP! (?<item>.+?)(?: \\(.*)?$"),
     Regex("^[\\w ]+! You dropped (?<amount>[\\d,]+)x (?<item>[\\w ]+)!$"),
-    PEST_KILL_PATTERN,
     Regex("^ABOUT TIME! You find an? (?<item>.+?) \\(.*\\)!$"),
     Regex("^OVERFLOW! Your .+ has just dropped an? (?<item>Tool Exp Capsule)!$"),
     Regex("^(?:RARE|PET) DROP! (?<item>.+?)(?: x(?<amount>\\d+))? \\(.*\\)!?$"),
