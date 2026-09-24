@@ -26,7 +26,6 @@ object SkysoftConfigFiles {
     val dianaHubSurfaceCache: Path = directory.resolve("diana-hub-surface-cache.json")
     val terrainCache: Path = directory.resolve("terrain-cache")
     val screenshotUploads: Path = directory.resolve("screenshot-uploads.json")
-    val trustedImageHosts: Path = directory.resolve("trusted-image-hosts.json")
     val mythologicalRitualTracker: Path = directory
         .resolve("trackers")
         .resolve("mythological-ritual")

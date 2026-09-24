@@ -33,7 +33,6 @@ import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.chat.ChatHistoryPersistence
 import com.skysoft.features.chat.ChatTabs
-import com.skysoft.features.chat.ImageLinkPreview
 import com.skysoft.features.chat.PlayerBadges
 import com.skysoft.features.combat.BestiaryHelper
 import com.skysoft.features.combat.BetterShurikens
@@ -183,7 +182,6 @@ internal object SkysoftFeatureRegistrations {
         register("Item Render Support", SkysoftItemRenderSupport::register)
         register("GUI Overlay Registry", GuiOverlayRegistry::register)
         register("Deferred Screen Requests", DeferredScreenRequests::register)
-        register("Chat Image Preview", ImageLinkPreview::register)
         register("Screen Alert Renderer", ScreenAlertRenderer::register)
         register("Lotum Helper", LotumHelper::register)
         register("Lasso Display", LassoDisplay::register)

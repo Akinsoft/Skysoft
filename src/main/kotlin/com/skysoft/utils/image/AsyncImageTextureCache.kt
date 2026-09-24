@@ -21,12 +21,6 @@ internal class AsyncImageTextureCache<K>(
     private val pending = mutableMapOf<K, CompletableFuture<NativeImage>>()
     private var closed = false
 
-    val isEmpty: Boolean
-        get() = textures.isEmpty()
-
-    val hasPending: Boolean
-        get() = pending.isNotEmpty()
-
     fun texture(key: K): RegisteredImageTexture? = textures[key]
 
     fun isFailed(key: K): Boolean = key in failures
@@ -48,12 +42,8 @@ internal class AsyncImageTextureCache<K>(
         }
     }
 
-    fun cancelPending(key: K) {
-        pending.remove(key)?.cancel(true)
-    }
-
     fun invalidate(key: K) {
-        cancelPending(key)
+        pending.remove(key)?.cancel(true)
         failures.remove(key)
         textures.remove(key)?.release()
     }
