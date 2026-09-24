@@ -13,13 +13,11 @@ import com.skysoft.features.chat.ChatMotionSettings;
 import com.skysoft.features.chat.ChatTabBounds;
 import com.skysoft.features.chat.ChatTabs;
 import com.skysoft.features.chat.CopyChatResult;
-import com.skysoft.features.chat.ImageLinkPreview;
 import com.skysoft.gui.GuiOverlayRegistry;
 import com.skysoft.utils.SoundUtilities;
 import com.skysoft.utils.animation.AnimationClock;
 import com.skysoft.utils.gui.PixelButtonTone;
 import com.skysoft.utils.gui.PixelButtonWidget;
-import com.skysoft.utils.input.InputHandlingResult;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +32,6 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -45,7 +42,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ChatScreenMixin extends Screen {
     private static final int TAB_HORIZONTAL_PADDING = 12;
     private static final int MIN_TAB_WIDTH = 36;
-    @Shadow private ChatComponent.DisplayMode displayMode;
     @Unique private final AnimationClock skysoftOpeningMotion = new AnimationClock();
     @Unique private int skysoftMouseX;
     @Unique private int skysoftMouseY;
@@ -67,7 +63,6 @@ public abstract class ChatScreenMixin extends Screen {
     protected void skysoftTrackMouse(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         skysoftMouseX = mouseX;
         skysoftMouseY = mouseY;
-        MixinErrorBoundary.run("Chat image link hover", () -> ImageLinkPreview.INSTANCE.updateHoveredLink(mouseX, mouseY, displayMode));
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
@@ -83,9 +78,8 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     protected void skysoftCopyHoveredMessageOnClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (GuiOverlayRegistry.isScreenPointCovered((int) click.x(), (int) click.y())) { cir.setReturnValue(true); return; }
-        boolean trust = MixinErrorBoundary.value("Chat image trust input", false, () -> ImageLinkPreview.INSTANCE.processTrustClick(click.button()) == InputHandlingResult.CONSUMED);
-        boolean copied = !trust && MixinErrorBoundary.value("Chat Copy mouse input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(click.button(), (int) click.x(), (int) click.y()) == CopyChatResult.COPIED);
-        if (trust || copied) cir.setReturnValue(true);
+        boolean copied = MixinErrorBoundary.value("Chat Copy mouse input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(click.button(), (int) click.x(), (int) click.y()) == CopyChatResult.COPIED);
+        if (copied) cir.setReturnValue(true);
     }
 
     @Inject(method = "mouseClicked", at = @At("RETURN"))
@@ -125,7 +119,6 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "removed", at = @At("HEAD"))
     protected void skysoftResetOpenAnimation(CallbackInfo ci) {
         MixinErrorBoundary.run("Chat input motion", skysoftOpeningMotion::stop);
-        MixinErrorBoundary.run("Chat image link session", ImageLinkPreview.INSTANCE::endChatSession);
     }
 
     @Unique private float skysoftChatOpenDisplacement() {

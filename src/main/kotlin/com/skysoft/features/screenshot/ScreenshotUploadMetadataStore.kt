@@ -31,15 +31,6 @@ internal object ScreenshotUploadMetadataStore {
         if (records().remove(path.normalizedScreenshotPath()) != null) save()
     }
 
-    @Synchronized
-    fun screenshotForUrl(url: String): Path? {
-        val now = Instant.now().epochSecond
-        val record = records().values.firstOrNull {
-            (it.imageUrl == url || it.pageUrl == url) && it.expiresAtEpochSecond > now
-        } ?: return null
-        return Path.of(record.screenshotPath).takeIf(Files::isRegularFile)
-    }
-
     private fun records(): MutableMap<String, StoredScreenshotUpload> {
         records?.let { return it }
         val loaded = if (SkysoftConfigFiles.hasFileOrBackup(metadataPath)) {
