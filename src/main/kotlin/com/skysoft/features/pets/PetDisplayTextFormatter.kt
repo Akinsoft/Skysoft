@@ -18,13 +18,20 @@ object PetDisplayTextFormatter {
         petData: StoredPetData,
         textElement: TextElement,
         textConfig: PetTextDisplaySettings,
+        showOverflowXp: Boolean = true,
     ): String? = with(petData) {
         val xpFormat = textConfig.xpFormat.get()
         when (textElement) {
             TextElement.PET_NAME -> getUserFriendlyName(textConfig.nameLevel.get(), textConfig.nameSkinSymbol.get())
             TextElement.HELD_ITEM -> SkyBlockItemNames.displayName(heldItemInternalName)
             TextElement.OVERFLOW_XP -> overflowXp.takeIf { it > 0.0 }?.let { "§7+§b${formatExp(it, xpFormat)}" }
-            TextElement.TOTAL_XP -> exp?.takeIf { it > 0.0 }?.let { "§b${formatExp(it, xpFormat)}" }
+            TextElement.TOTAL_XP -> if (
+                !showOverflowXp && level >= PetRepository.getMaxLevel(fauxInternalName)
+            ) {
+                "§b§lMAX LEVEL"
+            } else {
+                exp?.takeIf { it > 0.0 }?.let { "§b${formatExp(it, xpFormat)}" }
+            }
             TextElement.NEXT_LEVEL -> formatNextLevel(petData, textConfig, xpFormat)
         }
     }
