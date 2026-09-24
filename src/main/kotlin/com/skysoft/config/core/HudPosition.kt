@@ -35,6 +35,9 @@ class HudPosition @JvmOverloads constructor(
     private var horizontalAnchor: HudAnchor? = null
 
     @Expose
+    private var horizontalObjectAnchor: HudAnchor? = null
+
+    @Expose
     private var verticalAnchor: HudAnchor? = null
 
     @Transient
@@ -69,6 +72,7 @@ class HudPosition @JvmOverloads constructor(
             y == it.y &&
             scale == it.scale &&
             effectiveAnchor(x, centerX, horizontalAnchor) == effectiveAnchor(it.x, it.centerX, it.horizontalAnchor) &&
+            effectiveHorizontalObjectAnchor == it.effectiveHorizontalObjectAnchor &&
             effectiveAnchor(y, centerY, verticalAnchor) == effectiveAnchor(it.y, it.centerY, it.verticalAnchor)
     } ?: true
 
@@ -78,6 +82,27 @@ class HudPosition @JvmOverloads constructor(
         if (effectiveAnchor(y, centerY, verticalAnchor) != HudAnchor.CENTER) return
         val absoluteY = calcAbs0(y, screenHeight, objHeight, HudAnchor.CENTER, clampEnd = false)
         setAxis(horizontal = false, absoluteY, screenHeight, objHeight, HudAnchor.START)
+    }
+
+    internal fun anchorContentsHorizontally(
+        anchor: HudAnchor,
+        objWidth: Int,
+        screenWidth: Int = Minecraft.getInstance().window.guiScaledWidth,
+    ) {
+        if (effectiveHorizontalObjectAnchor == anchor && horizontalObjectAnchor != null) return
+        val screenAnchor = effectiveAnchor(x, centerX, horizontalAnchor)
+        val absoluteX = calcAbs0(
+            x,
+            screenWidth,
+            objWidth,
+            screenAnchor,
+            effectiveHorizontalObjectAnchor,
+            clampEnd = false,
+        )
+        horizontalObjectAnchor = anchor
+        x = encode(absoluteX, screenWidth, objWidth, screenAnchor, anchor)
+        referenceWidth = screenWidth
+        referenceObjectWidth = objWidth
     }
 
     fun moveToAbsoluteAllowingOverflow(absX: Int, absY: Int, objWidth: Int, objHeight: Int): HudPosition =
@@ -113,7 +138,15 @@ class HudPosition @JvmOverloads constructor(
 
     fun getAbsX0(screenWidth: Int, objWidth: Int): Int {
         prepareAxis(horizontal = true, screenWidth, objWidth)
-        return calcAbs0(x, screenWidth, objWidth, effectiveAnchor(x, centerX, horizontalAnchor), clampEnd = true)
+        val screenAnchor = effectiveAnchor(x, centerX, horizontalAnchor)
+        return calcAbs0(
+            x,
+            screenWidth,
+            objWidth,
+            screenAnchor,
+            horizontalObjectAnchor ?: screenAnchor,
+            clampEnd = true,
+        )
     }
 
     fun getAbsY0(screenHeight: Int, objHeight: Int): Int {
@@ -124,7 +157,15 @@ class HudPosition @JvmOverloads constructor(
     fun getAbsX0AllowingOverflow(objWidth: Int): Int {
         val screenWidth = Minecraft.getInstance().window.guiScaledWidth
         prepareAxis(horizontal = true, screenWidth, objWidth)
-        return calcAbs0(x, screenWidth, objWidth, effectiveAnchor(x, centerX, horizontalAnchor), clampEnd = false)
+        val screenAnchor = effectiveAnchor(x, centerX, horizontalAnchor)
+        return calcAbs0(
+            x,
+            screenWidth,
+            objWidth,
+            screenAnchor,
+            horizontalObjectAnchor ?: screenAnchor,
+            clampEnd = false,
+        )
     }
 
     fun getAbsY0AllowingOverflow(objHeight: Int): Int {
@@ -140,6 +181,7 @@ class HudPosition @JvmOverloads constructor(
         centerX,
         centerY,
         horizontalAnchor,
+        horizontalObjectAnchor,
         verticalAnchor,
     )
 
@@ -150,6 +192,7 @@ class HudPosition @JvmOverloads constructor(
         centerX = snapshot.centerX
         centerY = snapshot.centerY
         horizontalAnchor = snapshot.horizontalAnchor
+        horizontalObjectAnchor = snapshot.horizontalObjectAnchor
         verticalAnchor = snapshot.verticalAnchor
         referenceWidth = UNKNOWN_DIMENSION
         referenceHeight = UNKNOWN_DIMENSION
@@ -167,6 +210,7 @@ class HudPosition @JvmOverloads constructor(
                 referenceLength,
                 referenceObjectLength,
                 effectiveAnchor(value, centered, explicitAnchor),
+                if (horizontal) effectiveHorizontalObjectAnchor else effectiveAnchor(value, centered, explicitAnchor),
                 clampEnd = false,
             )
             setAxis(
@@ -195,7 +239,9 @@ class HudPosition @JvmOverloads constructor(
     ) {
         val encoded = encode(absolute, length, objectLength, anchor)
         if (horizontal) {
-            x = encoded
+            x = horizontalObjectAnchor?.let { objectAnchor ->
+                encode(absolute, length, objectLength, anchor, objectAnchor)
+            } ?: encoded
             centerX = anchor == HudAnchor.CENTER
             horizontalAnchor = anchor
             referenceWidth = length
@@ -216,6 +262,7 @@ class HudPosition @JvmOverloads constructor(
         val centerX: Boolean,
         val centerY: Boolean,
         val horizontalAnchor: HudAnchor?,
+        val horizontalObjectAnchor: HudAnchor?,
         val verticalAnchor: HudAnchor?,
     )
 
@@ -225,6 +272,9 @@ class HudPosition @JvmOverloads constructor(
         const val MAX_SCALE = 10f
         private const val UNKNOWN_DIMENSION = -1
     }
+
+    private val effectiveHorizontalObjectAnchor: HudAnchor
+        get() = horizontalObjectAnchor ?: effectiveAnchor(x, centerX, horizontalAnchor)
 }
 
 internal enum class HudAnchor {
@@ -259,6 +309,15 @@ private fun encode(absolute: Int, length: Int, objectLength: Int, anchor: HudAnc
     HudAnchor.END -> absolute - (length - objectLength)
 }
 
+private fun encode(
+    absolute: Int,
+    length: Int,
+    objectLength: Int,
+    screenAnchor: HudAnchor,
+    objectAnchor: HudAnchor,
+): Int = encode(absolute, length, objectLength, screenAnchor) -
+    screenAnchor.coordinate(objectLength) + objectAnchor.coordinate(objectLength)
+
 private fun clampAbsolute(value: Int, length: Int, objectLength: Int, clampEnd: Boolean): Int =
     if (clampEnd) value.coerceIn(0, (length - objectLength).coerceAtLeast(0)) else value.coerceAtLeast(0)
 
@@ -274,6 +333,23 @@ private fun calcAbs0(
         HudAnchor.CENTER -> axis + (length - objectLength) / 2
         HudAnchor.END -> length + axis - objectLength
     }
+    return if (clampEnd) {
+        result.coerceIn(0, (length - objectLength).coerceAtLeast(0))
+    } else {
+        result.coerceAtLeast(0)
+    }
+}
+
+private fun calcAbs0(
+    axis: Int,
+    length: Int,
+    objectLength: Int,
+    screenAnchor: HudAnchor,
+    objectAnchor: HudAnchor,
+    clampEnd: Boolean,
+): Int {
+    val result = calcAbs0(axis, length, objectLength, screenAnchor, clampEnd = false) +
+        screenAnchor.coordinate(objectLength) - objectAnchor.coordinate(objectLength)
     return if (clampEnd) {
         result.coerceIn(0, (length - objectLength).coerceAtLeast(0))
     } else {

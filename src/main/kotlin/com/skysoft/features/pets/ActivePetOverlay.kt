@@ -1,9 +1,12 @@
 package com.skysoft.features.pets
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.core.HudAnchor
+import com.skysoft.config.features.pets.display.PetOverlayConfig.GeneralPetOverlaySettingsConfig.HorizontalAnchor
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.features.pets.PetDisplayRenderer.Companion.ANIMATION_TICK_MILLIS
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
@@ -25,6 +28,17 @@ private fun anchorPetPositionToTop(renderable: GuiRenderable) {
     position.anchorToTop((renderable.height * position.effectiveScale).roundToInt())
 }
 
+private fun anchorPetContentsHorizontally(renderable: GuiRenderable) {
+    val config = SkysoftConfigGui.config().pets.display.general
+    val position = config.position
+    val horizontalAnchor = when (config.settings.horizontalAnchor.get()) {
+        HorizontalAnchor.LEFT -> HudAnchor.START
+        HorizontalAnchor.CENTER -> HudAnchor.CENTER
+        HorizontalAnchor.RIGHT -> HudAnchor.END
+    }
+    position.anchorContentsHorizontally(horizontalAnchor, (renderable.width * position.effectiveScale).roundToInt())
+}
+
 object ActivePetOverlay {
     private val config get() = SkysoftConfigGui.config().pets.display
     private val expShareConfig get() = config.visual.expSharePets
@@ -41,6 +55,14 @@ object ActivePetOverlay {
             skinInternalName = "PET_SKIN_BEE_RGBEE",
             heldItemInternalName = EXP_SHARE,
             exp = 25_353_230.0,
+        )
+    }
+    private val anchorPreviewPets: List<StoredPetData> by lazy {
+        listOf(
+            anchorPreviewPet("GOLDEN_DRAGON;4", 200),
+            anchorPreviewPet("PHOENIX;4", 100),
+            anchorPreviewPet("ENDER_DRAGON;4", 100),
+            anchorPreviewPet("BEE;4", 100),
         )
     }
 
@@ -87,6 +109,32 @@ object ActivePetOverlay {
                 ?.withOverlayPanel(config.general.settings.background.get())
         )?.also(::anchorPetPositionToTop)
 
+    internal fun settingsPreview(): PetDisplayPreview? {
+        if (!config.general.settings.visualizeAnchor.get()) {
+            return previewRenderable()?.let(::PetDisplayPreview)
+        }
+        val renderables = anchorPreviewPets.mapNotNull { pet ->
+            renderer.build(pet, emptyList())
+                ?.withOverlayPanel(config.general.settings.background.get())
+        }
+        if (renderables.isEmpty()) return null
+        val renderable = renderables[
+            ((System.currentTimeMillis() / ANCHOR_PREVIEW_INTERVAL_MILLIS) % renderables.size).toInt()
+        ]
+        return PetDisplayPreview(
+            renderable = renderable,
+            width = renderables.maxOf(GuiRenderable::width),
+            height = renderables.maxOf(GuiRenderable::height),
+            horizontalAnchor = config.general.settings.horizontalAnchor.get(),
+        )
+    }
+
+    private fun anchorPreviewPet(internalName: String, level: Int): StoredPetData =
+        StoredPetData(
+            petInternalName = internalName,
+            exp = requireNotNull(PetRepository.levelToXp(level, internalName)),
+        )
+
     private fun renderHud(context: GuiGraphicsExtractor) {
         val minecraft = Minecraft.getInstance()
         if (
@@ -98,6 +146,7 @@ object ActivePetOverlay {
         val renderable = currentDisplayRenderable
         renderable?.also {
             anchorPetPositionToTop(it)
+            anchorPetContentsHorizontally(it)
             config.general.position.renderRenderable(context, it)
         }
     }
@@ -181,6 +230,14 @@ object ActivePetOverlay {
     )
 
     private const val EXP_SHARE = "PET_ITEM_EXP_SHARE"
+    private const val ANCHOR_PREVIEW_INTERVAL_MILLIS = 2_000L
     private const val PREVIEW_WIDTH = 120
     private const val PREVIEW_HEIGHT = 40
 }
+
+internal data class PetDisplayPreview(
+    val renderable: GuiRenderable,
+    val width: Int = renderable.width,
+    val height: Int = renderable.height,
+    val horizontalAnchor: HorizontalAnchor? = null,
+)
