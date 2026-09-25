@@ -61,6 +61,7 @@
     "ItemEntityRendererMixin",
     "ItemEntityRenderStateMixin",
     "ItemModelResolverMixin",
+    "KeyMappingAccessor",
     "KeyMappingMixin",
     "KeyboardHandlerMixin",
     "LivingEntitySwingMixin",
