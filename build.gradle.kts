@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.extensions.DetektExtension
 import net.fabricmc.loom.api.LoomGradleExtensionAPI
@@ -7,6 +8,7 @@ import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -18,6 +20,7 @@ plugins {
     kotlin("jvm") apply false
     id("dev.detekt") apply false
     id("net.fabricmc.fabric-loom") apply false
+    id("com.gradleup.shadow") apply false
 }
 
 val supportedMinecraftVersions = providers.gradleProperty("skysoft.supportedMinecraftVersions")
@@ -123,6 +126,27 @@ configure(targetProjects) {
         fabricModJsonPath.set(rootProject.layout.projectDirectory.file("src/main/resources/fabric.mod.json"))
     }
 
+    val bundledSoftConfig = configurations.create("bundledSoftConfig") {
+        isTransitive = false
+    }
+    val isolatedSoftConfigResources = tasks.register<Sync>("isolateSoftConfigResources") {
+        from({ zipTree(bundledSoftConfig.singleFile) }) {
+            include("fabric.mod.json")
+            filter { line -> line.replace("moulconfig", "skysoft_softconfig") }
+        }
+        into(layout.buildDirectory.dir("isolated-softconfig/resources"))
+    }
+    val isolatedSoftConfig = tasks.register<ShadowJar>("isolateSoftConfig") {
+        archiveFileName.set("skysoft-softconfig-$moulconfigVersion-mc$minecraftVersion.jar")
+        destinationDirectory.set(layout.buildDirectory.dir("isolated-softconfig"))
+        from({ zipTree(bundledSoftConfig.singleFile) }) {
+            exclude("fabric.mod.json")
+        }
+        from(isolatedSoftConfigResources)
+        relocate("assets.moulconfig", "assets.skysoft_softconfig")
+        relocate("moulconfig", "skysoft_softconfig")
+    }
+
     dependencies {
         add("minecraft", "com.mojang:minecraft:$minecraftDependencyVersion")
         add("implementation", "net.fabricmc:fabric-loader:$fabricLoaderVersion")
@@ -139,7 +163,7 @@ configure(targetProjects) {
 
         val moulconfig = "$moulconfigGroup:modern-$minecraftVersion:$moulconfigVersion"
         add("implementation", moulconfig)
-        add("include", moulconfig)
+        add(bundledSoftConfig.name, moulconfig)
     }
 
     val resourceProperties = mapOf(
@@ -218,6 +242,32 @@ configure(targetProjects) {
         archiveVersion.set("${project.version}-mc$minecraftVersion")
     }
 
+    tasks.withType<ShadowJar>().configureEach {
+        configurations = emptyList()
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        failOnDuplicateEntries = true
+        relocate("io.github.notenoughupdates.moulconfig", "com.skysoft.deps.softconfig")
+        mergeServiceFiles()
+    }
+
+    tasks.named<Jar>("jar") {
+        archiveClassifier.set("unshaded")
+        from(isolatedSoftConfig) {
+            into("META-INF/jars")
+        }
+    }
+
+    val releaseJar = tasks.register<ShadowJar>("releaseJar") {
+        group = "build"
+        description = "Assembles the release jar with isolated SoftConfig references."
+        val mainJar = tasks.named<Jar>("jar")
+        from(mainJar.map { zipTree(it.archiveFile.get().asFile) })
+        archiveClassifier.set("")
+    }
+
+    tasks.named("assemble") {
+        dependsOn(releaseJar)
+    }
 }
 
 val collectVersionJars = tasks.register<Sync>("collectVersionJars") {
@@ -226,7 +276,7 @@ val collectVersionJars = tasks.register<Sync>("collectVersionJars") {
     into(rootLibsDirectory)
     supportedMinecraftVersions.forEach { minecraftVersion ->
         val targetProject = targetProjectFor(minecraftVersion)
-        dependsOn(targetProject.tasks.named("jar"))
+        dependsOn(targetProject.tasks.named("releaseJar"))
         from(targetProject.layout.buildDirectory.dir("libs")) {
             include(skysoftJarName(minecraftVersion))
         }
@@ -239,7 +289,7 @@ val collectReleaseJars = tasks.register<Sync>("collectReleaseJars") {
     into(releaseAssetsDirectory)
     supportedMinecraftVersions.forEach { minecraftVersion ->
         val targetProject = targetProjectFor(minecraftVersion)
-        dependsOn(targetProject.tasks.named("jar"))
+        dependsOn(targetProject.tasks.named("releaseJar"))
         from(targetProject.layout.buildDirectory.dir("libs")) {
             include(skysoftJarName(minecraftVersion))
         }
