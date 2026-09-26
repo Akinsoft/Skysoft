@@ -2,6 +2,7 @@ package com.skysoft.features.profit
 
 import com.skysoft.config.ProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerPriceSource
+import com.skysoft.config.ProfitTrackerQuantityAlignment
 import com.skysoft.config.ProfitTrackerQuantityPosition
 import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.data.ProfileStorageView
@@ -78,12 +79,14 @@ internal class ProfitTrackerRenderable(
         right = "§7...",
         control = ProfitTrackerControl.Reset,
         secondaryControl = ProfitTrackerControl.More,
+        tableSection = null,
     )
     private val resetConfirmationLine = ProfitLine(
         "§c[Cancel]",
         right = "§a[Confirm]",
         control = ProfitTrackerControl.CancelReset,
         secondaryControl = ProfitTrackerControl.ConfirmReset,
+        tableSection = null,
     )
     private val pestBreakdownControl = if (inventoryOpen && target.preset == ProfitTrackerPreset.FARMING) {
         ProfitTrackerControl.PestBreakdown(pestBreakdownRows())
@@ -102,15 +105,25 @@ internal class ProfitTrackerRenderable(
         null
     }
     private val lines = buildLines()
+    private val itemTableLayout = if (config.details.tabularFormatting) {
+        ProfitTableLayout.measure(lines, ProfitTableSection.ITEMS)
+    } else {
+        null
+    }
+    private val summaryTableLayout = if (config.details.tabularFormatting) {
+        ProfitTableLayout.measure(lines, ProfitTableSection.SUMMARY)
+    } else {
+        null
+    }
 
     private val contentWidth = maxOf(
         MINIMUM_WIDTH,
-        lines.maxOfOrNull(ProfitLine::width) ?: 0,
+        lines.maxOfOrNull { line -> line.width(tableLayout(line)) } ?: 0,
         resetLine.width.takeIf { inventoryOpen } ?: 0,
         resetConfirmationLine.width.takeIf { inventoryOpen } ?: 0,
     ) + padding * 2
     override val width: Int = widthState.update(contentWidth)
-    override val height: Int = lines.sumOf(ProfitLine::height) +
+    override val height: Int = lines.sumOf { line -> line.height(tableLayout(line)) } +
         (if (inventoryOpen) resetLine.height else 0) + padding * 2
 
     override fun render(context: GuiGraphicsExtractor) {
@@ -123,7 +136,7 @@ internal class ProfitTrackerRenderable(
         var hovered: OverlayControlArea<ProfitTrackerControl>? = null
         lines.forEach { line ->
             renderLine(context, line, y, mouseX, mouseY)?.let { hovered = it }
-            y += line.height
+            y += line.height(tableLayout(line))
         }
         if (inventoryOpen) renderResetLine(context, y, mouseX, mouseY)?.let { hovered = it }
         return hovered
@@ -165,14 +178,16 @@ internal class ProfitTrackerRenderable(
         mouseY: Int?,
         opacity: Double = 1.0,
     ): OverlayControlArea<ProfitTrackerControl>? {
+        val tableLayout = tableLayout(line)
         val primaryWidth = line.primaryControlWidth(width, padding)
         val rightWidth = line.right?.let(LegacyTextRenderer::width) ?: 0
         val secondaryX = width - padding - rightWidth
+        val lineHeight = line.height(tableLayout)
         val primaryArea = line.control?.let { action ->
-            OverlayControlArea(action, Rect(padding, y, primaryWidth, line.height), emptyList())
+            OverlayControlArea(action, Rect(padding, y, primaryWidth, lineHeight), emptyList())
         }
         val secondaryArea = line.secondaryControl?.let { action ->
-            OverlayControlArea(action, Rect(secondaryX, y, rightWidth, line.height), emptyList())
+            OverlayControlArea(action, Rect(secondaryX, y, rightWidth, lineHeight), emptyList())
         }
         primaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }?.let { area ->
             OverlayTextStyle.drawControlHover(context, area.bounds, opacity)
@@ -181,6 +196,12 @@ internal class ProfitTrackerRenderable(
             OverlayTextStyle.drawControlHover(context, area.bounds, opacity)
         }
         val textColor = TEXT_COLOR.withScaledAlpha(opacity)
+        tableLayout?.let { layout ->
+            renderTableLine(context, line, layout, y, textColor)
+            val hoveredArea = secondaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }
+                ?: primaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }
+            return hoveredArea?.copy(tooltipLines = controlTooltip(hoveredArea.action))
+        }
         line.leading?.let {
             LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset, defaultColor = textColor)
         }
@@ -216,37 +237,61 @@ internal class ProfitTrackerRenderable(
         return hoveredArea?.copy(tooltipLines = controlTooltip(hoveredArea.action))
     }
 
+    private fun renderTableLine(
+        context: GuiGraphicsExtractor,
+        line: ProfitLine,
+        layout: ProfitTableLayout,
+        y: Int,
+        textColor: Int,
+    ) {
+        val textY = y + layout.textYOffset
+        (line.leading ?: line.middle)?.let { quantity ->
+            LegacyTextRenderer.draw(
+                context,
+                quantity,
+                padding + layout.quantityTextX(
+                    line.quantityTextWidth ?: LegacyTextRenderer.width(quantity),
+                    config.details.quantityAlignment,
+                ),
+                textY,
+                defaultColor = textColor,
+            )
+        }
+        line.icon?.let { icon ->
+            ItemIconRenderable(icon, OverlayItemRowStyle.ICON_SCALE).renderAt(context, padding + layout.nameX, y)
+        }
+        val nameTextX = layout.nameX + if (line.icon == null) 0 else OverlayItemRowStyle.ICON_TEXT_OFFSET
+        LegacyTextRenderer.draw(context, line.left, padding + nameTextX, textY, defaultColor = textColor)
+        line.right?.let { right ->
+            LegacyTextRenderer.draw(
+                context,
+                right,
+                padding + layout.valueTextX(right, width - padding * 2),
+                textY,
+                defaultColor = textColor,
+            )
+        }
+    }
+
     private fun buildLines(): List<ProfitLine> = buildList {
         val itemRows = displayedItems.map { item -> item to item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH) }
         val itemNameColumnWidth = itemRows.maxOfOrNull { (_, name) -> LegacyTextRenderer.width(name) } ?: 0
-        add(ProfitLine(OverlayTextStyle.title("${target.displayName} Profit"), height = OverlayTextStyle.TITLE_HEIGHT))
+        add(
+            ProfitLine(
+                OverlayTextStyle.title("${target.displayName} Profit"),
+                height = OverlayTextStyle.TITLE_HEIGHT,
+                tableSection = null,
+            ),
+        )
         if (displayedItems.isEmpty()) {
-            add(ProfitLine("§7No tracked drops yet."))
+            add(ProfitLine("§7No tracked drops yet.", tableSection = null))
         } else {
             itemRows.forEach { (item, name) ->
-                val count = itemQuantity(item)
-                val countWidth = LegacyTextRenderer.width("§7x§a§l${item.amount.addSeparators()}")
-                val value = item.value?.let { "§6${it.coinFormat()}" } ?: "§8Unknown"
-                val quantityLeft = config.details.quantityPosition == ProfitTrackerQuantityPosition.LEFT
-                add(
-                    ProfitLine(
-                        left = name,
-                        middle = count.takeUnless { quantityLeft },
-                        leftColumnWidth = if (quantityLeft) LegacyTextRenderer.width(name) else itemNameColumnWidth,
-                        right = value,
-                        icon = item.stack.takeIf { renderItemIcons },
-                        height = OverlayItemRowStyle.HEIGHT,
-                        textYOffset = OverlayItemRowStyle.TEXT_Y_OFFSET,
-                        leading = count.takeIf { quantityLeft },
-                        reservedColumnWidth = countWidth,
-                        control = ProfitTrackerControl.ManageItem(item.itemId, item.stack, item.name)
-                            .takeIf { inventoryOpen },
-                    ),
-                )
+                add(itemLine(item, name, itemNameColumnWidth))
             }
         }
         val scrollIndicator = OverlayListScroll.indicator(hiddenItemsAbove, remainingItems)
-        if (scrollIndicator.isNotEmpty()) add(ProfitLine(scrollIndicator, centered = true))
+        if (scrollIndicator.isNotEmpty()) add(ProfitLine(scrollIndicator, centered = true, tableSection = null))
         val profitPerHour = profitPerHour(profit, stats.activeMillis)
         summaryLines.forEach { summaryLine ->
             when (summaryLine) {
@@ -293,9 +338,47 @@ internal class ProfitTrackerRenderable(
             }
         }
         if (inventoryOpen) {
-            add(ProfitLine("§7Display Mode §a§l[${period.displayName}]", control = ProfitTrackerControl.Period))
-            add(ProfitLine("§7Price Source §e§l[${config.settings.priceSource}]", control = ProfitTrackerControl.PriceSource))
+            add(
+                ProfitLine(
+                    "§7Display Mode §a§l[${period.displayName}]",
+                    control = ProfitTrackerControl.Period,
+                    tableSection = null,
+                ),
+            )
+            add(
+                ProfitLine(
+                    "§7Price Source §e§l[${config.settings.priceSource}]",
+                    control = ProfitTrackerControl.PriceSource,
+                    tableSection = null,
+                ),
+            )
         }
+    }
+
+    private fun itemLine(item: ProfitDisplayItem, name: String, itemNameColumnWidth: Int): ProfitLine {
+        val count = itemQuantity(item)
+        val formattedAmount = item.amount.addSeparators()
+        val quantityLeft = config.details.quantityPosition == ProfitTrackerQuantityPosition.LEFT
+        return ProfitLine(
+            left = name,
+            middle = count.takeUnless { quantityLeft },
+            leftColumnWidth = if (quantityLeft) LegacyTextRenderer.width(name) else itemNameColumnWidth,
+            right = item.value?.let { "§6${it.coinFormat()}" } ?: "§8Unknown",
+            icon = item.stack.takeIf { renderItemIcons },
+            height = OverlayItemRowStyle.HEIGHT,
+            textYOffset = OverlayItemRowStyle.TEXT_Y_OFFSET,
+            leading = count.takeIf { quantityLeft },
+            reservedColumnWidth = LegacyTextRenderer.width("§7x§a§l$formattedAmount"),
+            quantityTextWidth = LegacyTextRenderer.width("§7x$formattedAmount"),
+            control = ProfitTrackerControl.ManageItem(item.itemId, item.stack, item.name).takeIf { inventoryOpen },
+            tableSection = ProfitTableSection.ITEMS,
+        )
+    }
+
+    private fun tableLayout(line: ProfitLine): ProfitTableLayout? = when (line.tableSection) {
+        ProfitTableSection.ITEMS -> itemTableLayout
+        ProfitTableSection.SUMMARY -> summaryTableLayout
+        null -> null
     }
 
     private fun itemQuantity(item: ProfitDisplayItem): String {
@@ -361,14 +444,20 @@ private data class ProfitLine(
     val leading: String? = null,
     val middle: String? = null,
     val reservedColumnWidth: Int? = null,
+    val quantityTextWidth: Int? = null,
     val leftColumnWidth: Int = LegacyTextRenderer.width(left),
+    val tableSection: ProfitTableSection? = ProfitTableSection.SUMMARY,
 ) {
     val leadingWidth: Int = leading?.let { reservedColumnWidth ?: LegacyTextRenderer.width(it) } ?: 0
-    private val middleWidth: Int = middle?.let { reservedColumnWidth ?: LegacyTextRenderer.width(it) } ?: 0
+    val middleWidth: Int = middle?.let { reservedColumnWidth ?: LegacyTextRenderer.width(it) } ?: 0
     val contentOffset: Int = leadingWidth + if (leading == null) 0 else OverlayItemRowStyle.QUANTITY_COLUMN_GAP
     val width: Int = contentOffset + (if (icon == null) 0 else OverlayItemRowStyle.ICON_TEXT_OFFSET) +
         leftColumnWidth + (middle?.let { middleWidth + OverlayItemRowStyle.QUANTITY_COLUMN_GAP } ?: 0) +
         (right?.let { LegacyTextRenderer.width(it) + OverlayItemRowStyle.VALUE_COLUMN_GAP } ?: 0)
+
+    fun width(tableLayout: ProfitTableLayout?): Int = tableLayout?.width ?: width
+
+    fun height(tableLayout: ProfitTableLayout?): Int = tableLayout?.rowHeight ?: height
 
     fun primaryControlWidth(totalWidth: Int, padding: Int): Int = when {
         control is ProfitTrackerControl.ManageItem || control is ProfitTrackerControl.PestBreakdown ||
@@ -377,6 +466,63 @@ private data class ProfitLine(
         secondaryControl == null -> width
         else -> LegacyTextRenderer.width(left)
     }
+}
+
+private enum class ProfitTableSection {
+    ITEMS,
+    SUMMARY,
+}
+
+private data class ProfitTableLayout(
+    val quantityColumnWidth: Int,
+    val quantityTextColumnWidth: Int,
+    val nameColumnWidth: Int,
+    val valueColumnWidth: Int,
+    val quantityBeforeName: Boolean,
+    val rowHeight: Int,
+    val textYOffset: Int,
+) {
+    private val quantityGap = if (quantityColumnWidth > 0) OverlayItemRowStyle.QUANTITY_COLUMN_GAP else 0
+    private val quantityX = if (quantityBeforeName) 0 else nameColumnWidth + quantityGap
+    val nameX: Int = if (quantityBeforeName) quantityColumnWidth + quantityGap else 0
+    private val itemColumnsWidth = nameColumnWidth + quantityGap + quantityColumnWidth
+    private val valueGap = if (valueColumnWidth > 0) OverlayItemRowStyle.VALUE_COLUMN_GAP else 0
+    val width: Int = itemColumnsWidth + valueGap + valueColumnWidth
+
+    fun quantityTextX(textWidth: Int, alignment: ProfitTrackerQuantityAlignment): Int = quantityX + alignment.offset(
+        quantityTextColumnWidth,
+        textWidth,
+    )
+
+    fun valueTextX(text: String, contentWidth: Int): Int = contentWidth - LegacyTextRenderer.width(text)
+
+    companion object {
+        fun measure(lines: List<ProfitLine>, section: ProfitTableSection): ProfitTableLayout? {
+            val rows = lines.filter { line -> line.tableSection == section }
+            if (rows.isEmpty()) return null
+            return ProfitTableLayout(
+                quantityColumnWidth = rows.maxOf { line -> maxOf(line.leadingWidth, line.middleWidth) },
+                quantityTextColumnWidth = rows.maxOf { line ->
+                    line.quantityTextWidth ?: maxOf(
+                        line.leading?.let(LegacyTextRenderer::width) ?: 0,
+                        line.middle?.let(LegacyTextRenderer::width) ?: 0,
+                    )
+                },
+                nameColumnWidth = rows.maxOf { line ->
+                    line.leftColumnWidth + if (line.icon == null) 0 else OverlayItemRowStyle.ICON_TEXT_OFFSET
+                },
+                valueColumnWidth = rows.maxOf { line -> line.right?.let(LegacyTextRenderer::width) ?: 0 },
+                quantityBeforeName = rows.any { line -> line.leading != null },
+                rowHeight = rows.maxOf(ProfitLine::height),
+                textYOffset = rows.maxOf(ProfitLine::textYOffset),
+            )
+        }
+    }
+}
+
+private fun ProfitTrackerQuantityAlignment.offset(columnWidth: Int, textWidth: Int): Int = when (this) {
+    ProfitTrackerQuantityAlignment.LEFT -> 0
+    ProfitTrackerQuantityAlignment.RIGHT -> columnWidth - textWidth
 }
 
 internal fun formatProfitUptime(activeMillis: Long): String {

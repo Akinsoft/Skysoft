@@ -5,6 +5,7 @@ import com.skysoft.config.CustomProfitTrackerConfig
 import com.skysoft.config.CustomProfitTrackerLocation
 import com.skysoft.config.CustomProfitTrackerLocations
 import com.skysoft.config.ProfitTrackerPriceSource
+import com.skysoft.config.ProfitTrackerQuantityAlignment
 import com.skysoft.config.ProfitTrackerQuantityPosition
 import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.config.normalizedCustomTrackerName
@@ -28,6 +29,8 @@ internal object CustomProfitTrackerSharing {
             maximumItems = tracker.config.settings.maximumItems,
             showItemIcons = tracker.config.details.showItemIcons,
             quantityPosition = tracker.config.details.quantityPosition.name,
+            tabularFormatting = tracker.config.details.tabularFormatting,
+            quantityAlignment = tracker.config.details.quantityAlignment.name,
             highlightChanges = tracker.config.details.highlightChanges,
             summaryLines = tracker.config.details.summaryLines.get().map(ProfitTrackerSummaryLine::name),
             showBackground = tracker.config.details.showBackground,
@@ -47,6 +50,9 @@ internal object CustomProfitTrackerSharing {
         ) return null
         val source = ProfitTrackerPriceSource.entries.firstOrNull { it.name == shared.priceSource } ?: return null
         val quantity = ProfitTrackerQuantityPosition.entries.firstOrNull { it.name == shared.quantityPosition } ?: return null
+        val quantityAlignment = ProfitTrackerQuantityAlignment.entries.firstOrNull {
+            it.name == shared.quantityAlignment
+        } ?: return null
         val summary = shared.summaryLines.map { name ->
             ProfitTrackerSummaryLine.entries.firstOrNull { it.name == name } ?: return null
         }
@@ -69,6 +75,8 @@ internal object CustomProfitTrackerSharing {
         with(tracker.config.details) {
             showItemIcons = shared.showItemIcons
             quantityPosition = quantity
+            tabularFormatting = shared.tabularFormatting
+            this.quantityAlignment = quantityAlignment
             highlightChanges = shared.highlightChanges
             summaryLines.set(summary.toMutableList())
             showBackground = shared.showBackground
@@ -90,6 +98,8 @@ internal object CustomProfitTrackerSharing {
         val maximumItems: Int = 8,
         val showItemIcons: Boolean = true,
         val quantityPosition: String = ProfitTrackerQuantityPosition.RIGHT.name,
+        val tabularFormatting: Boolean = false,
+        val quantityAlignment: String = ProfitTrackerQuantityAlignment.RIGHT.name,
         val highlightChanges: Boolean = true,
         val summaryLines: List<String> = emptyList(),
         val showBackground: Boolean = false,
