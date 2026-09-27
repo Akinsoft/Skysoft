@@ -373,7 +373,7 @@ internal fun handleStorageOverlayKeyPress(screen: AbstractContainerScreen<*>, ev
     if (!storageOverlayIsActive(screen)) return InputHandlingResult.IGNORED
     if (processStorageSettingsKey(event.key()) == InputHandlingResult.CONSUMED) return InputHandlingResult.CONSUMED
     if (editingTitlePage != null) return handleTitleEditKeyPress(screen, event)
-    if (!storageSearchField.focused) return InputHandlingResult.IGNORED
+    if (!storageSearchField.focused) return handleStorageOverlayPageNavigation(screen, event)
     if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
         if (storageSearchField.text.isEmpty()) {
             storageSearchField.focused = false
