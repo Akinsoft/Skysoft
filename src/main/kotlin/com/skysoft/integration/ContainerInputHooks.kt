@@ -28,13 +28,13 @@ object ContainerInputHooks {
             didConsume("Bazaar Tracker mouse input") { BazaarTracker.handleMouseClick(screen, click) } ||
             didConsume("Inventory Equipment mouse input") { InventoryEquipment.handleMouseClick(screen, click) } ||
             didConsume("Inventory Button mouse input") { InventoryButtonManager.handleMouseClick(screen, click) } ||
-            didConsume("Menu Keybind mouse input") { MenuKeybinds.handleBinding(screen, click.button()) }
+            didConsume("Menu Keybind mouse input") { MenuKeybinds.handleBinding(screen, InputUtilities.mouseButton(click)) }
 
     @JvmStatic
     fun didConsumeMouseRelease(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): Boolean =
         didConsume("Storage Overlay mouse release") { StorageOverlayController.handleMouseRelease(click) } ||
             didConsume("Inventory Button mouse release") { InventoryButtonManager.handleMouseRelease(screen, click) } ||
-            didConsume("Menu Keybind mouse release") { MenuKeybinds.handleMouseRelease(screen, click.button()) }
+            didConsume("Menu Keybind mouse release") { MenuKeybinds.handleMouseRelease(screen, InputUtilities.mouseButton(click)) }
 
     @JvmStatic
     fun didConsumeMouseDrag(
@@ -64,7 +64,7 @@ object ContainerInputHooks {
         if (didConsume("Profit Tracker key input") { ProfitTrackerHudInput.handleKeyPress(event) }) return true
         if (didConsume("Storage Overlay key input") { StorageOverlayController.handleKeyPress(screen, event) }) return true
         if (!ItemListController.isSearchFocused(screen) && didConsume("Menu Keybind key input") {
-                MenuKeybinds.handleBinding(screen, event.key(), InputUtilities.isRepeatedBindingInput)
+                MenuKeybinds.handleBinding(screen, InputUtilities.keyCode(event), InputUtilities.isRepeatedBindingInput)
             }
         ) return true
         if (didConsume("Item List key input") { ItemListController.handleKeyPress(screen, event) }) return true

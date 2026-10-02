@@ -15,7 +15,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositione
 import net.minecraft.util.FormattedCharSequence
 import org.joml.Vector2i
 import org.joml.Vector2ic
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 interface TooltipScrollExcludedScreen
 

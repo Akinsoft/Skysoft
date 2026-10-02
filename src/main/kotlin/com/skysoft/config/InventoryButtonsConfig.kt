@@ -9,7 +9,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 class InventoryButtonsConfig : ConfigRepairable {
     @JvmField

@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.crafting
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -21,7 +22,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal sealed interface CraftingHelperControl {
     data object More : CraftingHelperControl
@@ -136,21 +137,21 @@ private fun shouldAllowCraftingHelperClick(
     val panelHovered = craftingHelperItemPanel.isHovered
     val handled = when (control) {
         CraftingHelperControl.More ->
-            wasLeftClickHandled(click.button(), craftingHelperItemPanel::toggleAddingItems)
+            wasLeftClickHandled(InputUtilities.mouseButton(click), craftingHelperItemPanel::toggleAddingItems)
         CraftingHelperControl.AddItems ->
-            wasLeftClickHandled(click.button(), craftingHelperItemPanel::beginAddingItems)
+            wasLeftClickHandled(InputUtilities.mouseButton(click), craftingHelperItemPanel::beginAddingItems)
         CraftingHelperControl.DecreaseItems ->
-            wasLeftClickHandled(click.button(), craftingHelperItemPanel::beginRemovingItems)
+            wasLeftClickHandled(InputUtilities.mouseButton(click), craftingHelperItemPanel::beginRemovingItems)
         is CraftingHelperControl.ItemSelection ->
-            craftingHelperItemPanel.wasSelectionClickHandled(control.action, click.button())
+            craftingHelperItemPanel.wasSelectionClickHandled(control.action, InputUtilities.mouseButton(click))
         is CraftingHelperControl.Quantity ->
-            craftingHelperItemPanel.wasQuantityClickHandled(control.action, click.button())
-        is CraftingHelperControl.Line -> wasCraftingHelperLineClickHandled(screen, control.line, click.button())
-        null -> wasInventoryTargetSelected(screen, click.button())
+            craftingHelperItemPanel.wasQuantityClickHandled(control.action, InputUtilities.mouseButton(click))
+        is CraftingHelperControl.Line -> wasCraftingHelperLineClickHandled(screen, control.line, InputUtilities.mouseButton(click))
+        null -> wasInventoryTargetSelected(screen, InputUtilities.mouseButton(click))
     }
     val keepsPanelOpen = panelHovered || control == CraftingHelperControl.More ||
         control is CraftingHelperControl.Line && control.line.isTarget &&
-        click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT || control == null && handled
+        InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT || control == null && handled
     if (!keepsPanelOpen) craftingHelperItemPanel.close()
     if (handled) SoundUtilities.playClickSound()
     return !handled && !panelHovered

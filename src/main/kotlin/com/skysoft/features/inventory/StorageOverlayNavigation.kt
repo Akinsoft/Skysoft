@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.data.ProfileStorage
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.gui.nonPlayerSlots
@@ -8,7 +9,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.ContainerInput
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun rememberActivePage(handle: StorageHandle) {
     handle.entryIndex()?.let { rememberedPageIndex = it }
@@ -29,7 +30,7 @@ internal fun requestOverviewShortcutClick(
     pageIndex: Int,
 ): InputHandlingResult {
     if (
-        click.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT ||
+        InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_RIGHT ||
         !screen.menu.carried.isEmpty ||
         StorageOverviewSlots.slotForPageIndex(pageIndex) == null
     ) {
@@ -39,7 +40,7 @@ internal fun requestOverviewShortcutClick(
     val now = System.currentTimeMillis()
     if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return InputHandlingResult.IGNORED
     lastCommandMillis = now
-    pendingOverviewShortcutClick = PendingOverviewShortcutClick(pageIndex, click.button(), now)
+    pendingOverviewShortcutClick = PendingOverviewShortcutClick(pageIndex, InputUtilities.mouseButton(click), now)
     connection.sendCommand("storage")
     return InputHandlingResult.CONSUMED
 }

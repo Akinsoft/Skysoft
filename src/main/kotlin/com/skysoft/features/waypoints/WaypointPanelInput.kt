@@ -18,7 +18,7 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal object WaypointPanelInput {
     private var dragOffset: Pair<Int, Int>? = null
@@ -47,9 +47,11 @@ internal object WaypointPanelInput {
             }
             if (screen is ChatScreen || screen is AbstractContainerScreen<*> || screen is WaypointPanelScreen || screen is WaypointDialog) {
                 ScreenKeyboardEvents.allowKeyPress(screen).register { _, event ->
-                    !WaypointSettingsPanel.didPressKey(event.key()) && !WaypointPresetList.didPressKey(event)
+                    !WaypointSettingsPanel.didPressKey(InputUtilities.keyCode(event)) && !WaypointPresetList.didPressKey(event)
                 }
-                ScreenKeyboardEvents.allowKeyRelease(screen).register { _, event -> !WaypointSettingsPanel.didReleaseBinding(event.key()) }
+                ScreenKeyboardEvents.allowKeyRelease(screen).register { _, event ->
+                    !WaypointSettingsPanel.didReleaseBinding(InputUtilities.keyCode(event))
+                }
             }
         }
     }
@@ -93,22 +95,22 @@ internal object WaypointPanelInput {
     fun didClick(click: MouseButtonEvent, x: Int, y: Int): Boolean {
         if (!WaypointPanel.isVisible()) return false
         if (!WaypointPanel.isInteractive) return WaypointPanel.containsPoint(x, y)
-        if (WaypointSettingsPanel.didCaptureMouse(click.button())) return true
+        if (WaypointSettingsPanel.didCaptureMouse(InputUtilities.mouseButton(click))) return true
         if (WaypointPresetList.didClick(click, x, y)) return true
         val layout = WaypointPanel.layout
         val control = WaypointPanel.controls.lastOrNull { it.bounds.contains(x, y) }
-        if (click.button() !in EDITOR_BUTTONS) return WaypointPanel.containsPoint(x, y)
+        if (InputUtilities.mouseButton(click) !in EDITOR_BUTTONS) return WaypointPanel.containsPoint(x, y)
         val pendingDelete = WaypointPanel.pendingDelete
         val settings = WaypointSettingsPanel.layout
         when {
             control != null -> {
-                WaypointPanel.activate(control, rightClick = click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
-                if (control.enabled && control.pointId != null && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                WaypointPanel.activate(control, rightClick = InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+                if (control.enabled && control.pointId != null && InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                     WaypointPointDrag.begin(control.pointId, y)
                     dragScreen = MinecraftClient.screen()
                 }
             }
-            layout != null && layout.header.contains(x, y) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+            layout != null && layout.header.contains(x, y) && InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
                 WaypointSettingsPanel.close()
                 dragOffset = (x - layout.bounds.x) to (y - layout.bounds.y)
                 dragScreen = MinecraftClient.screen()
@@ -118,7 +120,7 @@ internal object WaypointPanelInput {
                 WaypointPanel.pendingDelete = null
                 if (isWorldPointCovered(click.x().toInt(), click.y().toInt())) return false
                 val selected = WaypointWorldSelection.didSelectAt(x, y)
-                if (selected && click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT) WaypointPointScreen.open()
+                if (selected && InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_RIGHT) WaypointPointScreen.open()
                 return selected
             }
         }
@@ -130,7 +132,7 @@ internal object WaypointPanelInput {
     }
 
     fun didDrag(click: MouseButtonEvent): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
         val (x, y) = normalPointFromScreen(click.x().toInt(), click.y().toInt())
         if (WaypointSettingsPanel.didDrag(x)) return true
         if (dragScreen !== MinecraftClient.screen()) return false
@@ -142,8 +144,8 @@ internal object WaypointPanelInput {
     }
 
     fun didRelease(click: MouseButtonEvent): Boolean {
-        if (WaypointSettingsPanel.didReleaseBinding(click.button())) return true
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (WaypointSettingsPanel.didReleaseBinding(InputUtilities.mouseButton(click))) return true
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
         if (WaypointSettingsPanel.didFinishDrag()) return true
         if (WaypointPointDrag.didFinish()) return true
         if (dragOffset == null) return false

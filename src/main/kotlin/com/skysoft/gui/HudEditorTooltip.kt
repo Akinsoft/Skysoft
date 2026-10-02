@@ -3,7 +3,7 @@ package com.skysoft.gui
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.utils.input.InputUtilities
 import java.util.Locale
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun hudEditorTooltipLines(
     active: HudEditorElement?,

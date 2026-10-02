@@ -15,7 +15,7 @@ import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object MouseInputHooks {
     @JvmStatic

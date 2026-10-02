@@ -1,5 +1,6 @@
 package com.skysoft.features.waypoints
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.PixelControlColors
@@ -11,7 +12,7 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class WaypointIslandScreen private constructor(
     parent: Screen?,
@@ -84,7 +85,7 @@ internal object WaypointPresetList {
 
     fun didClick(click: MouseButtonEvent, x: Int, y: Int): Boolean {
         val bounds = WaypointPanel.layout?.search
-        if (!canSearch || click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT || bounds?.contains(x, y) != true) {
+        if (!canSearch || InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT || bounds?.contains(x, y) != true) {
             blur()
             return false
         }
@@ -96,7 +97,7 @@ internal object WaypointPresetList {
 
     fun didPressKey(event: KeyEvent): Boolean {
         if (!isSearchActive) return false
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) blur() else search.keyPressed(event)
+        if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE) blur() else search.keyPressed(event)
         return true
     }
 

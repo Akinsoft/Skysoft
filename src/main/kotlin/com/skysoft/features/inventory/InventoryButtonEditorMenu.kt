@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.InventoryButtonsConfig
@@ -18,7 +19,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class InventoryButtonEditorMenu(
     private val config: () -> InventoryButtonsConfig,
@@ -88,7 +89,7 @@ internal class InventoryButtonEditorMenu(
     fun wasMouseClickHandled(click: MouseButtonEvent, editorPanel: Rect): Boolean {
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
-        return if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+        return if (InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
             toggleBounds(editorPanel).contains(mouseX, mouseY)
         ) {
             SoundUtilities.playClickSound()
@@ -109,19 +110,19 @@ internal class InventoryButtonEditorMenu(
         if (!transition.isInteractive) return true
         renamingPreset?.let { presetIndex ->
             val bounds = layout.presets[presetIndex]
-            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && bounds.contains(mouseX, mouseY)) {
+            if (InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT && bounds.contains(mouseX, mouseY)) {
                 renameField.placeCursorAt(mouseX, bounds.x, bounds.width)
                 return true
             }
             finishRename()
         }
-        handleMenuClick(layout, mouseX, mouseY, click.button())
+        handleMenuClick(layout, mouseX, mouseY, InputUtilities.mouseButton(click))
         return true
     }
 
     fun handleKeyPress(event: KeyEvent): InputHandlingResult {
         if (renamingPreset != null) {
-            if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE) {
                 cancelRename()
                 return InputHandlingResult.CONSUMED
             }
@@ -129,7 +130,7 @@ internal class InventoryButtonEditorMenu(
             if (!renameField.focused) finishRename()
             return InputHandlingResult.CONSUMED
         }
-        if (event.key() != GLFW.GLFW_KEY_ESCAPE || !transition.isVisible) return InputHandlingResult.IGNORED
+        if (InputUtilities.keyCode(event) != GLFW.GLFW_KEY_ESCAPE || !transition.isVisible) return InputHandlingResult.IGNORED
         closeMenu()
         return InputHandlingResult.CONSUMED
     }

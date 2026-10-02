@@ -14,7 +14,7 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal sealed interface TrackedItemManagerAction {
     data object AddItems : TrackedItemManagerAction

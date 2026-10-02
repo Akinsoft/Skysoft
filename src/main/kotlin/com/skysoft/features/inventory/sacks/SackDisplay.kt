@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.sacks
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -118,10 +119,10 @@ private fun shouldAllowSackDisplayClick(
     if (InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) return true
     val control = hoveredControl?.action ?: return true
     val handled = when (control) {
-        SackDisplayControl.Mode -> OverlayControlCycle.wasClickHandled(click.button()) { backwards ->
+        SackDisplayControl.Mode -> OverlayControlCycle.wasClickHandled(InputUtilities.mouseButton(click)) { backwards ->
             displayMode = OverlayControlCycle.next(SackDisplayMode.entries, displayMode, backwards)
         }
-        SackDisplayControl.PriceSource -> OverlayControlCycle.wasClickHandled(click.button()) { backwards ->
+        SackDisplayControl.PriceSource -> OverlayControlCycle.wasClickHandled(InputUtilities.mouseButton(click)) { backwards ->
             config.settings.priceSource = OverlayControlCycle.next(
                 ProfitTrackerPriceSource.entries,
                 config.settings.priceSource,
@@ -129,7 +130,7 @@ private fun shouldAllowSackDisplayClick(
             )
             SkysoftConfigGui.config().saveNow()
         }
-        is SackDisplayControl.Item -> wasSackItemClickHandled(screen, control.item, click.button())
+        is SackDisplayControl.Item -> wasSackItemClickHandled(screen, control.item, InputUtilities.mouseButton(click))
     }
     if (handled) SoundUtilities.playClickSound()
     return !handled

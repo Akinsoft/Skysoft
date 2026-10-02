@@ -26,7 +26,7 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object ItemProtectionManager {
     private val config get() = SkysoftConfigGui.config().inventory.protection.protectItem
@@ -49,9 +49,9 @@ object ItemProtectionManager {
 
     @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
-        if (!isFeatureAvailable() || !isProtectKey(event.key())) return InputHandlingResult.IGNORED
-        if (activeProtectKey == event.key()) return InputHandlingResult.CONSUMED
-        activeProtectKey = event.key()
+        if (!isFeatureAvailable() || !isProtectKey(InputUtilities.keyCode(event))) return InputHandlingResult.IGNORED
+        if (activeProtectKey == InputUtilities.keyCode(event)) return InputHandlingResult.CONSUMED
+        activeProtectKey = InputUtilities.keyCode(event)
 
         if (StorageOverlayController.isActive(screen) && !hoveredStorageItem.isEmpty) {
             reportChange(changeProtection(hoveredStorageItem))

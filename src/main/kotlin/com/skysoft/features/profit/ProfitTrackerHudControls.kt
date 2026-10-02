@@ -14,7 +14,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class ProfitTrackerHudControls(
     private val itemPanel: ProfitTrackerItemPanel,

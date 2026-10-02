@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockCookieBuffApi
@@ -38,7 +39,7 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.core.component.DataComponents
 import org.joml.Vector2i
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 import kotlin.math.roundToInt
 
 object ItemListController {
@@ -189,7 +190,7 @@ object ItemListController {
             tierDropdown.clear()
             searchField.focused = false
             if (tierKey != null) {
-                when (click.button()) {
+                when (InputUtilities.mouseButton(click)) {
                     GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT -> openViewer(tierKey, screen)
                 }
             }
@@ -221,31 +222,31 @@ object ItemListController {
         when {
             layout.search.contains(mouseX, mouseY) -> {
                 searchField.focused = true
-                if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                if (InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                     searchField.placeCursorAt(mouseX, layout.search.x, layout.search.width)
                 }
                 when {
-                    click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT &&
+                    InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_RIGHT &&
                         config.settings.isRightClickClearEnabled -> {
                         searchField.text = ""
                         updateSearch("")
                         ContainerSearchHighlighter.clear()
                     }
-                    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && doubled -> {
+                    InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT && doubled -> {
                         ContainerSearchHighlighter.toggle(searchField.text)
                         SoundUtilities.playClickSound()
                     }
                 }
             }
-            layout.config?.contains(mouseX, mouseY) == true && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+            layout.config?.contains(mouseX, mouseY) == true && InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
                 SoundUtilities.playClickSound()
                 SkysoftConfigGui.open("Item List")
             }
-            layout.previous.contains(mouseX, mouseY) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+            layout.previous.contains(mouseX, mouseY) && InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
                 (searchField.focused || ItemListState.search.isNotBlank()) -> {
                 changePage(-1, layout)
             }
-            layout.next.contains(mouseX, mouseY) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+            layout.next.contains(mouseX, mouseY) && InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
                 (searchField.focused || ItemListState.search.isNotBlank()) -> {
                 changePage(1, layout)
             }
@@ -268,7 +269,7 @@ object ItemListController {
             SoundUtilities.playClickSound()
             return
         }
-        when (click.button()) {
+        when (InputUtilities.mouseButton(click)) {
             GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT -> openViewer(hit.key, screen)
         }
     }
@@ -291,7 +292,7 @@ object ItemListController {
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
         val isItemListVisible = isVisible(screen)
         if (isSearchFocused(screen)) {
-            if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ENTER || InputUtilities.keyCode(event) == GLFW.GLFW_KEY_KP_ENTER) {
                 itemListCompiledCalculation(searchField.text)?.let { result ->
                     searchField.text = result
                     searchField.moveCursorToEnd()
@@ -300,7 +301,7 @@ object ItemListController {
                     return InputHandlingResult.CONSUMED
                 }
             }
-            return if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            return if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE) {
                 searchField.focused = false
                 InputHandlingResult.CONSUMED
             } else {
@@ -311,23 +312,23 @@ object ItemListController {
             }
         }
         if (config.settings.visibilityKey != GLFW.GLFW_KEY_UNKNOWN &&
-            event.key() == config.settings.visibilityKey &&
+            InputUtilities.keyCode(event) == config.settings.visibilityKey &&
             config.enabled && HypixelLocationState.onHypixel
         ) {
             ItemListState.isTemporarilyHidden = !ItemListState.isTemporarilyHidden
             searchField.focused = false
             return InputHandlingResult.CONSUMED
         }
-        if (isItemListVisible && event.key() == GLFW.GLFW_KEY_TAB && config.settings.isTabSearchEnabled) {
+        if (isItemListVisible && InputUtilities.keyCode(event) == GLFW.GLFW_KEY_TAB && config.settings.isTabSearchEnabled) {
             searchField.focused = true
             return InputHandlingResult.CONSUMED
         }
-        val shortcut = resolveItemListShortcut(event.key(), config, screen, hoveredKey.takeIf { isItemListVisible })
+        val shortcut = resolveItemListShortcut(InputUtilities.keyCode(event), config, screen, hoveredKey.takeIf { isItemListVisible })
         val layout = lastLayout
         return when {
             shortcut != null -> consume { openViewer(shortcut.key, screen, shortcut.mode) }
             !isItemListVisible || layout == null -> InputHandlingResult.IGNORED
-            else -> when (event.key()) {
+            else -> when (InputUtilities.keyCode(event)) {
                 GLFW.GLFW_KEY_LEFT -> consume { changePage(-1, layout) }
                 GLFW.GLFW_KEY_RIGHT -> consume { changePage(1, layout) }
                 GLFW.GLFW_KEY_A -> hoveredKey?.let { consume { ItemListState.toggleFavorite(it) } }

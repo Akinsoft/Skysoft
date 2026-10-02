@@ -28,7 +28,7 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object InventoryButtonEditorScreen {
     fun open() {
@@ -86,7 +86,7 @@ object InventoryButtonEditorScreen {
             }
             if (handleRequiredKeyMouseClick(click) == InputHandlingResult.CONSUMED) return true
             waitingForRequiredKey = false
-            if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
+            if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
             grabbedIndex = null
 
             val previewMouseX = previewGeometry.previewMouseX(mouseX)
@@ -132,7 +132,7 @@ object InventoryButtonEditorScreen {
         }
 
         override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
-            if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
+            if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
             val button = grabbedIndex?.let(config.buttons::getOrNull)
                 ?: return super.mouseDragged(click, dragX, dragY)
             InventoryButtonLayout.moveButton(
@@ -175,7 +175,7 @@ object InventoryButtonEditorScreen {
             if (handleRequiredKeyPress(event) == InputHandlingResult.CONSUMED) return true
             if (actionsMenu.handleKeyPress(event) == InputHandlingResult.CONSUMED) return true
             return when {
-                event.key() == GLFW.GLFW_KEY_ESCAPE && isTextFieldFocused -> {
+                InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE && isTextFieldFocused -> {
                     commandField.focused = false
                     iconSearch.field.focused = false
                     true
@@ -185,8 +185,8 @@ object InventoryButtonEditorScreen {
                     true
                 }
                 iconSearch.field.focused && handleIconFieldKey(event) == InputHandlingResult.CONSUMED -> true
-                !isTextFieldFocused && nudgeActiveButton(event.key()) == InputHandlingResult.CONSUMED -> true
-                event.key() == GLFW.GLFW_KEY_R && !isTextFieldFocused -> {
+                !isTextFieldFocused && nudgeActiveButton(InputUtilities.keyCode(event)) == InputHandlingResult.CONSUMED -> true
+                InputUtilities.keyCode(event) == GLFW.GLFW_KEY_R && !isTextFieldFocused -> {
                     val index = hoveredIndex ?: selectedIndex
                     when (index?.let(InventoryButtonEditorActions::resetOrRemoveButton)) {
                         InventoryButtonResetShortcutResult.RESET -> true
@@ -208,14 +208,14 @@ object InventoryButtonEditorScreen {
                         else -> super.keyPressed(event)
                     }
                 }
-                (event.key() == GLFW.GLFW_KEY_DELETE || event.key() == GLFW.GLFW_KEY_BACKSPACE) &&
+                (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_DELETE || InputUtilities.keyCode(event) == GLFW.GLFW_KEY_BACKSPACE) &&
                     clearSelectedButtonIfPresent() == InputHandlingResult.CONSUMED -> true
                 else -> super.keyPressed(event)
             }
         }
 
         private fun handleIconFieldKey(event: KeyEvent): InputHandlingResult {
-            if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ENTER || InputUtilities.keyCode(event) == GLFW.GLFW_KEY_KP_ENTER) {
                 val typed = iconSearch.field.text.trim()
                 val selectedIcon = when {
                     typed.startsWith("text:", ignoreCase = true) -> typed
@@ -366,14 +366,14 @@ object InventoryButtonEditorScreen {
 
     private fun EditorScreen.handleRequiredKeyPress(event: KeyEvent): InputHandlingResult {
         if (!waitingForRequiredKey) return InputHandlingResult.IGNORED
-        when (event.key()) {
+        when (InputUtilities.keyCode(event)) {
             GLFW.GLFW_KEY_ESCAPE -> waitingForRequiredKey = false
             GLFW.GLFW_KEY_DELETE, GLFW.GLFW_KEY_BACKSPACE -> {
                 selectedButton()?.requiredKey = GLFW.GLFW_KEY_UNKNOWN
                 waitingForRequiredKey = false
             }
             in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST -> {
-                selectedButton()?.requiredKey = event.key()
+                selectedButton()?.requiredKey = InputUtilities.keyCode(event)
                 waitingForRequiredKey = false
             }
         }
@@ -400,7 +400,7 @@ object InventoryButtonEditorScreen {
         val bounds = lastRequiredKeyBounds ?: return InputHandlingResult.IGNORED
         if (!bounds.contains(click.x().toInt(), click.y().toInt())) return InputHandlingResult.IGNORED
         val button = selectedButton() ?: return InputHandlingResult.IGNORED
-        return when (click.button()) {
+        return when (InputUtilities.mouseButton(click)) {
             GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
                 SoundUtilities.playClickSound()
                 commandField.focused = false

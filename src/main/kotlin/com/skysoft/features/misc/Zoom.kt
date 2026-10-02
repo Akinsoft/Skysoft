@@ -11,7 +11,7 @@ import com.skysoft.utils.input.InputUtilities
 import kotlin.math.pow
 import kotlin.math.sign
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object Zoom {
     private var active = false

@@ -19,7 +19,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 class ChatFeatureConfig : ConfigRepairable {
     @JvmField

@@ -10,7 +10,7 @@ import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun handleBazaarTrackerMouseButtonPress(button: Int): InputHandlingResult {
     if (!shouldRenderBazaarTrackerInventoryOverlay() ||

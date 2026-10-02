@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.SkysoftMod
 import com.skysoft.data.ProfileStorage
 import com.skysoft.mixin.AbstractContainerScreenAccessor
@@ -12,7 +13,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.renderer.RenderPipelines
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 private val inventoryEquipmentSlotLayout = ScreenSlotLayout()
 private var warnedMissingOffhandSlot = false
@@ -163,8 +164,8 @@ private fun drawInventoryEquipmentSlotRightEdgeColumn(
 }
 
 private fun isEquipmentCommandClick(click: MouseButtonEvent): Boolean =
-    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT ||
-        click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT
+    InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT ||
+        InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_RIGHT
 
 private fun warnMissingOffhandSlot() {
     if (warnedMissingOffhandSlot) return

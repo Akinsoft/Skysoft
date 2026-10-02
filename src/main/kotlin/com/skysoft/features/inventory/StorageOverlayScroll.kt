@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
 import kotlin.math.abs
@@ -7,7 +8,7 @@ import kotlin.math.exp
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal var scroll = 0
     private set
@@ -81,7 +82,7 @@ internal fun handleStorageOverlayMouseDrag(
         return InputHandlingResult.CONSUMED
     }
     val dragOffset = scrollbarDragOffset ?: return InputHandlingResult.IGNORED
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+    if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
     val layoutState = storageOverlayLayoutScreen(screen) ?: run {
         scrollbarDragOffset = null
         return InputHandlingResult.IGNORED
@@ -102,7 +103,7 @@ internal fun handleStorageOverlayMouseRelease(click: MouseButtonEvent): InputHan
     if (processStorageSettingsRelease(click) == InputHandlingResult.CONSUMED) {
         return InputHandlingResult.CONSUMED
     }
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT || scrollbarDragOffset == null) {
+    if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT || scrollbarDragOffset == null) {
         return InputHandlingResult.IGNORED
     }
     scrollbarDragOffset = null

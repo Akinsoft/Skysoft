@@ -14,7 +14,7 @@ import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal data class ItemListShortcutRequest(
     val mode: ItemListViewMode,

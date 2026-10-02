@@ -2,12 +2,13 @@ package com.skysoft.gui
 
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import kotlin.math.roundToInt
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun KeyEvent.isHudEditorHistoryKey(): Boolean =
-    hasControlDownWithQuirk() && key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
+    hasControlDownWithQuirk() && InputUtilities.keyCode(this) in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
 
 internal fun hudEditorNudge(key: Int): Point? = when (key) {
     GLFW.GLFW_KEY_LEFT -> Point(-1, 0)

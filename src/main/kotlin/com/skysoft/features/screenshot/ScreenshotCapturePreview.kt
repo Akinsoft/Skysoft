@@ -27,7 +27,7 @@ import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Util
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal object ScreenshotCapturePreview {
     private val contexts = GuiOverlayContextType.entries.toSet()

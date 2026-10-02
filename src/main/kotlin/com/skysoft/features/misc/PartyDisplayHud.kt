@@ -38,7 +38,7 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 private val partyDisplayConfig get() = SkysoftConfigGui.config().gui.information.partyDisplay
 private val cancelLabel = Component.literal("[Cancel]").withStyle(ChatFormatting.RED)
@@ -89,7 +89,7 @@ private fun shouldAllowPartyDisplayClick(
     val panelHovered = hudControls.memberPanelHovered
     if (!panelHovered && control !is PartyDisplayControl.Manage) hudControls.closeMemberPanel()
     if (control == null) return !panelHovered
-    val handled = hudControls.wasClickHandled(control, click.button())
+    val handled = hudControls.wasClickHandled(control, InputUtilities.mouseButton(click))
     if (handled && control !is PartyDisplayControl.Unavailable) SoundUtilities.playClickSound()
     return !handled && !panelHovered
 }

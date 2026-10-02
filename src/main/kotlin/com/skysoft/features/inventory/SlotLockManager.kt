@@ -18,7 +18,7 @@ import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 private const val FIRST_PLAYER_SLOT = 0
 private const val LAST_PLAYER_SLOT = 40
@@ -54,14 +54,14 @@ object SlotLockManager {
 
     @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
-        if (!isFeatureAvailable() || !isLockKey(event.key())) return InputHandlingResult.IGNORED
-        if (activeLockKey == event.key()) return InputHandlingResult.CONSUMED
-        activeLockKey = event.key()
+        if (!isFeatureAvailable() || !isLockKey(InputUtilities.keyCode(event))) return InputHandlingResult.IGNORED
+        if (activeLockKey == InputUtilities.keyCode(event)) return InputHandlingResult.CONSUMED
+        activeLockKey = InputUtilities.keyCode(event)
 
         val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
             ?: return InputHandlingResult.CONSUMED
         if (!isLockablePlayerSlot(slot)) return InputHandlingResult.CONSUMED
-        if (SlotBindingManager.canHandleBindingKey(event.key())) {
+        if (SlotBindingManager.canHandleBindingKey(InputUtilities.keyCode(event))) {
             pendingLockSlot = slot.containerSlot
         } else {
             toggleLock(slot.containerSlot)

@@ -239,7 +239,7 @@ private fun registerMouseCapture() {
         if (target != null && opensPanel) selectItemPanelTarget(target)
         val panelHovered = itemPanel.isHovered
         val handled = target?.takeIf { it.isVisible() }?.let {
-            hudControls.wasClickHandled(screen, it, action, click.button())
+            hudControls.wasClickHandled(screen, it, action, InputUtilities.mouseButton(click))
         } == true
         if (!panelHovered && !opensPanel && (action != null || !handled)) itemPanel.close()
         if (handled || panelHovered) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED

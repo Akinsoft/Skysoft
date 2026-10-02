@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorageView
@@ -14,7 +15,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun readConfirmInventory(snapshot: SkyBlockOpenInventorySnapshot, expectedType: BazaarOrderType) {
     BazaarTrackingState.resetOrderScan()
@@ -107,12 +108,15 @@ internal fun handleBazaarTrackerMouseClick(
     click: MouseButtonEvent,
 ): InputHandlingResult {
     if (!config.enabled) return InputHandlingResult.IGNORED
-    if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT || click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-        if (handleTrackerControlClick(click.button()) == InputHandlingResult.CONSUMED) {
+    if (
+        InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT ||
+        InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_RIGHT
+    ) {
+        if (handleTrackerControlClick(InputUtilities.mouseButton(click)) == InputHandlingResult.CONSUMED) {
             return InputHandlingResult.CONSUMED
         }
     }
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+    if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
     recordClickedOrder(screen, click)
     recordOrderOptionsClick(screen, click)
     return InputHandlingResult.IGNORED
@@ -231,7 +235,7 @@ private fun slotOutlineColor(status: OrderStatus): Int = when (status) {
 }
 
 internal fun recordClickedOrder(screen: AbstractContainerScreen<*>, click: MouseButtonEvent) {
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
+    if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
     val title = screen.title.cleanSkyBlockText()
     if (!title.contains("Bazaar Orders")) return
     val slot = slotAt(screen, click.x().toInt(), click.y().toInt()) ?: return

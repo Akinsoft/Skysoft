@@ -12,7 +12,7 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object PestHelper {
     private val config get() = SkysoftConfigGui.config().farming.pests.pestHelper

@@ -8,7 +8,7 @@ import com.skysoft.utils.gui.PixelSliderRenderer
 import com.skysoft.utils.input.InputUtilities
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.screens.Screen
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal object WaypointSettingsPanel {
     private val transition = PanelFadeTransition()

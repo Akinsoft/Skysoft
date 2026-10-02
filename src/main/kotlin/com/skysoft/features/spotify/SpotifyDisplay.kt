@@ -24,7 +24,7 @@ import java.net.URI
 import java.util.EnumMap
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object SpotifyDisplay {
     private var playback: SpotifyPlayback? = null

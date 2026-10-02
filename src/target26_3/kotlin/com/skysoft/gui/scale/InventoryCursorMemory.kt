@@ -1,0 +1,94 @@
+package com.skysoft.gui.scale
+
+import com.mojang.blaze3d.platform.Window
+import com.skysoft.config.SkysoftConfigGui
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.multiplayer.ClientLevel
+import org.lwjgl.sdl.SDLMouse
+
+class InventoryCursorMemory private constructor() {
+    @JvmRecord
+    data class CursorPoint(val x: Double, val y: Double)
+
+    private data class CursorSnapshot(
+        val cursor: CursorPoint,
+        val level: ClientLevel?,
+        val capturedAt: Long,
+    )
+
+    companion object {
+        private const val NANOS_PER_SECOND = 1_000_000_000L
+
+        private var inventoryScreenClosed = false
+        private var pending: CursorSnapshot? = null
+        private var waitForCursorEvents = false
+
+        @JvmStatic
+        fun prepareForMouseGrab() {
+            inventoryScreenClosed = isEnabled()
+        }
+
+        // Keep the shared API: SDL queries the focused window without taking its handle.
+        @Suppress("UnusedParameter")
+        @JvmStatic
+        fun beginMouseGrab(window: Window) {
+            val shouldCapture = inventoryScreenClosed
+            inventoryScreenClosed = false
+            if (!isEnabled() || !shouldCapture) {
+                discard()
+                return
+            }
+            val level = Minecraft.getInstance().level
+            if (!isUsable(pending) || pending?.level !== level) {
+                org.lwjgl.system.MemoryStack.stackPush().use { stack ->
+                    val x = stack.callocFloat(1)
+                    val y = stack.callocFloat(1)
+                    SDLMouse.SDL_GetMouseState(x, y)
+                    pending = CursorSnapshot(CursorPoint(x[0].toDouble(), y[0].toDouble()), level, System.nanoTime())
+                }
+            }
+            waitForCursorEvents = true
+        }
+
+        @JvmStatic
+        fun cursorAfterInput(screen: Screen?): CursorPoint? {
+            val minecraft = Minecraft.getInstance()
+            if (
+                !isEnabled() ||
+                !minecraft.isWindowActive ||
+                !isUsable(pending) ||
+                pending?.level !== minecraft.level ||
+                screen != null && screen !is AbstractContainerScreen<*>
+            ) {
+                discard()
+                return null
+            }
+            if (screen == null) return null
+            if (waitForCursorEvents) {
+                waitForCursorEvents = false
+                return null
+            }
+            val cursor = checkNotNull(pending).cursor
+            discard()
+            return cursor
+        }
+
+        private fun isUsable(snapshot: CursorSnapshot?): Boolean =
+            snapshot?.let {
+                val durationSeconds = SkysoftConfigGui.config()
+                    .inventory.controls.cursorPositionPreservation.settings.durationSeconds
+                System.nanoTime() - it.capturedAt <=
+                    durationSeconds * NANOS_PER_SECOND
+            } == true
+
+        private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.controls.cursorPositionPreservation.enabled
+
+        private fun discard() {
+            inventoryScreenClosed = false
+            pending = null
+            waitForCursorEvents = false
+        }
+    }
+}

@@ -5,7 +5,7 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
 import kotlin.math.floor
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 data class OverlayControlArea<T>(
     val action: T,

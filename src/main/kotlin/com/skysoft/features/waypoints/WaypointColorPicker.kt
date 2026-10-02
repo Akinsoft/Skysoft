@@ -22,7 +22,7 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class WaypointColorPicker private constructor(
     private val group: WaypointGroup,
@@ -93,8 +93,11 @@ internal class WaypointColorPicker private constructor(
     }
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        if (interactive && pickerBounds.contains(click.x().toInt(), click.y().toInt()) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-            return picker.mouseEvent(MouseEvent.Click(click.button(), true), pickerContext())
+        if (
+            interactive && pickerBounds.contains(click.x().toInt(), click.y().toInt()) &&
+            InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT
+        ) {
+            return picker.mouseEvent(MouseEvent.Click(InputUtilities.mouseButton(click), true), pickerContext())
         }
         return super.mouseClicked(click, doubled)
     }
@@ -104,12 +107,13 @@ internal class WaypointColorPicker private constructor(
     }
 
     override fun mouseReleased(click: MouseButtonEvent): Boolean =
-        super.mouseReleased(click) || picker.mouseEvent(MouseEvent.Click(click.button(), false), pickerContext())
+        super.mouseReleased(click) || picker.mouseEvent(MouseEvent.Click(InputUtilities.mouseButton(click), false), pickerContext())
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) return super.keyPressed(event)
+        if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE) return super.keyPressed(event)
         if (!interactive) return true
-        return picker.keyboardEvent(KeyboardEvent.KeyPressed(event.key(), event.scancode(), true), pickerContext()) ||
+        val keyPress = KeyboardEvent.KeyPressed(InputUtilities.keyCode(event), InputUtilities.scanCode(event), true)
+        return picker.keyboardEvent(keyPress, pickerContext()) ||
             super.keyPressed(event)
     }
 

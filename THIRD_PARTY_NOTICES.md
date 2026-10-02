@@ -76,6 +76,13 @@ Skysoft uses these third-party projects. Each project keeps its own terms.
 - Project: https://github.com/HypixelDev/ModAPI
 - License: MIT License
 
+### LWJGL TinyFD (Minecraft 26.3)
+
+- Project: https://github.com/LWJGL/lwjgl3/tree/3.4.3/modules/lwjgl/tinyfd
+- Version: 3.4.3, including the original supported platform natives
+- Licenses: BSD 3-Clause (LWJGL) and zlib (tinyfiledialogs)
+- Bundled notices: `licenses/tinyfd/LICENSE.md` and `licenses/tinyfd/modules/lwjgl/tinyfd/tinyfd_license.txt`
+
 ## Reference
 
 ### SkyHanni

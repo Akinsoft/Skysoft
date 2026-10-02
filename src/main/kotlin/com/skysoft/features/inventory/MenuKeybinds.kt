@@ -15,7 +15,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.ChestMenu
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object MenuKeybinds {
     private val config get() = SkysoftConfigGui.config().inventory.equipment

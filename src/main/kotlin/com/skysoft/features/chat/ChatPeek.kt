@@ -8,7 +8,7 @@ import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal object ChatPeek {
     private val config

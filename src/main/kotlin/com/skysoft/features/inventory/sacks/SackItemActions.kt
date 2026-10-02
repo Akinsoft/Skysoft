@@ -7,7 +7,7 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun wasSackItemClickHandled(
     screen: AbstractContainerScreen<*>,

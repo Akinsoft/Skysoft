@@ -1,5 +1,6 @@
 package com.skysoft.features.waypoints
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.MinecraftClient
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -9,7 +10,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class WaypointPanelScreen : Screen(Component.literal("Skysoft Waypoints Display")) {
     override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) = Unit
@@ -30,8 +31,10 @@ internal class WaypointPanelScreen : Screen(Component.literal("Skysoft Waypoints
     override fun keyPressed(event: KeyEvent): Boolean {
         val options = Minecraft.getInstance().options
         when {
-            event.hasControlDownWithQuirk() && event.key() == GLFW.GLFW_KEY_Z -> WaypointPanel.perform { Waypoints.undo() }
-            event.hasControlDownWithQuirk() && event.key() == GLFW.GLFW_KEY_Y -> WaypointPanel.perform { Waypoints.redo() }
+            event.hasControlDownWithQuirk() && InputUtilities.keyCode(event) == GLFW.GLFW_KEY_Z ->
+                WaypointPanel.perform { Waypoints.undo() }
+            event.hasControlDownWithQuirk() && InputUtilities.keyCode(event) == GLFW.GLFW_KEY_Y ->
+                WaypointPanel.perform { Waypoints.redo() }
             options.keyInventory.matches(event) -> {
                 Minecraft.getInstance().player?.let { MinecraftClient.setScreen(InventoryScreen(it)) }
             }

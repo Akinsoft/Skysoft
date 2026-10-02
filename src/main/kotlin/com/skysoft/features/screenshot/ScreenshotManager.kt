@@ -13,7 +13,7 @@ import net.minecraft.client.Screenshot
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.contents.TranslatableContents
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object ScreenshotManager {
     private var managerKeyWasDown = false

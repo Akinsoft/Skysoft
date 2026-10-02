@@ -1,5 +1,6 @@
 package com.skysoft.features.waypoints
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.gui.SkysoftEditorScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
@@ -20,7 +21,7 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.util.Util
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal abstract class WaypointDialog(
     title: String,
@@ -143,9 +144,9 @@ internal abstract class WaypointDialog(
             onClose()
             return true
         }
-        if (!interactive || click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && form.didClick(x, y, viewport)) return true
+        if (!interactive || InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT && form.didClick(x, y, viewport)) return true
         val control = controls.lastOrNull { it.bounds.contains(x, y) && it.enabled } ?: return true
-        val action = when (click.button()) {
+        val action = when (InputUtilities.mouseButton(click)) {
             GLFW.GLFW_MOUSE_BUTTON_LEFT -> control.action
             GLFW.GLFW_MOUSE_BUTTON_RIGHT -> control.rightClick
             else -> null
@@ -169,10 +170,10 @@ internal abstract class WaypointDialog(
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) return super.keyPressed(event)
+        if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE) return super.keyPressed(event)
         if (!interactive) return true
         if (form.focused == null && event.hasControlDownWithQuirk()) {
-            val action = when (event.key()) {
+            val action = when (InputUtilities.keyCode(event)) {
                 GLFW.GLFW_KEY_Z -> Waypoints::undo
                 GLFW.GLFW_KEY_Y -> Waypoints::redo
                 else -> null
@@ -182,11 +183,11 @@ internal abstract class WaypointDialog(
                 return true
             }
         }
-        if (event.key() == GLFW.GLFW_KEY_TAB && !form.isEmpty) {
+        if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_TAB && !form.isEmpty) {
             scroll += form.focusNext(event.hasShiftDown(), viewport)
             return true
         }
-        if (event.key() in ENTER_KEYS && primaryLabel != null) {
+        if (InputUtilities.keyCode(event) in ENTER_KEYS && primaryLabel != null) {
             if (isPrimaryEnabled()) perform { confirm() }
             return true
         }

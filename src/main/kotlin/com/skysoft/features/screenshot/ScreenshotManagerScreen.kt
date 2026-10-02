@@ -1,5 +1,6 @@
 package com.skysoft.features.screenshot
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputHandlingResult
@@ -13,7 +14,7 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.util.Util
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class ScreenshotManagerScreen(
     private val parent: Screen?,
@@ -105,7 +106,7 @@ internal class ScreenshotManagerScreen(
     override fun extractBackground(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) = Unit
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
         val previousSelectionIndex = entries.indexOfFirst { it.path == selectedPath }
@@ -149,7 +150,7 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
         if (!isEditing) return super.mouseDragged(click, dragX, dragY)
         if (selectedPath == null) return super.mouseDragged(click, dragX, dragY)
         return if (editor.processDrag(click.x(), click.y()) == InputHandlingResult.CONSUMED) {
@@ -160,14 +161,14 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun mouseReleased(click: MouseButtonEvent): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
         if (!isEditing) return super.mouseReleased(click)
         if (selectedPath == null) return super.mouseReleased(click)
         return if (editor.processRelease() == InputHandlingResult.CONSUMED) true else super.mouseReleased(click)
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (pendingAction != null && event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE)) {
+        if (pendingAction != null && InputUtilities.keyCode(event) in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE)) {
             return true
         }
         if (
@@ -175,10 +176,10 @@ internal class ScreenshotManagerScreen(
             isEditing &&
             confirmation == null &&
             event.hasControlDownWithQuirk() &&
-            event.key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
+            InputUtilities.keyCode(event) in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
         ) {
             val path = selectedPath ?: return true
-            if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) {
+            if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) {
                 editor.redo(path)
             } else {
                 editor.undo(path)
@@ -190,21 +191,21 @@ internal class ScreenshotManagerScreen(
             pendingAction == null &&
             confirmation == null &&
             focusTransition.isComplete() &&
-            event.key() in listOf(GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT)
+            InputUtilities.keyCode(event) in listOf(GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT)
         ) {
-            val direction = if (event.key() == GLFW.GLFW_KEY_LEFT) -1 else 1
+            val direction = if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_LEFT) -1 else 1
             if (navigateSelection(direction) == InputHandlingResult.CONSUMED) {
                 SoundUtilities.playNavigationSound(direction)
             }
             return true
         }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && confirmation != null) {
+        if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_ESCAPE && confirmation != null) {
             confirmation = null
             shouldCloseAfterDiscard = false
             SoundUtilities.playRandomNavigationSound()
             return true
         }
-        if (event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) && selectedPath != null) {
+        if (InputUtilities.keyCode(event) in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) && selectedPath != null) {
             returnToGallery()
             SoundUtilities.playRandomNavigationSound()
             return true

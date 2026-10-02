@@ -25,7 +25,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 private const val ADD_ICON_X_OFFSET = 6
 private const val ADD_ICON_Y_OFFSET = 5
@@ -273,7 +273,7 @@ object InventoryButtonManager {
     }
 
     private fun activateButtonAtClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
         val placement = placements(screen, includeInactive = false).firstOrNull { it.bounds.contains(mouseX, mouseY) }

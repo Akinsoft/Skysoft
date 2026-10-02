@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     var text: String = text.takeAtCharacterBoundary(maxLength)
@@ -114,7 +114,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
             if (event.isCut()) removeSelection()
             return InputHandlingResult.CONSUMED
         }
-        return when (event.key()) {
+        return when (InputUtilities.keyCode(event)) {
             GLFW.GLFW_KEY_BACKSPACE -> {
                 deleteBeforeCursor(control)
                 InputHandlingResult.CONSUMED

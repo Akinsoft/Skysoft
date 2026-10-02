@@ -8,6 +8,12 @@ import net.minecraft.client.gui.screens.Screen
 import org.lwjgl.glfw.GLFW
 
 object InputUtilities {
+    @JvmStatic fun keyCode(event: net.minecraft.client.input.KeyEvent): Int = event.key()
+    @JvmStatic fun scanCode(event: net.minecraft.client.input.KeyEvent): Int = event.scancode()
+    @JvmStatic fun mouseButton(event: net.minecraft.client.input.MouseButtonEvent): Int = event.button()
+    @JvmStatic fun mouseButton(event: net.minecraft.client.input.MouseButtonInfo): Int = event.button()
+    @JvmStatic fun action(nativeAction: Int): Int = nativeAction
+
     private val bindingPressScreens = mutableMapOf<Int, Screen?>()
     var isRepeatedBindingInput = false
         private set

@@ -1,5 +1,6 @@
 package com.skysoft.mixin;
 
+import com.skysoft.utils.input.InputUtilities;
 import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -68,7 +69,7 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     protected void skysoftCopyHoveredMessage(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (GuiOverlayRegistry.isScreenPointCovered(skysoftMouseX, skysoftMouseY)) return;
-        boolean copied = MixinErrorBoundary.value("Chat Copy key input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED);
+        boolean copied = MixinErrorBoundary.value("Chat Copy key input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(InputUtilities.keyCode(event), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED);
         if (copied) cir.setReturnValue(true);
     }
 
@@ -78,7 +79,7 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     protected void skysoftCopyHoveredMessageOnClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (GuiOverlayRegistry.isScreenPointCovered((int) click.x(), (int) click.y())) { cir.setReturnValue(true); return; }
-        boolean copied = MixinErrorBoundary.value("Chat Copy mouse input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(click.button(), (int) click.x(), (int) click.y()) == CopyChatResult.COPIED);
+        boolean copied = MixinErrorBoundary.value("Chat Copy mouse input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(InputUtilities.mouseButton(click), (int) click.x(), (int) click.y()) == CopyChatResult.COPIED);
         if (copied) cir.setReturnValue(true);
     }
 

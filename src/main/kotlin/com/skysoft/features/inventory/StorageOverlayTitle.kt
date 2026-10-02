@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.takeAtCharacterBoundary
@@ -9,7 +10,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal var editingTitlePage: Int? = null
     private set
@@ -79,8 +80,8 @@ internal fun resetTitleEdit() {
 
 internal fun handleTitleEditKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
     if (editingTitlePage == null) return InputHandlingResult.IGNORED
-    val control = event.modifiers() and GLFW.GLFW_MOD_CONTROL != 0
-    when (event.key()) {
+    val control = event.hasControlDown()
+    when (InputUtilities.keyCode(event)) {
         GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> finishTitleEdit()
         GLFW.GLFW_KEY_BACKSPACE -> removeTitleText()
         GLFW.GLFW_KEY_DELETE -> clearTitleText()

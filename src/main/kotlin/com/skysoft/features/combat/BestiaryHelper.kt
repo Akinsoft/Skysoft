@@ -41,7 +41,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 object BestiaryHelper {
     private val config get() = SkysoftConfigGui.config().combat.bestiaryHelper
@@ -123,7 +123,7 @@ object BestiaryHelper {
     private fun shouldAllowClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): Boolean {
         if (!isVisible() || InventoryOverlayInput.isPointCovered(screen, click.x(), click.y())) return true
         val action = hoveredControl?.action ?: return true
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return true
+        if (InputUtilities.mouseButton(click) != GLFW.GLFW_MOUSE_BUTTON_LEFT) return true
         when (action) {
             is BestiaryControl.Family -> toggle(action.family.name)
             BestiaryControl.Reset -> resetTransition.show()

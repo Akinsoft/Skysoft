@@ -6,7 +6,7 @@ import com.skysoft.utils.WorldVec
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal object DianaQuickWarps {
     private val config get() = SkysoftConfigGui.config().events.diana

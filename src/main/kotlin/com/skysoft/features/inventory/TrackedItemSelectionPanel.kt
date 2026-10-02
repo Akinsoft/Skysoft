@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.data.skyblock.ItemListEntry
 import com.skysoft.data.skyblock.ItemListEntryKind
@@ -23,7 +24,7 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal sealed interface TrackedItemSelectionAction {
     data object Inventory : TrackedItemSelectionAction
@@ -81,12 +82,12 @@ internal class TrackedItemSelectionPanel {
     ): Boolean {
         if (mode != TrackedItemSelectionMode.SEARCH || !searchField.focused) return false
         val results = searchResults(isSelectable)
-        when (event.key()) {
+        when (InputUtilities.keyCode(event)) {
             GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> results.getOrNull(selectedSearchIndex)?.let {
                 select(it.key.id)
             }
             GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_UP -> if (results.isNotEmpty()) {
-                val step = if (event.key() == GLFW.GLFW_KEY_UP) -1 else 1
+                val step = if (InputUtilities.keyCode(event) == GLFW.GLFW_KEY_UP) -1 else 1
                 selectedSearchIndex = Math.floorMod(selectedSearchIndex + step, results.size)
                 searchOffset = when {
                     selectedSearchIndex < searchOffset -> selectedSearchIndex

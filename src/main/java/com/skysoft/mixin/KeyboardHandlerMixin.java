@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class KeyboardHandlerMixin {
     @Inject(method = "keyPress", at = @At("HEAD"))
     protected void skysoftRecordKeyPressScreen(long window, int action, KeyEvent event, CallbackInfo ci) {
-        InputUtilities.recordBindingInput(window, event.key(), action);
+        InputUtilities.recordBindingInput(window, InputUtilities.keyCode(event), InputUtilities.action(action));
     }
 
     @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)

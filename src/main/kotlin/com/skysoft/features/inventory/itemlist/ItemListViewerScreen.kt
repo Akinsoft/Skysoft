@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
@@ -22,7 +23,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal class ItemListViewerScreen(
     private val parent: Screen?,
@@ -78,7 +79,7 @@ internal class ItemListViewerScreen(
         val currentLayout = layout ?: return super.mouseClicked(click, doubled)
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
-        val result = when (click.button()) {
+        val result = when (InputUtilities.mouseButton(click)) {
             GLFW.GLFW_MOUSE_BUTTON_LEFT -> applyLeftClick(currentLayout, mouseX, mouseY)
             GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
                 val warp = requestNpcWarpAt(recipeView.entityAt(mouseX, mouseY))
@@ -104,7 +105,7 @@ internal class ItemListViewerScreen(
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) &&
+        if (InputUtilities.keyCode(event) in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) &&
             recipeView.closePopup().isHandled
         ) {
             return true
@@ -113,11 +114,11 @@ internal class ItemListViewerScreen(
             onClose()
             return true
         }
-        itemListShortcutMode(event.key(), SkysoftConfigGui.config().items.itemList.settings)?.let {
+        itemListShortcutMode(InputUtilities.keyCode(event), SkysoftConfigGui.config().items.itemList.settings)?.let {
             selection.changeMode(it)
             return true
         }
-        return when (event.key()) {
+        return when (InputUtilities.keyCode(event)) {
             GLFW.GLFW_KEY_BACKSPACE -> selection.navigateBack().isHandled
             GLFW.GLFW_KEY_LEFT -> recipeView.changePage(-1, layout?.pageSize(currentKey) ?: 1)
                 .also(ViewerInputResult::playSound)

@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.sacks
 
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -9,7 +10,7 @@ import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
+import com.skysoft.utils.input.LegacyInputCodes as GLFW
 
 internal fun registerSackHudInput() {
     val isActive = { sackHudConfig.enabled }
@@ -36,24 +37,24 @@ private fun shouldAllowSackHudClick(
     val control = sackHudHoveredControl?.action
     val panelHovered = sackHudItemPanel.isHovered
     if (control is SackHudControl.Item && sackHudItemPanel.isRemovingItems()) {
-        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (InputUtilities.mouseButton(click) == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             removeSackHudTrackedItem(control.itemId)
             SoundUtilities.playClickSound()
         }
         return false
     }
     val handled = when (control) {
-        SackHudControl.More -> wasLeftClickHandled(click.button(), sackHudItemPanel::toggleOverview)
-        SackHudControl.AddItems -> wasLeftClickHandled(click.button(), sackHudItemPanel::beginAddingItems)
-        SackHudControl.RemoveItems -> wasLeftClickHandled(click.button(), sackHudItemPanel::beginRemovingItems)
-        is SackHudControl.ItemSelection -> sackHudItemPanel.wasSelectionClickHandled(control.action, click.button())
+        SackHudControl.More -> wasLeftClickHandled(InputUtilities.mouseButton(click), sackHudItemPanel::toggleOverview)
+        SackHudControl.AddItems -> wasLeftClickHandled(InputUtilities.mouseButton(click), sackHudItemPanel::beginAddingItems)
+        SackHudControl.RemoveItems -> wasLeftClickHandled(InputUtilities.mouseButton(click), sackHudItemPanel::beginRemovingItems)
+        is SackHudControl.ItemSelection -> sackHudItemPanel.wasSelectionClickHandled(control.action, InputUtilities.mouseButton(click))
         is SackHudControl.Item -> wasSackItemClickHandled(
             screen,
             control.itemId,
             trackedSackHudItem(control.itemId).name,
-            click.button(),
+            InputUtilities.mouseButton(click),
         )
-        null -> wasInventoryItemSelected(screen, click.button())
+        null -> wasInventoryItemSelected(screen, InputUtilities.mouseButton(click))
     }
     val keepsPanelOpen = panelHovered || control == SackHudControl.More || control == null && handled
     if (!keepsPanelOpen) sackHudItemPanel.close()
