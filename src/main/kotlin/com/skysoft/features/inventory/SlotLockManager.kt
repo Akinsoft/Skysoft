@@ -29,6 +29,7 @@ private const val BLOCKED_PULSE_MILLIS = 320L
 private const val SLOT_SIZE = 16
 private const val SLOT_OUTLINE_INSET = 1
 private const val SLOT_OUTLINE_SIZE = 18
+private const val PERCENT_MAX = 100f
 
 object SlotLockManager {
     private val config get() = SkysoftConfigGui.config().inventory.protection.slotLocking
@@ -92,7 +93,7 @@ object SlotLockManager {
     ) {
         if (!isFeatureAvailable() || !isSlotLocked(slot)) return
         val isBlocked = blockedSlot == slot.containerSlot && System.currentTimeMillis() < blockedUntilMillis
-        SlotLockRenderer.render(context, x, y, isBlocked)
+        SlotLockRenderer.render(context, x, y, isBlocked, config.details.lockIconOpacity / PERCENT_MAX)
     }
 
     @JvmStatic
@@ -252,12 +253,11 @@ private fun isLockablePlayerSlot(slot: Slot?): Boolean =
 
 private object SlotLockRenderer {
     private const val SLOT_SHADE = 0x20000000
-    private const val BARRIER_OPACITY = 0.5f
     private val slotBorder = 0xCCE5AE43.toInt()
     private val blockedBorder = 0xFFFF5555.toInt()
-    private val barrierIcon = ItemIconRenderable(ItemStack(Items.BARRIER), alpha = BARRIER_OPACITY)
+    private val barrierStack = ItemStack(Items.BARRIER)
 
-    fun render(context: GuiGraphicsExtractor, x: Int, y: Int, isBlocked: Boolean) {
+    fun render(context: GuiGraphicsExtractor, x: Int, y: Int, isBlocked: Boolean, iconAlpha: Float) {
         val borderColor = if (isBlocked) blockedBorder else slotBorder
         context.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_SHADE)
         context.outline(
@@ -267,7 +267,7 @@ private object SlotLockRenderer {
             SLOT_OUTLINE_SIZE,
             borderColor,
         )
-        barrierIcon.renderAt(context, x, y)
+        ItemIconRenderable(barrierStack, alpha = iconAlpha).renderAt(context, x, y)
     }
 }
 
