@@ -14,6 +14,7 @@ import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.SkysoftGame.RAVENGARD
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.ColorUtilities.RGB_MASK
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftClientEvents
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.Config
@@ -41,6 +42,10 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     @JvmField
     @field:Expose
     var configMigrationVersion = SkysoftConfigMigrations.CURRENT_CONFIG_MIGRATION_VERSION
+
+    @JvmField
+    @field:Expose
+    var keybindNumbering = MinecraftInput.keybindNumbering
 
     @JvmField
     @field:Expose
@@ -295,5 +300,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
 
     private fun migrateLoadedValues() {
         ProfileStorageApi.importLegacyStorage(pets.petDisplay.legacyStorage)
+        KeybindNumberingMigration.convert(this, keybindNumbering, MinecraftInput.keybindNumbering)
+        keybindNumbering = MinecraftInput.keybindNumbering
     }
 }

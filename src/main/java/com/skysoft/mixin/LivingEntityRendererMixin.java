@@ -2,6 +2,7 @@ package com.skysoft.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.misc.PlayerHeadSkinFix;
+import com.skysoft.utils.MinecraftRenderer;
 import com.skysoft.utils.render.EntityHighlightRenderer;
 import com.skysoft.utils.render.EntityHighlightRenderLayers;
 import com.skysoft.utils.render.EntityHighlightRenderState;
@@ -42,7 +43,7 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
         method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/SubmitNodeCollector;submitModel(Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/rendertype/RenderType;IIILnet/minecraft/client/renderer/texture/TextureAtlasSprite;ILnet/minecraft/client/renderer/feature/ModelFeatureRenderer$CrumblingOverlay;)V",
+            target = LivingEntityRendererTargetsKt.LIVING_ENTITY_SUBMIT_MODEL_TARGET,
             shift = At.Shift.AFTER
         )
     )
@@ -55,17 +56,14 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     ) {
         int fillColor = ((EntityHighlightRenderState) state).skysoftGetEntityFillColor();
         if (fillColor == 0) return;
-        submitNodeCollector.submitModel(
+        MinecraftRenderer.INSTANCE.submitTintedModel(
+            submitNodeCollector,
             model,
             state,
             poseStack,
             EntityHighlightRenderLayers.fill(getTextureLocation(state)),
             state.lightCoords,
-            0,
-            fillColor,
-            null,
-            0,
-            null
+            fillColor
         );
     }
 }

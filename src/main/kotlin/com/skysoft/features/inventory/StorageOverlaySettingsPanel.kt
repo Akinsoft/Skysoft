@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.SmoothFloatTransition
@@ -16,7 +17,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 
 internal var isStorageSettingsPanelOpen = false
     private set
@@ -94,7 +94,7 @@ internal fun processStorageSettingsClick(
         return processClosedStorageSettingsClick(click, layout, mouseX, mouseY)
     }
     if (!layout.panel.contains(mouseX, mouseY)) return InputHandlingResult.IGNORED
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.CONSUMED
+    if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return InputHandlingResult.CONSUMED
     return processOpenStorageSettingsClick(screen, measurements, layout, mouseX, mouseY)
 }
 
@@ -103,7 +103,7 @@ internal fun processStorageSettingsDrag(
     click: MouseButtonEvent,
 ): InputHandlingResult {
     val setting = draggedStorageVisualSetting ?: return InputHandlingResult.IGNORED
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+    if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
     val layoutState = storageOverlayLayoutScreen(screen) ?: run {
         draggedStorageVisualSetting = null
         return InputHandlingResult.IGNORED
@@ -115,14 +115,14 @@ internal fun processStorageSettingsDrag(
 
 internal fun processStorageSettingsRelease(click: MouseButtonEvent): InputHandlingResult {
     if (draggedStorageVisualSetting == null) return InputHandlingResult.IGNORED
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+    if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
     draggedStorageVisualSetting = null
     saveStorageSettings()
     return InputHandlingResult.CONSUMED
 }
 
 internal fun processStorageSettingsKey(key: Int): InputHandlingResult {
-    if (!isStorageSettingsPanelOpen || key != GLFW.GLFW_KEY_ESCAPE) return InputHandlingResult.IGNORED
+    if (!isStorageSettingsPanelOpen || key != InputConstants.KEY_ESCAPE) return InputHandlingResult.IGNORED
     isStorageSettingsPanelOpen = false
     draggedStorageVisualSetting = null
     return InputHandlingResult.CONSUMED
@@ -169,7 +169,7 @@ private fun processClosedStorageSettingsClick(
     ) {
         return InputHandlingResult.CONSUMED
     }
-    if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT || !layout.button.contains(mouseX, mouseY)) {
+    if (click.button() != InputConstants.MOUSE_BUTTON_LEFT || !layout.button.contains(mouseX, mouseY)) {
         return InputHandlingResult.IGNORED
     }
     isStorageSettingsPanelOpen = true

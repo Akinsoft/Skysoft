@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.data.ProfileStorage
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.gui.nonPlayerSlots
@@ -8,7 +9,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.ContainerInput
-import org.lwjgl.glfw.GLFW
 
 internal fun rememberActivePage(handle: StorageHandle) {
     handle.entryIndex()?.let { rememberedPageIndex = it }
@@ -29,7 +29,7 @@ internal fun requestOverviewShortcutClick(
     pageIndex: Int,
 ): InputHandlingResult {
     if (
-        click.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT ||
+        click.button() != InputConstants.MOUSE_BUTTON_RIGHT ||
         !screen.menu.carried.isEmpty ||
         StorageOverviewSlots.slotForPageIndex(pageIndex) == null
     ) {
@@ -140,7 +140,7 @@ private fun tryNavigateRiftStorage(
     (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
         slot,
         slot.index,
-        GLFW.GLFW_MOUSE_BUTTON_LEFT,
+        InputConstants.MOUSE_BUTTON_LEFT,
         ContainerInput.PICKUP,
     )
     screen.menu.setCarried(carried)

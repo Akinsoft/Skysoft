@@ -1,7 +1,9 @@
 package com.skysoft.features.screenshot
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
@@ -13,7 +15,6 @@ import net.minecraft.client.Screenshot
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.contents.TranslatableContents
-import org.lwjgl.glfw.GLFW
 
 object ScreenshotManager {
     private var managerKeyWasDown = false
@@ -60,13 +61,13 @@ object ScreenshotManager {
 
     private fun hasManagerKeyWork(): Boolean {
         val config = config()
-        return config.enabled && (config.settings.managerKey != GLFW.GLFW_KEY_UNKNOWN || managerKeyWasDown)
+        return config.enabled && (config.settings.managerKey != MinecraftInput.NO_BINDING || managerKeyWasDown)
     }
 
     private fun processManagerKey() {
         val key = config().settings.managerKey
-        val isKeyDown = key != GLFW.GLFW_KEY_UNKNOWN &&
-            key != GLFW.GLFW_KEY_ENTER &&
+        val isKeyDown = key != MinecraftInput.NO_BINDING &&
+            key != InputConstants.KEY_RETURN &&
             InputUtilities.isActionBindingDown(key)
         if (!isKeyDown) {
             managerKeyWasDown = false
@@ -74,7 +75,7 @@ object ScreenshotManager {
         }
         if (managerKeyWasDown) return
         managerKeyWasDown = true
-        if (key == GLFW.GLFW_KEY_F4 && InputUtilities.isBindingDown(GLFW.GLFW_KEY_F3)) return
+        if (key == InputConstants.KEY_F4 && InputUtilities.isBindingDown(InputConstants.KEY_F3)) return
         if (MinecraftClient.screen() != null) return
         open()
     }

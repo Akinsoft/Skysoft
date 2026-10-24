@@ -1,5 +1,7 @@
 package com.skysoft.gui
 
+import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.inventory.InventoryButtonEditorActions
@@ -22,7 +24,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
 
 object SkysoftHudEditor {
     private const val PANEL_BACKGROUND = 0x90000000.toInt()
@@ -292,7 +293,7 @@ object SkysoftHudEditor {
             val mouseX = click.x().toInt()
             val mouseY = click.y().toInt()
             return when (click.button()) {
-                GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+                InputConstants.MOUSE_BUTTON_LEFT -> {
                     history.flushPending()
                     val element = elementAt(mouseX, mouseY)
                     val inventoryButton = if (element == null) {
@@ -339,7 +340,7 @@ object SkysoftHudEditor {
                     }
                 }
 
-                GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
+                InputConstants.MOUSE_BUTTON_RIGHT -> {
                     val element = elementAt(mouseX, mouseY)
                     if (element == null) {
                         super.mouseClicked(click, doubled)
@@ -356,7 +357,7 @@ object SkysoftHudEditor {
 
         override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
             refreshVisibleElements()
-            if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+            if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return false
             grabbedInventoryButtonIndex?.let { index ->
                 oldScreen?.let { screen ->
                     val placements = InventoryButtonManager.placements(screen, includeInactive = true)
@@ -388,7 +389,7 @@ object SkysoftHudEditor {
         }
 
         override fun mouseReleased(click: MouseButtonEvent): Boolean {
-            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) finishDrag()
+            if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) finishDrag()
             return super.mouseReleased(click)
         }
 
@@ -461,15 +462,15 @@ object SkysoftHudEditor {
 
         override fun keyPressed(event: KeyEvent): Boolean {
             refreshVisibleElements()
-            if (event.isHudEditorHistoryKey()) {
+            if (InputUtilities.isHistoryShortcut(event)) {
                 if (grabbedElement == null && grabbedInventoryButtonIndex == null) {
-                    if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) history.redo()
+                    if (InputUtilities.isRedoShortcut(event)) history.redo()
                     else history.undo()
                     snapper.clear()
                 }
                 return true
             }
-            if (event.key() == GLFW.GLFW_KEY_G) {
+            if (event.key() == InputConstants.KEY_G) {
                 snapper.gridEnabled = !snapper.gridEnabled
                 snapper.clear()
                 return true
@@ -501,7 +502,7 @@ object SkysoftHudEditor {
                 else -> InputHandlingResult.IGNORED
             }
             if (nudgeResult == InputHandlingResult.CONSUMED) return true
-            if (event.key() == GLFW.GLFW_KEY_R) {
+            if (event.key() == InputConstants.KEY_R) {
                 if (buttonIndex != null) {
                     val before = inventoryButtonEditorState()
                     if (InventoryButtonEditorActions.resetOrRemoveButton(buttonIndex) ==

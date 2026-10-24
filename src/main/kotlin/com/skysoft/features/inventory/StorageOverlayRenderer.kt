@@ -145,6 +145,7 @@ private fun drawPage(
         if (active) StorageColors.SELECTED else StorageColors.PAGE_PANEL_OUTLINE,
     )
     if (editingTitlePage == layout.pageIndex) {
+        titleTextInput.keepActive()
         val bounds = titleBounds(layout, title)
         context.fill(
             bounds.x - StorageTitle.EDIT_PADDING,

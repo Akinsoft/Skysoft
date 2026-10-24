@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose
 import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.HudPosition
 import com.skysoft.features.spotify.SpotifyAuthentication
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
@@ -14,7 +15,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
-import org.lwjgl.glfw.GLFW
 
 class SpotifyDisplayConfig {
     @JvmField
@@ -98,23 +98,23 @@ class SpotifyDisplaySettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Play / Pause Key", desc = "Play or pause Spotify.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
     @field:ConfigVisibleIf("playbackControls")
-    var playPauseKey = GLFW.GLFW_KEY_UNKNOWN
+    var playPauseKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Previous Key", desc = "Return to the previous Spotify track.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
     @field:ConfigVisibleIf("playbackControls")
-    var previousKey = GLFW.GLFW_KEY_UNKNOWN
+    var previousKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Next Key", desc = "Skip to the next Spotify track.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
     @field:ConfigVisibleIf("playbackControls")
-    var nextKey = GLFW.GLFW_KEY_UNKNOWN
+    var nextKey = MinecraftInput.NO_BINDING
 }
 
 class SpotifyDisplayDetailsConfig {

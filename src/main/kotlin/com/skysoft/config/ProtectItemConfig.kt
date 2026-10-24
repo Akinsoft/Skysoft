@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.features.inventory.ItemProtectionManager
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -12,7 +13,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
-import org.lwjgl.glfw.GLFW
 
 class ProtectItemConfig {
     @JvmField
@@ -39,8 +39,8 @@ class ProtectItemSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Protect Key", desc = "Press this key while hovering an inventory item to protect or unprotect it.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var protectKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var protectKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose

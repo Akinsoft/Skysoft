@@ -4,6 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -18,7 +19,6 @@ import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 
 private const val FIRST_PLAYER_SLOT = 0
 private const val LAST_PLAYER_SLOT = 40
@@ -146,7 +146,7 @@ object SlotLockManager {
         slot?.let { isLockablePlayerSlot(it) && it.containerSlot in lockedSlots } == true
 
     @JvmStatic
-    fun isLockKey(key: Int): Boolean = config.lockKey != GLFW.GLFW_KEY_UNKNOWN && key == config.lockKey
+    fun isLockKey(key: Int): Boolean = config.lockKey != MinecraftInput.NO_BINDING && key == config.lockKey
 
     @JvmStatic
     fun isFeatureAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock

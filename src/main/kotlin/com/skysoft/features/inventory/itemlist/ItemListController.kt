@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockCookieBuffApi
@@ -15,6 +16,7 @@ import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SmoothFloatTransition
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.formatSkyBlockCalculation
@@ -38,7 +40,6 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.core.component.DataComponents
 import org.joml.Vector2i
-import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 
 object ItemListController {
@@ -190,7 +191,7 @@ object ItemListController {
             searchField.focused = false
             if (tierKey != null) {
                 when (click.button()) {
-                    GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT -> openViewer(tierKey, screen)
+                    InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOUSE_BUTTON_RIGHT -> openViewer(tierKey, screen)
                 }
             }
             return InputHandlingResult.CONSUMED
@@ -221,31 +222,31 @@ object ItemListController {
         when {
             layout.search.contains(mouseX, mouseY) -> {
                 searchField.focused = true
-                if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
                     searchField.placeCursorAt(mouseX, layout.search.x, layout.search.width)
                 }
                 when {
-                    click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT &&
+                    click.button() == InputConstants.MOUSE_BUTTON_RIGHT &&
                         config.settings.isRightClickClearEnabled -> {
                         searchField.text = ""
                         updateSearch("")
                         ContainerSearchHighlighter.clear()
                     }
-                    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && doubled -> {
+                    click.button() == InputConstants.MOUSE_BUTTON_LEFT && doubled -> {
                         ContainerSearchHighlighter.toggle(searchField.text)
                         SoundUtilities.playClickSound()
                     }
                 }
             }
-            layout.config?.contains(mouseX, mouseY) == true && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+            layout.config?.contains(mouseX, mouseY) == true && click.button() == InputConstants.MOUSE_BUTTON_LEFT -> {
                 SoundUtilities.playClickSound()
                 SkysoftConfigGui.open("Item List")
             }
-            layout.previous.contains(mouseX, mouseY) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+            layout.previous.contains(mouseX, mouseY) && click.button() == InputConstants.MOUSE_BUTTON_LEFT &&
                 (searchField.focused || ItemListState.search.isNotBlank()) -> {
                 changePage(-1, layout)
             }
-            layout.next.contains(mouseX, mouseY) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+            layout.next.contains(mouseX, mouseY) && click.button() == InputConstants.MOUSE_BUTTON_LEFT &&
                 (searchField.focused || ItemListState.search.isNotBlank()) -> {
                 changePage(1, layout)
             }
@@ -269,7 +270,7 @@ object ItemListController {
             return
         }
         when (click.button()) {
-            GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT -> openViewer(hit.key, screen)
+            InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOUSE_BUTTON_RIGHT -> openViewer(hit.key, screen)
         }
     }
 
@@ -291,16 +292,16 @@ object ItemListController {
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
         val isItemListVisible = isVisible(screen)
         if (isSearchFocused(screen)) {
-            if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
                 itemListCompiledCalculation(searchField.text)?.let { result ->
                     searchField.text = result
                     searchField.moveCursorToEnd()
-                    Minecraft.getInstance().keyboardHandler.setClipboard(result)
+                    MinecraftClient.setClipboard(result)
                     updateSearch(result)
                     return InputHandlingResult.CONSUMED
                 }
             }
-            return if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            return if (event.key() == InputConstants.KEY_ESCAPE) {
                 searchField.focused = false
                 InputHandlingResult.CONSUMED
             } else {
@@ -310,7 +311,7 @@ object ItemListController {
                 InputHandlingResult.CONSUMED
             }
         }
-        if (config.settings.visibilityKey != GLFW.GLFW_KEY_UNKNOWN &&
+        if (config.settings.visibilityKey != MinecraftInput.NO_BINDING &&
             event.key() == config.settings.visibilityKey &&
             config.enabled && HypixelLocationState.onHypixel
         ) {
@@ -318,7 +319,7 @@ object ItemListController {
             searchField.focused = false
             return InputHandlingResult.CONSUMED
         }
-        if (isItemListVisible && event.key() == GLFW.GLFW_KEY_TAB && config.settings.isTabSearchEnabled) {
+        if (isItemListVisible && event.key() == InputConstants.KEY_TAB && config.settings.isTabSearchEnabled) {
             searchField.focused = true
             return InputHandlingResult.CONSUMED
         }
@@ -328,9 +329,9 @@ object ItemListController {
             shortcut != null -> consume { openViewer(shortcut.key, screen, shortcut.mode) }
             !isItemListVisible || layout == null -> InputHandlingResult.IGNORED
             else -> when (event.key()) {
-                GLFW.GLFW_KEY_LEFT -> consume { changePage(-1, layout) }
-                GLFW.GLFW_KEY_RIGHT -> consume { changePage(1, layout) }
-                GLFW.GLFW_KEY_A -> hoveredKey?.let { consume { ItemListState.toggleFavorite(it) } }
+                InputConstants.KEY_LEFT -> consume { changePage(-1, layout) }
+                InputConstants.KEY_RIGHT -> consume { changePage(1, layout) }
+                InputConstants.KEY_A -> hoveredKey?.let { consume { ItemListState.toggleFavorite(it) } }
                     ?: InputHandlingResult.IGNORED
                 else -> InputHandlingResult.IGNORED
             }

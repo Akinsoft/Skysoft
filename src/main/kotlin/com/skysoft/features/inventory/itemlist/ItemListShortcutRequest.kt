@@ -10,11 +10,11 @@ import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.StorageOverlayController
 import com.skysoft.features.inventory.hoveredStorageItem
 import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.MinecraftInput
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 internal data class ItemListShortcutRequest(
     val mode: ItemListViewMode,
@@ -22,7 +22,7 @@ internal data class ItemListShortcutRequest(
 )
 
 internal fun itemListShortcutMode(key: Int, settings: ItemListSettingsConfig): ItemListViewMode? = when {
-    key == GLFW.GLFW_KEY_UNKNOWN -> null
+    key == MinecraftInput.NO_BINDING -> null
     key == settings.infoKey -> ItemListViewMode.INFO
     key == settings.recipesKey -> ItemListViewMode.RECIPES
     key == settings.usesKey -> ItemListViewMode.USAGES

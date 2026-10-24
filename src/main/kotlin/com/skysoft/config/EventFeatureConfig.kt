@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose
 import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.features.event.diana.DianaWarpPoint
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -16,7 +17,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
-import org.lwjgl.glfw.GLFW
 import java.util.Locale
 
 class EventFeatureConfig : ConfigRepairable {
@@ -536,8 +536,8 @@ class DianaQuickWarpsSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Warp Key", desc = "Press this key to use the suggested warp.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var warpKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var warpKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose

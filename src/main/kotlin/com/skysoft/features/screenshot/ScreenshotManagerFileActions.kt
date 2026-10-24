@@ -41,28 +41,30 @@ internal object ScreenshotManagerFileActions {
         action: ScreenshotAction,
         entry: ScreenshotEntry,
         snapshot: ScreenshotEditSnapshot,
-    ): ScreenshotActionRequest? = when (action) {
+    ): CompletableFuture<ScreenshotActionRequest?> = when (action) {
         ScreenshotAction.COPY, ScreenshotAction.DELETE ->
-            ScreenshotActionRequest(action, entry.path, snapshot)
+            CompletableFuture.completedFuture(ScreenshotActionRequest(action, entry.path, snapshot))
         ScreenshotAction.REPLACE ->
-            ScreenshotActionRequest(action, entry.path, snapshot, entry.path)
+            CompletableFuture.completedFuture(ScreenshotActionRequest(action, entry.path, snapshot, entry.path))
         ScreenshotAction.SAVE_NEW -> prepareSaveNew(entry, snapshot)
     }
 
     private fun prepareSaveNew(
         entry: ScreenshotEntry,
         snapshot: ScreenshotEditSnapshot,
-    ): ScreenshotActionRequest? {
-        val destination = ScreenshotRepository.chooseSaveDestination(entry) ?: return null
-        val validationError = "Use Replace to overwrite the original.".takeIf {
-            entry.path.normalizedScreenshotPath() == destination.normalizedScreenshotPath()
+    ): CompletableFuture<ScreenshotActionRequest?> =
+        ScreenshotRepository.chooseSaveDestination(entry).thenApply { destination ->
+            destination?.let {
+                val validationError = "Use Replace to overwrite the original.".takeIf {
+                    entry.path.normalizedScreenshotPath() == destination.normalizedScreenshotPath()
+                }
+                ScreenshotActionRequest(
+                    ScreenshotAction.SAVE_NEW,
+                    entry.path,
+                    snapshot,
+                    destination,
+                    validationError,
+                )
+            }
         }
-        return ScreenshotActionRequest(
-            ScreenshotAction.SAVE_NEW,
-            entry.path,
-            snapshot,
-            destination,
-            validationError,
-        )
-    }
 }

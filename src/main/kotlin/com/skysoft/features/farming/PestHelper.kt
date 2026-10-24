@@ -1,18 +1,19 @@
 package com.skysoft.features.farming
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.GardenPestState
 import com.skysoft.features.misc.MouseLock
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 
 object PestHelper {
     private val config get() = SkysoftConfigGui.config().farming.pests.pestHelper
@@ -42,9 +43,9 @@ object PestHelper {
             sharedKeyWasDown || warpKeyWasDown || returnKeyWasDown || sharedPositionSaved || pendingWarp != null
 
     private fun hasConfiguredKey(): Boolean = if (settings.sharedKeybind) {
-        settings.sharedKey != GLFW.GLFW_KEY_UNKNOWN
+        settings.sharedKey != MinecraftInput.NO_BINDING
     } else {
-        settings.warpKey != GLFW.GLFW_KEY_UNKNOWN || settings.returnKey != GLFW.GLFW_KEY_UNKNOWN
+        settings.warpKey != MinecraftInput.NO_BINDING || settings.returnKey != MinecraftInput.NO_BINDING
     }
 
     private fun processKeys() {
@@ -148,7 +149,7 @@ object PestHelper {
     private fun String.commandName(): String = if (this == "The Barn") "barn" else this
 
     private fun isKeyDown(key: Int): Boolean =
-        key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isActionBindingDown(key)
+        key != MinecraftInput.NO_BINDING && key != InputConstants.KEY_RETURN && InputUtilities.isActionBindingDown(key)
 
     private fun reset() {
         sharedKeyWasDown = false

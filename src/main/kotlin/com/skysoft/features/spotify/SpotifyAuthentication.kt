@@ -6,6 +6,7 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.BrowserUtilities
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.net.AsyncRequestSlot
@@ -41,7 +42,7 @@ object SpotifyAuthentication {
     }
 
     fun copyRedirectUri() {
-        Minecraft.getInstance().keyboardHandler.setClipboard(SpotifyOAuth.CALLBACK_URI)
+        MinecraftClient.setClipboard(SpotifyOAuth.CALLBACK_URI)
         SkysoftChat.chat("Spotify Redirect URI copied.")
     }
 

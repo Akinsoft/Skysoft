@@ -9,6 +9,7 @@ import com.skysoft.features.inventory.RarityHighlightRenderer;
 import com.skysoft.features.inventory.SlotBindingManager;
 import com.skysoft.features.misc.ShortbowCooldownHider;
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer;
+import com.skysoft.gui.tooltip.TooltipViewport;
 import java.util.List;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -16,7 +17,6 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState;
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,6 +24,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.joml.Matrix3x2f;
+import org.joml.Vector2ic;
 
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class GuiGraphicsExtractorMixin {
@@ -49,8 +50,16 @@ public abstract class GuiGraphicsExtractorMixin {
         if (hide) ci.cancel();
     }
 
-    @Inject(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V", at = @At("TAIL"))
-    protected void skysoftRenderAdjacentTooltip(Font font, List<ClientTooltipComponent> lines, int x, int y, ClientTooltipPositioner positioner, Identifier style, CallbackInfo ci) {
+    @Inject(method = "tooltip", at = @At("TAIL"))
+    protected void skysoftRenderAdjacentTooltip(CallbackInfo ci, @Local(argsOnly = true) Font font) {
         MixinErrorBoundary.run("Adjacent tooltip rendering", () -> AdjacentTooltipRenderer.INSTANCE.renderPending((GuiGraphicsExtractor) (Object) this, font));
+    }
+
+    @WrapOperation(method = "tooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;positionTooltip(IIIIII)Lorg/joml/Vector2ic;"))
+    protected Vector2ic skysoftPositionScrollableTooltip(ClientTooltipPositioner positioner, int screenWidth, int screenHeight, int x, int y, int tooltipWidth, int tooltipHeight, Operation<Vector2ic> original, @Local(argsOnly = true) List<ClientTooltipComponent> tooltip) {
+        ClientTooltipPositioner scrolling = MixinErrorBoundary.value("Scrollable tooltip positioning", positioner, () -> TooltipViewport.decorate(tooltip, x, y, positioner));
+        Vector2ic result = original.call(scrolling, screenWidth, screenHeight, x, y, tooltipWidth, tooltipHeight);
+        AdjacentTooltipRenderer.INSTANCE.captureMainFrame((GuiGraphicsExtractor) (Object) this, result, tooltipWidth);
+        return result;
     }
 }

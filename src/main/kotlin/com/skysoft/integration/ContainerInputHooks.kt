@@ -12,6 +12,7 @@ import com.skysoft.features.inventory.crafting.CraftingHelperInput
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.sacks.SackHudInput
 import com.skysoft.features.profit.ProfitTrackerHudInput
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -28,13 +29,15 @@ object ContainerInputHooks {
             didConsume("Bazaar Tracker mouse input") { BazaarTracker.handleMouseClick(screen, click) } ||
             didConsume("Inventory Equipment mouse input") { InventoryEquipment.handleMouseClick(screen, click) } ||
             didConsume("Inventory Button mouse input") { InventoryButtonManager.handleMouseClick(screen, click) } ||
-            didConsume("Menu Keybind mouse input") { MenuKeybinds.handleBinding(screen, click.button()) }
+            didConsume("Menu Keybind mouse input") { MenuKeybinds.handleBinding(screen, MinecraftInput.mouseBinding(click.button())) }
 
     @JvmStatic
     fun didConsumeMouseRelease(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): Boolean =
         didConsume("Storage Overlay mouse release") { StorageOverlayController.handleMouseRelease(click) } ||
             didConsume("Inventory Button mouse release") { InventoryButtonManager.handleMouseRelease(screen, click) } ||
-            didConsume("Menu Keybind mouse release") { MenuKeybinds.handleMouseRelease(screen, click.button()) }
+            didConsume("Menu Keybind mouse release") {
+                MenuKeybinds.handleMouseRelease(screen, MinecraftInput.mouseBinding(click.button()))
+            }
 
     @JvmStatic
     fun didConsumeMouseDrag(

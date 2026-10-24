@@ -1,8 +1,8 @@
 package com.skysoft.features.screenshot
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.GuiOverlay
@@ -20,6 +20,7 @@ import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.net.AsyncRequestSlot
+import com.skysoft.utils.render.gpu.FilterMode
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.math.min
@@ -27,7 +28,6 @@ import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Util
-import org.lwjgl.glfw.GLFW
 
 internal object ScreenshotCapturePreview {
     private val contexts = GuiOverlayContextType.entries.toSet()
@@ -69,7 +69,7 @@ internal object ScreenshotCapturePreview {
     }
 
     fun processMouseButtonPress(button: Int): InputHandlingResult {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
         val current = presentation?.takeIf { it.isSimplePreview || it.elapsedMillis() >= TRAVEL_END_MILLIS }
             ?: return InputHandlingResult.IGNORED
         val minecraft = Minecraft.getInstance()

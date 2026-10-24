@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.data.skyblock.ItemListEntry
 import com.skysoft.data.skyblock.ItemListEntryKind
@@ -23,7 +24,6 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 internal sealed interface TrackedItemSelectionAction {
     data object Inventory : TrackedItemSelectionAction
@@ -82,11 +82,11 @@ internal class TrackedItemSelectionPanel {
         if (mode != TrackedItemSelectionMode.SEARCH || !searchField.focused) return false
         val results = searchResults(isSelectable)
         when (event.key()) {
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> results.getOrNull(selectedSearchIndex)?.let {
+            InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> results.getOrNull(selectedSearchIndex)?.let {
                 select(it.key.id)
             }
-            GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_UP -> if (results.isNotEmpty()) {
-                val step = if (event.key() == GLFW.GLFW_KEY_UP) -1 else 1
+            InputConstants.KEY_TAB, InputConstants.KEY_DOWN, InputConstants.KEY_UP -> if (results.isNotEmpty()) {
+                val step = if (event.key() == InputConstants.KEY_UP) -1 else 1
                 selectedSearchIndex = Math.floorMod(selectedSearchIndex + step, results.size)
                 searchOffset = when {
                     selectedSearchIndex < searchOffset -> selectedSearchIndex
@@ -95,7 +95,7 @@ internal class TrackedItemSelectionPanel {
                     else -> searchOffset
                 }
             }
-            GLFW.GLFW_KEY_ESCAPE -> searchField.focused = false
+            InputConstants.KEY_ESCAPE -> searchField.focused = false
             else -> searchField.keyPressed(event)
         }
         return true

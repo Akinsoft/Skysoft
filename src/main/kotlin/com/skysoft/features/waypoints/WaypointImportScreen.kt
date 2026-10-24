@@ -2,9 +2,11 @@ package com.skysoft.features.waypoints
 
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
+import java.util.concurrent.CompletableFuture
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.util.Util
 
 internal class WaypointImportScreen private constructor(parent: Screen?) : WaypointDialog("Import Waypoints", parent, "Import selected") {
     private var preview: WaypointImport? = null
@@ -24,7 +26,7 @@ internal class WaypointImportScreen private constructor(parent: Screen?) : Waypo
         val half = (width - GAP) / 2
         painter.action(Rect(x, y, half, FIELD_HEIGHT), "Paste clipboard", enabled = !busy) {
             val text = Minecraft.getInstance().keyboardHandler.clipboard
-            load { text }
+            load { CompletableFuture.completedFuture(text) }
         }
         painter.action(Rect(x + half + GAP, y, half, FIELD_HEIGHT), "Open file", enabled = !busy) { load(WaypointTransferFiles::read) }
         val data = preview
@@ -82,11 +84,12 @@ internal class WaypointImportScreen private constructor(parent: Screen?) : Waypo
         }
     }
 
-    private fun load(read: () -> String?) {
+    private fun load(read: () -> CompletableFuture<String?>) {
         check(!busy) { "Wait for the current import to finish." }
         preview = null
         selected.clear()
-        transfer({ read()?.let(WaypointImportCodec::decode) }, onFailure = { status = "Import could not be read." }) { result ->
+        val decode = { read().thenApplyAsync({ text -> text?.let(WaypointImportCodec::decode) }, Util.ioPool()) }
+        transfer(decode, onFailure = { status = "Import could not be read." }) { result ->
             if (result != null) {
                 preview = result.copy(groups = result.groups.map { it.copy(scope = Waypoints.defaultScope(it.island)) })
                 selected.addAll(result.groups.map { it.id })

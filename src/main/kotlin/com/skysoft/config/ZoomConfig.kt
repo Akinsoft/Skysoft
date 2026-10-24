@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -9,7 +10,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
-import org.lwjgl.glfw.GLFW
 
 class ZoomConfig : ConfigRepairable {
     @JvmField
@@ -43,8 +43,8 @@ class ZoomSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Zoom Key", desc = "Key used to zoom the camera.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_C)
-    var key = GLFW.GLFW_KEY_C
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_C)
+    var key = InputConstants.KEY_C
 
     @JvmField
     @field:Expose

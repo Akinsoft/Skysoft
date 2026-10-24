@@ -8,6 +8,10 @@ import net.minecraft.world.item.ItemStack
 
 object HeldItemUpdateFix {
     @JvmStatic
+    fun shouldKeepVisible(vanillaKeepsVisible: Boolean, previous: ItemStack, current: ItemStack): Boolean =
+        vanillaKeepsVisible || shouldPreserveUpdate(previous, current)
+
+    @JvmStatic
     fun shouldPreserveUpdate(previous: ItemStack, current: ItemStack): Boolean =
         SkysoftConfigGui.config().fixes.isHeldItemUpdateFixEnabled &&
             comparison(previous, current) == HeldItemUpdateComparison.MATCHED

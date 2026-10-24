@@ -1,14 +1,15 @@
 package com.skysoft.features.waypoints
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayListScroll
 import com.skysoft.utils.gui.PixelSliderRenderer
 import com.skysoft.utils.input.InputUtilities
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.screens.Screen
-import org.lwjgl.glfw.GLFW
 
 internal object WaypointSettingsPanel {
     private val transition = PanelFadeTransition()
@@ -57,7 +58,7 @@ internal object WaypointSettingsPanel {
         transition.opacity()
         if (!isOpen || !WaypointPanel.isVisible() || owner !== MinecraftClient.screen()) clear()
         if (capturedBinding?.let(InputUtilities::isBindingDown) == false) capturedBinding = null
-        if (draggedSlider != null && !InputUtilities.isBindingDown(GLFW.GLFW_MOUSE_BUTTON_LEFT)) didFinishDrag()
+        if (draggedSlider != null && !InputUtilities.isMouseButtonDown(InputConstants.MOUSE_BUTTON_LEFT)) didFinishDrag()
     }
 
     fun updateLayout(panel: WaypointPanelLayout, width: Int, height: Int): WaypointSettingsLayout? {
@@ -85,14 +86,14 @@ internal object WaypointSettingsPanel {
         val binding = awaitingBinding
         if (binding != null) {
             when (key) {
-                GLFW.GLFW_KEY_ESCAPE -> awaitingBinding = null
-                GLFW.GLFW_KEY_DELETE, GLFW.GLFW_KEY_BACKSPACE -> assign(binding, GLFW.GLFW_KEY_UNKNOWN)
-                in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST -> assign(binding, key)
+                InputConstants.KEY_ESCAPE -> awaitingBinding = null
+                InputConstants.KEY_DELETE, InputConstants.KEY_BACKSPACE -> assign(binding, MinecraftInput.NO_BINDING)
+                else -> if (MinecraftInput.isKeyBinding(key)) assign(binding, key)
             }
             capturedBinding = key
             return true
         }
-        if (key != GLFW.GLFW_KEY_ESCAPE) return false
+        if (key != InputConstants.KEY_ESCAPE) return false
         close()
         return true
     }
@@ -100,8 +101,9 @@ internal object WaypointSettingsPanel {
     fun didCaptureMouse(button: Int): Boolean {
         if (!isActive) return false
         val binding = awaitingBinding ?: return false
-        assign(binding, button)
-        capturedBinding = button
+        val mouseBinding = MinecraftInput.mouseBinding(button)
+        assign(binding, mouseBinding)
+        capturedBinding = mouseBinding
         return true
     }
 

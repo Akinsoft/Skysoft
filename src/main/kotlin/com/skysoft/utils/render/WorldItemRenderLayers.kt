@@ -1,12 +1,11 @@
 package com.skysoft.utils.render
 
-import com.mojang.blaze3d.pipeline.BlendFunction
-import com.mojang.blaze3d.pipeline.DepthStencilState
-import com.mojang.blaze3d.platform.CompareOp
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.render.gpu.BlendFunction
+import com.skysoft.utils.render.gpu.CompareOp
+import com.skysoft.utils.render.gpu.DepthStencilState
 import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.resources.Identifier
 
@@ -19,7 +18,7 @@ object WorldItemRenderLayers {
     @JvmStatic
     fun throughWalls(texture: Identifier, isTranslucent: Boolean): RenderType =
         layers.getOrPut(texture to isTranslucent) {
-            val setupBuilder = RenderSetup.builder(if (isTranslucent) translucentPipeline else cutoutPipeline)
+            val setupBuilder = SkysoftPipelineBuilder.renderSetup(if (isTranslucent) translucentPipeline else cutoutPipeline)
                 .withTexture("Sampler0", texture)
             SkysoftPipelineBuilder.configureItemRenderSetup(setupBuilder)
             if (isTranslucent) setupBuilder.sortOnUpload()

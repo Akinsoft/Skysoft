@@ -1,12 +1,12 @@
 package com.skysoft.features.screenshot
 
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
+import com.skysoft.utils.render.gpu.FilterMode
 import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.math.max

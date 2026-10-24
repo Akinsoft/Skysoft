@@ -165,7 +165,7 @@ public class AbstractContainerScreenMixin {
     }
 
     @WrapOperation(
-        method = "slotClicked",
+        method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;handleContainerInput(IIILnet/minecraft/world/inventory/ContainerInput;Lnet/minecraft/world/entity/player/Player;)V"
@@ -202,7 +202,7 @@ public class AbstractContainerScreenMixin {
         }
     }
 
-    @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V", at = @At("HEAD"), cancellable = true)
     protected void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
         if (ContainerSlotInputHooks.didConsumeSlotClick((AbstractContainerScreen<?>) (Object) this, slot, slotId, button, action)) {
             ci.cancel();

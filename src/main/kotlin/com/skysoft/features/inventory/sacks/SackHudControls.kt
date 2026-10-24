@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.sacks
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -9,7 +10,6 @@ import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 internal fun registerSackHudInput() {
     val isActive = { sackHudConfig.enabled }
@@ -36,7 +36,7 @@ private fun shouldAllowSackHudClick(
     val control = sackHudHoveredControl?.action
     val panelHovered = sackHudItemPanel.isHovered
     if (control is SackHudControl.Item && sackHudItemPanel.isRemovingItems()) {
-        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             removeSackHudTrackedItem(control.itemId)
             SoundUtilities.playClickSound()
         }
@@ -62,7 +62,7 @@ private fun shouldAllowSackHudClick(
 }
 
 private fun wasInventoryItemSelected(screen: AbstractContainerScreen<*>, button: Int): Boolean {
-    if (!sackHudItemPanel.isSelectingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+    if (!sackHudItemPanel.isSelectingFromInventory() || button != InputConstants.MOUSE_BUTTON_LEFT) return false
     val player = Minecraft.getInstance().player ?: return false
     val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
     val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
@@ -81,7 +81,7 @@ private fun wasSackHudScrollHandled(verticalAmount: Double): Boolean {
 }
 
 private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
-    if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+    if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
     action()
     return true
 }

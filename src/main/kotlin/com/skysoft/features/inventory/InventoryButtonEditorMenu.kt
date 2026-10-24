@@ -1,10 +1,12 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.InventoryButtonsConfig
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -18,7 +20,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 internal class InventoryButtonEditorMenu(
     private val config: () -> InventoryButtonsConfig,
@@ -88,7 +89,7 @@ internal class InventoryButtonEditorMenu(
     fun wasMouseClickHandled(click: MouseButtonEvent, editorPanel: Rect): Boolean {
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
-        return if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+        return if (click.button() == InputConstants.MOUSE_BUTTON_LEFT &&
             toggleBounds(editorPanel).contains(mouseX, mouseY)
         ) {
             SoundUtilities.playClickSound()
@@ -109,7 +110,7 @@ internal class InventoryButtonEditorMenu(
         if (!transition.isInteractive) return true
         renamingPreset?.let { presetIndex ->
             val bounds = layout.presets[presetIndex]
-            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && bounds.contains(mouseX, mouseY)) {
+            if (click.button() == InputConstants.MOUSE_BUTTON_LEFT && bounds.contains(mouseX, mouseY)) {
                 renameField.placeCursorAt(mouseX, bounds.x, bounds.width)
                 return true
             }
@@ -121,7 +122,7 @@ internal class InventoryButtonEditorMenu(
 
     fun handleKeyPress(event: KeyEvent): InputHandlingResult {
         if (renamingPreset != null) {
-            if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            if (event.key() == InputConstants.KEY_ESCAPE) {
                 cancelRename()
                 return InputHandlingResult.CONSUMED
             }
@@ -129,7 +130,7 @@ internal class InventoryButtonEditorMenu(
             if (!renameField.focused) finishRename()
             return InputHandlingResult.CONSUMED
         }
-        if (event.key() != GLFW.GLFW_KEY_ESCAPE || !transition.isVisible) return InputHandlingResult.IGNORED
+        if (event.key() != InputConstants.KEY_ESCAPE || !transition.isVisible) return InputHandlingResult.IGNORED
         closeMenu()
         return InputHandlingResult.CONSUMED
     }
@@ -146,15 +147,15 @@ internal class InventoryButtonEditorMenu(
     }
 
     private fun handleMenuClick(layout: MenuLayout, mouseX: Int, mouseY: Int, button: Int) {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return
+        if (button != InputConstants.MOUSE_BUTTON_LEFT && button != InputConstants.MOUSE_BUTTON_RIGHT) return
         val pending = pendingAction
         if (pending != null) {
             when {
-                layout.primary.contains(mouseX, mouseY) && button == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+                layout.primary.contains(mouseX, mouseY) && button == InputConstants.MOUSE_BUTTON_LEFT -> {
                     SoundUtilities.playClickSound()
                     pendingAction = null
                 }
-                layout.secondary.contains(mouseX, mouseY) && button == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+                layout.secondary.contains(mouseX, mouseY) && button == InputConstants.MOUSE_BUTTON_LEFT -> {
                     SoundUtilities.playClickSound()
                     confirm(pending)
                 }
@@ -162,11 +163,11 @@ internal class InventoryButtonEditorMenu(
             return
         }
         when {
-            layout.primary.contains(mouseX, mouseY) && button == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+            layout.primary.contains(mouseX, mouseY) && button == InputConstants.MOUSE_BUTTON_LEFT -> {
                 SoundUtilities.playClickSound()
                 pendingAction = PendingAction.LoadDefaults
             }
-            layout.secondary.contains(mouseX, mouseY) && button == GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+            layout.secondary.contains(mouseX, mouseY) && button == InputConstants.MOUSE_BUTTON_LEFT -> {
                 SoundUtilities.playClickSound()
                 pendingAction = PendingAction.ResetSlots
             }
@@ -174,7 +175,7 @@ internal class InventoryButtonEditorMenu(
                 .takeIf { it >= 0 }
                 ?.let { presetIndex ->
                     SoundUtilities.playClickSound()
-                    if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                    if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
                         beginRename(presetIndex)
                     } else if (config().activePreset != presetIndex) {
                         config().switchPreset(presetIndex)
@@ -187,12 +188,12 @@ internal class InventoryButtonEditorMenu(
     }
 
     private fun handleSharingClick(layout: MenuLayout, mouseX: Int, mouseY: Int, button: Int) {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) return
         when {
             layout.share.contains(mouseX, mouseY) -> {
                 SoundUtilities.playClickSound()
                 config().storeActivePreset()
-                Minecraft.getInstance().keyboardHandler.setClipboard(
+                MinecraftClient.setClipboard(
                     InventoryButtonLayoutSharing.export(config().buttons),
                 )
                 status = MenuStatus(StatusTarget.SHARE, "Copied!", System.currentTimeMillis() + STATUS_DURATION_MILLIS)

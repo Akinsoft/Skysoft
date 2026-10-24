@@ -108,7 +108,7 @@ internal object ScreenshotSharing {
     }
 
     private fun copyLink(upload: ScreenshotUpload) {
-        Minecraft.getInstance().keyboardHandler.clipboard = upload.pageUrl
+        MinecraftClient.setClipboard(upload.pageUrl)
         SkysoftChat.success("Copied the screenshot link to your clipboard.")
     }
 

@@ -1,10 +1,12 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SetMenuKeybindsConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
@@ -15,7 +17,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.ChestMenu
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
-import org.lwjgl.glfw.GLFW
 
 object MenuKeybinds {
     private val config get() = SkysoftConfigGui.config().inventory.equipment
@@ -28,7 +29,7 @@ object MenuKeybinds {
         binding: Int,
         repeated: Boolean = false,
     ): InputHandlingResult {
-        if (binding == GLFW.GLFW_KEY_UNKNOWN || (screen.focused as? EditBox)?.canConsumeInput() == true) {
+        if (binding == MinecraftInput.NO_BINDING || (screen.focused as? EditBox)?.canConsumeInput() == true) {
             return InputHandlingResult.IGNORED
         }
         val menu = activeBindings(screen) ?: return InputHandlingResult.IGNORED
@@ -45,7 +46,7 @@ object MenuKeybinds {
             (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
                 slot,
                 slot.index,
-                GLFW.GLFW_MOUSE_BUTTON_LEFT,
+                InputConstants.MOUSE_BUTTON_LEFT,
                 ContainerInput.PICKUP,
             )
         }
@@ -66,7 +67,7 @@ object MenuKeybinds {
         if (!menu.showKeybinds || position < 0 || !slot.isActive || slot.item.hoverName.cleanSkyBlockText().isBlank()) {
             return null
         }
-        return menu.keys[position].takeUnless { it == GLFW.GLFW_KEY_UNKNOWN }?.let(InputUtilities::bindingName)
+        return menu.keys[position].takeUnless { it == MinecraftInput.NO_BINDING }?.let(InputUtilities::bindingName)
     }
 
     fun renderKeybind(context: GuiGraphicsExtractor, font: Font, label: String, x: Int, y: Int) {

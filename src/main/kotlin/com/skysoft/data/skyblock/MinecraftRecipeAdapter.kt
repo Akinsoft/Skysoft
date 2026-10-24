@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.MinecraftBrewing
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection
@@ -9,10 +10,8 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.resources.Identifier
 import net.minecraft.util.context.ContextMap
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
 import net.minecraft.world.level.Level
 import net.minecraft.world.item.alchemy.PotionContents
-import net.minecraft.world.item.alchemy.PotionBrewing
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay
 import net.minecraft.world.item.crafting.display.RecipeDisplay
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay
@@ -128,34 +127,16 @@ internal object MinecraftRecipeAdapter {
         return SkyBlockRecipe.Process(SkyBlockRecipeType.UNSUPPORTED, result, emptyList())
     }
 
-    private fun brewingRecipes(level: Level): List<SkyBlockRecipe> {
-        val brewing = level.potionBrewing()
-        val potionRegistry = level.registryAccess().lookupOrThrow(Registries.POTION)
-        val reagents = BuiltInRegistries.ITEM.asSequence()
-            .map(::ItemStack)
-            .filter(brewing::isIngredient)
-            .toList()
-        return buildList {
-            potionRegistry.listElements().forEach { potion ->
-                POTION_CONTAINERS.forEach { container ->
-                    val input = PotionContents.createItemStack(container, potion)
-                    reagents.forEach reagentLoop@{ reagent ->
-                        if (!brewing.hasMix(input, reagent)) return@reagentLoop
-                        val output = brewing.mix(reagent, input)
-                        val result = output.potionIngredient() ?: return@reagentLoop
-                        add(
-                            SkyBlockRecipe.Process(
-                                type = SkyBlockRecipeType.BREWING,
-                                result = result,
-                                ingredients = listOfNotNull(input.potionIngredient(), reagent.registryIngredient()),
-                                durationSeconds = PotionBrewing.BREWING_TIME_SECONDS.toLong(),
-                            ),
-                        )
-                    }
-                }
-            }
+    private fun brewingRecipes(level: Level): List<SkyBlockRecipe> =
+        MinecraftBrewing.mixes(level).mapNotNull { mix ->
+            val result = mix.output.potionIngredient() ?: return@mapNotNull null
+            SkyBlockRecipe.Process(
+                type = SkyBlockRecipeType.BREWING,
+                result = result,
+                ingredients = listOfNotNull(mix.input.potionIngredient(), mix.reagent.registryIngredient()),
+                durationSeconds = MinecraftBrewing.BREWING_TIME_SECONDS.toLong(),
+            )
         }
-    }
 
     fun potionStack(ingredient: RecipeIngredient): ItemStack? {
         if (ingredient.kind != RecipeIngredientKind.POTION) return null
@@ -231,5 +212,4 @@ internal object MinecraftRecipeAdapter {
     private const val TICKS_PER_SECOND = 20L
     private const val POTION_ID_SEPARATOR = "|"
     private const val MINECRAFT_NAMESPACE = "minecraft"
-    private val POTION_CONTAINERS = listOf(Items.POTION, Items.SPLASH_POTION, Items.LINGERING_POTION)
 }

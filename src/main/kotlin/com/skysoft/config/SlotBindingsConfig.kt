@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.features.inventory.SlotBindingManager
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -11,7 +12,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
-import org.lwjgl.glfw.GLFW
 
 class SlotBindingsConfig {
     @JvmField
@@ -41,8 +41,8 @@ class SlotBindingsSettingsConfig {
         name = "Binding Key",
         desc = "Hold this key over an inventory slot, move to another slot, and release to bind. Tap over a bound slot to unbind.",
     )
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_B)
-    var bindingKey = GLFW.GLFW_KEY_B
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_B)
+    var bindingKey = InputConstants.KEY_B
 
     @JvmField
     @field:ConfigOption(name = "Reset All Bindings", desc = "Remove all slot bindings.")

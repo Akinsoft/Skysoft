@@ -1,8 +1,10 @@
 package com.skysoft.features.screenshot
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.math.roundToInt
@@ -13,7 +15,6 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.util.Util
-import org.lwjgl.glfw.GLFW
 
 internal class ScreenshotManagerScreen(
     private val parent: Screen?,
@@ -105,7 +106,7 @@ internal class ScreenshotManagerScreen(
     override fun extractBackground(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) = Unit
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled)
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
         val previousSelectionIndex = entries.indexOfFirst { it.path == selectedPath }
@@ -149,7 +150,7 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
         if (!isEditing) return super.mouseDragged(click, dragX, dragY)
         if (selectedPath == null) return super.mouseDragged(click, dragX, dragY)
         return if (editor.processDrag(click.x(), click.y()) == InputHandlingResult.CONSUMED) {
@@ -160,25 +161,24 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun mouseReleased(click: MouseButtonEvent): Boolean {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
         if (!isEditing) return super.mouseReleased(click)
         if (selectedPath == null) return super.mouseReleased(click)
         return if (editor.processRelease() == InputHandlingResult.CONSUMED) true else super.mouseReleased(click)
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (pendingAction != null && event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE)) {
+        if (pendingAction != null && event.key() in listOf(InputConstants.KEY_ESCAPE, InputConstants.KEY_BACKSPACE)) {
             return true
         }
         if (
             selectedPath != null &&
             isEditing &&
             confirmation == null &&
-            event.hasControlDownWithQuirk() &&
-            event.key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
+            InputUtilities.isHistoryShortcut(event)
         ) {
             val path = selectedPath ?: return true
-            if (event.key() == GLFW.GLFW_KEY_Y || Minecraft.getInstance().hasShiftDown()) {
+            if (InputUtilities.isRedoShortcut(event)) {
                 editor.redo(path)
             } else {
                 editor.undo(path)
@@ -190,21 +190,21 @@ internal class ScreenshotManagerScreen(
             pendingAction == null &&
             confirmation == null &&
             focusTransition.isComplete() &&
-            event.key() in listOf(GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT)
+            event.key() in listOf(InputConstants.KEY_LEFT, InputConstants.KEY_RIGHT)
         ) {
-            val direction = if (event.key() == GLFW.GLFW_KEY_LEFT) -1 else 1
+            val direction = if (event.key() == InputConstants.KEY_LEFT) -1 else 1
             if (navigateSelection(direction) == InputHandlingResult.CONSUMED) {
                 SoundUtilities.playNavigationSound(direction)
             }
             return true
         }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && confirmation != null) {
+        if (event.key() == InputConstants.KEY_ESCAPE && confirmation != null) {
             confirmation = null
             shouldCloseAfterDiscard = false
             SoundUtilities.playRandomNavigationSound()
             return true
         }
-        if (event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) && selectedPath != null) {
+        if (event.key() in listOf(InputConstants.KEY_ESCAPE, InputConstants.KEY_BACKSPACE) && selectedPath != null) {
             returnToGallery()
             SoundUtilities.playRandomNavigationSound()
             return true
@@ -375,19 +375,26 @@ internal class ScreenshotManagerScreen(
         val entry = selectedPath?.let { path -> entries.firstOrNull { it.path == path } }
             ?: return InputHandlingResult.IGNORED
         val snapshot = if (isEditing) editor.session(entry.path).snapshot else ScreenshotEditSnapshot()
-        val request = ScreenshotManagerFileActions.prepare(action, entry, snapshot)
-        if (request == null) {
-            confirmation = null
-            return InputHandlingResult.CONSUMED
-        }
         confirmation = null
-        if (request.validationError != null) {
-            notice = screenshotTimedNotice(request.validationError, true)
-            return InputHandlingResult.CONSUMED
-        }
         pendingAction = action
-        notice = ScreenshotNotice(action.progressMessage, false, Long.MAX_VALUE)
-        request.execute().whenComplete { _, failure -> finishAction(request, failure) }
+        ScreenshotManagerFileActions.prepare(action, entry, snapshot).whenCompleteAsync({ request, failure ->
+            if (isDisposed || pendingAction != action) return@whenCompleteAsync
+            when {
+                failure != null -> {
+                    pendingAction = null
+                    notice = screenshotTimedNotice(action.failureMessage, true)
+                }
+                request == null -> pendingAction = null
+                request.validationError != null -> {
+                    pendingAction = null
+                    notice = screenshotTimedNotice(request.validationError, true)
+                }
+                else -> {
+                    notice = ScreenshotNotice(action.progressMessage, false, Long.MAX_VALUE)
+                    request.execute().whenComplete { _, executeFailure -> finishAction(request, executeFailure) }
+                }
+            }
+        }, minecraftClient)
         return InputHandlingResult.CONSUMED
     }
 

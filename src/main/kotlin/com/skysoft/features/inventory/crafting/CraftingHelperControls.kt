@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.crafting
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -21,7 +22,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 internal sealed interface CraftingHelperControl {
     data object More : CraftingHelperControl
@@ -150,14 +150,14 @@ private fun shouldAllowCraftingHelperClick(
     }
     val keepsPanelOpen = panelHovered || control == CraftingHelperControl.More ||
         control is CraftingHelperControl.Line && control.line.isTarget &&
-        click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT || control == null && handled
+        click.button() == InputConstants.MOUSE_BUTTON_LEFT || control == null && handled
     if (!keepsPanelOpen) craftingHelperItemPanel.close()
     if (handled) SoundUtilities.playClickSound()
     return !handled && !panelHovered
 }
 
 private fun wasInventoryTargetSelected(screen: AbstractContainerScreen<*>, button: Int): Boolean {
-    if (!craftingHelperItemPanel.isSelectingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+    if (!craftingHelperItemPanel.isSelectingFromInventory() || button != InputConstants.MOUSE_BUTTON_LEFT) return false
     val player = Minecraft.getInstance().player ?: return false
     val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
     val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
@@ -169,13 +169,13 @@ private fun wasCraftingHelperLineClickHandled(
     line: CraftingHelperLine,
     button: Int,
 ): Boolean = when (button) {
-    GLFW.GLFW_MOUSE_BUTTON_LEFT -> if (line.isTarget) {
+    InputConstants.MOUSE_BUTTON_LEFT -> if (line.isTarget) {
         craftingHelperItemPanel.toggleItem(line.itemId)
         true
     } else {
         wasAcquisitionClickHandled(line)
     }
-    GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
+    InputConstants.MOUSE_BUTTON_RIGHT -> {
         val key = line.key ?: return false
         if (!SkysoftConfigGui.config().items.itemList.enabled) return false
         MinecraftClient.setScreen(ItemListViewerScreen(screen, key))
@@ -198,7 +198,7 @@ private fun wasAcquisitionClickHandled(line: CraftingHelperLine): Boolean {
     val connection = command?.let { Minecraft.getInstance().connection ?: return false }
     val copyAmount = line.supercraft?.crafts ?: line.missing
     if (craftingHelperConfig.settings.copyAmount && copyAmount > 0L) {
-        Minecraft.getInstance().keyboardHandler.setClipboard(copyAmount.toString())
+        MinecraftClient.setClipboard(copyAmount.toString())
     } else if (command == null) {
         return false
     }
@@ -221,7 +221,7 @@ private fun wasCraftingHelperScrollHandled(verticalAmount: Double): Boolean {
 }
 
 private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
-    if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+    if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
     action()
     return true
 }

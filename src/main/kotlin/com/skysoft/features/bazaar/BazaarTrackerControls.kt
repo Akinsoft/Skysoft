@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -10,11 +11,10 @@ import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import org.lwjgl.glfw.GLFW
 
 internal fun handleBazaarTrackerMouseButtonPress(button: Int): InputHandlingResult {
     if (!shouldRenderBazaarTrackerInventoryOverlay() ||
-        (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+        (button != InputConstants.MOUSE_BUTTON_LEFT && button != InputConstants.MOUSE_BUTTON_RIGHT)
     ) return InputHandlingResult.IGNORED
     val minecraft = Minecraft.getInstance()
     val screen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*> ?: return InputHandlingResult.IGNORED
@@ -36,10 +36,10 @@ internal fun handleTrackerControlClick(button: Int): InputHandlingResult {
     val area = BazaarDisplayState.hoveredControlArea ?: return InputHandlingResult.IGNORED
     val activated = when (area.action) {
         TrackerControl.TOGGLE_MODE -> {
-            BazaarDisplayState.cycleMode(backwards = button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+            BazaarDisplayState.cycleMode(backwards = button == InputConstants.MOUSE_BUTTON_RIGHT)
             true
         }
-        TrackerControl.RESET -> if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        TrackerControl.RESET -> if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             resetBazaarTrackerDisplayedProfit()
             true
         } else {

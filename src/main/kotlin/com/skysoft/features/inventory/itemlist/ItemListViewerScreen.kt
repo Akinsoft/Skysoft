@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
@@ -22,7 +23,6 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
-import org.lwjgl.glfw.GLFW
 
 internal class ItemListViewerScreen(
     private val parent: Screen?,
@@ -79,8 +79,8 @@ internal class ItemListViewerScreen(
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
         val result = when (click.button()) {
-            GLFW.GLFW_MOUSE_BUTTON_LEFT -> applyLeftClick(currentLayout, mouseX, mouseY)
-            GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
+            InputConstants.MOUSE_BUTTON_LEFT -> applyLeftClick(currentLayout, mouseX, mouseY)
+            InputConstants.MOUSE_BUTTON_RIGHT -> {
                 val warp = requestNpcWarpAt(recipeView.entityAt(mouseX, mouseY))
                 if (warp.shouldCloseScreen) MinecraftClient.setScreen(null)
                 warp.inputResult.orElse { recipeView.navigateIngredient(mouseX, mouseY) }
@@ -104,7 +104,7 @@ internal class ItemListViewerScreen(
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key() in listOf(GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_BACKSPACE) &&
+        if (event.key() in listOf(InputConstants.KEY_ESCAPE, InputConstants.KEY_BACKSPACE) &&
             recipeView.closePopup().isHandled
         ) {
             return true
@@ -118,14 +118,14 @@ internal class ItemListViewerScreen(
             return true
         }
         return when (event.key()) {
-            GLFW.GLFW_KEY_BACKSPACE -> selection.navigateBack().isHandled
-            GLFW.GLFW_KEY_LEFT -> recipeView.changePage(-1, layout?.pageSize(currentKey) ?: 1)
+            InputConstants.KEY_BACKSPACE -> selection.navigateBack().isHandled
+            InputConstants.KEY_LEFT -> recipeView.changePage(-1, layout?.pageSize(currentKey) ?: 1)
                 .also(ViewerInputResult::playSound)
                 .isHandled
-            GLFW.GLFW_KEY_RIGHT -> recipeView.changePage(1, layout?.pageSize(currentKey) ?: 1)
+            InputConstants.KEY_RIGHT -> recipeView.changePage(1, layout?.pageSize(currentKey) ?: 1)
                 .also(ViewerInputResult::playSound)
                 .isHandled
-            GLFW.GLFW_KEY_A -> {
+            InputConstants.KEY_A -> {
                 ItemListState.toggleFavorite(currentKey)
                 true
             }

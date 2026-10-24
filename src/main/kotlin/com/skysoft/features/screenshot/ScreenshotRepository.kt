@@ -1,9 +1,10 @@
 package com.skysoft.features.screenshot
 
+import com.skysoft.utils.FileDialogFilter
+import com.skysoft.utils.MinecraftFileDialogs
 import java.nio.file.Files
 import java.nio.file.Path
-import org.lwjgl.system.MemoryStack
-import org.lwjgl.util.tinyfd.TinyFileDialogs
+import java.util.concurrent.CompletableFuture
 
 internal data class ScreenshotEntry(
     val path: Path,
@@ -34,20 +35,13 @@ internal object ScreenshotRepository {
             .sortedWith(ENTRY_ORDER)
     }
 
-    fun chooseSaveDestination(entry: ScreenshotEntry): Path? {
+    fun chooseSaveDestination(entry: ScreenshotEntry): CompletableFuture<Path?> {
         val baseName = entry.fileName.substringBeforeLast('.')
         val defaultPath = entry.path.resolveSibling("$baseName-edited$PNG_EXTENSION").toString()
-        val selection = MemoryStack.stackPush().use { stack ->
-            val filters = stack.mallocPointer(1)
-            filters.put(stack.UTF8("*.png"))
-            filters.flip()
-            TinyFileDialogs.tinyfd_saveFileDialog("Save Screenshot", defaultPath, filters, "PNG image")
-        } ?: return null
-        val selectedPath = Path.of(selection)
-        return if (selectedPath.fileName.toString().endsWith(PNG_EXTENSION, ignoreCase = true)) {
-            selectedPath
-        } else {
-            Path.of("$selectedPath$PNG_EXTENSION")
+        return MinecraftFileDialogs.saveFile("Save Screenshot", defaultPath, pngFilter).thenApply { selectedPath ->
+            selectedPath?.let {
+                if (it.fileName.toString().endsWith(PNG_EXTENSION, ignoreCase = true)) it else Path.of("$it$PNG_EXTENSION")
+            }
         }
     }
 
@@ -60,6 +54,7 @@ internal object ScreenshotRepository {
         Files.isRegularFile(path) && path.fileName.toString().endsWith(PNG_EXTENSION, ignoreCase = true)
 
     private const val PNG_EXTENSION = ".png"
+    private val pngFilter = FileDialogFilter("PNG image", listOf("png"))
     private val ENTRY_ORDER = compareByDescending<ScreenshotEntry> { it.modifiedAtMillis }
         .thenByDescending { it.fileName }
 }

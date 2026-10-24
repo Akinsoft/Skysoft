@@ -4,6 +4,9 @@ import com.skysoft.features.misc.selecteditem.SelectedItemNameState
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.util.Util
+import net.minecraft.world.InteractionHand
 
 object MinecraftClient {
     fun screen(): Screen? = screen(Minecraft.getInstance())
@@ -20,4 +23,16 @@ object MinecraftClient {
 
     fun selectedItemNameState(minecraft: Minecraft): SelectedItemNameState =
         minecraft.gui as SelectedItemNameState
+
+    fun openUri(url: String) {
+        Util.getPlatform().openUri(url)
+    }
+
+    fun swingMainHand(player: LocalPlayer) {
+        player.swing(InteractionHand.MAIN_HAND, false)
+    }
+
+    fun setClipboard(text: String) {
+        Minecraft.getInstance().keyboardHandler.clipboard = text
+    }
 }

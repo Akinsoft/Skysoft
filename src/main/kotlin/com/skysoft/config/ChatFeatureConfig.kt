@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.SoundUtilities
@@ -19,7 +20,6 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import org.lwjgl.glfw.GLFW
 
 class ChatFeatureConfig : ConfigRepairable {
     @JvmField
@@ -159,8 +159,8 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Peek Key", desc = "Key held to expand chat.")
-        @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_Z)
-        var key = GLFW.GLFW_KEY_Z
+        @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_Z)
+        var key = InputConstants.KEY_Z
     }
 
     class ChatHistoryConfig {
@@ -379,8 +379,8 @@ class ChatFeatureConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Copy Key", desc = "Key used to copy the hovered chat message.")
-        @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
-        var key = GLFW.GLFW_KEY_LEFT_SHIFT
+        @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_LSHIFT)
+        var key = InputConstants.KEY_LSHIFT
     }
 }
 

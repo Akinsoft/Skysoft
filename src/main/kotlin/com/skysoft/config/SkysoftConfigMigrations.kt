@@ -7,7 +7,7 @@ import com.skysoft.data.ProfileStorage
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 26
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 27
 
     fun apply(json: JsonObject, gson: Gson) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -73,6 +73,9 @@ internal object SkysoftConfigMigrations {
             )
         }
         if (migrationVersion < CATEGORY_LAYOUT_VERSION) ConfigCategoryLayoutMigration.apply(json)
+        if (migrationVersion < KEYBIND_NUMBERING_VERSION) {
+            json.addProperty(KEYBIND_NUMBERING_FIELD, KeybindNumbering.GLFW.name)
+        }
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -410,6 +413,8 @@ internal object SkysoftConfigMigrations {
     private const val MOUSE_LOCK_FARMING_CATEGORY_VERSION = 21
     private const val SETTINGS_APPEARANCE_ACCORDIONS_VERSION = 25
     private const val CATEGORY_LAYOUT_VERSION = 26
+    private const val KEYBIND_NUMBERING_VERSION = 27
+    private const val KEYBIND_NUMBERING_FIELD = "keybindNumbering"
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
 }
 

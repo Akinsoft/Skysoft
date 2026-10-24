@@ -1,8 +1,10 @@
 package com.skysoft.features.waypoints
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.gui.SkysoftEditorScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -19,8 +21,6 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import net.minecraft.util.Util
-import org.lwjgl.glfw.GLFW
 
 internal abstract class WaypointDialog(
     title: String,
@@ -143,11 +143,11 @@ internal abstract class WaypointDialog(
             onClose()
             return true
         }
-        if (!interactive || click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && form.didClick(x, y, viewport)) return true
+        if (!interactive || click.button() == InputConstants.MOUSE_BUTTON_LEFT && form.didClick(x, y, viewport)) return true
         val control = controls.lastOrNull { it.bounds.contains(x, y) && it.enabled } ?: return true
         val action = when (click.button()) {
-            GLFW.GLFW_MOUSE_BUTTON_LEFT -> control.action
-            GLFW.GLFW_MOUSE_BUTTON_RIGHT -> control.rightClick
+            InputConstants.MOUSE_BUTTON_LEFT -> control.action
+            InputConstants.MOUSE_BUTTON_RIGHT -> control.rightClick
             else -> null
         } ?: return true
         SoundUtilities.playClickSound()
@@ -169,12 +169,12 @@ internal abstract class WaypointDialog(
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) return super.keyPressed(event)
+        if (event.key() == InputConstants.KEY_ESCAPE) return super.keyPressed(event)
         if (!interactive) return true
         if (form.focused == null && event.hasControlDownWithQuirk()) {
-            val action = when (event.key()) {
-                GLFW.GLFW_KEY_Z -> Waypoints::undo
-                GLFW.GLFW_KEY_Y -> Waypoints::redo
+            val action = when (MinecraftInput.shortcutKey(event)) {
+                MinecraftInput.UNDO_SHORTCUT_KEY -> Waypoints::undo
+                MinecraftInput.REDO_SHORTCUT_KEY -> Waypoints::redo
                 else -> null
             }
             if (action != null) {
@@ -182,7 +182,7 @@ internal abstract class WaypointDialog(
                 return true
             }
         }
-        if (event.key() == GLFW.GLFW_KEY_TAB && !form.isEmpty) {
+        if (event.key() == InputConstants.KEY_TAB && !form.isEmpty) {
             scroll += form.focusNext(event.hasShiftDown(), viewport)
             return true
         }
@@ -202,11 +202,11 @@ internal abstract class WaypointDialog(
         return true
     }
 
-    protected fun <T> transfer(work: () -> T, onFailure: () -> Unit = {}, done: (T) -> Unit) {
+    protected fun <T> transfer(start: () -> CompletableFuture<T>, onFailure: () -> Unit = {}, done: (T) -> Unit) {
         check(!busy) { "Wait for the current transfer to finish." }
         busy = true
         error = ""
-        CompletableFuture.supplyAsync(work, Util.ioPool()).whenCompleteAsync({ result, failure ->
+        start().whenCompleteAsync({ result, failure ->
             busy = false
             if (MinecraftClient.screen() !== this || !transition.isInteractive) return@whenCompleteAsync
             if (failure != null) {
@@ -244,6 +244,6 @@ internal abstract class WaypointDialog(
         private const val PRIMARY_WIDTH = 90
         private const val DEFAULT_WIDTH = 260
         private const val SCROLL_STEP = 24
-        private val ENTER_KEYS = setOf(GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER)
+        private val ENTER_KEYS = setOf(InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER)
     }
 }

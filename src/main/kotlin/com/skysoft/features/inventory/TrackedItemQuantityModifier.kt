@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
@@ -12,7 +13,6 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
-import org.lwjgl.glfw.GLFW
 
 internal sealed interface TrackedItemQuantityAction {
     data class Modify(val amount: Long) : TrackedItemQuantityAction
@@ -53,13 +53,13 @@ internal class TrackedItemQuantityModifier {
     fun wasKeyPressHandled(event: KeyEvent, modify: (Long) -> Unit): Boolean {
         if (direction == 0 || !field.focused) return false
         when (event.key()) {
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> field.text.toLongOrNull()
+            InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> field.text.toLongOrNull()
                 ?.takeIf { it > 0L }
                 ?.let { amount ->
                     modify(amount * direction)
                     cancel()
                 }
-            GLFW.GLFW_KEY_ESCAPE -> cancel()
+            InputConstants.KEY_ESCAPE -> cancel()
             else -> {
                 field.keyPressed(event)
                 field.text = field.text.filter { it in '0'..'9' }

@@ -1,5 +1,6 @@
 package com.skysoft.features.misc
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.PartyDisplayAlignment
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -38,7 +39,6 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
 
 private val partyDisplayConfig get() = SkysoftConfigGui.config().gui.information.partyDisplay
 private val cancelLabel = Component.literal("[Cancel]").withStyle(ChatFormatting.RED)
@@ -418,7 +418,7 @@ private class PartyDisplayHudControls {
     }
 
     fun wasClickHandled(control: PartyDisplayControl, button: Int): Boolean {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
         return when (control) {
             is PartyDisplayControl.Manage -> {
                 toggleMember(control.member)

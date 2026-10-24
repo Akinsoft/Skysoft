@@ -2,15 +2,16 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
-import org.lwjgl.glfw.GLFW
 
 class ItemListConfig : ConfigRepairable {
     @JvmField
@@ -76,8 +77,8 @@ class ItemListSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Visibility Key", desc = "Temporarily show or hide Item List.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_KP_SUBTRACT)
-    var visibilityKey = GLFW.GLFW_KEY_KP_SUBTRACT
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.KEYPAD_SUBTRACT_KEY)
+    var visibilityKey = MinecraftInput.KEYPAD_SUBTRACT_KEY
 
     @JvmField
     @field:Expose
@@ -94,20 +95,20 @@ class ItemListSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Info Key", desc = "Open the hovered Item List entry's Info tab.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_I)
-    var infoKey = GLFW.GLFW_KEY_I
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_I)
+    var infoKey = InputConstants.KEY_I
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Recipes Key", desc = "Open the hovered Item List entry's Obtain or Drops tab.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_R)
-    var recipesKey = GLFW.GLFW_KEY_R
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_R)
+    var recipesKey = InputConstants.KEY_R
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Uses Key", desc = "Open the hovered Item List entry's Uses tab.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_U)
-    var usesKey = GLFW.GLFW_KEY_U
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_U)
+    var usesKey = InputConstants.KEY_U
 
     @JvmField
     @field:ConfigOption(name = "Refresh Data", desc = "Check for updated Item List data.")

@@ -5,13 +5,12 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
 import com.skysoft.integration.MouseInputHooks;
+import com.skysoft.utils.MinecraftInput;
 import com.skysoft.utils.input.InputUtilities;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.player.LocalPlayer;
-import org.lwjgl.glfw.GLFW;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -26,7 +25,7 @@ public class MouseHandlerMixin {
 
     @Inject(method = "grabMouse", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MouseHandler;mouseGrabbed:Z", opcode = Opcodes.PUTFIELD))
     protected void skysoftRememberInventoryCursorGrab(CallbackInfo ci) {
-        MouseInputHooks.beginMouseGrab(Minecraft.getInstance().getWindow());
+        MouseInputHooks.beginMouseGrab();
     }
 
     @Inject(method = "handleAccumulatedMovement", at = @At("TAIL"))
@@ -35,7 +34,7 @@ public class MouseHandlerMixin {
         if (cursor == null) return;
         xpos = cursor.x();
         ypos = cursor.y();
-        GLFW.glfwSetCursorPos(Minecraft.getInstance().getWindow().handle(), cursor.x(), cursor.y());
+        MinecraftInput.setCursorPosition(cursor.x(), cursor.y());
     }
 
     @WrapOperation(method = "turnPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;turn(DD)V"))
@@ -50,7 +49,7 @@ public class MouseHandlerMixin {
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     protected void skysoftProcessGlobalMouseButton(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
-        InputUtilities.recordBindingInput(window, buttonInfo.button(), action);
+        InputUtilities.recordMouseInput(window, buttonInfo.button(), action);
         if (MouseInputHooks.tryHandleButton(buttonInfo.button(), action)) ci.cancel();
     }
 

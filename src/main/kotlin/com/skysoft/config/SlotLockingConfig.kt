@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.features.inventory.SlotLockManager
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -8,7 +9,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
-import org.lwjgl.glfw.GLFW
 
 class SlotLockingConfig {
     @JvmField
@@ -38,8 +38,8 @@ class SlotLockingSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Lock Key", desc = "Press this key while hovering an inventory slot to lock or unlock it.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_L)
-    var lockKey = GLFW.GLFW_KEY_L
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_L)
+    var lockKey = InputConstants.KEY_L
 
     @JvmField
     @field:ConfigOption(name = "Reset All Locks", desc = "Unlock every inventory slot on the current SkyBlock profile.")

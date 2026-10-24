@@ -1,5 +1,6 @@
 package com.skysoft.utils.render
 
+import com.skysoft.utils.MinecraftRenderer
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
@@ -106,7 +107,7 @@ object WorldLabelRenderer {
                 renderLocation.y - cameraPosition.y,
                 renderLocation.z - cameraPosition.z,
             )
-            context.matrices.mulPose(context.cameraRenderState.orientation)
+            MinecraftRenderer.rotate(context.matrices, context.cameraRenderState.orientation)
             context.matrices.scale(worldScale, -worldScale, worldScale)
             render(font, scale)
         }

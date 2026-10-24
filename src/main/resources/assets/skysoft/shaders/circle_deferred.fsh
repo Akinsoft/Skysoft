@@ -1,13 +1,20 @@
-#version 150
+#version 330
 
 // SPDX-License-Identifier: LGPL-2.1-only
 // Adapted from SkyHanni; see credits.md for attribution and source details.
 
-in vec4 tint;
-in vec4 shapeData;
-in vec4 arcData;
+#ifdef SKYSOFT_RENDERPEARL
+#extension GL_ARB_separate_shader_objects : require
+#define SKYSOFT_LOCATION(index) layout(location = index)
+#else
+#define SKYSOFT_LOCATION(index)
+#endif
 
-out vec4 fragColor;
+SKYSOFT_LOCATION(0) in vec4 tint;
+SKYSOFT_LOCATION(1) in vec4 shapeData;
+SKYSOFT_LOCATION(2) in vec4 arcData;
+
+SKYSOFT_LOCATION(0) out vec4 fragColor;
 
 void main() {
     float feather = shapeData.y;

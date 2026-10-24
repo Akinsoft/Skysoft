@@ -1,14 +1,11 @@
 package com.skysoft.features.inventory
 
-import com.mojang.blaze3d.pipeline.BlendFunction
-import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.textures.FilterMode
 import com.mojang.blaze3d.vertex.BufferBuilder
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.SkysoftMod
-import com.skysoft.config.RarityHighlightDetailsConfig
 import com.skysoft.config.RarityHighlightConfig
+import com.skysoft.config.RarityHighlightDetailsConfig
 import com.skysoft.config.RarityHighlightType
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -18,6 +15,9 @@ import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.render.SkysoftDrawMode
 import com.skysoft.utils.render.SkysoftPipelineBuilder
+import com.skysoft.utils.render.gpu.BlendFunction
+import com.skysoft.utils.render.gpu.FilterMode
+import com.skysoft.utils.render.gpu.RenderPipeline
 import com.skysoft.utils.render.shader.SkysoftCircleShaderRenderer
 import com.skysoft.utils.render.shader.SkysoftVertexFormats
 import com.skysoft.utils.render.shader.SkysoftVertexFormats.writeParams

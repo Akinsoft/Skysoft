@@ -5,6 +5,7 @@ import com.skysoft.utils.ColorUtilities
 import net.minecraft.client.Camera
 import net.minecraft.util.ARGB
 import net.minecraft.world.level.material.FogType
+import org.joml.Vector3fc
 import org.joml.Vector4f
 
 object SkyColor {
@@ -18,6 +19,13 @@ object SkyColor {
         } else {
             original
         }
+    }
+
+    @JvmStatic
+    fun skyColor(original: Vector3fc): Vector3fc {
+        val config = config
+        if (!config.enabled) return original
+        return ARGB.vector3fFromRGB24(config.details.color.get().getEffectiveColourRGB())
     }
 
     @JvmStatic

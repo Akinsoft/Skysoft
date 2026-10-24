@@ -1,8 +1,8 @@
 package com.skysoft.features.inventory
 
-import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.utils.render.GuiRenderStateAccess
+import com.skysoft.utils.render.gpu.RenderPipeline
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.render.TextureSetup

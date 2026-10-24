@@ -1,11 +1,11 @@
 package com.skysoft.utils.render
 
+import com.skysoft.utils.MinecraftRenderer
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.renderer.item.TrackingItemStackRenderState
-import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.network.chat.Component
 import net.minecraft.util.LightCoordsUtil
 import net.minecraft.world.item.ItemDisplayContext
@@ -36,7 +36,7 @@ object WorldItemBadgeRenderer {
                 displayAnchor.y - cameraPosition.y,
                 displayAnchor.z - cameraPosition.z,
             )
-            context.matrices.mulPose(context.cameraRenderState.orientation)
+            MinecraftRenderer.rotate(context.matrices, context.cameraRenderState.orientation)
             renderItem(context, stack, itemScale)
             renderBadge(context, badge, itemScale)
         }
@@ -55,13 +55,7 @@ object WorldItemBadgeRenderer {
         )
         context.withIsolatedPose {
             context.matrices.scale(scale, -scale, -scale)
-            itemState.submit(
-                context.matrices,
-                context.submitNodeCollector,
-                LightCoordsUtil.FULL_BRIGHT,
-                OverlayTexture.NO_OVERLAY,
-                THROUGH_WALLS_MARKER,
-            )
+            MinecraftRenderer.submitThroughWallsItem(itemState, context.matrices, context.submitNodeCollector)
         }
     }
 
