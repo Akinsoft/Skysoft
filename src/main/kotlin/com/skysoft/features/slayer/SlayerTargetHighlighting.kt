@@ -1,13 +1,11 @@
 package com.skysoft.features.slayer
 
-import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.features.combat.SkyBlockMobSignal
 import com.skysoft.utils.ColorUtilities.toColor
-import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
@@ -18,12 +16,13 @@ import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.entity.decoration.ArmorStand
+import java.util.UUID
 
 object SlayerTargetHighlighting {
     private val config get() = SkysoftConfigGui.config().slayer.targetHighlighting
     private var targets = emptyList<SlayerHighlightTarget>()
     private val highlightedEntities = EntityHighlightTracker<LivingEntity>(this)
+    private var ownedBossUuid: UUID? = null
     private var ticks = 0
 
     fun register() {
@@ -47,17 +46,20 @@ object SlayerTargetHighlighting {
         if (++ticks % TARGET_SCAN_INTERVAL_TICKS != 0) return
 
         val bossNames = SlayerQuestState.bossNames
-        val playerName = Minecraft.getInstance().player?.gameProfile?.name ?: return
-        val entities = ClientEntitySnapshot.entities()
-        val ownerLabels = entities.filterIsInstance<ArmorStand>().mapNotNull(ArmorStand::slayerBossOwnerLabel)
-        targets = SkyBlockMobEntityMatcher.visibleSignals(SlayerQuestState.targetNames()).mapNotNull { signal ->
+        val player = Minecraft.getInstance().player ?: return
+        val signals = SkyBlockMobEntityMatcher.visibleSignals(SlayerQuestState.targetNames())
+        val bossEntities = signals
+            .filter { signal -> bossNames.any { bossName -> signal.label.equals(bossName, ignoreCase = true) } }
+            .mapNotNullTo(mutableSetOf(), SkyBlockMobSignal::entity)
+        if (!SlayerQuestState.isBossSpawned) {
+            ownedBossUuid = null
+        } else if (ownedBossUuid == null) {
+            ownedBossUuid = bossEntities.minByOrNull(player::distanceToSqr)?.uuid
+        }
+        targets = signals.mapNotNull { signal ->
             val entity = signal.entity
-            val kind = if (bossNames.any { bossName -> signal.label.equals(bossName, ignoreCase = true) }) {
-                SlayerTargetKind.BOSS
-            } else {
-                SlayerTargetKind.MINIBOSS
-            }
-            if (kind == SlayerTargetKind.BOSS && !signal.isOwnedBy(playerName, ownerLabels)) return@mapNotNull null
+            val kind = if (entity in bossEntities) SlayerTargetKind.BOSS else SlayerTargetKind.MINIBOSS
+            if (kind == SlayerTargetKind.BOSS && entity?.uuid != ownedBossUuid) return@mapNotNull null
             SlayerHighlightTarget(
                 kind = kind,
                 location = signal.location,
@@ -101,6 +103,7 @@ object SlayerTargetHighlighting {
     private fun clear() {
         highlightedEntities.clear()
         targets = emptyList()
+        ownedBossUuid = null
         ticks = 0
     }
 
@@ -108,41 +111,6 @@ object SlayerTargetHighlighting {
         config.enabled && HypixelLocationState.inSkyBlock && SlayerQuestState.isActive
 
     private const val TARGET_SCAN_INTERVAL_TICKS = 4
-}
-
-private data class SlayerBossOwnerLabel(
-    val playerName: String,
-    val entity: ArmorStand,
-)
-
-private fun ArmorStand.slayerBossOwnerLabel(): SlayerBossOwnerLabel? {
-    val name = cleanName()
-    if (!name.startsWith(SLAYER_BOSS_OWNER_PREFIX)) return null
-    return name.removePrefix(SLAYER_BOSS_OWNER_PREFIX)
-        .trim()
-        .takeIf(String::isNotEmpty)
-        ?.let { playerName -> SlayerBossOwnerLabel(playerName, this) }
-}
-
-private fun SkyBlockMobSignal.isOwnedBy(
-    playerName: String,
-    ownerLabels: List<SlayerBossOwnerLabel>,
-): Boolean {
-    val bossNameplate = nameplate ?: return false
-    return ownerLabels
-        .asSequence()
-        .filter { ownerLabel -> ownerLabel.entity.isAbove(bossNameplate) }
-        .minByOrNull { ownerLabel -> ownerLabel.entity.distanceToSqr(bossNameplate) }
-        ?.playerName
-        ?.equals(playerName, ignoreCase = true) == true
-}
-
-private fun ArmorStand.isAbove(nameplate: ArmorStand): Boolean {
-    val dx = x - nameplate.x
-    val dz = z - nameplate.z
-    val verticalOffset = y - nameplate.y
-    return dx * dx + dz * dz <= OWNER_LABEL_HORIZONTAL_DISTANCE_SQ &&
-        verticalOffset in 0.0..OWNER_LABEL_MAX_VERTICAL_DISTANCE
 }
 
 internal data class SlayerHighlightTarget(
@@ -167,7 +135,3 @@ internal fun selectSlayerLineTarget(
     val bosses = targets.filter { target -> target.kind == SlayerTargetKind.BOSS }
     return (bosses.ifEmpty { targets }).minByOrNull { target -> target.location.distanceSq(playerLocation) }
 }
-
-private const val SLAYER_BOSS_OWNER_PREFIX = "Spawned by: "
-private const val OWNER_LABEL_HORIZONTAL_DISTANCE_SQ = 0.25
-private const val OWNER_LABEL_MAX_VERTICAL_DISTANCE = 2.0

@@ -12,6 +12,7 @@ import com.skysoft.utils.chat.ChatMessageVisibility
 import kotlin.math.roundToLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 object SlayerQuestState {
     private var snapshot = SlayerQuestSnapshot.NONE
@@ -21,9 +22,13 @@ object SlayerQuestState {
     private val bossSpawnListeners = ActiveListenerRegistry<(SlayerQuestSnapshot) -> Unit>()
     private val minibossNames = mutableSetOf<String>()
     private val recentlyClearedMinibossNames = mutableMapOf<String, ElapsedTimeMark>()
+    private var bossSpawnMessageMark: ElapsedTimeMark? = null
 
     val isActive: Boolean get() = snapshot.bossName != null
     val isBossActive: Boolean get() = snapshot.isBossActive
+    val isBossSpawned: Boolean
+        get() = snapshot.isBossActive ||
+            bossSpawnMessageMark?.passedSince()?.let { it in Duration.ZERO..BOSS_SPAWN_CONFIRM_WINDOW } == true
     val bossName: String? get() = snapshot.bossName
     val bossNames: Set<String>
         get() = snapshot.slayerType
@@ -41,6 +46,7 @@ object SlayerQuestState {
         ) { message ->
             if (message.isSystemLike) {
                 SlayerMessageParser.parseMinibossSpawn(message.cleanText)?.let(minibossNames::add)
+                if (SlayerMessageParser.isBossSpawn(message.cleanText)) bossSpawnMessageMark = ElapsedTimeMark.now()
                 when {
                     SlayerMessageParser.isQuestStarted(message.cleanText) -> {
                         clearQuest()
@@ -102,6 +108,7 @@ object SlayerQuestState {
             minibossNames.clear()
         }
         val bossSpawned = snapshot.isActive && !snapshot.isBossActive && next.isBossActive
+        if (snapshot.isBossActive && !next.isBossActive) bossSpawnMessageMark = null
         snapshot = next
         if (next.isActive) lastActiveSnapshot = next
         if (bossSpawned) bossSpawnListeners.forEachActive { it(next) }
@@ -117,6 +124,7 @@ object SlayerQuestState {
         lastActiveSnapshot = SlayerQuestSnapshot.NONE
         minibossNames.clear()
         recentlyClearedMinibossNames.clear()
+        bossSpawnMessageMark = null
     }
 }
 
@@ -132,6 +140,8 @@ object SlayerMessageParser {
             ?.trim()
             ?.takeIf(String::isNotEmpty)
 
+    fun isBossSpawn(message: String): Boolean = slayerBossSpawnPattern.matches(message)
+
     fun isBossCocooned(message: String): Boolean = message == SLAYER_BOSS_COCOONED_MESSAGE
 
     fun isQuestStarted(message: String): Boolean = message.trim() == SLAYER_QUEST_STARTED_MESSAGE
@@ -146,7 +156,8 @@ object SlayerMessageParser {
             ?.formatDoubleOrNull()
             ?.roundToLong()
 
-    private val slayerMinibossSpawnPattern = Regex("""^SLAYER MINI-BOSS (?<name>.+?) has spawned!$""")
+    private val slayerMinibossSpawnPattern = Regex("""^SLAYER MINIBOSS! The (?<name>.+?) spawned!$""")
+    private val slayerBossSpawnPattern = Regex("""^SLAYER BOSS! The .+ spawned!$""")
     private val autoSlayerBankPattern = Regex(
         """^Took (?<coins>[\d,.]+[kKmMbB]?) coins from your bank for auto-slayer\.\.\.$""",
     )
@@ -230,6 +241,7 @@ private const val SLAYER_QUEST_HEADER = "Slayer Quest"
 private const val SLAYER_BOSS_ACTIVE_LINE = "Slay the boss!"
 private const val TIER_FIVE = 5
 private val MINIBOSS_COCOON_WINDOW = 1_500.milliseconds
+private val BOSS_SPAWN_CONFIRM_WINDOW = 5.seconds
 private fun slayerTier(romanNumeral: String): Int? =
     romanNumeral.uppercase().romanToDecimal().takeIf { it in 1..TIER_FIVE }
 
