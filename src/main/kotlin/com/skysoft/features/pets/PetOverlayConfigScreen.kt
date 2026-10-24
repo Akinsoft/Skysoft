@@ -1,5 +1,7 @@
 package com.skysoft.features.pets
 
+import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SkysoftMoulConfigGuis
@@ -14,7 +16,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
 import kotlin.math.roundToInt
 
 object PetOverlayConfigScreen {
@@ -192,8 +193,7 @@ object PetOverlayConfigScreen {
         (previewPosition ?: PreviewPosition(defaultLeft, defaultTop))
             .clamped(paneWidth, paneHeight, screenWidth, screenHeight)
 
-    private fun isLeftMouseButtonDown(): Boolean =
-        GLFW.glfwGetMouseButton(Minecraft.getInstance().window.handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS
+    private fun isLeftMouseButtonDown(): Boolean = InputUtilities.isMouseButtonDown(InputConstants.MOUSE_BUTTON_LEFT)
 
     private fun PreviewPosition.headerContains(mouseX: Int, mouseY: Int, paneWidth: Int): Boolean =
         mouseX in left..(left + paneWidth) &&

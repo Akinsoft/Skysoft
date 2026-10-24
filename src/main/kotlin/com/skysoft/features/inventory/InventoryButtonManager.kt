@@ -1,5 +1,7 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.renderables.withIsolatedPose
 import com.skysoft.config.InventoryButtonClickType
 import com.skysoft.config.InventoryButtonConfig
@@ -25,7 +27,6 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import org.lwjgl.glfw.GLFW
 
 private const val ADD_ICON_X_OFFSET = 6
 private const val ADD_ICON_Y_OFFSET = 5
@@ -94,7 +95,7 @@ object InventoryButtonManager {
             val command = displayCommand(hovered.command)
             val tooltip = buildList {
                 add(Component.literal(command).withStyle(ChatFormatting.GRAY))
-                if (hovered.requiredKey != GLFW.GLFW_KEY_UNKNOWN) {
+                if (hovered.requiredKey != MinecraftInput.NO_BINDING) {
                     add(
                         Component.literal("Hold ${InputUtilities.bindingName(hovered.requiredKey)} to use")
                             .withStyle(ChatFormatting.YELLOW),
@@ -273,13 +274,13 @@ object InventoryButtonManager {
     }
 
     private fun activateButtonAtClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult {
-        if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
         val placement = placements(screen, includeInactive = false).firstOrNull { it.bounds.contains(mouseX, mouseY) }
             ?: return InputHandlingResult.IGNORED
 
-        if (placement.button.requiredKey != GLFW.GLFW_KEY_UNKNOWN &&
+        if (placement.button.requiredKey != MinecraftInput.NO_BINDING &&
             !InputUtilities.isBindingDown(placement.button.requiredKey)
         ) {
             return InputHandlingResult.IGNORED

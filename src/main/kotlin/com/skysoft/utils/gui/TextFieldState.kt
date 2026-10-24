@@ -1,7 +1,9 @@
 package com.skysoft.utils.gui
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -9,7 +11,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
 
 internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     var text: String = text.takeAtCharacterBoundary(maxLength)
@@ -22,10 +23,13 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
             selectionAnchor = null
         }
 
+    private val textInput = TextInputFocus()
+
     var focused = false
         set(value) {
             if (value && !field) restartCursorBlink()
             if (!value) selectionAnchor = null
+            textInput.focused = value
             field = value
         }
 
@@ -46,6 +50,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         textColor: Int = TEXT_COLOR,
         placeholderColor: Int = PLACEHOLDER_COLOR,
     ) {
+        textInput.keepActive()
         context.fill(x, y, x + width, y + height, backgroundColor.withScaledAlpha(alpha))
         context.outline(
             x,
@@ -108,37 +113,35 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         val control = event.hasControlDownWithQuirk()
         if (event.isCopy() || event.isCut()) {
             val selection = selection()
-            Minecraft.getInstance().keyboardHandler.setClipboard(
+            MinecraftClient.setClipboard(
                 selection?.let { text.substring(it.start, it.endExclusive) }.orEmpty(),
             )
             if (event.isCut()) removeSelection()
             return InputHandlingResult.CONSUMED
         }
         return when (event.key()) {
-            GLFW.GLFW_KEY_BACKSPACE -> {
+            InputConstants.KEY_BACKSPACE -> {
                 deleteBeforeCursor(control)
                 InputHandlingResult.CONSUMED
             }
-            GLFW.GLFW_KEY_DELETE -> {
+            InputConstants.KEY_DELETE -> {
                 deleteAfterCursor()
                 InputHandlingResult.CONSUMED
             }
-            GLFW.GLFW_KEY_LEFT -> moveCursor(-1)
-            GLFW.GLFW_KEY_RIGHT -> moveCursor(1)
-            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+            InputConstants.KEY_LEFT -> moveCursor(-1)
+            InputConstants.KEY_RIGHT -> moveCursor(1)
+            InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> {
                 focused = false
                 InputHandlingResult.CONSUMED
             }
-            GLFW.GLFW_KEY_V -> if (event.isPaste()) pasteClipboard() else InputHandlingResult.IGNORED
-            GLFW.GLFW_KEY_A -> {
-                if (event.isSelectAll()) {
+            else -> when {
+                event.isPaste() -> pasteClipboard()
+                event.isSelectAll() -> {
                     selectAll()
                     InputHandlingResult.CONSUMED
-                } else {
-                    InputHandlingResult.IGNORED
                 }
+                else -> InputHandlingResult.IGNORED
             }
-            else -> InputHandlingResult.IGNORED
         }
     }
 

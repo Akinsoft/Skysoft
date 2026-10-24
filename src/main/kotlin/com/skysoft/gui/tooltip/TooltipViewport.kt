@@ -1,10 +1,12 @@
 package com.skysoft.gui.tooltip
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.TooltipScrollConfig
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.mixin.ClientTextTooltipAccessor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
@@ -15,7 +17,6 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositione
 import net.minecraft.util.FormattedCharSequence
 import org.joml.Vector2i
 import org.joml.Vector2ic
-import org.lwjgl.glfw.GLFW
 
 interface TooltipScrollExcludedScreen
 
@@ -47,7 +48,7 @@ object TooltipViewport {
 
     @JvmStatic
     fun didHandleMouseScroll(horizontal: Double, vertical: Double): Boolean =
-        didHandleMouseScroll(horizontal, vertical, GLFW.GLFW_KEY_UNKNOWN)
+        didHandleMouseScroll(horizontal, vertical, MinecraftInput.NO_BINDING)
 
     @JvmStatic
     fun didHandleCompetingMouseScroll(horizontal: Double, vertical: Double): Boolean =
@@ -79,10 +80,10 @@ object TooltipViewport {
         var x = 0.0
         var y = 0.0
         if (settings.settings.enableWASD) {
-            if (isKeyDown(GLFW.GLFW_KEY_A)) x -= speed
-            if (isKeyDown(GLFW.GLFW_KEY_D)) x += speed
-            if (isKeyDown(GLFW.GLFW_KEY_W)) y -= speed
-            if (isKeyDown(GLFW.GLFW_KEY_S)) y += speed
+            if (isKeyDown(InputConstants.KEY_A)) x -= speed
+            if (isKeyDown(InputConstants.KEY_D)) x += speed
+            if (isKeyDown(InputConstants.KEY_W)) y -= speed
+            if (isKeyDown(InputConstants.KEY_S)) y += speed
         }
 
         val isHorizontal = isHorizontalModifierDown(settings)
@@ -191,10 +192,10 @@ object TooltipViewport {
 
     private fun isHorizontalModifierDown(
         settings: TooltipScrollConfig,
-        ignoredKey: Int = GLFW.GLFW_KEY_UNKNOWN,
+        ignoredKey: Int = MinecraftInput.NO_BINDING,
     ): Boolean {
-        val usesLeftShift = settings.details.useLeftShift && ignoredKey != GLFW.GLFW_KEY_LEFT_SHIFT &&
-            isKeyDown(GLFW.GLFW_KEY_LEFT_SHIFT)
+        val usesLeftShift = settings.details.useLeftShift && ignoredKey != InputConstants.KEY_LSHIFT &&
+            isKeyDown(InputConstants.KEY_LSHIFT)
         val usesConfiguredKey = settings.settings.horizontalMovementKey != ignoredKey &&
             isKeyDown(settings.settings.horizontalMovementKey)
         return usesLeftShift || usesConfiguredKey

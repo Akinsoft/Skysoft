@@ -1,11 +1,13 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.gui.SkysoftHudEditor
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -14,7 +16,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
-import org.lwjgl.glfw.GLFW
 
 class GuiFeatureConfig : ConfigRepairable {
     @JvmField
@@ -165,8 +166,8 @@ class ScreenshotManagerSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Manager Key", desc = "Press this key to open the Screenshot Manager.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_F4)
-    var managerKey = GLFW.GLFW_KEY_F4
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_F4)
+    var managerKey = InputConstants.KEY_F4
 
     @JvmField
     @field:ConfigOption(name = "Open Manager", desc = "Open the Screenshot Manager.")
@@ -210,8 +211,8 @@ class PositionEditorConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Keybind", desc = "Press this key to open the Position Editor.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var keybind: Int = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var keybind: Int = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose

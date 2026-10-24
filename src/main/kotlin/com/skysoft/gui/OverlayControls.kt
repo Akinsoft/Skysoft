@@ -1,11 +1,11 @@
 package com.skysoft.gui
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
 import kotlin.math.floor
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 
 data class OverlayControlArea<T>(
     val action: T,
@@ -35,8 +35,8 @@ object OverlayControlTooltips {
 
 object OverlayControlCycle {
     fun wasClickHandled(button: Int, action: (backwards: Boolean) -> Unit): Boolean {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false
-        action(button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+        if (button != InputConstants.MOUSE_BUTTON_LEFT && button != InputConstants.MOUSE_BUTTON_RIGHT) return false
+        action(button == InputConstants.MOUSE_BUTTON_RIGHT)
         return true
     }
 

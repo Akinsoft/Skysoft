@@ -1,5 +1,6 @@
 package com.skysoft.features.helditem
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.HeldItemConfig
 import com.skysoft.config.HeldItemSwingStyle
 import com.skysoft.config.HeldItemTransformConfig
@@ -30,7 +31,6 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 object HeldItemEditorScreen {
     private var preferredEditTarget = EditTarget.GLOBAL
@@ -136,7 +136,7 @@ object HeldItemEditorScreen {
             if (disabledOverlay.isEditingBlocked(config.enabled)) {
                 if (
                     !config.enabled &&
-                    click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT &&
+                    click.button() == InputConstants.MOUSE_BUTTON_LEFT &&
                     HeldItemDisabledOverlayRenderer.toggleBounds(width, height).contains(mouseX, mouseY)
                 ) {
                     activateEditorButton {
@@ -158,8 +158,8 @@ object HeldItemEditorScreen {
             }
             val activeDrag = dragKind ?: return super.mouseDragged(click, deltaX, deltaY)
             val expectedButton = when (activeDrag) {
-                DragKind.PANEL, DragKind.MOVE_ITEM, DragKind.SLIDER -> GLFW.GLFW_MOUSE_BUTTON_LEFT
-                DragKind.MOVE_DEPTH -> GLFW.GLFW_MOUSE_BUTTON_RIGHT
+                DragKind.PANEL, DragKind.MOVE_ITEM, DragKind.SLIDER -> InputConstants.MOUSE_BUTTON_LEFT
+                DragKind.MOVE_DEPTH -> InputConstants.MOUSE_BUTTON_RIGHT
             }
             if (click.button() != expectedButton) return super.mouseDragged(click, deltaX, deltaY)
             val mouseX = click.x().toInt()
@@ -237,11 +237,11 @@ object HeldItemEditorScreen {
 
         override fun keyPressed(event: KeyEvent): Boolean {
             if (disabledOverlay.isEditingBlocked(config.enabled)) return super.keyPressed(event)
-            if (event.key() in GLFW.GLFW_KEY_1..GLFW.GLFW_KEY_9) {
+            if (event.key() in InputConstants.KEY_1..InputConstants.KEY_9) {
                 historyController.flushPending()
                 dragKind = null
                 draggedField = null
-                Minecraft.getInstance().player?.inventory?.setSelectedSlot(event.key() - GLFW.GLFW_KEY_1)
+                Minecraft.getInstance().player?.inventory?.setSelectedSlot(event.key() - InputConstants.KEY_1)
                 return true
             }
             return super.keyPressed(event)
@@ -262,7 +262,7 @@ object HeldItemEditorScreen {
         override fun isPauseScreen(): Boolean = false
 
         private fun processClick(mouseX: Int, mouseY: Int, button: Int) {
-            val isLeftClick = button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+            val isLeftClick = button == InputConstants.MOUSE_BUTTON_LEFT
             val headerAction = headerActionAt(layout, isLeftClick, mouseX, mouseY, ::onClose)
             val historyAction = if (isLeftClick) historyActionAt(layout, historyController, mouseX, mouseY) else null
             when {
@@ -996,7 +996,7 @@ private enum class EditorInputHandlingResult {
     UNHANDLED,
 }
 
-private val EDITOR_MOUSE_BUTTONS = setOf(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+private val EDITOR_MOUSE_BUTTONS = setOf(InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOUSE_BUTTON_RIGHT)
 
 private val HeldItemSwingStyle.label: String
     get() = when (this) {

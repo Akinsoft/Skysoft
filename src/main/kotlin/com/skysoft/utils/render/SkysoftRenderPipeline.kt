@@ -1,8 +1,9 @@
 package com.skysoft.utils.render
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
-import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.render.gpu.BlendFunction
+import com.skysoft.utils.render.gpu.RenderPipeline
 import net.minecraft.client.renderer.RenderPipelines
 
 enum class SkysoftRenderPipeline(
@@ -18,6 +19,7 @@ enum class SkysoftRenderPipeline(
             snippet = RenderPipelines.LINES_SNIPPET,
             vertexFormat = DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH,
             drawMode = SkysoftDrawMode.LINES,
+            blend = BlendFunction.TRANSLUCENT,
             depthWrite = depthWrite,
         ),
     )

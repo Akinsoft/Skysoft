@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.sacks
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
@@ -7,7 +8,6 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import org.lwjgl.glfw.GLFW
 
 internal fun wasSackItemClickHandled(
     screen: AbstractContainerScreen<*>,
@@ -15,7 +15,7 @@ internal fun wasSackItemClickHandled(
     fallbackName: String,
     button: Int,
 ): Boolean = when (button) {
-    GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
+    InputConstants.MOUSE_BUTTON_LEFT -> {
         val connection = Minecraft.getInstance().connection ?: return false
         val key = SkyBlockDataRepository.itemKey(itemId)
         val itemName = SkyBlockDataRepository.entry(key)?.displayName ?: fallbackName.cleanSkyBlockText()
@@ -23,7 +23,7 @@ internal fun wasSackItemClickHandled(
         MinecraftClient.setScreen(null)
         true
     }
-    GLFW.GLFW_MOUSE_BUTTON_RIGHT -> if (SkysoftConfigGui.config().items.itemList.enabled) {
+    InputConstants.MOUSE_BUTTON_RIGHT -> if (SkysoftConfigGui.config().items.itemList.enabled) {
         MinecraftClient.setScreen(ItemListViewerScreen(screen, SkyBlockDataRepository.itemKey(itemId)))
         true
     } else {

@@ -1,0 +1,21 @@
+package com.skysoft.utils
+
+import com.skysoft.mixin.PlayerTabOverlayAccessor
+import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
+
+object TabListOverlay {
+    fun overlay(minecraft: Minecraft) = minecraft.gui.hud.tabList
+
+    fun areHeadsVisible(minecraft: Minecraft): Boolean = minecraft.connection!!.onlineMode()
+
+    fun readHeader(minecraft: Minecraft): Component? =
+        (minecraft.gui.hud.tabList as PlayerTabOverlayAccessor).skysoftGetHeader()
+
+    fun readFooter(minecraft: Minecraft): Component? =
+        (minecraft.gui.hud.tabList as PlayerTabOverlayAccessor).skysoftGetFooter()
+
+    fun setVisible(minecraft: Minecraft, isVisible: Boolean) {
+        minecraft.gui.hud.tabList.setVisible(isVisible)
+    }
+}

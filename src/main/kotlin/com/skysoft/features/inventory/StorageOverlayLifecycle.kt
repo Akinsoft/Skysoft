@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SkysoftClientEvents
@@ -12,7 +13,6 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.ContainerInput
-import org.lwjgl.glfw.GLFW
 
 internal fun registerStorageOverlay() {
     InventoryOverlayInput.registerCoverageProvider("Storage Overlay coverage", { isStorageOverlayEnabled }) {
@@ -198,7 +198,7 @@ internal fun handleStorageOverlayMouseClick(
         ?.let { return it }
 
     return when {
-        click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && measurements.scrollbar.contains(mouseX, mouseY) -> {
+        click.button() == InputConstants.MOUSE_BUTTON_LEFT && measurements.scrollbar.contains(mouseX, mouseY) -> {
             val maximum = maxScroll(measurements, pageLayoutResult.contentHeight)
             val knob = scrollbarKnobBounds(measurements, pageLayoutResult.contentHeight)
             val dragOffset = if (knob.contains(mouseX, mouseY)) mouseY - knob.y else knob.height / 2
@@ -209,17 +209,17 @@ internal fun handleStorageOverlayMouseClick(
         pointInSearch(measurements, mouseX, mouseY) -> {
             storageSearchField.focused = true
             finishTitleEdit()
-            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
                 storageSearchField.placeCursorAt(mouseX, measurements.search.x, measurements.search.width)
             }
-            if (click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT && storageSearchField.text.isNotEmpty()) {
+            if (click.button() == InputConstants.MOUSE_BUTTON_RIGHT && storageSearchField.text.isNotEmpty()) {
                 storageSearchField.text = ""
                 resetStorageScroll()
                 coerceScroll(measurements, pageLayouts(measurements, activePage).contentHeight)
             }
             InputHandlingResult.CONSUMED
         }
-        click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && measurements.scrollPanel.contains(mouseX, mouseY) -> {
+        click.button() == InputConstants.MOUSE_BUTTON_LEFT && measurements.scrollPanel.contains(mouseX, mouseY) -> {
             val titlePage = titlePageAt(pageLayoutResult.pages, mouseX, mouseY)
             if (titlePage != null && (!measurements.isModern || measurements.isFocusExpanded)) {
                 startTitleEdit(titlePage)
@@ -276,7 +276,7 @@ private fun handleSelectorPageClick(
     ) {
         return InputHandlingResult.CONSUMED
     }
-    if (pageIndex == activePage || !screen.menu.carried.isEmpty || click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+    if (pageIndex == activePage || !screen.menu.carried.isEmpty || click.button() != InputConstants.MOUSE_BUTTON_LEFT) {
         focusPage(measurements, pageLayoutResult, pageIndex)
     } else {
         tryNavigateTo(screen, pageIndex)
@@ -296,7 +296,7 @@ internal fun routeOverviewShortcutClick(
     if (
         slot.item.isEmpty ||
         storageOverviewSlotState(slot.item) == StorageOverviewSlotState.LOCKED ||
-        (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT)
+        (button != InputConstants.MOUSE_BUTTON_LEFT && button != InputConstants.MOUSE_BUTTON_RIGHT)
     ) {
         return InputHandlingResult.IGNORED
     }
@@ -331,7 +331,7 @@ private fun handlePageAreaClick(
         InputHandlingResult.IGNORED
     }
 
-    return if (clickedPage.pageIndex != activePage && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+    return if (clickedPage.pageIndex != activePage && click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
         storageSearchField.focused = false
         finishTitleEdit()
         if (screen.menu.carried.isEmpty) tryNavigateTo(screen, clickedPage.pageIndex)
@@ -339,7 +339,7 @@ private fun handlePageAreaClick(
     } else if (
         measurements.isModern &&
         clickedPage.pageIndex == activePage &&
-        click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT
+        click.button() == InputConstants.MOUSE_BUTTON_LEFT
     ) {
         expandModernPage(clickedPage.pageIndex)
         InputHandlingResult.CONSUMED
@@ -374,7 +374,7 @@ internal fun handleStorageOverlayKeyPress(screen: AbstractContainerScreen<*>, ev
     if (processStorageSettingsKey(event.key()) == InputHandlingResult.CONSUMED) return InputHandlingResult.CONSUMED
     if (editingTitlePage != null) return handleTitleEditKeyPress(screen, event)
     if (!storageSearchField.focused) return InputHandlingResult.IGNORED
-    if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+    if (event.key() == InputConstants.KEY_ESCAPE) {
         if (storageSearchField.text.isEmpty()) {
             storageSearchField.focused = false
         } else {

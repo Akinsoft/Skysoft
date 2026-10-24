@@ -2,13 +2,14 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
-import org.lwjgl.glfw.GLFW
 
 class TooltipScrollConfig : ConfigRepairable {
     @JvmField
@@ -66,8 +67,8 @@ class TooltipScrollSettingsConfig {
         name = "Interface Scroll Tooltip Key",
         desc = "Hold this key to scroll a tooltip instead of the hovered interface.",
     )
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
-    var interfaceScrollTooltipKey = GLFW.GLFW_KEY_LEFT_SHIFT
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_LSHIFT)
+    var interfaceScrollTooltipKey = InputConstants.KEY_LSHIFT
 
     @JvmField
     @field:Expose
@@ -90,26 +91,26 @@ class TooltipScrollSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Move Up Key", desc = "Move the hovered tooltip up.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_PAGE_UP)
-    var moveUpKey = GLFW.GLFW_KEY_PAGE_UP
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_PAGEUP)
+    var moveUpKey = InputConstants.KEY_PAGEUP
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Move Down Key", desc = "Move the hovered tooltip down.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_PAGE_DOWN)
-    var moveDownKey = GLFW.GLFW_KEY_PAGE_DOWN
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_PAGEDOWN)
+    var moveDownKey = InputConstants.KEY_PAGEDOWN
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Horizontal Movement Key", desc = "Hold this key to make up and down movement horizontal.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var horizontalMovementKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var horizontalMovementKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Reset Tooltip Key", desc = "Reset the hovered tooltip's moved position.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var resetTooltipKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var resetTooltipKey = MinecraftInput.NO_BINDING
 }
 
 class TooltipScrollDetailsConfig {

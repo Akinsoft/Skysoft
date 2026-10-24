@@ -10,6 +10,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockUuid
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.toPackedArgb
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
@@ -26,7 +27,6 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
-import org.lwjgl.glfw.GLFW
 
 object ItemProtectionManager {
     private val config get() = SkysoftConfigGui.config().inventory.protection.protectItem
@@ -131,7 +131,7 @@ object ItemProtectionManager {
     }
 
     fun isProtectKey(key: Int): Boolean =
-        config.settings.protectKey != GLFW.GLFW_KEY_UNKNOWN && key == config.settings.protectKey
+        config.settings.protectKey != MinecraftInput.NO_BINDING && key == config.settings.protectKey
 
     fun isFeatureAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 

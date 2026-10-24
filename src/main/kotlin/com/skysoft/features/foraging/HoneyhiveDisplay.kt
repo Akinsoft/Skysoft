@@ -1,5 +1,6 @@
 package com.skysoft.features.foraging
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.SkyBlockIsland
@@ -31,7 +32,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.lwjgl.glfw.GLFW
 
 internal object HoneyhiveDisplay {
     private val config get() = SkysoftConfigGui.config().foraging.honeyhiveHelper
@@ -75,7 +75,7 @@ internal object HoneyhiveDisplay {
                 return@registerClickHandler InputHandlingResult.IGNORED
             }
             val hive = hoveredHive ?: return@registerClickHandler InputHandlingResult.IGNORED
-            if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return@registerClickHandler InputHandlingResult.IGNORED
+            if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return@registerClickHandler InputHandlingResult.IGNORED
             HoneyhiveHelper.toggleWaypoint(hive)
             InputHandlingResult.CONSUMED
         }

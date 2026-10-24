@@ -1,8 +1,8 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 internal fun processModernFocusCollapse(
     click: MouseButtonEvent,
@@ -15,7 +15,7 @@ internal fun processModernFocusCollapse(
     if (
         !measurements.isModern ||
         !measurements.isFocusExpanded ||
-        click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT
+        click.button() != InputConstants.MOUSE_BUTTON_LEFT
     ) {
         return InputHandlingResult.IGNORED
     }
@@ -39,7 +39,7 @@ internal fun routeModernForegroundClick(
     if (measurements.playerBounds.contains(mouseX, mouseY)) return InputHandlingResult.IGNORED
     val focusedLayout = activePage?.let(layouts::get)
     if (focusedLayout?.contains(mouseX, mouseY) != true) return null
-    val titlePage = if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+    val titlePage = if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
         titlePageAt(layouts, mouseX, mouseY)
     } else {
         null

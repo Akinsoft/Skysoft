@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
@@ -14,7 +15,6 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
-import org.lwjgl.glfw.GLFW
 
 internal sealed interface TrackedItemManagerAction {
     data object AddItems : TrackedItemManagerAction
@@ -70,7 +70,7 @@ internal class TrackedItemManagerPanel(
     }
 
     fun wasSelectionClickHandled(action: TrackedItemSelectionAction, button: Int): Boolean {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
         when (action) {
             TrackedItemSelectionAction.Inventory -> selectionPanel.selectMode(TrackedItemSelectionMode.INVENTORY)
             TrackedItemSelectionAction.Search -> selectionPanel.selectMode(TrackedItemSelectionMode.SEARCH)
@@ -97,7 +97,7 @@ internal class TrackedItemManagerPanel(
         button: Int,
         modifyItem: (String, Long) -> Unit,
     ): Boolean {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
         val itemId = (content as? Content.Item)?.itemId ?: return false
         when (action) {
             is TrackedItemQuantityAction.Modify -> modifyItem(itemId, action.amount)

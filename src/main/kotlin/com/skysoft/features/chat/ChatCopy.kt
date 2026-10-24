@@ -32,7 +32,7 @@ object ChatCopy {
         ) ?: return CopyChatResult.NO_MESSAGE
 
         val text = ChatFormatting.stripFormatting(ChatTimestamps.originalContent(message.content()).string).orEmpty()
-        minecraft.keyboardHandler.setClipboard(text)
+        MinecraftClient.setClipboard(text)
         SkysoftChat.chat("Copied chat message to clipboard.")
         return CopyChatResult.COPIED
     }

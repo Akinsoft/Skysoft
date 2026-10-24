@@ -1,5 +1,6 @@
 package com.skysoft.features.spotify
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SpotifyLyricsMode
@@ -10,6 +11,7 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.boundedAccessOrderMap
@@ -24,7 +26,6 @@ import java.net.URI
 import java.util.EnumMap
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import org.lwjgl.glfw.GLFW
 
 object SpotifyDisplay {
     private var playback: SpotifyPlayback? = null
@@ -278,7 +279,7 @@ object SpotifyDisplay {
         }
         CONTROL_BINDINGS.forEach { action ->
             val key = keyFor(action, settings)
-            val down = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isActionBindingDown(key)
+            val down = key != MinecraftInput.NO_BINDING && key != InputConstants.KEY_RETURN && InputUtilities.isActionBindingDown(key)
             val wasDown = keyStates.put(action, down) == true
             if (down && !wasDown) control(action)
         }

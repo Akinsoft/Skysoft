@@ -1,19 +1,21 @@
 #version 330
 
-layout(std140) uniform DynamicTransforms {
-    mat4 ModelViewMat;
-    vec4 ColorModulator;
-    vec3 ModelOffset;
-    mat4 TextureMat;
-};
+#ifdef SKYSOFT_RENDERPEARL
+#extension GL_ARB_separate_shader_objects : require
+#include <minecraft:dynamictransforms.glsl>
+#define SKYSOFT_LOCATION(index) layout(location = index)
+#else
+#moj_import <minecraft:dynamictransforms.glsl>
+#define SKYSOFT_LOCATION(index)
+#endif
 
 uniform sampler2D Sampler0;
 
-in vec2 texCoord0;
-in vec4 vertexColor;
-in vec4 uvBounds;
+SKYSOFT_LOCATION(0) in vec2 texCoord0;
+SKYSOFT_LOCATION(1) in vec4 vertexColor;
+SKYSOFT_LOCATION(2) in vec4 uvBounds;
 
-out vec4 fragColor;
+SKYSOFT_LOCATION(0) out vec4 fragColor;
 
 float itemAlpha(vec2 coordinate) {
     vec2 minimum = min(uvBounds.xy, uvBounds.zw);

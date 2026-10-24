@@ -2,13 +2,13 @@ package com.skysoft.features.chat
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
-import org.lwjgl.glfw.GLFW
 
 internal object ChatPeek {
     private val config
@@ -32,7 +32,7 @@ internal object ChatPeek {
         val settings = config
         val key = settings.settings.key
         return settings.enabled && Minecraft.getInstance().player != null &&
-            key != GLFW.GLFW_KEY_UNKNOWN && !isChatPeekBlocked() && InputUtilities.isActionBindingDown(key)
+            key != MinecraftInput.NO_BINDING && !isChatPeekBlocked() && InputUtilities.isActionBindingDown(key)
     }
 }
 

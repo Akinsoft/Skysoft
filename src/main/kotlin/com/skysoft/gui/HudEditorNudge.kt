@@ -1,19 +1,15 @@
 package com.skysoft.gui
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.input.InputHandlingResult
 import kotlin.math.roundToInt
-import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
-
-internal fun KeyEvent.isHudEditorHistoryKey(): Boolean =
-    hasControlDownWithQuirk() && key() in listOf(GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_Y)
 
 internal fun hudEditorNudge(key: Int): Point? = when (key) {
-    GLFW.GLFW_KEY_LEFT -> Point(-1, 0)
-    GLFW.GLFW_KEY_RIGHT -> Point(1, 0)
-    GLFW.GLFW_KEY_UP -> Point(0, -1)
-    GLFW.GLFW_KEY_DOWN -> Point(0, 1)
+    InputConstants.KEY_LEFT -> Point(-1, 0)
+    InputConstants.KEY_RIGHT -> Point(1, 0)
+    InputConstants.KEY_UP -> Point(0, -1)
+    InputConstants.KEY_DOWN -> Point(0, 1)
     else -> null
 }
 

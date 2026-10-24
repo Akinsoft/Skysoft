@@ -1,11 +1,11 @@
 package com.skysoft.features.screenshot
 
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
+import com.skysoft.utils.render.gpu.FilterMode
 import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.Font

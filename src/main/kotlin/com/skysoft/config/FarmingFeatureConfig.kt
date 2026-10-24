@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.configVisibility
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -12,7 +13,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
-import org.lwjgl.glfw.GLFW
 
 class FarmingFeatureConfig {
     @JvmField
@@ -85,9 +85,9 @@ class PestHelperSettingsConfig {
         desc = "Press this key to warp to the latest Pest spawn plot while Pests exist, " +
             "or return to your saved Garden position when none remain.",
     )
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
     @field:ConfigVisibleIf("sharedKeybindSettingsVisible")
-    var sharedKey = GLFW.GLFW_KEY_UNKNOWN
+    var sharedKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
@@ -102,9 +102,9 @@ class PestHelperSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Warp to Pests", desc = "Press this key to warp to the latest Pest spawn plot.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
     @field:ConfigVisibleIf("separateKeybindSettingsVisible")
-    var warpKey = GLFW.GLFW_KEY_UNKNOWN
+    var warpKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
@@ -123,9 +123,9 @@ class PestHelperSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Return to Position", desc = "Press this key to return to your saved Garden position.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
     @field:ConfigVisibleIf("separateKeybindSettingsVisible")
-    var returnKey = GLFW.GLFW_KEY_UNKNOWN
+    var returnKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose

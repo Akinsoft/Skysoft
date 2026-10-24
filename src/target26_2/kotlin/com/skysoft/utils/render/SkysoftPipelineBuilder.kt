@@ -34,6 +34,8 @@ object SkysoftPipelineBuilder {
     fun guiTexturedSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_TEXTURED_SNIPPET
     fun itemSnippet(): RenderPipeline.Snippet = itemPipelineSnippet
 
+    fun renderSetup(pipeline: RenderPipeline): RenderSetup.RenderSetupBuilder = RenderSetup.builder(pipeline)
+
     internal fun configureItemRenderSetup(builder: RenderSetup.RenderSetupBuilder) {
         builder.useLightmap().useOverlay()
     }

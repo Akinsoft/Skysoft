@@ -4,29 +4,29 @@ import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
 import com.skysoft.config.HeldItemSwingStyle
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.MinecraftRenderer
 import com.skysoft.utils.SkysoftErrorBoundary
 import kotlin.math.sin
 import kotlin.math.sqrt
 import net.minecraft.world.entity.HumanoidArm
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.SwingAnimationType
 
 object HeldItemSwingVisuals {
     private var itemOnlySwing: ItemOnlySwing? = null
 
     @JvmStatic
-    fun renderWithSwing(itemStack: ItemStack, attack: Float, arm: HumanoidArm, render: Runnable) {
+    fun renderWithSwing(itemStack: ItemStack, attack: Float, arm: HumanoidArm, isWhackSwing: Boolean, render: Runnable) {
         val previousSwing = itemOnlySwing
         itemOnlySwing = null
         try {
-            SkysoftErrorBoundary.run("Held Item swing state") { begin(itemStack, attack, arm) }
+            SkysoftErrorBoundary.run("Held Item swing state") { begin(itemStack, attack, arm, isWhackSwing) }
             render.run()
         } finally {
             itemOnlySwing = previousSwing
         }
     }
 
-    private fun begin(itemStack: ItemStack, attack: Float, arm: HumanoidArm) {
+    private fun begin(itemStack: ItemStack, attack: Float, arm: HumanoidArm, isWhackSwing: Boolean) {
         if (!HeldItemCustomization.isEligible(itemStack)) {
             itemOnlySwing = null
             return
@@ -36,7 +36,7 @@ object HeldItemSwingVisuals {
         itemOnlySwing = ItemOnlySwing(itemStack, attack, arm).takeIf {
             config.enabled &&
                 transform.swingStyle == HeldItemSwingStyle.ITEM_ONLY &&
-                itemStack.swingAnimation.type() == SwingAnimationType.WHACK
+                isWhackSwing
         }
     }
 
@@ -60,9 +60,9 @@ object HeldItemSwingVisuals {
         val direction = if (arm == HumanoidArm.RIGHT) 1f else -1f
         val arc = sin(sqrt(attack.toDouble()) * Math.PI).toFloat()
         val twist = sin(attack * attack * Math.PI).toFloat()
-        poseStack.mulPose(Axis.YP.rotationDegrees(direction * twist * SWING_Y_DEGREES))
-        poseStack.mulPose(Axis.ZP.rotationDegrees(direction * arc * SWING_Z_DEGREES))
-        poseStack.mulPose(Axis.XP.rotationDegrees(arc * SWING_X_DEGREES))
+        MinecraftRenderer.rotate(poseStack, Axis.YP.rotationDegrees(direction * twist * SWING_Y_DEGREES))
+        MinecraftRenderer.rotate(poseStack, Axis.ZP.rotationDegrees(direction * arc * SWING_Z_DEGREES))
+        MinecraftRenderer.rotate(poseStack, Axis.XP.rotationDegrees(arc * SWING_X_DEGREES))
     }
 
     private data class ItemOnlySwing(

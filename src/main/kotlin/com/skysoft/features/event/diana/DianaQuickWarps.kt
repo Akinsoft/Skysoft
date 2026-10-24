@@ -1,12 +1,13 @@
 package com.skysoft.features.event.diana
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 
 internal object DianaQuickWarps {
     private val config get() = SkysoftConfigGui.config().events.diana
@@ -49,7 +50,7 @@ internal object DianaQuickWarps {
 
     private fun handleWarpKey(now: Long) {
         val key = quickWarpSettings.warpKey
-        val keyDown = key != GLFW.GLFW_KEY_UNKNOWN && key != GLFW.GLFW_KEY_ENTER && InputUtilities.isActionBindingDown(key)
+        val keyDown = key != MinecraftInput.NO_BINDING && key != InputConstants.KEY_RETURN && InputUtilities.isActionBindingDown(key)
         if (!keyDown) {
             warpKeyWasDown = false
             return

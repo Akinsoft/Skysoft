@@ -3,13 +3,13 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.features.waypoints.WaypointPanel
+import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
-import org.lwjgl.glfw.GLFW
 
 class WaypointsConfig : ConfigRepairable {
     @JvmField
@@ -57,44 +57,44 @@ class WaypointsSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Open Display", desc = "Open the Waypoints Display.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var editorKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var editorKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Add at Feet", desc = "Add the block under your feet to the selected preset.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var feetKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var feetKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Add at Crosshair", desc = "Add the block you are looking at to the selected preset.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var crosshairKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var crosshairKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Start / Pause", desc = "Start the selected route, or pause and resume it.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var followKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var followKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Next Point", desc = "Skip to the next destination in the route you are following.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var nextKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var nextKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Previous Point", desc = "Return to the previous destination in the current route.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var previousKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var previousKey = MinecraftInput.NO_BINDING
 
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Stop Route", desc = "Stop following the current route.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
-    var stopKey = GLFW.GLFW_KEY_UNKNOWN
+    @field:ConfigEditorKeybind(defaultKey = MinecraftInput.NO_BINDING)
+    var stopKey = MinecraftInput.NO_BINDING
 }
 
 class WaypointsDetailsConfig {

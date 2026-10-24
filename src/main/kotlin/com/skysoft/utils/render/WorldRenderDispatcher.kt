@@ -18,7 +18,7 @@ object WorldRenderDispatcher {
                 val partialTicks = partialTicks()
                 val camera = MinecraftRenderer.mainCamera(minecraft.gameRenderer)
                 val cameraRenderState = CameraRenderState()
-                camera.extractRenderState(cameraRenderState, partialTicks)
+                MinecraftRenderer.extractCameraRenderState(camera, cameraRenderState, minecraft.deltaTracker)
                 val skysoftContext = SkysoftRenderContext(
                     context.poseStack(),
                     context.submitNodeCollector(),

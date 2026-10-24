@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -11,7 +12,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableLi
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
-import org.lwjgl.glfw.GLFW
 
 class PriceTooltipsConfig : ConfigRepairable {
     @JvmField
@@ -48,8 +48,8 @@ class PriceTooltipsSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Hotkey", desc = "Hold this key to show price lines when Require Key is enabled.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
-    var hotkey = GLFW.GLFW_KEY_LEFT_SHIFT
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_LSHIFT)
+    var hotkey = InputConstants.KEY_LSHIFT
 
     @JvmField
     @field:Expose
@@ -66,8 +66,8 @@ class PriceTooltipsSettingsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Stack Total Key", desc = "Hold this key to show prices for the full stack.")
-    @field:ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
-    var stackTotalKey = GLFW.GLFW_KEY_LEFT_SHIFT
+    @field:ConfigEditorKeybind(defaultKey = InputConstants.KEY_LSHIFT)
+    var stackTotalKey = InputConstants.KEY_LSHIFT
 
     @JvmField
     @field:Expose(serialize = false, deserialize = true)

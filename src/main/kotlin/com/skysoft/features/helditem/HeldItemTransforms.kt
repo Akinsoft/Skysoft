@@ -6,6 +6,7 @@ import com.mojang.math.Axis
 import com.skysoft.config.HeldItemTransformConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.utils.MinecraftRenderer
 import kotlin.math.tan
 import net.minecraft.client.Camera
 import net.minecraft.client.Minecraft
@@ -78,9 +79,9 @@ object HeldItemTransforms {
     }
 
     internal fun applyRotation(poseStack: PoseStack, transform: HeldItemTransformConfig) {
-        if (transform.rotationX != 0f) poseStack.mulPose(Axis.XP.rotationDegrees(transform.rotationX))
-        if (transform.rotationY != 0f) poseStack.mulPose(Axis.YP.rotationDegrees(transform.rotationY))
-        if (transform.rotationZ != 0f) poseStack.mulPose(Axis.ZP.rotationDegrees(transform.rotationZ))
+        if (transform.rotationX != 0f) MinecraftRenderer.rotate(poseStack, Axis.XP.rotationDegrees(transform.rotationX))
+        if (transform.rotationY != 0f) MinecraftRenderer.rotate(poseStack, Axis.YP.rotationDegrees(transform.rotationY))
+        if (transform.rotationZ != 0f) MinecraftRenderer.rotate(poseStack, Axis.ZP.rotationDegrees(transform.rotationZ))
     }
 }
 

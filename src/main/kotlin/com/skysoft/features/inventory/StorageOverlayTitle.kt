@@ -1,7 +1,9 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.TextInputFocus
 import com.skysoft.utils.gui.takeAtCharacterBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -9,7 +11,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
 
 internal var editingTitlePage: Int? = null
     private set
@@ -17,6 +18,7 @@ internal var editingTitleText = ""
     private set
 internal var editingTitleSelected = false
     private set
+internal val titleTextInput = TextInputFocus()
 
 internal fun titlePageAt(layouts: Map<Int, PageLayout>, mouseX: Int, mouseY: Int): Int? =
     layouts.values.firstOrNull { layout ->
@@ -59,6 +61,7 @@ internal fun startTitleEdit(pageIndex: Int) {
     editingTitleText = titleText(pageIndex)
     editingTitlePage = pageIndex
     editingTitleSelected = false
+    titleTextInput.focused = true
 }
 
 internal fun finishTitleEdit() {
@@ -75,17 +78,19 @@ internal fun resetTitleEdit() {
     editingTitlePage = null
     editingTitleText = ""
     editingTitleSelected = false
+    titleTextInput.focused = false
 }
 
 internal fun handleTitleEditKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
     if (editingTitlePage == null) return InputHandlingResult.IGNORED
-    val control = event.modifiers() and GLFW.GLFW_MOD_CONTROL != 0
     when (event.key()) {
-        GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> finishTitleEdit()
-        GLFW.GLFW_KEY_BACKSPACE -> removeTitleText()
-        GLFW.GLFW_KEY_DELETE -> clearTitleText()
-        GLFW.GLFW_KEY_A -> if (control) editingTitleSelected = editingTitleText.isNotEmpty()
-        GLFW.GLFW_KEY_V -> if (control) appendTitleText(Minecraft.getInstance().keyboardHandler.clipboard)
+        InputConstants.KEY_ESCAPE, InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> finishTitleEdit()
+        InputConstants.KEY_BACKSPACE -> removeTitleText()
+        InputConstants.KEY_DELETE -> clearTitleText()
+        else -> when {
+            event.isSelectAll() -> editingTitleSelected = editingTitleText.isNotEmpty()
+            event.isPaste() -> appendTitleText(Minecraft.getInstance().keyboardHandler.clipboard)
+        }
     }
     storageOverlayLayoutScreen(screen)
     return InputHandlingResult.CONSUMED

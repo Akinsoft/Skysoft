@@ -1,5 +1,6 @@
 package com.skysoft.features.profit
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
@@ -14,7 +15,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lwjgl.glfw.GLFW
 
 internal class ProfitTrackerHudControls(
     private val itemPanel: ProfitTrackerItemPanel,
@@ -74,7 +74,7 @@ internal class ProfitTrackerHudControls(
         target: ProfitTrackerTarget,
         button: Int,
     ): Boolean {
-        if (!itemPanel.isSelectingFromInventory() || button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (!itemPanel.isSelectingFromInventory() || button != InputConstants.MOUSE_BUTTON_LEFT) return false
         val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
         val player = Minecraft.getInstance().player ?: return false
         val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
@@ -212,7 +212,7 @@ internal class ProfitTrackerHudControls(
         }
 
     private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) return false
+        if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
         action()
         return true
     }

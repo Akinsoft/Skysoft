@@ -1,5 +1,6 @@
 package com.skysoft.gui.tooltip
 
+import com.skysoft.utils.MinecraftRenderer
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
@@ -51,14 +52,7 @@ object AdjacentTooltipRenderer {
         if (pending.context !== context) return
         val mainFrame = pending.mainFrame ?: return
         context.nextStratum()
-        context.tooltip(
-            font,
-            pending.components,
-            0,
-            0,
-            AdjacentPositioner(mainFrame),
-            pending.style,
-        )
+        MinecraftRenderer.tooltip(context, font, pending.components, AdjacentPositioner(mainFrame), pending.style)
     }
 
     private data class PendingTooltip(

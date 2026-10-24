@@ -1,5 +1,6 @@
 package com.skysoft
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.logging.LogUtils
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
@@ -7,6 +8,7 @@ import com.skysoft.gui.DeferredScreenRequests
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputUtilities
@@ -17,7 +19,6 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.resources.Identifier
-import org.lwjgl.glfw.GLFW
 
 class SkysoftMod : ClientModInitializer {
     override fun onInitializeClient() {
@@ -52,13 +53,13 @@ class SkysoftMod : ClientModInitializer {
         private var positionEditorKeyWasDown = false
 
         private fun hasPositionEditorKeybind(): Boolean =
-            SkysoftConfigGui.config().gui.positionEditor.keybind != GLFW.GLFW_KEY_UNKNOWN || positionEditorKeyWasDown
+            SkysoftConfigGui.config().gui.positionEditor.keybind != MinecraftInput.NO_BINDING || positionEditorKeyWasDown
 
         private fun handlePositionEditorKeybind() {
             val key = SkysoftConfigGui.config().gui.positionEditor.keybind
             val minecraft = Minecraft.getInstance()
-            val keyDown = key != GLFW.GLFW_KEY_UNKNOWN &&
-                key != GLFW.GLFW_KEY_ENTER &&
+            val keyDown = key != MinecraftInput.NO_BINDING &&
+                key != InputConstants.KEY_RETURN &&
                 InputUtilities.isActionBindingDown(key)
             if (!keyDown) {
                 positionEditorKeyWasDown = false

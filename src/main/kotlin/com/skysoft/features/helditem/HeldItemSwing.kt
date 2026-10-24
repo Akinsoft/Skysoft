@@ -8,11 +8,10 @@ import net.minecraft.world.entity.LivingEntity
 
 object HeldItemSwing {
     @JvmStatic
-    fun duration(entity: LivingEntity, vanillaDuration: Int): Int {
+    fun duration(entity: LivingEntity, hand: InteractionHand, baseDuration: Int, vanillaDuration: Int): Int {
         val minecraft = Minecraft.getInstance()
         if (entity !== minecraft.player) return vanillaDuration
 
-        val hand = entity.swingingArm ?: InteractionHand.MAIN_HAND
         val itemStack = entity.getItemInHand(hand)
         if (!HeldItemCustomization.isEligible(itemStack)) return vanillaDuration
 
@@ -22,7 +21,7 @@ object HeldItemSwing {
         val transform = HeldItemTransforms.effectiveTransform(itemStack)
         return adjustedDuration(
             vanillaDuration = vanillaDuration,
-            baseDuration = itemStack.swingAnimation.duration(),
+            baseDuration = baseDuration,
             speed = transform.swingSpeed,
             ignoresMiningEffects = config.settings.ignoresMiningEffects,
         )

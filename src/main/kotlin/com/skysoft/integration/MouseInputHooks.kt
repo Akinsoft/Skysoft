@@ -1,5 +1,6 @@
 package com.skysoft.integration
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.Window
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.inventory.StorageOverlayController
@@ -15,13 +16,12 @@ import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import org.lwjgl.glfw.GLFW
 
 object MouseInputHooks {
     @JvmStatic
-    fun beginMouseGrab(window: Window) {
+    fun beginMouseGrab() {
         SkysoftErrorBoundary.run("Inventory cursor mouse grab") {
-            InventoryCursorMemory.beginMouseGrab(window)
+            InventoryCursorMemory.beginMouseGrab()
         }
     }
 
@@ -45,7 +45,7 @@ object MouseInputHooks {
 
     @JvmStatic
     fun tryHandleButton(button: Int, action: Int): Boolean {
-        if (action != GLFW.GLFW_PRESS) return false
+        if (action != InputConstants.PRESS) return false
         return didConsumeButton("Screenshot Capture Preview mouse control") {
             ScreenshotCapturePreview.processMouseButtonPress(button)
         } || didConsumeButton("Bazaar Tracker mouse control") {

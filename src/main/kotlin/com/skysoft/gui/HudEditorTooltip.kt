@@ -1,9 +1,9 @@
 package com.skysoft.gui
 
 import com.skysoft.features.inventory.InventoryButtonManager
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.input.InputUtilities
 import java.util.Locale
-import org.lwjgl.glfw.GLFW
 
 internal fun hudEditorTooltipLines(
     active: HudEditorElement?,
@@ -78,7 +78,7 @@ private fun editorGlobalTooltipLines(gridEnabled: Boolean): List<String> = listO
 )
 
 private fun inventoryButtonHoldKeyLine(requiredKey: Int?): String =
-    if (requiredKey != null && requiredKey != GLFW.GLFW_KEY_UNKNOWN) {
+    if (requiredKey != null && requiredKey != MinecraftInput.NO_BINDING) {
         "§7Hold Key: §e${InputUtilities.bindingName(requiredKey)}"
     } else {
         "§7Hold Key: §eNone"

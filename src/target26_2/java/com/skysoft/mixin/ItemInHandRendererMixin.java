@@ -1,13 +1,11 @@
 package com.skysoft.mixin;
 
-import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.helditem.HeldItemSwingVisuals;
 import com.skysoft.features.helditem.HeldItemTransforms;
-import com.skysoft.features.helditem.HeldItemUpdateFix;
 import com.skysoft.features.helditem.SwingReplacementResult;
 import com.skysoft.features.misc.Zoom;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -18,6 +16,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SwingAnimationType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,15 +24,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemInHandRenderer.class)
 public class ItemInHandRendererMixin {
-    @Inject(method = ItemInHandRendererMethodsKt.ITEM_IN_HAND_HANDS_METHOD, at = @At("HEAD"), cancellable = true)
+    @Inject(method = "submitHandsWithItems", at = @At("HEAD"), cancellable = true)
     private void skysoftHideHandsWhileZooming(CallbackInfo ci) {
         if (Zoom.shouldHideHand()) ci.cancel();
-    }
-
-    @ModifyReturnValue(method = "shouldInstantlyReplaceVisibleItem", at = @At("RETURN"))
-    protected boolean skysoftKeepSameUpdatedItemVisible(boolean original, ItemStack currentlyVisibleItem, ItemStack expectedItem) {
-        boolean preserve = MixinErrorBoundary.value("Held Item visible item update", false, () -> HeldItemUpdateFix.INSTANCE.shouldPreserveUpdate(currentlyVisibleItem, expectedItem));
-        return original || preserve;
     }
 
     @Inject(method = "renderItem", at = @At("HEAD"))
@@ -53,7 +46,7 @@ public class ItemInHandRendererMixin {
         }
     }
 
-    @WrapMethod(method = ItemInHandRendererMethodsKt.ITEM_IN_HAND_ARM_METHOD)
+    @WrapMethod(method = "submitArmWithItem")
     private void skysoftRenderWithHeldItemSwing(
         AbstractClientPlayer player,
         float frameInterp,
@@ -68,7 +61,8 @@ public class ItemInHandRendererMixin {
         Operation<Void> original
     ) {
         HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
-        HeldItemSwingVisuals.renderWithSwing(itemStack, attack, arm,
+        boolean isWhackSwing = itemStack.getSwingAnimation().type() == SwingAnimationType.WHACK;
+        HeldItemSwingVisuals.renderWithSwing(itemStack, attack, arm, isWhackSwing,
             () -> original.call(player, frameInterp, xRot, hand, attack, itemStack, inverseArmHeight, poseStack, submitNodeCollector, light));
     }
 

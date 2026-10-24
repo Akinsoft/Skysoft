@@ -18,7 +18,6 @@ import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory
 import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 import java.lang.reflect.Type
 import java.util.LinkedHashMap
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 
@@ -85,7 +84,7 @@ private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
     private fun shareTracker(id: String) {
         repairAndSave()
         val tracker = customTrackers().firstOrNull { it.id == id } ?: return
-        Minecraft.getInstance().keyboardHandler.setClipboard(CustomProfitTrackerSharing.encode(tracker))
+        MinecraftClient.setClipboard(CustomProfitTrackerSharing.encode(tracker))
         SkysoftChat.chat("Copied ${tracker.name} to the clipboard.")
     }
 

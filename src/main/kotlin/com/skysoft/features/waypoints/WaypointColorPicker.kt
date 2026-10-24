@@ -1,8 +1,10 @@
 package com.skysoft.features.waypoints
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toChromaColor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputUtilities
@@ -22,7 +24,6 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import org.lwjgl.glfw.GLFW
 
 internal class WaypointColorPicker private constructor(
     private val group: WaypointGroup,
@@ -93,7 +94,11 @@ internal class WaypointColorPicker private constructor(
     }
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        if (interactive && pickerBounds.contains(click.x().toInt(), click.y().toInt()) && click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (
+            interactive &&
+            pickerBounds.contains(click.x().toInt(), click.y().toInt()) &&
+            click.button() == InputConstants.MOUSE_BUTTON_LEFT
+        ) {
             return picker.mouseEvent(MouseEvent.Click(click.button(), true), pickerContext())
         }
         return super.mouseClicked(click, doubled)
@@ -107,9 +112,10 @@ internal class WaypointColorPicker private constructor(
         super.mouseReleased(click) || picker.mouseEvent(MouseEvent.Click(click.button(), false), pickerContext())
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) return super.keyPressed(event)
+        if (event.key() == InputConstants.KEY_ESCAPE) return super.keyPressed(event)
         if (!interactive) return true
-        return picker.keyboardEvent(KeyboardEvent.KeyPressed(event.key(), event.scancode(), true), pickerContext()) ||
+        val keyPressed = KeyboardEvent.KeyPressed(event.key(), MinecraftInput.scanCode(event), true)
+        return picker.keyboardEvent(keyPressed, pickerContext()) ||
             super.keyPressed(event)
     }
 

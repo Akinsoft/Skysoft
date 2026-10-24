@@ -1,8 +1,8 @@
 package com.skysoft.features.inventory
 
-import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
+import com.skysoft.utils.render.gpu.RenderPipeline
 import kotlin.math.abs
 import kotlin.math.floor
 import net.minecraft.client.gui.navigation.ScreenRectangle

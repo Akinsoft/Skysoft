@@ -1,7 +1,6 @@
 package com.skysoft.features.spotify
 
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.textures.FilterMode
 import com.skysoft.config.SpotifyLyricsMode
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.DurationParts
@@ -11,11 +10,12 @@ import com.skysoft.utils.gui.PixelControlColors
 import com.skysoft.utils.gui.elide
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.render.LegacyTextRenderer
+import com.skysoft.utils.render.gpu.FilterMode
 import com.skysoft.utils.renderables.GuiRenderable
+import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.texture.DynamicTexture
-import kotlin.math.roundToInt
 
 internal class SpotifyHudRenderable(
     private val playback: SpotifyPlayback,

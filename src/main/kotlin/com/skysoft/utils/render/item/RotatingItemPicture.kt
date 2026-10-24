@@ -63,7 +63,7 @@ private fun PoseStack.didApplyRotation(rotation: Vec3): Boolean {
     val zRad = Math.toRadians(rotation.z % FULL_ROTATION_DEGREES).toFloat()
     if (xRad == 0f && yRad == 0f && zRad == 0f) return false
 
-    mulPose(Quaternionf().rotateXYZ(xRad, yRad, zRad))
+    MinecraftRenderer.rotate(this, Quaternionf().rotateXYZ(xRad, yRad, zRad))
     return true
 }
 

@@ -6,12 +6,12 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.ZoomActivation
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.input.InputUtilities
 import kotlin.math.pow
 import kotlin.math.sign
 import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 
 object Zoom {
     private var active = false
@@ -64,7 +64,7 @@ object Zoom {
     private fun updateInput(minecraft: Minecraft) {
         val settings = config.settings
         val canZoom = config.enabled && minecraft.player != null && MinecraftClient.screen(minecraft) == null &&
-            settings.key != GLFW.GLFW_KEY_UNKNOWN
+            settings.key != MinecraftInput.NO_BINDING
         val keyDown = canZoom && InputUtilities.isActionBindingDown(settings.key)
 
         if (!canZoom) {

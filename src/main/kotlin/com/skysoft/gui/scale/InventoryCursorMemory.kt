@@ -1,12 +1,11 @@
 package com.skysoft.gui.scale
 
-import com.mojang.blaze3d.platform.Window
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.MinecraftInput
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.multiplayer.ClientLevel
-import org.lwjgl.glfw.GLFW
 
 class InventoryCursorMemory private constructor() {
     @JvmRecord
@@ -31,7 +30,7 @@ class InventoryCursorMemory private constructor() {
         }
 
         @JvmStatic
-        fun beginMouseGrab(window: Window) {
+        fun beginMouseGrab() {
             val shouldCapture = inventoryScreenClosed
             inventoryScreenClosed = false
             if (!isEnabled() || !shouldCapture) {
@@ -40,10 +39,8 @@ class InventoryCursorMemory private constructor() {
             }
             val level = Minecraft.getInstance().level
             if (!isUsable(pending) || pending?.level !== level) {
-                val x = doubleArrayOf(0.0)
-                val y = doubleArrayOf(0.0)
-                GLFW.glfwGetCursorPos(window.handle(), x, y)
-                pending = CursorSnapshot(CursorPoint(x[0], y[0]), level, System.nanoTime())
+                val (x, y) = MinecraftInput.cursorPosition()
+                pending = CursorSnapshot(CursorPoint(x, y), level, System.nanoTime())
             }
             waitForCursorEvents = true
         }

@@ -2,9 +2,10 @@ package com.skysoft.features.waypoints
 
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.Rect
-import net.minecraft.client.Minecraft
+import java.util.concurrent.CompletableFuture
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.util.Util
 
 internal class WaypointShareScreen private constructor(parent: Screen?) : WaypointDialog("Share Waypoints", parent, primaryLabel = null) {
     private val selected = Waypoints.group
@@ -36,14 +37,14 @@ internal class WaypointShareScreen private constructor(parent: Screen?) : Waypoi
         }
         painter.action(Rect(x, y + BUTTON_ROW, width, FIELD_HEIGHT), "Copy share", enabled = !busy && groups.isNotEmpty()) {
             val copy = groups
-            transfer({ WaypointImportCodec.export(copy) }) { code ->
-                Minecraft.getInstance().keyboardHandler.clipboard = code
+            transfer({ CompletableFuture.supplyAsync({ WaypointImportCodec.export(copy) }, Util.ioPool()) }) { code ->
+                MinecraftClient.setClipboard(code)
                 status = "Copied."
             }
         }
         painter.action(Rect(x, y + BUTTON_ROW * FILE_ROW, width, FIELD_HEIGHT), "Save JSON file", enabled = !busy && groups.isNotEmpty()) {
             val copy = groups
-            transfer({ WaypointTransferFiles.save(WaypointImportCodec.exportJson(copy)) }) { path ->
+            transfer({ WaypointTransferFiles.save { WaypointImportCodec.exportJson(copy) } }) { path ->
                 status = if (path == null) "File selection cancelled." else "Saved ${path.fileName}."
             }
         }
