@@ -124,7 +124,7 @@ Animates new messages and the chat screen opening.
 
 ## Installation
 
-Skysoft supports Minecraft 26.1 and 26.2 and requires [Java 25](https://adoptium.net/temurin/releases/?version=25).
+Skysoft supports Minecraft 26.1, 26.2, and 26.3 and requires [Java 25](https://adoptium.net/temurin/releases/?version=25).
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for a supported Minecraft version.
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api), [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin), and the [Hypixel Mod API](https://modrinth.com/mod/hypixel-mod-api).
