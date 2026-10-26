@@ -65,7 +65,12 @@ object CustomBars {
         replaceVanilla(VanillaHudElements.AIR_BAR, CustomBarPart.AIR) {
             config.settings.displays.air == CustomBarDisplayMode.VANILLA
         }
-        HudElementRegistry.replaceElement(VanillaHudElements.FOOD_BAR) { vanilla ->
+        hideVanilla(VanillaHudElements.FOOD_BAR)
+        hideVanilla(VanillaHudElements.MOUNT_HEALTH)
+    }
+
+    private fun hideVanilla(id: Identifier) {
+        HudElementRegistry.replaceElement(id) { vanilla ->
             HudElement { context, tick ->
                 if (!isActive()) vanilla.extractRenderState(context, tick)
             }
