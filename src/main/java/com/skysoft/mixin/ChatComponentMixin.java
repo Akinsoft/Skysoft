@@ -2,6 +2,7 @@ package com.skysoft.mixin;
 
 import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -32,9 +33,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -100,10 +99,10 @@ public abstract class ChatComponentMixin {
         });
     }
 
-    @ModifyConstant(method = "addMessageToDisplayQueue", constant = @Constant(intValue = 100))
-    protected int skysoftVisibleLineLimit(int vanillaLimit) { return MixinErrorBoundary.value("Chat visible line limit", vanillaLimit, ChatFeatureSettings.INSTANCE::historyLimit); }
-    @ModifyConstant(method = "addMessageToQueue", constant = @Constant(intValue = 100))
-    protected int skysoftMessageLimit(int vanillaLimit) { return MixinErrorBoundary.value("Chat message limit", vanillaLimit, ChatFeatureSettings.INSTANCE::historyLimit); }
+    @ModifyExpressionValue(method = "addMessageToDisplayQueue", at = @At(value = "CONSTANT", args = "intValue=100"))
+    protected int skysoftVisibleLineLimit(int limit) { return skysoftHistoryLimit("Chat visible line limit", limit); }
+    @ModifyExpressionValue(method = "addMessageToQueue", at = @At(value = "CONSTANT", args = "intValue=100"))
+    protected int skysoftMessageLimit(int limit) { return skysoftHistoryLimit("Chat message limit", limit); }
 
     @Inject(method = "clearMessages", at = @At("HEAD"))
     protected void skysoftCaptureRetainedHistory(boolean history, CallbackInfo ci, @Share("preservedMessages") LocalRef<List<GuiMessage>> preservedMessages) {
@@ -127,6 +126,8 @@ public abstract class ChatComponentMixin {
             accessor.skysoftRefreshTrimmedMessages();
         });
     }
+
+    @Unique private int skysoftHistoryLimit(String boundary, int limit) { return MixinErrorBoundary.value(boundary, limit, () -> Math.max(limit, ChatFeatureSettings.INSTANCE.historyLimit())); }
 
     @Unique private float skysoftNewMessageOffset() {
         if (!ChatMotionSettings.isMessageMotionEnabled() || chatScrollbarPos != 0) return 0.0F;
