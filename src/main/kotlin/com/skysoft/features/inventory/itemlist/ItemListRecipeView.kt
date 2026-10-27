@@ -362,9 +362,8 @@ internal class ItemListRecipeView(
         }
         val stack = if (isSelectable) baseStack?.withActionHint("SELECT") else baseStack
         if (stack != null) {
-            val decorationText = displayedIngredient.count.takeIf {
-                it > 1 && petLevelKey == null && currencyStack == null
-            }?.let(ItemListFormatting::number)
+            val displayedCount = if (petLevelKey == null && currencyStack == null) displayedIngredient.count else 1L
+            val decorationText = displayedCount.takeIf { it > 1 }?.let(ItemListFormatting::number)
             renderViewerItem(context, font, stack, bounds, decorationText)
             when {
                 petLevelKey != null ->
@@ -388,7 +387,7 @@ internal class ItemListRecipeView(
                         mouseY,
                     )
                 } else {
-                    context.setTooltipForNextFrame(font, stack, mouseX, mouseY)
+                    context.setTooltipForNextFrame(font, stack.withRecipeIngredientCount(displayedCount), mouseX, mouseY)
                 }
             }
         } else {
