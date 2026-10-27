@@ -7,7 +7,7 @@ import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.utils.ColorUtilities.addAlpha
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
-import com.skysoft.utils.getWorldVec
+import com.skysoft.utils.location
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.EntityHighlightTracker
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -81,7 +81,7 @@ object LotumHelper {
             ?: return
 
         context.drawLineToCrosshair(
-            closestLotum.getWorldVec(),
+            closestLotum.location,
             LOTUM_COLOR,
             depth = true,
         )

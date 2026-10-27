@@ -11,6 +11,7 @@ import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.SkysoftPartyShare
+import com.skysoft.utils.location
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
@@ -45,7 +46,7 @@ internal object DianaRareMobLootshare {
         now: Long,
     ) {
         val entity = Minecraft.getInstance().level?.getEntity(event.entityId) as? ArmorStand ?: return
-        DamageSplashText.fromMetadata(event.entityId, entity.position().toWorldVec(), event.packedItems)
+        DamageSplashText.fromMetadata(event.entityId, entity.location, event.packedItems)
             .forEach { splash ->
                 tryHandleDamageSplash(splash, targets, localPlayerName, now)
             }

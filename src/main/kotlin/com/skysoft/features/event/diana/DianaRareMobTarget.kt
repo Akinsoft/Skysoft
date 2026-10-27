@@ -5,7 +5,7 @@ import com.skysoft.features.combat.DamageSplashAttackContext
 import com.skysoft.features.combat.SkyBlockMob
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatMessageSender
-import com.skysoft.utils.toWorldVec
+import com.skysoft.utils.location
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
@@ -97,8 +97,8 @@ internal class DianaRareMobTarget(
         pendingCocoonHatchUntilMillis?.let { now < it } == true
 
     fun lineLocation(): WorldVec =
-        entity?.position()?.toWorldVec()
-            ?: nameplate?.position()?.toWorldVec()
+        entity?.location
+            ?: nameplate?.location
             ?: location.blockCenter()
 
     fun isSpawner(localName: String?): Boolean =
@@ -131,7 +131,7 @@ internal class DianaRareMobTarget(
     fun recordLocalAttack(entity: Entity, playerLocation: WorldVec?, now: Long, canDamage: Boolean) {
         recordLocalAttack(
             entityUuid = entity.uuid,
-            targetLocation = entity.position().toWorldVec(),
+            targetLocation = entity.location,
             playerLocation = playerLocation,
             now = now,
             canDamage = canDamage,

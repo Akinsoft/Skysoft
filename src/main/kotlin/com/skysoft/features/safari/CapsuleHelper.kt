@@ -9,12 +9,12 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.location
 import com.skysoft.utils.render.LineBoxRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelRenderer
 import com.skysoft.utils.render.WorldLabelStyle
 import com.skysoft.utils.render.WorldRenderDispatcher
-import com.skysoft.utils.toWorldVec
 import java.awt.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -54,13 +54,13 @@ object CapsuleHelper {
         val entity = Minecraft.getInstance().level?.getEntity(entityId) ?: return
         when (entity) {
             is LivingEntity -> SafariCritterDetector.critterFor(entity)?.let { critter ->
-                pendingImpacts += PendingImpact(critter.name, entity.position().toWorldVec())
+                pendingImpacts += PendingImpact(critter.name, entity.location)
             }
             is Display.ItemDisplay -> {
                 if (entity.itemStack.skyBlockId() != CRITTER_CAPSULE_ID) return
                 SafariCritterDetector.critterNear(entity)?.let { critter ->
                     val captureEntity = critter.captureEntity ?: return@let
-                    pendingCapsuleImpacts += PendingImpact(critter.name, captureEntity.position().toWorldVec())
+                    pendingCapsuleImpacts += PendingImpact(critter.name, captureEntity.location)
                 }
             }
         }

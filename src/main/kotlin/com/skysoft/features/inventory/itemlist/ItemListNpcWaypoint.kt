@@ -9,6 +9,7 @@ import com.skysoft.data.skyblock.SkyBlockEventAvailability
 import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.data.skyblock.SkyBlockWarpPoint
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.location
 import com.skysoft.utils.toWorldVec
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelRenderer
@@ -69,7 +70,7 @@ internal object ItemListNpcWaypoint {
             warp = target.warp,
             startingIsland = HypixelLocationState.currentIsland,
             startingLocationVersion = HypixelLocationState.locationVersion,
-            startingPosition = player.position().toWorldVec(),
+            startingPosition = player.location,
             sentAtMillis = now,
         )
         activeWaypoint = null

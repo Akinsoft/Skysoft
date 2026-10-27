@@ -9,6 +9,7 @@ import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.location
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.EntityHighlightTracker
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -118,7 +119,7 @@ internal data class SlayerHighlightTarget(
     val location: WorldVec,
     val entity: LivingEntity?,
 ) {
-    fun currentLocation(): WorldVec = entity?.position()?.toWorldVec()?.let { position ->
+    fun currentLocation(): WorldVec = entity?.location?.let { position ->
         position + WorldVec(0.0, entity.bbHeight.toDouble() / 2.0, 0.0)
     } ?: location
 }

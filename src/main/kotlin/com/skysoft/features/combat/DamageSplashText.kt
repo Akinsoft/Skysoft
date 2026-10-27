@@ -4,7 +4,7 @@ import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.NumberUtilities.parseCompactNumberOrNull
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.toWorldVec
+import com.skysoft.utils.location
 import net.minecraft.network.chat.Component
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.world.entity.Entity
@@ -26,7 +26,7 @@ internal object DamageSplashText {
     fun fromEntity(entity: Entity): DamageSplash? {
         val armorStand = entity as? ArmorStand ?: return null
         val cleanName = armorStand.cleanName()
-        return fromName(armorStand.id, cleanName, armorStand.position().toWorldVec())
+        return fromName(armorStand.id, cleanName, armorStand.location)
     }
 
     fun fromMetadata(
