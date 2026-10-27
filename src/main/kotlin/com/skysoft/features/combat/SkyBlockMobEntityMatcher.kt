@@ -6,7 +6,7 @@ import com.skysoft.data.skyblock.SkyBlockMobType
 import com.skysoft.data.skyblock.withoutSkyBlockMobModifierPrefix
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.toWorldVec
+import com.skysoft.utils.location
 import java.util.Locale
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.Entity
@@ -99,7 +99,7 @@ internal object SkyBlockMobEntityMatcher {
         val linkedEntity = physicalEntityFor(this, entities) ?: return null
         return DetectedSkyBlockMob(
             name = name,
-            location = linkedEntity.position().toWorldVec(),
+            location = linkedEntity.location,
             entity = linkedEntity,
             nameplate = this,
             health = health,
@@ -112,7 +112,7 @@ internal object SkyBlockMobEntityMatcher {
         val name = if (hasCustomName()) cleanName() else torrhusCritterName() ?: return null
         return DetectedSkyBlockMob(
             name = name,
-            location = position().toWorldVec(),
+            location = this.location,
             entity = this,
             nameplate = null,
             health = null,

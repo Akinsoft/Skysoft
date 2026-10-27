@@ -4,6 +4,7 @@ import com.skysoft.config.DianaBurrowDistanceFormat
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.location
 import com.skysoft.utils.render.BlockHighlightRenderer
 import com.skysoft.utils.render.LineBoxRenderer
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -98,7 +99,7 @@ internal object WaypointWorldRenderer {
         val label = Component.literal(heading)
         if (details.showDistance) {
             val player = Minecraft.getInstance().player ?: return
-            val distance = point.position.blockCenter().distance(player.position().toWorldVec())
+            val distance = point.position.blockCenter().distance(player.location)
             if (heading.isNotEmpty()) label.append(" ")
             label.append(
                 Component.literal("(${DianaBurrowDistanceFormat.DECIMAL_METERS.format(distance)})")

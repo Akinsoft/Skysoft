@@ -4,7 +4,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.events.particle.ClientParticleEvent
 import com.skysoft.events.particle.ClientParticleEvents
-import com.skysoft.utils.toWorldVec
+import com.skysoft.utils.location
 import net.minecraft.client.Minecraft
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.world.entity.decoration.ArmorStand
@@ -26,7 +26,7 @@ object ThrowingAxeParticleHider {
             .filterIsInstance<ArmorStand>()
             .any { armorStand ->
                 armorStand.isInvisible && armorStand.mainHandItem.isThrowingAxe() &&
-                    armorStand.position().toWorldVec().distanceSq(event.location) <= AXE_PARTICLE_DISTANCE_SQUARED
+                    armorStand.location.distanceSq(event.location) <= AXE_PARTICLE_DISTANCE_SQUARED
             }
     }
 

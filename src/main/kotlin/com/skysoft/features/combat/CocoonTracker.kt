@@ -15,6 +15,7 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.location
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelRenderer
 import com.skysoft.utils.render.WorldLabelStyle
@@ -61,7 +62,7 @@ object CocoonTracker {
             if (event.action == EntityInteractionEvent.ActionType.ATTACK) {
                 lastLocalAttack = RecentLocalAttack(
                     entityId = event.clickedEntity.id,
-                    location = event.clickedEntity.position().toWorldVec(),
+                    location = event.clickedEntity.location,
                     attackedAtMillis = System.currentTimeMillis(),
                 )
             }
@@ -85,7 +86,7 @@ object CocoonTracker {
         if (!isActive() || equipment.none { it.playerHeadTexture() == COCOON_HEAD_TEXTURE }) return
         val entity = Minecraft.getInstance().level?.getEntity(entityId) as? ArmorStand ?: return
         if (!entity.isVisibleToPlayer()) return
-        rememberCocoon(entityId, entity.position().toWorldVec(), System.currentTimeMillis())
+        rememberCocoon(entityId, entity.location, System.currentTimeMillis())
     }
 
     private fun handleLocalCocoon(mobName: String?, isSlayerCocoon: Boolean) {
@@ -148,7 +149,7 @@ object CocoonTracker {
         ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<ArmorStand>()
             .forEach { entity ->
-                val entityLocation = entity.position().toWorldVec()
+                val entityLocation = entity.location
                 var nearestIndex = -1
                 var nearestDistanceSq = Double.MAX_VALUE
                 unknownCocoons.forEachIndexed { index, cocoon ->

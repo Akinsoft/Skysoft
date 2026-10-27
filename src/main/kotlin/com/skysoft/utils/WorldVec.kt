@@ -64,4 +64,4 @@ fun Vec3.toWorldVec(): WorldVec = WorldVec(x, y, z)
 
 fun BlockPos.toWorldVec(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
 
-fun Entity.getWorldVec(): WorldVec = position().toWorldVec()
+val Entity.location: WorldVec get() = position().toWorldVec()
