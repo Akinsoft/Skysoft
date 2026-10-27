@@ -164,7 +164,9 @@ internal class ItemListFusionSelectorPanel {
         if (ingredient.count > 1) {
             context.itemDecorations(font, stack, bounds.x + 1, bounds.y + 1, ItemListFormatting.number(ingredient.count))
         }
-        if (bounds.contains(mouseX, mouseY)) context.setTooltipForNextFrame(font, stack, mouseX, mouseY)
+        if (bounds.contains(mouseX, mouseY)) {
+            context.setTooltipForNextFrame(font, stack.withRecipeIngredientCount(ingredient.count), mouseX, mouseY)
+        }
     }
 
     private fun options(target: FusionIngredientTarget): List<RecipeIngredient> =
