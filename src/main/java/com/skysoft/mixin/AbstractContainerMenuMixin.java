@@ -2,6 +2,7 @@ package com.skysoft.mixin;
 
 import com.skysoft.features.inventory.ExperimentationTableHelper;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
+import java.util.List;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,6 +18,15 @@ public class AbstractContainerMenuMixin {
         MixinErrorBoundary.run(
             "Experimentation Table slot update",
             () -> ExperimentationTableHelper.INSTANCE.onMenuSlotChanged(menu, slotId, stack)
+        );
+    }
+
+    @Inject(method = "initializeContents", at = @At("TAIL"))
+    private void skysoftTrackExperimentationContentsUpdate(int stateId, List<ItemStack> items, ItemStack carried, CallbackInfo ci) {
+        AbstractContainerMenu menu = (AbstractContainerMenu) (Object) this;
+        MixinErrorBoundary.run(
+            "Experimentation Table contents update",
+            () -> ExperimentationTableHelper.INSTANCE.onMenuContentsChanged(menu)
         );
     }
 }
