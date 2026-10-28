@@ -109,14 +109,28 @@ object ExperimentationTableHelper {
 
     @JvmStatic
     fun onMenuSlotChanged(menu: AbstractContainerMenu, menuSlotId: Int, stack: ItemStack) {
-        if (activeScreen?.menu !== menu || currentGame != ExperimentationGame.CHRONOMATRON) return
+        if (!isTrackingChronomatron(menu)) return
         val slot = menu.slots.getOrNull(menuSlotId)?.takeIf { it in experimentSlots } ?: return
-        when (slot.index) {
+        observeChronomatronSlot(slot.index, stack)
+    }
+
+    @JvmStatic
+    fun onMenuContentsChanged(menu: AbstractContainerMenu) {
+        if (!isTrackingChronomatron(menu)) return
+        val (statusSlots, tileSlots) = experimentSlots.partition { it.index in CHRONOMATRON_STATUS_SLOTS }
+        (statusSlots + tileSlots).forEach { slot -> observeChronomatronSlot(slot.index, slot.item) }
+    }
+
+    private fun isTrackingChronomatron(menu: AbstractContainerMenu): Boolean =
+        activeScreen?.menu === menu && currentGame == ExperimentationGame.CHRONOMATRON
+
+    private fun observeChronomatronSlot(slotIndex: Int, stack: ItemStack) {
+        when (slotIndex) {
             ROUND_STATUS_SLOT -> state.updateRound(stack.chronomatronRound())
             PHASE_STATUS_SLOT -> stack.experimentPhaseOrNull()?.let(state::updatePhase)
             else -> {
                 val tile = stack.chronomatronTile() ?: return
-                state.observeChronomatronSlot(slot.index, tile.color, tile.active)
+                state.observeChronomatronSlot(slotIndex, tile.color, tile.active)
             }
         }
     }
@@ -223,6 +237,7 @@ private val CHRONOMATRON_COLORS = setOf(
 
 private const val ROUND_STATUS_SLOT = 4
 private const val PHASE_STATUS_SLOT = 49
+private val CHRONOMATRON_STATUS_SLOTS = setOf(ROUND_STATUS_SLOT, PHASE_STATUS_SLOT)
 private const val MEMORY_PHASE_NAME = "Remember the pattern!"
 private const val INPUT_PHASE_PREFIX = "Timer: "
 private const val TERRACOTTA_SUFFIX = "_terracotta"
