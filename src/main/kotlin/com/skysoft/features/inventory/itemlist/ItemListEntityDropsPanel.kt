@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockEntityDrop
 import com.skysoft.data.skyblock.SkyBlockEntityInfo
 import com.skysoft.data.skyblock.SkyBlockEntityLootTable
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.gui.Font
@@ -129,7 +130,7 @@ private fun entityDropTooltip(
     add("§7${dropAmount(listing.drop)}")
     listing.drop.chance?.let { add("§7Drop chance: §f${formatDropChance(it)}") }
     add("§7Source: §f${listing.table.name}")
-    listing.table.mobLevel?.let { add("§7Mob level: §f${ItemListFormatting.number(it.toLong())}") }
+    listing.table.mobLevel?.let { add("§7Mob level: §f${it.addSeparators()}") }
     listing.drop.details.forEach { add("§7$it") }
     if (canOpen) {
         add("")
@@ -138,9 +139,9 @@ private fun entityDropTooltip(
 }
 
 private fun dropAmount(drop: SkyBlockEntityDrop): String = if (drop.minAmount == drop.maxAmount) {
-    "Amount: ${ItemListFormatting.number(drop.minAmount)}"
+    "Amount: ${drop.minAmount.addSeparators()}"
 } else {
-    "Amount: ${ItemListFormatting.number(drop.minAmount)}–${ItemListFormatting.number(drop.maxAmount)}"
+    "Amount: ${drop.minAmount.addSeparators()}–${drop.maxAmount.addSeparators()}"
 }
 
 private fun dropAmountDecoration(drop: SkyBlockEntityDrop): String? = drop.maxAmount.takeIf { it > 1L }

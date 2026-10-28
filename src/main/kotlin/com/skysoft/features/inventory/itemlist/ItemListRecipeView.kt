@@ -18,6 +18,7 @@ import com.skysoft.data.skyblock.itemListKey
 import com.skysoft.data.skyblock.recipeIngredientStack
 import com.skysoft.features.inventory.crafting.addCraftingHelperTarget
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -363,7 +364,7 @@ internal class ItemListRecipeView(
         val stack = if (isSelectable) baseStack?.withActionHint("SELECT") else baseStack
         if (stack != null) {
             val displayedCount = if (petLevelKey == null && currencyStack == null) displayedIngredient.count else 1L
-            val decorationText = displayedCount.takeIf { it > 1 }?.let(ItemListFormatting::number)
+            val decorationText = displayedCount.takeIf { it > 1 }?.addSeparators()
             renderViewerItem(context, font, stack, bounds, decorationText)
             when {
                 petLevelKey != null ->
@@ -394,7 +395,7 @@ internal class ItemListRecipeView(
             val label = displayedIngredient.displayName ?: displayedIngredient.id.replace('_', ' ')
             LegacyTextRenderer.draw(
                 context,
-                "§6${ItemListFormatting.number(displayedIngredient.count)}",
+                "§6${displayedIngredient.count.addSeparators()}",
                 bounds.x + 2,
                 bounds.y + 2,
             )
@@ -477,7 +478,7 @@ private fun renderProcessDetails(
 ) {
     val lines = buildList {
         val coins = displayedProcessCoins(recipe, petLevels)
-        if (coins > 0) add("§6${ItemListFormatting.number(coins)} Coins")
+        if (coins > 0) add("§6${coins.addSeparators()} Coins")
         if (recipe.durationSeconds > 0) add("§e${ItemListFormatting.duration(recipe.durationSeconds)}")
     }
     lines.take(MAX_PROCESS_DETAIL_LINES).forEachIndexed { index, line ->

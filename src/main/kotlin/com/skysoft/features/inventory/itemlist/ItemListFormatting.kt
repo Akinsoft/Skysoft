@@ -1,12 +1,9 @@
 package com.skysoft.features.inventory.itemlist
 
-import com.skysoft.utils.NumberUtilities.addSeparators
 import java.util.Locale
 import kotlin.math.floor
 
 internal object ItemListFormatting {
-    fun number(value: Long): String = value.addSeparators()
-
     fun compactNumber(value: Long): String = when {
         value >= BILLION -> compact(value, BILLION, "b")
         value >= MILLION -> compact(value, MILLION, "m")

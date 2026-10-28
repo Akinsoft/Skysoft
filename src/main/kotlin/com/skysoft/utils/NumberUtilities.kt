@@ -11,7 +11,7 @@ object NumberUtilities {
     private val integerFormat = ThreadLocal.withInitial { DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US)) }
     private val shortDecimalFormat = ThreadLocal.withInitial { DecimalFormat("#,##0.#", DecimalFormatSymbols(Locale.US)) }
 
-    data class CompactNumber(val value: Double, val approximate: Boolean)
+    data class CompactNumber(val value: Double, val approximate: Boolean, val resolution: Double)
 
     fun Int.addSeparators(): String = integerFormat.get().format(this)
     fun Long.addSeparators(): String = integerFormat.get().format(this)
@@ -30,8 +30,10 @@ object NumberUtilities {
             'b' -> BILLION
             else -> 1.0
         }
-        val number = if (multiplier == 1.0) clean else clean.dropLast(1)
-        return number.toDoubleOrNull()?.let { CompactNumber(it * multiplier, approximate = multiplier != 1.0) }
+        if (multiplier == 1.0) return clean.toDoubleOrNull()?.let { CompactNumber(it, approximate = false, resolution = 0.0) }
+        val number = clean.dropLast(1)
+        val resolution = multiplier / 10.0.pow(number.substringAfter('.', "").length)
+        return number.toDoubleOrNull()?.let { CompactNumber(it * multiplier, approximate = true, resolution = resolution) }
     }
 
     fun String.romanToDecimal(): Int {

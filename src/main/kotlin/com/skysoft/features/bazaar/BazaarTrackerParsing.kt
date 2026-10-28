@@ -4,6 +4,7 @@ import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.ProfileStorageApi
+import com.skysoft.utils.NumberUtilities.CompactNumber
 import net.minecraft.world.item.ItemStack
 import java.util.UUID
 import kotlin.math.abs
@@ -119,7 +120,7 @@ private fun parseOrderNumbers(clean: List<String>, type: BazaarOrderType): Parse
     val filledTotalParsed = filledMatch?.groupValues?.get(FILLED_TOTAL_GROUP)?.let { parseNumber(it) }
     val amountParsed = explicitAmountParsed
         ?: filledTotalParsed
-        ?: NumberParse(0.0, approximate = true, resolution = 0.0)
+        ?: CompactNumber(0.0, approximate = true, resolution = 0.0)
     val worthParsed = clean.firstNotNullOfOrNull { line -> worthPattern.matchEntire(line)?.groupValues?.get(1) }
         ?.let { parseNumber(it) }
     val unitPriceParsed = clean.firstNotNullOfOrNull { line -> pricePerUnitPattern.matchEntire(line)?.groupValues?.get(1) }
@@ -156,13 +157,13 @@ private fun parseOrderNumbers(clean: List<String>, type: BazaarOrderType): Parse
 
 private data class ParsedOrderNumbers(
     val amount: Long,
-    val amountParsed: NumberParse,
+    val amountParsed: CompactNumber,
     val pricePerUnit: Double,
     val priceResolution: Double,
     val totalCoins: Double?,
     val totalResolution: Double,
     val filled: Long?,
-    val filledParsed: NumberParse?,
+    val filledParsed: CompactNumber?,
     val tax: Double?,
 )
 
