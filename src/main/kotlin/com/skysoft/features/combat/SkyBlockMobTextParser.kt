@@ -40,11 +40,7 @@ internal object SkyBlockMobTextParser {
         }
     }
 
-    private fun String.parseCompactNumber(): Long? {
-        val value = replace(",", "").trim()
-        if (value.isEmpty()) return null
-        return value.parseCompactNumberOrNull()?.value?.toLong()
-    }
+    private fun String.parseCompactNumber(): Long? = parseCompactNumberOrNull()?.value?.toLong()
 
     private data class HealthMatch(
         val start: Int,

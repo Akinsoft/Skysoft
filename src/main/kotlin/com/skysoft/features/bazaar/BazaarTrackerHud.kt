@@ -6,6 +6,9 @@ import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.NumberUtilities.coinFormat
+import com.skysoft.utils.NumberUtilities.signedCoinFormat
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -91,8 +94,8 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
             } else {
                 storage.totalKnownProfit
             }
-            add(DisplayLine.text("§7Invested: §6${formatCoins(activeValue)}"))
-            add(DisplayLine.text("§7Profit: §a${formatSigned(profit)}"))
+            add(DisplayLine.text("§7Invested: §6${activeValue.coinFormat()}"))
+            add(DisplayLine.text("§7Profit: §a${profit.signedCoinFormat()}"))
             if (inventoryOpen) add(displayModeLine())
             if (inventoryOpen) add(resetLine())
         }
@@ -122,9 +125,9 @@ private fun displayOrders(): List<ProfileStorageView.BazaarOrderData> =
 internal fun orderLine(order: ProfileStorageView.BazaarOrderData): DisplayLine {
     val status = statusFor(order)
     val typeColor = if (order.type == BazaarOrderType.BUY) "§b" else "§d"
-    val progress = "${fillProgressStyle(order)}(${formatAmount(visibleFilledAmount(order))}/${formatOrderAmount(order)})"
+    val progress = "${fillProgressStyle(order)}(${visibleFilledAmount(order).addSeparators()}/${formatOrderAmount(order)})"
     val text = "$typeColor${order.type.label} §e${formatOrderAmount(order)}x §f${order.itemName} " +
-        "§7@ §6${formatCoins(order.pricePerUnit)} §7$progress"
+        "§7@ §6${order.pricePerUnit.coinFormat()} §7$progress"
     return DisplayLine(status.label, status.color, listOf(LineSegment(text)))
 }
 

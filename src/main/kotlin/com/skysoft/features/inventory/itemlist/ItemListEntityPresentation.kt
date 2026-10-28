@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockEntityStacks
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.isMob
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.gui.Rect
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -89,9 +90,9 @@ private fun entityStatRange(label: String, values: List<Int>): String? {
     val distinct = values.distinct().sorted()
     if (distinct.isEmpty()) return null
     val formatted = if (distinct.size == 1) {
-        ItemListFormatting.number(distinct.single().toLong())
+        distinct.single().addSeparators()
     } else {
-        "${ItemListFormatting.number(distinct.first().toLong())}–${ItemListFormatting.number(distinct.last().toLong())}"
+        "${distinct.first().addSeparators()}–${distinct.last().addSeparators()}"
     }
     return "§7$label: §f$formatted"
 }

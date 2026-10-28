@@ -8,6 +8,7 @@ import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.data.skyblock.price.SkysoftBazaarFlowDelta
 import com.skysoft.features.bazaar.BazaarInvestmentPosition
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import com.skysoft.utils.IdentityRefreshCache
 import com.skysoft.utils.NumberUtilities.coinFormat
@@ -168,7 +169,7 @@ internal object BazaarGraphPlotRenderer {
         val profitText = if (profit == null) "" else " ${if (profit >= 0.0) "§a+" else "§c"}${profit.coinAmountFormat()}"
         LegacyTextRenderer.draw(
             context,
-            "§6Tracked ${ItemListFormatting.number(investment.amount)} §8| §7cost ${investment.investedCoins.coinAmountFormat()} " +
+            "§6Tracked ${investment.amount.addSeparators()} §8| §7cost ${investment.investedCoins.coinAmountFormat()} " +
                 "§8| §7$valueText$profitText",
             bounds.x + PlotLayout.PANEL_INSET,
             bounds.y + PlotLayout.INVESTMENT_Y,
@@ -231,9 +232,9 @@ internal object BazaarGraphPlotRenderer {
             listOf(
                 "${if (label == "Buy") "§aBuy order depth" else "§cSell order depth"}",
                 "§7Price: §6${row.pricePerUnit.coinAmountFormat()} coins",
-                "§7Amount: §f${ItemListFormatting.number(row.amount)}",
-                "§7Orders: §f${ItemListFormatting.number(row.orders)}",
-                "§7Cumulative: §f${ItemListFormatting.number(point.cumulative)}",
+                "§7Amount: §f${row.amount.addSeparators()}",
+                "§7Orders: §f${row.orders.addSeparators()}",
+                "§7Cumulative: §f${point.cumulative.addSeparators()}",
             ),
             mouseX,
             mouseY,
@@ -267,7 +268,7 @@ internal object BazaarGraphPlotRenderer {
             listOf(
                 "§6Tracked purchase cost",
                 "§7Average: §f${cost.coinAmountFormat()} coins",
-                "§7Amount: §f${ItemListFormatting.number(investment.amount)}",
+                "§7Amount: §f${investment.amount.addSeparators()}",
             ),
             mouseX,
             mouseY,
@@ -312,7 +313,7 @@ internal object BazaarGraphPlotRenderer {
             context,
             listOf(
                 "§f${PlotStyle.TIME_FORMAT.format(Instant.ofEpochMilli(row.at))}",
-                "${if (isBuy) "§aBuy" else "§cSell"} volume: §f${ItemListFormatting.number(value.roundToInt().toLong())}",
+                "${if (isBuy) "§aBuy" else "§cSell"} volume: §f${value.roundToInt().addSeparators()}",
             ),
             mouseX,
             mouseY,
@@ -358,7 +359,7 @@ internal object BazaarGraphPlotRenderer {
             listOf(
                 "§f${transaction.type.displayName}",
                 "§7Time: §f${PlotStyle.TIME_FORMAT.format(Instant.ofEpochMilli(transaction.atMillis))}",
-                "§7Quantity: §f${ItemListFormatting.number(transaction.amount)}",
+                "§7Quantity: §f${transaction.amount.addSeparators()}",
                 "§7Price each: §6${transaction.pricePerUnit().coinAmountFormat()} coins",
                 "§7Total: §6${transaction.totalCoins.coinAmountFormat()} coins",
             ),

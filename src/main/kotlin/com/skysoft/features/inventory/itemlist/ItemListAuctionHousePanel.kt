@@ -14,6 +14,7 @@ import com.skysoft.features.inventory.registryOps
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.DurationParts
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TextUtilities.parseUUIDOrNull
 import com.skysoft.utils.gui.Rect
@@ -252,7 +253,7 @@ internal fun auctionTooltipLines(
     styled("-----------------", ChatFormatting.DARK_GRAY, strikethrough = true),
     styled("Seller: ", ChatFormatting.GRAY).append(styled(seller, ChatFormatting.GRAY)),
     styled("Buy it now: ", ChatFormatting.GRAY).append(
-        styled("${ItemListFormatting.number(listing.price)} coins", ChatFormatting.GOLD),
+        styled("${listing.price.addSeparators()} coins", ChatFormatting.GOLD),
     ),
     Component.empty(),
     styled("Ends in: ", ChatFormatting.GRAY).append(

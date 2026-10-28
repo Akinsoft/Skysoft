@@ -4,6 +4,7 @@ import com.skysoft.data.skyblock.RecipeIngredient
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.expandedOptions
+import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -162,7 +163,7 @@ internal class ItemListFusionSelectorPanel {
         val stack = SkyBlockDataRepository.displayStack(key)?.withActionHint("SELECT") ?: return
         context.item(stack, bounds.x + 1, bounds.y + 1)
         if (ingredient.count > 1) {
-            context.itemDecorations(font, stack, bounds.x + 1, bounds.y + 1, ItemListFormatting.number(ingredient.count))
+            context.itemDecorations(font, stack, bounds.x + 1, bounds.y + 1, ingredient.count.addSeparators())
         }
         if (bounds.contains(mouseX, mouseY)) {
             context.setTooltipForNextFrame(font, stack.withRecipeIngredientCount(ingredient.count), mouseX, mouseY)
