@@ -4,6 +4,8 @@ import com.skysoft.config.DianaLootshareDetailsConfig
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.BlockHighlightRenderer
 import com.skysoft.utils.render.EntityLabelRenderer
@@ -129,7 +131,7 @@ internal object DianaRareMobRenderer {
         if (target.lootshareEligible) lootshareColors.ready else lootshareColors.missing
 
     private fun DianaRareMobTarget.isCloseEnoughForLootshareRadius(): Boolean {
-        val playerLocation = DianaRareMobRuntime.playerLocation() ?: return false
+        val playerLocation = localPlayerLocation() ?: return false
         return lineLocation().distance(playerLocation) <= LOOTSHARE_RADIUS_RENDER_DISTANCE
     }
 

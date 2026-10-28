@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
@@ -10,7 +11,7 @@ internal object DianaLootshareReadyMessage {
         val config = SkysoftConfigGui.config().events.diana.lootshare
         if (!config.enabled) return
         if (config.settings.partyCheckmarks) {
-            DianaRareMobRuntime.localPlayerName()?.let { playerName ->
+            localPlayerName()?.let { playerName ->
                 DianaLootshareReadyMarkers.mark(playerName, System.currentTimeMillis())
             }
         }

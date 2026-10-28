@@ -5,10 +5,9 @@ import com.skysoft.data.skyblock.SkyBlockPlayerDeathParser
 import com.skysoft.events.input.BlockInteractionEvent
 import com.skysoft.events.input.BlockInteractionEvents
 import com.skysoft.features.event.diana.DianaEventState.isDianaSpade
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatMessage
-import com.skysoft.utils.toWorldVec
-import net.minecraft.client.Minecraft
 
 internal object DianaBurrowInteractions {
     private val config get() = SkysoftConfigGui.config().events.diana
@@ -33,7 +32,7 @@ internal object DianaBurrowInteractions {
             }
             message.cleanText.startsWith("You dug out a Griffin Burrow!") -> {
                 val now = System.currentTimeMillis()
-                val playerLocation = currentPlayerLocation()
+                val playerLocation = localPlayerLocation()
                 val completed = completeProgressBurrow(now, playerLocation)
                 val progress = parseDianaBurrowProgress(message.cleanText)
                 DianaBurrowChainState.onProgress(progress, completed, now)
@@ -49,16 +48,16 @@ internal object DianaBurrowInteractions {
             message.cleanText == "Question" || message.cleanText == "Click your response to answer!" ->
                 extendPendingClicksForQuestion()
             message.cleanText == "Defeat all the burrow defenders in order to dig it!" ->
-                markInteractedMobBurrow(System.currentTimeMillis(), currentPlayerLocation())
+                markInteractedMobBurrow(System.currentTimeMillis(), localPlayerLocation())
             MOB_SPAWN_PATTERN.matches(message.cleanText) ->
-                markInteractedMobBurrow(System.currentTimeMillis(), currentPlayerLocation())
+                markInteractedMobBurrow(System.currentTimeMillis(), localPlayerLocation())
             TREASURE_PATTERN.matches(message.cleanText) -> {
                 val now = System.currentTimeMillis()
-                val completed = completeTreasureBurrow(now, currentPlayerLocation())
+                val completed = completeTreasureBurrow(now, localPlayerLocation())
                 DianaBurrowChainState.onTreasureCompleted(completed, now)
             }
             SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText) ->
-                removeActiveMobBurrow(System.currentTimeMillis(), currentPlayerLocation())
+                removeActiveMobBurrow(System.currentTimeMillis(), localPlayerLocation())
         }
     }
 
@@ -227,7 +226,7 @@ internal object DianaBurrowInteractions {
 
     private fun finishInteractedChain() {
         val now = System.currentTimeMillis()
-        val playerLocation = currentPlayerLocation()
+        val playerLocation = localPlayerLocation()
         val completed = completeProgressBurrow(now, playerLocation)
         DianaBurrowChainState.onProgress(
             progress = DianaBurrowProgress(completed = 10, total = 10),
@@ -236,9 +235,6 @@ internal object DianaBurrowInteractions {
         )
         DianaArrowGuess.clearCurrentGuess(playerLocation, now)
     }
-
-    private fun currentPlayerLocation(): WorldVec? =
-        runCatching { Minecraft.getInstance().player?.position()?.toWorldVec() }.getOrNull()
 
     private fun removeLastPendingClick(now: Long): PendingBurrowClick? {
         pendingClicks.removeAll { click -> now >= click.expiresAtMillis }

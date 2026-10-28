@@ -7,6 +7,7 @@ import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.features.combat.SkyBlockMobSignal
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.location
@@ -14,7 +15,6 @@ import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.EntityHighlightTracker
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
-import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.LivingEntity
 import java.util.UUID
@@ -91,7 +91,7 @@ object SlayerTargetHighlighting {
     }
 
     private fun renderWorld(context: SkysoftRenderContext) {
-        val playerLocation = Minecraft.getInstance().player?.position()?.toWorldVec() ?: return
+        val playerLocation = localPlayerLocation() ?: return
         val visibleTargets = targets.filter { target -> target.entity?.isVisibleToPlayer() == true }
         val target = selectSlayerLineTarget(visibleTargets, playerLocation) ?: return
         context.drawLineToCrosshair(

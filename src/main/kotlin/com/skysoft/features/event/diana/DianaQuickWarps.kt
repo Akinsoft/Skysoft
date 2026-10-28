@@ -4,9 +4,9 @@ import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftInput
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.input.InputUtilities
-import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 
 internal object DianaQuickWarps {
@@ -63,7 +63,7 @@ internal object DianaQuickWarps {
 
     private fun activeWarpSuggestion(): DianaWarpSuggestion? {
         if (!quickWarps.enabled || MinecraftClient.screen() != null) return null
-        val playerLocation = currentPlayerLocation() ?: return null
+        val playerLocation = localPlayerLocation() ?: return null
         if (config.rareMobSharing.enabled) {
             DianaRareMobSharing.remotePriorityTarget?.let { target ->
                 return currentWarpSuggestion(target.sharedLocation, playerLocation)
@@ -88,9 +88,6 @@ internal object DianaQuickWarps {
             disabledCommands = disabledWarpCommands,
             warps = quickWarpSettings.warps.get(),
         )
-
-    private fun currentPlayerLocation(): WorldVec? =
-        Minecraft.getInstance().player?.position()?.toWorldVec()
 
     private const val WARP_FAILURE_WINDOW_MILLIS = 5_000L
 }

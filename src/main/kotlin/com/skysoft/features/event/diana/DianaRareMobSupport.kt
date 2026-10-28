@@ -6,25 +6,18 @@ import com.skysoft.features.combat.DamageSplash
 import com.skysoft.features.combat.DamageSplashAttribution
 import com.skysoft.features.combat.DamageSplashTargetView
 import com.skysoft.features.combat.DamageSplashText
-import com.skysoft.utils.WorldVec
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.location
 import com.skysoft.utils.render.EntityHighlightRenderer
-import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.decoration.ArmorStand
 import java.awt.Color
 
 internal object DianaRareMobRuntime {
-    fun playerLocation(): WorldVec? =
-        minecraftOrNull()?.player?.position()?.toWorldVec()
-
-    fun localPlayerName(): String? =
-        minecraftOrNull()?.player?.gameProfile?.name
-
     fun shareKey(serverName: String, sender: String, share: DianaRareMobShare): String =
         "$serverName:${sender.lowercase()}:${share.mob.name}:${share.location.blockKey()}"
 
@@ -33,9 +26,6 @@ internal object DianaRareMobRuntime {
 
     fun senderFor(message: ChatMessage, marker: String): ChatMessageSender? =
         ChatSenderParser.senderBefore(message, marker)
-
-    private fun minecraftOrNull(): Minecraft? =
-        Minecraft.getInstance()
 }
 
 internal object DianaRareMobLootshare {

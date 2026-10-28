@@ -1,6 +1,7 @@
 package com.skysoft.utils.chat
 
 import com.skysoft.data.hypixel.HypixelPartyApi
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
@@ -132,9 +133,6 @@ object SkysoftPartyShare {
 
     private fun hasRecentPartyChatEvidence(now: Long = System.currentTimeMillis()): Boolean =
         now <= partyChatObservedUntilMillis
-
-    private fun localPlayerName(): String? =
-        runCatching { Minecraft.getInstance().player?.gameProfile?.name }.getOrNull()
 
     private fun ChatMessageSender.isLocalPlayerName(localPlayerName: String?): Boolean =
         localPlayerName != null && name.equals(localPlayerName, ignoreCase = true)

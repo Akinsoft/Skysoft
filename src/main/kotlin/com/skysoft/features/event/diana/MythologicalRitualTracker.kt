@@ -8,6 +8,7 @@ import com.skysoft.features.loot.RareLootContextContributor
 import com.skysoft.features.loot.RareLootContextRegistry
 import com.skysoft.features.loot.RareLootDropCount
 import com.skysoft.features.loot.RareLootShareReceipt
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -68,7 +69,7 @@ internal object MythologicalRitualTracker {
         val state = MythologicalRitualTrackerRepository.displayStateOrNull() ?: return
         val response = MythologicalRitualPartyCommands.response(
             body = message.body,
-            localPlayerName = DianaRareMobRuntime.localPlayerName(),
+            localPlayerName = localPlayerName(),
             state = state,
             enabledCommands = config.partyCommands.settings.commands.get(),
         ) ?: return

@@ -5,6 +5,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.features.combat.SkyBlockMobSignal
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
@@ -19,7 +20,6 @@ import com.skysoft.utils.toWorldVec
 import java.awt.Color
 import java.util.UUID
 import net.minecraft.ChatFormatting
-import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvent
 
@@ -51,7 +51,7 @@ object QueenAntWarning {
 
     private fun beginSearch() {
         if (activeQueenId != null) return
-        val playerLocation = Minecraft.getInstance().player?.position()?.toWorldVec() ?: return
+        val playerLocation = localPlayerLocation() ?: return
         pendingSearch = PendingQueenAntSearch(
             playerLocation = playerLocation,
             existingQueenIds = queenAntSignals().mapNotNullTo(mutableSetOf()) { signal -> signal.trackingId() },

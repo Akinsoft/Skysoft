@@ -8,6 +8,7 @@ import com.skysoft.events.input.ItemUseEvent
 import com.skysoft.events.input.ItemUseEvents
 import com.skysoft.events.particle.ClientParticleEvent
 import com.skysoft.events.particle.ClientParticleEvents
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
@@ -46,7 +47,7 @@ object FishingHotspotRadar {
             return
         }
         val guess = solver.guess ?: return
-        val playerLocation = FishingHotspotDetector.playerLocation() ?: return
+        val playerLocation = localPlayerLocation() ?: return
         if (shouldClearFishingHotspotRadarGuess(guess, playerLocation)) {
             solver.clear()
         }

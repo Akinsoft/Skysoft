@@ -21,6 +21,7 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -491,7 +492,7 @@ private class PartyDisplayHudControls {
             textColor,
             true,
         )
-        val localPlayerName = Minecraft.getInstance().player?.gameProfile?.name
+        val localPlayerName = localPlayerName()
         val canManage = localLeader && !member.name.equals(localPlayerName, ignoreCase = true)
         val disabledReason = if (!localLeader) {
             "§cOnly the Party Leader can manage members."

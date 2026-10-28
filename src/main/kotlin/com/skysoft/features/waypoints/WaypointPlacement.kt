@@ -1,6 +1,7 @@
 package com.skysoft.features.waypoints
 
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
@@ -12,7 +13,7 @@ internal object WaypointPlacement {
     private var target: WorldVec? = null
     private var targetLevel: ClientLevel? = null
     val crosshair: WorldVec? get() = target.takeIf { targetLevel === Minecraft.getInstance().level }
-    val feet: WorldVec? get() = Minecraft.getInstance().player?.position()?.toWorldVec()?.let(::feetAt)
+    val feet: WorldVec? get() = localPlayerLocation()?.let(::feetAt)
 
     fun feetAt(position: WorldVec): WorldVec = position.down(FEET_EPSILON).roundToBlock()
 

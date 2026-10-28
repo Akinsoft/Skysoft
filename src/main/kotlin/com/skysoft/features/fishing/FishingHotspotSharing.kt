@@ -4,6 +4,8 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.FishingHotspotType
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatEvents
@@ -71,7 +73,7 @@ object FishingHotspotSharing {
 
     private fun scanHotspots() {
         val now = System.currentTimeMillis()
-        val playerLocation = FishingHotspotDetector.playerLocation()
+        val playerLocation = localPlayerLocation()
         val nearestHotspotId = playerLocation?.let(hotspotTracker::nearestHotspotId)
         val change = hotspotTracker.reconcile(
             observations = FishingHotspotDetector.detect(),
@@ -100,7 +102,7 @@ object FishingHotspotSharing {
         if (config.shareHotspots) {
             val result = hotspotTracker.recordPartyShare(
                 share = share,
-                playerLocation = FishingHotspotDetector.playerLocation(),
+                playerLocation = localPlayerLocation(),
                 now = now,
             )
             result.announcedHotspotId?.let(pendingShares::remove)
@@ -179,8 +181,7 @@ object FishingHotspotSharing {
     }
 
     private fun shareHotspot(hotspot: TrackedFishingHotspot): HotspotShareResult {
-        val minecraft: Minecraft? = Minecraft.getInstance()
-        val playerName = minecraft?.player?.gameProfile?.name
+        val playerName = localPlayerName()
             ?: return HotspotShareResult.PLAYER_UNAVAILABLE
         hotspotTracker.markAnnounced(hotspot.id)
         val now = System.currentTimeMillis()
@@ -230,7 +231,7 @@ object FishingHotspotSharing {
         val now = System.currentTimeMillis()
         sharedHotspots.entries.removeIf { it.value.expiresAtMillis <= now }
         pendingShares.entries.removeIf { it.value.expiresAtMillis <= now }
-        val playerLocation = FishingHotspotDetector.playerLocation()
+        val playerLocation = localPlayerLocation()
         waypointHotspots.entries.removeIf { (_, waypoint) ->
             shouldRemoveFishingHotspotWaypoint(waypoint, playerLocation, now)
         }
