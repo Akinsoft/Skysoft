@@ -1,7 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryCell
-import net.minecraft.client.Minecraft
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import net.minecraft.world.item.ItemStack
 
 private val bazaarOrderOwnerPattern = Regex("""^By: (?:\[[^]]+] )*([A-Za-z0-9_]{1,16})$""")
@@ -25,14 +25,14 @@ private fun isLocalBazaarOrder(stack: ItemStack, playerName: String): Boolean? =
     parseBazaarOrderOwner(stack)?.let { owner -> !shouldBlockBazaarOrderOwner(owner, playerName) }
 
 internal fun isLocalCoopBazaarOrder(stack: ItemStack): Boolean {
-    val playerName = Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank) ?: return false
+    val playerName = localPlayerName()?.takeIf(String::isNotBlank) ?: return false
     return isLocalBazaarOrder(stack, playerName) == true
 }
 
 internal fun parseBazaarOrderScan(title: String, cells: List<SkyBlockOpenInventoryCell>): BazaarOrderScan? {
     if (!ordersMenuLoaded(cells.asSequence().map { cell -> cell.item })) return null
     val playerName = if (title == COOP_BAZAAR_ORDERS_TITLE) {
-        Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank) ?: return null
+        localPlayerName()?.takeIf(String::isNotBlank) ?: return null
     } else {
         null
     }

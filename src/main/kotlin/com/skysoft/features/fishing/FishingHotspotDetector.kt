@@ -4,7 +4,6 @@ import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.Entity
@@ -33,9 +32,6 @@ internal object FishingHotspotDetector {
         val level = Minecraft.getInstance().level ?: return false
         return level.isLoaded(BlockPos(location.x.toInt(), location.y.toInt(), location.z.toInt()))
     }
-
-    fun playerLocation(): WorldVec? =
-        Minecraft.getInstance().player?.position()?.toWorldVec()
 
     private fun Entity.blockLocationBelowTag(): WorldVec {
         val pos = blockPosition()

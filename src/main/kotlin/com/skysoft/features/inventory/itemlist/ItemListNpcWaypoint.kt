@@ -8,9 +8,9 @@ import com.skysoft.data.skyblock.SkyBlockEntityStacks
 import com.skysoft.data.skyblock.SkyBlockEventAvailability
 import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.data.skyblock.SkyBlockWarpPoint
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.location
-import com.skysoft.utils.toWorldVec
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelRenderer
 import com.skysoft.utils.render.WorldLabelStyle
@@ -86,7 +86,7 @@ internal object ItemListNpcWaypoint {
 
     private fun tick() {
         val minecraft = Minecraft.getInstance()
-        val playerPosition = minecraft.player?.position()?.toWorldVec()
+        val playerPosition = localPlayerLocation()
         val now = System.currentTimeMillis()
         warpFailures.entries.removeIf { it.value <= now }
         pendingWarp?.let { pending ->

@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.ScreenSlotLayout
 import com.skysoft.utils.gui.nonPlayerSlots
@@ -63,7 +64,7 @@ internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Se
 }
 
 internal fun bazaarOrderMenuPlan(screen: ContainerScreen): BazaarOrderMenuPlan? {
-    val playerName = Minecraft.getInstance().player?.gameProfile?.name?.takeIf(String::isNotBlank) ?: return null
+    val playerName = localPlayerName()?.takeIf(String::isNotBlank) ?: return null
     val slots = screen.nonPlayerSlots().sortedBy { slot -> slot.containerSlot }
     if (!isSupportedBazaarOrderMenu(screen, slots)) return null
     val containerRows = screen.menu.rowCount

@@ -1,6 +1,7 @@
 package com.skysoft.features.chat
 
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
 import com.skysoft.utils.SoundUtilities
@@ -12,7 +13,6 @@ import com.skysoft.utils.render.ChromaTextRendering
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
 import java.util.Optional
-import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FormattedText
 import net.minecraft.network.chat.MutableComponent
@@ -26,7 +26,7 @@ object ChatNotifier {
             entries = config.settings.words.get(),
             isEnabled = config.enabled,
             isOwnMessagesIgnored = config.settings.isOwnMessagesIgnored,
-            ownPlayerName = Minecraft.getInstance().player?.gameProfile?.name,
+            ownPlayerName = localPlayerName(),
             playPing = ::playPing,
         )
     }

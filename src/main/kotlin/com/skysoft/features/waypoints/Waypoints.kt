@@ -4,10 +4,10 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.toWorldVec
 import java.util.UUID
 import net.minecraft.client.Minecraft
 
@@ -154,7 +154,7 @@ internal object Waypoints {
         } else {
             WaypointPlacement.capture(minecraft)
             val routeGroup = WaypointLibrary.groups.firstOrNull { it.id == route.groupId && isInContext(it) }
-            minecraft.player?.position()?.toWorldVec()?.let { route.tick(routeGroup, it) }
+            localPlayerLocation()?.let { route.tick(routeGroup, it) }
         }
         wasEnabled = config.enabled
         WaypointKeybinds.tick()

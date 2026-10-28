@@ -9,6 +9,8 @@ import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.data.skyblock.SkyBlockPlayerDeathParser
 import com.skysoft.features.pets.ActivePetTracker
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
@@ -51,7 +53,7 @@ internal object DianaRareMobSharing {
             DianaRareMobLootshare.handleMetadata(
                 event,
                 currentTargets(),
-                DianaRareMobRuntime.localPlayerName(),
+                localPlayerName(),
                 System.currentTimeMillis(),
             )
         }
@@ -139,15 +141,15 @@ internal object DianaRareMobSharing {
             linkTargets(signals, now)
         }
         val activeTargets = currentTargets()
-        if (signals != null) pruneStaleRemoteTargets(activeTargets, now, DianaRareMobRuntime.playerLocation())
+        if (signals != null) pruneStaleRemoteTargets(activeTargets, now, localPlayerLocation())
         if (lootshareFeature.enabled) {
-            DianaRareMobLootshare.scan(activeTargets, DianaRareMobRuntime.localPlayerName(), now)
+            DianaRareMobLootshare.scan(activeTargets, localPlayerName(), now)
         } else {
             DianaLootshareReadyMarkers.clear()
         }
         DianaRareMobGlow.apply(
             activeTargets,
-            DianaRareMobRuntime.localPlayerName(),
+            localPlayerName(),
             lootshareFeature.enabled,
             lootshareDetails.lootshareColors(),
         )
@@ -163,7 +165,7 @@ internal object DianaRareMobSharing {
         ) {
             return DianaLootshareReadyMessage.handlePartyMessage(
                 message = message,
-                localPlayerName = DianaRareMobRuntime.localPlayerName(),
+                localPlayerName = localPlayerName(),
                 now = now,
                 showMarker = lootshareSettings.partyCheckmarks && currentTargets().isNotEmpty(),
                 showMessage = config.showPartyMessages,
@@ -213,7 +215,7 @@ internal object DianaRareMobSharing {
 
     private fun handlePartyMessage(message: ChatMessage, now: Long): ChatMessageVisibility {
         val context = DianaRareMobPartyMessages.Context(
-            localPlayerName = DianaRareMobRuntime.localPlayerName(),
+            localPlayerName = localPlayerName(),
             receivedRareMobs = settings.receivedRareMobs.get(),
             showRareMobSharing = feature.enabled,
             showPartyMessages = config.showPartyMessages,
@@ -243,11 +245,11 @@ internal object DianaRareMobSharing {
 
     private fun handleLocalCocoon(cocoon: DianaRareMobCocoon, now: Long) {
         if (!settings.shareMobs || cocoon.mob !in settings.sharedRareMobs.get()) return
-        val localPlayerName = DianaRareMobRuntime.localPlayerName() ?: return
+        val localPlayerName = localPlayerName() ?: return
         val serverName = HypixelLocationState.currentServerName ?: return
         val currentTargets = currentTargets()
         val location = localCocoonLocation(cocoon.mob, currentTargets, currentRecentLocalDeaths())
-            ?: DianaRareMobRuntime.playerLocation()?.down()?.roundToBlock()
+            ?: localPlayerLocation()?.down()?.roundToBlock()
         pendingLocalSpawns.removeIf { pending -> pending.serverName == serverName && pending.mob == cocoon.mob }
         recentLocalDeaths.removeIf { death -> death.serverName == serverName && death.mob == cocoon.mob }
         val localTargets = currentTargets
@@ -279,7 +281,7 @@ internal object DianaRareMobSharing {
             DianaRareMobLootshare.tryHandleDamageSplash(
                 entity,
                 currentTargets(),
-                DianaRareMobRuntime.localPlayerName(),
+                localPlayerName(),
                 now,
             )
         ) return
@@ -317,14 +319,14 @@ internal object DianaRareMobSharing {
         val canDamage = DianaMythologicalPetRequirement.canDamageRareMob(activePet)
         target.recordLocalAttack(
             event.clickedEntity,
-            DianaRareMobRuntime.playerLocation(),
+            localPlayerLocation(),
             System.currentTimeMillis(),
             canDamage,
         )
     }
 
     private fun trySharePending(signals: List<DianaRareMobSignal>, now: Long) {
-        val playerLocation = DianaRareMobRuntime.playerLocation() ?: return
+        val playerLocation = localPlayerLocation() ?: return
         val serverName = HypixelLocationState.currentServerName ?: return
         val iterator = pendingLocalSpawns.iterator()
         while (iterator.hasNext()) {
@@ -344,7 +346,7 @@ internal object DianaRareMobSharing {
         signal: DianaRareMobSignal,
         now: Long,
     ): LocalRareMobShareResult {
-        val localPlayerName = DianaRareMobRuntime.localPlayerName() ?: return LocalRareMobShareResult.PLAYER_UNAVAILABLE
+        val localPlayerName = localPlayerName() ?: return LocalRareMobShareResult.PLAYER_UNAVAILABLE
         val sender = ChatMessageSender(localPlayerName, null)
         val share = DianaRareMobShare(pending.mob, signal.location.roundToBlock())
         rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, signal, pending.serverName, now)
@@ -443,13 +445,13 @@ internal object DianaRareMobSharing {
             showLootshare = lootshareFeature.enabled,
             drawCrosshairLine = config.burrowHelper.settings.crosshairLine,
             drawLootshareRadius = lootshareDetails.lootshareRadius,
-            localPlayerName = DianaRareMobRuntime.localPlayerName(),
+            localPlayerName = localPlayerName(),
             lootshareColors = lootshareDetails.lootshareColors(),
         )
         if (lootshareFeature.enabled && lootshareSettings.partyCheckmarks) {
             DianaLootshareReadyMarkers.renderWorld(
                 context,
-                DianaRareMobRuntime.localPlayerName(),
+                localPlayerName(),
                 activeSpawnerNames,
                 System.currentTimeMillis(),
             )
@@ -522,7 +524,7 @@ private fun currentRecentLocalDeaths(): List<RecentLocalRareMobDeath> {
 }
 
 private fun currentTarget(): DianaRareMobTarget? {
-    val playerLocation = DianaRareMobRuntime.playerLocation() ?: return null
+    val playerLocation = localPlayerLocation() ?: return null
     return currentTargets().minByOrNull { target -> target.lineLocation().distanceSq(playerLocation) }
 }
 

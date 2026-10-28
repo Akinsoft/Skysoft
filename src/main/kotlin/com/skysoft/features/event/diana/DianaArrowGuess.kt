@@ -1,9 +1,8 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.events.particle.ClientParticleEvent
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
-import com.skysoft.utils.toWorldVec
-import net.minecraft.client.Minecraft
 
 internal object DianaArrowGuess {
     private val detectors = mutableMapOf<DianaArrowDistance, DianaArrowShapeDetector>()
@@ -47,7 +46,7 @@ internal object DianaArrowGuess {
         detectors.values.forEach { detector -> detector.prune(now) }
         handleLoadedInvalidSequences(now)
         handleMissingBurrowParticles(
-            playerLocation = Minecraft.getInstance().player?.position()?.toWorldVec(),
+            playerLocation = localPlayerLocation(),
             particlesShouldBeVisible = burrowParticlesShouldBeVisible(now),
             now = now,
         )

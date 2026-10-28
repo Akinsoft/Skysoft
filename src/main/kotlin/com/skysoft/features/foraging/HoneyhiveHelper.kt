@@ -11,6 +11,7 @@ import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.hypixel.SkyBlockProfileId
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.DurationParts
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.WorldVec
@@ -196,7 +197,7 @@ object HoneyhiveHelper {
         val readyKeys = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
             .mapTo(mutableSetOf()) { it.locationKey() }
         dismissedReadyHives.retainAll(readyKeys)
-        val playerPosition = Minecraft.getInstance().player?.position()?.toWorldVec() ?: return
+        val playerPosition = localPlayerLocation() ?: return
         data.hives.filter { it.locationKey() in selectedHives && playerPosition.distanceSq(it.location()) <= ARRIVAL_RANGE_SQ }
             .forEach { dismissWaypoint(it, now) }
     }

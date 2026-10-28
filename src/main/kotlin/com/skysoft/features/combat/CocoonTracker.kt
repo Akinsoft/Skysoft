@@ -11,6 +11,7 @@ import com.skysoft.events.entity.EntityInteractionEvent
 import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
@@ -20,7 +21,6 @@ import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelRenderer
 import com.skysoft.utils.render.WorldLabelStyle
 import com.skysoft.utils.render.WorldRenderDispatcher
-import com.skysoft.utils.toWorldVec
 import java.util.Locale
 import kotlin.math.abs
 import net.minecraft.ChatFormatting
@@ -92,7 +92,7 @@ object CocoonTracker {
     private fun handleLocalCocoon(mobName: String?, isSlayerCocoon: Boolean) {
         val now = System.currentTimeMillis()
         removeFinishedCocoons(now)
-        val playerLocation = Minecraft.getInstance().player?.position()?.toWorldVec()
+        val playerLocation = localPlayerLocation()
         val message = PendingCocoonMessage(
             mobName = mobName,
             killedEntityLocation = recentKilledEntityLocation(now),

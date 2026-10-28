@@ -9,14 +9,13 @@ import com.skysoft.events.input.ItemUseEvent
 import com.skysoft.events.input.ItemUseEvents
 import com.skysoft.events.particle.ClientParticleEvent
 import com.skysoft.events.particle.ClientParticleEvents
+import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
-import com.skysoft.utils.toWorldVec
 import com.skysoft.utils.SkysoftClientEvents
-import net.minecraft.client.Minecraft
 
 object DianaBurrowHelper {
     private val config get() = SkysoftConfigGui.config().events.diana
@@ -137,7 +136,7 @@ object DianaBurrowHelper {
     }
 
     internal fun renderTargets(context: SkysoftRenderContext, targets: Collection<DianaBurrowTarget>) {
-        val playerLocation = currentPlayerLocation() ?: return
+        val playerLocation = localPlayerLocation() ?: return
         val target = targets.currentTarget(playerLocation) ?: return
         val labelColors = details.burrowLabelColors()
         DianaBurrowRenderer.renderWorld(
@@ -201,9 +200,6 @@ object DianaBurrowHelper {
         DianaArrowGuess.clear()
         DianaBurrowInteractions.clear()
     }
-
-    private fun currentPlayerLocation(): WorldVec? =
-        Minecraft.getInstance().player?.position()?.toWorldVec()
 
     private const val RARE_MOB_PRIORITY_BURROW_ALPHA = 0.5
 }

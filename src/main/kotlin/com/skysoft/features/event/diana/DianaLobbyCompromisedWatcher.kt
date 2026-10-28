@@ -6,6 +6,7 @@ import com.skysoft.config.MIN_LOBBY_COMPROMISED_STRANGER_LIMIT
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -116,7 +117,7 @@ internal object DianaLobbyCompromisedWatcher {
         val isOwnEcho = DianaRareMobPartyEcho.shouldHideRecentlySent(
             message,
             sender,
-            DianaRareMobRuntime.localPlayerName(),
+            localPlayerName(),
             System.currentTimeMillis(),
         )
         return if (isOwnEcho && !config.showPartyMessages) {

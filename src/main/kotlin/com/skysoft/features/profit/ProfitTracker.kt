@@ -27,6 +27,7 @@ import com.skysoft.features.event.diana.DianaEventState
 import com.skysoft.features.event.diana.MythologicalRitualMessageTracker
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.animation.TimedHighlightTracker
 import com.skysoft.utils.chat.ChatEvents
@@ -287,7 +288,7 @@ object ProfitTracker {
             ProfitTrackerPreset.MINING -> parseMiningChatDrop(message)
             else -> null
         }
-        val playerName = Minecraft.getInstance().player?.gameProfile?.name
+        val playerName = localPlayerName()
         val dyeDrop = playerName?.let { parseDyeChatDrop(message, it) }
         val drop = activityDrop ?: dyeDrop
         drop?.let {
