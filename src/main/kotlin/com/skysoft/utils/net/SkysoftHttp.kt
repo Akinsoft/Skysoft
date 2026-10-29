@@ -1,5 +1,6 @@
 package com.skysoft.utils.net
 
+import com.skysoft.SkysoftMod
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -11,6 +12,9 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 
 object SkysoftHttp {
+    const val USER_AGENT = "Skysoft"
+    val versionedUserAgent = "$USER_AGENT/${SkysoftMod.VERSION}"
+
     private val client: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
         .build()
@@ -19,71 +23,45 @@ object SkysoftHttp {
         url: String,
         timeout: Duration = Duration.ofSeconds(DEFAULT_REQUEST_TIMEOUT_SECONDS),
         maximumResponseBytes: Long = DEFAULT_MAXIMUM_STRING_RESPONSE_BYTES,
-    ): CompletableFuture<String> {
-        val request = HttpRequest.newBuilder(URI.create(url))
-            .timeout(timeout)
-            .header("User-Agent", "Skysoft")
-            .GET()
-            .build()
-
-        return sendString(request, maximumResponseBytes)
-            .thenApply { response ->
-                if (response.statusCode() !in 200..299) {
-                    throw IllegalStateException("GET $url returned HTTP ${response.statusCode()}")
-                }
-                response.body()
-            }
-    }
+    ): CompletableFuture<String> = get(url, timeout, HttpResponse.BodyHandlers.ofString(), maximumResponseBytes)
 
     fun getBytes(
         url: String,
         timeout: Duration = Duration.ofSeconds(DEFAULT_REQUEST_TIMEOUT_SECONDS),
         maximumResponseBytes: Long = DEFAULT_MAXIMUM_BYTE_RESPONSE_BYTES,
-    ): CompletableFuture<ByteArray> {
-        val request = HttpRequest.newBuilder(URI.create(url))
-            .timeout(timeout)
-            .header("User-Agent", "Skysoft")
-            .GET()
-            .build()
-
-        return sendBytes(request, maximumResponseBytes)
-            .thenApply { response ->
-                if (response.statusCode() !in 200..299) {
-                    throw IllegalStateException("GET $url returned HTTP ${response.statusCode()}")
-                }
-                response.body()
-            }
-    }
+    ): CompletableFuture<ByteArray> = get(url, timeout, HttpResponse.BodyHandlers.ofByteArray(), maximumResponseBytes)
 
     fun sendString(
         request: HttpRequest,
         maximumResponseBytes: Long = DEFAULT_MAXIMUM_STRING_RESPONSE_BYTES,
-    ): CompletableFuture<HttpResponse<String>> = cancellationPropagatingFuture(
-        client.sendAsync(
-            request,
-            HttpResponse.BodyHandlers.limiting(
-                HttpResponse.BodyHandlers.ofString(),
-                requirePositiveLimit(maximumResponseBytes),
-            ),
-        ),
-    )
+    ): CompletableFuture<HttpResponse<String>> = send(request, HttpResponse.BodyHandlers.ofString(), maximumResponseBytes)
 
-    private fun sendBytes(
+    private fun <T> get(
+        url: String,
+        timeout: Duration,
+        bodyHandler: HttpResponse.BodyHandler<T>,
+        maximumResponseBytes: Long,
+    ): CompletableFuture<T> {
+        val request = HttpRequest.newBuilder(URI.create(url))
+            .timeout(timeout)
+            .header("User-Agent", USER_AGENT)
+            .GET()
+            .build()
+        return send(request, bodyHandler, maximumResponseBytes).thenApply { response ->
+            check(response.statusCode() in 200..299) { "GET $url returned HTTP ${response.statusCode()}" }
+            response.body()
+        }
+    }
+
+    private fun <T> send(
         request: HttpRequest,
-        maximumResponseBytes: Long = DEFAULT_MAXIMUM_BYTE_RESPONSE_BYTES,
-    ): CompletableFuture<HttpResponse<ByteArray>> = cancellationPropagatingFuture(
-        client.sendAsync(
-            request,
-            HttpResponse.BodyHandlers.limiting(
-                HttpResponse.BodyHandlers.ofByteArray(),
-                requirePositiveLimit(maximumResponseBytes),
-            ),
-        ),
-    )
-
-    private fun requirePositiveLimit(maximumResponseBytes: Long): Long {
+        bodyHandler: HttpResponse.BodyHandler<T>,
+        maximumResponseBytes: Long,
+    ): CompletableFuture<HttpResponse<T>> {
         require(maximumResponseBytes > 0L) { "HTTP response size limit must be positive" }
-        return maximumResponseBytes
+        return cancellationPropagatingFuture(
+            client.sendAsync(request, HttpResponse.BodyHandlers.limiting(bodyHandler, maximumResponseBytes)),
+        )
     }
 
     private const val DEFAULT_REQUEST_TIMEOUT_SECONDS = 30L
@@ -130,16 +108,18 @@ internal class CancellableRequestGroup {
     }
 }
 
-internal fun <T> cancellationPropagatingFuture(source: CompletableFuture<T>): CompletableFuture<T> =
+private fun <T> cancellationPropagatingFuture(source: CompletableFuture<T>): CompletableFuture<T> =
     CancellableRequestGroup().result(source)
 
-internal fun Throwable.isCancellationFailure(): Boolean {
+internal fun Throwable.unwrapFutureFailure(): Throwable {
     var failure = this
     while (failure is CompletionException || failure is ExecutionException) {
-        failure = failure.cause ?: return false
+        failure = failure.cause ?: return failure
     }
-    return failure is CancellationException
+    return failure
 }
+
+internal fun Throwable.isCancellationFailure(): Boolean = unwrapFutureFailure() is CancellationException
 
 private class CancellationPropagatingFuture<T>(
     private val cancellation: RequestCancellation,
