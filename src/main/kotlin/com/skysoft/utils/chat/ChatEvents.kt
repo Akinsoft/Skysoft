@@ -77,23 +77,21 @@ object ChatEvents {
         ClientReceiveMessageEvents.MODIFY_GAME.register { message, overlay ->
             SkysoftErrorBoundary.value("Game message modification", message) {
                 val incoming = SkysoftMessage(message, SkysoftMessageSource.GAME, overlay)
-                if (overlay) modifyActionBar(incoming) else modifyVisibleGameMessage(incoming)
+                if (overlay) {
+                    modifyGameMessage(incoming, actionBarModifiers) { it }
+                } else {
+                    modifyGameMessage(incoming, visibleGameModifiers, ChatMessageClassifier::classify)
+                }
             }
         }
     }
 
     private fun dispatchIncoming(message: SkysoftMessage): ChatMessageVisibility = when {
         message.source == SkysoftMessageSource.GAME && message.overlay && actionBarListeners.hasActiveListeners ->
-            dispatchActionBar(message)
-        !message.overlay && visibleListeners.hasActiveListeners -> dispatchVisible(ChatMessageClassifier.classify(message))
+            dispatch(message, actionBarListeners)
+        !message.overlay && visibleListeners.hasActiveListeners -> dispatch(ChatMessageClassifier.classify(message), visibleListeners)
         else -> ChatMessageVisibility.SHOW
     }
-
-    private fun modifyVisibleGameMessage(message: SkysoftMessage): Component =
-        modifyGameMessage(message, visibleGameModifiers, ChatMessageClassifier::classify)
-
-    private fun modifyActionBar(message: SkysoftMessage): Component =
-        modifyGameMessage(message, actionBarModifiers) { it }
 
     private fun <T> modifyGameMessage(
         message: SkysoftMessage,
@@ -103,22 +101,13 @@ object ChatEvents {
         modifier(prepare(SkysoftMessage(component, message.source, message.overlay)))
     }
 
-    private fun dispatchVisible(message: ChatMessage): ChatMessageVisibility =
-        dispatch(message, visibleListeners)
-
-    private fun dispatchActionBar(message: SkysoftMessage): ChatMessageVisibility =
-        dispatch(message, actionBarListeners)
-
     private fun <T> dispatch(
         message: T,
         listeners: ActiveListenerRegistry<(T) -> ChatMessageVisibility>,
     ): ChatMessageVisibility =
         listeners.foldActive(ChatMessageVisibility.SHOW) { result, listener ->
-            listener(message).combine(result)
+            if (listener(message) == ChatMessageVisibility.HIDE) ChatMessageVisibility.HIDE else result
         }
-
-    private fun ChatMessageVisibility.combine(previous: ChatMessageVisibility): ChatMessageVisibility =
-        if (this == ChatMessageVisibility.HIDE) this else previous
 }
 
 enum class ChatMessageVisibility {

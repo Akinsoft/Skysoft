@@ -1,5 +1,7 @@
 package com.skysoft.utils.chat
 
+import com.skysoft.utils.RegexUtilities.group
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.utils.SkysoftMessage
 
 internal object ChatMessageClassifier {
@@ -23,8 +25,8 @@ internal object ChatMessageClassifier {
         return ChatMessage(
             raw = raw,
             type = messageType,
-            sender = senderFromPrefix(match.groups["sender"]?.value.orEmpty()),
-            body = match.groups["body"]?.value.orEmpty().trim(),
+            sender = senderFromPrefix(match.group("sender")),
+            body = match.group("body").trim(),
         )
     }
 
@@ -49,20 +51,20 @@ internal object ChatMessageClassifier {
         return ChatMessage(
             raw = raw,
             type = ChatMessageType.PRIVATE_MESSAGE,
-            sender = senderFromPrefix(match.groups["sender"]?.value.orEmpty()),
-            body = match.groups["body"]?.value.orEmpty().trim(),
+            sender = senderFromPrefix(match.group("sender")),
+            body = match.group("body").trim(),
             privateMessageDirection = direction,
         )
     }
 
     private fun allChatMessage(clean: String, raw: SkysoftMessage): ChatMessage? {
         val match = allPattern.matchEntire(clean) ?: return null
-        val sender = senderFromPrefix(match.groups["sender"]?.value.orEmpty()) ?: return null
+        val sender = senderFromPrefix(match.group("sender")) ?: return null
         return ChatMessage(
             raw = raw,
             type = ChatMessageType.ALL,
             sender = sender,
-            body = match.groups["body"]?.value.orEmpty().trim(),
+            body = match.group("body").trim(),
         )
     }
 
@@ -75,6 +77,5 @@ internal object ChatMessageClassifier {
             """[A-Za-z0-9_]{1,16}(?: \[[^]]+])?(?: [^A-Za-z0-9_\s:]+)*): (?<body>.*)$""",
     )
     private val bracketGroupPattern = Regex("""\[[^]]+]""")
-    private val whitespacePattern = Regex("""\s+""")
     private val playerNamePattern = Regex("""[A-Za-z0-9_]{1,16}""")
 }

@@ -1,7 +1,6 @@
 package com.skysoft.utils.chat
 
 internal class SkysoftPartyCommandQueue(
-    private val partyCommand: (String) -> String,
     private val canSendParty: (Boolean) -> Boolean,
     private val rememberSentMessage: (String, Long) -> Unit,
 ) {
@@ -15,77 +14,51 @@ internal class SkysoftPartyCommandQueue(
         command: String? = null,
         requireParty: Boolean = true,
     ) {
-        val trimmedMessage = message.trim()
-        if (queuedPartyMessages.size >= MAX_QUEUED_PARTY_MESSAGES) {
-            return
-        }
-        queuedPartyMessages += QueuedPartyMessage(
-            trimmedMessage,
-            allowRecentPartyChatEvidence,
-            command,
-            requireParty,
-        )
+        if (queuedPartyMessages.size >= MAX_QUEUED_PARTY_MESSAGES) return
+        queuedPartyMessages += QueuedPartyMessage(message.trim(), allowRecentPartyChatEvidence, command, requireParty)
     }
 
-    fun nextPartyCommand(now: Long = System.currentTimeMillis()): String? {
+    fun nextPartyCommand(): String? {
+        val now = System.currentTimeMillis()
         if (now < nextPartyCommandAtMillis) return null
-        val queued = queuedPartyMessages.firstOrNull() ?: return null
-        if (queued.requireParty && !canSendParty(queued.allowRecentPartyChatEvidence)) {
-            queuedPartyMessages.removeFirst()
-            return null
-        }
-        queuedPartyMessages.removeFirst()
+        val queued = queuedPartyMessages.removeFirstOrNull() ?: return null
+        if (queued.requireParty && !canSendParty(queued.allowRecentPartyChatEvidence)) return null
         rememberSentMessage(queued.message, now)
-        rememberPendingSentMessage(queued, now)
+        prunePendingSentMessages(now)
+        pendingSentMessages += PendingSentPartyMessage(queued, now + PENDING_SENT_MESSAGE_MILLIS)
         nextPartyCommandAtMillis = now + PARTY_COMMAND_SPACING_MILLIS
-        return queued.command ?: partyCommand(queued.message)
+        return queued.command ?: "pc ${queued.message}"
     }
 
-    fun recordLocalPartyChat(now: Long = System.currentTimeMillis()) {
+    fun recordLocalPartyChat(now: Long) {
         val nextAllowedAtMillis = now + LOCAL_PARTY_CHAT_SPACING_MILLIS
         if (nextAllowedAtMillis <= nextPartyCommandAtMillis) return
         nextPartyCommandAtMillis = nextAllowedAtMillis
     }
 
-    fun recordCommandCooldownFailure(
-        cleanText: String,
-        now: Long = System.currentTimeMillis(),
-    ) {
+    fun recordCommandCooldownFailure(cleanText: String, now: Long) {
         if (!isCommandCooldownFailure(cleanText)) return
         prunePendingSentMessages(now)
         val pending = pendingSentMessages.removeLastOrNull()?.queued ?: return
-        if (pending.cooldownRetries >= MAX_COMMAND_COOLDOWN_RETRIES) {
-            return
-        }
-        queuedPartyMessages.addFirst(
-            pending.copy(cooldownRetries = pending.cooldownRetries + 1),
-        )
+        if (pending.cooldownRetries >= MAX_COMMAND_COOLDOWN_RETRIES) return
+        queuedPartyMessages.addFirst(pending.copy(cooldownRetries = pending.cooldownRetries + 1))
         while (queuedPartyMessages.size > MAX_QUEUED_PARTY_MESSAGES) {
             queuedPartyMessages.removeLast()
         }
         nextPartyCommandAtMillis = maxOf(nextPartyCommandAtMillis, now + PARTY_COMMAND_COOLDOWN_RETRY_MILLIS)
     }
 
-    fun recordPartyEcho(message: String, now: Long = System.currentTimeMillis()) {
+    fun recordPartyEcho(message: String, now: Long) {
         prunePendingSentMessages(now)
         val normalized = message.trim()
         val index = pendingSentMessages.indexOfFirst { sent -> sent.queued.message == normalized }
-        if (index < 0) return
-        pendingSentMessages.removeAt(index)
+        if (index >= 0) pendingSentMessages.removeAt(index)
     }
 
     fun clear() {
         queuedPartyMessages.clear()
         pendingSentMessages.clear()
         nextPartyCommandAtMillis = 0L
-    }
-
-    private fun rememberPendingSentMessage(queued: QueuedPartyMessage, now: Long) {
-        prunePendingSentMessages(now)
-        pendingSentMessages += PendingSentPartyMessage(
-            queued = queued,
-            expiresAtMillis = now + PENDING_SENT_MESSAGE_MILLIS,
-        )
     }
 
     private fun prunePendingSentMessages(now: Long) {

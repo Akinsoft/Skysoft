@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component
 
 object SkysoftPartyShare {
     private val recentSentMessages = mutableListOf<RecentSentPartyMessage>()
-    private val commandQueue = SkysoftPartyCommandQueue(::partyCommand, ::canSendParty, ::rememberSentMessage)
+    private val commandQueue = SkysoftPartyCommandQueue(::canSendParty, ::rememberSentMessage)
     private var partyChatObservedUntilMillis = 0L
     private var wasActive = false
 
@@ -28,7 +28,7 @@ object SkysoftPartyShare {
             val now = System.currentTimeMillis()
             if (message.isSystemLike) commandQueue.recordCommandCooldownFailure(message.cleanText, now)
             if (message.type == ChatMessageType.PARTY || message.type == ChatMessageType.GUILD) {
-                message.sender?.takeIf { it.isLocalPlayerName(localPlayerName()) }?.let {
+                if (message.sender?.isLocalPlayer(localPlayerName()) == true) {
                     commandQueue.recordLocalPartyChat(now)
                     commandQueue.recordPartyEcho(message.body, now)
                 }
@@ -36,8 +36,6 @@ object SkysoftPartyShare {
             ChatMessageVisibility.SHOW
         }
     }
-
-    private fun partyCommand(message: String): String = "pc $message"
 
     fun sendParty(message: String, allowRecentPartyChatEvidence: Boolean = false) {
         if (!canSendParty(allowRecentPartyChatEvidence)) return
@@ -53,13 +51,13 @@ object SkysoftPartyShare {
         )
     }
 
-    fun markPartyChatObserved(now: Long = System.currentTimeMillis()) {
-        partyChatObservedUntilMillis = now + PARTY_CHAT_EVIDENCE_MILLIS
+    fun markPartyChatObserved() {
+        partyChatObservedUntilMillis = System.currentTimeMillis() + PARTY_CHAT_EVIDENCE_MILLIS
     }
 
     private fun canSendParty(allowRecentPartyChatEvidence: Boolean): Boolean =
         HypixelPartyApi.isLoaded && HypixelPartyApi.isInParty ||
-            allowRecentPartyChatEvidence && hasRecentPartyChatEvidence()
+            allowRecentPartyChatEvidence && System.currentTimeMillis() <= partyChatObservedUntilMillis
 
     private fun rememberSentMessage(message: String, now: Long) {
         pruneSentMessages(now)
@@ -116,26 +114,16 @@ object SkysoftPartyShare {
         recentSentMessages.removeIf { sent -> now > sent.expiresAtMillis }
     }
 
-    private fun sendNextQueuedPartyMessage() {
-        val connection = Minecraft.getInstance().connection ?: return
-        val command = commandQueue.nextPartyCommand() ?: return
-        connection.sendCommand(command)
-    }
-
     private fun updateQueue() {
         if (!HypixelPartyApi.hasActiveConsumers) {
             clearRecentSentMessages()
             return
         }
         wasActive = true
-        sendNextQueuedPartyMessage()
+        val connection = Minecraft.getInstance().connection ?: return
+        val command = commandQueue.nextPartyCommand() ?: return
+        connection.sendCommand(command)
     }
-
-    private fun hasRecentPartyChatEvidence(now: Long = System.currentTimeMillis()): Boolean =
-        now <= partyChatObservedUntilMillis
-
-    private fun ChatMessageSender.isLocalPlayerName(localPlayerName: String?): Boolean =
-        localPlayerName != null && name.equals(localPlayerName, ignoreCase = true)
 
     private data class RecentSentPartyMessage(
         val message: String,
