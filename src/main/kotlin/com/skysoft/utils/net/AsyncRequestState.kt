@@ -1,7 +1,11 @@
 package com.skysoft.utils.net
 
+import com.skysoft.SkysoftMod
+import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.SkysoftErrorBoundary
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
+import net.minecraft.client.Minecraft
 
 internal class AsyncRequestSlot<T>(
     private val completionExecutor: Executor? = null,
@@ -53,14 +57,8 @@ internal class AsyncRequestSlot<T>(
         completion: (T?, Throwable?) -> Unit,
     ) {
         request = nextRequest
-        val completeRequest = { value: T?, failure: Throwable? ->
+        nextRequest.whenCompleteOn(completionExecutor) { value, failure ->
             complete(nextRequest, value, failure, completion)
-        }
-        val executor = completionExecutor
-        if (executor == null) {
-            nextRequest.whenComplete { value, failure -> completeRequest(value, failure) }
-        } else {
-            nextRequest.whenCompleteAsync({ value, failure -> completeRequest(value, failure) }, executor)
         }
     }
 
@@ -128,7 +126,7 @@ internal class KeyedAsyncRequestSlots<K, T>(
         completion: (T?, Throwable?) -> Unit,
     ) {
         requests[key] = request
-        val completeRequest = { value: T?, failure: Throwable? ->
+        request.whenCompleteOn(completionExecutor) { value, failure ->
             val accepted = synchronized(this) {
                 if (requests[key] !== request) false else {
                     requests.remove(key)
@@ -137,12 +135,14 @@ internal class KeyedAsyncRequestSlots<K, T>(
             }
             if (accepted) completion(value, failure)
         }
-        val executor = completionExecutor
-        if (executor == null) {
-            request.whenComplete { value, failure -> completeRequest(value, failure) }
-        } else {
-            request.whenCompleteAsync({ value, failure -> completeRequest(value, failure) }, executor)
-        }
+    }
+}
+
+private fun <T> CompletableFuture<T>.whenCompleteOn(executor: Executor?, action: (T?, Throwable?) -> Unit) {
+    if (executor == null) {
+        whenComplete { value, failure -> action(value, failure) }
+    } else {
+        whenCompleteAsync({ value, failure -> action(value, failure) }, executor)
     }
 }
 
@@ -159,5 +159,58 @@ internal class RefreshSchedule {
 
     fun reset() {
         nextAtMillis = 0L
+    }
+}
+
+internal class PeriodicRefresh<T>(
+    private val name: String,
+    private val description: String,
+    private val url: String,
+    private val refreshIntervalMillis: Long,
+    private val failureRetryMillis: Long,
+    private val parse: (String) -> T,
+    private val onSuccess: (T) -> Unit,
+) {
+    private val requests = PendingHttpRequests()
+    private val requestSlot = AsyncRequestSlot<T>(completionExecutor = Minecraft.getInstance())
+    private val schedule = RefreshSchedule()
+
+    fun register() {
+        SkysoftClientEvents.onClientStopping("$name request cancellation") { cancel() }
+    }
+
+    fun refreshIfDue() {
+        if (schedule.isDue(System.currentTimeMillis())) refresh()
+    }
+
+    fun refresh() {
+        requestSlot.startIfIdle(
+            requestFactory = { requests.getString(url).thenApply(parse) },
+        ) { response, error ->
+            SkysoftErrorBoundary.run("$name async completion") {
+                val now = System.currentTimeMillis()
+                if (error == null && response != null) {
+                    onSuccess(response)
+                    schedule.schedule(now, refreshIntervalMillis)
+                } else if (error?.isCancellationFailure() != true) {
+                    schedule.schedule(now, failureRetryMillis)
+                    SkysoftMod.LOGGER.warn("Failed to refresh $description", error)
+                }
+            }
+        }
+    }
+
+    fun resetSchedule() {
+        schedule.reset()
+    }
+
+    fun reset() {
+        cancel()
+        schedule.reset()
+    }
+
+    private fun cancel() {
+        requestSlot.cancel()
+        requests.cancelAll()
     }
 }
