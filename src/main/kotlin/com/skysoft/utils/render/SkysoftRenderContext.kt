@@ -31,12 +31,9 @@ class SkysoftRenderContext(
         lineWidth: Int = DEFAULT_LINE_WIDTH,
         depth: Boolean = false,
     ) {
-        draw3DLine(exactPlayerCrosshairLocation(), location, color, lineWidth, depth)
-    }
-
-    private fun draw3DLine(p1: WorldVec, p2: WorldVec, color: Color, lineWidth: Int, depth: Boolean) {
+        val start = exactPlayerCrosshairLocation()
         LineBoxRenderer.draw3D(this, lineWidth, depth) {
-            draw3DLine(p1, p2, color)
+            draw3DLine(start, location, color)
         }
     }
 

@@ -1,5 +1,7 @@
 package com.skysoft.utils.render
 
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.VertexConsumer
 import com.skysoft.utils.MinecraftRenderer
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.toWorldVec
@@ -121,26 +123,26 @@ object WorldLabelRenderer {
         style: WorldLabelStyle,
     ) {
         if (style.displayMode == Font.DisplayMode.SEE_THROUGH) {
-            context.submitNodeCollector.submitText(
-                context.matrices,
-                x,
-                y,
-                component.visualOrderText,
-                style.shadow,
-                Font.DisplayMode.NORMAL,
-                LightCoordsUtil.FULL_BRIGHT,
-                style.textColor,
-                style.backgroundColor,
-                style.outlineColor,
-            )
+            submitTextLayer(context, component, x, y, style, Font.DisplayMode.NORMAL)
         }
+        submitTextLayer(context, component, x, y, style, style.displayMode)
+    }
+
+    private fun submitTextLayer(
+        context: SkysoftRenderContext,
+        component: Component,
+        x: Float,
+        y: Float,
+        style: WorldLabelStyle,
+        displayMode: Font.DisplayMode,
+    ) {
         context.submitNodeCollector.submitText(
             context.matrices,
             x,
             y,
             component.visualOrderText,
             style.shadow,
-            style.displayMode,
+            displayMode,
             LightCoordsUtil.FULL_BRIGHT,
             style.textColor,
             style.backgroundColor,
@@ -175,26 +177,22 @@ object WorldLabelRenderer {
     }
 
     private fun submitHeadQuad(
-        vertices: com.mojang.blaze3d.vertex.VertexConsumer,
-        pose: com.mojang.blaze3d.vertex.PoseStack.Pose,
+        vertices: VertexConsumer,
+        pose: PoseStack.Pose,
         minU: Float,
         minV: Float,
         maxU: Float,
         maxV: Float,
         z: Float,
     ) {
-        vertices.addVertex(pose, -HeadGeometry.HALF_SIZE, -HeadGeometry.SIZE, z)
-            .setColor(HeadGeometry.COLOR).setUv(minU, minV)
-            .setLight(LightCoordsUtil.FULL_BRIGHT)
-        vertices.addVertex(pose, -HeadGeometry.HALF_SIZE, 0f, z)
-            .setColor(HeadGeometry.COLOR).setUv(minU, maxV)
-            .setLight(LightCoordsUtil.FULL_BRIGHT)
-        vertices.addVertex(pose, HeadGeometry.HALF_SIZE, 0f, z)
-            .setColor(HeadGeometry.COLOR).setUv(maxU, maxV)
-            .setLight(LightCoordsUtil.FULL_BRIGHT)
-        vertices.addVertex(pose, HeadGeometry.HALF_SIZE, -HeadGeometry.SIZE, z)
-            .setColor(HeadGeometry.COLOR).setUv(maxU, minV)
-            .setLight(LightCoordsUtil.FULL_BRIGHT)
+        submitHeadVertex(vertices, pose, -HeadGeometry.HALF_SIZE, -HeadGeometry.SIZE, z, minU, minV)
+        submitHeadVertex(vertices, pose, -HeadGeometry.HALF_SIZE, 0f, z, minU, maxV)
+        submitHeadVertex(vertices, pose, HeadGeometry.HALF_SIZE, 0f, z, maxU, maxV)
+        submitHeadVertex(vertices, pose, HeadGeometry.HALF_SIZE, -HeadGeometry.SIZE, z, maxU, minV)
+    }
+
+    private fun submitHeadVertex(vertices: VertexConsumer, pose: PoseStack.Pose, x: Float, y: Float, z: Float, u: Float, v: Float) {
+        vertices.addVertex(pose, x, y, z).setColor(HeadGeometry.COLOR).setUv(u, v).setLight(LightCoordsUtil.FULL_BRIGHT)
     }
 
     private const val MIN_DISTANCE = 0.001

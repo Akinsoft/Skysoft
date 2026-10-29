@@ -17,13 +17,12 @@ object WorldItemBadgeRenderer {
         anchor: WorldVec,
         stack: ItemStack,
         badge: Component,
-        maxRenderDistance: Double = DEFAULT_MAX_RENDER_DISTANCE,
         cameraOffset: Double = DEFAULT_CAMERA_OFFSET,
     ) {
         if (stack.isEmpty) return
         val cameraPosition = context.camera.position().toWorldVec()
         val distance = cameraPosition.distance(anchor)
-        if (distance > maxRenderDistance) return
+        if (distance > MAX_RENDER_DISTANCE) return
         val scale = (distance / SCALE_DISTANCE * SCALE_MULTIPLIER)
             .coerceIn(MIN_SCALE, MAX_SCALE)
             .toFloat()
@@ -94,5 +93,5 @@ object WorldItemBadgeRenderer {
     private const val BADGE_X_OFFSET = 0.22f
     private const val BADGE_Y_OFFSET = 0.22f
     private const val BADGE_Z_OFFSET = -0.02
-    private const val DEFAULT_MAX_RENDER_DISTANCE = 50.0
+    private const val MAX_RENDER_DISTANCE = 50.0
 }

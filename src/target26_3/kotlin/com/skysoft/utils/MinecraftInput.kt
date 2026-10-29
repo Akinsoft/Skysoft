@@ -26,7 +26,7 @@ object MinecraftInput {
 
     fun mouseBinding(button: Int): Int = button + KeybindNumbering.SDL_MOUSE_BINDING_OFFSET
 
-    fun isMouseBinding(binding: Int): Boolean =
+    private fun isMouseBinding(binding: Int): Boolean =
         mouseButton(binding) in InputConstants.MOUSE_BUTTON_LEFT..InputConstants.MOUSE_BUTTON_8
 
     fun isKeyBinding(binding: Int): Boolean = binding in NO_BINDING + 1 until SDLScancode.SDL_SCANCODE_COUNT

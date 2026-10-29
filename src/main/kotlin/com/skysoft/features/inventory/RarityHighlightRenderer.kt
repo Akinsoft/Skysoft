@@ -11,7 +11,6 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.ravengard.RavengardItemRarity
 import com.skysoft.data.skyblock.SkyBlockItemRarity
-import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.render.SkysoftDrawMode
 import com.skysoft.utils.render.SkysoftPipelineBuilder
@@ -49,8 +48,7 @@ object RarityHighlightRenderer {
     @JvmStatic
     fun renderContainerBackgrounds(context: GuiGraphicsExtractor, screen: AbstractContainerScreen<*>) {
         val highlight = containerConfig()
-        if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
-        if (StorageOverlayController.isActive(screen)) return
+        if (!highlight.isBackgroundEnabled() || StorageOverlayController.isActive(screen)) return
         for (slot in screen.menu.slots) {
             if (slot.isActive) {
                 val stack = AnimatedDyeArmorCache.displayStack(screen, slot, slot.item)
@@ -63,8 +61,8 @@ object RarityHighlightRenderer {
     @JvmStatic
     fun renderBackground(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
         val highlight = skyBlockConfig
-        if (!highlight.isEnabled || highlight.settings.type == RarityHighlightType.CONTOUR) return
-        val color = rarity(stack)?.color?.rgb ?: return
+        if (!highlight.isBackgroundEnabled()) return
+        val color = rarityColor(stack) ?: return
         renderBackground(context, x, y, color, highlight.settings.type, highlight.details.opacity)
     }
 
@@ -117,7 +115,7 @@ object RarityHighlightRenderer {
             render()
             return
         }
-        renderContourItem(rarity(stack)?.color?.rgb, highlight.details.opacity, render)
+        renderContourItem(rarityColor(stack), highlight.details.opacity, render)
     }
 
     @JvmStatic
@@ -160,7 +158,7 @@ object RarityHighlightRenderer {
         renderState.addGlyphToCurrentLayer(RarityContourRenderState(itemState, slotView, color))
     }
 
-    internal fun rarity(stack: ItemStack): SkyBlockRarity? = SkyBlockItemRarity.from(stack)
+    private fun rarityColor(stack: ItemStack): Int? = SkyBlockItemRarity.from(stack)?.color?.rgb
 
     private fun containerConfig(): RarityHighlightConfig =
         if (HypixelLocationState.inRavengard) ravengardConfig else skyBlockConfig
@@ -168,11 +166,14 @@ object RarityHighlightRenderer {
     private fun RarityHighlightConfig.isContourEnabled(): Boolean =
         isEnabled && settings.type == RarityHighlightType.CONTOUR
 
+    private fun RarityHighlightConfig.isBackgroundEnabled(): Boolean =
+        isEnabled && settings.type != RarityHighlightType.CONTOUR
+
     private fun containerRarityColor(stack: ItemStack): Int? =
         if (HypixelLocationState.inRavengard) {
             RavengardItemRarity.color(stack)
         } else {
-            rarity(stack)?.color?.rgb
+            rarityColor(stack)
         }
 
     private fun Int.withOpacity(opacity: Int): Int {
@@ -269,7 +270,7 @@ private class RarityContourRenderState(
 private val RARITY_CONTOUR_PIPELINE = RenderPipelines.register(
     SkysoftPipelineBuilder.build(
         location = SkysoftMod.id("rarity_contour"),
-        snippet = SkysoftPipelineBuilder.guiTexturedSnippet(),
+        snippet = RenderPipelines.GUI_TEXTURED_SNIPPET,
         vertexFormat = SkysoftVertexFormats.POSITION_TEX_COLOR_CONTOUR,
         drawMode = SkysoftDrawMode.QUADS,
         blend = BlendFunction.TRANSLUCENT,

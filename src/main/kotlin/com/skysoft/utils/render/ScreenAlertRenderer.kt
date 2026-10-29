@@ -16,7 +16,7 @@ object ScreenAlertRenderer {
         registered = true
         ScreenTitleRenderer.registerPositionEditor()
         SkysoftClientEvents.onEndTick("Screen Alert tick", { activeAlerts.isNotEmpty() }) { tick() }
-        SkysoftClientEvents.onDisconnect("Screen Alert disconnect reset", ::clearAll)
+        SkysoftClientEvents.onDisconnect("Screen Alert disconnect reset", activeAlerts::clear)
         ScreenTitleRenderer.registerTitleOverlay(
             id = "screen_alerts",
             visible = ::isVisible,
@@ -24,7 +24,8 @@ object ScreenAlertRenderer {
         )
     }
 
-    fun show(alert: ScreenAlert, now: Long = System.currentTimeMillis()) {
+    fun show(alert: ScreenAlert) {
+        val now = System.currentTimeMillis()
         require(alert.lines.isNotEmpty()) { "Screen alert ${alert.id} must have at least one line." }
         activeAlerts[alert.id] = ActiveScreenAlert(
             alert = alert,
@@ -40,17 +41,16 @@ object ScreenAlertRenderer {
         activeAlerts.remove(id)
     }
 
-    private fun clearAll() {
-        activeAlerts.clear()
+    fun hasActiveAlert(id: String): Boolean =
+        activeAlerts[id]?.isActive(System.currentTimeMillis()) == true
+
+    fun hasActiveAlerts(): Boolean {
+        val now = System.currentTimeMillis()
+        return activeAlerts.values.any { alert -> alert.isActive(now) && alert.alert.visible }
     }
 
-    fun hasActiveAlert(id: String, now: Long = System.currentTimeMillis()): Boolean =
-        activeAlerts[id]?.isActive(now) == true
-
-    fun hasActiveAlerts(now: Long = System.currentTimeMillis()): Boolean =
-        activeAlerts.values.any { alert -> alert.isActive(now) && alert.alert.visible }
-
-    internal fun tick(now: Long = System.currentTimeMillis()) {
+    private fun tick() {
+        val now = System.currentTimeMillis()
         activeAlerts.entries.removeIf { (_, alert) -> !alert.isActive(now) }
         playDueSounds(now)
     }
@@ -69,7 +69,7 @@ object ScreenAlertRenderer {
         }
     }
 
-    internal fun layoutAlerts(alerts: List<ScreenAlert>): List<ScreenAlertPlacement> {
+    private fun layoutAlerts(alerts: List<ScreenAlert>): List<ScreenAlertPlacement> {
         val occupiedRanges = mutableListOf<ScreenAlertVerticalRange>()
         return alerts
             .map { alert ->
@@ -153,7 +153,7 @@ private data class ActiveScreenAlert(
     var nextSoundAtMillis: Long,
 )
 
-internal data class ScreenAlertPlacement(
+private data class ScreenAlertPlacement(
     val lines: List<ScreenTitleLine>,
     val yOffset: Float,
 )

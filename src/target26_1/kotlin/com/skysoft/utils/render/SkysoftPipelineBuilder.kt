@@ -10,7 +10,6 @@ import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.shaders.UniformType
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.VertexFormat
-import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.resources.Identifier
 import java.util.Optional
@@ -29,8 +28,6 @@ object SkysoftPipelineBuilder {
         .withDepthStencilState(DepthStencilState.DEFAULT)
         .buildSnippet()
 
-    fun guiSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_SNIPPET
-    fun guiTexturedSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_TEXTURED_SNIPPET
     fun itemSnippet(): RenderPipeline.Snippet = itemPipelineSnippet
 
     fun renderSetup(pipeline: RenderPipeline): RenderSetup.RenderSetupBuilder = RenderSetup.builder(pipeline)

@@ -15,7 +15,7 @@ object WorldRenderDispatcher {
             SkysoftErrorBoundary.run("World render setup") {
                 if (!handlers.hasActiveListeners) return@run
                 val minecraft = Minecraft.getInstance()
-                val partialTicks = partialTicks()
+                val partialTicks = minecraft.deltaTracker.getGameTimeDeltaPartialTick(false)
                 val camera = MinecraftRenderer.mainCamera(minecraft.gameRenderer)
                 val cameraRenderState = CameraRenderState()
                 MinecraftRenderer.extractCameraRenderState(camera, cameraRenderState, minecraft.deltaTracker)
@@ -38,8 +38,4 @@ object WorldRenderDispatcher {
     ) {
         handlers.register(boundary, isActive, handler)
     }
-
-    private fun partialTicks(): Float =
-        Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(false)
-
 }

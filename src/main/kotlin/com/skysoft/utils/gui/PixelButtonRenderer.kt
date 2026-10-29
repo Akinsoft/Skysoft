@@ -35,7 +35,7 @@ object PixelButtonRenderer {
         }
 
         drawChamferedLayer(context, bounds, PixelButtonColors.BORDER.withScaledAlpha(alpha))
-        val inner = Rect(bounds.x + 1, bounds.y + 1, bounds.width - 2, bounds.height - 2)
+        val inner = bounds.inset(1)
         drawChamferedLayer(context, inner, fill.withScaledAlpha(alpha))
         drawBevel(context, inner, selected, enabled, alpha)
         if (selected && enabled) {

@@ -17,7 +17,6 @@ object SkysoftCircleShaderRenderer {
         y: Int,
         color: Color,
         radius: Int,
-        smoothness: Float = 1f,
         angle1: Float = 7f,
         angle2: Float = 7f,
     ) {
@@ -29,7 +28,6 @@ object SkysoftCircleShaderRenderer {
             width = diameter,
             height = diameter,
             color = color.rgb,
-            smoothness = smoothness,
             angle1 = angle1 - Math.PI.toFloat(),
             angle2 = angle2 - Math.PI.toFloat(),
             params = params,

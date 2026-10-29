@@ -1,11 +1,13 @@
 package com.skysoft.utils.gui
 
 import kotlin.math.roundToInt
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.item.ItemStack
 
 data class Rect(val x: Int, val y: Int, val width: Int, val height: Int) {
     fun contains(mouseX: Int, mouseY: Int): Boolean = mouseX in x until x + width && mouseY in y until y + height
+    fun contains(mouseX: Int?, mouseY: Int?): Boolean = mouseX != null && mouseY != null && contains(mouseX, mouseY)
     fun intersects(other: Rect): Boolean =
         x < other.x + other.width &&
             x + width > other.x &&
@@ -19,6 +21,8 @@ data class Rect(val x: Int, val y: Int, val width: Int, val height: Int) {
         val bottom = minOf(y + height, other.y + other.height)
         return if (right > left && bottom > top) Rect(left, top, right - left, bottom - top) else null
     }
+
+    fun inset(amount: Int): Rect = Rect(x + amount, y + amount, width - amount * 2, height - amount * 2)
 
     fun interpolateTo(target: Rect, progress: Double): Rect {
         val normalizedProgress = progress.coerceIn(0.0, 1.0)
@@ -42,5 +46,17 @@ internal fun interpolateInt(start: Int, end: Int, progress: Double): Int =
 internal fun GuiGraphicsExtractor.itemWithDecorations(stack: ItemStack, x: Int, y: Int) {
     if (stack.isEmpty) return
     item(stack, x, y)
-    itemDecorations(net.minecraft.client.Minecraft.getInstance().font, stack, x, y)
+    itemDecorations(Minecraft.getInstance().font, stack, x, y)
+}
+
+internal fun GuiGraphicsExtractor.fill(bounds: Rect, color: Int) {
+    fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, color)
+}
+
+internal fun GuiGraphicsExtractor.enableScissor(bounds: Rect) {
+    enableScissor(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height)
+}
+
+internal fun GuiGraphicsExtractor.outline(bounds: Rect, color: Int) {
+    outline(bounds.x, bounds.y, bounds.width, bounds.height, color)
 }

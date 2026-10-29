@@ -19,8 +19,6 @@ object MinecraftClient {
 
     fun chat(minecraft: Minecraft): ChatComponent = minecraft.gui.chat
 
-    fun guiTicks(minecraft: Minecraft): Int = minecraft.gui.guiTicks
-
     fun selectedItemNameState(minecraft: Minecraft): SelectedItemNameState =
         minecraft.gui as SelectedItemNameState
 

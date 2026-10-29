@@ -2,6 +2,7 @@ package com.skysoft.utils.render
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
+import com.skysoft.utils.ColorUtilities.addAlpha
 import com.skysoft.utils.WorldVec
 import net.minecraft.world.phys.shapes.VoxelShape
 import java.awt.Color
@@ -9,8 +10,10 @@ import kotlin.math.roundToInt
 
 object BlockHighlightRenderer {
     fun drawOverlay(context: SkysoftRenderContext, block: WorldVec, shape: VoxelShape, color: Color) {
-        val fill = Color(color.red, color.green, color.blue, (color.alpha * OVERLAY_FILL_ALPHA_SCALE).roundToInt())
-        drawShape(context, block, shape, color, fill, lineWidth = DEFAULT_LINE_WIDTH, depth = true)
+        drawFilledShape(context, block, shape, color.addAlpha((color.alpha * OVERLAY_FILL_ALPHA_SCALE).roundToInt()))
+        LineBoxRenderer.draw3D(context, DEFAULT_LINE_WIDTH, depth = true) {
+            drawShape(block, shape, color)
+        }
     }
 
     fun drawBlock(
@@ -23,21 +26,8 @@ object BlockHighlightRenderer {
         depth: Boolean = false,
     ) {
         drawFilledBlock(context, block, fillColor, expand)
-        drawBlockOutline(context, block, outlineColor, lineWidth, depth)
-    }
-
-    fun drawShape(
-        context: SkysoftRenderContext,
-        block: WorldVec,
-        shape: VoxelShape,
-        outlineColor: Color,
-        fillColor: Color,
-        lineWidth: Int = DEFAULT_LINE_WIDTH,
-        depth: Boolean = false,
-    ) {
-        drawFilledShape(context, block, shape, fillColor)
         LineBoxRenderer.draw3D(context, lineWidth, depth) {
-            drawShape(block, shape, outlineColor)
+            drawBox(block, block + WorldVec(1.0, 1.0, 1.0), outlineColor)
         }
     }
 
@@ -125,20 +115,6 @@ object BlockHighlightRenderer {
     ) {
         buffer.addVertex(matrix, x.toFloat(), y.toFloat(), z.toFloat())
             .setColor(color.red, color.green, color.blue, color.alpha)
-    }
-
-    private fun drawBlockOutline(
-        context: SkysoftRenderContext,
-        block: WorldVec,
-        color: Color,
-        lineWidth: Int,
-        depth: Boolean,
-    ) {
-        val min = block
-        val max = block + WorldVec(1.0, 1.0, 1.0)
-        LineBoxRenderer.draw3D(context, lineWidth, depth) {
-            drawBox(min, max, color)
-        }
     }
 
     private const val OVERLAY_FILL_ALPHA_SCALE = 0.2

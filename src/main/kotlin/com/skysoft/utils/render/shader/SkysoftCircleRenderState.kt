@@ -24,11 +24,9 @@ class SkysoftCircleRenderState(
     private val width: Int,
     private val height: Int,
     private val color: Int,
-    private val smoothness: Float,
     private val angle1: Float,
     private val angle2: Float,
     private val params: RoundedRectShaderParams,
-    private val scissor: ScreenRectangle? = null,
 ) : GuiElementRenderState {
     private val padding = 5
 
@@ -47,7 +45,7 @@ class SkysoftCircleRenderState(
         )
     }
 
-    override fun scissorArea() = scissor
+    override fun scissorArea(): ScreenRectangle? = null
 
     override fun textureSetup() = TextureSetup.noTexture()
 
@@ -56,10 +54,6 @@ class SkysoftCircleRenderState(
         val top = y - padding.toFloat()
         val right = x + width + padding.toFloat()
         val bottom = y + height + padding.toFloat()
-        emitQuad(consumer, left, top, right, bottom)
-    }
-
-    private fun emitQuad(consumer: VertexConsumer, left: Float, top: Float, right: Float, bottom: Float) {
         writeVertex(consumer, left, top)
         writeVertex(consumer, left, bottom)
         writeVertex(consumer, right, bottom)
@@ -72,7 +66,7 @@ class SkysoftCircleRenderState(
         buffer.setColor(color)
         buffer.writeParams(
             params.cornerRadius,
-            smoothness,
+            SMOOTHNESS,
             params.shaderHalfWidth,
             params.shaderHalfHeight,
             SkysoftVertexFormats.VertexElement.ROUNDED_PARAMS_0,
@@ -87,10 +81,12 @@ class SkysoftCircleRenderState(
     }
 }
 
+private const val SMOOTHNESS = 1f
+
 private val CIRCLE_DEFERRED_PIPELINE = RenderPipelines.register(
     SkysoftPipelineBuilder.build(
         location = SkysoftMod.id("circle_deferred"),
-        snippet = SkysoftPipelineBuilder.guiSnippet(),
+        snippet = RenderPipelines.GUI_SNIPPET,
         vertexFormat = SkysoftVertexFormats.POSITION_COLOR_ROUNDED,
         drawMode = SkysoftDrawMode.QUADS,
         blend = BlendFunction.TRANSLUCENT,

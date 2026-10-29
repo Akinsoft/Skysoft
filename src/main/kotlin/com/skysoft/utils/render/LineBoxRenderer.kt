@@ -12,20 +12,15 @@ class LineBoxRenderer private constructor(
     private val depth: Boolean,
 ) {
     fun draw3DLine(p1: WorldVec, p2: WorldVec, color: Color, endColor: Color = color) {
-        val layer = SkysoftRenderLayers.getLines(!depth)
-        val normal = (p2 - p1).normalize()
-        context.submitNodeCollector.submitCustomGeometry(context.matrices, layer) { matrix, buffer ->
-            addLine(buffer, matrix, p1, p2, normal, color, endColor)
+        context.submitNodeCollector.submitCustomGeometry(context.matrices, SkysoftRenderLayers.getLines(!depth)) { matrix, buffer ->
+            addLine(buffer, matrix, p1, p2, color, endColor)
         }
     }
 
     fun drawShape(origin: WorldVec, shape: VoxelShape, color: Color) {
-        val layer = SkysoftRenderLayers.getLines(!depth)
-        context.submitNodeCollector.submitCustomGeometry(context.matrices, layer) { matrix, buffer ->
+        context.submitNodeCollector.submitCustomGeometry(context.matrices, SkysoftRenderLayers.getLines(!depth)) { matrix, buffer ->
             shape.forAllEdges { x1, y1, z1, x2, y2, z2 ->
-                val p1 = origin + WorldVec(x1, y1, z1)
-                val p2 = origin + WorldVec(x2, y2, z2)
-                addLine(buffer, matrix, p1, p2, (p2 - p1).normalize(), color)
+                addLine(buffer, matrix, origin + WorldVec(x1, y1, z1), origin + WorldVec(x2, y2, z2), color, color)
             }
         }
     }
@@ -35,18 +30,18 @@ class LineBoxRenderer private constructor(
         matrix: PoseStack.Pose,
         p1: WorldVec,
         p2: WorldVec,
-        normal: WorldVec,
         color: Color,
-        endColor: Color = color,
+        endColor: Color,
     ) {
-        buffer.addVertex(matrix.pose(), p1.x.toFloat(), p1.y.toFloat(), p1.z.toFloat())
+        val normal = (p2 - p1).normalize()
+        addVertex(buffer, matrix, p1, normal, color)
+        addVertex(buffer, matrix, p2, normal, endColor)
+    }
+
+    private fun addVertex(buffer: VertexConsumer, matrix: PoseStack.Pose, point: WorldVec, normal: WorldVec, color: Color) {
+        buffer.addVertex(matrix.pose(), point.x.toFloat(), point.y.toFloat(), point.z.toFloat())
             .setNormal(matrix, normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
             .setColor(color.red, color.green, color.blue, color.alpha)
-            .setLineWidth(lineWidth.toFloat())
-
-        buffer.addVertex(matrix.pose(), p2.x.toFloat(), p2.y.toFloat(), p2.z.toFloat())
-            .setNormal(matrix, normal.x.toFloat(), normal.y.toFloat(), normal.z.toFloat())
-            .setColor(endColor.red, endColor.green, endColor.blue, endColor.alpha)
             .setLineWidth(lineWidth.toFloat())
     }
 

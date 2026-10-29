@@ -8,6 +8,7 @@ import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -36,6 +37,9 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     var cursorIndex = this.text.length
         private set
 
+    private var cursorBlinkStartedAt = ElapsedTimeMark.now()
+    private var selectionAnchor: Int? = null
+
     fun render(
         context: GuiGraphicsExtractor,
         x: Int,
@@ -60,7 +64,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
             (outlineColor ?: if (focused) FOCUSED_OUTLINE_COLOR else OUTLINE_COLOR).withScaledAlpha(alpha),
         )
         val font = Minecraft.getInstance().font
-        val contentWidth = (width - TEXT_X_OFFSET - TEXT_RIGHT_INSET).coerceAtLeast(0)
+        val contentWidth = contentWidth(width)
         val visibleText = visibleText(font, contentWidth, prefix)
         val isPlaceholderVisible = text.isEmpty() && !focused
         val displayText = if (isPlaceholderVisible) {
@@ -92,13 +96,12 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         }
     }
 
-    fun placeCursorAt(mouseX: Int, fieldX: Int, width: Int, prefix: String = "") {
+    fun placeCursorAt(mouseX: Int, fieldX: Int, width: Int) {
         val font = Minecraft.getInstance().font
-        val contentWidth = (width - TEXT_X_OFFSET - TEXT_RIGHT_INSET).coerceAtLeast(0)
-        val visibleText = visibleText(font, contentWidth, prefix)
+        val visibleText = visibleText(font, contentWidth(width), "")
         val clickX = mouseX - fieldX - TEXT_X_OFFSET
         val clickedOffset = textFieldCursorOffsetAt(visibleText.text, clickX, font::width)
-        cursorIndex = text.characterBoundary((visibleText.startIndex + clickedOffset - prefix.length).coerceIn(0, text.length))
+        cursorIndex = text.characterBoundary((visibleText.startIndex + clickedOffset).coerceIn(0, text.length))
         selectionAnchor = null
         restartCursorBlink()
     }
@@ -110,48 +113,28 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     }
 
     fun keyPressed(event: KeyEvent): InputHandlingResult {
-        val control = event.hasControlDownWithQuirk()
-        if (event.isCopy() || event.isCut()) {
-            val selection = selection()
-            MinecraftClient.setClipboard(
-                selection?.let { text.substring(it.start, it.endExclusive) }.orEmpty(),
-            )
-            if (event.isCut()) removeSelection()
-            return InputHandlingResult.CONSUMED
+        val key = event.key()
+        when {
+            event.isCopy() || event.isCut() -> copySelection(cut = event.isCut())
+            key == InputConstants.KEY_BACKSPACE -> deleteBeforeCursor(event.hasControlDownWithQuirk())
+            key == InputConstants.KEY_DELETE -> deleteAfterCursor()
+            key == InputConstants.KEY_LEFT -> moveCursor(-1)
+            key == InputConstants.KEY_RIGHT -> moveCursor(1)
+            key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER -> focused = false
+            event.isPaste() -> insertAtCursor(InputUtilities.clipboardAscii())
+            event.isSelectAll() -> selectAll()
+            else -> return InputHandlingResult.IGNORED
         }
-        return when (event.key()) {
-            InputConstants.KEY_BACKSPACE -> {
-                deleteBeforeCursor(control)
-                InputHandlingResult.CONSUMED
-            }
-            InputConstants.KEY_DELETE -> {
-                deleteAfterCursor()
-                InputHandlingResult.CONSUMED
-            }
-            InputConstants.KEY_LEFT -> moveCursor(-1)
-            InputConstants.KEY_RIGHT -> moveCursor(1)
-            InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> {
-                focused = false
-                InputHandlingResult.CONSUMED
-            }
-            else -> when {
-                event.isPaste() -> pasteClipboard()
-                event.isSelectAll() -> {
-                    selectAll()
-                    InputHandlingResult.CONSUMED
-                }
-                else -> InputHandlingResult.IGNORED
-            }
-        }
+        return InputHandlingResult.CONSUMED
     }
 
     fun charTyped(event: CharacterEvent) {
         insertAtCursor(event.codepointAsString())
     }
 
-    private fun pasteClipboard(): InputHandlingResult {
-        insertAtCursor(InputUtilities.clipboardAscii())
-        return InputHandlingResult.CONSUMED
+    private fun copySelection(cut: Boolean) {
+        MinecraftClient.setClipboard(selection()?.let { text.substring(it.start, it.endExclusive) }.orEmpty())
+        if (cut) didRemoveSelection()
     }
 
     private fun insertAtCursor(value: String) {
@@ -168,8 +151,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     }
 
     private fun deleteBeforeCursor(control: Boolean) {
-        if (removeSelection() != null) return
-        if (cursorIndex == 0) return
+        if (didRemoveSelection() || cursorIndex == 0) return
         val textBeforeCursor = text.substring(0, cursorIndex)
         val remainingPrefix = if (control) {
             textAfterDeletingPreviousWord(textBeforeCursor)
@@ -182,13 +164,12 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     }
 
     private fun deleteAfterCursor() {
-        if (removeSelection() != null) return
-        if (cursorIndex >= text.length) return
+        if (didRemoveSelection() || cursorIndex >= text.length) return
         text = text.removeRange(cursorIndex, text.offsetByCodePoints(cursorIndex, 1))
         restartCursorBlink()
     }
 
-    private fun moveCursor(offset: Int): InputHandlingResult {
+    private fun moveCursor(offset: Int) {
         val selection = selection()
         cursorIndex = when {
             selection == null -> text.offsetByCodePoints(
@@ -200,7 +181,6 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         }
         selectionAnchor = null
         restartCursorBlink()
-        return InputHandlingResult.CONSUMED
     }
 
     private fun selectAll() {
@@ -209,13 +189,13 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         restartCursorBlink()
     }
 
-    private fun removeSelection(): TextSelection? {
-        val selection = selection() ?: return null
+    private fun didRemoveSelection(): Boolean {
+        val selection = selection() ?: return false
         text = text.removeRange(selection.start, selection.endExclusive)
         cursorIndex = selection.start
         selectionAnchor = null
         restartCursorBlink()
-        return selection
+        return true
     }
 
     private fun selection(): TextSelection? {
@@ -226,7 +206,7 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
 
     private fun drawSelection(
         context: GuiGraphicsExtractor,
-        font: net.minecraft.client.gui.Font,
+        font: Font,
         visibleText: VisibleText,
         x: Int,
         y: Int,
@@ -255,7 +235,9 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
         )
     }
 
-    private fun visibleText(font: net.minecraft.client.gui.Font, contentWidth: Int, prefix: String): VisibleText {
+    private fun contentWidth(width: Int): Int = (width - TEXT_X_OFFSET - TEXT_RIGHT_INSET).coerceAtLeast(0)
+
+    private fun visibleText(font: Font, contentWidth: Int, prefix: String): VisibleText {
         val fullText = prefix + text
         val fullCursorIndex = prefix.length + cursorIndex
         val textBeforeCursor = fullText.substring(0, fullCursorIndex)
@@ -271,9 +253,6 @@ internal class TextFieldState(text: String = "", val maxLength: Int = 256) {
     private fun restartCursorBlink() {
         cursorBlinkStartedAt = ElapsedTimeMark.now()
     }
-
-    private var cursorBlinkStartedAt = ElapsedTimeMark.now()
-    private var selectionAnchor: Int? = null
 
     private companion object {
         const val TEXT_X_OFFSET = 5
@@ -303,7 +282,7 @@ private data class TextSelection(
     val endExclusive: Int,
 )
 
-internal fun textFieldTextY(fieldY: Int, fieldHeight: Int, lineHeight: Int): Int =
+private fun textFieldTextY(fieldY: Int, fieldHeight: Int, lineHeight: Int): Int =
     fieldY + (fieldHeight - lineHeight + 2) / 2
 
 private fun textFieldCursorOffsetAt(text: String, clickX: Int, width: (String) -> Int): Int {
