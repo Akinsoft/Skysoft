@@ -4,6 +4,7 @@
 package com.skysoft.utils.particle
 
 import com.skysoft.utils.WorldVec
+import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -87,8 +88,8 @@ internal class ParticlePathEstimator(
         val augmented = Array(size) { row -> matrix[row].copyOf(size + 1).also { it[size] = vector[row] } }
 
         for (pivotColumn in 0 until size) {
-            val pivotRow = (pivotColumn until size).maxBy { row -> kotlin.math.abs(augmented[row][pivotColumn]) }
-            if (kotlin.math.abs(augmented[pivotRow][pivotColumn]) < MIN_PIVOT) return null
+            val pivotRow = (pivotColumn until size).maxBy { row -> abs(augmented[row][pivotColumn]) }
+            if (abs(augmented[pivotRow][pivotColumn]) < MIN_PIVOT) return null
             augmented.swapRows(pivotColumn, pivotRow)
             val pivot = augmented[pivotColumn][pivotColumn]
 

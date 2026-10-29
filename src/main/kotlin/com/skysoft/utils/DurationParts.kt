@@ -21,7 +21,6 @@ internal class DurationParts private constructor(
             return fromSeconds(seconds)
         }
 
-        private const val MILLIS_PER_SECOND = 1_000L
         private const val SECONDS_PER_MINUTE = 60L
         private const val MINUTES_PER_HOUR = 60L
         private const val HOURS_PER_DAY = 24L

@@ -30,32 +30,18 @@ internal object ShareableConfigCodec {
         val encoded = value.trim()
         require(encoded.startsWith(PREFIX)) { "Clipboard does not contain a Skysoft configuration." }
         require(encoded.length <= MAX_ENCODED_LENGTH) { "Shared configuration is too large." }
-        val compressed = decodeBase64(encoded.substring(PREFIX.length))
-        val json = decompressConfiguration(compressed)
-        val envelope = deserializeEnvelope(json)
+        val compressed = requireValid { Base64.getUrlDecoder().decode(encoded.substring(PREFIX.length)) }
+        val json = requireValid { decompress(compressed) }
+        val envelope = requireValid { GSON.fromJson(json, SerializedEnvelope::class.java) }
         require(envelope.formatVersion == FORMAT_VERSION) { "This shared configuration format is not supported." }
         require(envelope.type.matches(TYPE_PATTERN)) { "Shared configuration type is invalid." }
         require(envelope.schemaVersion > 0) { "Shared configuration version is invalid." }
         return ShareableConfigEnvelope(envelope.type, envelope.schemaVersion, envelope.payload)
     }
 
-    private fun decodeBase64(encoded: String): ByteArray = runCatching {
-        Base64.getUrlDecoder().decode(encoded)
-    }.getOrElse {
-        throw IllegalArgumentException("Shared configuration is not valid.", it)
-    }
-
-    private fun decompressConfiguration(compressed: ByteArray): String = runCatching {
-        decompress(compressed)
-    }.getOrElse {
-        throw IllegalArgumentException("Shared configuration is not valid.", it)
-    }
-
-    private fun deserializeEnvelope(json: String): SerializedEnvelope = runCatching {
-        GSON.fromJson(json, SerializedEnvelope::class.java)
-    }.getOrElse {
-        throw IllegalArgumentException("Shared configuration is not valid.", it)
-    } ?: throw IllegalArgumentException("Shared configuration is not valid.")
+    private fun <T> requireValid(parse: () -> T?): T =
+        runCatching(parse).getOrElse { throw IllegalArgumentException(INVALID_MESSAGE, it) }
+            ?: throw IllegalArgumentException(INVALID_MESSAGE)
 
     private fun decompress(compressed: ByteArray): String {
         val output = ByteArrayOutputStream()
@@ -83,6 +69,7 @@ internal object ShareableConfigCodec {
     private val GSON = GsonBuilder().disableHtmlEscaping().create()
     private val TYPE_PATTERN = Regex("[a-z][a-z0-9_.-]{0,63}")
     private const val PREFIX = "SKYSOFT:"
+    private const val INVALID_MESSAGE = "Shared configuration is not valid."
     private const val FORMAT_VERSION = 1
     private const val BUFFER_SIZE = 8_192
     private const val MAX_ENCODED_LENGTH = 1_000_000

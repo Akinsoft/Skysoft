@@ -36,6 +36,12 @@ data class WorldVec(
         return dx * dx + dy * dy + dz * dz
     }
 
+    fun horizontalDistanceSq(other: WorldVec): Double {
+        val dx = x - other.x
+        val dz = z - other.z
+        return dx * dx + dz * dz
+    }
+
     fun blockCenter(): WorldVec = WorldVec(
         floor(x) + BLOCK_CENTER_OFFSET,
         floor(y) + BLOCK_CENTER_OFFSET,
@@ -63,5 +69,7 @@ private const val BLOCK_CENTER_OFFSET = 0.5
 fun Vec3.toWorldVec(): WorldVec = WorldVec(x, y, z)
 
 fun BlockPos.toWorldVec(): WorldVec = WorldVec(x.toDouble(), y.toDouble(), z.toDouble())
+
+fun WorldVec.toBlockPos(): BlockPos = BlockPos(x.toInt(), y.toInt(), z.toInt())
 
 val Entity.location: WorldVec get() = position().toWorldVec()

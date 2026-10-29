@@ -31,6 +31,25 @@ internal class ActiveConsumerRegistry {
     fun resetActivity() {
         wasActive = false
     }
+
+    fun onEndTick(
+        boundary: String,
+        onDeactivated: () -> Unit,
+        onActivated: () -> Unit = {},
+        onActiveTick: () -> Unit,
+    ) {
+        SkysoftClientEvents.onEndTick(boundary, isActive = { isActiveOrDeactivating }) {
+            when (activity()) {
+                ConsumerActivity.INACTIVE -> Unit
+                ConsumerActivity.DEACTIVATED -> onDeactivated()
+                ConsumerActivity.ACTIVATED -> {
+                    onActivated()
+                    onActiveTick()
+                }
+                ConsumerActivity.ACTIVE -> onActiveTick()
+            }
+        }
+    }
 }
 
 internal enum class ConsumerActivity {

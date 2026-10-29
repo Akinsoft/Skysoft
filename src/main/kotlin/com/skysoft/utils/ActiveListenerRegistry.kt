@@ -11,24 +11,11 @@ internal class ActiveListenerRegistry<C> {
     }
 
     fun forEachActive(action: (C) -> Unit) {
-        listeners.forEach { listener ->
-            val active = isActive(listener)
-            listener.wasActive = active
-            if (active) {
-                SkysoftErrorBoundary.run(listener.boundary) { action(listener.callback) }
-            }
-        }
+        dispatch(onlyNewlyActive = false, action)
     }
 
     fun forEachNewlyActive(action: (C) -> Unit) {
-        listeners.forEach { listener ->
-            val active = isActive(listener)
-            val newlyActive = active && !listener.wasActive
-            listener.wasActive = active
-            if (newlyActive) {
-                SkysoftErrorBoundary.run(listener.boundary) { action(listener.callback) }
-            }
-        }
+        dispatch(onlyNewlyActive = true, action)
     }
 
     fun <R> foldActive(initial: R, action: (R, C) -> R): R =
@@ -40,13 +27,18 @@ internal class ActiveListenerRegistry<C> {
             }
         }
 
-    fun anyActive(predicate: (C) -> Boolean): Boolean {
-        listeners.forEach { listener ->
-            if (!isActive(listener)) return@forEach
-            val matches = SkysoftErrorBoundary.value(listener.boundary, false) { predicate(listener.callback) }
-            if (matches) return true
+    fun anyActive(predicate: (C) -> Boolean): Boolean =
+        listeners.any { listener ->
+            isActive(listener) && SkysoftErrorBoundary.value(listener.boundary, false) { predicate(listener.callback) }
         }
-        return false
+
+    private fun dispatch(onlyNewlyActive: Boolean, action: (C) -> Unit) {
+        listeners.forEach { listener ->
+            val active = isActive(listener)
+            val shouldRun = active && !(onlyNewlyActive && listener.wasActive)
+            listener.wasActive = active
+            if (shouldRun) SkysoftErrorBoundary.run(listener.boundary) { action(listener.callback) }
+        }
     }
 
     private fun isActive(listener: ActiveListener<C>): Boolean =
