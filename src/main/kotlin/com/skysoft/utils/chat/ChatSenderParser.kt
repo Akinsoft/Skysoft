@@ -15,14 +15,11 @@ object ChatSenderParser {
             ?: message.sender
 
     fun senderBefore(component: Component, marker: String): ChatMessageSender? {
-        val sender = senderBeforeMarker(component.string, marker) ?: return null
+        val sender = senderBefore(component.string, marker) ?: return null
         return ChatMessageSender(sender.name, colorAtText(component, sender.name, marker) ?: sender.color)
     }
 
-    fun senderBefore(message: String, marker: String): ChatMessageSender? =
-        senderBeforeMarker(message, marker)
-
-    private fun senderBeforeMarker(message: String, marker: String): ChatMessageSender? {
+    fun senderBefore(message: String, marker: String): ChatMessageSender? {
         val prefix = message.substringBefore(marker, "").trim().removeSuffix(":").trim()
         if (prefix.isBlank()) return null
         val sender = prefix.substringAfterLast(">").trim().removeSuffix(":").trim()

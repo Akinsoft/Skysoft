@@ -1,6 +1,12 @@
 package com.skysoft.utils
 
 import com.skysoft.SkysoftMod
+import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MASK
+import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
+import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
+import com.skysoft.utils.ColorUtilities.GREEN_SHIFT
+import com.skysoft.utils.ColorUtilities.RED_SHIFT
+import com.skysoft.utils.ColorUtilities.packRgb
 import java.net.URI
 import java.util.Optional
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -91,21 +97,16 @@ object SkysoftChat {
         val r = channel(start, end, RED_SHIFT, progress)
         val g = channel(start, end, GREEN_SHIFT, progress)
         val b = channel(start, end, BLUE_SHIFT, progress)
-        return (r shl RED_SHIFT) or (g shl GREEN_SHIFT) or b
+        return packRgb(r, g, b)
     }
 
     private fun channel(start: Int, end: Int, shift: Int, progress: Float): Int {
-        val from = (start shr shift) and RGB_CHANNEL_MASK
-        val to = (end shr shift) and RGB_CHANNEL_MASK
-        return (from + (to - from) * progress).toInt().coerceIn(RGB_CHANNEL_MIN, RGB_CHANNEL_MAX)
+        val from = (start shr shift) and COLOR_CHANNEL_MASK
+        val to = (end shr shift) and COLOR_CHANNEL_MASK
+        return (from + (to - from) * progress).toInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
     }
 
-    private const val RED_SHIFT = 16
-    private const val GREEN_SHIFT = 8
     private const val BLUE_SHIFT = 0
-    private const val RGB_CHANNEL_MASK = 0xFF
-    private const val RGB_CHANNEL_MIN = 0
-    private const val RGB_CHANNEL_MAX = 255
 }
 
 enum class ChatDeliveryResult {

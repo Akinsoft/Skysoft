@@ -32,7 +32,6 @@ data class ChatMessage(
     val plainText get() = raw.plainText
     val cleanText get() = raw.cleanText
     val formattedText get() = raw.formattedText
-    val cleanFormattedText get() = raw.cleanFormattedText
     val isSystemLike get() = type == ChatMessageType.SYSTEM || type == ChatMessageType.UNKNOWN
 }
 
@@ -49,3 +48,8 @@ data class ChatMessageSender(
         }
     }
 }
+
+internal fun ChatMessageSender.isLocalPlayer(localPlayerName: String?): Boolean =
+    localPlayerName != null && name.equals(localPlayerName, ignoreCase = true)
+
+const val HYPIXEL_CHAT_SEPARATOR = "-----------------------------------------------------"
