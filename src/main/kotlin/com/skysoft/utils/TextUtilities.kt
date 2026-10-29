@@ -2,6 +2,7 @@ package com.skysoft.utils
 
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 import java.util.Optional
@@ -13,6 +14,8 @@ object TextUtilities {
     fun CharSequence.removeResets(): String = resetPattern.replace(this, "")
     fun CharSequence.cleanSkyBlockText(): String = removeColor().trim()
     fun Component.cleanSkyBlockText(): String = string.cleanSkyBlockText()
+
+    fun nonItalicText(text: String): MutableComponent = Component.literal(text).withStyle { it.withItalic(false) }
 
     fun CharSequence.truncateLegacyText(maximumLength: Int): String {
         if (removeColor().length <= maximumLength) return toString()
@@ -35,17 +38,7 @@ object TextUtilities {
     }
 
     fun String.parseUUIDOrNull(): UUID? = runCatching {
-        if (length == COMPACT_UUID_LENGTH) {
-            UUID.fromString(
-                substring(UUID_FIRST_GROUP_START, UUID_FIRST_GROUP_END) + "-" +
-                    substring(UUID_SECOND_GROUP_START, UUID_SECOND_GROUP_END) + "-" +
-                    substring(UUID_THIRD_GROUP_START, UUID_THIRD_GROUP_END) + "-" +
-                    substring(UUID_FOURTH_GROUP_START, UUID_FOURTH_GROUP_END) + "-" +
-                    substring(UUID_FIFTH_GROUP_START),
-            )
-        } else {
-            UUID.fromString(this)
-        }
+        UUID.fromString(if (length == COMPACT_UUID_LENGTH) replace(COMPACT_UUID_PATTERN, "$1-$2-$3-$4-$5") else this)
     }.getOrNull()
 
     fun Component.formattedText(): String {
@@ -74,13 +67,5 @@ object TextUtilities {
 
     private const val LEGACY_FORMAT_PREFIX = '\u00A7'
     private const val COMPACT_UUID_LENGTH = 32
-    private const val UUID_FIRST_GROUP_START = 0
-    private const val UUID_FIRST_GROUP_END = 8
-    private const val UUID_SECOND_GROUP_START = UUID_FIRST_GROUP_END
-    private const val UUID_SECOND_GROUP_END = 12
-    private const val UUID_THIRD_GROUP_START = UUID_SECOND_GROUP_END
-    private const val UUID_THIRD_GROUP_END = 16
-    private const val UUID_FOURTH_GROUP_START = UUID_THIRD_GROUP_END
-    private const val UUID_FOURTH_GROUP_END = 20
-    private const val UUID_FIFTH_GROUP_START = UUID_FOURTH_GROUP_END
+    private val COMPACT_UUID_PATTERN = Regex("(.{8})(.{4})(.{4})(.{4})(.{12})")
 }

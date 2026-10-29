@@ -18,6 +18,8 @@ object NumberUtilities {
     fun Double.addSeparators(): String = integerFormat.get().format(this)
 
     fun String.formatInt(): Int = replace(",", "").toInt()
+    fun String.formatIntOrNull(): Int? = replace(",", "").toIntOrNull()
+    fun String.formatLongOrNull(): Long? = replace(",", "").toLongOrNull()
 
     fun String.formatDoubleOrNull(): Double? = parseCompactNumberOrNull()?.value
 
@@ -53,25 +55,24 @@ object NumberUtilities {
     fun Long.shortFormat(): String = toDouble().shortFormat()
 
     fun Double.shortFormat(): String {
-        val absoluteValue = abs(this)
-        val suffix = when {
-            absoluteValue >= BILLION -> "b" to BILLION
-            absoluteValue >= MILLION -> "m" to MILLION
-            absoluteValue >= THOUSAND -> "k" to THOUSAND
-            else -> return addSeparators()
-        }
-        val value = this / suffix.second
+        val (suffix, divisor) = compactSuffix() ?: return addSeparators()
+        val value = this / divisor
         val pattern = if (abs(value) >= SHORT_WHOLE_NUMBER_THRESHOLD) "0" else "0.#"
-        return DecimalFormat(pattern, DecimalFormatSymbols(Locale.US)).format(value) + suffix.first
+        return DecimalFormat(pattern, DecimalFormatSymbols(Locale.US)).format(value) + suffix
     }
 
     fun Double.coinAmountFormat(): String = shortDecimalFormat.get().format(this)
 
-    fun Double.coinFormat(): String = when {
-        abs(this) >= BILLION -> shortDecimalFormat.get().format(this / BILLION) + "b"
-        abs(this) >= MILLION -> shortDecimalFormat.get().format(this / MILLION) + "m"
-        abs(this) >= THOUSAND -> shortDecimalFormat.get().format(this / THOUSAND) + "k"
-        else -> shortDecimalFormat.get().format(this)
+    fun Double.coinFormat(): String {
+        val (suffix, divisor) = compactSuffix() ?: return coinAmountFormat()
+        return (this / divisor).coinAmountFormat() + suffix
+    }
+
+    private fun Double.compactSuffix(): Pair<String, Double>? = when {
+        abs(this) >= BILLION -> "b" to BILLION
+        abs(this) >= MILLION -> "m" to MILLION
+        abs(this) >= THOUSAND -> "k" to THOUSAND
+        else -> null
     }
 
     fun Double.signedCoinFormat(): String = (if (this >= 0.0) "+" else "-") + abs(this).coinFormat()

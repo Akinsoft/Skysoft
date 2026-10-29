@@ -50,7 +50,7 @@ object SoundUtilities {
         playSound(createSound(soundId, pitch, volume))
     }
 
-    private fun createSound(name: String, pitch: Float, volume: Float = 50f, seed: Long? = null): SoundInstance {
+    private fun createSound(name: String, pitch: Float, volume: Float, seed: Long? = null): SoundInstance {
         val identifier = Identifier.parse(name.replace(Regex("[^a-z0-9/:._-]"), ""))
         if (seed == null) return SimpleSoundInstance.forUI(SoundEvent.createVariableRangeEvent(identifier), pitch, volume)
         return SimpleSoundInstance(

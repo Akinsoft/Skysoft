@@ -1,8 +1,12 @@
 package com.skysoft.utils
 
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
+import net.minecraft.world.scores.DisplaySlot
 import net.minecraft.world.scores.Objective
 import net.minecraft.world.scores.PlayerScoreEntry
+import net.minecraft.world.scores.PlayerTeam
 
 object SidebarScoreboardState {
     private val publisher = ActiveStatePublisher("Sidebar Scoreboard State", SidebarScoreboardSnapshot())
@@ -34,7 +38,36 @@ object SidebarScoreboardState {
 
     private fun refresh() {
         dirty = false
-        publisher.update(SidebarScoreboard.readCurrent())
+        publisher.update(readCurrent())
+    }
+
+    private fun readCurrent(): SidebarScoreboardSnapshot {
+        val objective = currentObjective() ?: return SidebarScoreboardSnapshot()
+        val scoreboard = objective.scoreboard
+        val entries = scoreboard.listPlayerScores(objective)
+            .asSequence()
+            .filterNot { it.isHidden }
+            .sortedWith(SCORE_DISPLAY_ORDER)
+            .take(MAX_ENTRIES)
+            .toList()
+        return SidebarScoreboardSnapshot(
+            objective = objective,
+            entries = entries,
+            lines = entries.map { entry ->
+                PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), Component.empty())
+                    .cleanSkyBlockText()
+            },
+        )
+    }
+
+    private fun currentObjective(): Objective? {
+        val minecraft = Minecraft.getInstance()
+        val level = minecraft.level ?: return null
+        val player = minecraft.player ?: return null
+        val scoreboard = level.scoreboard
+        val teamSlot = scoreboard.getPlayersTeam(player.scoreboardName)?.let(SidebarScoreboard::teamSlot)
+        return teamSlot?.let(scoreboard::getDisplayObjective)
+            ?: scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR)
     }
 
     private fun reset() {
@@ -42,6 +75,10 @@ object SidebarScoreboardState {
         publisher.update(SidebarScoreboardSnapshot())
     }
 }
+
+private val SCORE_DISPLAY_ORDER = compareByDescending<PlayerScoreEntry> { it.value() }
+    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.owner() }
+private const val MAX_ENTRIES = 15
 
 internal data class SidebarScoreboardSnapshot(
     val objective: Objective? = null,

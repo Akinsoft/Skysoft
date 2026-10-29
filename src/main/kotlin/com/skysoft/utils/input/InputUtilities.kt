@@ -42,6 +42,9 @@ object InputUtilities {
         return bindingPressScreens.containsKey(binding) && isBindingDown(binding)
     }
 
+    fun isFeatureKeyDown(binding: Int): Boolean =
+        binding != MinecraftInput.NO_BINDING && binding != InputConstants.KEY_RETURN && isActionBindingDown(binding)
+
     fun isBindingDown(binding: Int): Boolean = MinecraftInput.isBindingDown(binding)
 
     fun isMouseButtonDown(button: Int): Boolean = isBindingDown(MinecraftInput.mouseBinding(button))

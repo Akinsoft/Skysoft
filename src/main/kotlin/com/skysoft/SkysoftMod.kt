@@ -1,6 +1,5 @@
 package com.skysoft
 
-import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.logging.LogUtils
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
@@ -43,12 +42,15 @@ class SkysoftMod : ClientModInitializer {
         const val MOD_ID: String = "skysoft"
 
         val VERSION: String
-            get() = FabricLoader.getInstance().getModContainer(MOD_ID)
-                .map { it.metadata.version.friendlyString }
-                .orElse("unknown")
+            get() = modVersion(MOD_ID)
         val LOGGER = LogUtils.getLogger()
 
         fun id(path: String): Identifier = Identifier.fromNamespaceAndPath(MOD_ID, path)
+
+        fun modVersion(modId: String): String =
+            FabricLoader.getInstance().getModContainer(modId)
+                .map { it.metadata.version.friendlyString }
+                .orElse("unknown")
 
         private var positionEditorKeyWasDown = false
 
@@ -56,19 +58,14 @@ class SkysoftMod : ClientModInitializer {
             SkysoftConfigGui.config().gui.positionEditor.keybind != MinecraftInput.NO_BINDING || positionEditorKeyWasDown
 
         private fun handlePositionEditorKeybind() {
-            val key = SkysoftConfigGui.config().gui.positionEditor.keybind
-            val minecraft = Minecraft.getInstance()
-            val keyDown = key != MinecraftInput.NO_BINDING &&
-                key != InputConstants.KEY_RETURN &&
-                InputUtilities.isActionBindingDown(key)
-            if (!keyDown) {
+            if (!InputUtilities.isFeatureKeyDown(SkysoftConfigGui.config().gui.positionEditor.keybind)) {
                 positionEditorKeyWasDown = false
                 return
             }
             if (positionEditorKeyWasDown) return
             positionEditorKeyWasDown = true
 
-            val screen = MinecraftClient.screen(minecraft)
+            val screen = MinecraftClient.screen(Minecraft.getInstance())
             if (screen is SkysoftHudEditor.EditorScreen) return
             if (screen != null && screen !is AbstractContainerScreen<*>) return
             DeferredScreenRequests.request("HUD editor", SkysoftHudEditor::open)

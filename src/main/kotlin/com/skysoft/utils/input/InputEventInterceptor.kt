@@ -35,38 +35,33 @@ object InputEventInterceptor {
         )
 
     @JvmStatic
-    fun processContinuedLeftBlockClick(position: BlockPos): InputHandlingResult {
-        val player = Minecraft.getInstance().player
-        val consumed = BlockInteractionEvents.hasActiveListeners() &&
-            BlockInteractionEvents.shouldCancelBlockClick(
-                BlockInteractionEvent(InteractionClick.LEFT_CLICK, player?.mainHandItem, position.toWorldVec()),
-            )
-        return if (consumed) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
-    }
+    fun processContinuedLeftBlockClick(position: BlockPos): InputHandlingResult =
+        handlingResult(isBlockClickCancelled(InteractionClick.LEFT_CLICK, position))
 
     private fun dispatchClick(
         hitResult: HitResult?,
         clickType: InteractionClick,
         entityAction: EntityInteractionEvent.ActionType,
     ): InputHandlingResult {
-        val player = Minecraft.getInstance().player
         val itemConsumed = ItemUseEvents.hasActiveListeners() &&
-            ItemUseEvents.shouldCancelItemUse(ItemUseEvent(clickType, player?.mainHandItem))
+            ItemUseEvents.shouldCancelItemUse(ItemUseEvent(clickType, Minecraft.getInstance().player?.mainHandItem))
         val targetConsumed = when (hitResult?.type) {
-            HitResult.Type.BLOCK -> BlockInteractionEvents.hasActiveListeners() &&
-                BlockInteractionEvents.shouldCancelBlockClick(
-                    BlockInteractionEvent(
-                        clickType,
-                        player?.mainHandItem,
-                        (hitResult as BlockHitResult).blockPos.toWorldVec(),
-                    ),
-                )
+            HitResult.Type.BLOCK -> isBlockClickCancelled(clickType, (hitResult as BlockHitResult).blockPos)
             HitResult.Type.ENTITY -> EntityInteractionEvents.hasActiveListeners() &&
                 EntityInteractionEvents.shouldCancelEntityClick(
                     EntityInteractionEvent(clickType, entityAction, (hitResult as EntityHitResult).entity),
                 )
             HitResult.Type.MISS, null -> false
         }
-        return if (itemConsumed || targetConsumed) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
+        return handlingResult(itemConsumed || targetConsumed)
     }
+
+    private fun isBlockClickCancelled(clickType: InteractionClick, position: BlockPos): Boolean =
+        BlockInteractionEvents.hasActiveListeners() &&
+            BlockInteractionEvents.shouldCancelBlockClick(
+                BlockInteractionEvent(clickType, Minecraft.getInstance().player?.mainHandItem, position.toWorldVec()),
+            )
+
+    private fun handlingResult(isConsumed: Boolean): InputHandlingResult =
+        if (isConsumed) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
 }

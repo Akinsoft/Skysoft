@@ -25,7 +25,6 @@ internal class IdentityRefreshCache<C, V>(
         }
     }
 
-
     private data class Entry<C, V>(
         val identity: Any?,
         val criteria: C,

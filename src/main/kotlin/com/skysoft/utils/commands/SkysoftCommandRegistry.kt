@@ -13,11 +13,7 @@ import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 
-class SkysoftCommandRegistry(
-    private val dispatcher: CommandDispatcher<FabricClientCommandSource>,
-    private val rootName: String = "skysoft",
-    private val rootAliases: List<String> = listOf("ss", "soft"),
-) {
+class SkysoftCommandRegistry(private val dispatcher: CommandDispatcher<FabricClientCommandSource>) {
     private var rootCommand: Command<FabricClientCommandSource>? = null
     private val childBuilders = mutableListOf<() -> ArgumentBuilder<FabricClientCommandSource, *>>()
     private val aliases = mutableListOf<LiteralArgumentBuilder<FabricClientCommandSource>>()
@@ -50,7 +46,7 @@ class SkysoftCommandRegistry(
     }
 
     fun register() {
-        (listOf(rootName) + rootAliases).forEach { name ->
+        ROOT_NAMES.forEach { name ->
             val children = childBuilders.map { it().build() }
             val reservedInputs = children.filterIsInstance<LiteralCommandNode<*>>().map { it.literal }
             reserveExistingFallbackInputs(name, reservedInputs)
@@ -77,6 +73,7 @@ class SkysoftCommandRegistry(
         fun stringArgument(name: String): RequiredArgumentBuilder<FabricClientCommandSource, String> =
             RequiredArgumentBuilder.argument(name, StringArgumentType.greedyString())
 
+        private val ROOT_NAMES = listOf("skysoft", "ss", "soft")
     }
 }
 

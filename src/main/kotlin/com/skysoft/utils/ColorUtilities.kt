@@ -9,6 +9,11 @@ object ColorUtilities {
     const val RGB_MASK = 0x00FFFFFF
     const val COLOR_CHANNEL_MIN = 0
     const val COLOR_CHANNEL_MAX = 255
+    const val RED_SHIFT = 16
+    const val GREEN_SHIFT = 8
+    const val COLOR_CHANNEL_MASK = 0xFF
+
+    fun packRgb(red: Int, green: Int, blue: Int): Int = (red shl RED_SHIFT) or (green shl GREEN_SHIFT) or blue
 
     fun Color.addAlpha(alpha: Int): Color = Color(red, green, blue, alpha)
     fun Color.toChromaColor(alpha: Int = this.alpha): ChromaColour = ChromaColour.fromRGB(red, green, blue, 0, alpha)
