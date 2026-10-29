@@ -21,7 +21,7 @@ object MinecraftInput {
 
     fun mouseBinding(button: Int): Int = button
 
-    fun isMouseBinding(binding: Int): Boolean = binding in GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST
+    private fun isMouseBinding(binding: Int): Boolean = binding in GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST
 
     fun isKeyBinding(binding: Int): Boolean = binding in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST
 

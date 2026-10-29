@@ -11,26 +11,15 @@ internal fun AbstractContainerScreen<*>.nonPlayerSlots(): List<Slot> {
     return menu.slots.filter { playerInventory == null || it.container !== playerInventory }
 }
 
-internal fun AbstractContainerScreen<*>.nonPlayerInventoryItems(): Map<Int, ItemStack> =
-    nonPlayerSlots()
-        .mapNotNull { slot -> slot.item.takeUnless { it.isEmpty }?.let { slot.containerSlot to it } }
-        .toMap()
-
-internal fun AbstractContainerScreen<*>.nonPlayerInventoryKey(
-    titleText: String = title.string,
-    stackSignature: (ItemStack) -> String = ::defaultStackSignature,
-): String = buildString {
+internal fun AbstractContainerScreen<*>.nonPlayerInventoryKey(titleText: String): String = buildString {
     append(menu.containerId).append('|').append(titleText).append('|')
     nonPlayerSlots().forEach { slot ->
         append(slot.containerSlot).append(':')
-        val signature = stackSignature(slot.item)
-        if (signature.isNotEmpty()) append(signature)
+        val stack = slot.item
+        if (!stack.isEmpty) append(ItemStack.hashItemAndComponents(stack)).append(':').append(stack.count)
         append(';')
     }
 }
-
-private fun defaultStackSignature(stack: ItemStack): String =
-    if (stack.isEmpty) "" else "${ItemStack.hashItemAndComponents(stack)}:${stack.count}"
 
 internal fun AbstractContainerScreen<*>.nonPlayerSlotAt(mouseX: Int, mouseY: Int, includeEmpty: Boolean = false): Slot? {
     val accessor = this as AbstractContainerScreenAccessor

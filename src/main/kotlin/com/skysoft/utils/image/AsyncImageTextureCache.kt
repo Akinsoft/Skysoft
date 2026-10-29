@@ -80,5 +80,4 @@ internal class AsyncImageTextureCache<K>(
         }
         textures.put(key, texture)?.release()
     }
-
 }

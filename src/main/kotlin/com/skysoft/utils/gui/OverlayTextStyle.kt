@@ -10,14 +10,16 @@ object OverlayTextStyle {
 
     fun title(text: String): String = "§e§l$text"
 
+    fun hiddenRowsIndicator(hiddenAbove: Int, hiddenBelow: Int, separator: String): String {
+        if (hiddenAbove <= 0 && hiddenBelow <= 0) return ""
+        return buildList {
+            if (hiddenAbove > 0) add("$hiddenAbove above")
+            if (hiddenBelow > 0) add("$hiddenBelow more")
+        }.joinToString(separator, prefix = "§7", postfix = "...")
+    }
+
     fun drawControlHover(context: GuiGraphicsExtractor, bounds: Rect, opacity: Double) {
-        context.fill(
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            CONTROL_HOVER_COLOR.withScaledAlpha(opacity),
-        )
+        context.fill(bounds, CONTROL_HOVER_COLOR.withScaledAlpha(opacity))
     }
 }
 

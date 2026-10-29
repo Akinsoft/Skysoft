@@ -55,11 +55,15 @@ internal fun GuiGraphicsExtractor.fillRoundedRect(x: Int, y: Int, width: Int, he
         }
         return
     }
-    fill(x + CORNER_RADIUS, y, x + width - CORNER_RADIUS, y + 1, color)
-    fill(x + 1, y + 1, x + width - 1, y + CORNER_RADIUS, color)
-    fill(x, y + CORNER_RADIUS, x + width, y + height - CORNER_RADIUS, color)
-    fill(x + 1, y + height - CORNER_RADIUS, x + width - 1, y + height - 1, color)
-    fill(x + CORNER_RADIUS, y + height - 1, x + width - CORNER_RADIUS, y + height, color)
+    fillRoundedBounds(x, y, x + width, y + height, color)
+}
+
+internal fun GuiGraphicsExtractor.fillRoundedBounds(left: Int, top: Int, right: Int, bottom: Int, color: Int) {
+    fill(left + CORNER_RADIUS, top, right - CORNER_RADIUS, top + 1, color)
+    fill(left + 1, top + 1, right - 1, top + CORNER_RADIUS, color)
+    fill(left, top + CORNER_RADIUS, right, bottom - CORNER_RADIUS, color)
+    fill(left + 1, bottom - CORNER_RADIUS, right - 1, bottom - 1, color)
+    fill(left + CORNER_RADIUS, bottom - 1, right - CORNER_RADIUS, bottom, color)
 }
 
 internal fun roundedRectVerticalInset(horizontalOffset: Int, width: Int, height: Int): Int =

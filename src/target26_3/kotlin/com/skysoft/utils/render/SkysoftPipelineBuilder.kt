@@ -35,8 +35,6 @@ object SkysoftPipelineBuilder {
 
     private val oitPipelines = mutableMapOf(RenderPipelines.DEBUG_QUADS to lazyOf(RenderPipelines.OIT_DEBUG_QUADS))
 
-    fun guiSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_SNIPPET
-    fun guiTexturedSnippet(): RenderPipeline.Snippet = RenderPipelines.GUI_TEXTURED_SNIPPET
     fun itemSnippet(): RenderPipeline.Snippet = itemPipelineSnippet
 
     fun renderSetup(pipeline: RenderPipeline): RenderSetup.RenderSetupBuilder =

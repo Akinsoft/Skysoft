@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.item.TrackingItemStackRenderState
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState
 import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.util.LightCoordsUtil
 import net.minecraft.world.phys.Vec3
 import org.joml.Matrix3x2f
 import org.joml.Quaternionf
@@ -46,14 +47,13 @@ class RotatingItemPicture(
         poseStack.translate(0.0f, MODEL_Y_OFFSET, MODEL_Z_OFFSET)
         val lighting = if (model.usesBlockLight()) Lighting.Entry.ITEMS_3D else Lighting.Entry.ITEMS_FLAT
         MinecraftRenderer.lighting(Minecraft.getInstance().gameRenderer).setupFor(lighting)
-        model.submit(poseStack, nodes, FULL_BRIGHT_LIGHT, OverlayTexture.NO_OVERLAY, 0)
+        model.submit(poseStack, nodes, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0)
     }
 
     private companion object {
         private const val ITEM_SIDE = 16f
         private const val MODEL_Y_OFFSET = 0.03f
         private const val MODEL_Z_OFFSET = 0.125f
-        private const val FULL_BRIGHT_LIGHT = 15_728_880
     }
 }
 

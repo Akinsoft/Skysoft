@@ -15,7 +15,7 @@ object PixelControlColors {
 
 object PixelControlPanelRenderer {
     fun draw(context: GuiGraphicsExtractor, bounds: Rect, headerHeight: Int) {
-        OverlayPanelStyle.draw(context, bounds.x, bounds.y, bounds.width, bounds.height)
+        OverlayPanelStyle.draw(context, bounds)
         context.fill(
             bounds.x + BORDER,
             bounds.y + BORDER,
@@ -38,20 +38,8 @@ object PixelSliderRenderer {
 
     fun draw(context: GuiGraphicsExtractor, track: Rect, progress: Float, isHovered: Boolean, opacity: Double = 1.0) {
         val fillWidth = (track.width * progress.coerceIn(0f, 1f)).roundToInt()
-        context.fill(
-            track.x,
-            track.y,
-            track.x + track.width,
-            track.y + track.height,
-            PixelControlColors.SLIDER_TRACK.withScaledAlpha(opacity),
-        )
-        context.fill(
-            track.x,
-            track.y,
-            track.x + fillWidth,
-            track.y + track.height,
-            PixelControlColors.ACCENT.withScaledAlpha(opacity),
-        )
+        context.fill(track, PixelControlColors.SLIDER_TRACK.withScaledAlpha(opacity))
+        context.fill(track.copy(width = fillWidth), PixelControlColors.ACCENT.withScaledAlpha(opacity))
         val knobX = (track.x + fillWidth).coerceIn(track.x, track.x + track.width)
         context.fill(
             knobX - KNOB_HALF_WIDTH,

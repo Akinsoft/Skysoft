@@ -20,7 +20,7 @@ object WorldCircleRenderer {
         if (radius <= 0.0) return
         val segments = max(MIN_SEGMENTS, (radius * SEGMENTS_PER_BLOCK).roundToInt())
         LineBoxRenderer.draw3D(context, lineWidth, depth) {
-            var previous = point(center, radius, 0)
+            var previous = point(center, radius, 0, segments)
             for (index in 1..segments) {
                 val next = point(center, radius, index, segments)
                 draw3DLine(previous, next, color)
@@ -29,7 +29,7 @@ object WorldCircleRenderer {
         }
     }
 
-    private fun point(center: WorldVec, radius: Double, index: Int, segments: Int = MIN_SEGMENTS): WorldVec {
+    private fun point(center: WorldVec, radius: Double, index: Int, segments: Int): WorldVec {
         val angle = index.toDouble() / segments.toDouble() * PI * FULL_TURN_MULTIPLIER
         return WorldVec(
             center.x + cos(angle) * radius,
