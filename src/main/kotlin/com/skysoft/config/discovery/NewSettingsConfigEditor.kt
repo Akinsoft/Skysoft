@@ -2,6 +2,9 @@ package com.skysoft.config.discovery
 
 import com.skysoft.config.SkysoftMoulConfigGuis
 import com.skysoft.config.categoriesForGame
+import com.skysoft.config.core.fieldOrNull
+import com.skysoft.config.core.hierarchyFields
+import com.skysoft.config.core.implementation
 import com.skysoft.data.hypixel.SkysoftGame
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
@@ -9,7 +12,6 @@ import io.github.notenoughupdates.moulconfig.gui.MoulConfigEditor
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor
 import io.github.notenoughupdates.moulconfig.processor.ProcessedCategoryImpl
 import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
-import java.lang.reflect.Field
 import java.util.LinkedHashMap
 
 internal object NewSettingsConfigEditor {
@@ -31,23 +33,14 @@ internal object NewSettingsConfigEditor {
         if (requestedOptions.isEmpty()) return null
 
         val includedOptions = requiredOptions(processor, schema, requestedOptions)
-        val categories = processor.allCategories.mapValues { (_, category) ->
-            require(category is ProcessedCategoryImpl) {
-                "SoftConfig returned an unsupported category implementation: ${category.javaClass.name}"
-            }
-            category
-        }
+        val categories = processor.allCategories.mapValues { (_, category) -> category.implementation() }
         categories.values.forEach { category ->
             category.options.removeIf { it !in includedOptions }
             category.accordionAnchors.entries.removeIf { it.value !in includedOptions }
         }
 
         val requiredCategoryIds = requiredCategoryIds(includedOptions, processor)
-        val filteredCategories = LinkedHashMap<String, ProcessedCategoryImpl>()
-        categories.forEach { (id, category) ->
-            if (id in requiredCategoryIds) filteredCategories[id] = category
-        }
-        return filteredCategories
+        return categories.filterTo(LinkedHashMap()) { (id, _) -> id in requiredCategoryIds }
     }
 
     private fun requiredOptions(
@@ -80,7 +73,9 @@ internal object NewSettingsConfigEditor {
     ) {
         val field = option.fieldOrNull() ?: return
         val condition = field.getAnnotation(ConfigVisibleIf::class.java) ?: return
-        val controller = findField(field.declaringClass, condition.value)?.let(processor::getOptionFromField)
+        val controller = field.declaringClass.hierarchyFields()
+            .firstOrNull { it.name == condition.value }
+            ?.let(processor::getOptionFromField)
         if (controller != null) {
             includedOptions += controller
             return
@@ -106,15 +101,4 @@ internal object NewSettingsConfigEditor {
         } while (categoryIds.size != previousSize)
         return categoryIds
     }
-
-    private fun findField(type: Class<*>, name: String): Field? {
-        var currentType: Class<*>? = type
-        while (currentType != null) {
-            runCatching { currentType.getDeclaredField(name) }.getOrNull()?.let { return it }
-            currentType = currentType.superclass
-        }
-        return null
-    }
 }
-
-private fun ProcessedOption.fieldOrNull(): Field? = (this as? ProcessedOption.HasField)?.field

@@ -23,20 +23,10 @@ object NewSettingsDiscovery {
         SkysoftClientEvents.onJoin("New settings discovery announcement", ::announcePendingSettings)
     }
 
-    fun hasPresentedSettings(): Boolean {
-        val activeRuntime = runtime
-        val presentedCount = activeRuntime?.let { currentRuntime ->
-            currentRuntime.state.lastPresentedOptionIds.count(currentRuntime.schema.byId::containsKey)
-        }
-            ?: 0
-        return presentedCount > 0
-    }
+    fun hasPresentedSettings(): Boolean = runtime?.presentedIds()?.isNotEmpty() == true
 
     internal fun didOpenPresentedSettings(): Boolean {
-        val activeRuntime = runtime ?: return false
-        val optionIds = activeRuntime.state.lastPresentedOptionIds
-            .filterTo(linkedSetOf(), activeRuntime.schema.byId::containsKey)
-        if (optionIds.isEmpty()) return false
+        val optionIds = runtime?.presentedIds()?.takeIf(Set<String>::isNotEmpty) ?: return false
         return SkysoftConfigGui.didOpenNewSettings(optionIds)
     }
 
@@ -74,14 +64,12 @@ object NewSettingsDiscovery {
 
     private fun announcePendingSettings() {
         val activeRuntime = runtime ?: return
-        val pendingIds = activeRuntime.state.pendingOptionIds
-            .filterTo(linkedSetOf(), activeRuntime.schema.byId::containsKey)
+        val pendingIds = activeRuntime.currentIds(activeRuntime.state.pendingOptionIds)
         if (pendingIds.isEmpty()) return
         val delivery = SkysoftChat.chat(newSettingsAnnouncement())
         if (delivery != ChatDeliveryResult.DELIVERED) return
 
-        val previousState = activeRuntime.state
-        val nextState = previousState.copy(
+        val nextState = activeRuntime.state.copy(
             pendingOptionIds = emptyList(),
             lastPresentedOptionIds = orderedCurrentIds(activeRuntime.schema, pendingIds),
         )
@@ -93,10 +81,14 @@ object NewSettingsDiscovery {
         val schema: NewSettingsSchema,
         var state: NewSettingsDiscoveryState,
         val store: NewSettingsStateStore,
-    )
+    ) {
+        fun presentedIds(): Set<String> = currentIds(state.lastPresentedOptionIds)
+
+        fun currentIds(ids: List<String>): Set<String> = ids.filterTo(linkedSetOf(), schema.byId::containsKey)
+    }
 }
 
-internal fun newSettingsAnnouncement(): Component =
+private fun newSettingsAnnouncement(): Component =
     Component.literal("New Skysoft features are available! ").withStyle(ChatFormatting.WHITE)
         .append(
             Component.literal("[Configure them]").withStyle { style ->
