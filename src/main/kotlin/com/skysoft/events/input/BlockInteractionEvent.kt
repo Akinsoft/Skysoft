@@ -1,7 +1,7 @@
 package com.skysoft.events.input
 
 import com.skysoft.data.InteractionClick
-import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.events.ActiveEvents
 import com.skysoft.utils.WorldVec
 import net.minecraft.world.item.ItemStack
 
@@ -11,23 +11,7 @@ class BlockInteractionEvent(
     val position: WorldVec,
 )
 
-fun interface BlockClickCallback {
-    fun shouldCancelBlockClick(event: BlockInteractionEvent): Boolean
-}
-
-object BlockInteractionEvents {
-    private val listeners = ActiveListenerRegistry<BlockClickCallback>()
-
-    fun register(
-        boundary: String,
-        isActive: () -> Boolean,
-        listener: BlockClickCallback,
-    ) {
-        listeners.register(boundary, isActive, listener)
-    }
-
-    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-
+internal object BlockInteractionEvents : ActiveEvents<(BlockInteractionEvent) -> Boolean>() {
     fun shouldCancelBlockClick(blockClick: BlockInteractionEvent): Boolean =
-        listeners.anyActive { listener -> listener.shouldCancelBlockClick(blockClick) }
+        listeners.anyActive { listener -> listener(blockClick) }
 }

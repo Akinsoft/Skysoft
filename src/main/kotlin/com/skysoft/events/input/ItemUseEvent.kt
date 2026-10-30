@@ -1,7 +1,7 @@
 package com.skysoft.events.input
 
 import com.skysoft.data.InteractionClick
-import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.events.ActiveEvents
 import net.minecraft.world.item.ItemStack
 
 class ItemUseEvent(
@@ -9,23 +9,7 @@ class ItemUseEvent(
     val itemInHand: ItemStack?,
 )
 
-fun interface ItemUseCallback {
-    fun shouldCancelItemUse(event: ItemUseEvent): Boolean
-}
-
-object ItemUseEvents {
-    private val listeners = ActiveListenerRegistry<ItemUseCallback>()
-
-    fun register(
-        boundary: String,
-        isActive: () -> Boolean,
-        listener: ItemUseCallback,
-    ) {
-        listeners.register(boundary, isActive, listener)
-    }
-
-    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-
+internal object ItemUseEvents : ActiveEvents<(ItemUseEvent) -> Boolean>() {
     fun shouldCancelItemUse(itemUse: ItemUseEvent): Boolean =
-        listeners.anyActive { listener -> listener.shouldCancelItemUse(itemUse) }
+        listeners.anyActive { listener -> listener(itemUse) }
 }
