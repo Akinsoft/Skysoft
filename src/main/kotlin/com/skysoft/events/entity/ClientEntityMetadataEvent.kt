@@ -1,6 +1,6 @@
 package com.skysoft.events.entity
 
-import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.events.ActiveEvents
 import net.minecraft.network.syncher.SynchedEntityData
 
 class ClientEntityMetadataEvent(
@@ -8,24 +8,8 @@ class ClientEntityMetadataEvent(
     val packedItems: List<SynchedEntityData.DataValue<*>>,
 )
 
-fun interface ReceiveEntityMetadataCallback {
-    fun onReceiveEntityMetadata(event: ClientEntityMetadataEvent)
-}
-
-object ClientEntityMetadataEvents {
-    private val listeners = ActiveListenerRegistry<ReceiveEntityMetadataCallback>()
-
-    fun register(
-        boundary: String,
-        isActive: () -> Boolean,
-        listener: ReceiveEntityMetadataCallback,
-    ) {
-        listeners.register(boundary, isActive, listener)
-    }
-
-    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-
+internal object ClientEntityMetadataEvents : ActiveEvents<(ClientEntityMetadataEvent) -> Unit>() {
     fun dispatch(metadata: ClientEntityMetadataEvent) {
-        listeners.forEachActive { listener -> listener.onReceiveEntityMetadata(metadata) }
+        listeners.forEachActive { listener -> listener(metadata) }
     }
 }

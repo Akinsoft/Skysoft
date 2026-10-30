@@ -1,6 +1,6 @@
 package com.skysoft.events.particle
 
-import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.events.ActiveEvents
 import com.skysoft.utils.WorldVec
 import net.minecraft.core.particles.ParticleType
 
@@ -13,25 +13,7 @@ class ClientParticleEvent(
     val longDistance: Boolean,
 )
 
-fun interface ReceiveParticleCallback {
-    fun shouldCancelParticle(event: ClientParticleEvent): Boolean
-}
-
-object ClientParticleEvents {
-    private val listeners = ActiveListenerRegistry<ReceiveParticleCallback>()
-
-    fun register(
-        boundary: String,
-        isActive: () -> Boolean,
-        listener: ReceiveParticleCallback,
-    ) {
-        listeners.register(boundary, isActive, listener)
-    }
-
-    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-
+internal object ClientParticleEvents : ActiveEvents<(ClientParticleEvent) -> Boolean>() {
     fun shouldCancelParticle(particle: ClientParticleEvent): Boolean =
-        listeners.foldActive(false) { cancelled, listener ->
-            listener.shouldCancelParticle(particle) || cancelled
-        }
+        listeners.foldActive(false) { cancelled, listener -> listener(particle) || cancelled }
 }

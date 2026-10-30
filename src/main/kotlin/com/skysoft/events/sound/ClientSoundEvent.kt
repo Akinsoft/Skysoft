@@ -1,6 +1,6 @@
 package com.skysoft.events.sound
 
-import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.events.ActiveEvents
 import com.skysoft.utils.WorldVec
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundSource
@@ -15,24 +15,8 @@ class ClientSoundEvent(
     val seed: Long,
 )
 
-fun interface ReceiveSoundCallback {
-    fun onReceiveSound(event: ClientSoundEvent)
-}
-
-object ClientSoundEvents {
-    private val listeners = ActiveListenerRegistry<ReceiveSoundCallback>()
-
-    fun register(
-        boundary: String,
-        isActive: () -> Boolean,
-        listener: ReceiveSoundCallback,
-    ) {
-        listeners.register(boundary, isActive, listener)
-    }
-
-    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-
+internal object ClientSoundEvents : ActiveEvents<(ClientSoundEvent) -> Unit>() {
     fun dispatch(sound: ClientSoundEvent) {
-        listeners.forEachActive { listener -> listener.onReceiveSound(sound) }
+        listeners.forEachActive { listener -> listener(sound) }
     }
 }

@@ -1,7 +1,7 @@
 package com.skysoft.events.entity
 
 import com.skysoft.data.InteractionClick
-import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.events.ActiveEvents
 import net.minecraft.world.entity.Entity
 
 class EntityInteractionEvent(
@@ -16,23 +16,7 @@ class EntityInteractionEvent(
     }
 }
 
-fun interface EntityClickCallback {
-    fun shouldCancelEntityClick(event: EntityInteractionEvent): Boolean
-}
-
-object EntityInteractionEvents {
-    private val listeners = ActiveListenerRegistry<EntityClickCallback>()
-
-    fun register(
-        boundary: String,
-        isActive: () -> Boolean,
-        listener: EntityClickCallback,
-    ) {
-        listeners.register(boundary, isActive, listener)
-    }
-
-    fun hasActiveListeners(): Boolean = listeners.hasActiveListeners
-
+internal object EntityInteractionEvents : ActiveEvents<(EntityInteractionEvent) -> Boolean>() {
     fun shouldCancelEntityClick(entityClick: EntityInteractionEvent): Boolean =
-        listeners.anyActive { listener -> listener.shouldCancelEntityClick(entityClick) }
+        listeners.anyActive { listener -> listener(entityClick) }
 }
