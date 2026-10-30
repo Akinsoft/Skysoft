@@ -1,10 +1,14 @@
 package com.skysoft.config.discovery
 
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.ConfigCategoryLayoutMigration
+import com.skysoft.config.getObjectOrNull
+import com.skysoft.config.core.fieldOrNull
+import com.skysoft.config.core.hierarchyFields
+import com.skysoft.config.core.implementation
+import com.skysoft.utils.identitySet
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
@@ -12,17 +16,15 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.Config
 import io.github.notenoughupdates.moulconfig.processor.MoulConfigProcessor
 import io.github.notenoughupdates.moulconfig.processor.ProcessedCategory
-import io.github.notenoughupdates.moulconfig.processor.ProcessedCategoryImpl
 import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
+import java.lang.reflect.Field
 import java.lang.reflect.GenericArrayType
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.WildcardType
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.util.Collections
 import java.util.HexFormat
-import java.util.IdentityHashMap
 
 internal data class NewSettingDescriptor(
     val id: String,
@@ -49,7 +51,7 @@ internal data class NewSettingsSchema(
                     }
                 }
             val repeatedIdentities = persistentOptions
-                .groupingBy { persistentFieldIdentity(it.field) }
+                .groupingBy { ConfigCategoryLayoutMigration.originalFieldIdentity(it.field) }
                 .eachCount()
                 .filterValues { it > 1 }
                 .keys
@@ -69,7 +71,7 @@ internal data class NewSettingsSchema(
         ): NewSettingDescriptor {
             val option = persistentOption.option
             val field = persistentOption.field
-            val fieldIdentity = persistentFieldIdentity(field)
+            val fieldIdentity = ConfigCategoryLayoutMigration.originalFieldIdentity(field)
             val identity = if (fieldIdentity in repeatedIdentities) {
                 "$fieldIdentity@${ConfigCategoryLayoutMigration.originalPath(persistentOption.fullPath)}"
             } else {
@@ -88,9 +90,9 @@ internal data class NewSettingsSchema(
     }
 }
 
-internal fun serializedOptionPaths(config: Config): Map<String, Set<String>> {
+private fun serializedOptionPaths(config: Config): Map<String, Set<String>> {
     val paths = linkedMapOf<String, MutableSet<String>>()
-    val activeContainers = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+    val activeContainers = identitySet<Any>()
     collectSerializedOptionPaths(config, "", setOf(""), paths, activeContainers)
     return paths
 }
@@ -104,7 +106,7 @@ private fun collectSerializedOptionPaths(
 ) {
     if (!activeContainers.add(container)) return
     try {
-        allFields(container.javaClass).forEach { field ->
+        container.javaClass.hierarchyFields().forEach { field ->
             val expose = field.getAnnotation(Expose::class.java) ?: return@forEach
             if (!expose.serialize) return@forEach
             val optionPath = if (optionPrefix.isEmpty()) field.name else "$optionPrefix.${field.name}"
@@ -128,21 +130,18 @@ private fun collectSerializedOptionPaths(
 
 private data class PersistentOption(
     val option: ProcessedOption,
-    val field: java.lang.reflect.Field,
+    val field: Field,
     val fullPath: String,
 )
 
-private fun persistentField(option: ProcessedOption): java.lang.reflect.Field? {
-    val field = (option as? ProcessedOption.HasField)?.field ?: return null
+private fun persistentField(option: ProcessedOption): Field? {
+    val field = option.fieldOrNull() ?: return null
     val expose = field.getAnnotation(Expose::class.java) ?: return null
     if (!expose.serialize || field.isAnnotationPresent(Accordion::class.java)) return null
     val editorNames = editorNames(field)
     if (editorNames.isEmpty() || editorNames.any(EXCLUDED_EDITOR_NAMES::contains)) return null
     return field
 }
-
-private fun persistentFieldIdentity(field: java.lang.reflect.Field): String =
-    ConfigCategoryLayoutMigration.originalFieldIdentity(field)
 
 private fun fullOptionPath(
     option: ProcessedOption,
@@ -153,32 +152,19 @@ private fun fullOptionPath(
     while (parentId != null) {
         val parent = requireNotNull(categories[parentId]) {
             "SoftConfig option references an unknown parent category: $parentId"
-        }
-        require(parent is ProcessedCategoryImpl) {
-            "SoftConfig returned an unsupported category implementation: ${parent.javaClass.name}"
-        }
+        }.implementation()
         parentSegments += parent.reflectField.name
         parentId = parent.parentCategoryId
     }
     return (parentSegments.asReversed() + option.path).joinToString(separator = ".")
 }
 
-private fun allFields(type: Class<*>): List<java.lang.reflect.Field> {
-    val fields = mutableListOf<java.lang.reflect.Field>()
-    var currentType: Class<*>? = type
-    while (currentType != null && currentType != Any::class.java) {
-        fields += currentType.declaredFields
-        currentType = currentType.superclass
-    }
-    return fields
-}
-
-private fun serializedNames(field: java.lang.reflect.Field): List<String> {
+private fun serializedNames(field: Field): List<String> {
     val serializedName = field.getAnnotation(SerializedName::class.java) ?: return listOf(field.name)
     return listOf(serializedName.value) + serializedName.alternate
 }
 
-internal fun discoverySignature(field: java.lang.reflect.Field): String {
+private fun discoverySignature(field: Field): String {
     val dropdownChoices = field.getAnnotation(ConfigEditorDropdown::class.java)
         ?.values
         ?.sorted()
@@ -196,7 +182,7 @@ internal fun discoverySignature(field: java.lang.reflect.Field): String {
     )
 }
 
-private fun editorNames(field: java.lang.reflect.Field): List<String> =
+private fun editorNames(field: Field): List<String> =
     field.annotations
         .map { it.annotationClass.java }
         .filter { it.packageName == ConfigOption::class.java.packageName }
@@ -247,11 +233,6 @@ internal fun bootstrapKnownSignatures(
         .associate { it.id to it.signature }
 
 private fun JsonObject.hasPath(path: String): Boolean {
-    var current: JsonElement = this
-    path.split('.').forEach { segment ->
-        if (!current.isJsonObject) return false
-        val child = current.asJsonObject.get(segment) ?: return false
-        current = child
-    }
-    return true
+    val segments = path.split('.')
+    return getObjectOrNull(*segments.dropLast(1).toTypedArray())?.has(segments.last()) == true
 }

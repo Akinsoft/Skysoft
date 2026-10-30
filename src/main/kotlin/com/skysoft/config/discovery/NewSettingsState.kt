@@ -2,7 +2,7 @@ package com.skysoft.config.discovery
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.skysoft.config.SkysoftConfigFileIo
+import com.skysoft.config.SkysoftConfigFiles
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -72,8 +72,8 @@ private fun NewSettingsDiscoveryState?.orEmpty(): NewSettingsDiscoveryState = th
 
 internal class NewSettingsStateStore(private val path: Path) {
     fun load(): NewSettingsDiscoveryState? {
-        if (!SkysoftConfigFileIo.hasFileOrBackup(path)) return null
-        return SkysoftConfigFileIo.readWithBackup(path) { readablePath ->
+        if (!SkysoftConfigFiles.hasFileOrBackup(path)) return null
+        return SkysoftConfigFiles.readWithBackup(path) { readablePath ->
             Files.newBufferedReader(readablePath).use { reader ->
                 requireNotNull(GSON.fromJson(reader, NewSettingsDiscoveryState::class.java)) {
                     "New-settings discovery state is empty: $readablePath"
@@ -83,7 +83,7 @@ internal class NewSettingsStateStore(private val path: Path) {
     }
 
     fun save(state: NewSettingsDiscoveryState) {
-        SkysoftConfigFileIo.writeStringSafely(path, GSON.toJson(state.validated()))
+        SkysoftConfigFiles.writeStringSafely(path, GSON.toJson(state.validated()))
     }
 
     companion object {

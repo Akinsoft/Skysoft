@@ -64,13 +64,8 @@ interface ConfigResettable {
         }
         ?.also { it.isAccessible = true }
 
-    private fun resettableFields(): Sequence<Field> = generateSequence<Class<*>>(javaClass) { it.superclass }
-        .takeWhile { it != Any::class.java }
-        .flatMap { it.declaredFields.asSequence() }
+    private fun resettableFields(): Sequence<Field> = javaClass.hierarchyFields()
         .filterNot { field ->
-            Modifier.isStatic(field.modifiers) ||
-                Modifier.isTransient(field.modifiers) ||
-                field.isSynthetic ||
-                field.isAnnotationPresent(KeepOnConfigReset::class.java)
+            Modifier.isStatic(field.modifiers) || Modifier.isTransient(field.modifiers) || field.isSynthetic
         }
 }
