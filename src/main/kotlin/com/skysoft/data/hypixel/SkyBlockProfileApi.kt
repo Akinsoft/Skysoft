@@ -3,25 +3,26 @@ package com.skysoft.data.hypixel
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ActiveListenerRegistry
-import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.player.Player
 import java.util.Locale
 
 object SkyBlockProfileApi {
     private val profileChangeListeners = ActiveListenerRegistry<(String?) -> Unit>()
     private val consumers = ActiveConsumerRegistry()
 
-    var currentProfileName: String? = null
+    var currentProfileKey: String? = null
         private set
 
-    val currentProfileKey: String?
-        get() = currentProfileName
-
     val currentProfileId: SkyBlockProfileId?
-        get() = SkyBlockProfileId.fromExactKeys(currentPlayerKeyOrNull(), currentProfileKey)
+        get() {
+            val playerKey = currentPlayerKeyOrNull() ?: return null
+            val profileKey = currentProfileKey ?: return null
+            return SkyBlockProfileId(playerKey, profileKey)
+        }
 
     fun currentPlayerKeyOrNull(): String? {
         val minecraft: Minecraft? = Minecraft.getInstance()
@@ -41,20 +42,7 @@ object SkyBlockProfileApi {
             handleChat(message.plainText)
             ChatMessageVisibility.SHOW
         }
-        SkysoftClientEvents.onEndTick(
-            "SkyBlock Profile update",
-            isActive = { consumers.isActiveOrDeactivating },
-        ) {
-            when (consumers.activity()) {
-                ConsumerActivity.INACTIVE -> return@onEndTick
-                ConsumerActivity.DEACTIVATED -> {
-                    setProfile(null)
-                    return@onEndTick
-                }
-                ConsumerActivity.ACTIVATED,
-                ConsumerActivity.ACTIVE,
-                -> Unit
-            }
+        consumers.onEndTick("SkyBlock Profile update", onDeactivated = { setProfile(null) }) {
             if (!HypixelLocationState.inSkyBlock) setProfile(null)
         }
         SkysoftClientEvents.onDisconnect("SkyBlock Profile reset") {
@@ -77,48 +65,44 @@ object SkyBlockProfileApi {
 
     private fun handleChat(message: String) {
         val clean = message.cleanSkyBlockText().lowercase(Locale.US)
-        val profile = when {
-            clean.startsWith("your profile was changed to:") ->
-                clean.removePrefix("your profile was changed to:")
-
-            clean.startsWith("you are playing on profile:") ->
-                clean.removePrefix("you are playing on profile:")
-
-            else -> return
-        }
-        setProfile(profile.removeSuffix("(co-op)").trim())
+        val prefix = profileMessagePrefixes.firstOrNull(clean::startsWith) ?: return
+        setProfile(clean.removePrefix(prefix).removeSuffix("(co-op)").trim())
     }
 
     private fun readTabProfile() {
-        for (component in TabListApi.skyBlockLines) {
-            val line = component.cleanSkyBlockText()
-            val profile = profileTabPattern.matchEntire(line)?.groupValues?.get(1) ?: continue
-            setProfile(profile)
-            return
-        }
+        TabListApi.skyBlockLines
+            .firstNotNullOfOrNull { profileTabPattern.matchEntire(it.cleanSkyBlockText())?.groupValues?.get(1) }
+            ?.let(::setProfile)
     }
 
     private fun setProfile(profileName: String?) {
-        val normalized = profileName?.normalizeProfileName()?.takeIf { it.isNotBlank() }
-        if (currentProfileName == normalized) return
-        currentProfileName = normalized
+        val normalized = profileName?.trim()?.lowercase(Locale.US)?.takeIf { it.isNotBlank() }
+        if (currentProfileKey == normalized) return
+        currentProfileKey = normalized
         profileChangeListeners.forEachActive { listener -> listener(normalized) }
     }
 
-    private fun String.normalizeProfileName(): String =
-        trim().lowercase(Locale.US)
-
+    private val profileMessagePrefixes = listOf("your profile was changed to:", "you are playing on profile:")
     private val profileTabPattern = Regex("""Profile: ([\w\s]+)(?:[ ♲Ⓑ☀]+)?""")
 }
 
 data class SkyBlockProfileId(
     val playerKey: String,
     val profileKey: String,
+)
+
+internal data class SkyBlockSessionContext(
+    val locationVersion: Long,
+    val playerId: String,
+    val profileKey: String?,
+    val level: Any?,
 ) {
     companion object {
-        internal fun fromExactKeys(playerKey: String?, profileKey: String?): SkyBlockProfileId? {
-            if (playerKey == null || profileKey == null) return null
-            return SkyBlockProfileId(playerKey, profileKey)
-        }
+        fun of(minecraft: Minecraft, player: Player) = SkyBlockSessionContext(
+            HypixelLocationState.locationVersion,
+            player.uuid.toString(),
+            SkyBlockProfileApi.currentProfileKey,
+            minecraft.level,
+        )
     }
 }

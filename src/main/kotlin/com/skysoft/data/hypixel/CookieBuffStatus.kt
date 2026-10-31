@@ -1,5 +1,6 @@
 package com.skysoft.data.hypixel
 
+import com.skysoft.utils.DurationParts
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.time.Instant
 import java.time.ZoneOffset
@@ -21,14 +22,11 @@ data class CookieBuffStatus(
 internal fun parseCookieBuffStatus(
     isTabLoaded: Boolean,
     components: List<Component>,
-    footer: Component? = null,
+    footer: Component?,
 ): CookieBuffStatus {
     if (!isTabLoaded) return CookieBuffStatus(CookieBuffState.LOADING)
     parseCookieBuffLines(footer?.cookieBuffLines().orEmpty())?.let { return it }
-    val lines = components.flatMap { component ->
-        component.cookieBuffLines()
-    }
-    return parseCookieBuffLines(lines) ?: CookieBuffStatus(CookieBuffState.UNKNOWN)
+    return parseCookieBuffLines(components.flatMap { it.cookieBuffLines() }) ?: CookieBuffStatus(CookieBuffState.UNKNOWN)
 }
 
 private fun Component.cookieBuffLines(): List<String> =
@@ -68,21 +66,19 @@ internal fun cookieBuffExpiryFromDuration(duration: String, now: Long): Long? {
 
 internal fun formatRememberedDuration(remainingMillis: Long): String {
     val totalMinutes = (remainingMillis / MILLIS_PER_MINUTE).coerceAtLeast(1L)
-    val days = totalMinutes / MINUTES_PER_DAY
-    val hours = totalMinutes % MINUTES_PER_DAY / MINUTES_PER_HOUR
-    val minutes = totalMinutes % MINUTES_PER_HOUR
+    val duration = DurationParts.fromSeconds(totalMinutes * SECONDS_PER_MINUTE)
     return buildList {
-        if (days > 0L) add("$days ${if (days == 1L) "Day" else "Days"}")
-        if (hours > 0L) add("$hours ${if (hours == 1L) "Hour" else "Hours"}")
-        if (days == 0L && minutes > 0L) add("$minutes ${if (minutes == 1L) "Minute" else "Minutes"}")
+        if (duration.days > 0L) add(durationUnit(duration.days, "Day"))
+        if (duration.hours > 0L) add(durationUnit(duration.hours, "Hour"))
+        if (duration.days == 0L && duration.minutes > 0L) add(durationUnit(duration.minutes, "Minute"))
     }.joinToString(", ")
 }
 
+private fun durationUnit(amount: Long, name: String): String = if (amount == 1L) "$amount $name" else "$amount ${name}s"
+
 private const val COOKIE_BUFF_HEADER = "Cookie Buff"
 private const val MILLIS_PER_MINUTE = 60_000L
-private const val MINUTES_PER_HOUR = 60L
-private const val HOURS_PER_DAY = 24L
-private const val MINUTES_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR
+private const val SECONDS_PER_MINUTE = 60L
 private val INACTIVE_COOKIE_BUFF = Regex("(?:Not Active|Inactive|None)", RegexOption.IGNORE_CASE)
 private val COOKIE_DURATION = Regex(
     "(\\d+)\\s+(year|month|week|day|hour|minute|second)s?",

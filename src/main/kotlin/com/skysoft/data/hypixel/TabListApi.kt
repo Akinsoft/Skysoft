@@ -3,7 +3,6 @@ package com.skysoft.data.hypixel
 import com.mojang.authlib.GameProfile
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.ActiveStatePublisher
-import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TabListOverlay
@@ -68,9 +67,6 @@ object TabListApi {
     val skyBlockFooter: Component?
         get() = if (isSkyBlockDataLoaded) publisher.state.footer else null
 
-    val skyBlockAreaName: String?
-        get() = parseSkyBlockTabArea(skyBlockLines.map { it.cleanSkyBlockText() })
-
     fun register() {
         publisher.register()
         HypixelLocationState.onChange(
@@ -78,14 +74,14 @@ object TabListApi {
             isActive = { consumers.hasActiveConsumers },
         ) {
             resetSession()
-            dirty = true
+            markDirty()
         }
-        SkysoftClientEvents.onEndTick(
+        consumers.onEndTick(
             "Tab List update",
-            isActive = { consumers.isActiveOrDeactivating },
-        ) {
-            onClientTick()
-        }
+            onDeactivated = ::resetSession,
+            onActivated = ::markDirty,
+            onActiveTick = ::onClientTick,
+        )
         SkysoftClientEvents.onDisconnect("Tab List reset") {
             resetSession()
             consumers.resetActivity()
@@ -109,16 +105,6 @@ object TabListApi {
         HypixelLocationState.inSkyBlock && skyBlockDataLoadStartedAt.passedSince() >= duration
 
     private fun onClientTick() {
-        when (consumers.activity()) {
-            ConsumerActivity.INACTIVE -> return
-            ConsumerActivity.DEACTIVATED -> {
-                resetSession()
-                return
-            }
-            ConsumerActivity.ACTIVATED -> dirty = true
-            ConsumerActivity.ACTIVE -> Unit
-        }
-
         if (!HypixelLocationState.inSkyBlock) return
 
         val shouldRefresh = when {
@@ -138,13 +124,13 @@ object TabListApi {
     }
 
     private fun refresh() {
-        val next = readTabList()
-        if (next.entries.isEmpty()) {
+        val nextProfiles = readPlayerProfiles()
+        val nextEntries = nextProfiles.map(TabListPlayerProfile::entry).sortedForDisplay()
+        if (nextEntries.isEmpty()) {
             clearLoadedLines()
             return
         }
 
-        val nextEntries = next.entries
         val nextLines = nextEntries.map { it.displayName }
         val minecraft = Minecraft.getInstance()
         val nextHeader = TabListOverlay.readHeader(minecraft)
@@ -157,7 +143,7 @@ object TabListApi {
                 skyBlockDataLoaded = skyBlockDataReads >= SKYBLOCK_DATA_READY_READS,
                 lines = Collections.unmodifiableList(nextLines),
                 entries = Collections.unmodifiableList(nextEntries),
-                playerProfiles = Collections.unmodifiableList(next.playerProfiles),
+                playerProfiles = Collections.unmodifiableList(nextProfiles),
                 header = nextHeader,
                 footer = nextFooter,
             ),
@@ -198,23 +184,17 @@ object TabListApi {
         entries.any { it.cleanDisplayName == "Info" } &&
             entries.any { skyBlockAreaPattern.matches(it.cleanDisplayName) }
 
-    private fun readTabList(): TabListReadResult {
-        val connection = Minecraft.getInstance().connection ?: return TabListReadResult()
-        val players = connection.listedOnlinePlayers
-        val playerProfiles = players.map { player ->
-            val entry = player.toTabListEntry()
+    private fun readPlayerProfiles(): List<TabListPlayerProfile> {
+        val connection = Minecraft.getInstance().connection ?: return emptyList()
+        return connection.listedOnlinePlayers.map { player ->
             TabListPlayerProfile(
                 uuid = player.profile.id,
                 profileName = player.profile.name,
                 profile = player.profile,
-                entry = entry,
+                entry = player.toTabListEntry(),
                 playerInfo = player,
             )
         }
-        return TabListReadResult(
-            entries = playerProfiles.map(TabListPlayerProfile::entry).sortedForDisplay(),
-            playerProfiles = playerProfiles,
-        )
     }
 
     private const val STABILITY_READ_INTERVAL_TICKS = 5
@@ -245,18 +225,6 @@ data class TabListPlayerProfile(
         get() = playerInfo.showHat()
 
     fun skin(): PlayerSkin = playerInfo.skin
-}
-
-private data class TabListReadResult(
-    val entries: List<TabListEntry> = emptyList(),
-    val playerProfiles: List<TabListPlayerProfile> = emptyList(),
-)
-
-internal fun parseSkyBlockTabArea(lines: Iterable<String>): String? = lines.firstNotNullOfOrNull { line ->
-    line.trim().takeIf { it.startsWith(SKYBLOCK_AREA_PREFIX) }
-        ?.removePrefix(SKYBLOCK_AREA_PREFIX)
-        ?.trim()
-        ?.takeIf(String::isNotEmpty)
 }
 
 internal fun PlayerInfo.toTabListEntry(): TabListEntry {
@@ -297,5 +265,4 @@ internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =
 private val skyBlockPlayerPattern = Regex(
     """^\[\d+] (?:\[[^]]+] )?(?<name>[A-Za-z0-9_]{1,16})(?:\s|$)""",
 )
-private const val SKYBLOCK_AREA_PREFIX = "Area:"
 private const val MAX_RENDERED_TAB_ENTRIES = 80

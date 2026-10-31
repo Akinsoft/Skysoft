@@ -19,7 +19,7 @@ object HypixelLocationState {
         get() = publisher.state.game
 
     val inSkyBlock: Boolean
-        get() = game == SkysoftGame.SKYBLOCK
+        get() = publisher.state.inSkyBlock
 
     val inRavengard: Boolean
         get() = game == SkysoftGame.RAVENGARD
@@ -61,7 +61,7 @@ object HypixelLocationState {
         publisher.onChange(boundary, isActive, listener)
     }
 
-    internal fun acceptLocation(packet: ClientboundLocationPacket) {
+    private fun acceptLocation(packet: ClientboundLocationPacket) {
         val mode = packet.mode.getOrNull()
         val game = skysoftGame(packet.serverType.getOrNull(), mode)
         val map = packet.map.getOrNull()
@@ -99,7 +99,7 @@ enum class SkysoftGame {
     RAVENGARD,
 }
 
-internal fun skysoftGame(serverType: ServerType?, mode: String?): SkysoftGame? = when {
+private fun skysoftGame(serverType: ServerType?, mode: String?): SkysoftGame? = when {
     serverType == GameType.SKYBLOCK -> SkysoftGame.SKYBLOCK
     serverType == GameType.PROTOTYPE && mode?.startsWith(RAVENGARD_MODE_PREFIX, ignoreCase = true) == true ->
         SkysoftGame.RAVENGARD

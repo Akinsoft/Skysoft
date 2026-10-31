@@ -2,10 +2,10 @@ package com.skysoft.data.hypixel
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.utils.ActiveConsumerRegistry
-import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import kotlin.math.abs
 
 object SkyBlockCookieBuffApi {
     private val consumers = ActiveConsumerRegistry()
@@ -30,20 +30,7 @@ object SkyBlockCookieBuffApi {
             }
             ChatMessageVisibility.SHOW
         }
-        SkysoftClientEvents.onEndTick(
-            "Cookie Buff update",
-            isActive = { consumers.isActiveOrDeactivating },
-        ) {
-            when (consumers.activity()) {
-                ConsumerActivity.INACTIVE -> return@onEndTick
-                ConsumerActivity.DEACTIVATED -> {
-                    reset()
-                    return@onEndTick
-                }
-                ConsumerActivity.ACTIVATED,
-                ConsumerActivity.ACTIVE,
-                -> Unit
-            }
+        consumers.onEndTick("Cookie Buff update", onDeactivated = ::reset) {
             if (++ticks % STATUS_INTERVAL_TICKS == 0) updateElapsedStatus()
         }
         SkysoftClientEvents.onDisconnect("Cookie Buff reset", ::reset)
@@ -82,7 +69,7 @@ object SkyBlockCookieBuffApi {
             return
         }
         val storage = ProfileStorageApi.playerStorage
-        if (kotlin.math.abs(storage.cookieBuffExpiresAtMillis - expiry) >= EXPIRY_SAVE_THRESHOLD_MILLIS) {
+        if (abs(storage.cookieBuffExpiresAtMillis - expiry) >= EXPIRY_SAVE_THRESHOLD_MILLIS) {
             ProfileStorageApi.updatePlayer { it.cookieBuffExpiresAtMillis = expiry }
         }
         status = tabStatus
