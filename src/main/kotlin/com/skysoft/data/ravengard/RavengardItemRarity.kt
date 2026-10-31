@@ -18,7 +18,7 @@ object RavengardItemRarity {
     }
 }
 
-internal fun ravengardRarityColor(
+private fun ravengardRarityColor(
     tooltipStyle: Identifier?,
     itemModel: Identifier?,
     name: Component,

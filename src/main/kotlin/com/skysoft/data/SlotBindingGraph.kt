@@ -18,14 +18,7 @@ internal object SlotBindingGraph {
         for (binding in bindings) {
             val normalized = normalizeStoredBinding(binding) ?: continue
             val pair = normalized.firstSlot to normalized.secondSlot
-            if (
-                pair in pairs ||
-                normalized.firstSlot in secondarySlots ||
-                normalized.secondSlot in anchorSlots ||
-                normalized.secondSlot in secondarySlots
-            ) {
-                continue
-            }
+            if (pair in pairs || normalized.overlapsSlots(anchorSlots, secondarySlots)) continue
             repaired += normalized
             pairs += pair
             anchorSlots += normalized.firstSlot
@@ -51,14 +44,11 @@ internal object SlotBindingGraph {
         val anchorSlots = bindings.mapTo(mutableSetOf()) { it.firstSlot }
         val secondarySlots = bindings.mapTo(mutableSetOf()) { it.secondSlot }
         val candidate = candidateBinding(anchorSlots, sourceSlot, targetSlot)
-        if (
-            candidate.firstSlot in secondarySlots ||
-            candidate.secondSlot in anchorSlots ||
-            candidate.secondSlot in secondarySlots
-        ) {
-            return SlotBindingAdditionDecision.SLOT_CONFLICT
+        return if (candidate.overlapsSlots(anchorSlots, secondarySlots)) {
+            SlotBindingAdditionDecision.SLOT_CONFLICT
+        } else {
+            SlotBindingAdditionDecision.ADD
         }
-        return SlotBindingAdditionDecision.ADD
     }
 
     fun add(
@@ -116,6 +106,9 @@ internal object SlotBindingGraph {
         val secondarySlot = if (anchorSlot == sourceSlot) targetSlot else sourceSlot
         return ProfileStorage.SlotBindingData(anchorSlot, secondarySlot)
     }
+
+    private fun ProfileStorageView.SlotBindingData.overlapsSlots(anchorSlots: Set<Int>, secondarySlots: Set<Int>): Boolean =
+        firstSlot in secondarySlots || secondSlot in anchorSlots || secondSlot in secondarySlots
 
     private fun ProfileStorageView.SlotBindingData.contains(slotIndex: Int): Boolean =
         firstSlot == slotIndex || secondSlot == slotIndex
