@@ -31,9 +31,7 @@ internal object PetRepoCache {
             }
         }
 
-    fun skinStack(texture: String): ItemStack = skinStacks.computeIfAbsent(texture) {
-        SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
-    }.copy()
+    fun skinStack(texture: String): ItemStack = skinStacks.computeIfAbsent(texture, ::petSkinStack).copy()
 
     fun animatedSkinFrames(
         key: () -> PetAnimationFramesKey,
@@ -55,6 +53,9 @@ internal object PetRepoCache {
         animatedSkinFrames.clear()
     }
 }
+
+internal fun petSkinStack(texture: String): ItemStack =
+    SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
 
 internal class PetAnimationFramesKey(
     val animation: AnimatedSkinJson?,

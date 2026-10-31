@@ -3,6 +3,8 @@ package com.skysoft.data.skyblock
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.skyblock.CatalogJson.double
+import com.skysoft.data.skyblock.CatalogJson.readableName
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.WorldVec
 import com.skysoft.data.skyblock.CatalogJson.string
@@ -54,7 +56,7 @@ internal object SkyBlockEntityDataLoader {
                 ?: wikiLocation?.let { SkyBlockIsland.getByLocation(it, it) }
                 ?: contexts.firstNotNullOfOrNull(::entityContextIsland)
             val position = value.obj("position")?.let { position ->
-                WorldVec(position.coordinateValue("x"), position.coordinateValue("y"), position.coordinateValue("z"))
+                WorldVec(position.double("x"), position.double("y"), position.double("z"))
             }
             val plainName = name.removeColor()
             val type = value.string("type").ifBlank { "Entity" }
@@ -110,7 +112,7 @@ internal object SkyBlockEntityDataLoader {
         val location = json.string("location").takeIf(String::isNotBlank)
             ?: islandId?.let { id ->
                 SkyBlockIsland.getByLocation(id, null)?.displayName
-                    ?: id.replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase)
+                    ?: id.readableName()
             }
             ?: return null
         val position = json.obj("position") ?: return location
@@ -136,8 +138,6 @@ private fun entityContextIsland(context: String): SkyBlockIsland? {
 }
 
 private fun JsonObject.coordinate(name: String): String {
-    val value = coordinateValue(name)
+    val value = double(name)
     return if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
 }
-private fun JsonObject.coordinateValue(name: String): Double =
-    get(name)?.takeUnless { it.isJsonNull }?.asDouble ?: 0.0

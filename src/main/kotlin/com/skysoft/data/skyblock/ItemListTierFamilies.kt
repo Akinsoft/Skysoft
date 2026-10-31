@@ -44,25 +44,17 @@ internal object ItemListTierFamilies {
 
     private fun candidate(entry: ItemListEntry): TierCandidate? {
         if (entry.key.kind != ItemListEntryKind.SKYBLOCK) return null
-        minionPattern.matchEntire(entry.key.id)?.let { match ->
-            return TierCandidate(
-                entry,
-                "minion:${match.groupValues[1]}",
-                entry.displayName.removeTierSuffix(),
-                ItemListTierFamilyKind.MINION,
-                match.groupValues[2].toInt(),
-            )
+        return tierPatterns.firstNotNullOfOrNull { (kind, pattern) ->
+            pattern.matchEntire(entry.key.id)?.let { match ->
+                TierCandidate(
+                    entry,
+                    "${kind.name.lowercase()}:${match.groupValues[1]}",
+                    entry.displayName.removeTierSuffix(),
+                    kind,
+                    match.groupValues[2].toInt(),
+                )
+            }
         }
-        enchantmentPattern.matchEntire(entry.key.id)?.let { match ->
-            return TierCandidate(
-                entry,
-                "enchantment:${match.groupValues[1]}",
-                entry.displayName.removeTierSuffix(),
-                ItemListTierFamilyKind.ENCHANTMENT,
-                match.groupValues[2].toInt(),
-            )
-        }
-        return null
     }
 
     private fun String.removeTierSuffix(): String = replace(tierSuffixPattern, "").trim()
@@ -75,8 +67,10 @@ internal object ItemListTierFamilies {
         val tier: Int,
     )
 
-    private val minionPattern = Regex("(.+)_GENERATOR_([0-9]+)")
-    private val enchantmentPattern = Regex("ENCHANTMENT_(.+)_([0-9]+)")
+    private val tierPatterns = listOf(
+        ItemListTierFamilyKind.MINION to Regex("(.+)_GENERATOR_([0-9]+)"),
+        ItemListTierFamilyKind.ENCHANTMENT to Regex("ENCHANTMENT_(.+)_([0-9]+)"),
+    )
     private val tierSuffixPattern = Regex(" (?:[IVXLCDM]+|[0-9]+)$")
 }
 

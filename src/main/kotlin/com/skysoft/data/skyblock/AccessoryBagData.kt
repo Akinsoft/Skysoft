@@ -4,9 +4,7 @@ import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.extraAttributes
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
-import com.skysoft.data.skyblock.SkyBlockItemUtilities.getStringOrNull
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
@@ -89,8 +87,7 @@ object AccessoryBagData {
         snapshot: Map<String, AccessorySnapshot>,
         previousSnapshot: Map<String, AccessorySnapshot>?,
     ) {
-        val removedAccessories = previousSnapshot.orEmpty().filterKeys { it !in snapshot }
-        for (internalName in removedAccessories.keys) {
+        for (internalName in previousSnapshot.orEmpty().keys - snapshot.keys) {
             if (internalName in storage.accessories) {
                 ProfileStorageApi.updateProfile { it.accessories.remove(internalName) }
             }
@@ -118,10 +115,7 @@ object AccessoryBagData {
     }
 
     private fun ItemStack.accessoryInternalNameOrNull(): String? =
-        (skyBlockId() ?: extraAttributes()?.getStringOrNull("id"))
-            ?.uppercase(Locale.US)
-            ?.replace(':', '-')
-            ?.takeUnless { it.isBlank() }
+        skyBlockId()?.uppercase(Locale.US)?.replace(':', '-')
 
     private const val BEASTMASTER_PERCENT_DENOMINATOR = 100.0
 

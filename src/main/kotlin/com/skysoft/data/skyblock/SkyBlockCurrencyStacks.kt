@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.TextUtilities.nonItalicText
 import com.skysoft.utils.MinecraftItems
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.boundedAccessOrderMap
@@ -58,8 +59,7 @@ internal object SkyBlockCurrencyStacks {
             ItemStack(item).apply {
                 set(
                     DataComponents.CUSTOM_NAME,
-                    Component.literal("${requireNotNull(supportedTextColor(currency))}${currencyName(amount, name)}")
-                        .withStyle { it.withItalic(false) },
+                    nonItalicText("${requireNotNull(supportedTextColor(currency))}${currencyName(amount, name)}"),
                 )
             }
         }

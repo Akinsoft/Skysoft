@@ -34,7 +34,7 @@ object AttributeShardTransfers {
 
     fun recordRemoval(item: ItemStack) {
         if (!hasActiveListeners()) return
-        val itemId = AttributeShardItemReader.internalNameOrNull(item, "Hunting Box") ?: return
+        val itemId = AttributeShardItemReader.internalNameOrNull(item, AttributeShardItemReader.HUNTING_BOX) ?: return
         removalIntents[itemId] = ElapsedTimeMark.now()
     }
 

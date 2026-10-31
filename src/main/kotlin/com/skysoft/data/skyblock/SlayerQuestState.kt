@@ -24,7 +24,7 @@ object SlayerQuestState {
     private val recentlyClearedMinibossNames = mutableMapOf<String, ElapsedTimeMark>()
     private var bossSpawnMessageMark: ElapsedTimeMark? = null
 
-    val isActive: Boolean get() = snapshot.bossName != null
+    val isActive: Boolean get() = snapshot.isActive
     val isBossActive: Boolean get() = snapshot.isBossActive
     val isBossSpawned: Boolean
         get() = snapshot.isBossActive ||
@@ -201,10 +201,8 @@ enum class SkyBlockSlayerType(
                 slayerType.tierFiveBossNames.any { bossName -> name.startsWith(bossName, ignoreCase = true) }
         }
 
-        private val SLAYER_BOSS_ENTITY_PATTERN = Regex(
-            "(REVENANT_HORROR|TARANTULA_BROODFATHER|SVEN_PACKMASTER|VOIDGLOOM_SERAPH|" +
-                "INFERNO_DEMONLORD|RIFTSTALKER_BLOODFIEND)_([1-5])_BOSS",
-        )
+        private val SLAYER_BOSS_ENTITY_PATTERN =
+            Regex("(${entries.joinToString("|") { it.bossEntityPrefix }})_([1-5])_BOSS")
     }
 }
 
@@ -221,7 +219,7 @@ internal data class SlayerQuestSnapshot(
     }
 }
 
-internal fun parseSlayerQuestSnapshot(scoreboardLines: List<String>): SlayerQuestSnapshot {
+private fun parseSlayerQuestSnapshot(scoreboardLines: List<String>): SlayerQuestSnapshot {
     val headerIndex = scoreboardLines.indexOfFirst { it.equals(SLAYER_QUEST_HEADER, ignoreCase = true) }
     if (headerIndex < 0) return SlayerQuestSnapshot.NONE
     val questName = scoreboardLines.getOrNull(headerIndex + 1)?.trim().orEmpty()

@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
+import com.skysoft.utils.BundledResources
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.Base64
@@ -16,10 +17,7 @@ internal object PetSkins {
 
     fun load() {
         if (PetRepoCache.petAnimations == null) {
-            val stream = requireNotNull(PetSkins::class.java.getResourceAsStream(ANIMATIONS_RESOURCE)) {
-                "Missing bundled pet animations"
-            }
-            val animations = stream.bufferedReader().use { reader ->
+            val animations = BundledResources.read(ANIMATIONS_RESOURCE, "pet animations") { reader ->
                 gson.fromJson(reader, PetAnimationsJson::class.java)
             }
             require(animations.skins.isNotEmpty()) { "Bundled pet animations are empty" }

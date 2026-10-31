@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.TextUtilities.nonItalicText
 import com.google.common.collect.ImmutableMultimap
 import com.mojang.authlib.GameProfile
 import com.mojang.authlib.properties.Property
@@ -32,11 +33,11 @@ internal object SkyBlockStackFactory {
 
     fun enchantmentBook(internalName: String, name: String, sourceLore: List<String>): ItemStack =
         ItemStack(Items.ENCHANTED_BOOK).apply {
-            set(DataComponents.CUSTOM_NAME, Component.literal("§9$name").withStyle { it.withItalic(false) })
+            set(DataComponents.CUSTOM_NAME, nonItalicText("§9$name"))
             val loreWithoutTitle = sourceLore.dropWhile(String::isBlank).drop(1).dropWhile(String::isBlank)
             set(
                 DataComponents.LORE,
-                ItemLore(loreWithoutTitle.map { Component.literal(it).withStyle { style -> style.withItalic(false) } }),
+                ItemLore(loreWithoutTitle.map { nonItalicText(it) }),
             )
             setSkyBlockId(internalName)
         }

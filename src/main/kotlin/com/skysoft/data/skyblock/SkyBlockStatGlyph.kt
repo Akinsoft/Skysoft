@@ -1,5 +1,7 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.RegexUtilities.whitespacePattern
+
 internal enum class SkyBlockStatGlyph(val character: Char) {
     DAMAGE('\uE050'),
     HEALTH('\uE010'),
@@ -61,6 +63,5 @@ internal enum class SkyBlockStatGlyph(val character: Char) {
                 .trim()
 
         private const val LEGACY_MAGIC_FIND_GLYPH = '\u272F'
-        private val whitespacePattern = Regex("""\s+""")
     }
 }

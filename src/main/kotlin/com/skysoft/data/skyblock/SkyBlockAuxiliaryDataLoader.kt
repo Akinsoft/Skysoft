@@ -5,7 +5,12 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.skyblock.CatalogJson.MAXIMUM_TEXT_LENGTH
 import com.skysoft.data.skyblock.CatalogJson.array
+import com.skysoft.data.skyblock.CatalogJson.catalogIdPattern
+import com.skysoft.data.skyblock.CatalogJson.double
+import com.skysoft.data.skyblock.CatalogJson.enumOrNull
+import com.skysoft.data.skyblock.CatalogJson.hasLinkedSources
 import com.skysoft.data.skyblock.CatalogJson.obj
 import com.skysoft.data.skyblock.CatalogJson.string
 import com.skysoft.utils.WorldVec
@@ -22,7 +27,7 @@ internal object SkyBlockAuxiliaryDataLoader {
         val root = JsonParser.parseString(json).asJsonObject
         val progressionRequirements = readProgressionRequirements(root)
         val petMaxLevels = root.obj("petMaxLevels")?.entrySet().orEmpty().associate { (id, value) ->
-            require(id.matches(entityIdPattern) && value.asInt in SupplementalLimits.PET_LEVEL_RANGE) {
+            require(id.matches(catalogIdPattern) && value.asInt in SupplementalLimits.PET_LEVEL_RANGE) {
                 "Item List supplemental pet has invalid leveling data"
             }
             id to value.asInt
@@ -53,11 +58,11 @@ internal object SkyBlockAuxiliaryDataLoader {
 
     private fun readEntityDetails(root: JsonObject): Map<String, List<String>> =
         root.entrySet().associate { (id, value) ->
-            require(id.matches(entityIdPattern)) { "Item List entity context has an invalid ID" }
+            require(id.matches(catalogIdPattern)) { "Item List entity context has an invalid ID" }
             val details = value.asJsonArray.map { it.asString }
             require(
                 details.isNotEmpty() && details.all {
-                    it.isNotBlank() && it.length <= SharedLimits.MAXIMUM_TEXT_LENGTH
+                    it.isNotBlank() && it.length <= MAXIMUM_TEXT_LENGTH
                 },
             ) {
                 "Item List entity context $id has invalid details"
@@ -70,23 +75,17 @@ internal object SkyBlockAuxiliaryDataLoader {
         require(root.get("schemaVersion")?.asInt == NpcAvailabilitySchema.VERSION) {
             "Item List NPC availability has an unsupported schema"
         }
-        val sources = root.array("sources")?.toList().orEmpty()
-        require(
-            sources.size >= NpcAvailabilitySchema.MINIMUM_SOURCE_COUNT && sources.all { element ->
-                val value = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@all false
-                value.string("name").isNotBlank() && value.string("url").startsWith("https://")
-            },
-        ) { "Item List NPC availability has invalid source metadata" }
+        require(root.hasLinkedSources(NpcAvailabilitySchema.MINIMUM_SOURCE_COUNT)) {
+            "Item List NPC availability has invalid source metadata"
+        }
         val entities = requireNotNull(root.obj("entities")) { "Item List NPC availability has no entities" }
         return entities.entrySet().associate { (id, element) ->
-            require(id.matches(entityIdPattern)) { "Item List NPC availability has an invalid ID" }
+            require(id.matches(catalogIdPattern)) { "Item List NPC availability has an invalid ID" }
             val value = element.asJsonObject
-            val eventId = value.string("event")
-            val event = runCatching { SkyBlockEvent.valueOf(eventId) }.getOrNull()
-                ?: error("Item List NPC availability $id references unknown event $eventId")
-            val sourceId = value.string("source")
-            val source = runCatching { SkyBlockNpcAvailabilitySource.valueOf(sourceId) }.getOrNull()
-                ?: error("Item List NPC availability $id has unknown source $sourceId")
+            val event = value.enumOrNull<SkyBlockEvent>("event")
+                ?: error("Item List NPC availability $id references unknown event ${value.string("event")}")
+            val source = value.enumOrNull<SkyBlockNpcAvailabilitySource>("source")
+                ?: error("Item List NPC availability $id has unknown source ${value.string("source")}")
             val availability = SkyBlockNpcAvailability(
                 event = event,
                 startsBeforeMinutes = value.get("startsBeforeMinutes")?.asInt ?: -1,
@@ -100,7 +99,7 @@ internal object SkyBlockAuxiliaryDataLoader {
             require(
                 availability.startsBeforeMinutes in NpcAvailabilitySchema.MINUTE_RANGE &&
                     availability.durationMinutes in NpcAvailabilitySchema.MINUTE_RANGE &&
-                    availability.page.length <= SharedLimits.MAXIMUM_TEXT_LENGTH &&
+                    availability.page.length <= MAXIMUM_TEXT_LENGTH &&
                     availability.revision >= 0L &&
                     isWikiSource == hasWikiProvenance,
             ) { "Item List NPC availability $id has invalid schedule data" }
@@ -121,22 +120,20 @@ internal object SkyBlockAuxiliaryDataLoader {
             entries.forEach { element ->
                 val value = element.asJsonObject
                 val itemId = value.string("item")
-                val kind = runCatching { SkyBlockProgressionKind.valueOf(value.string("kind")) }.getOrNull()
+                val kind = value.enumOrNull<SkyBlockProgressionKind>("kind")
                     ?: error("Item List supplemental requirement $itemId has an invalid kind")
                 val name = value.string("name")
                 val tier = value.get("tier")?.asInt ?: 0
-                val iconKind = runCatching {
-                    SkyBlockProgressionIconKind.valueOf(value.string("iconKind"))
-                }.getOrNull() ?: error("Item List supplemental requirement $itemId has an invalid icon kind")
+                val iconKind = value.enumOrNull<SkyBlockProgressionIconKind>("iconKind")
+                    ?: error("Item List supplemental requirement $itemId has an invalid icon kind")
                 val iconId = value.string("icon")
-                val source = runCatching {
-                    SkyBlockProgressionSource.valueOf(value.string("source"))
-                }.getOrNull() ?: error("Item List supplemental requirement $itemId has an invalid source")
-                require(itemId.matches(entityIdPattern) && iconId.matches(entityIdPattern)) {
+                val source = value.enumOrNull<SkyBlockProgressionSource>("source")
+                    ?: error("Item List supplemental requirement $itemId has an invalid source")
+                require(itemId.matches(catalogIdPattern) && iconId.matches(catalogIdPattern)) {
                     "Item List supplemental requirement has an invalid ID"
                 }
                 require(
-                    name.isNotBlank() && name.length <= SharedLimits.MAXIMUM_TEXT_LENGTH &&
+                    name.isNotBlank() && name.length <= MAXIMUM_TEXT_LENGTH &&
                         tier in SupplementalLimits.PROGRESSION_TIER_RANGE &&
                         (kind != SkyBlockProgressionKind.SLAYER || name.endsWith(" Slayer")),
                 ) {
@@ -162,11 +159,7 @@ internal object SkyBlockAuxiliaryDataLoader {
                 val island = requireNotNull(SkyBlockIsland.getByLocation(islandId, null)) {
                     "Item List supplemental warp has unknown island $islandId"
                 }
-                val position = WorldVec(
-                    value.coordinate("x"),
-                    value.coordinate("y"),
-                    value.coordinate("z"),
-                )
+                val position = WorldVec(value.double("x"), value.double("y"), value.double("z"))
                 require(command.matches(commandPattern) && commands.add(command) && position.isFinite()) {
                     "Item List supplemental warp has invalid data"
                 }
@@ -175,17 +168,11 @@ internal object SkyBlockAuxiliaryDataLoader {
         }
     }
 
-    private fun JsonObject.coordinate(name: String): Double = get(name)?.takeUnless { it.isJsonNull }?.asDouble ?: 0.0
-
     private object SupplementalLimits {
         const val MINIMUM_PROGRESSION_REQUIREMENT_COUNT = 900
         const val MINIMUM_WARP_COUNT = 30
         val PET_LEVEL_RANGE = 2..500
         val PROGRESSION_TIER_RANGE = 1..100
-    }
-
-    private object SharedLimits {
-        const val MAXIMUM_TEXT_LENGTH = 128
     }
 
     private object NpcAvailabilitySchema {
@@ -200,7 +187,6 @@ internal object SkyBlockAuxiliaryDataLoader {
         const val SOURCE =
             "NotEnoughUpdates/NotEnoughUpdates-REPO constants/bestiary.json + constants/rift_guide.json"
     }
-    private val entityIdPattern = Regex("[A-Z0-9_;.\\-]+")
     private val commandPattern = Regex("[a-z0-9_]+")
     private val petMapType = object : TypeToken<Map<String, SkyBlockPetInfo>>() {}.type
 }

@@ -3,6 +3,8 @@ package com.skysoft.data.skyblock
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.ElapsedTimeMark
+import com.skysoft.utils.NumberUtilities.formatIntOrNull
+import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -67,10 +69,10 @@ internal data class SkyBlockSackWithdrawal(
     val amount: Int,
 )
 
-internal fun parseSackWithdrawal(message: String): SkyBlockSackWithdrawal? {
+private fun parseSackWithdrawal(message: String): SkyBlockSackWithdrawal? {
     val match = SACK_WITHDRAWAL_PATTERN.matchEntire(message) ?: return null
-    val displayName = match.groups["item"]?.value?.trim().orEmpty()
-    val amount = match.groups["amount"]?.value?.replace(",", "")?.toIntOrNull() ?: return null
+    val displayName = match.group("item").trim()
+    val amount = match.groups["amount"]?.value?.formatIntOrNull() ?: return null
     return SkyBlockSackWithdrawal(displayName, amount).takeIf { displayName.isNotEmpty() && amount > 0 }
 }
 

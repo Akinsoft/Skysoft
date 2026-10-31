@@ -4,13 +4,13 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.ActiveStatePublisher
+import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 
 object GardenPestState {
     private val publisher = ActiveStatePublisher("Garden Pest State", GardenPestSnapshot())
-    private val spawnListeners = ActiveListenerRegistry<(GardenPestSpawn) -> Unit>()
     private val killListeners = ActiveListenerRegistry<(String) -> Unit>()
     private var lastScoreboardPestCount: Int? = null
     private var unmatchedChatKills = 0
@@ -48,10 +48,6 @@ object GardenPestState {
         publisher.onChange(boundary, isActive, listener)
     }
 
-    fun onSpawn(boundary: String, isActive: () -> Boolean, listener: (GardenPestSpawn) -> Unit) {
-        spawnListeners.register(boundary, isActive, listener)
-    }
-
     fun onKill(boundary: String, isActive: () -> Boolean, listener: (String) -> Unit) {
         killListeners.register(boundary, isActive, listener)
     }
@@ -72,7 +68,6 @@ object GardenPestState {
                 lastSpawn = spawn,
             ),
         )
-        spawnListeners.forEachActive { listener -> listener(spawn) }
     }
 
     private fun recordKill(pest: String) {
@@ -85,9 +80,7 @@ object GardenPestState {
         if (current.totalPests?.let { it > 0 } == true) unmatchedChatKills++
         val knownPests = current.knownPestsByPlot.toMutableMap()
         current.currentPlot?.let { plot ->
-            knownPests[plot]?.let { pests ->
-                if (pests <= 1) knownPests.remove(plot) else knownPests[plot] = pests - 1
-            }
+            knownPests[plot]?.let { pests -> knownPests.setPlotPests(plot, pests - 1) }
         }
         publisher.update(
             current.copy(
@@ -118,9 +111,7 @@ object GardenPestState {
         }
         val pestsInPlot = scoreboardPestsInPlot?.let { (it - unmatchedChatKills).coerceAtLeast(0) }
         val knownPests = current.knownPestsByPlot.toMutableMap()
-        if (plot != null && pestsInPlot != null) {
-            if (pestsInPlot == 0) knownPests.remove(plot) else knownPests[plot] = pestsInPlot
-        }
+        if (plot != null && pestsInPlot != null) knownPests.setPlotPests(plot, pestsInPlot)
         publisher.update(
             GardenPestSnapshot(
                 totalPests = totalPests,
@@ -159,16 +150,20 @@ object GardenPestState {
 
     private fun parseSpawn(message: String): GardenPestSpawn? {
         ONE_PEST_PATTERN.matchEntire(message)?.let { match ->
-            return GardenPestSpawn(1, match.groups["location"]!!.value.toPlotName())
+            return GardenPestSpawn(1, match.group("location").toPlotName())
         }
         val match = MULTIPLE_PESTS_PATTERN.matchEntire(message) ?: return null
         return GardenPestSpawn(
-            amount = match.groups["amount"]!!.value.toInt(),
-            plot = match.groups["location"]!!.value.toPlotName(),
+            amount = match.group("amount").toInt(),
+            plot = match.group("location").toPlotName(),
         )
     }
 
     private fun String.toPlotName(): String = removePrefix("Plot - ").trim()
+
+    private fun MutableMap<String, Int>.setPlotPests(plot: String, pests: Int) {
+        if (pests <= 0) remove(plot) else put(plot, pests)
+    }
 
     private val GARDEN_PATTERN = Regex("[⏣\\uE067] The Garden(?: [\\uE07F\\uE018] x(?<count>\\d+))?")
     private val PLOT_PESTS_PATTERN =

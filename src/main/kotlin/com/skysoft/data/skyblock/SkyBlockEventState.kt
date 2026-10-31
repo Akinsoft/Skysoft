@@ -3,7 +3,6 @@ package com.skysoft.data.skyblock
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.utils.ActiveConsumerRegistry
-import com.skysoft.utils.ConsumerActivity
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 
@@ -43,27 +42,11 @@ object SkyBlockEventState {
         MayorPerkApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
         SkyBlockEventScheduleApi.registerConsumer("SkyBlock Event State") { consumers.hasActiveConsumers }
         SkysoftClientEvents.onDisconnect("SkyBlock Event State reset") {
-            clear()
-            ticks = 0
+            reset()
             consumers.resetActivity()
         }
-        SkysoftClientEvents.onEndTick(
-            "SkyBlock Event state refresh",
-            isActive = { consumers.isActiveOrDeactivating },
-        ) {
-            when (consumers.activity()) {
-                ConsumerActivity.INACTIVE -> return@onEndTick
-                ConsumerActivity.DEACTIVATED -> {
-                    clear()
-                    ticks = 0
-                    return@onEndTick
-                }
-                ConsumerActivity.ACTIVATED,
-                ConsumerActivity.ACTIVE,
-                -> Unit
-            }
-            if (++ticks % REFRESH_INTERVAL_TICKS != 0) return@onEndTick
-            refresh()
+        consumers.onEndTick("SkyBlock Event state refresh", onDeactivated = ::reset) {
+            if (++ticks % REFRESH_INTERVAL_TICKS == 0) refresh()
         }
     }
 
@@ -78,16 +61,17 @@ object SkyBlockEventState {
         nowMillis: Long = System.currentTimeMillis(),
     ): SkyBlockEventAvailability {
         if (availability.event in currentEvents) return SkyBlockEventAvailability.ACTIVE
-        SkyBlockEventScheduleApi.availability(
+        val isActive = SkyBlockEventScheduleApi.availability(
             availability.event,
             nowMillis,
             availability.startsBeforeMinutes,
             availability.durationMinutes,
-        )?.let { return if (it) SkyBlockEventAvailability.ACTIVE else SkyBlockEventAvailability.INACTIVE }
-        localAvailability(availability, nowMillis)?.let {
-            return if (it) SkyBlockEventAvailability.ACTIVE else SkyBlockEventAvailability.INACTIVE
+        ) ?: localAvailability(availability, nowMillis)
+        return when (isActive) {
+            true -> SkyBlockEventAvailability.ACTIVE
+            false -> SkyBlockEventAvailability.INACTIVE
+            null -> SkyBlockEventAvailability.UNKNOWN
         }
-        return SkyBlockEventAvailability.UNKNOWN
     }
 
     private fun refresh() {
@@ -113,9 +97,10 @@ object SkyBlockEventState {
         refresh()
     }
 
-    private fun clear() {
+    private fun reset() {
         setEvents(emptySet())
         tabEvents = emptySet()
+        ticks = 0
     }
 
     private fun setEvents(next: Set<SkyBlockEvent>) {
@@ -144,7 +129,7 @@ internal enum class SkyBlockEventAvailability {
     UNKNOWN,
 }
 
-internal fun resolveSkyBlockEvents(signals: SkyBlockEventSignals): Set<SkyBlockEvent> {
+private fun resolveSkyBlockEvents(signals: SkyBlockEventSignals): Set<SkyBlockEvent> {
     if (!signals.isInSkyBlock) return emptySet()
     val events = mutableSetOf<SkyBlockEvent>()
 
@@ -201,14 +186,21 @@ internal object SkyBlockCalendar {
         val year = dateAt(nowMillis).year
         return windows.any { window ->
             val eventStart = startOf(year, window.month, window.day)
-            val availableStart = eventStart - startsBeforeMinutes * REAL_MINUTE_MILLIS
-            val availableEnd = if (durationMinutes > 0) {
-                availableStart + durationMinutes * REAL_MINUTE_MILLIS
-            } else {
-                eventStart + window.durationMinutes * REAL_MINUTE_MILLIS
-            }
-            nowMillis in availableStart until availableEnd
+            val eventEnd = eventStart + window.durationMinutes * REAL_MINUTE_MILLIS
+            isAvailableAt(nowMillis, eventStart, eventEnd, startsBeforeMinutes, durationMinutes)
         }
+    }
+
+    fun isAvailableAt(
+        nowMillis: Long,
+        eventStart: Long,
+        eventEnd: Long,
+        startsBeforeMinutes: Int,
+        durationMinutes: Int,
+    ): Boolean {
+        val availableStart = eventStart - startsBeforeMinutes * REAL_MINUTE_MILLIS
+        val availableEnd = if (durationMinutes > 0) availableStart + durationMinutes * REAL_MINUTE_MILLIS else eventEnd
+        return nowMillis in availableStart until availableEnd
     }
 
     private const val EPOCH_MILLIS = 1_559_829_300_000L

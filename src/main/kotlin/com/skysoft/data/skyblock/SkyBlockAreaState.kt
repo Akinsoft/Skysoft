@@ -19,7 +19,7 @@ object SkyBlockAreaState {
     }
 }
 
-internal fun parseSkyBlockScoreboardArea(lines: List<String>): String? = lines.firstNotNullOfOrNull { line ->
+private fun parseSkyBlockScoreboardArea(lines: List<String>): String? = lines.firstNotNullOfOrNull { line ->
     line.trim()
         .takeIf { it.firstOrNull() in LOCATION_MARKERS }
         ?.drop(1)

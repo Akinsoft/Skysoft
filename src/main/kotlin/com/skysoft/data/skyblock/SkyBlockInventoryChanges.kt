@@ -3,6 +3,7 @@ package com.skysoft.data.skyblock
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.data.hypixel.SkyBlockSessionContext
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockMenuItem.SKYBLOCK_MENU_SLOT
 import com.skysoft.utils.ActiveListenerRegistry
@@ -15,7 +16,7 @@ object SkyBlockInventoryChanges {
     private val cachedCounts = mutableMapOf<InventoryOwner, Map<String, Int>>()
     private var previousCounts: Map<String, Int>? = null
     private var previousSignature: List<Int>? = null
-    private var previousContext: InventoryContext? = null
+    private var previousContext: SkyBlockSessionContext? = null
     private var settlingBaseline: Map<String, Int>? = null
     private var reportSettlingChanges = false
     private var settlingTicks = 0
@@ -52,12 +53,7 @@ object SkyBlockInventoryChanges {
         val owner = SkyBlockProfileApi.currentProfileKey?.let { profileId ->
             InventoryOwner(player.uuid.toString(), profileId)
         }
-        val context = InventoryContext(
-            HypixelLocationState.locationVersion,
-            player.uuid.toString(),
-            SkyBlockProfileApi.currentProfileKey,
-            minecraft.level,
-        )
+        val context = SkyBlockSessionContext.of(minecraft, player)
         val inventory = player.inventory.getNonEquipmentItems()
             .filterIndexed { slot, _ -> slot != SKYBLOCK_MENU_SLOT } +
             listOfNotNull(player.containerMenu.carried.takeUnless { it.isEmpty })
@@ -146,13 +142,6 @@ object SkyBlockInventoryChanges {
         val playerId: String,
         val profileId: String,
     )
-
-    private data class InventoryContext(
-        val locationVersion: Long,
-        val playerId: String,
-        val profileId: String?,
-        val level: Any?,
-    )
 }
 
 data class SkyBlockInventoryChange(
@@ -162,7 +151,7 @@ data class SkyBlockInventoryChange(
 private const val HASH_MULTIPLIER = 31
 private const val INVENTORY_SETTLING_TICKS = 60
 
-internal fun inventoryCountChanges(
+private fun inventoryCountChanges(
     previous: Map<String, Int>,
     current: Map<String, Int>,
 ): Map<String, Int> = buildMap {

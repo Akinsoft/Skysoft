@@ -17,22 +17,20 @@ internal class SkyBlockPetCatalog(
         ingredientId: String,
         level: Int,
     ): ItemStack? {
-        val identity = petIdentity(ingredientId) ?: return null
-        val pet = pets[identity.name] ?: return null
-        val tier = pet.tiers[identity.rarity.name] ?: return null
-        if (tier.texture.isBlank()) return null
-        val selectedLevel = level.coerceIn(1, identity.maxLevel)
+        val pet = resolve(ingredientId) ?: return null
+        if (pet.tier.texture.isBlank()) return null
+        val selectedLevel = level.coerceIn(1, pet.identity.maxLevel)
         val cacheKey = "$ingredientId:$selectedLevel"
         synchronized(cache) {
             cache[cacheKey]?.let { return it.copy() }
         }
-        val tooltip = tooltip(ingredientId, selectedLevel) ?: return null
-        val stack = SkyBlockStackFactory.texturedHead(tier.texture, Component.literal(tooltip.name)).apply {
+        val tooltip = tooltip(pet, selectedLevel)
+        val stack = SkyBlockStackFactory.texturedHead(pet.tier.texture, Component.literal(tooltip.name)).apply {
             set(
                 DataComponents.LORE,
                 ItemLore(tooltip.lore.map(Component::literal)),
             )
-            setSkyBlockId("${identity.name};${identity.rarity.id}")
+            setSkyBlockId("${pet.identity.name};${pet.identity.rarity.id}")
         }
         synchronized(cache) {
             cache[cacheKey] = stack
@@ -55,7 +53,7 @@ internal class SkyBlockPetCatalog(
                     "Item List pet $ingredientId has an invalid rarity"
                 }
                 val rarity = requireNotNull(SkyBlockRarity.getByName(tier))
-                val tooltip = requireNotNull(tooltip(ingredientId, 1)) {
+                val tooltip = requireNotNull(resolve(ingredientId)?.let { resolved -> tooltip(resolved, 1) }) {
                     "Item List pet $ingredientId has no tooltip"
                 }
                 val displayName = "${pet.name} Pet"
@@ -83,28 +81,27 @@ internal class SkyBlockPetCatalog(
         }
     }
 
-    private fun tooltip(
-        ingredientId: String,
-        level: Int,
-    ): SkyBlockPetTooltip? {
+    private fun resolve(ingredientId: String): ResolvedPet? {
         val identity = petIdentity(ingredientId) ?: return null
-        val pet = pets[identity.name] ?: return null
-        val tier = pet.tiers[identity.rarity.name] ?: return null
+        val info = pets[identity.name] ?: return null
+        val tier = info.tiers[identity.rarity.name] ?: return null
+        return ResolvedPet(identity, info, tier)
+    }
+
+    private fun tooltip(pet: ResolvedPet, level: Int): SkyBlockPetTooltip {
+        val identity = pet.identity
         val selectedLevel = level.coerceIn(1, identity.maxLevel)
-        val replacements = tier.variables.mapValues { (_, range) ->
-            formatPetVariable(range, selectedLevel, identity.maxLevel, tier.variablesOffset)
+        val replacements = pet.tier.variables.mapValues { (_, range) ->
+            formatPetVariable(range, selectedLevel, identity.maxLevel, pet.tier.variablesOffset)
         }
         return SkyBlockPetTooltip(
-            name = "§7[Lvl $selectedLevel] ${identity.rarity.chatColorCode}${pet.name.ifBlank { identity.name }}",
-            lore = tier.lore.map { line -> replacePetVariables(line, replacements) },
+            name = "§7[Lvl $selectedLevel] ${identity.rarity.chatColorCode}${pet.info.name.ifBlank { identity.name }}",
+            lore = pet.tier.lore.map { line -> replacePetVariables(line, replacements) },
         )
     }
 
     private fun petIdentity(ingredientId: String): PetIdentity? {
-        val separator = ingredientId.lastIndexOf(';')
-        if (separator <= 0 || separator == ingredientId.lastIndex) return null
-        val name = ingredientId.substring(0, separator)
-        val rarity = SkyBlockRarity.getByName(ingredientId.substring(separator + 1)) ?: return null
+        val (name, rarity) = parsePetIngredient(ingredientId) ?: return null
         return PetIdentity(name, rarity, maxLevels[name] ?: DEFAULT_MAX_LEVEL)
     }
 
@@ -140,8 +137,14 @@ internal class SkyBlockPetCatalog(
         val maxLevel: Int,
     )
 
-    private companion object {
-        private const val DEFAULT_MAX_LEVEL = 100
+    private data class ResolvedPet(
+        val identity: PetIdentity,
+        val info: SkyBlockPetInfo,
+        val tier: SkyBlockPetTierInfo,
+    )
+
+    companion object {
+        const val DEFAULT_MAX_LEVEL = 100
         private const val CACHE_SIZE = 512
         private const val DECIMAL_SCALE = 10.0
         private const val ROUNDING_EPSILON = 0.0000001
@@ -150,10 +153,15 @@ internal class SkyBlockPetCatalog(
 }
 
 internal fun petItemKey(ingredientId: String): ItemListEntryKey? {
+    val (name, rarity) = parsePetIngredient(ingredientId) ?: return null
+    return ItemListEntryKey(ItemListEntryKind.SKYBLOCK, "$name;${rarity.id}")
+}
+
+private fun parsePetIngredient(ingredientId: String): Pair<String, SkyBlockRarity>? {
     val separator = ingredientId.lastIndexOf(';')
     if (separator <= 0 || separator == ingredientId.lastIndex) return null
     val rarity = SkyBlockRarity.getByName(ingredientId.substring(separator + 1)) ?: return null
-    return ItemListEntryKey(ItemListEntryKind.SKYBLOCK, "${ingredientId.substring(0, separator)};${rarity.id}")
+    return ingredientId.substring(0, separator) to rarity
 }
 
 private data class SkyBlockPetTooltip(

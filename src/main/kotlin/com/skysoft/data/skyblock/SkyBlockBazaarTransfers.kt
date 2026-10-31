@@ -1,30 +1,16 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.utils.ActiveListenerRegistry
-import com.skysoft.utils.chat.ChatEvents
-import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.NumberUtilities.formatIntOrNull
 
 object SkyBlockBazaarTransfers {
-    private val listeners = ActiveListenerRegistry<(SkyBlockBazaarTransfer) -> Unit>()
-    private var registered = false
+    private val listeners = ParsedChatListeners("SkyBlock Bazaar transfers", ::parseSkyBlockBazaarTransfer)
 
     fun onTransfer(
         boundary: String,
         isActive: () -> Boolean,
         listener: (SkyBlockBazaarTransfer) -> Unit,
     ) {
-        if (!registered) register()
         listeners.register(boundary, isActive, listener)
-    }
-
-    private fun register() {
-        registered = true
-        ChatEvents.onVisibleMessage("SkyBlock Bazaar transfers", { listeners.hasActiveListeners }) { message ->
-            parseSkyBlockBazaarTransfer(message.cleanText)?.let { transfer ->
-                listeners.forEachActive { listener -> listener(transfer) }
-            }
-            ChatMessageVisibility.SHOW
-        }
     }
 }
 
@@ -39,11 +25,11 @@ enum class SkyBlockBazaarTransferDirection {
     FROM_PLAYER,
 }
 
-internal fun parseSkyBlockBazaarTransfer(message: String): SkyBlockBazaarTransfer? {
+private fun parseSkyBlockBazaarTransfer(message: String): SkyBlockBazaarTransfer? {
     val (definition, match) = bazaarTransferPatterns.firstNotNullOfOrNull { definition ->
         definition.pattern.matchEntire(message)?.let { match -> definition to match }
     } ?: return null
-    val amount = match.groupValues[1].replace(",", "").toIntOrNull() ?: return null
+    val amount = match.groupValues[1].formatIntOrNull() ?: return null
     return SkyBlockBazaarTransfer(match.groupValues[2].trim(), amount, definition.direction)
 }
 

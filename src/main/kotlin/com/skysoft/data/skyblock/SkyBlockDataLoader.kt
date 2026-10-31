@@ -4,62 +4,42 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.skysoft.data.skyblock.CatalogJson.obj
 import com.skysoft.data.skyblock.CatalogJson.string
+import com.skysoft.utils.BundledResources
 import java.io.StringReader
 
 internal object SkyBlockDataLoader {
     private val gson = Gson()
 
-    fun loadBundled(): SkyBlockDataSnapshot {
-        return loadJson(
-            itemsJson = resourceText(CatalogResources.ITEMS),
-            recipesJson = resourceText(CatalogResources.RECIPES),
-            wikiJson = resourceText(CatalogResources.WIKI),
-            mobsJson = resourceText(CatalogResources.MOBS),
-            npcsJson = resourceText(CatalogResources.NPCS),
-            petsJson = resourceText(CatalogResources.PETS),
-            supplementalJson = resourceText(CatalogResources.SUPPLEMENTAL),
-            enchantmentsJson = resourceText(CatalogResources.ENCHANTMENTS),
-            attributeShardsJson = resourceText(CatalogResources.ATTRIBUTE_SHARDS),
-            mergeBundledItems = false,
-        )
-    }
+    fun loadBundled(): SkyBlockDataSnapshot = loadJson(
+        itemsJson = resourceText(CatalogResources.ITEMS),
+        recipesJson = resourceText(CatalogResources.RECIPES),
+        wikiJson = resourceText(CatalogResources.WIKI),
+        mobsJson = resourceText(CatalogResources.MOBS),
+        npcsJson = resourceText(CatalogResources.NPCS),
+        petsJson = resourceText(CatalogResources.PETS),
+        mergeBundledItems = false,
+    )
 
     fun loadJson(
         itemsJson: String,
         recipesJson: String,
         wikiJson: String,
         mobsJson: String,
-        npcsJson: String = resourceText(CatalogResources.NPCS),
-        petsJson: String = resourceText(CatalogResources.PETS),
+        npcsJson: String,
+        petsJson: String,
         supplementalJson: String = resourceText(CatalogResources.SUPPLEMENTAL),
         enchantmentsJson: String = resourceText(CatalogResources.ENCHANTMENTS),
         attributeShardsJson: String = resourceText(CatalogResources.ATTRIBUTE_SHARDS),
         mergeBundledItems: Boolean = true,
     ): SkyBlockDataSnapshot {
-        require(itemsJson.length in CatalogLimits.MINIMUM_ITEMS_BYTES..CatalogLimits.MAXIMUM_ITEMS_BYTES) {
-            "Item List item data has an invalid size"
-        }
-        require(recipesJson.length in CatalogLimits.MINIMUM_RECIPES_BYTES..CatalogLimits.MAXIMUM_RECIPES_BYTES) {
-            "Item List recipe data has an invalid size"
-        }
-        require(wikiJson.length in CatalogLimits.MINIMUM_WIKI_BYTES..CatalogLimits.MAXIMUM_WIKI_BYTES) {
-            "Item List wiki data has an invalid size"
-        }
-        require(mobsJson.length in CatalogLimits.MINIMUM_MOBS_BYTES..CatalogLimits.MAXIMUM_MOBS_BYTES) {
-            "Item List mob data has an invalid size"
-        }
-        require(npcsJson.length in CatalogLimits.MINIMUM_NPCS_BYTES..CatalogLimits.MAXIMUM_NPCS_BYTES) {
-            "Item List NPC data has an invalid size"
-        }
-        require(petsJson.length in CatalogLimits.MINIMUM_PETS_BYTES..CatalogLimits.MAXIMUM_PETS_BYTES) {
-            "Item List pet data has an invalid size"
-        }
-        require(supplementalJson.length in CatalogLimits.MINIMUM_SUPPLEMENTAL_BYTES..CatalogLimits.MAXIMUM_SUPPLEMENTAL_BYTES) {
-            "Item List supplemental data has an invalid size"
-        }
-        require(enchantmentsJson.length in CatalogLimits.MINIMUM_ENCHANTMENTS_BYTES..CatalogLimits.MAXIMUM_ENCHANTMENTS_BYTES) {
-            "Item List enchantment data has an invalid size"
-        }
+        requireSize(itemsJson, CatalogLimits.ITEMS_BYTES, "item")
+        requireSize(recipesJson, CatalogLimits.RECIPES_BYTES, "recipe")
+        requireSize(wikiJson, CatalogLimits.WIKI_BYTES, "wiki")
+        requireSize(mobsJson, CatalogLimits.MOBS_BYTES, "mob")
+        requireSize(npcsJson, CatalogLimits.NPCS_BYTES, "NPC")
+        requireSize(petsJson, CatalogLimits.PETS_BYTES, "pet")
+        requireSize(supplementalJson, CatalogLimits.SUPPLEMENTAL_BYTES, "supplemental")
+        requireSize(enchantmentsJson, CatalogLimits.ENCHANTMENTS_BYTES, "enchantment")
         val loadedItems = readItems(itemsJson)
         val items = if (mergeBundledItems) mergeMissingBundledItems(loadedItems) else loadedItems
         require(items.size >= CatalogLimits.MINIMUM_ITEM_COUNT) { "Bundled Item List contains only ${items.size} items" }
@@ -112,6 +92,10 @@ internal object SkyBlockDataLoader {
         )
     }
 
+    private fun requireSize(json: String, allowedBytes: IntRange, name: String) {
+        require(json.length in allowedBytes) { "Item List $name data has an invalid size" }
+    }
+
     private fun readItems(json: String): List<SkyBlockItemJson> = StringReader(json).use { reader ->
         gson.fromJson(reader, Array<SkyBlockItemJson>::class.java).orEmpty().toList()
     }
@@ -139,9 +123,7 @@ internal object SkyBlockDataLoader {
     }
 
     private fun resourceText(path: String): String =
-        requireNotNull(SkyBlockDataLoader::class.java.getResourceAsStream(path)) {
-            "Missing bundled Item List resource $path"
-        }.bufferedReader().use { it.readText() }
+        BundledResources.read(path, "Item List resource $path") { it.readText() }
 }
 
 private object CatalogResources {
@@ -163,22 +145,14 @@ private object CatalogResources {
 private object CatalogLimits {
     const val MINIMUM_ITEM_COUNT = 5_000
     const val MINIMUM_RECIPE_COUNT = 3_000
-    const val MINIMUM_ITEMS_BYTES = 1_000_000
-    const val MAXIMUM_ITEMS_BYTES = 32_000_000
-    const val MINIMUM_RECIPES_BYTES = 100_000
-    const val MAXIMUM_RECIPES_BYTES = 8_000_000
-    const val MINIMUM_WIKI_BYTES = 100_000
-    const val MAXIMUM_WIKI_BYTES = 8_000_000
-    const val MINIMUM_MOBS_BYTES = 100_000
-    const val MAXIMUM_MOBS_BYTES = 4_000_000
-    const val MINIMUM_NPCS_BYTES = 100_000
-    const val MAXIMUM_NPCS_BYTES = 2_000_000
     const val MINIMUM_PET_COUNT = 50
-    const val MINIMUM_PETS_BYTES = 100_000
-    const val MINIMUM_ENCHANTMENTS_BYTES = 20_000
-    const val MAXIMUM_ENCHANTMENTS_BYTES = 1_000_000
     const val MINIMUM_ENCHANTMENT_COUNT = 500
-    const val MAXIMUM_PETS_BYTES = 2_000_000
-    const val MINIMUM_SUPPLEMENTAL_BYTES = 20_000
-    const val MAXIMUM_SUPPLEMENTAL_BYTES = 1_000_000
+    val ITEMS_BYTES = 1_000_000..32_000_000
+    val RECIPES_BYTES = 100_000..8_000_000
+    val WIKI_BYTES = 100_000..8_000_000
+    val MOBS_BYTES = 100_000..4_000_000
+    val NPCS_BYTES = 100_000..2_000_000
+    val PETS_BYTES = 100_000..2_000_000
+    val ENCHANTMENTS_BYTES = 20_000..1_000_000
+    val SUPPLEMENTAL_BYTES = 20_000..1_000_000
 }

@@ -1,7 +1,6 @@
 package com.skysoft.data.skyblock
 
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import com.skysoft.utils.net.urlEncode
 import java.util.Locale
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
@@ -116,8 +115,7 @@ internal object SkyBlockCatalogBuilder {
         require(unresolvedSources.isEmpty()) {
             "Item List entity data is missing recipe sources: ${unresolvedSources.joinToString()}"
         }
-        return recipes.asSequence()
-            .filterIsInstance<SkyBlockRecipe.Process>()
+        return processes
             .filter { it.type == SkyBlockRecipeType.SHOP && it.sourceId != null }
             .groupBy({ it.result.id }, { requireNotNull(it.sourceId) })
             .mapValues { (_, sources) -> sources.distinct() }
@@ -228,7 +226,7 @@ private fun addObtainWikiLinks(
     obtainSources.forEach { (id, obtain) ->
         if (obtain.source != SkyBlockObtainSource.INDEPENDENT_WIKI || obtain.page.isBlank()) return@forEach
         val page = obtain.page.split('/').joinToString("/") { segment ->
-            URLEncoder.encode(segment.replace(' ', '_'), StandardCharsets.UTF_8).replace("+", "%20")
+            urlEncode(segment.replace(' ', '_')).replace("+", "%20")
         }
         wiki.putIfAbsent(
             ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id),

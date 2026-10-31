@@ -1,14 +1,14 @@
 package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
+import com.skysoft.utils.BundledResources
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.util.Locale
 import net.minecraft.world.item.ItemStack
 
 internal object SkyBlockBestiaryFamilies {
     private val families: Map<String, BestiaryFamilyData> by lazy {
-        val stream = requireNotNull(javaClass.getResourceAsStream(RESOURCE)) { "Missing bundled Bestiary data" }
-        val catalog = stream.bufferedReader().use { reader -> Gson().fromJson(reader, BestiaryCatalog::class.java) }
+        val catalog = BundledResources.read(RESOURCE, "Bestiary data") { Gson().fromJson(it, BestiaryCatalog::class.java) }
         require(catalog.schemaVersion == 1 && catalog.families.isNotEmpty()) { "Invalid bundled Bestiary data" }
         catalog.families.forEach { (name, family) ->
             require(name.isNotBlank() && name == familyKey(name)) { "Invalid Bestiary family name: $name" }

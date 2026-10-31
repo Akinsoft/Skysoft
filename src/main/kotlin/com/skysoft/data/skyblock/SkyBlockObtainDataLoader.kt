@@ -3,7 +3,10 @@ package com.skysoft.data.skyblock
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.skysoft.data.skyblock.CatalogJson.array
+import com.skysoft.data.skyblock.CatalogJson.MAXIMUM_TEXT_LENGTH
+import com.skysoft.data.skyblock.CatalogJson.catalogIdPattern
+import com.skysoft.data.skyblock.CatalogJson.enumOrNull
+import com.skysoft.data.skyblock.CatalogJson.hasLinkedSources
 import com.skysoft.data.skyblock.CatalogJson.obj
 import com.skysoft.data.skyblock.CatalogJson.string
 
@@ -16,14 +19,7 @@ internal object SkyBlockObtainDataLoader {
         require(root.get("schemaVersion")?.asInt == ObtainSchema.VERSION) {
             "Item List obtain data has an unsupported schema"
         }
-        val sources = root.array("sources")?.toList().orEmpty()
-        require(
-            sources.size >= ObtainSchema.MINIMUM_SOURCE_COUNT && sources.all { element ->
-                val source = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@all false
-                source.string("name").isNotBlank() && source.string("url").startsWith("https://") &&
-                    source.string("license").isNotBlank()
-            },
-        ) {
+        require(root.hasLinkedSources(ObtainSchema.MINIMUM_SOURCE_COUNT) { it.string("license").isNotBlank() }) {
             "Item List obtain data has invalid attribution"
         }
         val items = requireNotNull(root.obj("items")) { "Item List obtain data has no items" }
@@ -34,15 +30,13 @@ internal object SkyBlockObtainDataLoader {
     }
 
     private fun readItem(id: String, element: JsonElement): SkyBlockObtainInfo {
-        require(id.matches(entityIdPattern) && element.isJsonObject) {
+        require(id.matches(catalogIdPattern) && element.isJsonObject) {
             "Item List obtain data has an invalid item ID"
         }
         val value = element.asJsonObject
-        val statusName = value.string("status")
-        val status = SkyBlockObtainStatus.entries.firstOrNull { it.name == statusName }
+        val status = value.enumOrNull<SkyBlockObtainStatus>("status")
             ?: error("Item List obtain source $id has an invalid status")
-        val sourceName = value.string("source")
-        val sourceKind = SkyBlockObtainSource.entries.firstOrNull { it.name == sourceName }
+        val sourceKind = value.enumOrNull<SkyBlockObtainSource>("source")
             ?: error("Item List obtain source $id has an invalid source")
         val summary = value.string("summary")
         val page = value.string("page")
@@ -57,7 +51,7 @@ internal object SkyBlockObtainDataLoader {
         require(page.length <= MAXIMUM_TEXT_LENGTH && revision >= 0L) {
             "Item List obtain source $id has invalid provenance"
         }
-        require(sourceItemId == null || sourceItemId.matches(entityIdPattern)) {
+        require(sourceItemId == null || sourceItemId.matches(catalogIdPattern)) {
             "Item List obtain source $id has an invalid source item"
         }
         require((status == SkyBlockObtainStatus.UNKNOWN) == (sourceKind == SkyBlockObtainSource.UNKNOWN)) {
@@ -76,8 +70,7 @@ internal object SkyBlockObtainDataLoader {
     }
 
     private fun readContext(id: String, contextValue: JsonObject): SkyBlockObtainContext {
-        val sourceName = contextValue.string("source")
-        val contextSource = SkyBlockObtainSource.entries.firstOrNull { it.name == sourceName }
+        val contextSource = contextValue.enumOrNull<SkyBlockObtainSource>("source")
             ?: error("Item List obtain source $id has an invalid context source")
         return SkyBlockObtainContext(
             label = contextValue.string("label"),
@@ -108,7 +101,4 @@ internal object SkyBlockObtainDataLoader {
             setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE),
         )
     }
-
-    private const val MAXIMUM_TEXT_LENGTH = 128
-    private val entityIdPattern = Regex("[A-Z0-9_;.\\-]+")
 }
