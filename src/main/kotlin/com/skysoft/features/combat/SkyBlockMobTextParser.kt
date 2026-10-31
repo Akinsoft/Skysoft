@@ -12,10 +12,6 @@ internal object SkyBlockMobTextParser {
     fun parseHealth(text: String): SkyBlockMobHealth? =
         healthMatch(text)?.health
 
-    fun parseMobTypes(text: String): Set<SkyBlockMobType>? =
-        typedNamePattern.matchEntire(text)?.groups?.get("types")?.value
-            ?.mapNotNullTo(linkedSetOf(), SkyBlockMobType::fromGlyph)
-
     fun parseName(text: String): String? {
         val match = healthMatch(text) ?: return typedNamePattern.matchEntire(text)
             ?.takeIf { SkyBlockMobType.CRITTER.glyph in it.groupValues[1] }

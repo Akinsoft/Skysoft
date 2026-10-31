@@ -26,11 +26,4 @@ enum class SkyBlockMobType(val displayName: String, val glyph: Char) {
     WOODLAND("Woodland", '\uE086'),
     CRITTER("Critter", '\uE087'),
     TIMID("Timid", '\uE088'),
-    ;
-
-    companion object {
-        private val byGlyph = entries.associateBy(SkyBlockMobType::glyph)
-
-        fun fromGlyph(glyph: Char): SkyBlockMobType? = byGlyph[glyph]
-    }
 }

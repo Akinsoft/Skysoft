@@ -2,7 +2,6 @@ package com.skysoft.features.combat
 
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.data.skyblock.SkyBlockMobType
 import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
@@ -12,30 +11,19 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
 
-internal class SkyBlockMob internal constructor(
-    val serverName: String,
-    val entityUuid: UUID,
-    name: String,
-    location: WorldVec,
-    entity: LivingEntity,
-    nameplate: ArmorStand?,
-    health: SkyBlockMobHealth?,
-    mobTypes: Set<SkyBlockMobType>?,
-    now: Long,
-) {
-    var name: String = name
+internal class SkyBlockMob(val serverName: String, observation: DetectedSkyBlockMob, now: Long) {
+    val entityUuid: UUID = observation.entity.uuid
+    var name: String = observation.name
         private set
-    var location: WorldVec = location
+    var location: WorldVec = observation.location
         private set
-    var entity: LivingEntity? = entity
+    var entity: LivingEntity? = observation.entity
         private set
-    var nameplate: ArmorStand? = nameplate
+    var nameplate: ArmorStand? = observation.nameplate
         private set
-    var nameplateUuid: UUID? = nameplate?.uuid
+    var nameplateUuid: UUID? = observation.nameplate?.uuid
         private set
-    var health: SkyBlockMobHealth? = health
-        private set
-    var mobTypes: Set<SkyBlockMobType>? = mobTypes
+    var health: SkyBlockMobHealth? = observation.health
         private set
     var lastHealthChangeAtMillis: Long? = null
         private set
@@ -43,7 +31,7 @@ internal class SkyBlockMob internal constructor(
         private set
     var attachmentVersion: Long = 0
         private set
-    var deathConfirmed: Boolean = health?.current == 0L || entity.isDeadOrDying
+    var deathConfirmed: Boolean = observation.health?.current == 0L || observation.entity.isDeadOrDying
         private set
 
     val isVisible: Boolean
@@ -53,7 +41,6 @@ internal class SkyBlockMob internal constructor(
         if (entity !== observation.entity || nameplate !== observation.nameplate) attachmentVersion++
         val previousHealth = health
         if (observation.nameplate != null || nameplateUuid == null) name = observation.name
-        observation.mobTypes?.let { mobTypes = it }
         location = observation.location
         entity = observation.entity
         nameplate = observation.nameplate
@@ -145,19 +132,7 @@ internal object SkyBlockMobTracker {
         val observations = SkyBlockMobEntityMatcher.detectedMobs(ClientEntitySnapshot.entities())
         val seen = observations.mapTo(mutableSetOf()) { observation ->
             val key = SkyBlockMobKey(serverName, observation.entity.uuid)
-            mobs.getOrPut(key) {
-                SkyBlockMob(
-                    serverName = serverName,
-                    entityUuid = observation.entity.uuid,
-                    name = observation.name,
-                    location = observation.location,
-                    entity = observation.entity,
-                    nameplate = observation.nameplate,
-                    health = observation.health,
-                    mobTypes = observation.mobTypes,
-                    now = now,
-                )
-            }.also { mob -> mob.update(observation, now) }
+            mobs.getOrPut(key) { SkyBlockMob(serverName, observation, now) }.update(observation, now)
             key
         }
         mobs.forEach { (key, mob) ->
