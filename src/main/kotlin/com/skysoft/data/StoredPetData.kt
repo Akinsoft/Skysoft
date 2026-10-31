@@ -47,8 +47,8 @@ data class StoredPetData(
         get() {
             val total = exp?.takeIf { it > 0.0 } ?: return 0.0
             if (level >= PetRepository.getMaxLevel(fauxInternalName)) return 100.0
-            val start = levelXpBoundary(level)
-            val span = levelXpBoundary(level + 1) - start
+            val start = currentLevelXp
+            val span = nextLevelXp - start
             return if (span <= 0.0) 0.0 else ((total - start) * 100.0 / span).coerceIn(0.0, 100.0)
         }
 
@@ -58,13 +58,22 @@ data class StoredPetData(
     val overflowXp: Double
         get() {
             val maxLevel = PetRepository.getMaxLevel(fauxInternalName)
-            return petOverflowExperience(exp, level, maxLevel, PetRepository.levelToXp(maxLevel, fauxInternalName))
+            if (level < maxLevel) return 0.0
+            val total = exp?.takeIf { it.isFinite() } ?: return 0.0
+            val threshold = PetRepository.levelToXp(maxLevel, fauxInternalName)
+                ?.takeIf { it.isFinite() && it >= 0.0 }
+                ?: return 0.0
+            return (total - threshold).coerceAtLeast(0.0)
         }
 
     fun getUserFriendlyName(
         includeLevel: Boolean = true,
         includeSkinTag: Boolean = true,
-    ): String = petDisplayLabel(level, coloredDisplayName, skinTag, includeLevel, includeSkinTag)
+    ): String = listOfNotNull(
+        if (includeLevel) "§7[Lvl $level]" else null,
+        coloredDisplayName,
+        skinTag?.takeIf { includeSkinTag },
+    ).joinToString(" ")
 
     fun matchesDisplayName(name: String): Boolean =
         name.trim().let { trimmedName ->
@@ -95,30 +104,4 @@ data class StoredPetData(
     companion object {
         private const val TIER_BOOST = "PET_ITEM_TIER_BOOST"
     }
-}
-
-internal fun petOverflowExperience(
-    totalExperience: Double?,
-    currentLevel: Int,
-    maxLevel: Int,
-    maxLevelExperience: Double?,
-): Double {
-    if (currentLevel < maxLevel) return 0.0
-    val total = totalExperience?.takeIf { it.isFinite() } ?: return 0.0
-    val threshold = maxLevelExperience?.takeIf { it.isFinite() && it >= 0.0 } ?: return 0.0
-    return (total - threshold).coerceAtLeast(0.0)
-}
-
-internal fun petDisplayLabel(
-    level: Int,
-    coloredDisplayName: String,
-    skinTag: String?,
-    includeLevel: Boolean,
-    includeSkinTag: Boolean,
-): String {
-    val segments = mutableListOf<String>()
-    if (includeLevel) segments += "\u00A77[Lvl $level]"
-    segments += coloredDisplayName
-    if (includeSkinTag && skinTag != null) segments += skinTag
-    return segments.joinToString(" ")
 }

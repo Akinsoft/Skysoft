@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.repairTrimmedEntries
 import com.skysoft.data.SkyBlockIsland
 import java.util.Locale
 import java.util.UUID
@@ -30,7 +31,7 @@ class CustomProfitTrackerConfig(
         }
         name = uniqueCustomTrackerName(name, usedNames)
         locations.repairLoadedValues()
-        repairItemIds(items)
+        items.repairTrimmedEntries()
         val validSources = ProfitTrackerPriceSource.entries.mapTo(mutableSetOf()) { it.name }
         priceSources.entries.removeIf { (itemId, source) -> itemId !in items || source !in validSources }
     }
@@ -48,7 +49,7 @@ class CustomProfitTrackerLocations(
         }
         entries.clear()
         repaired.forEach { (island, areas) ->
-            repairAreaNames(areas)
+            areas.repairTrimmedEntries()
             entries += CustomProfitTrackerLocation(island, areas)
         }
     }
@@ -78,19 +79,7 @@ private fun uniqueCustomTrackerName(name: String, usedNames: MutableSet<String>)
     return candidate
 }
 
-private fun repairItemIds(items: MutableList<String>) {
-    val repaired = items.asSequence().map(String::trim).filter(String::isNotEmpty).distinct().toList()
-    items.clear()
-    items.addAll(repaired)
-}
-
-private fun repairAreaNames(areas: MutableList<String>) {
-    val repaired = areas.asSequence().map(String::trim).filter(String::isNotEmpty).distinct().toList()
-    areas.clear()
-    areas.addAll(repaired)
-}
-
-internal const val CUSTOM_TRACKER_STORAGE_PREFIX = "CUSTOM_"
-internal const val CUSTOM_TRACKER_NAME_LENGTH = 32
+private const val CUSTOM_TRACKER_STORAGE_PREFIX = "CUSTOM_"
+private const val CUSTOM_TRACKER_NAME_LENGTH = 32
 private const val DEFAULT_CUSTOM_TRACKER_NAME = "Custom Tracker"
 private val LEGACY_FORMATTING_PATTERN = Regex("§.")

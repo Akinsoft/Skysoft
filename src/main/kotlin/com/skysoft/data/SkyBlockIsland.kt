@@ -49,11 +49,10 @@ enum class SkyBlockIsland(
 
         fun getByConditionValue(value: String): SkyBlockIsland? = when (value) {
             "PRIVATE_ISLANDS" -> PRIVATE_ISLAND
-            "PRIVATE_ISLAND_GUEST", "GARDEN_GUEST" -> null
+            "PRIVATE_ISLAND_GUEST", "GARDEN_GUEST", "DARK_AUCTION" -> null
             "CATACOMBS" -> DUNGEONS
             "MINESHAFT" -> GLACITE_MINESHAFTS
-            "DARK_AUCTION" -> null
-            else -> runCatching { valueOf(value) }.getOrNull()
+            else -> entries.firstOrNull { it.name == value }
         }
 
         private fun String.legacyMapIsland(): SkyBlockIsland? = when {

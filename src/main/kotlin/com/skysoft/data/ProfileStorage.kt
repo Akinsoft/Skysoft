@@ -13,8 +13,6 @@ import kotlin.math.ceil
 
 data class ProfileStorage(
     @Expose override val players: MutableMap<String, PlayerSpecific> = mutableMapOf(),
-
-    // Kept for migration from the first Skysoft pet-storage layout.
     @Expose override val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
 ) : ProfileStorageView {
     @Expose private val pets: MutableList<StoredPetData> = mutableListOf()
@@ -170,12 +168,10 @@ data class ProfileStorage(
             skyBlockStoragePages.repairStoragePages { it in 0 until SKYBLOCK_STORAGE_PAGE_COUNT }
             skyBlockRiftStoragePages.repairStoragePages { it in 0 until SKYBLOCK_RIFT_STORAGE_PAGE_COUNT }
             skyBlockToolkits.repairStoragePages { it in SKYBLOCK_TOOLKIT_KEYS }
-            repairInventoryEquipment()
-            repairSlotBindings()
-            repairSlotLocks()
-            val repairedProtectedItemUuids = protectedItemUuids.distinct()
-            protectedItemUuids.clear()
-            protectedItemUuids.addAll(repairedProtectedItemUuids)
+            inventoryEquipment.resizeTo(INVENTORY_EQUIPMENT_SLOT_COUNT)
+            SlotBindingGraph.repair(slotBindings)
+            slotLocks.repairWith { locks -> locks.filter { it in PLAYER_INVENTORY_SLOT_RANGE }.distinct().sorted() }
+            protectedItemUuids.repairWith { it.distinct() }
             inventoryItemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0 }
             sackContents.keys.removeIf(String::isBlank)
             sackContents.values.forEach(SackItemData::repairLoadedValues)
@@ -196,21 +192,6 @@ data class ProfileStorage(
                     page.title.isBlank()
                 }
             }
-        }
-
-        private fun repairInventoryEquipment() {
-            while (inventoryEquipment.size > INVENTORY_EQUIPMENT_SLOT_COUNT) inventoryEquipment.removeAt(inventoryEquipment.lastIndex)
-            while (inventoryEquipment.size < INVENTORY_EQUIPMENT_SLOT_COUNT) inventoryEquipment.add(SkyBlockStorageItemData())
-        }
-
-        private fun repairSlotBindings() {
-            SlotBindingGraph.repair(slotBindings)
-        }
-
-        private fun repairSlotLocks() {
-            val repaired = slotLocks.filter { it in PLAYER_INVENTORY_SLOT_RANGE }.distinct().sorted()
-            slotLocks.clear()
-            slotLocks.addAll(repaired)
         }
     }
 
@@ -251,17 +232,11 @@ data class ProfileStorage(
         @Expose override val priceSources: MutableMap<String, String> = mutableMapOf(),
     ) : ProfileStorageView.ProfitTrackerItemCustomizations {
         fun repairLoadedValues() {
-            excludedItems.repairItemIds()
-            customItems.repairItemIds()
+            excludedItems.repairWith { ids -> ids.filter(String::isNotBlank).distinct() }
+            customItems.repairWith { ids -> ids.filter(String::isNotBlank).distinct() }
             priceSources.entries.removeIf { (itemId, source) ->
                 itemId.isBlank() || source !in PROFIT_TRACKER_PRICE_SOURCES
             }
-        }
-
-        private fun MutableList<String>.repairItemIds() {
-            val repaired = filter(String::isNotBlank).distinct()
-            clear()
-            addAll(repaired)
         }
     }
 
@@ -282,7 +257,7 @@ data class ProfileStorage(
             itemCounts.entries.removeIf { (itemId, amount) -> itemId.isBlank() || amount <= 0L }
             costs.entries.removeIf { (currency, amount) -> currency.isBlank() || amount <= 0L }
             pestKills.entries.removeIf { (pest, amount) -> pest.isBlank() || amount <= 0L }
-            if (!coins.isFinite() || coins < 0.0) coins = 0.0
+            coins = coins.finiteNonNegative()
             if (kernels < 0L) kernels = 0L
             if (activeMillis < 0L) activeMillis = 0L
             if (actions < 0L) actions = 0L
@@ -372,10 +347,7 @@ data class ProfileStorage(
         @Expose override val hives: MutableList<HoneyhiveData> = mutableListOf(),
     ) : ProfileStorageView.HoneyhiveTrackerData {
         fun repairLoadedValues() {
-            hives.removeIf { !it.isUsable() }
-            val repaired = hives.associateBy { it.locationKey() }.values
-            hives.clear()
-            hives.addAll(repaired)
+            hives.repairWith { list -> list.filter { it.isUsable() }.associateBy { it.locationKey() }.values.toList() }
         }
     }
 
@@ -447,7 +419,7 @@ data class ProfileStorage(
     ) : ProfileStorageView.DianaBurrowChainData {
         fun repairLoadedValues() {
             activeTargets.removeIf { target -> !target.isUsable() }
-            if (activeTargets.isEmpty() && hasLegacyTarget()) {
+            if (activeTargets.isEmpty() && hasLegacyTarget) {
                 activeTargets += DianaBurrowChainTargetData(
                     savedAtMillis = savedAtMillis,
                     completed = completed,
@@ -468,15 +440,11 @@ data class ProfileStorage(
             activeTargets.clear()
         }
 
-        override fun isUsable(): Boolean =
-            activeTargets.isNotEmpty() || hasLegacyTarget()
+        override fun isUsable(): Boolean = activeTargets.isNotEmpty() || hasLegacyTarget
 
-        private fun hasLegacyTarget(): Boolean =
-            savedAtMillis >= 0L &&
-                total > 0 &&
-                completed in 0..total &&
-                nextTargetId > 0L &&
-                sameBlockStartTargetId >= 0L
+        private val hasLegacyTarget: Boolean
+            get() = DianaBurrowChainTargetData(savedAtMillis, completed, total, nextTargetId, sameBlockStartTargetId)
+                .isUsable()
     }
 
     data class DianaBurrowChainTargetData(
@@ -571,9 +539,9 @@ data class ProfileStorage(
     ) : ProfileStorageView.BazaarOrderData {
         override fun isUsable(): Boolean = itemName.isNotBlank() && amountOrdered > 0 && pricePerUnit > 0.0
         fun repairLoadedValues() {
-            if (!amountResolution.isFinite() || amountResolution < 0.0) amountResolution = 0.0
-            if (!pricePerUnitResolution.isFinite() || pricePerUnitResolution < 0.0) pricePerUnitResolution = 0.0
-            if (!totalCoinsResolution.isFinite() || totalCoinsResolution < 0.0) totalCoinsResolution = 0.0
+            amountResolution = amountResolution.finiteNonNegative()
+            pricePerUnitResolution = pricePerUnitResolution.finiteNonNegative()
+            totalCoinsResolution = totalCoinsResolution.finiteNonNegative()
         }
         override fun maximumAmount(): Long = if (amountResolution > 0.0) {
             (ceil(amountOrdered + amountResolution).toLong() - 1L).coerceAtLeast(amountOrdered)
@@ -643,9 +611,7 @@ data class ProfileStorage(
     ) : ProfileStorageView.SkyBlockStoragePageData {
         fun repairLoadedValues() {
             rows = rows.coerceIn(0, SKYBLOCK_CONTAINER_MAX_ROWS)
-            val targetSize = rows * SLOTS_PER_STORAGE_ROW
-            while (items.size > targetSize) items.removeAt(items.lastIndex)
-            while (items.size < targetSize) items.add(SkyBlockStorageItemData())
+            items.resizeTo(rows * SLOTS_PER_STORAGE_ROW)
         }
     }
 
@@ -680,3 +646,16 @@ private fun repairPetReferences(
     expSharePets.replaceAll { uuid -> uuid?.takeIf { it in validPetUuids } }
     return currentPetUuid?.takeIf { it in validPetUuids }
 }
+
+private fun <T> MutableList<T>.repairWith(repair: (List<T>) -> List<T>) {
+    val repaired = repair(this)
+    clear()
+    addAll(repaired)
+}
+
+private fun MutableList<ProfileStorage.SkyBlockStorageItemData>.resizeTo(size: Int) {
+    while (this.size > size) removeAt(lastIndex)
+    while (this.size < size) add(ProfileStorage.SkyBlockStorageItemData())
+}
+
+private fun Double.finiteNonNegative(): Double = if (isFinite() && this >= 0.0) this else 0.0
