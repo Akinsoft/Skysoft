@@ -95,15 +95,12 @@ object HypixelPartyApi {
     internal fun requestPartyInfo(
         force: Boolean = false,
         now: Long = System.currentTimeMillis(),
-        sendPacket: () -> Unit = {
-            HypixelModAPI.getInstance().sendPacket(ServerboundPartyInfoPacket())
-        },
     ): PartyInfoRequestResult {
         if (!force && now - lastRequestAtMillis < REQUEST_COOLDOWN_MILLIS) {
             return PartyInfoRequestResult.COOLDOWN
         }
         return try {
-            sendPacket()
+            HypixelModAPI.getInstance().sendPacket(ServerboundPartyInfoPacket())
             lastRequestAtMillis = now
             PartyInfoRequestResult.SENT
         } catch (e: Exception) {
@@ -114,11 +111,7 @@ object HypixelPartyApi {
 
     private fun onPartyInfoPacket(packet: ClientboundPartyInfoPacket) {
         if (!hasActiveConsumers) return
-        acceptPartyInfo(packet, System.currentTimeMillis())
-    }
-
-    internal fun acceptPartyInfo(packet: ClientboundPartyInfoPacket, now: Long) {
-        val names = TabListApi.playerProfiles.associate { profile -> profile.uuid to profile.profileName }
+        val names = tabProfileNames()
         val members = if (packet.isInParty) {
             packet.memberMap.values.associate { member ->
                 member.uuid to HypixelPartyMember(member.uuid, member.role.toSkysoftRole(), names[member.uuid])
@@ -130,7 +123,7 @@ object HypixelPartyApi {
             HypixelPartyState(
                 isInParty = packet.isInParty,
                 members = members,
-                updatedAtMillis = now,
+                updatedAtMillis = System.currentTimeMillis(),
             ),
         )
     }
@@ -138,12 +131,15 @@ object HypixelPartyApi {
     private fun enrichMemberIdentities() {
         val current = publisher.state
         if (!current.isInParty) return
-        val names = TabListApi.playerProfiles.associate { profile -> profile.uuid to profile.profileName }
+        val names = tabProfileNames()
         val updatedMembers = current.members.mapValues { (uuid, member) ->
             member.copy(profileName = names[uuid] ?: member.profileName)
         }
         if (updatedMembers != current.members) publisher.update(current.copy(members = updatedMembers))
     }
+
+    private fun tabProfileNames(): Map<UUID, String> =
+        TabListApi.playerProfiles.associate { profile -> profile.uuid to profile.profileName }
 
     private fun reset() {
         isBackgroundActive = false
