@@ -1,8 +1,6 @@
 package com.skysoft.features.combat
 
-import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.SkyBlockIsland
-import com.skysoft.data.skyblock.SkyBlockMobType
 import com.skysoft.data.skyblock.withoutSkyBlockMobModifierPrefix
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.WorldVec
@@ -37,7 +35,6 @@ internal data class DetectedSkyBlockMob(
     val entity: LivingEntity,
     val nameplate: ArmorStand?,
     val health: SkyBlockMobHealth?,
-    val mobTypes: Set<SkyBlockMobType>?,
 )
 
 internal object SkyBlockMobEntityMatcher {
@@ -47,11 +44,7 @@ internal object SkyBlockMobEntityMatcher {
         return SkyBlockMobTracker.visibleMobs().mapNotNull { mob -> mob.signal(preparedLabels) }
     }
 
-    fun hasVisibleNameplateFor(
-        entity: LivingEntity,
-        labels: Collection<String>,
-        entities: Iterable<Entity> = ClientEntitySnapshot.entities(),
-    ): Boolean {
+    fun hasVisibleNameplateFor(entity: LivingEntity, labels: Collection<String>, entities: Iterable<Entity>): Boolean {
         val preparedLabels = prepareMobLabels(labels)
         if (preparedLabels.isEmpty()) return false
         for (candidate in entities) {
@@ -69,9 +62,18 @@ internal object SkyBlockMobEntityMatcher {
 
     fun physicalEntityFor(
         nameplate: ArmorStand,
-        entities: Iterable<Entity> = ClientEntitySnapshot.entities(),
+        entities: Iterable<Entity>,
         isCandidate: (LivingEntity) -> Boolean = { true },
-    ): LivingEntity? = nameplate.linkedPhysicalEntity(entities, isCandidate)
+    ): LivingEntity? {
+        val model = entities.firstOrNull { entity -> entity.id == nameplate.id - 1 } as? ArmorStand
+        if (model != null && model.isMobModelPart() && !model.isMarker && model.isTightPair(nameplate) && isCandidate(model)) {
+            return model
+        }
+        val candidates = entities
+            .filterIsInstance<LivingEntity>()
+            .filter { entity -> entity.isPossibleSkyBlockMob() && isCandidate(entity) && entity.isTightPair(nameplate) }
+        return candidates.firstOrNull { entity -> entity.id == nameplate.id - 1 } ?: candidates.singleOrNull()
+    }
 
     internal fun detectedMobs(entities: List<Entity>): List<DetectedSkyBlockMob> {
         val nameplateMobs = entities.filterIsInstance<ArmorStand>()
@@ -103,7 +105,6 @@ internal object SkyBlockMobEntityMatcher {
             entity = linkedEntity,
             nameplate = this,
             health = health,
-            mobTypes = SkyBlockMobTextParser.parseMobTypes(text),
         )
     }
 
@@ -116,7 +117,6 @@ internal object SkyBlockMobEntityMatcher {
             entity = this,
             nameplate = null,
             health = null,
-            mobTypes = SkyBlockMobTextParser.parseMobTypes(name),
         )
     }
 
@@ -152,20 +152,6 @@ internal object SkyBlockMobEntityMatcher {
         return SkyBlockMobSignal(label, location, entity, nameplate, this)
     }
 
-    private fun ArmorStand.linkedPhysicalEntity(
-        entities: Iterable<Entity>,
-        isCandidate: (LivingEntity) -> Boolean,
-    ): LivingEntity? {
-        val model = entities.firstOrNull { entity -> entity.id == id - 1 } as? ArmorStand
-        if (model != null && model.isMobModelPart() && !model.isMarker && model.isTightPair(this) && isCandidate(model)) {
-            return model
-        }
-        val candidates = entities
-            .filterIsInstance<LivingEntity>()
-            .filter { entity -> entity.isPossibleSkyBlockMob() && isCandidate(entity) && entity.isTightPair(this) }
-        return candidates.firstOrNull { entity -> entity.id == id - 1 } ?: candidates.singleOrNull()
-    }
-
     private fun LivingEntity.isTightPair(nameplate: ArmorStand): Boolean {
         val dx = x - nameplate.x
         val dz = z - nameplate.z
@@ -186,8 +172,10 @@ internal object SkyBlockMobEntityMatcher {
 internal fun LivingEntity.isPossibleSkyBlockMob(): Boolean {
     val player = Minecraft.getInstance().player
     if (this == player || this is ArmorStand) return false
-    return this !is Player || uuid.version() != REAL_PLAYER_UUID_VERSION
+    return this !is Player || !isRealPlayer()
 }
+
+internal fun Player.isRealPlayer(): Boolean = uuid.version() == REAL_PLAYER_UUID_VERSION
 
 private fun matchingPreparedMobLabel(name: String, labels: List<String>): String? {
     if (labels.none { label -> name.contains(label, ignoreCase = true) }) return null
