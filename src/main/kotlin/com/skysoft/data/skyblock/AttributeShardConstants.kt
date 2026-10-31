@@ -49,22 +49,14 @@ internal object AttributeShardConstants {
 
     fun internalNameByAbilityName(abilityName: String): String? {
         if (!ensureLoaded()) return null
-        val constants = snapshot
         val cleanName = abilityName.trim()
-        val shardName = constants.attributeAbilityNameToShard[cleanName]
-            ?: constants.attributeDisplayNameToShard[cleanName]
-            ?: return null
-        return constants.attributeInfo[shardName]?.internalName
+        val shardName = snapshot.attributeAbilityNameToShard[cleanName] ?: shardByDisplayOrAbilityName(cleanName)
+        return shardName?.let(::internalNameByBazaarName)
     }
 
     fun internalNameByDisplayName(shardName: String): String? {
         if (!ensureLoaded()) return null
-        val constants = snapshot
-        val cleanName = shardName.trim().removeSuffix(" Shard").trim()
-        val bazaarName = constants.attributeDisplayNameToShard[cleanName]
-            ?: constants.attributeAbilityNameToShard[cleanName]
-            ?: return null
-        return constants.attributeInfo[bazaarName]?.internalName
+        return shardByDisplayOrAbilityName(shardName.trim().removeSuffix(" Shard").trim())?.let(::internalNameByBazaarName)
     }
 
     fun shardNameByInternalName(internalName: String): String? = snapshot.internalNameToShard[internalName]

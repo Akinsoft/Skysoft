@@ -2,6 +2,8 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.skysoft.data.skyblock.CatalogJson.intOrNull
+import com.skysoft.data.skyblock.CatalogJson.readableName
 import java.io.StringReader
 import com.skysoft.data.skyblock.CatalogJson.string
 import com.skysoft.data.skyblock.CatalogJson.long
@@ -21,7 +23,7 @@ internal object SkyBlockRecipeDataLoader {
         progressionRequirements: Map<String, SkyBlockProgressionRequirement>,
     ): SkyBlockRecipe? = when (json.string("type")) {
         "crafting" -> parseCrafting(json, progressionRequirements)
-        "forge" -> parseProcess(json, SkyBlockRecipeType.FORGE)
+        "forge" -> parseForge(json)
         "kat" -> parseKat(json)
         "shop" -> parseShop(json)
         else -> null
@@ -32,25 +34,24 @@ internal object SkyBlockRecipeDataLoader {
         progressionRequirements: Map<String, SkyBlockProgressionRequirement>,
     ): SkyBlockRecipe.Crafting? {
         val result = json.obj("result")?.recipeIngredient() ?: return null
-        val keys = json.array("keys")?.mapNotNull { it.asJsonObject.recipeIngredient() }.orEmpty()
+        val keys = json.recipeIngredients("keys")
         val slots = json.array("pattern")?.map { element ->
             element.asInt.takeIf { it >= 0 }?.let(keys::getOrNull)
         }.orEmpty()
         if (slots.isEmpty()) return null
         return SkyBlockRecipe.Crafting(
             result,
-            slots.take(CRAFTING_SLOT_COUNT).padTo(CRAFTING_SLOT_COUNT),
+            SkyBlockRecipe.Crafting.gridSlots(slots),
             progressionRequirements[result.id],
         )
     }
 
-    private fun parseProcess(json: JsonObject, type: SkyBlockRecipeType): SkyBlockRecipe.Process? {
+    private fun parseForge(json: JsonObject): SkyBlockRecipe.Process? {
         val result = json.obj("result")?.recipeIngredient() ?: return null
-        val inputs = json.array("inputs")?.mapNotNull { it.asJsonObject.recipeIngredient() }.orEmpty()
         return SkyBlockRecipe.Process(
-            type = type,
+            type = SkyBlockRecipeType.FORGE,
             result = result,
-            ingredients = inputs,
+            ingredients = json.recipeIngredients("inputs"),
             coins = json.long("coins"),
             durationSeconds = json.long("time"),
         )
@@ -59,10 +60,7 @@ internal object SkyBlockRecipeDataLoader {
     private fun parseKat(json: JsonObject): SkyBlockRecipe.Process? {
         val result = json.obj("output")?.recipeIngredient() ?: return null
         val input = json.obj("input")?.recipeIngredient()
-        val ingredients = buildList {
-            input?.let(::add)
-            json.array("items")?.mapNotNullTo(this) { it.asJsonObject.recipeIngredient() }
-        }
+        val ingredients = listOfNotNull(input) + json.recipeIngredients("items")
         return SkyBlockRecipe.Process(
             type = SkyBlockRecipeType.KAT,
             result = result,
@@ -75,14 +73,16 @@ internal object SkyBlockRecipeDataLoader {
 
     private fun parseShop(json: JsonObject): SkyBlockRecipe.Process? {
         val result = json.obj("result")?.recipeIngredient() ?: return null
-        val inputs = json.array("inputs")?.mapNotNull { it.asJsonObject.recipeIngredient() }.orEmpty()
         return SkyBlockRecipe.Process(
             type = SkyBlockRecipeType.SHOP,
             result = result,
-            ingredients = inputs,
+            ingredients = json.recipeIngredients("inputs"),
             sourceId = json.string("npc").takeIf(String::isNotBlank),
         )
     }
+
+    private fun JsonObject.recipeIngredients(name: String): List<RecipeIngredient> =
+        array(name)?.mapNotNull { it.asJsonObject.recipeIngredient() }.orEmpty()
 
     private fun JsonObject.recipeIngredient(): RecipeIngredient? {
         val type = string("type")
@@ -91,7 +91,7 @@ internal object SkyBlockRecipeDataLoader {
                 id = string("currency"),
                 count = long("count"),
                 kind = RecipeIngredientKind.CURRENCY,
-                displayName = string("currency").replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase),
+                displayName = string("currency").readableName(),
             )
             "pet" -> {
                 val pet = string("pet")
@@ -101,8 +101,7 @@ internal object SkyBlockRecipeDataLoader {
             "enchantment" -> RecipeIngredient(
                 id = enchantmentItemId(
                     string("id"),
-                    get("level")?.takeUnless { it.isJsonNull }?.asInt
-                        ?: error("Item List enchantment recipe is missing a level"),
+                    intOrNull("level") ?: error("Item List enchantment recipe is missing a level"),
                 ),
                 count = long("count").coerceAtLeast(1L),
                 kind = RecipeIngredientKind.ITEM,
@@ -111,7 +110,7 @@ internal object SkyBlockRecipeDataLoader {
                 id = string("id"),
                 count = long("count").coerceAtLeast(1L),
                 kind = RecipeIngredientKind.SPECIAL,
-                displayName = string("id").replace('_', ' ').lowercase().replaceFirstChar(Char::uppercase),
+                displayName = string("id").readableName(),
             )
             else -> itemIngredient()
         }
@@ -122,8 +121,5 @@ internal object SkyBlockRecipeDataLoader {
         return RecipeIngredient(id, long("count").coerceAtLeast(1L))
     }
 
-    private const val CRAFTING_SLOT_COUNT = 9
     private const val KAT_ENTITY_ID = "KAT_NPC"
 }
-
-private fun <T> List<T>.padTo(size: Int): List<T?> = map<T, T?> { it } + List((size - this.size).coerceAtLeast(0)) { null }

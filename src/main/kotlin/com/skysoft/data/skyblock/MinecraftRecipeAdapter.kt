@@ -82,7 +82,7 @@ internal object MinecraftRecipeAdapter {
 
     private fun shaped(display: ShapedCraftingRecipeDisplay, context: ContextMap): SkyBlockRecipe? {
         val result = display.result().ingredient(context) ?: return null
-        val slots = MutableList<RecipeIngredient?>(CRAFTING_SLOT_COUNT) { null }
+        val slots = MutableList<RecipeIngredient?>(SkyBlockRecipe.Crafting.SLOT_COUNT) { null }
         display.ingredients().forEachIndexed { index, ingredient ->
             val target = index / display.width() * CRAFTING_GRID_WIDTH + index % display.width()
             if (target in slots.indices) slots[target] = ingredient.ingredient(context)
@@ -92,11 +92,8 @@ internal object MinecraftRecipeAdapter {
 
     private fun shapeless(display: ShapelessCraftingRecipeDisplay, context: ContextMap): SkyBlockRecipe? {
         val result = display.result().ingredient(context) ?: return null
-        val ingredients = display.ingredients().map { it.ingredient(context) }.take(CRAFTING_SLOT_COUNT)
-        return SkyBlockRecipe.Crafting(
-            result,
-            ingredients + List((CRAFTING_SLOT_COUNT - ingredients.size).coerceAtLeast(0)) { null },
-        )
+        val ingredients = display.ingredients().map { it.ingredient(context) }
+        return SkyBlockRecipe.Crafting(result, SkyBlockRecipe.Crafting.gridSlots(ingredients))
     }
 
     private fun furnace(display: FurnaceRecipeDisplay, context: ContextMap): SkyBlockRecipe? {
@@ -208,7 +205,6 @@ internal object MinecraftRecipeAdapter {
     )
 
     private const val CRAFTING_GRID_WIDTH = 3
-    private const val CRAFTING_SLOT_COUNT = 9
     private const val TICKS_PER_SECOND = 20L
     private const val POTION_ID_SEPARATOR = "|"
     private const val MINECRAFT_NAMESPACE = "minecraft"

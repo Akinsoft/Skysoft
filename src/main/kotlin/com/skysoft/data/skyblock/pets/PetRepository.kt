@@ -2,8 +2,6 @@ package com.skysoft.data.skyblock.pets
 
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.data.skyblock.SkyBlockStackFactory
-import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import kotlin.math.roundToInt
 
@@ -15,7 +13,7 @@ object PetRepository {
         if (skinInternalName == null) return null
         PetSkins.load()
         displayIconTexture?.let { texture ->
-            return SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin"))
+            return petSkinStack(texture)
         }
         PetSkins.animatedTexture(skinInternalName)?.let { texture ->
             return PetRepoCache.skinStack(texture)
@@ -60,10 +58,7 @@ object PetRepository {
                             } else {
                                 (sourceTicks / key.animationSpeed).roundToInt().coerceAtLeast(1)
                             }
-                            PetItemFrame(
-                                SkyBlockStackFactory.texturedHead(texture, Component.literal("Pet Skin")),
-                                ticks,
-                            )
+                            PetItemFrame(petSkinStack(texture), ticks)
                         }
                 }
             },
@@ -86,22 +81,16 @@ object PetRepository {
         }
     }
 
-    fun getMaxLevel(petInternalName: String): Int {
-        val properName = PetInternalNames.properName(petInternalName) ?: return DEFAULT_MAX_PET_LEVEL
-        return PetRepoConstants.data.customPetLeveling[properName]?.maxLevel ?: DEFAULT_MAX_PET_LEVEL
-    }
+    fun getMaxLevel(petInternalName: String): Int =
+        customLeveling(petInternalName)?.maxLevel ?: DEFAULT_MAX_PET_LEVEL
 
     fun getPetType(petInternalName: String): String? {
         val properName = PetInternalNames.properName(petInternalName) ?: return null
         return PetRepoConstants.data.petTypes[properName]
     }
 
-    private const val DEFAULT_MAX_PET_LEVEL = 100
-
-    fun getPetXpMultiplier(petInternalName: String): Double {
-        val properName = PetInternalNames.properName(petInternalName) ?: return 1.0
-        return PetRepoConstants.data.customPetLeveling[properName]?.xpMultiplier ?: 1.0
-    }
+    fun getPetXpMultiplier(petInternalName: String): Double =
+        customLeveling(petInternalName)?.xpMultiplier ?: 1.0
 
     fun levelToXp(level: Int, petInternalName: String): Double? {
         val rarityOffset = PetLevels.rarityOffset(petInternalName) ?: return null
@@ -111,11 +100,7 @@ object PetRepository {
         val levelsToSum = level - 1
         val endIndex = rarityOffset + levelsToSum
         if (endIndex > levelTree.size) return null
-        var totalXp = 0.0
-        for (index in rarityOffset until endIndex) {
-            totalXp += levelTree[index]
-        }
-        return totalXp
+        return levelTree.subList(rarityOffset, endIndex).sumOf { it.toDouble() }
     }
 
     fun xpToLevel(totalXp: Double, petInternalName: String, coerceToMax: Boolean = true): Int {
@@ -137,6 +122,11 @@ object PetRepository {
         val rarityAbove = rarity.oneAbove() ?: return false
         return levelToXp(1, "$properName;${rarityAbove.id}") != null
     }
+
+    private fun customLeveling(petInternalName: String): NeuPetData? =
+        PetInternalNames.properName(petInternalName)?.let(PetRepoConstants.data.customPetLeveling::get)
+
+    private const val DEFAULT_MAX_PET_LEVEL = 100
 }
 
 internal fun isDragonEggStagePet(petInternalName: String, exp: Double?): Boolean {

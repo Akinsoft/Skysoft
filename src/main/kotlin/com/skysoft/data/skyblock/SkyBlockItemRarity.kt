@@ -1,6 +1,5 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.utils.ColorUtilities.RGB_MASK
 import java.util.Optional
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
@@ -23,12 +22,12 @@ object SkyBlockItemRarity {
     }
 }
 
-internal fun rarityFromTooltipStyle(style: Identifier?): SkyBlockRarity? {
+private fun rarityFromTooltipStyle(style: Identifier?): SkyBlockRarity? {
     if (style?.namespace != SKYBLOCK_TOOLTIP_NAMESPACE) return null
     return SkyBlockRarity.getByName(style.path)
 }
 
-internal fun rarityFromLore(lines: List<Component>): SkyBlockRarity? =
+private fun rarityFromLore(lines: List<Component>): SkyBlockRarity? =
     itemClassificationFromLore(lines)?.rarity
 
 internal fun itemCategoryFromLore(lines: List<Component>): String? =
@@ -42,7 +41,7 @@ private fun itemClassificationFromLore(lines: List<Component>): ItemLoreClassifi
                     .replace(' ', '_')
                     .let(SkyBlockRarity::getByName)
                     ?.takeIf { rarity ->
-                        style.isBold && style.color?.value == (rarity.color.rgb and RGB_MASK)
+                        style.isBold && style.color?.value == rarity.rgb
                     }
                     ?.let { rarity ->
                         ItemLoreClassification(

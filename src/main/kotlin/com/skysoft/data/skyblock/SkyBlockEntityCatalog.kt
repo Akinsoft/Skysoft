@@ -1,11 +1,13 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.data.skyblock.CatalogJson.doubleOrNull
+import com.skysoft.data.skyblock.CatalogJson.intOrNull
+import com.skysoft.data.skyblock.CatalogJson.readableName
 import com.skysoft.data.skyblock.CatalogJson.string
 import com.skysoft.data.skyblock.CatalogJson.long
 import com.skysoft.data.skyblock.CatalogJson.array
 import com.google.gson.JsonObject
 import com.skysoft.utils.TextUtilities.removeColor
-import java.util.Locale
 import net.minecraft.world.item.ItemStack
 
 internal object SkyBlockEntityCatalog {
@@ -48,7 +50,7 @@ internal object SkyBlockEntityCatalog {
 
     private fun parseDrop(entityId: String, json: JsonObject): SkyBlockEntityDrop {
         val type = json.string("type").ifBlank { "item" }
-        val chance = json.get("chance")?.takeUnless { it.isJsonNull }?.asDouble
+        val chance = json.doubleOrNull("chance")
         require(chance == null || chance.isFinite() && chance in 0.0..MAXIMUM_DROP_CHANCE) {
             "Item List entity $entityId has an invalid drop chance"
         }
@@ -76,7 +78,7 @@ internal object SkyBlockEntityCatalog {
         "currency" -> null
         "enchantment" -> enchantmentItemId(
             string("id"),
-            get("level")?.takeUnless { it.isJsonNull }?.asInt ?: return null,
+            intOrNull("level") ?: return null,
         )
         "attribute" -> string("id").takeIf(String::isNotBlank)?.let { "ATTRIBUTE_SHARD_$it;1" }
         "pet" -> petItemKey("${string("pet")};${string("tier")}")?.id
@@ -94,10 +96,7 @@ internal object SkyBlockEntityCatalog {
         else -> string("id").readableName()
     }
 
-    private fun JsonObject.positiveInt(name: String): Int? =
-        get(name)?.takeUnless { it.isJsonNull }?.asInt?.takeIf { it > 0 }
-    private fun String.readableName(): String =
-        replace('_', ' ').lowercase(Locale.ROOT).replaceFirstChar(Char::uppercase)
+    private fun JsonObject.positiveInt(name: String): Int? = intOrNull(name)?.takeIf { it > 0 }
 
     private const val MAXIMUM_DROP_DETAIL_LENGTH = 160
     private const val MAXIMUM_DROP_CHANCE = 100.0

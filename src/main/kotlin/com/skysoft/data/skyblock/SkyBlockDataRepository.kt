@@ -111,13 +111,10 @@ object SkyBlockDataRepository {
     fun entity(id: String): SkyBlockEntityInfo? = snapshot?.entities?.get(id)
 
     internal object ViewerData {
-        fun petStack(ingredientId: String, level: Int): ItemStack? {
-            val current = snapshot ?: return null
-            return current.petCatalog.stack(ingredientId, level)
-        }
+        fun petStack(ingredientId: String, level: Int): ItemStack? = snapshot?.petCatalog?.stack(ingredientId, level)
 
         fun petMaxLevel(ingredientId: String): Int =
-            snapshot?.petCatalog?.maxLevel(ingredientId) ?: DEFAULT_PET_MAX_LEVEL
+            snapshot?.petCatalog?.maxLevel(ingredientId) ?: SkyBlockPetCatalog.DEFAULT_MAX_LEVEL
 
         fun bestWarpFor(entityId: String): SkyBlockWarpPoint? {
             val current = snapshot ?: return null
@@ -252,7 +249,6 @@ object SkyBlockDataRepository {
     private const val STACK_CACHE_SIZE = 384
     private const val SEARCH_CACHE_SIZE = 32
     private const val REVISION_DISPLAY_LENGTH = 12
-    private const val DEFAULT_PET_MAX_LEVEL = 100
     private const val ENCHANTMENT_PREFIX = "ENCHANTMENT_"
 }
 

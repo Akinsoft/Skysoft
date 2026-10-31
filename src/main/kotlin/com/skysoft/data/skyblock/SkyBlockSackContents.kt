@@ -7,10 +7,14 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.utils.NumberUtilities.formatLongOrNull
+import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.world.item.ItemStack
 
 object SkyBlockSackContents {
+    const val SACK_OF_SACKS_MENU = "Sack of Sacks"
+
     fun register() {
         ProfileStorageApi.registerConsumer("SkyBlock Sack Contents") { HypixelLocationState.inSkyBlock }
         SkyBlockOpenInventoryApi.onChange(
@@ -62,11 +66,10 @@ object SkyBlockSackContents {
             }
         }
     }
-
 }
 
 internal fun isSackContentsMenu(title: String): Boolean =
-    title.endsWith(SACK_MENU_SUFFIX) && title != SACK_OF_SACKS_MENU
+    title.endsWith(SACK_MENU_SUFFIX) && title != SkyBlockSackContents.SACK_OF_SACKS_MENU
 
 internal fun sackMenuItems(stack: ItemStack): List<SackMenuItem> {
     val itemId = stack.skyBlockId() ?: return emptyList()
@@ -75,18 +78,18 @@ internal fun sackMenuItems(stack: ItemStack): List<SackMenuItem> {
         ?: return storedSackAmount(lore)
             ?.let { amount -> listOf(SackMenuItem(itemId, amount, stack.hoverName.string, gemstoneRarity = null)) }
             .orEmpty()
-    val shownRarity = GemstoneRarity.valueOf(gemstone.groups["rarity"]!!.value)
-    val gemstoneType = gemstone.groups["type"]!!.value
+    val shownRarity = GemstoneRarity.valueOf(gemstone.group("rarity"))
+    val gemstoneType = gemstone.group("type")
     val gemstoneName = gemstoneType.lowercase().replaceFirstChar(Char::titlecase)
     return lore.mapNotNull { line ->
         val match = GEMSTONE_AMOUNT_PATTERN.find(line) ?: return@mapNotNull null
-        val label = match.groups["label"]!!.value
+        val label = match.group("label")
         val rarity = if (label.equals(GEMSTONE_AMOUNT_LABEL, ignoreCase = true)) {
             shownRarity
         } else {
             GemstoneRarity.fromDisplayName(label) ?: return@mapNotNull null
         }
-        val amount = match.groups["amount"]!!.value.replace(",", "").toLongOrNull() ?: return@mapNotNull null
+        val amount = match.group("amount").formatLongOrNull() ?: return@mapNotNull null
         SackMenuItem(
             itemId = "${rarity.name}_${gemstoneType}_GEM",
             amount = amount,
@@ -98,8 +101,7 @@ internal fun sackMenuItems(stack: ItemStack): List<SackMenuItem> {
 
 private fun storedSackAmount(lore: Iterable<String>): Long? =
     lore.firstNotNullOfOrNull { line -> STORED_AMOUNT_PATTERN.find(line)?.groups?.get("amount")?.value }
-        ?.replace(",", "")
-        ?.toLongOrNull()
+        ?.formatLongOrNull()
 
 internal data class SackMenuItem(
     val itemId: String,
@@ -123,11 +125,11 @@ internal enum class GemstoneRarity(val displayName: String, val color: String) {
     }
 }
 
-internal fun updatedSackItem(
+private fun updatedSackItem(
     current: ProfileStorageView.SackItemData?,
     change: Int,
     incomplete: Boolean,
-    displayName: String = current?.displayName.orEmpty(),
+    displayName: String,
 ): ProfileStorage.SackItemData {
     val rawAmount = (current?.amount ?: 0L) + change
     return ProfileStorage.SackItemData(
@@ -138,7 +140,6 @@ internal fun updatedSackItem(
 }
 
 private const val SACK_MENU_SUFFIX = " Sack"
-private const val SACK_OF_SACKS_MENU = "Sack of Sacks"
 private val STORED_AMOUNT_PATTERN = Regex("^Stored: (?<amount>[\\d,]+)/")
 private const val GEMSTONE_AMOUNT_LABEL = "Amount"
 private val GEMSTONE_ID_PATTERN = Regex(

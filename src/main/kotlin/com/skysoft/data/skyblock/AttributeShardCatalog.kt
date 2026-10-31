@@ -9,8 +9,8 @@ import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
 import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.TextUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.TextUtilities.formattedText
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
@@ -66,7 +66,7 @@ object AttributeShardCatalog {
                 inventoryItems.values.any { AttributeShardItemReader.hasAttributeStateLine(it) } ->
                 processAttributeMenuItems(inventoryItems)
 
-            inventoryName == "Hunting Box" -> processHuntingBoxItems(inventoryItems.values)
+            inventoryName == AttributeShardItemReader.HUNTING_BOX -> processHuntingBoxItems(inventoryItems.values)
         }
     }
 
@@ -78,7 +78,7 @@ object AttributeShardCatalog {
     }
 
     private fun handleIncomingMessage(component: Component) {
-        val message = with(TextUtilities) { component.formattedText() }
+        val message = component.formattedText()
         if (tryHandleAttributeUpdateMessage(message, colored = true)) return
         val cleanMessage = message.cleanSkyBlockText()
         if (tryHandleAttributeUpdateMessage(cleanMessage, colored = false)) return
@@ -131,7 +131,7 @@ object AttributeShardCatalog {
 
     private fun processAttributeMenuItems(items: Map<Int, ItemStack>) {
         for (item in items.values) {
-            val internalName = AttributeShardItemReader.internalNameOrNull(item, "Attribute Menu") ?: continue
+            val internalName = AttributeShardItemReader.internalNameOrNull(item, AttributeShardItemReader.ATTRIBUTE_MENU) ?: continue
             val tier = AttributeShardItemReader.tier(item)
 
             val lore = item.loreLines()
@@ -153,7 +153,7 @@ object AttributeShardCatalog {
 
     private fun processHuntingBoxItems(items: Collection<ItemStack>) {
         for (item in items) {
-            val internalName = AttributeShardItemReader.internalNameOrNull(item, "Hunting Box") ?: continue
+            val internalName = AttributeShardItemReader.internalNameOrNull(item, AttributeShardItemReader.HUNTING_BOX) ?: continue
             var tier = 0
             var toNextTier = 0
             for (line in item.loreLines()) {
@@ -177,41 +177,31 @@ object AttributeShardCatalog {
     }
 
     private fun updateAmountInBox(internalName: String, amount: Int) {
-        val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
-        if (!AttributeShardConstants.isConsumable(shardName)) return
-        if (storage[shardName]?.amountInBox == amount) return
-        ProfileStorageApi.updateProfile { profile ->
-            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.amountInBox = amount
-        }
+        val shardName = consumableShardName(internalName) ?: return
+        if (storage[shardName]?.amountInBox != amount) updateShard(shardName) { it.amountInBox = amount }
     }
 
     private fun updateAmountInBoxDelta(internalName: String, amount: Int) {
-        val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
-        if (!AttributeShardConstants.isConsumable(shardName)) return
-        val data = storage[shardName]
-        val newAmount = ((data?.amountInBox ?: 0) + amount).coerceAtLeast(0)
-        if (data?.amountInBox == newAmount) return
-        ProfileStorageApi.updateProfile { profile ->
-            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.amountInBox = newAmount
-        }
+        val shardName = consumableShardName(internalName) ?: return
+        val currentAmount = storage[shardName]?.amountInBox
+        val newAmount = ((currentAmount ?: 0) + amount).coerceAtLeast(0)
+        if (currentAmount != newAmount) updateShard(shardName) { it.amountInBox = newAmount }
     }
 
     private fun processShard(internalName: String, currentTier: Int, toNextTier: Int) {
-        val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
-        if (!AttributeShardConstants.isConsumable(shardName)) return
+        val shardName = consumableShardName(internalName) ?: return
         val totalAmount = AttributeShardConstants.findTotalAmount(shardName, currentTier, toNextTier) ?: return
-        if (storage[shardName]?.amountSyphoned == totalAmount) return
-        ProfileStorageApi.updateProfile { profile ->
-            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.amountSyphoned = totalAmount
-        }
+        if (storage[shardName]?.amountSyphoned != totalAmount) updateShard(shardName) { it.amountSyphoned = totalAmount }
     }
 
     private fun setAttributeState(internalName: String, enabled: Boolean) {
-        val shardName = AttributeShardConstants.shardNameByInternalName(internalName) ?: return
-        if (!AttributeShardConstants.isConsumable(shardName)) return
-        if (storage[shardName]?.enabled == enabled) return
+        val shardName = consumableShardName(internalName) ?: return
+        if (storage[shardName]?.enabled != enabled) updateShard(shardName) { it.enabled = enabled }
+    }
+
+    private fun updateShard(shardName: String, update: (ProfileStorage.AttributeShardData) -> Unit) {
         ProfileStorageApi.updateProfile { profile ->
-            profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() }.enabled = enabled
+            update(profile.attributeShards.getOrPut(shardName) { ProfileStorage.AttributeShardData() })
         }
     }
 
@@ -229,14 +219,10 @@ object AttributeShardCatalog {
             AttributeShardTransfers.recordDeposit(internalName, deposit.amount)
             return
         }
-        fusionShardPattern.matchEntire(message)?.let { match ->
-            updateAmountInBoxDeltaByDisplayName(match.group("shardName"), match.groupOrNull("amount")?.toInt() ?: 1)
+        fusionShardPattern.matchEntire(message)?.shardAmount()?.let { fusion ->
+            val internalName = AttributeShardConstants.internalNameByDisplayName(fusion.displayName) ?: return
+            updateAmountInBoxDelta(internalName, fusion.amount)
         }
-    }
-
-    private fun updateAmountInBoxDeltaByDisplayName(shardName: String, amount: Int) {
-        val internalName = AttributeShardConstants.internalNameByDisplayName(shardName) ?: return
-        updateAmountInBoxDelta(internalName, amount)
     }
 
     private fun addAllMissingShards() {
@@ -259,33 +245,23 @@ data class SkyBlockAttributeShardGain(
     val amount: Int,
 )
 
-internal data class ParsedAttributeShardGain(
+private data class ParsedShardAmount(
     val displayName: String,
     val amount: Int,
 )
 
-internal data class ParsedHuntingBoxDeposit(
-    val displayName: String,
-    val amount: Int,
-)
+private fun consumableShardName(internalName: String): String? =
+    AttributeShardConstants.shardNameByInternalName(internalName)?.takeIf(AttributeShardConstants::isConsumable)
 
-internal fun parseHuntingBoxDeposit(message: String): ParsedHuntingBoxDeposit? {
-    val match = sentToHuntingBoxPattern.matchEntire(message) ?: return null
-    return ParsedHuntingBoxDeposit(
-        displayName = match.group("shardName"),
-        amount = match.groupOrNull("amount")?.toInt() ?: 1,
-    )
-}
+private fun MatchResult.shardAmount() = ParsedShardAmount(group("shardName"), groupOrNull("amount")?.toInt() ?: 1)
 
-internal fun parseAttributeShardGain(message: String): ParsedAttributeShardGain? {
-    val match = sequenceOf(caughtShardsPattern, lootShareShardPattern, charmedShardPattern, receivedCharmedShardPattern)
+private fun parseHuntingBoxDeposit(message: String): ParsedShardAmount? =
+    sentToHuntingBoxPattern.matchEntire(message)?.shardAmount()
+
+private fun parseAttributeShardGain(message: String): ParsedShardAmount? =
+    sequenceOf(caughtShardsPattern, lootShareShardPattern, charmedShardPattern, receivedCharmedShardPattern)
         .firstNotNullOfOrNull { pattern -> pattern.matchEntire(message) }
-        ?: return null
-    return ParsedAttributeShardGain(
-        displayName = match.group("shardName"),
-        amount = match.groupOrNull("amount")?.toInt() ?: 1,
-    )
-}
+        ?.shardAmount()
 
 private const val ADVANCED_MODE_SLOT = 52
 private val syphonAmountPattern = Regex("""§7Syphon §b(?<amount>\d+) §7shards? to (?:level up|unlock)!""")

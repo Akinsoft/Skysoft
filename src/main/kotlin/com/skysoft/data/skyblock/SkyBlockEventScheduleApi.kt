@@ -1,53 +1,31 @@
 package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
-import com.skysoft.SkysoftMod
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveConsumerRegistry
-import com.skysoft.utils.ConsumerActivity
-import com.skysoft.utils.net.AsyncRequestSlot
-import com.skysoft.utils.net.PendingHttpRequests
-import com.skysoft.utils.net.RefreshSchedule
-import com.skysoft.utils.net.isCancellationFailure
-import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
-import net.minecraft.client.Minecraft
+import com.skysoft.utils.net.PeriodicRefresh
 
 object SkyBlockEventScheduleApi {
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
-    private val requests = PendingHttpRequests()
-    private val requestSlot = AsyncRequestSlot<SkyBlockEventSchedule>(completionExecutor = Minecraft.getInstance())
-    private val refreshSchedule = RefreshSchedule()
+    private val request = PeriodicRefresh(
+        name = "SkyBlock Event Schedule",
+        description = "SkyBlock event schedule",
+        url = EVENTS_URL,
+        refreshIntervalMillis = REFRESH_INTERVAL_MILLIS,
+        failureRetryMillis = FAILURE_RETRY_MILLIS,
+        parse = { normalizeSchedule(gson.fromJson(it, SkyBlockEventScheduleResponse::class.java)) },
+        onSuccess = { schedule = it },
+    )
 
     @Volatile
     private var schedule = SkyBlockEventSchedule()
 
     fun register() {
-        SkysoftClientEvents.onEndTick(
-            "SkyBlock Event Schedule refresh",
-            isActive = { consumers.isActiveOrDeactivating },
-        ) tick@{
-            when (consumers.activity()) {
-                ConsumerActivity.INACTIVE -> return@tick
-                ConsumerActivity.DEACTIVATED -> {
-                    reset()
-                    return@tick
-                }
-                ConsumerActivity.ACTIVATED,
-                ConsumerActivity.ACTIVE,
-                -> Unit
-            }
-            if (!HypixelLocationState.inSkyBlock) {
-                refreshSchedule.reset()
-                return@tick
-            }
-            if (refreshSchedule.isDue(System.currentTimeMillis())) refresh()
+        consumers.onEndTick("SkyBlock Event Schedule refresh", onDeactivated = ::reset) {
+            if (HypixelLocationState.inSkyBlock) request.refreshIfDue() else request.resetSchedule()
         }
-        SkysoftClientEvents.onClientStopping("SkyBlock Event Schedule request cancellation") {
-            requestSlot.cancel()
-            requests.cancelAll()
-        }
+        request.register()
     }
 
     fun registerConsumer(id: String, isActive: () -> Boolean) {
@@ -67,41 +45,19 @@ object SkyBlockEventScheduleApi {
         nowMillis: Long,
         startsBeforeMinutes: Int,
         durationMinutes: Int,
-    ): Boolean? = scheduleAvailability(
-        schedule,
-        event,
-        nowMillis,
-        startsBeforeMinutes,
-        durationMinutes,
-        MAX_SCHEDULE_AGE_MILLIS,
-    )
-
-    private fun refresh() {
-        requestSlot.startIfIdle(
-            requestFactory = {
-                requests.getString(EVENTS_URL)
-                    .thenApply { gson.fromJson(it, SkyBlockEventScheduleResponse::class.java) }
-                    .thenApply(::normalizeSchedule)
-            },
-        ) { response, error ->
-            SkysoftErrorBoundary.run("SkyBlock Event Schedule async completion") {
-                val now = System.currentTimeMillis()
-                if (error == null && response != null) {
-                    schedule = response
-                    refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
-                } else if (error?.isCancellationFailure() != true) {
-                    refreshSchedule.schedule(now, FAILURE_RETRY_MILLIS)
-                    SkysoftMod.LOGGER.warn("Failed to refresh SkyBlock event schedule", error)
-                }
-            }
+    ): Boolean? {
+        val current = schedule
+        if (!current.isFreshAt(nowMillis, MAX_SCHEDULE_AGE_MILLIS)) return null
+        val windows = current.windows.filter { it.event == event }
+        if (windows.isEmpty()) return null
+        return windows.any { window ->
+            SkyBlockCalendar.isAvailableAt(nowMillis, window.startsAt, window.endsAt, startsBeforeMinutes, durationMinutes)
         }
     }
 
     private fun reset() {
-        requestSlot.cancel()
-        requests.cancelAll()
+        request.reset()
         schedule = SkyBlockEventSchedule()
-        refreshSchedule.reset()
     }
 
     private const val EVENTS_URL = "https://api.findthesoft.com/skyblock/events"
@@ -134,7 +90,7 @@ internal data class SkyBlockEventWindowResponse(
     val endsAt: Long = 0L,
 )
 
-internal fun normalizeSchedule(response: SkyBlockEventScheduleResponse): SkyBlockEventSchedule {
+private fun normalizeSchedule(response: SkyBlockEventScheduleResponse): SkyBlockEventSchedule {
     check(response.success) { "Skysoft event schedule failed: ${response.cause ?: "unknown cause"}" }
     check(response.fetchedAt > 0L) { "Skysoft event schedule has no fetch timestamp" }
     val windows = response.events.mapNotNull { window ->
@@ -145,25 +101,5 @@ internal fun normalizeSchedule(response: SkyBlockEventScheduleResponse): SkyBloc
     return SkyBlockEventSchedule(response.fetchedAt, windows)
 }
 
-internal fun scheduleAvailability(
-    schedule: SkyBlockEventSchedule,
-    event: SkyBlockEvent,
-    nowMillis: Long,
-    startsBeforeMinutes: Int,
-    durationMinutes: Int,
-    maximumAgeMillis: Long,
-): Boolean? {
-    if (!schedule.isFreshAt(nowMillis, maximumAgeMillis)) return null
-    val windows = schedule.windows.filter { it.event == event }
-    if (windows.isEmpty()) return null
-    return windows.any { window ->
-        val start = window.startsAt - startsBeforeMinutes * MILLIS_PER_MINUTE
-        val end = if (durationMinutes > 0) start + durationMinutes * MILLIS_PER_MINUTE else window.endsAt
-        nowMillis in start until end
-    }
-}
-
 private fun SkyBlockEventSchedule.isFreshAt(nowMillis: Long, maximumAgeMillis: Long): Boolean =
     nowMillis - fetchedAt in 0..maximumAgeMillis
-
-private const val MILLIS_PER_MINUTE = 60_000L

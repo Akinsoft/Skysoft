@@ -76,7 +76,7 @@ object SkillExpGainApi {
                 val skillName = split.firstOrNull() ?: continue
                 val skill = SkyBlockSkill.getByNameOrNull(skillName) ?: continue
                 val skillLevel = split.getOrNull(1)?.romanToDecimalIfNecessary() ?: 0
-                val skillInfo = storage.getOrPut(skill, ::SkillInfo)
+                val skillInfo = storage.getOrPut(skill, ::SkyBlockSkillInfo)
                 readSkillMenuLore(lore, skill, skillInfo, skillLevel)
             }
         }
@@ -87,7 +87,7 @@ object SkillExpGainApi {
         val skillType = SkyBlockSkill.getByNameOrNull(match.skillName) ?: return
         val gained = match.gainedText.formatDoubleOrNull() ?: return
         ProfileStorageApi.updateProfile { profile ->
-            val skillInfo = profile.skillData.getOrPut(skillType, ::SkillInfo)
+            val skillInfo = profile.skillData.getOrPut(skillType, ::SkyBlockSkillInfo)
             val previousTotalXp = skillInfo.totalXp.takeIf { it > 0L }?.toDouble()
             val updated = if (match.percentageText != null) {
                 tryHandlePercentActionBar(match, skillType, skillInfo)
@@ -110,29 +110,19 @@ object SkillExpGainApi {
     internal fun findActionBarGain(text: String): SkillActionBarMatch? =
         skillActionBarPattern.find(text)?.toSkillActionBarMatch()
 
-    fun handleChat(message: String) {
+    private fun handleChat(message: String) {
         for (line in message.cleanSkyBlockText().lineSequence().map { it.trim() }) {
             if (lilySplosionStartPattern.matches(line)) {
                 lastLilySplosion = ElapsedTimeMark.now()
                 continue
             }
-            jerryBoxSkillXpPattern.matchEntire(line)?.let { match ->
-                val gained = match.group("gained").formatDoubleOrNull() ?: return
-                postChatSkillXp(match.group("skillName"), gained, JERRY_BOX_SOURCE)
-                return
-            }
-            giftSkillXpPattern.matchEntire(line)?.let { match ->
-                val gained = match.group("gained").formatDoubleOrNull() ?: return
-                postChatSkillXp(match.group("skillName"), gained, GIFT_SOURCE)
-                return
-            }
-            lilySplosionSkillXpPattern.matchEntire(line)?.let { match ->
-                if (lastLilySplosion.passedSince() <= 5.seconds) {
-                    val gained = match.group("gained").formatDoubleOrNull() ?: return
-                    postChatSkillXp(match.group("skillName"), gained, LILY_SPLOSION_SOURCE)
-                }
-                return
-            }
+            val (match, source) = chatSkillXpPatterns.firstNotNullOfOrNull { (pattern, patternSource) ->
+                pattern.matchEntire(line)?.let { it to patternSource }
+            } ?: continue
+            if (source == LILY_SPLOSION_SOURCE && lastLilySplosion.passedSince() > 5.seconds) return
+            val gained = match.group("gained").formatDoubleOrNull() ?: return
+            postChatSkillXp(match.group("skillName"), gained, source)
+            return
         }
     }
 
@@ -158,7 +148,7 @@ object SkillExpGainApi {
         return totalXp
     }
 
-    private fun SkillInfo.recordChatGain(
+    private fun SkyBlockSkillInfo.recordChatGain(
         parsedLevel: ParsedSkillLevel,
         roundedTotalXp: Long,
         maxLevel: Int,
@@ -179,7 +169,7 @@ object SkillExpGainApi {
     private fun readSkillMenuLore(
         lore: List<String>,
         skill: SkyBlockSkill,
-        skillInfo: SkillInfo,
+        skillInfo: SkyBlockSkillInfo,
         skillLevel: Int,
     ) {
         lore.forEachIndexed { index, line ->
@@ -198,44 +188,26 @@ object SkillExpGainApi {
     private fun tryHandlePercentActionBar(
         match: SkillActionBarMatch,
         skillType: SkyBlockSkill,
-        skillInfo: SkillInfo,
+        skillInfo: SkyBlockSkillInfo,
     ): Boolean {
         val tabInfo = SkillTabProgress.get(skillType) ?: return false
         val progress = match.percentageText?.formatDoubleOrNull() ?: return false
         val level = tabInfo.level
-        if (tabInfo.currentXp != null && tabInfo.neededXp != null) {
-            val totalXp = calculateLevelXp(level - 1).toLong() + tabInfo.currentXp
-            updateSkillInfo(
-                skillInfo,
-                skillType.maxLevel,
-                level,
-                tabInfo.currentXp,
-                tabInfo.neededXp,
-                totalXp,
-                match.gainedText,
-            )
-            return true
+        val (currentXp, neededXp) = if (tabInfo.currentXp != null && tabInfo.neededXp != null) {
+            tabInfo.currentXp to tabInfo.neededXp
+        } else {
+            val nextLevelDiff = xpForNextLevel(level)
+            (nextLevelDiff * progress / PERCENT_DENOMINATOR).toLong() to nextLevelDiff.toLong()
         }
-        val levelXp = calculateLevelXp(level - 1)
-        val nextLevelDiff = xpForNextLevel(level)
-        val currentXp = (nextLevelDiff * progress / PERCENT_DENOMINATOR).toLong()
-        val totalXp = (levelXp + currentXp).toLong()
-        updateSkillInfo(
-            skillInfo,
-            skillType.maxLevel,
-            level,
-            currentXp,
-            nextLevelDiff.toLong(),
-            totalXp,
-            match.gainedText,
-        )
+        val totalXp = calculateLevelXp(level - 1).toLong() + currentXp
+        updateSkillInfo(skillInfo, skillType.maxLevel, level, currentXp, neededXp, totalXp, match.gainedText)
         return true
     }
 
     private fun tryHandleNumericActionBar(
         match: SkillActionBarMatch,
         skillType: SkyBlockSkill,
-        skillInfo: SkillInfo,
+        skillInfo: SkyBlockSkillInfo,
     ): Boolean {
         val currentXp = match.currentText?.formatDoubleOrNull()?.roundToLong() ?: return false
         val maxXp = match.neededText?.formatDoubleOrNull()?.roundToLong() ?: return false
@@ -247,7 +219,7 @@ object SkillExpGainApi {
     }
 
     private fun updateSkillInfo(
-        skillInfo: SkillInfo,
+        skillInfo: SkyBlockSkillInfo,
         maxLevel: Int,
         level: Int,
         currentXp: Long,
@@ -260,7 +232,7 @@ object SkillExpGainApi {
         skillInfo.update(DisplayedSkillProgress(level, totalXp, currentXp, maxXp), skillLevel, gained)
     }
 
-    private fun onUpdateMax(progress: String, skill: SkyBlockSkill, skillInfo: SkillInfo, skillLevel: Int) {
+    private fun onUpdateMax(progress: String, skill: SkyBlockSkill, skillInfo: SkyBlockSkillInfo, skillLevel: Int) {
         val totalXp = progress.formatDoubleOrNull()?.roundToLong() ?: return
         val cap = skill.maxLevel
         val maxXp = xpRequiredForLevel(cap)
@@ -269,7 +241,7 @@ object SkillExpGainApi {
         skillInfo.update(DisplayedSkillProgress(skillLevel, totalXp, currentXp, 0L), overflow)
     }
 
-    private fun onUpdateNotMax(progress: String, skillLevel: Int, skillInfo: SkillInfo) {
+    private fun onUpdateNotMax(progress: String, skillLevel: Int, skillInfo: SkyBlockSkillInfo) {
         val splitProgress = progress.split("/")
         val currentXp = splitProgress.firstOrNull()?.formatDoubleOrNull()?.roundToLong() ?: return
         val neededXp = splitProgress.getOrNull(1)?.formatDoubleOrNull()?.roundToLong() ?: return
@@ -297,7 +269,7 @@ object SkillExpGainApi {
         internal val isFromActionBar: Boolean get() = source == ACTIONBAR_SOURCE
     }
 
-    private fun SkillInfo.update(
+    private fun SkyBlockSkillInfo.update(
         displayed: DisplayedSkillProgress,
         overflow: ParsedSkillLevel,
         gainText: String = lastGain,
@@ -324,10 +296,12 @@ object SkillExpGainApi {
         Regex("""(?:COMMON|RARE|SWEET|SANTA(?: TIER)?|PARTY(?: TIER)?)! \+(?<gained>[\d,]+) (?<skillName>[\w ]+) XP gift with .*!?""")
     private val lilySplosionStartPattern = Regex("""LIL[YI]-SPLOSION!""")
     private val lilySplosionSkillXpPattern = Regex("""\+(?<gained>[\d,]+) (?<skillName>\w+) Experience""")
-
+    private val chatSkillXpPatterns = listOf(
+        jerryBoxSkillXpPattern to JERRY_BOX_SOURCE,
+        giftSkillXpPattern to GIFT_SOURCE,
+        lilySplosionSkillXpPattern to LILY_SPLOSION_SOURCE,
+    )
 }
-
-private typealias SkillInfo = SkyBlockSkillInfo
 
 private fun String.romanToDecimalIfNecessary(): Int =
     toIntOrNull() ?: romanToDecimal()
@@ -345,8 +319,8 @@ internal data class SkillActionBarMatch(
 
 private fun MatchResult.toSkillActionBarMatch(): SkillActionBarMatch = SkillActionBarMatch(
     range = range,
-    skillName = groups["skillName"]?.value.orEmpty(),
-    gainedText = groups["gained"]?.value.orEmpty(),
+    skillName = group("skillName"),
+    gainedText = group("gained"),
     percentageText = groups["progress"]?.value,
     currentText = groups["current"]?.value,
     neededText = groups["needed"]?.value,

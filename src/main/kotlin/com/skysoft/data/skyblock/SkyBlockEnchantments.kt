@@ -29,22 +29,20 @@ internal object SkyBlockEnchantments {
             if (key in providers) return@forEach
             val tier = enchantmentTier(enchantment.id)
             val displayName = arabicDisplayName(enchantment.name, tier)
-            val sources = buildList {
-                if (enchantment.bazaarable) {
-                    add(SkyBlockInfoSource(SkyBlockInfoSourceKind.BAZAAR, "Bazaar"))
-                }
-            }.distinct()
+            val sources = listOfNotNull(
+                SkyBlockInfoSource(SkyBlockInfoSourceKind.BAZAAR, "Bazaar").takeIf { enchantment.bazaarable },
+            )
             entries += ItemListEntry(
                 key = key,
                 displayName = displayName,
-                source = SKYBLOCK_SOURCE,
+                source = CatalogSources.SKYBLOCK,
                 searchableText = "${enchantment.name} $displayName ${enchantment.id}".lowercase(Locale.ROOT),
                 formattedDisplayName = if (isUltimate(enchantment.id)) "§d$displayName" else displayName,
             )
             info[key] = SkyBlockItemInfo(
                 key = key,
                 displayName = displayName,
-                source = SKYBLOCK_SOURCE,
+                source = CatalogSources.SKYBLOCK,
                 rarity = enchantmentRarity(enchantment.lore),
                 lore = enchantment.lore,
                 enchantment = enchantment.applicableOn.takeIf(String::isNotBlank)?.let {
@@ -78,7 +76,6 @@ internal object SkyBlockEnchantments {
         return "$SKYBLOCK_WIKI_PAGE_URL$page#${page}_$romanTier"
     }
 
-    private const val SKYBLOCK_SOURCE = "skyblock"
     private const val ULTIMATE_ENCHANTMENT_PREFIX = "ENCHANTMENT_ULTIMATE_"
     private val TIER_SUFFIX = Regex(" [IVXLCDM]+$")
 }
@@ -92,7 +89,7 @@ internal data class BundledEnchantment(
     val applyCost: Int? = null,
 )
 
-internal fun normalizeEnchantmentLore(source: List<String>): List<String> {
+private fun normalizeEnchantmentLore(source: List<String>): List<String> {
     val lines = source.filter(String::isNotBlank)
     return buildList {
         lines.forEach { line ->

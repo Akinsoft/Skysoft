@@ -1,7 +1,7 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.utils.TextUtilities
 import com.skysoft.utils.ColorUtilities.RGB_MASK
+import com.skysoft.utils.TextUtilities.formattedText
 import net.minecraft.network.chat.Component
 import java.awt.Color
 
@@ -21,6 +21,8 @@ enum class SkyBlockRarity(
     VERY_SPECIAL(8, "\u00A7c", Color(255, 85, 85)),
     ;
 
+    val rgb: Int = color.rgb and RGB_MASK
+
     fun oneAbove(): SkyBlockRarity? = getById(id + 1)
 
     companion object {
@@ -34,7 +36,7 @@ enum class SkyBlockRarity(
             entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
 
         fun getByComponent(component: Component, containedText: String): SkyBlockRarity? {
-            val formatted = with(TextUtilities) { component.formattedText() }
+            val formatted = component.formattedText()
             val index = formatted.indexOf(containedText)
             if (index < 0) return null
             for (i in index - 1 downTo 1) {
@@ -43,9 +45,7 @@ enum class SkyBlockRarity(
                 }
             }
             val color = component.style.color?.value ?: return null
-            return entries.firstOrNull { rarity ->
-                rarity.color.rgb and RGB_MASK == color
-            }
+            return entries.firstOrNull { rarity -> rarity.rgb == color }
         }
     }
 }

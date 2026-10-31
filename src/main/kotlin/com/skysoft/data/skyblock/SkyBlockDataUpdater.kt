@@ -19,27 +19,21 @@ import net.minecraft.util.Util
 
 internal object SkyBlockDataUpdater {
     private val cacheDirectory by lazy { SkysoftConfigFiles.directory.resolve("item-list-data") }
-    private val activeRevisionFile by lazy { cacheDirectory.resolve(ACTIVE_REVISION_FILE) }
+    private val activeRevisionFile by lazy { cacheDirectory.resolve("active-revision.txt") }
     private val lastCheckFile by lazy { cacheDirectory.resolve("last-check.txt") }
     private val cacheLock = Any()
     private val requestSlot = AsyncRequestSlot<CheckResult>(completionExecutor = Minecraft.getInstance())
 
-    fun loadCached(cacheRoot: Path = cacheDirectory): CachedCatalog? = synchronized(cacheLock) {
+    fun loadCached(): CachedCatalog? = synchronized(cacheLock) {
         val result = runCatching {
-            val revision = readActiveRevision(cacheRoot) ?: return@runCatching null
-            val directory = cacheRoot.resolve(revision)
-            val items = Files.readString(directory.resolve(CatalogFiles.ITEMS))
-            val recipes = Files.readString(directory.resolve(CatalogFiles.RECIPES))
-            val wiki = Files.readString(directory.resolve(CatalogFiles.WIKI))
-            val mobs = Files.readString(directory.resolve(CatalogFiles.MOBS))
-            val npcs = Files.readString(directory.resolve(CatalogFiles.NPCS))
-            val pets = Files.readString(directory.resolve(CatalogFiles.PETS))
-            val snapshot = SkyBlockDataLoader.loadJson(items, recipes, wiki, mobs, npcs, pets)
-            CachedCatalog(revision, snapshot)
+            val revision = readActiveRevision() ?: return@runCatching null
+            val directory = cacheDirectory.resolve(revision)
+            val files = CatalogFiles.required.associateWith { Files.readString(directory.resolve(it)) }
+            CachedCatalog(revision, loadSnapshot(files))
         }
         result.onFailure { error ->
             SkysoftMod.LOGGER.warn("Skysoft Item List cached data is invalid", error)
-            runCatching { Files.deleteIfExists(cacheRoot.resolve(ACTIVE_REVISION_FILE)) }
+            runCatching { Files.deleteIfExists(activeRevisionFile) }
                 .onFailure { SkysoftMod.LOGGER.warn("Could not invalidate Skysoft Item List cached data", it) }
         }
         result.getOrNull()
@@ -90,35 +84,22 @@ internal object SkyBlockDataUpdater {
         return requests.track(SkysoftHttp.getString(SHAS_URL, REQUEST_TIMEOUT))
             .thenApply(::parseRevision)
             .thenComposeAsync({ revision ->
-                if (revision == readActiveRevision(cacheDirectory)) {
+                if (revision == readActiveRevision()) {
                     return@thenComposeAsync CompletableFuture.completedFuture<DownloadedCatalog?>(null)
                 }
-                val items = requests.track(
-                    SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.ITEMS}", DOWNLOAD_TIMEOUT),
-                )
-                val recipes = requests.track(
-                    SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.RECIPES}", DOWNLOAD_TIMEOUT),
-                )
-                val wiki = requests.track(
-                    SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.WIKI}", DOWNLOAD_TIMEOUT),
-                )
-                val entities = requests.track(
-                    SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.MOBS}", DOWNLOAD_TIMEOUT),
-                )
-                val pets = requests.track(
-                    SkysoftHttp.getString("$DATA_BASE/${CatalogFiles.PETS}", DOWNLOAD_TIMEOUT),
-                )
-                CompletableFuture.allOf(items, recipes, wiki, entities, pets).thenApply {
-                    val (mobs, npcs) = splitEntities(entities.join())
-                    DownloadedCatalog(
-                        revision,
-                        items.join(),
-                        recipes.join(),
-                        wiki.join(),
-                        mobs,
-                        npcs,
-                        pets.join(),
-                    )
+                val downloads = CatalogFiles.downloaded.associateWith { name ->
+                    requests.track(SkysoftHttp.getString("$DATA_BASE/$name", DOWNLOAD_TIMEOUT))
+                }
+                CompletableFuture.allOf(*downloads.values.toTypedArray()).thenApply {
+                    val (mobs, npcs) = splitEntities(downloads.getValue(CatalogFiles.MOBS).join())
+                    val files = CatalogFiles.required.associateWith { name ->
+                        when (name) {
+                            CatalogFiles.MOBS -> mobs
+                            CatalogFiles.NPCS -> npcs
+                            else -> downloads.getValue(name).join()
+                        }
+                    }
+                    DownloadedCatalog(revision, files)
                 }
             }, Util.ioPool())
             .thenApplyAsync({ downloaded -> downloaded?.let(::validateAndStore) }, Util.ioPool())
@@ -129,28 +110,25 @@ internal object SkyBlockDataUpdater {
     }
 
     private fun validateAndStore(downloaded: DownloadedCatalog): CachedCatalog {
-        val compactSnapshot = SkyBlockDataLoader.loadJson(
-            downloaded.items,
-            downloaded.recipes,
-            downloaded.wiki,
-            downloaded.mobs,
-            downloaded.npcs,
-            downloaded.pets,
-        )
+        val compactSnapshot = loadSnapshot(downloaded.files)
         synchronized(cacheLock) {
             val directory = cacheDirectory.resolve(downloaded.revision)
-            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.ITEMS), downloaded.items)
-            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.RECIPES), downloaded.recipes)
-            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.WIKI), downloaded.wiki)
-            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.MOBS), downloaded.mobs)
-            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.NPCS), downloaded.npcs)
-            SkysoftConfigFiles.writeStringSafely(directory.resolve(CatalogFiles.PETS), downloaded.pets)
+            downloaded.files.forEach { (name, json) -> SkysoftConfigFiles.writeStringSafely(directory.resolve(name), json) }
             SkysoftConfigFiles.writeStringSafely(activeRevisionFile, downloaded.revision)
-            runCatching { pruneInactiveRevisions(cacheDirectory, downloaded.revision) }
+            runCatching { pruneInactiveRevisions(downloaded.revision) }
                 .onFailure { SkysoftMod.LOGGER.warn("Could not prune old Skysoft Item List data", it) }
         }
         return CachedCatalog(downloaded.revision, compactSnapshot)
     }
+
+    private fun loadSnapshot(files: Map<String, String>): SkyBlockDataSnapshot = SkyBlockDataLoader.loadJson(
+        itemsJson = files.getValue(CatalogFiles.ITEMS),
+        recipesJson = files.getValue(CatalogFiles.RECIPES),
+        wikiJson = files.getValue(CatalogFiles.WIKI),
+        mobsJson = files.getValue(CatalogFiles.MOBS),
+        npcsJson = files.getValue(CatalogFiles.NPCS),
+        petsJson = files.getValue(CatalogFiles.PETS),
+    )
 
     private fun parseRevision(json: String): String {
         val root = JsonParser.parseString(json).asJsonObject
@@ -162,12 +140,11 @@ internal object SkyBlockDataUpdater {
         }
     }
 
-    private fun readActiveRevision(cacheRoot: Path): String? = synchronized(cacheLock) {
-        val activeFile = cacheRoot.resolve(ACTIVE_REVISION_FILE)
-        if (!Files.isRegularFile(activeFile)) return@synchronized null
-        val revision = Files.readString(activeFile).trim()
+    private fun readActiveRevision(): String? = synchronized(cacheLock) {
+        if (!Files.isRegularFile(activeRevisionFile)) return@synchronized null
+        val revision = Files.readString(activeRevisionFile).trim()
         if (!revision.matches(revisionPattern)) return@synchronized null
-        val directory = cacheRoot.resolve(revision)
+        val directory = cacheDirectory.resolve(revision)
         revision.takeIf { CatalogFiles.required.all { Files.isRegularFile(directory.resolve(it)) } }
     }
 
@@ -196,8 +173,8 @@ internal object SkyBlockDataUpdater {
             .onFailure { SkysoftMod.LOGGER.warn("Could not record Skysoft Item List update check", it) }
     }
 
-    private fun pruneInactiveRevisions(cacheRoot: Path, activeRevision: String) {
-        val staleDirectories = Files.list(cacheRoot).use { paths ->
+    private fun pruneInactiveRevisions(activeRevision: String) {
+        val staleDirectories = Files.list(cacheDirectory).use { paths ->
             paths.filter { path ->
                 Files.isDirectory(path) && path.fileName.toString().matches(revisionPattern) &&
                     path.fileName.toString() != activeRevision
@@ -220,20 +197,11 @@ internal object SkyBlockDataUpdater {
         data class Updated(val catalog: CachedCatalog) : CheckResult
     }
 
-    private data class DownloadedCatalog(
-        val revision: String,
-        val items: String,
-        val recipes: String,
-        val wiki: String,
-        val mobs: String,
-        val npcs: String,
-        val pets: String,
-    )
+    private data class DownloadedCatalog(val revision: String, val files: Map<String, String>)
 
     private const val DATA_VERSION = "1_21_5"
     private const val DATA_BASE = "https://raw.githubusercontent.com/SkyblockAPI/Repo/main/cloudflare/$DATA_VERSION"
     private const val SHAS_URL = "https://raw.githubusercontent.com/SkyblockAPI/Repo/main/cloudflare/shas.json"
-    private const val ACTIVE_REVISION_FILE = "active-revision.txt"
     private const val REVISION_PART_LENGTH = 12
     private val UPDATE_INTERVAL = Duration.ofHours(24)
     private val REQUEST_TIMEOUT = Duration.ofSeconds(15)
@@ -244,6 +212,7 @@ internal object SkyBlockDataUpdater {
 
 private object CatalogFiles {
     val required = listOf(ITEMS, RECIPES, WIKI, MOBS, NPCS, PETS)
+    val downloaded = required - NPCS
     const val ITEMS = "items.min.json"
     const val RECIPES = "recipes.min.json"
     const val WIKI = "id_overlays.min.json"

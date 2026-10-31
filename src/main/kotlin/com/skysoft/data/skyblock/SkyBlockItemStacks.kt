@@ -19,13 +19,10 @@ internal object SkyBlockItemStacks {
         val stack = if (item.itemId == "minecraft:skull" && texture != null) {
             SkyBlockStackFactory.texturedHead(texture, name, signature)
         } else {
-            ItemStack(resolveMinecraftItem(item))
+            ItemStack(minecraftItemFromId(itemModelFromNbt(item) ?: normalizeLegacyItemId(item.itemId)))
         }
         setItemModel(stack, itemModelFromNbt(item))
-        stack.set(DataComponents.CUSTOM_NAME, name)
-        if (item.lore.isNotEmpty()) {
-            stack.set(DataComponents.LORE, ItemLore(item.lore.map(Component::literal)))
-        }
+        stack.setNameAndLore(name, item.lore)
         stack.setSkyBlockId(item.internalName)
         return stack
     }
@@ -44,19 +41,18 @@ internal object SkyBlockItemStacks {
         setItemModel(stack, item.components.itemModel)
         item.components.dyedColor?.let { stack.set(DataComponents.DYED_COLOR, DyedItemColor(it)) }
         item.components.hasEnchantmentGlint?.let { stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, it) }
-        stack.set(DataComponents.CUSTOM_NAME, name)
-        if (item.components.lore.isNotEmpty()) {
-            stack.set(DataComponents.LORE, ItemLore(item.components.lore.map { Component.literal(it.text) }))
-        }
+        stack.setNameAndLore(name, item.components.lore.map { it.text })
         internalName?.let(stack::setSkyBlockId)
         return stack
     }
 
-    private fun resolveMinecraftItem(item: NeuItemJson) =
-        minecraftItemFromId(itemModelFromNbt(item) ?: normalizeLegacyItemId(item.itemId))
-
     private fun itemModelFromNbt(item: NeuItemJson): String? =
         item.nbtTag?.let { itemModelPattern.find(it)?.groupValues?.get(1) }
+
+    private fun ItemStack.setNameAndLore(name: Component, lore: List<String>) {
+        set(DataComponents.CUSTOM_NAME, name)
+        if (lore.isNotEmpty()) set(DataComponents.LORE, ItemLore(lore.map(Component::literal)))
+    }
 
     private fun setItemModel(stack: ItemStack, itemModel: String?) {
         val id = itemModel?.let(Identifier::tryParse) ?: return

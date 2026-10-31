@@ -40,12 +40,6 @@ object SkyBlockItemId {
         return "${key.uppercase()}_RUNE;$level"
     }
 
-    private fun CompoundTag.attributeShardId(): String? =
-        getCompoundOrNull("attributes")
-            ?.keySet()
-            ?.singleOrNull()
-            ?.let(::attributeShardInternalName)
-
     private fun CompoundTag.petId(): String? {
         val petInfo = getStringOrNull("petInfo") ?: return null
         return runCatching {
@@ -63,7 +57,13 @@ object SkyBlockItemId {
 internal fun attributeShardInternalName(attributeName: String): String =
     "ATTRIBUTE_SHARD_${attributeName.uppercase(Locale.US)};1"
 
-internal fun potionInternalName(extraAttributes: CompoundTag): String {
+internal fun CompoundTag.attributeShardId(): String? =
+    getCompoundOrNull("attributes")
+        ?.keySet()
+        ?.singleOrNull()
+        ?.let(::attributeShardInternalName)
+
+private fun potionInternalName(extraAttributes: CompoundTag): String {
     val level = extraAttributes.getIntOrNull("potion_level") ?: 0
     val potionName = extraAttributes.getStringOrNull("potion_name")?.replace(' ', '_')
         ?: extraAttributes.getStringOrNull("potion")

@@ -1,16 +1,8 @@
 package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
-import com.skysoft.SkysoftMod
 import com.skysoft.utils.ActiveConsumerRegistry
-import com.skysoft.utils.ConsumerActivity
-import com.skysoft.utils.net.AsyncRequestSlot
-import com.skysoft.utils.net.PendingHttpRequests
-import com.skysoft.utils.net.RefreshSchedule
-import com.skysoft.utils.net.isCancellationFailure
-import com.skysoft.utils.SkysoftClientEvents
-import com.skysoft.utils.SkysoftErrorBoundary
-import net.minecraft.client.Minecraft
+import com.skysoft.utils.net.PeriodicRefresh
 
 object MayorPerkApi {
     private const val ELECTION_URL = "https://api.hypixel.net/v2/resources/skyblock/election"
@@ -22,12 +14,20 @@ object MayorPerkApi {
     private const val MINING_FIESTA = "Mining Fiesta"
     private const val GRAND_FEAST = "Grand Feast"
     private const val REFRESH_CHECK_INTERVAL_TICKS = 40
+    private const val REFRESH_INTERVAL_MILLIS = 20L * 60L * 1_000L
+    private const val FAILURE_RETRY_MILLIS = 60_000L
 
     private val gson = Gson()
     private val consumers = ActiveConsumerRegistry()
-    private val requests = PendingHttpRequests()
-    private val requestSlot = AsyncRequestSlot<ElectionResponse>(completionExecutor = Minecraft.getInstance())
-    private val refreshSchedule = RefreshSchedule()
+    private val election = PeriodicRefresh(
+        name = "Mayor Perk",
+        description = "mayor perks",
+        url = ELECTION_URL,
+        refreshIntervalMillis = REFRESH_INTERVAL_MILLIS,
+        failureRetryMillis = FAILURE_RETRY_MILLIS,
+        parse = { gson.fromJson(it, ElectionResponse::class.java) },
+        onSuccess = { currentPerks = it.perks() },
+    )
     private var ticks = 0
 
     @Volatile
@@ -42,59 +42,14 @@ object MayorPerkApi {
     val mythologicalRitualEventKey: String? get() = currentPerks.mythologicalRitualEventKey
 
     fun register() {
-        SkysoftClientEvents.onEndTick(
+        consumers.onEndTick(
             "Mayor Perk refresh",
-            isActive = { consumers.isActiveOrDeactivating },
-        ) tick@{
-            when (consumers.activity()) {
-                ConsumerActivity.INACTIVE -> return@tick
-                ConsumerActivity.DEACTIVATED -> {
-                    reset()
-                    return@tick
-                }
-                ConsumerActivity.ACTIVATED -> {
-                    refresh()
-                    return@tick
-                }
-                ConsumerActivity.ACTIVE -> Unit
-            }
-            if (++ticks % REFRESH_CHECK_INTERVAL_TICKS != 0) return@tick
-            if (refreshSchedule.isDue(System.currentTimeMillis())) refresh()
+            onDeactivated = ::reset,
+            onActivated = election::refresh,
+        ) {
+            if (++ticks % REFRESH_CHECK_INTERVAL_TICKS == 0) election.refreshIfDue()
         }
-        SkysoftClientEvents.onClientStopping("Mayor Perk request cancellation") {
-            requestSlot.cancel()
-            requests.cancelAll()
-        }
-    }
-
-    private fun refresh() {
-        requestSlot.startIfIdle(
-            requestFactory = {
-                requests.getString(ELECTION_URL)
-                    .thenApply { response -> gson.fromJson(response, ElectionResponse::class.java) }
-            },
-        ) { response, error ->
-            SkysoftErrorBoundary.run("Mayor Perk async completion") {
-                val now = System.currentTimeMillis()
-                if (error == null && response != null) {
-                    currentPerks = MayorPerks(
-                        currentMinister = response.currentMinister(),
-                        sharingIsCaringActive = response.hasPerk(SHARING_IS_CARING),
-                        petXpBuffActive = response.hasPerk(PET_XP_BUFF),
-                        mythologicalRitualActive = response.hasPerk(MYTHOLOGICAL_RITUAL),
-                        carnivalActive = response.hasPerk(CHIVALROUS_CARNIVAL),
-                        fishingFestivalActive = response.hasPerk(FISHING_FESTIVAL),
-                        miningFiestaActive = response.hasPerk(MINING_FIESTA),
-                        grandFeastActive = response.hasPerk(GRAND_FEAST),
-                        mythologicalRitualEventKey = response.mythologicalRitualEventKey(),
-                    )
-                    refreshSchedule.schedule(now, REFRESH_INTERVAL_MILLIS)
-                } else if (error?.isCancellationFailure() != true) {
-                    refreshSchedule.schedule(now, FAILURE_RETRY_MILLIS)
-                    SkysoftMod.LOGGER.warn("Failed to refresh mayor perks", error)
-                }
-            }
-        }
+        election.register()
     }
 
     fun registerConsumer(id: String, isActive: () -> Boolean) {
@@ -102,12 +57,22 @@ object MayorPerkApi {
     }
 
     private fun reset() {
-        requestSlot.cancel()
-        requests.cancelAll()
-        refreshSchedule.reset()
+        election.reset()
         ticks = 0
         currentPerks = MayorPerks()
     }
+
+    private fun ElectionResponse.perks(): MayorPerks = MayorPerks(
+        currentMinister = currentMinister(),
+        sharingIsCaringActive = hasPerk(SHARING_IS_CARING),
+        petXpBuffActive = hasPerk(PET_XP_BUFF),
+        mythologicalRitualActive = hasPerk(MYTHOLOGICAL_RITUAL),
+        carnivalActive = hasPerk(CHIVALROUS_CARNIVAL),
+        fishingFestivalActive = hasPerk(FISHING_FESTIVAL),
+        miningFiestaActive = hasPerk(MINING_FIESTA),
+        grandFeastActive = hasPerk(GRAND_FEAST),
+        mythologicalRitualEventKey = mythologicalRitualEventKey(),
+    )
 
     private fun ElectionResponse.currentMinister(): CurrentMinister? {
         val minister = mayor?.minister ?: return null
@@ -133,21 +98,15 @@ object MayorPerkApi {
         val minister = mayorEntry.minister
         return when {
             mayorEntry.hasPerk(MYTHOLOGICAL_RITUAL) ->
-                "year-$electedYear:mayor:${mayorEntry.stableName()}"
+                "year-$electedYear:mayor:${stableName(mayorEntry.key, mayorEntry.name)}"
             minister?.perk?.name == MYTHOLOGICAL_RITUAL ->
-                "year-$electedYear:minister:${minister.stableName()}"
+                "year-$electedYear:minister:${stableName(minister.key, minister.name)}"
             else -> null
         }
     }
 
-    private fun MayorEntry.stableName(): String =
+    private fun stableName(key: String?, name: String?): String =
         key?.takeIf { it.isNotBlank() } ?: name?.takeIf { it.isNotBlank() } ?: "unknown"
-
-    private fun Minister.stableName(): String =
-        key?.takeIf { it.isNotBlank() } ?: name?.takeIf { it.isNotBlank() } ?: "unknown"
-
-    private const val REFRESH_INTERVAL_MILLIS = 20L * 60L * 1_000L
-    private const val FAILURE_RETRY_MILLIS = 60_000L
 
     private data class ElectionResponse(
         val mayor: MayorEntry?,

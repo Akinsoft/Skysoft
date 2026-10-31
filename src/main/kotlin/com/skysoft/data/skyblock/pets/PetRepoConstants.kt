@@ -1,13 +1,11 @@
 package com.skysoft.data.skyblock.pets
 
 import com.google.gson.Gson
+import com.skysoft.utils.BundledResources
 
 internal object PetRepoConstants {
     val data: SkysoftPetsRepoJson by lazy {
-        val stream = requireNotNull(javaClass.getResourceAsStream(PET_CONSTANTS_RESOURCE)) {
-            "Missing bundled pet constants"
-        }
-        stream.bufferedReader().use { reader ->
+        BundledResources.read(PET_CONSTANTS_RESOURCE, "pet constants") { reader ->
             requireNotNull(Gson().fromJson(reader, SkysoftPetsRepoJson::class.java)) {
                 "Bundled pet constants are null"
             }

@@ -1,30 +1,17 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.utils.ActiveListenerRegistry
-import com.skysoft.utils.chat.ChatEvents
-import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.NumberUtilities.formatIntOrNull
+import com.skysoft.utils.RegexUtilities.group
 
 object SkyBlockSupercrafts {
-    private val listeners = ActiveListenerRegistry<(SkyBlockSupercraft) -> Unit>()
-    private var registered = false
+    private val listeners = ParsedChatListeners("SkyBlock Supercrafts", ::parseSkyBlockSupercraft)
 
     fun onCraft(
         boundary: String,
         isActive: () -> Boolean,
         listener: (SkyBlockSupercraft) -> Unit,
     ) {
-        if (!registered) register()
         listeners.register(boundary, isActive, listener)
-    }
-
-    private fun register() {
-        registered = true
-        ChatEvents.onVisibleMessage("SkyBlock Supercrafts", { listeners.hasActiveListeners }) { message ->
-            parseSkyBlockSupercraft(message.cleanText)?.let { supercraft ->
-                listeners.forEachActive { listener -> listener(supercraft) }
-            }
-            ChatMessageVisibility.SHOW
-        }
     }
 }
 
@@ -33,12 +20,10 @@ data class SkyBlockSupercraft(
     val amount: Int,
 )
 
-internal fun parseSkyBlockSupercraft(message: String): SkyBlockSupercraft? {
+private fun parseSkyBlockSupercraft(message: String): SkyBlockSupercraft? {
     val match = SUPERCRAFT_PATTERN.matchEntire(message) ?: return null
-    val displayName = match.groups["item"]?.value?.trim().orEmpty()
-    val amount = match.groups["amount"]?.value?.let { value ->
-        value.replace(",", "").toIntOrNull() ?: return null
-    } ?: 1
+    val displayName = match.group("item").trim()
+    val amount = match.groups["amount"]?.value?.let { it.formatIntOrNull() ?: return null } ?: 1
     return SkyBlockSupercraft(displayName, amount).takeIf { displayName.isNotEmpty() && amount > 0 }
 }
 

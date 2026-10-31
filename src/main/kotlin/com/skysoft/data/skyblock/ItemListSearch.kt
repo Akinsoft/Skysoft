@@ -1,11 +1,12 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.utils.TextUtilities.removeColor
 import java.util.Locale
 
 object ItemListSearch {
     fun filter(entries: List<ItemListEntry>, query: String): List<ItemListEntry> {
-        val tokens = query.trim().lowercase(Locale.ROOT).split(whitespace).filter(String::isNotBlank)
+        val tokens = query.trim().lowercase(Locale.ROOT).split(whitespacePattern).filter(String::isNotBlank)
         if (tokens.isEmpty()) return entries
         return entries.asSequence()
             .filter { entry -> tokens.all { token -> matches(entry, token) } }
@@ -29,8 +30,6 @@ object ItemListSearch {
             else -> 2
         }
     }
-
-    private val whitespace = Regex("\\s+")
 }
 
 internal fun itemListSearchableText(displayName: String, id: String, lore: List<String>): String =

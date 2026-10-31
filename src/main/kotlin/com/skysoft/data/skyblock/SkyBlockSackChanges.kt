@@ -2,6 +2,8 @@ package com.skysoft.data.skyblock
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.ActiveListenerRegistry
+import com.skysoft.utils.NumberUtilities.formatIntOrNull
+import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.hoverTextComponents
@@ -59,21 +61,21 @@ data class SkyBlockSackChange(
     val sacks: List<String>,
 )
 
-internal fun parseSackWindowSeconds(message: String): Int? = SACK_WINDOW_PATTERN.find(message)
+private fun parseSackWindowSeconds(message: String): Int? = SACK_WINDOW_PATTERN.find(message)
     ?.groups
     ?.get("seconds")
     ?.value
     ?.toIntOrNull()
 
-internal fun parseSackChanges(hoverTexts: Iterable<String>): List<SkyBlockSackChange> =
+private fun parseSackChanges(hoverTexts: Iterable<String>): List<SkyBlockSackChange> =
     hoverTexts.distinct().flatMap { hoverText ->
         if (!hoverText.startsWith(ADDED_ITEMS_HEADER) && !hoverText.startsWith(REMOVED_ITEMS_HEADER)) {
             return@flatMap emptyList()
         }
         hoverText.lineSequence().mapNotNull { line ->
             val match = SACK_CHANGE_PATTERN.matchEntire(line) ?: return@mapNotNull null
-            val amount = match.groups["amount"]?.value?.replace(",", "")?.toIntOrNull() ?: return@mapNotNull null
-            val displayName = match.groups["item"]?.value?.trim().orEmpty()
+            val amount = match.groups["amount"]?.value?.formatIntOrNull() ?: return@mapNotNull null
+            val displayName = match.group("item").trim()
             val sacks = match.groups["sacks"]?.value?.split(", ").orEmpty()
             if (displayName.isBlank() || sacks.isEmpty()) return@mapNotNull null
             SkyBlockSackChange(displayName, amount, sacks)

@@ -306,6 +306,13 @@ sealed interface SkyBlockRecipe {
     ) : SkyBlockRecipe {
         override val type: SkyBlockRecipeType = SkyBlockRecipeType.CRAFTING
         override val ingredients: List<RecipeIngredient> = slots.filterNotNull()
+
+        internal companion object {
+            const val SLOT_COUNT = 9
+
+            fun gridSlots(slots: List<RecipeIngredient?>): List<RecipeIngredient?> =
+                slots.take(SLOT_COUNT) + List((SLOT_COUNT - slots.size).coerceAtLeast(0)) { null }
+        }
     }
 
     data class Process(
@@ -316,7 +323,6 @@ sealed interface SkyBlockRecipe {
         val durationSeconds: Long = 0L,
         val sourceId: String? = null,
     ) : SkyBlockRecipe
-
 }
 
 internal data class SkyBlockDataSnapshot(

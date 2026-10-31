@@ -1,6 +1,6 @@
 package com.skysoft.data.skyblock
 
-import com.skysoft.utils.TextUtilities
+import com.skysoft.utils.TextUtilities.formattedText
 import com.skysoft.utils.TextUtilities.parseUUIDOrNull
 import java.util.UUID
 import net.minecraft.core.component.DataComponents
@@ -13,9 +13,9 @@ object SkyBlockItemUtilities {
         get(DataComponents.CUSTOM_DATA)?.copyTag()
 
     fun ItemStack.loreLines(): List<String> =
-        get(DataComponents.LORE)?.lines()?.map { with(TextUtilities) { it.formattedText() } }.orEmpty()
+        get(DataComponents.LORE)?.lines()?.map { it.formattedText() }.orEmpty()
 
-    fun ItemStack.formattedHoverName(): String = with(TextUtilities) { hoverName.formattedText() }
+    fun ItemStack.formattedHoverName(): String = hoverName.formattedText()
 
     fun ItemStack.playerHeadTexture(): String? {
         if (isEmpty || item != Items.PLAYER_HEAD) return null
