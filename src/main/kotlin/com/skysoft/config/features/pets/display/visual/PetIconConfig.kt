@@ -1,6 +1,7 @@
 package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.ConfigResettable
 import com.skysoft.config.core.repairFiniteFloat
 import com.skysoft.config.core.repairPositiveFloat
@@ -16,7 +17,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 
 open class PetIconConfig(
     override val scalar: Float = 1.0f,
-) : ScalableOverlayConfig {
+) : ScalableOverlayConfig, ConfigRepairable {
     @Expose
     @ConfigOption(name = "Pet Icon", desc = "Show an icon of your current pet.\n§cRequired for any options below to work§7.")
     @ConfigEditorBoolean
@@ -110,7 +111,7 @@ open class PetIconConfig(
     @ConfigOrder(50)
     val reset: Runnable = Runnable(::reset)
 
-    open fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         skinAnimationSpeed.repairFiniteFloat(MIN_SKIN_ANIMATION_SPEED, MAX_SKIN_ANIMATION_SPEED, DEFAULT_SKIN_ANIMATION_SPEED)
         scale.repairPositiveFloat(MIN_ICON_SCALE, MAX_ICON_SCALE, defaultIconScale())
     }

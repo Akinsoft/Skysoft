@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import com.skysoft.features.profit.CustomProfitTrackerConfigScreen
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -83,7 +84,7 @@ class ProfitTrackersConfig {
         spider.enabled || wolf.enabled || enderman.enabled || blaze.enabled || vampire.enabled
 }
 
-class CustomProfitTrackersConfig {
+class CustomProfitTrackersConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     val trackers: MutableList<CustomProfitTrackerConfig> = mutableListOf()
@@ -93,7 +94,7 @@ class CustomProfitTrackersConfig {
     @field:ConfigEditorButton(buttonText = "Open")
     val openEditor = Runnable { CustomProfitTrackerConfigScreen.open() }
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         val usedIds = mutableSetOf<String>()
         val usedNames = mutableSetOf<String>()
         trackers.forEach { tracker -> tracker.repairLoadedValues(usedIds, usedNames) }

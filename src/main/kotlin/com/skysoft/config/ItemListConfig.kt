@@ -5,6 +5,9 @@ import com.google.gson.annotations.SerializedName
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
+import com.skysoft.config.core.coerceFiniteIn
+import com.skysoft.config.core.repairLoadedConfigs
+import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -39,9 +42,7 @@ class ItemListConfig : ConfigRepairable {
 
     override fun repairLoadedValues() {
         favorites = favorites.filter(String::isNotBlank).distinct().take(MAX_FAVORITES).toMutableList()
-        sources.searchPosition.rememberDefault(ItemListSourcesConfig.defaultSearchPosition())
-        settings.repairLoadedValues()
-        sources.repairLoadedValues()
+        repairLoadedConfigs(settings, sources)
     }
 
     companion object {
@@ -49,7 +50,7 @@ class ItemListConfig : ConfigRepairable {
     }
 }
 
-class ItemListSettingsConfig {
+class ItemListSettingsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Item Scale", desc = "Size of items inside the Item List.")
@@ -113,7 +114,7 @@ class ItemListSettingsConfig {
     @JvmField
     @field:ConfigOption(name = "Refresh Data", desc = "Check for updated Item List data.")
     @field:ConfigEditorButton(buttonText = "Refresh")
-    val refreshData = Runnable { com.skysoft.data.skyblock.SkyBlockDataRepository.reload() }
+    val refreshData = Runnable { SkyBlockDataRepository.reload() }
 
     @JvmField
     @field:ConfigOption(name = "Clear Favorites", desc = "Clear all favorite items.")
@@ -123,8 +124,8 @@ class ItemListSettingsConfig {
         SkysoftConfigGui.config().saveNow()
     }
 
-    fun repairLoadedValues() {
-        itemScale = itemScale.takeIf { it.isFinite() }?.coerceIn(MIN_ITEM_SCALE, MAX_ITEM_SCALE) ?: DEFAULT_ITEM_SCALE
+    override fun repairLoadedValues() {
+        itemScale = itemScale.coerceFiniteIn(MIN_ITEM_SCALE, MAX_ITEM_SCALE, DEFAULT_ITEM_SCALE)
         columns = columns.coerceIn(MIN_COLUMNS, MAX_COLUMNS)
         rows = rows.coerceIn(MIN_ROWS, MAX_ROWS)
     }
@@ -143,7 +144,7 @@ class ItemListSettingsConfig {
     }
 }
 
-class ItemListSourcesConfig {
+class ItemListSourcesConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     val searchPosition = defaultSearchPosition().rememberDefault()
@@ -191,7 +192,8 @@ class ItemListSourcesConfig {
     @field:SerializedName(value = "showBazaarPlayerData", alternate = ["showBazaarOrders"])
     var showBazaarPlayerData = true
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
+        searchPosition.rememberDefault(defaultSearchPosition())
         searchPosition.scale = HudPosition.DEFAULT_SCALE
         searchWidth = searchWidth.coerceIn(MIN_SEARCH_WIDTH, MAX_SEARCH_WIDTH)
         bazaarGraphMode = graphMode().name
@@ -208,7 +210,7 @@ class ItemListSourcesConfig {
         const val SEARCH_WIDTH_STEP = 18
         const val MAX_SEARCH_WIDTH = ItemListSettingsConfig.MAX_COLUMNS * SEARCH_WIDTH_STEP * 3
 
-        fun defaultSearchPosition() = HudPosition(
+        private fun defaultSearchPosition() = HudPosition(
             DEFAULT_SEARCH_OFFSET,
             DEFAULT_SEARCH_OFFSET,
             centerY = false,

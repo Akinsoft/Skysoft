@@ -7,43 +7,24 @@ object InventoryButtonDefaults {
     const val DEFAULT_BUTTON_COUNT = DEFAULT_EDGE_BUTTONS * 4
 
     fun create(): MutableList<InventoryButtonConfig> {
-        val right = List(DEFAULT_EDGE_BUTTONS) { index ->
-            val y = EDGE_BUTTON_START + EDGE_BUTTON_STEP * index
-            val lowerHalf = y >= EDGE_BUTTON_BOTTOM_ANCHOR_THRESHOLD
-            button(
-                EDGE_BUTTON_RIGHT_X,
-                if (lowerHalf) y - PLAYER_INVENTORY_HEIGHT else y,
-                anchorRight = true,
-                anchorBottom = lowerHalf,
-            )
-        }
-        val top = List(DEFAULT_EDGE_BUTTONS) { index ->
-            button(TOP_ROW_START_X + TOP_ROW_STEP * index, FLOATING_ROW_ABOVE_Y)
-        }
-        val left = List(DEFAULT_EDGE_BUTTONS) { index ->
-            val y = EDGE_BUTTON_START + EDGE_BUTTON_STEP * index
-            val lowerHalf = y >= EDGE_BUTTON_BOTTOM_ANCHOR_THRESHOLD
-            button(
-                FLOATING_COLUMN_LEFT_X,
-                if (lowerHalf) y - PLAYER_INVENTORY_HEIGHT else y,
-                anchorBottom = lowerHalf,
-            )
-        }
-        val bottom = List(DEFAULT_EDGE_BUTTONS) { index ->
-            button(TOP_ROW_START_X + TOP_ROW_STEP * index, EDGE_BUTTON_START, anchorBottom = true)
-        }
+        val right = column(EDGE_BUTTON_RIGHT_X, anchorRight = true)
+        val top = row(FLOATING_ROW_ABOVE_Y, anchorBottom = false)
+        val left = column(FLOATING_COLUMN_LEFT_X, anchorRight = false)
+        val bottom = row(EDGE_BUTTON_START, anchorBottom = true)
         return (right + top + left + bottom).toMutableList()
     }
 
-    fun resettableButtons(loadedButtons: MutableList<InventoryButtonConfig>): MutableList<InventoryButtonConfig> =
-        loadedButtons.takeIf { it.isNotEmpty() } ?: create()
+    private fun column(x: Int, anchorRight: Boolean): List<InventoryButtonConfig> = List(DEFAULT_EDGE_BUTTONS) { index ->
+        val y = EDGE_BUTTON_START + EDGE_BUTTON_STEP * index
+        val lowerHalf = y >= EDGE_BUTTON_BOTTOM_ANCHOR_THRESHOLD
+        button(x, if (lowerHalf) y - PLAYER_INVENTORY_HEIGHT else y, anchorRight, anchorBottom = lowerHalf)
+    }
 
-    private fun button(
-        x: Int,
-        y: Int,
-        anchorRight: Boolean = false,
-        anchorBottom: Boolean = false,
-    ): InventoryButtonConfig = InventoryButtonConfig(
+    private fun row(y: Int, anchorBottom: Boolean): List<InventoryButtonConfig> = List(DEFAULT_EDGE_BUTTONS) { index ->
+        button(TOP_ROW_START_X + TOP_ROW_STEP * index, y, anchorRight = false, anchorBottom)
+    }
+
+    private fun button(x: Int, y: Int, anchorRight: Boolean, anchorBottom: Boolean) = InventoryButtonConfig(
         x = x,
         y = y,
         anchorRight = anchorRight,

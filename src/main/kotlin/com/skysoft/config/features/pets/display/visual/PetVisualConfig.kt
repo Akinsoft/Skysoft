@@ -1,6 +1,8 @@
 package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.features.pets.display.ScalableOverlayConfig
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -10,7 +12,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 
 open class PetVisualConfig(
     override val scalar: Float = 1.0f,
-) : ScalableOverlayConfig {
+) : ScalableOverlayConfig, ConfigRepairable {
     @Expose
     @ConfigOption(name = "Pet Icon", desc = "")
     @Accordion
@@ -25,7 +27,7 @@ open class PetVisualConfig(
 
     open class BackgroundColorConfig(
         override val scalar: Float = 1.0f,
-    ) : ScalableOverlayConfig {
+    ) : ScalableOverlayConfig, ConfigRepairable {
         @Expose
         @ConfigOption(
             name = "Enabled",
@@ -47,10 +49,7 @@ open class PetVisualConfig(
         @ConfigOrder(30)
         open val borderRing: PetBorderConfig = PetBorderConfig(scalar)
 
-        open fun repairLoadedValues() {
-            customization.repairLoadedValues()
-            borderRing.repairLoadedValues()
-        }
+        override fun repairLoadedValues() = repairLoadedConfigs(customization, borderRing)
     }
 
     @Expose
@@ -59,9 +58,5 @@ open class PetVisualConfig(
     @ConfigOrder(30)
     open val petItem: PetItemLayerConfig = PetItemLayerConfig(scalar)
 
-    open fun repairLoadedValues() {
-        icon.repairLoadedValues()
-        rarityBackground.repairLoadedValues()
-        petItem.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(icon, rarityBackground, petItem)
 }

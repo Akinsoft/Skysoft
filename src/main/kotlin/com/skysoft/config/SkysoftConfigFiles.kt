@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 object SkysoftConfigFiles {
     private const val CONFIG_DIRECTORY_PROPERTY = "skysoft.configDirectory"
+    private val nonAtomicMoveWarnings = ConcurrentHashMap.newKeySet<Path>()
     private val rootDirectory: Path = FabricLoader.getInstance().configDir
     val directory: Path = rootDirectory.resolve(configDirectoryName())
     val config: Path = directory.resolve("skysoft.json")
@@ -50,38 +51,7 @@ object SkysoftConfigFiles {
         return directoryName
     }
 
-    fun hasFileOrBackup(path: Path): Boolean =
-        SkysoftConfigFileIo.hasFileOrBackup(path)
-
-    fun writeStringSafely(path: Path, text: String) {
-        SkysoftConfigFileIo.writeStringSafely(path, text)
-    }
-
-    fun deleteWithBackups(path: Path) {
-        SkysoftConfigFileIo.deleteWithBackups(path)
-    }
-
-    fun <T> readWithBackup(path: Path, reader: (Path) -> T): T {
-        return SkysoftConfigFileIo.readWithBackup(path, reader)
-    }
-
-    private fun copyLegacyFile(source: Path, target: Path): MigrationResult =
-        SkysoftConfigFileIo.copyLegacyFile(source, target)
-}
-
-enum class MigrationResult {
-    READY,
-    FAILED,
-}
-
-internal object SkysoftConfigFileIo {
-    private const val MAX_WRITE_ATTEMPTS = 5
-    private const val WRITE_RETRY_DELAY_MS = 50L
-    private const val BACKUP_COUNT = 3
-    private val nonAtomicMoveWarnings = ConcurrentHashMap.newKeySet<Path>()
-
-    fun hasFileOrBackup(path: Path): Boolean =
-        Files.isRegularFile(path) || backupPaths(path).any(Files::isRegularFile)
+    fun hasFileOrBackup(path: Path): Boolean = Files.isRegularFile(path) || hasBackup(path)
 
     fun writeStringSafely(path: Path, text: String) {
         retryAccessDenied {
@@ -128,7 +98,7 @@ internal object SkysoftConfigFileIo {
         backupPaths(path).forEach(Files::deleteIfExists)
     }
 
-    fun copyLegacyFile(source: Path, target: Path): MigrationResult {
+    private fun copyLegacyFile(source: Path, target: Path): MigrationResult {
         if (!Files.isRegularFile(source) || Files.exists(target) || hasBackup(target)) return MigrationResult.READY
 
         return try {
@@ -187,7 +157,7 @@ internal object SkysoftConfigFileIo {
 
     private fun copyFileSafely(source: Path, target: Path) = withTempSibling(target, ".copy") { tempPath ->
         Files.copy(source, tempPath, StandardCopyOption.REPLACE_EXISTING)
-        forceFile(tempPath)
+        FileChannel.open(tempPath, StandardOpenOption.WRITE).use { channel -> channel.force(true) }
         moveReplacing(tempPath, target)
     }
 
@@ -203,12 +173,6 @@ internal object SkysoftConfigFileIo {
             while (buffer.hasRemaining()) {
                 channel.write(buffer)
             }
-            channel.force(true)
-        }
-    }
-
-    private fun forceFile(path: Path) {
-        FileChannel.open(path, StandardOpenOption.WRITE).use { channel ->
             channel.force(true)
         }
     }
@@ -252,4 +216,12 @@ internal object SkysoftConfigFileIo {
         backupPaths(path).any(Files::isRegularFile)
 }
 
+enum class MigrationResult {
+    READY,
+    FAILED,
+}
+
+private const val MAX_WRITE_ATTEMPTS = 5
+private const val WRITE_RETRY_DELAY_MS = 50L
+private const val BACKUP_COUNT = 3
 private const val RETRY_ATTEMPT_DISPLAY_OFFSET = 2

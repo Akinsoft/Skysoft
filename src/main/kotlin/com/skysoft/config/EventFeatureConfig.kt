@@ -3,6 +3,7 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.features.event.diana.DianaWarpPoint
 import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.ChromaColour
@@ -32,12 +33,10 @@ class EventFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var isMinisterInCalendarShown = false
 
-    override fun repairLoadedValues() {
-        diana.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = diana.repairLoadedValues()
 }
 
-class SkysoftDianaConfig {
+class SkysoftDianaConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(
@@ -108,13 +107,10 @@ class SkysoftDianaConfig {
             sphinxHelper.enabled ||
             quickWarps.enabled
 
-    fun repairLoadedValues() {
-        particleQuality.repairLoadedValues()
-        lobbyCompromised.settings.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(particleQuality, lobbyCompromised.settings)
 }
 
-class DianaParticleQualityConfig {
+class DianaParticleQualityConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     var maximumParticlesPerTick: Int? = null
@@ -123,7 +119,7 @@ class DianaParticleQualityConfig {
     @field:Expose
     var automaticMigrationAttemptsRemaining = 0
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         if (maximumParticlesPerTick !in PARTICLE_COUNTS) maximumParticlesPerTick = null
         automaticMigrationAttemptsRemaining = automaticMigrationAttemptsRemaining.coerceIn(
             0,
@@ -479,7 +475,7 @@ class DianaLobbyCompromisedConfig {
     val settings = DianaLobbyCompromisedSettingsConfig()
 }
 
-class DianaLobbyCompromisedSettingsConfig {
+class DianaLobbyCompromisedSettingsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Stranger Limit", desc = "Non-party players before alerting.")
@@ -493,7 +489,7 @@ class DianaLobbyCompromisedSettingsConfig {
     val alerts: Property<MutableList<DianaLobbyCompromisedAlert>> =
         Property.of(mutableListOf(DianaLobbyCompromisedAlert.TITLE_ALERT))
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         strangerLimit = strangerLimit.coerceIn(
             MIN_LOBBY_COMPROMISED_STRANGER_LIMIT,
             MAX_LOBBY_COMPROMISED_STRANGER_LIMIT,
@@ -636,7 +632,7 @@ enum class DianaLobbyCompromisedAlert(private val displayName: String) {
 }
 
 enum class DianaRareMobOption(
-    private val displayName: String,
+    val label: String,
     private val article: String = "a",
     private vararg val aliases: String,
 ) {
@@ -654,11 +650,10 @@ enum class DianaRareMobOption(
     KING_MINOS("King Minos"),
     ;
 
-    val label: String get() = displayName
-    val matchLabels: Set<String> get() = setOf(displayName) + aliases
-    val shareMarker: String get() = "Found ${if (article.isEmpty()) "" else "$article "}$displayName!"
+    val matchLabels: Set<String> get() = setOf(label) + aliases
+    val shareMarker: String get() = "Found ${if (article.isEmpty()) "" else "$article "}$label!"
 
-    override fun toString(): String = displayName
+    override fun toString(): String = label
 
     companion object {
         fun fromLabel(label: String): DianaRareMobOption? =

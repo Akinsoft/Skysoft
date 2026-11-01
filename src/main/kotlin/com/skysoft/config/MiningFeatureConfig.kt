@@ -44,7 +44,7 @@ class MiningAbilityCooldownConfig {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(40, 0, centerX = true, centerY = true).rememberDefault()
+    val position = HudPosition(40, 0, centerX = true).rememberDefault()
 }
 
 class MiningAbilityCooldownSettingsConfig {

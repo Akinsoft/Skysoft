@@ -3,6 +3,7 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.SoundUtilities
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -68,11 +69,7 @@ class ChatFeatureConfig : ConfigRepairable {
     @field:Category(name = "Copy Chat", desc = "Copy complete chat messages from the chat screen.")
     val copyChat = CopyChatConfig()
 
-    override fun repairLoadedValues() {
-        smoothChat.repairLoadedValues()
-        history.repairLoadedValues()
-        compacting.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(smoothChat.settings, history.settings, compacting.settings)
 
     class SmoothChatConfig {
         @JvmField
@@ -100,13 +97,9 @@ class ChatFeatureConfig : ConfigRepairable {
         @field:ConfigOption(name = "Details", desc = "Additional chat visual settings.")
         @field:Accordion
         val details = SmoothChatDetailsConfig()
-
-        fun repairLoadedValues() {
-            settings.repairLoadedValues()
-        }
     }
 
-    class SmoothChatSettingsConfig {
+    class SmoothChatSettingsConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Message Animation Duration", desc = "Duration of the new-message animation in milliseconds.")
@@ -119,7 +112,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @field:ConfigEditorSlider(minValue = 10f, maxValue = 700f, minStep = 1f)
         var chatOpenAnimationDuration = DEFAULT_CHAT_OPEN_ANIMATION_DURATION
 
-        fun repairLoadedValues() {
+        override fun repairLoadedValues() {
             messageAnimationDuration = messageAnimationDuration.coerceIn(
                 MIN_MESSAGE_ANIMATION_DURATION,
                 MAX_MESSAGE_ANIMATION_DURATION,
@@ -184,13 +177,9 @@ class ChatFeatureConfig : ConfigRepairable {
         @field:Accordion
         @field:ConfigVisibleIf("isLongerHistoryEnabled")
         val settings = ChatHistorySettingsConfig()
-
-        fun repairLoadedValues() {
-            settings.repairLoadedValues()
-        }
     }
 
-    class ChatHistorySettingsConfig {
+    class ChatHistorySettingsConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Message Limit", desc = "Maximum number of chat messages to keep.")
@@ -201,7 +190,7 @@ class ChatFeatureConfig : ConfigRepairable {
         )
         var messageLimit = VANILLA_CHAT_HISTORY_LIMIT
 
-        fun repairLoadedValues() {
+        override fun repairLoadedValues() {
             messageLimit = messageLimit.coerceIn(VANILLA_CHAT_HISTORY_LIMIT, MAX_CHAT_HISTORY_LIMIT)
         }
     }
@@ -220,13 +209,9 @@ class ChatFeatureConfig : ConfigRepairable {
         @field:Accordion
         @field:ConfigVisibleIf("enabled")
         val settings = ChatCompactingSettingsConfig()
-
-        fun repairLoadedValues() {
-            settings.repairLoadedValues()
-        }
     }
 
-    class ChatCompactingSettingsConfig {
+    class ChatCompactingSettingsConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(
@@ -246,7 +231,7 @@ class ChatFeatureConfig : ConfigRepairable {
         @field:ConfigEditorBoolean
         var noBlankLines = false
 
-        fun repairLoadedValues() {
+        override fun repairLoadedValues() {
             durationSeconds = durationSeconds.coerceIn(
                 MIN_CHAT_COMPACT_DURATION_SECONDS,
                 MAX_CHAT_COMPACT_DURATION_SECONDS,

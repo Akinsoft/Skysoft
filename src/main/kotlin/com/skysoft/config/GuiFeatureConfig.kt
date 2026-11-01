@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.features.screenshot.ScreenshotManager
 import com.skysoft.gui.SkysoftHudEditor
@@ -53,8 +54,7 @@ class GuiFeatureConfig : ConfigRepairable {
 
     override fun repairLoadedValues() {
         positionEditor.tabListPosition.rememberDefault(defaultTabListPosition())
-        playerHud.repairLoadedValues()
-        betterTab.repairLoadedValues()
+        repairLoadedConfigs(playerHud, betterTab)
     }
 }
 
@@ -193,11 +193,11 @@ class PositionEditorConfig {
 
     @JvmField
     @field:Expose
-    val titlePosition = HudPosition(0, -82, centerX = true, centerY = true).rememberDefault()
+    val titlePosition = HudPosition(0, -82, centerX = true).rememberDefault()
 
     @JvmField
     @field:Expose
-    val scoreboardPosition = HudPosition(centerX = true, centerY = true).rememberDefault()
+    val scoreboardPosition = HudPosition(centerX = true).rememberDefault()
 
     @JvmField
     @field:Expose
@@ -234,7 +234,7 @@ class PositionEditorDetailsConfig {
     var doesTooltipFollowMouse = false
 }
 
-class SkysoftActionBarConfig {
+class SkysoftActionBarConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Draw a box behind the action bar.")
@@ -258,7 +258,7 @@ class SkysoftActionBarConfig {
     @field:Expose
     val position = defaultActionBarPosition().rememberDefault()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         position.rememberDefault(defaultActionBarPosition())
         details.repairLoadedValues()
     }
@@ -277,7 +277,7 @@ private fun defaultActionBarPosition() =
 
 private const val DEFAULT_ACTION_BAR_BOTTOM_MARGIN = -60
 
-class SkysoftActionBarDetailsConfig {
+class SkysoftActionBarDetailsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Rounded Corners", desc = "Round the background corners.")
@@ -290,7 +290,7 @@ class SkysoftActionBarDetailsConfig {
     @field:ConfigEditorSlider(minValue = 0f, maxValue = 100f, minStep = 1f)
     var backgroundOpacity = DEFAULT_BACKGROUND_OPACITY
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         backgroundOpacity = backgroundOpacity.coerceIn(MIN_BACKGROUND_OPACITY, MAX_BACKGROUND_OPACITY)
     }
 

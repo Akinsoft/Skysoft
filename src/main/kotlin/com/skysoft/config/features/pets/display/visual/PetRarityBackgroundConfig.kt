@@ -1,6 +1,7 @@
 package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.repairFiniteFloat
 import com.skysoft.config.features.pets.display.ScalableOverlayConfig
 import com.skysoft.data.skyblock.SkyBlockRarity
@@ -14,7 +15,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 
 class PetRarityBackgroundConfig(
     override val scalar: Float = 1.0f,
-) : ScalableOverlayConfig {
+) : ScalableOverlayConfig, ConfigRepairable {
     private val configuredColors by lazy {
         mapOf(
             SkyBlockRarity.COMMON to commonColor,
@@ -68,7 +69,7 @@ class PetRarityBackgroundConfig(
     @ConfigEditorButton(buttonText = "Reset")
     val reset: Runnable = Runnable(::reset)
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         padding.repairFiniteFloat(MIN_PADDING, MAX_PADDING, defaultPadding())
     }
 

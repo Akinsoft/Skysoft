@@ -39,13 +39,13 @@ class CraftingHelperConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(8, 210, centerX = false, centerY = false).rememberDefault()
+    val position = HudPosition(8, 210, centerY = false).rememberDefault()
 
     override fun repairLoadedValues() {
-        settings.maximumLines = settings.maximumLines.coerceIn(MINIMUM_LINES, MAXIMUM_LINES)
+        settings.maximumLines = settings.maximumLines.coerceIn(MINIMUM_LINES, CRAFTING_HELPER_MAXIMUM_LINES)
         val repaired = targets.entries
             .filter { (itemId, amount) -> itemId.isNotBlank() && amount > 0L }
-            .associate { (itemId, amount) -> itemId.trim() to amount.coerceAtMost(MAXIMUM_TARGET_AMOUNT) }
+            .associate { (itemId, amount) -> itemId.trim() to amount.coerceAtMost(CRAFTING_HELPER_MAXIMUM_TARGET_AMOUNT) }
         targets.clear()
         targets.putAll(repaired)
     }
@@ -112,5 +112,3 @@ class CraftingHelperDetailsConfig {
 internal const val CRAFTING_HELPER_MAXIMUM_LINES = 32
 internal const val CRAFTING_HELPER_MAXIMUM_TARGET_AMOUNT = 1_000_000L
 private const val MINIMUM_LINES = 1
-private const val MAXIMUM_LINES = CRAFTING_HELPER_MAXIMUM_LINES
-private const val MAXIMUM_TARGET_AMOUNT = CRAFTING_HELPER_MAXIMUM_TARGET_AMOUNT

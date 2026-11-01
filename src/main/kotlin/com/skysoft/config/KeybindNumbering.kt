@@ -1,11 +1,9 @@
 package com.skysoft.config
 
-import com.google.gson.annotations.Expose
+import com.skysoft.config.core.isSkysoftObject
+import com.skysoft.config.core.persistedFields
+import com.skysoft.utils.identitySet
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
-import java.lang.reflect.Field
-import java.lang.reflect.Modifier
-import java.util.Collections
-import java.util.IdentityHashMap
 
 enum class KeybindNumbering {
     GLFW,
@@ -26,7 +24,7 @@ enum class KeybindNumbering {
 internal object KeybindNumberingMigration {
     fun convert(config: SkysoftConfig, source: KeybindNumbering, target: KeybindNumbering) {
         if (source == target) return
-        convertKeybinds(config, source, target, Collections.newSetFromMap(IdentityHashMap()))
+        convertKeybinds(config, source, target, identitySet())
     }
 
     private fun convertKeybinds(
@@ -37,7 +35,7 @@ internal object KeybindNumberingMigration {
     ) {
         if (!visited.add(holder)) return
         if (holder is InventoryButtonConfig) holder.requiredKey = source.convert(holder.requiredKey, target)
-        persistedFields(holder.javaClass).forEach { field ->
+        holder.javaClass.persistedFields().forEach { field ->
             if (field.isAnnotationPresent(ConfigEditorKeybind::class.java) && field.type == Int::class.javaPrimitiveType) {
                 field.setInt(holder, source.convert(field.getInt(holder), target))
             } else {
@@ -50,20 +48,9 @@ internal object KeybindNumberingMigration {
             }
         }
     }
-
-    private fun persistedFields(type: Class<*>): Sequence<Field> =
-        generateSequence(type) { it.superclass }
-            .flatMap { it.declaredFields.asSequence() }
-            .filter { !Modifier.isStatic(it.modifiers) && it.isAnnotationPresent(Expose::class.java) }
-            .onEach { it.isAccessible = true }
-
-    private fun isSkysoftObject(value: Any): Boolean =
-        !value.javaClass.isEnum && value.javaClass.name.startsWith(SKYSOFT_PACKAGE_PREFIX)
 }
 
 private class KeyCodes(val glfw: Int, val sdl: Int)
-
-private const val SKYSOFT_PACKAGE_PREFIX = "com.skysoft."
 private const val GLFW_NO_BINDING = -1
 private const val SDL_NO_BINDING = 0
 

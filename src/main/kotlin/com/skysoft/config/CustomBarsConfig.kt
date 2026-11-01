@@ -2,8 +2,10 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudDimensions
 import com.skysoft.config.core.HudPosition
+import com.skysoft.utils.ColorUtilities.toChromaColor
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -15,7 +17,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOrder
 import io.github.notenoughupdates.moulconfig.observer.Property
 import java.awt.Color
 
-class CustomBarsConfig {
+class CustomBarsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Customize SkyBlock status displays and numbers.")
@@ -107,7 +109,7 @@ class CustomBarsConfig {
     @field:Expose
     val experienceTextPosition = defaultTextPosition().rememberDefault()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         healthPosition.rememberDefault(defaultHealthPosition())
         manaPosition.rememberDefault(defaultManaPosition())
         vitalityPosition.updateDefault(oldVitalityPositionDefault, vitalityPositionDefault)
@@ -423,10 +425,7 @@ enum class CustomBarIconPosition(private val displayName: String) {
     override fun toString(): String = displayName
 }
 
-internal fun configColor(argb: Int): ChromaColour {
-    val color = Color(argb, true)
-    return ChromaColour.fromRGB(color.red, color.green, color.blue, 0, color.alpha)
-}
+internal fun configColor(argb: Int): ChromaColour = Color(argb, true).toChromaColor()
 
 internal const val CUSTOM_BAR_TRACK_COLOR = 0xC0101010.toInt()
 private const val HEALTH_COLOR = 0xFFFF5555.toInt()

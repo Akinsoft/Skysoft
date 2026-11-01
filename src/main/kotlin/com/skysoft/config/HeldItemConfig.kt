@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.features.helditem.HeldItemEditorScreen
 import com.skysoft.utils.ChangeResult
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -10,7 +11,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import java.util.Locale
 
-class HeldItemConfig {
+class HeldItemConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Apply held item position, scale, swing, and texture settings.")
@@ -54,10 +55,10 @@ class HeldItemConfig {
     fun customize(itemId: String): HeldItemTransformConfig =
         itemTransforms.getOrPut(normalizedItemId(itemId)) { global.copyValues() }
 
-    fun removeCustomization(itemId: String): ChangeResult =
+    private fun removeCustomization(itemId: String): ChangeResult =
         ChangeResult.from(itemTransforms.remove(normalizedItemId(itemId)) != null)
 
-    fun hasCustomization(itemId: String?): Boolean =
+    private fun hasCustomization(itemId: String?): Boolean =
         itemId != null && itemTransforms.containsKey(normalizedItemId(itemId))
 
     fun usesVanillaTexture(itemId: String?): Boolean =
@@ -75,10 +76,10 @@ class HeldItemConfig {
         return ChangeResult.CHANGED
     }
 
-    fun hasTextureOverride(itemId: String?): Boolean =
+    private fun hasTextureOverride(itemId: String?): Boolean =
         itemId != null && itemTextureModes.containsKey(normalizedItemId(itemId))
 
-    fun removeTextureOverride(itemId: String): ChangeResult =
+    private fun removeTextureOverride(itemId: String): ChangeResult =
         ChangeResult.from(itemTextureModes.remove(normalizedItemId(itemId)) != null)
 
     fun hasGlobalCustomization(): Boolean = !global.isDefault() || globalTextureMode != HeldItemTextureMode.PACK
@@ -95,11 +96,7 @@ class HeldItemConfig {
     fun removeItemCustomization(itemId: String): ChangeResult {
         val transformResult = removeCustomization(itemId)
         val textureResult = removeTextureOverride(itemId)
-        return if (transformResult == ChangeResult.CHANGED || textureResult == ChangeResult.CHANGED) {
-            ChangeResult.CHANGED
-        } else {
-            ChangeResult.UNCHANGED
-        }
+        return ChangeResult.from(transformResult == ChangeResult.CHANGED || textureResult == ChangeResult.CHANGED)
     }
 
     internal fun snapshotCustomization(itemId: String?): HeldItemCustomizationSnapshot {
@@ -129,23 +126,11 @@ class HeldItemConfig {
         }
     }
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         global.repairLoadedValues()
-        val repairedTransforms = linkedMapOf<String, HeldItemTransformConfig>()
-        itemTransforms.forEach { (itemId, transform) ->
-            val normalizedId = normalizedItemId(itemId)
-            if (normalizedId.isNotEmpty()) {
-                transform.repairLoadedValues()
-                repairedTransforms[normalizedId] = transform
-            }
-        }
-        itemTransforms = repairedTransforms
-        val repairedTextureModes = linkedMapOf<String, HeldItemTextureMode>()
-        itemTextureModes.forEach { (itemId, textureMode) ->
-            val normalizedId = normalizedItemId(itemId)
-            if (normalizedId.isNotEmpty()) repairedTextureModes[normalizedId] = textureMode
-        }
-        itemTextureModes = repairedTextureModes
+        itemTransforms = itemTransforms.withNormalizedItemIds()
+        itemTransforms.values.forEach(HeldItemTransformConfig::repairLoadedValues)
+        itemTextureModes = itemTextureModes.withNormalizedItemIds()
         if (editorX < AUTO_EDITOR_POSITION) editorX = AUTO_EDITOR_POSITION
         if (editorY < AUTO_EDITOR_POSITION) editorY = AUTO_EDITOR_POSITION
     }
@@ -157,6 +142,15 @@ class HeldItemConfig {
         const val AUTO_EDITOR_POSITION = -1
 
         private fun normalizedItemId(itemId: String): String = itemId.trim().uppercase(Locale.US)
+
+        private fun <T> Map<String, T>.withNormalizedItemIds(): MutableMap<String, T> {
+            val normalized = linkedMapOf<String, T>()
+            forEach { (itemId, value) ->
+                val normalizedId = normalizedItemId(itemId)
+                if (normalizedId.isNotEmpty()) normalized[normalizedId] = value
+            }
+            return normalized
+        }
     }
 }
 
@@ -260,32 +254,12 @@ class HeldItemTransformConfig(
     @JvmField @field:Expose var rotationX: Float = 0f,
     @JvmField @field:Expose var rotationY: Float = 0f,
     @JvmField @field:Expose var rotationZ: Float = 0f,
-) {
-    fun copyValues(): HeldItemTransformConfig = HeldItemTransformConfig(
-        x = x,
-        y = y,
-        z = z,
-        scale = scale,
-        swingSpeed = swingSpeed,
-        swingStyle = swingStyle,
-        rotationX = rotationX,
-        rotationY = rotationY,
-        rotationZ = rotationZ,
-    )
+) : ConfigRepairable {
+    fun copyValues(): HeldItemTransformConfig = snapshot().toConfig()
 
-    fun reset() {
-        x = 0f
-        y = 0f
-        z = 0f
-        scale = 1f
-        swingSpeed = 1f
-        swingStyle = HeldItemSwingStyle.VANILLA
-        rotationX = 0f
-        rotationY = 0f
-        rotationZ = 0f
-    }
+    fun reset() = restore(HeldItemTransformConfig().snapshot())
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         x = x.coerceIn(HeldItemTransformLimits.MIN_X, HeldItemTransformLimits.MAX_X)
         y = y.coerceIn(HeldItemTransformLimits.MIN_Y, HeldItemTransformLimits.MAX_Y)
         z = z.coerceIn(HeldItemTransformLimits.MIN_Z, HeldItemTransformLimits.MAX_Z)

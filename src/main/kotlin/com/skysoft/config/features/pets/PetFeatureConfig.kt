@@ -1,10 +1,11 @@
 package com.skysoft.config.features.pets
 
 import com.google.gson.annotations.Expose
+import com.google.gson.annotations.SerializedName
 import com.skysoft.config.MainFeatureToggle
 import com.skysoft.config.core.ConfigRepairable
-import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.repairFiniteFloat
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.features.pets.display.PetOverlayConfig
 import com.skysoft.data.ProfileStorage
 import com.skysoft.features.pets.PetOverlayConfigScreen
@@ -55,9 +56,8 @@ class PetFeatureConfig : ConfigRepairable {
     val display: PetOverlayConfig get() = petDisplay.display
 
     override fun repairLoadedValues() {
-        petDisplay.display.repairLoadedValues()
-        petDisplay.enabled = petDisplay.display.general.enabled
-        visiblePetPosition.repairLoadedValues()
+        repairLoadedConfigs(display, visiblePetPosition.details)
+        petDisplay.enabled = display.general.enabled
     }
 
     class VisiblePetPosition {
@@ -82,10 +82,6 @@ class PetFeatureConfig : ConfigRepairable {
         @field:Accordion
         @field:ConfigOrder(30)
         val details = VisiblePetPositionDetails()
-
-        fun repairLoadedValues() {
-            details.repairLoadedValues()
-        }
     }
 
     class VisiblePetPositionSettings {
@@ -96,14 +92,14 @@ class PetFeatureConfig : ConfigRepairable {
         var stopBouncing: Boolean = true
     }
 
-    class VisiblePetPositionDetails {
+    class VisiblePetPositionDetails : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(name = "Height Offset", desc = "Move the visible pet up or down from its normal height.")
         @field:ConfigEditorSlider(minValue = -2.0f, maxValue = 2.0f, minStep = 0.05f)
         val heightOffset: Property<Float> = Property.of(0.0f)
 
-        fun repairLoadedValues() {
+        override fun repairLoadedValues() {
             heightOffset.repairFiniteFloat(MIN_HEIGHT_OFFSET, MAX_HEIGHT_OFFSET, DEFAULT_HEIGHT_OFFSET)
         }
 

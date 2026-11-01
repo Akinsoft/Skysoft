@@ -1,13 +1,14 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 
-class SelectedItemNameConfig {
+class SelectedItemNameConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Customize the selected item name above the hotbar.")
@@ -31,7 +32,7 @@ class SelectedItemNameConfig {
     @field:Expose
     val position = defaultSelectedItemNamePosition().rememberDefault()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         position.rememberDefault(defaultSelectedItemNamePosition())
         details.backgroundOpacity = details.backgroundOpacity.coerceIn(MIN_BACKGROUND_OPACITY, MAX_BACKGROUND_OPACITY)
     }

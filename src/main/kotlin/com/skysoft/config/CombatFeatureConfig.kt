@@ -3,6 +3,8 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
+import com.skysoft.config.core.repairLoadedConfigs
+import com.skysoft.config.core.repairTrimmedEntries
 import com.skysoft.data.skyblock.SkyBlockSlayerType
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -36,10 +38,7 @@ class CombatFeatureConfig : ConfigRepairable {
     @field:Category(name = "Bestiary Helper", desc = "Select Bestiary mobs to highlight in the world.")
     val bestiaryHelper = BestiaryHelperConfig()
 
-    override fun repairLoadedValues() {
-        betterShurikens.settings.repairLoadedValues()
-        bestiaryHelper.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(betterShurikens.settings, bestiaryHelper)
 }
 
 class BestiaryHelperConfig : ConfigRepairable {
@@ -62,17 +61,9 @@ class BestiaryHelperConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(8, 70, centerX = false, centerY = false).rememberDefault()
+    val position = HudPosition(8, 70, centerY = false).rememberDefault()
 
-    override fun repairLoadedValues() {
-        val repairedMobs = selectedMobs.asSequence()
-            .map(String::trim)
-            .filter(String::isNotEmpty)
-            .distinctBy { name -> name.lowercase(Locale.ROOT) }
-            .toList()
-        selectedMobs.clear()
-        selectedMobs.addAll(repairedMobs)
-    }
+    override fun repairLoadedValues() = selectedMobs.repairTrimmedEntries { name -> name.lowercase(Locale.ROOT) }
 }
 
 class BestiaryHelperDetailsConfig {
@@ -185,7 +176,7 @@ class BetterShurikensConfig {
     val settings = BetterShurikensSettingsConfig()
 }
 
-class BetterShurikensSettingsConfig {
+class BetterShurikensSettingsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Reminder Mobs", desc = "Choose mobs that show a red shuriken reminder.")
@@ -193,8 +184,8 @@ class BetterShurikensSettingsConfig {
     val reminderMobs: Property<MutableList<BetterShurikenReminderMob>> =
         Property.of(BetterShurikenReminderMob.entries.toMutableList())
 
-    fun repairLoadedValues() {
-        reminderMobs.set(validReminderMobs(reminderMobs.get()))
+    override fun repairLoadedValues() {
+        reminderMobs.set(reminderMobs.get().filterNotNullTo(mutableListOf()))
     }
 }
 
@@ -239,6 +230,3 @@ enum class BetterShurikenReminderMob(
 
     override fun toString(): String = displayName
 }
-
-internal fun validReminderMobs(mobs: Collection<BetterShurikenReminderMob?>): MutableList<BetterShurikenReminderMob> =
-    mobs.filterNotNullTo(mutableListOf())
