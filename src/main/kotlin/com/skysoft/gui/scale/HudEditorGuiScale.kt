@@ -47,22 +47,20 @@ internal class HudEditorGuiScale(private val hasInventoryScreen: Boolean) {
 
     private fun normalGuiScale(): Int {
         val minecraft = Minecraft.getInstance()
-        val configuredScale = minecraft.options.guiScale().get()
-        return minecraft.window.calculateScale(configuredScale, minecraft.isEnforceUnicode).coerceAtLeast(1)
+        return GuiScaleController.resolveConfiguredScale(minecraft.window, minecraft.options.guiScale().get())
     }
 
     private fun activeInventoryGuiScale(): Int {
-        val minecraft = Minecraft.getInstance()
         val inventoryConfig = SkysoftConfigGui.config().inventory.appearance.inventoryScreen
-        if (!hasInventoryScreen || !shouldUseConfiguredInventoryScale(
-                inventoryConfig.separateInventoryGuiScale,
-                inventoryConfig.settings.isInventoryGuiScaleStorageOnly,
-                isStorageOverlayActive = false,
-            )
-        ) return normalGuiScale()
-        return minecraft.window.calculateScale(
-            inventoryConfig.settings.inventoryGuiScale.coerceAtLeast(0),
-            minecraft.isEnforceUnicode,
-        ).coerceAtLeast(1)
+        val usesInventoryScale = hasInventoryScreen && shouldUseConfiguredInventoryScale(
+            inventoryConfig.separateInventoryGuiScale,
+            inventoryConfig.settings.isInventoryGuiScaleStorageOnly,
+            isStorageOverlayActive = false,
+        )
+        if (!usesInventoryScale) return normalGuiScale()
+        return GuiScaleController.resolveConfiguredScale(
+            Minecraft.getInstance().window,
+            inventoryConfig.settings.inventoryGuiScale,
+        )
     }
 }

@@ -2,22 +2,16 @@ package com.skysoft.gui.tooltip
 
 import net.minecraft.client.gui.screens.Screen
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 
 internal class TooltipPanSession(
     val screen: Screen?,
-    identity: Int,
-    anchorX: Int,
-    anchorY: Int,
-    frame: TooltipPanFrame,
+    private var identity: Int,
+    private var anchorX: Int,
+    private var anchorY: Int,
+    private var frame: TooltipPanFrame,
     observedAt: Long,
     startOnTop: Boolean,
 ) {
-    private var identity = identity
-    private var anchorX = anchorX
-    private var anchorY = anchorY
-    private var frame = frame
     var lastObservedNanos = observedAt
         private set
     private var targetX = 0.0
@@ -106,28 +100,18 @@ internal data class TooltipPanFrame(
     val viewportWidth: Int,
     val viewportHeight: Int,
 ) {
-    private val bounds = PanBounds(
-        EDGE_GAP - width - x,
-        viewportWidth - EDGE_GAP - x,
-        EDGE_GAP - height - y,
-        viewportHeight - EDGE_GAP - y,
-    )
+    private val minX = EDGE_GAP - width - x
+    private val maxX = viewportWidth - EDGE_GAP - x
+    private val minY = EDGE_GAP - height - y
+    private val maxY = viewportHeight - EDGE_GAP - y
 
-    fun clampX(value: Double): Double = bounds.clampX(value)
+    fun clampX(value: Double): Double = clampPan(value, minX, maxX)
 
-    fun clampY(value: Double): Double = bounds.clampY(value)
+    fun clampY(value: Double): Double = clampPan(value, minY, maxY)
 }
 
-private data class PanBounds(val minX: Int, val maxX: Int, val minY: Int, val maxY: Int) {
-    fun clampX(value: Double): Double = clamp(value, minX, maxX)
-
-    fun clampY(value: Double): Double = clamp(value, minY, maxY)
-
-    private fun clamp(value: Double, minimum: Int, maximum: Int): Double {
-        if (minimum > maximum) return 0.0
-        return max(minimum.toDouble(), min(value, maximum.toDouble()))
-    }
-}
+private fun clampPan(value: Double, minimum: Int, maximum: Int): Double =
+    if (minimum > maximum) 0.0 else value.coerceIn(minimum.toDouble(), maximum.toDouble())
 
 private const val EDGE_GAP = 4
 private const val ANCHOR_TOLERANCE = 12

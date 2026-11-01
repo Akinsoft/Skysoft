@@ -2,6 +2,7 @@ package com.skysoft.gui.scale
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftInput
+import com.skysoft.utils.NANOS_PER_SECOND
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -18,8 +19,6 @@ class InventoryCursorMemory private constructor() {
     )
 
     companion object {
-        private const val NANOS_PER_SECOND = 1_000_000_000L
-
         private var inventoryScreenClosed = false
         private var pending: CursorSnapshot? = null
         private var waitForCursorEvents = false
@@ -68,13 +67,11 @@ class InventoryCursorMemory private constructor() {
             return cursor
         }
 
-        private fun isUsable(snapshot: CursorSnapshot?): Boolean =
-            snapshot?.let {
-                val durationSeconds = SkysoftConfigGui.config()
-                    .inventory.controls.cursorPositionPreservation.settings.durationSeconds
-                System.nanoTime() - it.capturedAt <=
-                    durationSeconds * NANOS_PER_SECOND
-            } == true
+        private fun isUsable(snapshot: CursorSnapshot?): Boolean {
+            val capturedAt = snapshot?.capturedAt ?: return false
+            val durationSeconds = SkysoftConfigGui.config().inventory.controls.cursorPositionPreservation.settings.durationSeconds
+            return System.nanoTime() - capturedAt <= durationSeconds * NANOS_PER_SECOND
+        }
 
         private fun isEnabled(): Boolean = SkysoftConfigGui.config().inventory.controls.cursorPositionPreservation.enabled
 

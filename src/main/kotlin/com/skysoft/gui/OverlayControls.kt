@@ -12,7 +12,7 @@ data class OverlayControlArea<T>(
     val bounds: Rect,
     val tooltipLines: List<String> = emptyList(),
 ) {
-    fun contains(mouseX: Int, mouseY: Int): Boolean = bounds.contains(mouseX, mouseY)
+    fun contains(mouseX: Int?, mouseY: Int?): Boolean = bounds.contains(mouseX, mouseY)
 }
 
 object OverlayControlTooltips {
@@ -59,11 +59,9 @@ object OverlayControlMouse {
         val scales = GuiScaleController.resolve(screen, window)
         if (GuiScaleController.usesSeparateInventoryScale(screen)) {
             if (GuiScaleController.areOverlaysUsingNormalCoordinates()) return mouseX to mouseY
-            return GuiScaleController.convertCoordinate(mouseX, scales.inventory(), scales.normal()) to
-                GuiScaleController.convertCoordinate(mouseY, scales.inventory(), scales.normal())
+            return convertPoint(mouseX, mouseY, scales.inventory(), scales.normal())
         }
-        return GuiScaleController.convertCoordinate(mouseX, window.guiScale, scales.normal()) to
-            GuiScaleController.convertCoordinate(mouseY, window.guiScale, scales.normal())
+        return convertPoint(mouseX, mouseY, window.guiScale, scales.normal())
     }
 
     fun normalPointFromScreen(mouseX: Int, mouseY: Int): Pair<Int, Int> {
@@ -71,8 +69,7 @@ object OverlayControlMouse {
         val screen = MinecraftClient.screen(minecraft)
         if (!GuiScaleController.usesSeparateInventoryScale(screen)) return mouseX to mouseY
         val scales = GuiScaleController.resolve(screen, minecraft.window)
-        return GuiScaleController.convertCoordinate(mouseX, scales.inventory(), scales.normal()) to
-            GuiScaleController.convertCoordinate(mouseY, scales.inventory(), scales.normal())
+        return convertPoint(mouseX, mouseY, scales.inventory(), scales.normal())
     }
 
     fun screenPoint(mouseX: Int, mouseY: Int): Pair<Int, Int> {
@@ -82,7 +79,10 @@ object OverlayControlMouse {
         val (normalMouseX, normalMouseY) = normalPoint(mouseX, mouseY)
         if (!GuiScaleController.usesSeparateInventoryScale(screen)) return normalMouseX to normalMouseY
         val scales = GuiScaleController.resolve(screen, window)
-        return GuiScaleController.convertCoordinate(normalMouseX, scales.normal(), scales.inventory()) to
-            GuiScaleController.convertCoordinate(normalMouseY, scales.normal(), scales.inventory())
+        return convertPoint(normalMouseX, normalMouseY, scales.normal(), scales.inventory())
     }
+
+    private fun convertPoint(x: Int, y: Int, sourceScale: Int, targetScale: Int): Pair<Int, Int> =
+        GuiScaleController.convertCoordinate(x, sourceScale, targetScale) to
+            GuiScaleController.convertCoordinate(y, sourceScale, targetScale)
 }

@@ -128,57 +128,6 @@ object TooltipViewport {
         return true
     }
 
-    private fun place(
-        original: ClientTooltipPositioner,
-        identity: Int,
-        anchorX: Int,
-        anchorY: Int,
-        viewportWidth: Int,
-        viewportHeight: Int,
-        x: Int,
-        y: Int,
-        tooltipWidth: Int,
-        tooltipHeight: Int,
-    ): Vector2ic {
-        val base = original.positionTooltip(viewportWidth, viewportHeight, x, y, tooltipWidth, tooltipHeight)
-        val screen = MinecraftClient.screen(minecraft)
-        val frame = TooltipPanFrame(
-            x = base.x(),
-            y = base.y(),
-            width = tooltipWidth,
-            height = tooltipHeight,
-            viewportWidth = viewportWidth,
-            viewportHeight = viewportHeight,
-        )
-        val now = System.nanoTime()
-        val isExpired = !hasVisibleSession(now)
-        val activeSession = session
-        val hasChangedTarget = activeSession == null || activeSession.screen !== screen ||
-            activeSession.isDifferentTarget(identity, anchorX, anchorY)
-
-        if (activeSession == null || activeSession.screen !== screen) {
-            session = TooltipPanSession(
-                screen = screen,
-                identity = identity,
-                anchorX = anchorX,
-                anchorY = anchorY,
-                frame = frame,
-                observedAt = now,
-                startOnTop = config().details.startOnTop,
-            )
-        } else {
-            activeSession.observe(identity, anchorX, anchorY, frame, now)
-            if (config().details.resetPositionWhenNotHovered && (isExpired || hasChangedTarget)) {
-                activeSession.center()
-                activeSession.alignTallTooltipToTop(config().details.startOnTop)
-            }
-        }
-
-        val currentSession = checkNotNull(session)
-        currentSession.advance(config().details.scrollSmoothness / PERCENT_SCALE)
-        return Vector2i(base.x() + currentSession.roundedX(), base.y() + currentSession.roundedY())
-    }
-
     private fun hasVisibleSession(): Boolean = hasVisibleSession(System.nanoTime())
 
     private fun hasVisibleSession(now: Long): Boolean {
@@ -237,18 +186,42 @@ object TooltipViewport {
             y: Int,
             tooltipWidth: Int,
             tooltipHeight: Int,
-        ): Vector2ic = place(
-            original,
-            identity,
-            anchorX,
-            anchorY,
-            screenWidth,
-            screenHeight,
-            x,
-            y,
-            tooltipWidth,
-            tooltipHeight,
-        )
+        ): Vector2ic {
+            val base = original.positionTooltip(screenWidth, screenHeight, x, y, tooltipWidth, tooltipHeight)
+            val screen = MinecraftClient.screen(minecraft)
+            val frame = TooltipPanFrame(
+                x = base.x(),
+                y = base.y(),
+                width = tooltipWidth,
+                height = tooltipHeight,
+                viewportWidth = screenWidth,
+                viewportHeight = screenHeight,
+            )
+            val now = System.nanoTime()
+            val isExpired = !hasVisibleSession(now)
+            val activeSession = session
+            if (activeSession == null || activeSession.screen !== screen) {
+                session = TooltipPanSession(
+                    screen = screen,
+                    identity = identity,
+                    anchorX = anchorX,
+                    anchorY = anchorY,
+                    frame = frame,
+                    observedAt = now,
+                    startOnTop = config().details.startOnTop,
+                )
+            } else {
+                val hasChangedTarget = activeSession.isDifferentTarget(identity, anchorX, anchorY)
+                activeSession.observe(identity, anchorX, anchorY, frame, now)
+                if (config().details.resetPositionWhenNotHovered && (isExpired || hasChangedTarget)) {
+                    activeSession.center()
+                    activeSession.alignTallTooltipToTop(config().details.startOnTop)
+                }
+            }
+            val currentSession = checkNotNull(session)
+            currentSession.advance(config().details.scrollSmoothness / PERCENT_SCALE)
+            return Vector2i(base.x() + currentSession.roundedX(), base.y() + currentSession.roundedY())
+        }
     }
 
     private const val VISIBILITY_GRACE_NANOS = 250_000_000L
