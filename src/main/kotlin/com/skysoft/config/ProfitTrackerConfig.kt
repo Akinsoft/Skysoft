@@ -169,6 +169,22 @@ class ProfitTrackerDetailsConfig(defaultSummaryLines: List<ProfitTrackerSummaryL
 
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Tabular Formatting",
+        desc = "Align quantities, item names, and values in consistent table columns.",
+    )
+    @field:ConfigEditorBoolean
+    var tabularFormatting = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Quantity Alignment", desc = "Choose how item quantities are aligned within their column.")
+    @field:ConfigVisibleIf("tabularFormatting")
+    @field:ConfigEditorDropdown
+    var quantityAlignment = ProfitTrackerQuantityAlignment.RIGHT
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Highlight Changes", desc = "Briefly highlight item quantities when they change.")
     @field:ConfigEditorBoolean
     var highlightChanges = true
@@ -198,6 +214,14 @@ enum class ProfitTrackerPriceSource(private val displayName: String) {
 }
 
 enum class ProfitTrackerQuantityPosition(private val displayName: String) {
+    LEFT("Left"),
+    RIGHT("Right"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class ProfitTrackerQuantityAlignment(private val displayName: String) {
     LEFT("Left"),
     RIGHT("Right"),
     ;
