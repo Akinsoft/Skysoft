@@ -38,7 +38,7 @@ public class EntityRendererMixin {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;shouldEntityAppearGlowing(Lnet/minecraft/world/entity/Entity;)Z")
     )
     protected boolean shouldSkysoftEntityAppearGlowing(Minecraft minecraft, Entity entity, Operation<Boolean> original) {
-        return original.call(minecraft, entity) || skysoftGetGlowColor(entity) != null;
+        return original.call(minecraft, entity) || EntityHighlightRenderer.getEntityGlowColor(entity) != null;
     }
 
     @WrapOperation(
@@ -47,11 +47,7 @@ public class EntityRendererMixin {
     )
     protected int skysoftGetTeamColor(Entity entity, Operation<Integer> original) {
         int originalColor = original.call(entity);
-        Integer color = skysoftGetGlowColor(entity);
+        Integer color = EntityHighlightRenderer.getEntityGlowColor(entity);
         return color != null ? color : originalColor;
-    }
-
-    private Integer skysoftGetGlowColor(Entity entity) {
-        return EntityHighlightRenderer.getEntityGlowColor(entity);
     }
 }

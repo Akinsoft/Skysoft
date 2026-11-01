@@ -100,7 +100,7 @@ object ContainerInputHooks {
     @JvmStatic
     fun isPointCovered(screen: AbstractContainerScreen<*>, mouseX: Double, mouseY: Double): Boolean =
         InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY)
-
-    private fun didConsume(boundary: String, action: () -> InputHandlingResult): Boolean =
-        SkysoftErrorBoundary.value(boundary, false) { action() == InputHandlingResult.CONSUMED }
 }
+
+internal fun didConsume(boundary: String, action: () -> InputHandlingResult): Boolean =
+    SkysoftErrorBoundary.value(boundary, false) { action() == InputHandlingResult.CONSUMED }

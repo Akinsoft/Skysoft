@@ -1,12 +1,10 @@
 package com.skysoft.mixin;
 
+import com.skysoft.integration.ContainerTransferHooks;
 import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.skysoft.data.skyblock.AttributeShardTransfers;
-import com.skysoft.data.skyblock.SkyBlockDroppedItems;
-import com.skysoft.data.skyblock.SkyBlockSackTransfers;
 import com.skysoft.features.helditem.HeldItemUpdateFix;
 import com.skysoft.utils.MinecraftClient;
 import com.skysoft.utils.input.InputEventInterceptor;
@@ -27,33 +25,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MultiPlayerGameMode.class)
 public class MultiPlayerGameModeMixin {
-    private static final int OUTSIDE_SLOT = -999;
-    private static final String HUNTING_BOX_TITLE = "Hunting Box";
-    private static final String SACK_OF_SACKS_TITLE = "Sack of Sacks";
-    private static final String INSERT_INVENTORY_NAME = "Insert inventory";
-
     @Inject(method = "handleContainerInput", at = @At("HEAD"))
     protected void skysoftTrackContainerTransfers(int containerId, int slotNum, int buttonNum, ContainerInput input, Player player, CallbackInfo ci) {
-        if (ci.isCancelled() || player.containerMenu.containerId != containerId) return;
-        Screen current = MinecraftClient.INSTANCE.screen();
-        AbstractContainerScreen<?> screen = current instanceof AbstractContainerScreen<?> container ? container : null;
-        boolean validSlot = slotNum >= 0 && slotNum < player.containerMenu.slots.size();
-        if (screen != null && screen.getMenu() == player.containerMenu && screen.getTitle().getString().equals(HUNTING_BOX_TITLE) && buttonNum == 1 && validSlot) {
-            AttributeShardTransfers.INSTANCE.recordRemoval(player.containerMenu.getSlot(slotNum).getItem());
-        }
-        if (screen != null && screen.getMenu() == player.containerMenu && screen.getTitle().getString().equals(SACK_OF_SACKS_TITLE) && validSlot && player.containerMenu.getSlot(slotNum).getItem().getHoverName().getString().equals(INSERT_INVENTORY_NAME)) {
-            SkyBlockSackTransfers.INSTANCE.recordInsertInventory();
-        }
-        ItemStack stack;
-        int amount;
-        if (input == ContainerInput.THROW && validSlot) {
-            stack = player.containerMenu.getSlot(slotNum).getItem();
-            amount = buttonNum == 0 ? 1 : stack.getCount();
-        } else if (input == ContainerInput.PICKUP && slotNum == OUTSIDE_SLOT) {
-            stack = player.containerMenu.getCarried();
-            amount = buttonNum == 0 ? stack.getCount() : 1;
-        } else return;
-        SkyBlockDroppedItems.INSTANCE.recordIntent(stack, amount);
+        ContainerTransferHooks.trackContainerInput(containerId, slotNum, buttonNum, input, player);
     }
 
     @WrapOperation(method = "sameDestroyTarget", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;isSameItemSameComponents(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Z"))

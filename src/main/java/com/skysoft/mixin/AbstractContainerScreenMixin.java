@@ -16,6 +16,7 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -25,17 +26,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class AbstractContainerScreenMixin {
     @Inject(method = "init()V", at = @At("TAIL"))
     private void skysoftLayoutContainerScreen(CallbackInfo ci) {
-        ContainerLifecycleHooks.layout((AbstractContainerScreen<?>) (Object) this);
+        ContainerLifecycleHooks.layout(skysoftScreen());
     }
 
     @Inject(method = "removed", at = @At("TAIL"))
     private void skysoftCleanUpContainerScreen(CallbackInfo ci) {
-        ContainerLifecycleHooks.removed((AbstractContainerScreen<?>) (Object) this);
+        ContainerLifecycleHooks.removed(skysoftScreen());
     }
 
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
     private void skysoftPrepareTooltip(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
-        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        AbstractContainerScreen<?> screen = skysoftScreen();
         if (ContainerTooltipHooks.shouldSuppressTooltip(screen)) {
             ci.cancel();
         } else {
@@ -46,24 +47,24 @@ public class AbstractContainerScreenMixin {
     @WrapOperation(method = "extractTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;getItem()Lnet/minecraft/world/item/ItemStack;"))
     private ItemStack skysoftTransformTooltipStack(Slot slot, Operation<ItemStack> original) {
         ItemStack stack = original.call(slot);
-        return ContainerTooltipHooks.tooltipStack((AbstractContainerScreen<?>) (Object) this, slot, stack);
+        return ContainerTooltipHooks.tooltipStack(skysoftScreen(), slot, stack);
     }
 
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
     private void skysoftSuppressContainerLabels(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
-        if (ContainerTooltipHooks.shouldSuppressLabels((AbstractContainerScreen<?>) (Object) this)) ci.cancel();
+        if (ContainerTooltipHooks.shouldSuppressLabels(skysoftScreen())) ci.cancel();
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void skysoftClickContainerOverlay(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (ContainerInputHooks.didConsumeMouseClick((AbstractContainerScreen<?>) (Object) this, click, doubled)) {
+        if (ContainerInputHooks.didConsumeMouseClick(skysoftScreen(), click, doubled)) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void skysoftReleaseContainerOverlay(MouseButtonEvent click, CallbackInfoReturnable<Boolean> cir) {
-        if (ContainerInputHooks.didConsumeMouseRelease((AbstractContainerScreen<?>) (Object) this, click)) {
+        if (ContainerInputHooks.didConsumeMouseRelease(skysoftScreen(), click)) {
             cir.setReturnValue(true);
         }
     }
@@ -75,7 +76,7 @@ public class AbstractContainerScreenMixin {
         double deltaY,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (ContainerInputHooks.didConsumeMouseDrag((AbstractContainerScreen<?>) (Object) this, click)) {
+        if (ContainerInputHooks.didConsumeMouseDrag(skysoftScreen(), click)) {
             cir.setReturnValue(true);
         }
     }
@@ -152,14 +153,14 @@ public class AbstractContainerScreenMixin {
         double verticalAmount,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (ContainerInputHooks.didConsumeMouseScroll((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY, verticalAmount)) {
+        if (ContainerInputHooks.didConsumeMouseScroll(skysoftScreen(), mouseX, mouseY, verticalAmount)) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     protected void skysoftKeyContainerOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (ContainerInputHooks.didConsumeKeyPress((AbstractContainerScreen<?>) (Object) this, event)) {
+        if (ContainerInputHooks.didConsumeKeyPress(skysoftScreen(), event)) {
             cir.setReturnValue(true);
         }
     }
@@ -181,7 +182,7 @@ public class AbstractContainerScreenMixin {
         Operation<Void> original
     ) {
         ContainerSlotInputHooks.handleContainerInput(
-            (AbstractContainerScreen<?>) (Object) this,
+            skysoftScreen(),
             slotId,
             action,
             player,
@@ -197,15 +198,20 @@ public class AbstractContainerScreenMixin {
         int top,
         CallbackInfoReturnable<Boolean> cir
     ) {
-        if (ContainerInputHooks.isPointCovered((AbstractContainerScreen<?>) (Object) this, mouseX, mouseY)) {
+        if (ContainerInputHooks.isPointCovered(skysoftScreen(), mouseX, mouseY)) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V", at = @At("HEAD"), cancellable = true)
     protected void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
-        if (ContainerSlotInputHooks.didConsumeSlotClick((AbstractContainerScreen<?>) (Object) this, slot, slotId, button, action)) {
+        if (ContainerSlotInputHooks.didConsumeSlotClick(skysoftScreen(), slot, slotId, button, action)) {
             ci.cancel();
         }
+    }
+
+    @Unique
+    private AbstractContainerScreen<?> skysoftScreen() {
+        return (AbstractContainerScreen<?>) (Object) this;
     }
 }

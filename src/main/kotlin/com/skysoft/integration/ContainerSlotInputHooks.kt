@@ -74,7 +74,4 @@ object ContainerSlotInputHooks {
             SkyBlockMenuInventoryDropFix.finishContainerThrow(guard)
         }
     }
-
-    private fun didConsume(boundary: String, action: () -> InputHandlingResult): Boolean =
-        SkysoftErrorBoundary.value(boundary, false) { action() == InputHandlingResult.CONSUMED }
 }

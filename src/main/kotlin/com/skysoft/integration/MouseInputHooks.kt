@@ -13,7 +13,6 @@ import com.skysoft.gui.tooltip.TooltipScrollPriorityScreen
 import com.skysoft.gui.tooltip.TooltipViewport
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary
-import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
@@ -46,9 +45,9 @@ object MouseInputHooks {
     @JvmStatic
     fun tryHandleButton(button: Int, action: Int): Boolean {
         if (action != InputConstants.PRESS) return false
-        return didConsumeButton("Screenshot Capture Preview mouse control") {
+        return didConsume("Screenshot Capture Preview mouse control") {
             ScreenshotCapturePreview.processMouseButtonPress(button)
-        } || didConsumeButton("Bazaar Tracker mouse control") {
+        } || didConsume("Bazaar Tracker mouse control") {
             BazaarTracker.handleMouseButtonPress(button)
         }
     }
@@ -81,9 +80,6 @@ object MouseInputHooks {
     @JvmStatic
     fun inventoryScaledY(window: Window, yPosition: Double): Double? =
         inventoryScaledCoordinate(window, yPosition, isXAxis = false)
-
-    private fun didConsumeButton(boundary: String, action: () -> InputHandlingResult): Boolean =
-        SkysoftErrorBoundary.value(boundary, false) { action() == InputHandlingResult.CONSUMED }
 
     private fun inventoryScaledCoordinate(window: Window, position: Double, isXAxis: Boolean): Double? =
         SkysoftErrorBoundary.value(

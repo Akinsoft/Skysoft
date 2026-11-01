@@ -29,6 +29,7 @@ public class TabListPacketMixin {
         markDirty();
     }
 
+    @Unique
     private static boolean affectsSnapshot(ClientboundPlayerInfoUpdatePacket packet) {
         return packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER)
             || packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE)
