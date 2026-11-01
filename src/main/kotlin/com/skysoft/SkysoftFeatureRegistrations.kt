@@ -100,6 +100,7 @@ import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
 import com.skysoft.features.misc.SkyBlockLevelBar
+import com.skysoft.features.misc.ToggleStateIssuesFix
 import com.skysoft.features.misc.Zoom
 import com.skysoft.features.waypoints.Waypoints
 import com.skysoft.features.misc.actionbar.ActionBarCustomizer
@@ -253,6 +254,7 @@ internal object SkysoftFeatureRegistrations {
         register("Tab List Position Editor", TabListPositionEditor::register)
         register("Scoreboard Position Editor", ScoreboardPositionEditor::register)
         register("Player Head Skin Fix", PlayerHeadSkinFix::register)
+        register("Toggle State Issues Fix", ToggleStateIssuesFix::register)
         register("Auto Sprint", AutoSprint::register)
         register("Block Overlay", BlockOverlay::register)
         register("Screenshot Manager", ScreenshotManager::register)

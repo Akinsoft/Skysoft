@@ -8,6 +8,16 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 class FixesConfig {
     @JvmField
     @field:Expose
+    @field:ConfigOption(
+        name = "Fix Toggle State Issues",
+        desc = "Resets Attack/Destroy and Use Item/Place Block toggle state when opening a screen.",
+    )
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var fixToggleStateIssues = false
+
+    @JvmField
+    @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
         name = "Menu Drop Fix",
