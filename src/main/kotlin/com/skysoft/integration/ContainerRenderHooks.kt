@@ -50,9 +50,7 @@ object ContainerRenderHooks {
 
     @JvmStatic
     fun renderContentsTail(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, pointerX: Int, pointerY: Int) {
-        val covered = GuiOverlayRegistry.isScreenPointCovered(pointerX, pointerY)
-        val mouseX = if (covered) -1 else pointerX
-        val mouseY = if (covered) -1 else pointerY
+        val (mouseX, mouseY) = uncoveredPointer(pointerX, pointerY)
         SkysoftErrorBoundary.run("Smooth Swapping rendering") {
             SmoothSwapping.render(screen, context)
         }
@@ -72,10 +70,13 @@ object ContainerRenderHooks {
     @JvmStatic
     fun renderEquipment(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
         SkysoftErrorBoundary.run("Inventory Equipment rendering") {
-            val covered = GuiOverlayRegistry.isScreenPointCovered(mouseX, mouseY)
-            InventoryEquipment.render(screen, context, if (covered) -1 else mouseX, if (covered) -1 else mouseY)
+            val (pointerX, pointerY) = uncoveredPointer(mouseX, mouseY)
+            InventoryEquipment.render(screen, context, pointerX, pointerY)
         }
     }
+
+    private fun uncoveredPointer(pointerX: Int, pointerY: Int): Pair<Int, Int> =
+        if (GuiOverlayRegistry.isScreenPointCovered(pointerX, pointerY)) -1 to -1 else pointerX to pointerY
 
     @JvmStatic
     fun renderSlotBackgrounds(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) {
