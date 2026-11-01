@@ -16,9 +16,7 @@ final class WaypointerCompact {
         group.skipAhead = (control & 2) == 0;
         group.zone = zone(input);
         if (noNames) {
-            WaypointBytes coordinates = input.section(2_097_152);
-            for (int[] position : WaypointerEntropy.read(coordinates, false)) group.points.add(new WaypointerRouteData.Point(position));
-            coordinates.end();
+            group.addPoints(WaypointerEntropy.readToEnd(input.section(WaypointerDecoder.MAX_BYTES), false));
         } else {
             group.name = groupName(input, group.zone);
             payload(input, group);
@@ -42,7 +40,7 @@ final class WaypointerCompact {
     }
 
     private static void payload(WaypointBytes input, WaypointerRouteData.Group group) {
-        int count = input.count(20000);
+        int count = input.count(WaypointerDecoder.MAX_GROUP_POINTS);
         String[] names = names(input, count);
         int[] colors = colors(input, count);
         int[][] coordinates = WaypointerCoordinates.read(input, count, 6, true);

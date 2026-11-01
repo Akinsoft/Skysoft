@@ -1,7 +1,9 @@
 package com.skysoft.features.waypoints
 
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.WorldVec
 import com.skysoft.utils.gui.Rect
+import kotlin.math.abs
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 
@@ -29,19 +31,19 @@ internal class WaypointPointScreen private constructor(
         val positionY = y + BUTTON_ROW + FIELD_ROW
         val canMove = Waypoints.isInContext(group)
         painter.action(Rect(x, positionY, half, FIELD_HEIGHT), "Move to feet", enabled = canMove && WaypointPlacement.feet != null) {
-            WaypointPlacement.feet?.let { position -> setPosition(position.x, position.y, position.z) }
+            WaypointPlacement.feet?.let(::setPosition)
         }
         painter.action(
             Rect(x + half + GAP, positionY, half, FIELD_HEIGHT), "Move to crosshair",
             enabled = canMove && WaypointPlacement.crosshair != null
         ) {
-            WaypointPlacement.crosshair?.let { position -> setPosition(position.x, position.y, position.z) }
+            WaypointPlacement.crosshair?.let(::setPosition)
         }
         val detailY = positionY + BUTTON_ROW
         form.draw(context, opacity, radius, "Arrival distance", Rect(x, detailY, half, FIELD_ROW))
         painter.action(Rect(x + half + GAP, detailY + FIELD_LABEL_HEIGHT, half, FIELD_HEIGHT), "Color") {
-            val saved = WaypointLibrary.groups.firstOrNull { it.id == group.id } ?: error("This preset is no longer available.")
-            val current = saved.points.firstOrNull { it.id == point.id } ?: error("This point is no longer available.")
+            val saved = WaypointLibrary.group(group.id) ?: error("This preset is no longer available.")
+            val current = saved.point(point.id) ?: error("This point is no longer available.")
             WaypointColorPicker.open(saved, current, saved.points.indexOf(current), this)
         }
         val styleY = detailY + FIELD_ROW
@@ -65,14 +67,14 @@ internal class WaypointPointScreen private constructor(
         }
     }
 
-    private fun setPosition(x: Double, y: Double, z: Double) {
-        xField.text = waypointCoordinate(x)
-        yField.text = waypointCoordinate(y)
-        zField.text = waypointCoordinate(z)
+    private fun setPosition(position: WorldVec) {
+        xField.text = waypointCoordinate(position.x)
+        yField.text = waypointCoordinate(position.y)
+        zField.text = waypointCoordinate(position.z)
     }
 
     private fun savePoint() {
-        val current = WaypointLibrary.groups.firstOrNull { it.id == group.id }?.points?.firstOrNull { it.id == point.id }
+        val current = WaypointLibrary.group(group.id)?.point(point.id)
         require(current != null) { "This point is no longer available." }
         val updated = current.copy(
             name = name.text.trim(),
@@ -98,7 +100,7 @@ internal class WaypointPointScreen private constructor(
 
         private fun parseCoordinate(text: String): Double {
             val coordinate = text.trim().toDoubleOrNull()
-            require(coordinate != null && coordinate.isFinite() && kotlin.math.abs(coordinate) <= MAX_WAYPOINT_COORDINATE) {
+            require(coordinate != null && coordinate.isFinite() && abs(coordinate) <= MAX_WAYPOINT_COORDINATE) {
                 "Coordinates must be numbers within world bounds."
             }
             return coordinate

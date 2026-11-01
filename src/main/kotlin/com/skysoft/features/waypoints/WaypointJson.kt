@@ -11,6 +11,8 @@ internal object WaypointJson {
     const val MAX_JSON_BYTES = 8L * 1024 * 1024
     const val VERSION = 2
 
+    fun fitsSizeLimit(text: String): Boolean = text.toByteArray(Charsets.UTF_8).size <= MAX_JSON_BYTES
+
     fun encodeLibrary(groups: List<WaypointGroup>): String = gson.toJson(
         JsonObject().apply {
             addProperty("version", VERSION)

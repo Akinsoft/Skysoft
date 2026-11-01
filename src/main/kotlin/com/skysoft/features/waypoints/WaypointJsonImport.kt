@@ -3,6 +3,8 @@ package com.skysoft.features.waypoints
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.skysoft.utils.ColorUtilities.packRgb
+import kotlin.math.round
 
 internal object WaypointJsonImport {
     fun decode(root: JsonElement, source: String?): WaypointImport {
@@ -144,12 +146,12 @@ internal object WaypointJsonImport {
 
     private fun normalizedChannel(value: Double): Int {
         require(value.isFinite() && value in 0.0..1.0) { "Normalized RGB channels must be between 0 and 1." }
-        return kotlin.math.round(value * CHANNEL_MAX).toInt()
+        return round(value * CHANNEL_MAX).toInt()
     }
 
     private fun rgb(channels: List<Int>): Int {
         require(channels.all { it in 0..CHANNEL_MAX }) { "RGB channels must be between 0 and 255." }
-        return (channels[0] shl RED_SHIFT) or (channels[1] shl GREEN_SHIFT) or channels[2]
+        return packRgb(channels[0], channels[1], channels[2])
     }
 
     private val AXES = listOf("x", "y", "z")
@@ -159,6 +161,4 @@ internal object WaypointJsonImport {
     private const val SKYTILS_COMPONENTS = 5
     private const val HEX = 16
     private const val CHANNEL_MAX = 255
-    private const val RED_SHIFT = 16
-    private const val GREEN_SHIFT = 8
 }

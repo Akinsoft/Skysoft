@@ -19,6 +19,10 @@ public final class WaypointerRouteData {
         public int startColor = 0x00bfff;
         public int endColor = 0xff3040;
         public final List<Point> points = new ArrayList<>();
+
+        void addPoints(int[][] positions) {
+            for (int[] position : positions) points.add(new Point(position));
+        }
     }
 
     public static final class Point {

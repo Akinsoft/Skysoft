@@ -12,6 +12,7 @@ import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.PixelControlColors
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.enableScissor
 import com.skysoft.utils.input.InputHandlingResult
 import java.util.concurrent.CompletableFuture
 import net.minecraft.client.Minecraft
@@ -82,7 +83,7 @@ internal abstract class WaypointDialog(
             if (interactive && viewport.contains(mouseX, mouseY)) mouseY else -1,
             alpha, interactive,
         )
-        context.enableScissor(viewport.x, viewport.y, viewport.x + viewport.width, viewport.y + viewport.height)
+        context.enableScissor(viewport)
         try {
             drawBody(context, bodyPainter, viewport.x, viewport.y - scroll, viewport.width)
         } finally {

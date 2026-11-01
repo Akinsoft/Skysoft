@@ -21,7 +21,7 @@ internal object WaypointTransferFiles {
     fun save(json: () -> String): CompletableFuture<Path?> =
         CompletableFuture.supplyAsync({
             json().also {
-                require(it.toByteArray(Charsets.UTF_8).size <= WaypointJson.MAX_JSON_BYTES) { "Waypoint export exceeds 8 MB." }
+                require(WaypointJson.fitsSizeLimit(it)) { "Waypoint export exceeds 8 MB." }
             }
         }, Util.ioPool()).thenComposeAsync({ content ->
             MinecraftFileDialogs.saveFile("Export Waypoints", "Skysoft-waypoints.json", exportFilter)

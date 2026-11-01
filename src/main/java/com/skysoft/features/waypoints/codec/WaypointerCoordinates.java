@@ -7,11 +7,9 @@ final class WaypointerCoordinates {
     private WaypointerCoordinates() {}
 
     static int[][] read(WaypointBytes input, int count, int mode, boolean trained) {
-        WaypointBytes.require(count >= 0 && count <= 20000, "Too many Waypointer points.");
+        WaypointBytes.require(count >= 0 && count <= WaypointerDecoder.MAX_GROUP_POINTS, "Too many Waypointer points.");
         if (mode == 7) {
-            WaypointBytes section = input.section(2_097_152);
-            int[][] values = WaypointerEntropy.read(section, false);
-            section.end();
+            int[][] values = WaypointerEntropy.readToEnd(input.section(WaypointerDecoder.MAX_BYTES), false);
             WaypointBytes.require(values.length == count, "Waypointer coordinate count does not match the group.");
             return values;
         }
@@ -66,7 +64,7 @@ final class WaypointerCoordinates {
 
     private static void range(WaypointBytes input, int[][] points, int[] widths, boolean trained) {
         int limit = Math.max(16, (points.length - 1) * Arrays.stream(widths).sum() + 16);
-        byte[] bytes = input.bytes(input.count(Math.min(2_097_152, limit)));
+        byte[] bytes = input.bytes(input.count(Math.min(WaypointerDecoder.MAX_BYTES, limit)));
         Range decoder = new Range(bytes, trained);
         for (int axis = 0; axis < 3; axis++) for (int i = 1; i < points.length; i++) {
             long value = 0;
@@ -110,6 +108,11 @@ final class WaypointerCoordinates {
         return probabilities;
     }
 
+    private static void adapt(int[] probabilities, int context, int bit) {
+        if (bit == 0) probabilities[context] += (4096 - probabilities[context]) >>> 4;
+        else probabilities[context] -= probabilities[context] >>> 4;
+    }
+
     private static final class Range {
         private final byte[] bytes;
         private final int[] probabilities;
@@ -127,14 +130,12 @@ final class WaypointerCoordinates {
         int bit(int context) {
             long bound = (range >>> 12) * probabilities[context];
             int bit = ((code - low) & 0xffffffffL) < bound ? 0 : 1;
-            if (bit == 0) {
-                range = bound;
-                probabilities[context] += (4096 - probabilities[context]) >>> 4;
-            } else {
+            if (bit == 0) range = bound;
+            else {
                 low = (low + bound) & 0xffffffffL;
                 range = (range - bound) & 0xffffffffL;
-                probabilities[context] -= probabilities[context] >>> 4;
             }
+            adapt(probabilities, context, bit);
             while ((low ^ (low + range)) < (1L << 24) || range < (1L << 16)) {
                 if ((low ^ (low + range)) >= (1L << 24)) range = (-low) & 65535;
                 low = (low << 8) & 0xffffffffL;
@@ -155,14 +156,12 @@ final class WaypointerCoordinates {
 
         void bit(int context, int bit) {
             long bound = (range >>> 12) * probabilities[context];
-            if (bit == 0) {
-                range = bound;
-                probabilities[context] += (4096 - probabilities[context]) >>> 4;
-            } else {
+            if (bit == 0) range = bound;
+            else {
                 low = (low + bound) & 0xffffffffL;
                 range = (range - bound) & 0xffffffffL;
-                probabilities[context] -= probabilities[context] >>> 4;
             }
+            adapt(probabilities, context, bit);
             while ((low ^ (low + range)) < (1L << 24) || range < (1L << 16)) {
                 if ((low ^ (low + range)) >= (1L << 24)) range = (-low) & 65535;
                 output.write((int) (low >>> 24) & 255);

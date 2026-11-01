@@ -9,7 +9,7 @@ import java.io.StringReader
 
 internal object WaypointJsonInput {
     fun parse(text: String): JsonElement {
-        require(text.toByteArray(Charsets.UTF_8).size <= WaypointJson.MAX_JSON_BYTES) { "Waypoint JSON exceeds 8 MB." }
+        require(WaypointJson.fitsSizeLimit(text)) { "Waypoint JSON exceeds 8 MB." }
         JsonReader(StringReader(text)).use { reader ->
             reader.strictness = Strictness.STRICT
             val fields = ArrayDeque<MutableSet<String>?>()

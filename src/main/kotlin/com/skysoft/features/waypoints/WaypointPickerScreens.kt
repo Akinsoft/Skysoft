@@ -3,7 +3,6 @@ package com.skysoft.features.waypoints
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.gui.PixelControlColors
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import net.minecraft.client.Minecraft
@@ -122,10 +121,9 @@ internal object WaypointPresetList {
                 row.copy(width = row.width - OPEN_WIDTH - VISIBILITY_WIDTH), group.name,
                 selected = group.id == Waypoints.selection.groupId, leftAligned = true, tooltip = waypointPresetTooltip(group),
             ) { Waypoints.select(group) }
-            painter.cycle(
+            painter.visibility(
                 Rect(row.x + row.width - OPEN_WIDTH - VISIBILITY_WIDTH, row.y, VISIBILITY_WIDTH, row.height),
-                "Visibility", listOf(false, true), group.enabled, label = { if (it) "On" else "Off" },
-                color = if (group.enabled) ENABLED_COLOR else PixelControlColors.MUTED_TEXT,
+                listOf(false, true), group.enabled,
             ) { Waypoints.updateGroup(group.copy(enabled = it)) }
             painter.action(Rect(row.x + row.width - OPEN_WIDTH, row.y, OPEN_WIDTH, row.height), "Open") {
                 Waypoints.select(group)
@@ -167,7 +165,7 @@ internal object WaypointPresetList {
         painter.action(cells[0], "New preset", enabled = canEdit && island != null) { WaypointGroupScreen.create() }
         painter.action(cells[1], "Import", enabled = canEdit) { WaypointImportScreen.open() }
         painter.action(cells[SHARE_COLUMN], "Share", enabled = WaypointLibrary.groups.isNotEmpty()) { WaypointShareScreen.open() }
-        painter.action(cells.last(), settingsLabel, color = 0xFF55FFFF.toInt()) {
+        painter.action(cells.last(), settingsLabel, color = WAYPOINT_SETTINGS_COLOR) {
             if (Waypoints.config.enabled) WaypointSettingsPanel.toggle() else WaypointPanel.enable()
         }
     }
@@ -175,7 +173,6 @@ internal object WaypointPresetList {
     private const val OPEN_WIDTH = 42
     private const val VISIBILITY_WIDTH = 36
     private const val SHARE_COLUMN = 2
-    private const val ENABLED_COLOR = 0xFF55FF55.toInt()
     private const val EMPTY_MESSAGE = "No presets found. Create one below or import a route."
 }
 

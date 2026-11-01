@@ -6,8 +6,14 @@ import java.util.Arrays;
 final class WaypointerEntropy {
     private WaypointerEntropy() {}
 
+    static int[][] readToEnd(WaypointBytes input, boolean delta) {
+        int[][] points = read(input, delta);
+        input.end();
+        return points;
+    }
+
     static int[][] read(WaypointBytes input, boolean delta) {
-        int count = input.count(20000);
+        int count = input.count(WaypointerDecoder.MAX_GROUP_POINTS);
         int[][] points = new int[count][3];
         if (count == 0) return points;
         for (int axis = 0; axis < 3; axis++) points[0][axis] = WaypointerCoordinates.coordinate(input.signed(32));

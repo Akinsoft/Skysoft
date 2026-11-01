@@ -22,7 +22,7 @@ internal data class WaypointPanelLayout(
     val routeControlsTop: Int get() = footerTop + if (showPlacementControls) SECTION_STEP else 0
     val actionsTop: Int get() = routeControlsTop + if (showRouteControls) SECTION_STEP else 0
 
-    fun row(offset: Int): Rect = Rect(bounds.x + INSET, offset, contentWidth, BUTTON_HEIGHT)
+    fun row(offset: Int): Rect = Rect(bounds.x + INSET, offset, contentWidth, ROW_HEIGHT)
 
     fun beside(preferredWidth: Int, preferredHeight: Int, screenWidth: Int, screenHeight: Int): Rect {
         val width = minOf(preferredWidth, screenWidth - MARGIN * 2).coerceAtLeast(1)
@@ -41,11 +41,10 @@ internal data class WaypointPanelLayout(
         const val INSET = 5
         const val HEADER = 17
         const val GAP = 3
-        const val BUTTON_HEIGHT = OverlayTextStyle.ROW_HEIGHT
         const val ROW_HEIGHT = OverlayTextStyle.ROW_HEIGHT
         private const val PRESET_LIST_TOP = HEADER + ROW_HEIGHT + GAP + WaypointForm.FIELD_HEIGHT + GAP
         const val INDICATOR_HEIGHT = 12
-        const val SECTION_STEP = BUTTON_HEIGHT + GAP
+        const val SECTION_STEP = ROW_HEIGHT + GAP
         const val MARGIN = 4
         private const val CONTROL_GAP = 6
         private const val SIDE_GAP = 4

@@ -9,6 +9,7 @@ import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelStyle
 import com.skysoft.utils.toWorldVec
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
@@ -51,7 +52,7 @@ internal object WaypointWorldSelection {
         val labelPosition = project(label)
         if (anchor == null && labelPosition == null) return
         val distance = camera.distance(label).coerceAtLeast(MIN_DISTANCE)
-        val pixelsPerWorldUnit = height * kotlin.math.abs(verticalProjection) / ((labelPosition?.depth ?: distance) * 2)
+        val pixelsPerWorldUnit = height * abs(verticalProjection) / ((labelPosition?.depth ?: distance) * 2)
         val pixelsPerTextUnit = style.worldScale * style.scaleAt(distance) * pixelsPerWorldUnit
         val halfWidth = (Minecraft.getInstance().font.width(text) * pixelsPerTextUnit / 2).roundToInt().coerceAtLeast(MIN_HIT_RADIUS)
         val halfHeight = (style.lineHeight * pixelsPerTextUnit / 2).roundToInt().coerceAtLeast(MIN_HIT_RADIUS)
@@ -66,10 +67,8 @@ internal object WaypointWorldSelection {
 
     fun didSelectAt(x: Int, y: Int): Boolean {
         val target = targetAt(x, y) ?: return false
-        val group = WaypointLibrary.groups.firstOrNull {
-            it.id == target.groupId && it.enabled && Waypoints.isInContext(it)
-        } ?: return false
-        val point = group.points.firstOrNull { it.id == target.pointId && it.enabled } ?: return false
+        val group = WaypointLibrary.group(target.groupId)?.takeIf { it.enabled && Waypoints.isInContext(it) } ?: return false
+        val point = group.point(target.pointId)?.takeIf { it.enabled } ?: return false
         Waypoints.select(group, point)
         return true
     }

@@ -7,16 +7,14 @@ final class WaypointerSparse {
     private WaypointerSparse() {}
 
     static WaypointerRouteData.Group read(WaypointBytes input, boolean delta) {
-        int selector = input.count(2_097_152);
+        int selector = input.count(WaypointerDecoder.MAX_BYTES);
         WaypointerRouteData.Group group = new WaypointerRouteData.Group();
         if (selector >= 2) {
-            WaypointBytes coordinates = new WaypointBytes(input.bytes(selector));
-            for (int[] point : WaypointerEntropy.read(coordinates, delta)) group.points.add(new WaypointerRouteData.Point(point));
-            coordinates.end();
+            group.addPoints(WaypointerEntropy.readToEnd(new WaypointBytes(input.bytes(selector)), delta));
             split(input, group);
         } else {
             List<Entry> entries = unified(input, selector);
-            for (int[] point : WaypointerEntropy.read(input, delta)) group.points.add(new WaypointerRouteData.Point(point));
+            group.addPoints(WaypointerEntropy.read(input, delta));
             for (Entry entry : entries) {
                 WaypointBytes.require(entry.index < group.points.size(), "Waypointer metadata index exceeds its route.");
                 WaypointerRouteData.Point point = group.points.get(entry.index);
@@ -82,7 +80,7 @@ final class WaypointerSparse {
     }
 
     private static List<Entry> unified(WaypointBytes input, int selector) {
-        List<Integer> indexes = indexes(input, 20000, 2);
+        List<Integer> indexes = indexes(input, WaypointerDecoder.MAX_GROUP_POINTS, 2);
         WaypointBytes.Bits bits = new WaypointBytes.Bits(input, true);
         boolean anySub = true;
         boolean allSub = false;
