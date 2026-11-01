@@ -2,30 +2,21 @@ package com.skysoft.config
 
 import com.skysoft.features.event.diana.DianaParticleQuality
 import com.skysoft.features.event.diana.DianaParticleQualityStatus
-import io.github.notenoughupdates.moulconfig.gui.GuiComponent
-import io.github.notenoughupdates.moulconfig.gui.editors.ComponentEditor
 import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class ConfigEditorParticleQuality
 
-class DianaParticleQualityEditor(option: ProcessedOption) : ComponentEditor(option) {
-    private val component = wrapComponent(
-        SkysoftStatusButtonComponent(
-            statusText = ::statusText,
-            statusColor = ::statusColor,
-            buttonText = { "Do it" },
-            onClick = DianaParticleQuality::setExtreme,
-        ),
-    )
+class DianaParticleQualityEditor(option: ProcessedOption) :
+    SkysoftStatusButtonEditor(option, "particle quality pq extreme burrow") {
+    override fun buttonText(): String = "Do it"
 
-    override fun getDelegate(): GuiComponent = component
+    override fun click() {
+        DianaParticleQuality.setExtreme()
+    }
 
-    override fun fulfillsSearch(word: String): Boolean =
-        super.fulfillsSearch(word) || word in "particle quality pq extreme burrow"
-
-    private fun statusText(): String =
+    override fun statusText(): String =
         when (DianaParticleQuality.status()) {
             DianaParticleQualityStatus.UNKNOWN -> "Unknown"
             DianaParticleQualityStatus.CHECKING -> "Checking..."
@@ -33,7 +24,7 @@ class DianaParticleQualityEditor(option: ProcessedOption) : ComponentEditor(opti
             DianaParticleQualityStatus.NOT_SET -> "Not set"
         }
 
-    private fun statusColor(): Int =
+    override fun statusColor(): Int =
         when (DianaParticleQuality.status()) {
             DianaParticleQualityStatus.UNKNOWN,
             DianaParticleQualityStatus.CHECKING,

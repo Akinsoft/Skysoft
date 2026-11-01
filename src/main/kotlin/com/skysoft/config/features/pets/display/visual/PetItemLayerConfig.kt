@@ -1,6 +1,7 @@
 package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.repairPositiveFloat
 import com.skysoft.config.features.pets.display.ScalableOverlayConfig
 import com.skysoft.utils.gui.GuiAlignment.HorizontalAlignment
@@ -13,7 +14,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 
 class PetItemLayerConfig(
     override val scalar: Float = 1.0f,
-) : ScalableOverlayConfig {
+) : ScalableOverlayConfig, ConfigRepairable {
     @Expose
     @ConfigOption(name = "Enabled", desc = "Display the pet's held item as an itemstack.")
     @ConfigEditorBoolean
@@ -48,7 +49,7 @@ class PetItemLayerConfig(
     @ConfigEditorSlider(minValue = 0.1f, maxValue = 2.0f, minStep = 0.1f)
     val scale: Property<Float> = Property.of(DEFAULT_ITEM_SCALE)
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         scale.repairPositiveFloat(MIN_ITEM_SCALE, MAX_ITEM_SCALE, DEFAULT_ITEM_SCALE)
     }
 

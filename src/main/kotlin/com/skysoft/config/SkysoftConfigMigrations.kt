@@ -2,8 +2,8 @@ package com.skysoft.config
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
+import com.skysoft.data.ProfileStorageApi
 import java.util.Locale
 
 internal object SkysoftConfigMigrations {
@@ -25,21 +25,11 @@ internal object SkysoftConfigMigrations {
         }
         if (migrationVersion < DIANA_AND_TERRAIN_SETTINGS_VERSION) migrateDianaAndTerrainSettings(json)
         migrateOrganizedConfigLayout(json)
-        if (migrationVersion < PRICE_TOOLTIP_CUSTOMIZATION_VERSION) {
-            migratePriceTooltipCustomization(json)
-        }
-        if (migrationVersion < CONFIG_MENU_ORGANIZATION_VERSION) {
-            ConfigMenuOrganizationMigration.apply(json)
-        }
-        if (migrationVersion < INVENTORY_EQUIPMENT_CATEGORY_VERSION) {
-            migrateInventoryEquipmentIntoCategory(json)
-        }
-        if (migrationVersion < MODERN_STORAGE_OVERLAY_VERSION) {
-            migrateEnabledStorageOverlayToModern(json)
-        }
-        if (migrationVersion < BETTER_SHURIKENS_CATEGORY_VERSION) {
-            migrateBetterShurikensIntoCategory(json)
-        }
+        if (migrationVersion < PRICE_TOOLTIP_CUSTOMIZATION_VERSION) migratePriceTooltipCustomization(json)
+        if (migrationVersion < CONFIG_MENU_ORGANIZATION_VERSION) ConfigMenuOrganizationMigration.apply(json)
+        if (migrationVersion < INVENTORY_EQUIPMENT_CATEGORY_VERSION) migrateInventoryEquipmentIntoCategory(json)
+        if (migrationVersion < MODERN_STORAGE_OVERLAY_VERSION) migrateEnabledStorageOverlayToModern(json)
+        if (migrationVersion < BETTER_SHURIKENS_CATEGORY_VERSION) migrateBetterShurikensIntoCategory(json)
         if (migrationVersion < VANILLA_UI_CATEGORY_VERSION) migrateVanillaUiCategory(json)
         if (migrationVersion < MENU_DROP_FIX_SAFETY_VERSION) {
             json.getObjectOrNull("fixes")
@@ -49,27 +39,22 @@ internal object SkysoftConfigMigrations {
         if (migrationVersion < SELECTIVE_CUSTOM_BAR_ICONS_VERSION) migrateCustomBarIcons(json)
         if (migrationVersion < CUSTOM_BAR_DISPLAY_MODES_VERSION) migrateCustomBarDisplayModes(json)
         if (migrationVersion < MAX_ENCHANT_CHROMA_CATEGORY_VERSION) {
-            json.getObjectOrNull("inventory")?.let { inventoryJson ->
-                val legacyEnabled = inventoryJson.get("maxEnchantChroma")?.takeUnless { it.isJsonObject }
-                if (legacyEnabled != null) {
-                    inventoryJson.add(
-                        "maxEnchantChroma",
-                        JsonObject().also { it.add("enabled", legacyEnabled.deepCopy()) },
-                    )
-                }
-            }
+            json.getObjectOrNull("inventory")?.wrapFieldAsEnabled("maxEnchantChroma") { !it.isJsonObject }
         }
         if (migrationVersion < SPOTIFY_LYRICS_MODE_VERSION) migrateSpotifyLyricsMode(json)
         if (migrationVersion < SERVER_INFO_METRIC_COLORS_VERSION) migrateServerInfoMetricColors(json)
-        migrateCursorPositionPreservation(json, migrationVersion)
-        migrateDianaParticleQualitySetup(json, migrationVersion)
+        if (migrationVersion < CURSOR_POSITION_PRESERVATION_CATEGORY_VERSION) migrateCursorPositionPreservation(json)
+        if (migrationVersion < PARTICLE_QUALITY_SETUP_VERSION) migrateDianaParticleQualitySetup(json)
         if (migrationVersion < MOUSE_LOCK_FARMING_CATEGORY_VERSION) migrateMouseLockIntoFarming(json)
-        migrateHoneyhiveHelper(json, migrationVersion)
+        if (migrationVersion < HONEYHIVE_HELPER_CATEGORY_VERSION) migrateHoneyhiveHelper(json)
         if (migrationVersion < STORAGE_OVERLAY_CATEGORY_VERSION) migrateStorageOverlayCategory(json)
         if (migrationVersion < SETTINGS_APPEARANCE_ACCORDIONS_VERSION) {
             json.getObjectOrNull("settings")?.moveFieldsInto(
                 "configMenuAppearance",
-                listOf("searchHighlightColor", "selectedCategoryColor", "categoryColor", "subcategoryColor"),
+                "searchHighlightColor",
+                "selectedCategoryColor",
+                "categoryColor",
+                "subcategoryColor",
             )
         }
         if (migrationVersion < CATEGORY_LAYOUT_VERSION) ConfigCategoryLayoutMigration.apply(json)
@@ -101,18 +86,12 @@ internal object SkysoftConfigMigrations {
     }
 
     private fun migrateActionBarBackgroundIntoGui(json: JsonObject) {
-        val miscJson = json.getObjectOrNull("misc") ?: return
-        val legacyBackground = miscJson.get("actionBarBackground") ?: return
-        val guiJson = json.getOrCreateObject("gui")
-        val actionBarJson = guiJson.getOrCreateObject("actionBar")
-        if (!actionBarJson.has("background")) {
-            actionBarJson.add("background", legacyBackground.deepCopy())
-        }
-        miscJson.remove("actionBarBackground")
+        json.getObjectOrNull("misc")
+            ?.moveFieldInto({ json.getOrCreateObject("gui", "actionBar") }, "actionBarBackground", "background")
     }
 
     private fun migrateDianaSettings(json: JsonObject) {
-        val dianaJson = json.getObjectOrNull("events")?.getObjectOrNull("diana") ?: return
+        val dianaJson = json.getObjectOrNull("events", "diana") ?: return
         val settingsJson = dianaJson.getOrCreateObject("settings")
         dianaJson.remove("waypoints")
         settingsJson.remove("waypoints")
@@ -120,25 +99,13 @@ internal object SkysoftConfigMigrations {
     }
 
     private fun migrateBuggedNameplatesIntoMisc(json: JsonObject) {
-        val dianaDetailsJson = json.getObjectOrNull("events")
-            ?.getObjectOrNull("diana")
-            ?.getObjectOrNull("details")
-            ?: return
-        val legacyValue = dianaDetailsJson.get("hideBuggedNameplates") ?: return
-        val miscJson = json.getOrCreateObject("misc")
-        if (!miscJson.has("hideBuggedNameplates")) {
-            miscJson.add("hideBuggedNameplates", legacyValue.deepCopy())
-        }
-        dianaDetailsJson.remove("hideBuggedNameplates")
+        json.getObjectOrNull("events", "diana", "details")
+            ?.moveFieldInto({ json.getOrCreateObject("misc") }, "hideBuggedNameplates")
     }
 
     private fun migrateRareLootSharingIntoMisc(json: JsonObject) {
-        val dianaSettingsJson = json.getObjectOrNull("events")
-            ?.getObjectOrNull("diana")
-            ?.getObjectOrNull("settings")
-            ?: return
-        val miscJson = json.getOrCreateObject("misc")
-        dianaSettingsJson.moveFieldsInto(miscJson, RARE_LOOT_FIELDS)
+        json.getObjectOrNull("events", "diana", "settings")
+            ?.moveFieldsInto(json.getOrCreateObject("misc"), RARE_LOOT_FIELDS)
     }
 
     private fun migrateOrganizedConfigLayout(json: JsonObject) {
@@ -152,81 +119,49 @@ internal object SkysoftConfigMigrations {
 
     private fun migrateGuiLayout(json: JsonObject) {
         val guiJson = json.getObjectOrNull("gui") ?: return
-        guiJson.get("positionEditorKeybind")?.let { legacyKeybind ->
-            val positionEditorJson = guiJson.getOrCreateObject("positionEditor")
-            if (!positionEditorJson.has("keybind")) positionEditorJson.add("keybind", legacyKeybind.deepCopy())
-            guiJson.remove("positionEditorKeybind")
-        }
+        guiJson.moveFieldInto({ guiJson.getOrCreateObject("positionEditor") }, "positionEditorKeybind", "keybind")
         guiJson.getObjectOrNull("inventoryScreen")
-            ?.moveFieldsInto("settings", listOf("inventoryGuiScale", "tooltipGuiScale"))
+            ?.moveFieldsInto("settings", "inventoryGuiScale", "tooltipGuiScale")
         guiJson.getObjectOrNull("heldItem")?.migrateHeldItemTextureModes()
-        guiJson.getObjectOrNull("customBars")?.getObjectOrNull("settings")?.let { settingsJson ->
+        guiJson.getObjectOrNull("customBars", "settings")?.let { settingsJson ->
             CUSTOM_BAR_FIELDS.forEach { fieldName ->
-                val legacyValue = settingsJson.remove(fieldName) ?: return@forEach
                 if (fieldName in CUSTOM_BAR_RESOURCE_FIELDS) {
-                    val barsJson = settingsJson.getOrCreateObject("bars")
-                    if (!barsJson.has(fieldName)) barsJson.add(fieldName, legacyValue.deepCopy())
+                    settingsJson.copyFieldInto({ settingsJson.getOrCreateObject("bars") }, fieldName)
                 }
-                val numbersJson = settingsJson.getOrCreateObject("numbers")
-                if (!numbersJson.has(fieldName)) numbersJson.add(fieldName, legacyValue.deepCopy())
+                settingsJson.moveFieldInto({ settingsJson.getOrCreateObject("numbers") }, fieldName)
             }
         }
     }
 
     private fun migrateInventoryLayout(json: JsonObject) {
         val inventoryJson = json.getObjectOrNull("inventory") ?: return
-        inventoryJson.get(SKYBLOCK_MENU_DROP_FIX_FIELD)?.let { legacyValue ->
-            val fixesJson = json.getOrCreateObject("misc").getOrCreateObject("fixes")
-            if (!fixesJson.has(SKYBLOCK_MENU_DROP_FIX_FIELD)) {
-                fixesJson.add(SKYBLOCK_MENU_DROP_FIX_FIELD, legacyValue.deepCopy())
-            }
-            inventoryJson.remove(SKYBLOCK_MENU_DROP_FIX_FIELD)
-        }
+        inventoryJson.moveFieldInto({ json.getOrCreateObject("misc", "fixes") }, SKYBLOCK_MENU_DROP_FIX_FIELD)
 
         inventoryJson.getObjectOrNull("bazaar")?.let { bazaarJson ->
-            val trackerJson = bazaarJson.getObjectOrNull("tracker")
-            if (trackerJson != null) {
-                BAZAAR_TRACKER_FIELDS.forEach { fieldName ->
-                    trackerJson.copyFieldInto(bazaarJson, fieldName)
-                }
+            bazaarJson.getObjectOrNull("tracker")?.let { trackerJson ->
+                trackerJson.moveFieldsInto(bazaarJson, BAZAAR_TRACKER_FIELDS)
                 bazaarJson.remove("tracker")
             }
-            bazaarJson.get("trackerEnabled")?.let { legacyEnabled ->
-                if (!bazaarJson.has("enabled")) bazaarJson.add("enabled", legacyEnabled.deepCopy())
-                bazaarJson.remove("trackerEnabled")
-            }
-            bazaarJson.moveFieldsInto("settings", BAZAAR_SETTINGS_FIELDS)
-            bazaarJson.moveFieldsInto("details", BAZAAR_DETAILS_FIELDS)
+            bazaarJson.moveFieldInto(bazaarJson, "trackerEnabled", "enabled")
+            bazaarJson.moveFieldsIntoSettingsAndDetails(BAZAAR_SETTINGS_FIELDS, BAZAAR_DETAILS_FIELDS)
         }
 
-        inventoryJson.getObjectOrNull("tooltipScroll")?.let { tooltipScrollJson ->
-            tooltipScrollJson.moveFieldsInto("settings", TOOLTIP_SCROLL_SETTINGS_FIELDS)
-            tooltipScrollJson.moveFieldsInto("details", TOOLTIP_SCROLL_DETAILS_FIELDS)
-        }
+        inventoryJson.getObjectOrNull("tooltipScroll")
+            ?.moveFieldsIntoSettingsAndDetails(TOOLTIP_SCROLL_SETTINGS_FIELDS, TOOLTIP_SCROLL_DETAILS_FIELDS)
         inventoryJson.getObjectOrNull("priceTooltips")
             ?.moveFieldsInto("settings", PRICE_TOOLTIP_SETTINGS_FIELDS)
-        inventoryJson.getObjectOrNull("storageOverlay")?.let { storageOverlayJson ->
-            storageOverlayJson.moveFieldsInto("settings", STORAGE_OVERLAY_SETTINGS_FIELDS)
-            storageOverlayJson.moveFieldsInto("details", STORAGE_OVERLAY_DETAILS_FIELDS)
-        }
-        inventoryJson.getObjectOrNull("inventoryButtons")?.let { inventoryButtonsJson ->
-            inventoryButtonsJson.moveFieldsInto("settings", INVENTORY_BUTTON_SETTINGS_FIELDS)
-            inventoryButtonsJson.moveFieldsInto("details", INVENTORY_BUTTON_DETAILS_FIELDS)
-        }
+        inventoryJson.getObjectOrNull("storageOverlay")
+            ?.moveFieldsIntoSettingsAndDetails(STORAGE_OVERLAY_SETTINGS_FIELDS, STORAGE_OVERLAY_DETAILS_FIELDS)
+        inventoryJson.getObjectOrNull("inventoryButtons")
+            ?.moveFieldsIntoSettingsAndDetails(INVENTORY_BUTTON_SETTINGS_FIELDS, INVENTORY_BUTTON_DETAILS_FIELDS)
         inventoryJson.getObjectOrNull("inventoryEquipment")
             ?.moveFieldsInto("settings", INVENTORY_EQUIPMENT_SETTINGS_FIELDS)
-        inventoryJson.getObjectOrNull("fullInventory")?.let { fullInventoryJson ->
-            fullInventoryJson.moveFieldsInto("settings", FULL_INVENTORY_SETTINGS_FIELDS)
-            fullInventoryJson.moveFieldsInto("details", FULL_INVENTORY_DETAILS_FIELDS)
-        }
-        inventoryJson.getObjectOrNull("slotBindings")?.let { slotBindingsJson ->
-            slotBindingsJson.moveFieldsInto("settings", SLOT_BINDING_SETTINGS_FIELDS)
-            slotBindingsJson.moveFieldsInto("details", SLOT_BINDING_DETAILS_FIELDS)
-        }
-        inventoryJson.getObjectOrNull("smoothSwapping")?.let { smoothSwappingJson ->
-            smoothSwappingJson.moveFieldsInto("settings", SMOOTH_SWAPPING_SETTINGS_FIELDS)
-            smoothSwappingJson.moveFieldsInto("details", SMOOTH_SWAPPING_DETAILS_FIELDS)
-        }
+        inventoryJson.getObjectOrNull("fullInventory")
+            ?.moveFieldsIntoSettingsAndDetails(FULL_INVENTORY_SETTINGS_FIELDS, FULL_INVENTORY_DETAILS_FIELDS)
+        inventoryJson.getObjectOrNull("slotBindings")
+            ?.moveFieldsIntoSettingsAndDetails(SLOT_BINDING_SETTINGS_FIELDS, SLOT_BINDING_DETAILS_FIELDS)
+        inventoryJson.getObjectOrNull("smoothSwapping")
+            ?.moveFieldsIntoSettingsAndDetails(SMOOTH_SWAPPING_SETTINGS_FIELDS, SMOOTH_SWAPPING_DETAILS_FIELDS)
     }
 
     private fun migrateInventoryEquipmentIntoCategory(json: JsonObject) {
@@ -238,95 +173,58 @@ internal object SkysoftConfigMigrations {
 
     private fun migrateEnabledStorageOverlayToModern(json: JsonObject) {
         val inventoryJson = json.getObjectOrNull("inventory") ?: return
-        val isEnabled = inventoryJson.get("isStorageOverlayEnabled")
-            ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
-            ?.asBoolean
-            ?: false
-        if (!isEnabled) return
-        inventoryJson
-            .getOrCreateObject("storageOverlay")
-            .getOrCreateObject("settings")
-            .addProperty("mode", StorageOverlayMode.MODERN.name)
+        if (inventoryJson.get("isStorageOverlayEnabled").booleanOrNull() != true) return
+        inventoryJson.getOrCreateObject("storageOverlay", "settings").addProperty("mode", StorageOverlayMode.MODERN.name)
     }
 
     private fun migrateBetterShurikensIntoCategory(json: JsonObject) {
         val combatJson = json.getObjectOrNull("combat") ?: return
-        val legacyEnabled = combatJson.remove("isBetterShurikensEnabled") ?: return
-        val betterShurikensJson = combatJson.getOrCreateObject("betterShurikens")
-        if (!betterShurikensJson.has("enabled")) {
-            betterShurikensJson.add("enabled", legacyEnabled.deepCopy())
-        }
+        combatJson.moveFieldInto(
+            { combatJson.getOrCreateObject("betterShurikens") },
+            "isBetterShurikensEnabled",
+            "enabled",
+        )
     }
 
     private fun migrateMouseLockIntoFarming(json: JsonObject) {
         val miscJson = json.getObjectOrNull("misc") ?: return
-        val mouseLockJson = miscJson.remove("mouseLock")
-            ?.takeIf { it.isJsonObject }
-            ?.asJsonObject
-            ?: return
+        val mouseLockJson = miscJson.remove("mouseLock").objectOrNull() ?: return
         val farmingJson = json.getOrCreateObject("farming")
-        mouseLockJson.getObjectOrNull("settings")?.remove("unlockOnPestSpawn")?.let { unlockOnWarp ->
-            val settingsJson = farmingJson.getOrCreateObject("pestHelper").getOrCreateObject("settings")
-            if (!settingsJson.has("unlockOnWarp")) settingsJson.add("unlockOnWarp", unlockOnWarp)
-        }
+        mouseLockJson.getObjectOrNull("settings")?.moveFieldInto(
+            { farmingJson.getOrCreateObject("pestHelper", "settings") },
+            "unlockOnPestSpawn",
+            "unlockOnWarp",
+        )
         if (!farmingJson.has("mouseLock")) farmingJson.add("mouseLock", mouseLockJson)
     }
 
     private fun migrateChatLayout(json: JsonObject) {
-        val smoothChatJson = json.getObjectOrNull("chat")?.getObjectOrNull("smoothChat") ?: return
-        smoothChatJson.moveFieldsInto("settings", SMOOTH_CHAT_SETTINGS_FIELDS)
-        smoothChatJson.moveFieldsInto("details", SMOOTH_CHAT_DETAILS_FIELDS)
+        json.getObjectOrNull("chat", "smoothChat")
+            ?.moveFieldsIntoSettingsAndDetails(SMOOTH_CHAT_SETTINGS_FIELDS, SMOOTH_CHAT_DETAILS_FIELDS)
     }
 
     private fun migrateHuntingLayout(json: JsonObject) {
-        json.getObjectOrNull("hunting")
-            ?.getObjectOrNull("lotumHelper")
+        json.getObjectOrNull("hunting", "lotumHelper")
             ?.moveFieldsInto("settings", LOTUM_HELPER_SETTINGS_FIELDS)
     }
 
     private fun migrateFishingLayout(json: JsonObject) {
-        val hotspotSharingJson = json.getObjectOrNull("fishing")?.getObjectOrNull("hotspotSharing") ?: return
-        hotspotSharingJson.moveFieldsInto("settings", HOTSPOT_SHARING_SETTINGS_FIELDS)
-        hotspotSharingJson.moveFieldsInto("details", HOTSPOT_SHARING_DETAILS_FIELDS)
+        json.getObjectOrNull("fishing", "hotspotSharing")
+            ?.moveFieldsIntoSettingsAndDetails(HOTSPOT_SHARING_SETTINGS_FIELDS, HOTSPOT_SHARING_DETAILS_FIELDS)
     }
 
     private fun migrateMiscLayout(json: JsonObject) {
         val miscJson = json.getObjectOrNull("misc") ?: return
-        miscJson.get("autoSprint")
-            ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
-            ?.let { legacyEnabled ->
-                miscJson.add(
-                    "autoSprint",
-                    JsonObject().also { autoSprint -> autoSprint.add("enabled", legacyEnabled.deepCopy()) },
-                )
-            }
-        val rareLootValue = miscJson.get("rareLootValue")
-        val legacyRareLootSharing = miscJson.get("rareLootSharing")?.takeUnless { it.isJsonObject }
-        val rareLootJson = miscJson.getObjectOrNull("rareLootSharing") ?: JsonObject().also {
-            miscJson.add("rareLootSharing", it)
-        }
-        if (!rareLootJson.has("enabled") && legacyRareLootSharing != null) {
-            rareLootJson.add("enabled", legacyRareLootSharing.deepCopy())
-        }
-        if (rareLootValue != null) {
-            val settingsJson = rareLootJson.getOrCreateObject("settings")
-            if (!settingsJson.has("rareLootValue")) settingsJson.add("rareLootValue", rareLootValue.deepCopy())
-            miscJson.remove("rareLootValue")
-        }
+        miscJson.wrapFieldAsEnabled("autoSprint") { it.isBooleanValue() }
+        miscJson.wrapFieldAsEnabled("rareLootSharing") { !it.isJsonObject }
+        val rareLootJson = miscJson.getOrCreateObject("rareLootSharing")
+        miscJson.moveFieldInto({ rareLootJson.getOrCreateObject("settings") }, "rareLootValue")
         miscJson.getObjectOrNull("blockOverlay")
             ?.moveFieldsInto("settings", BLOCK_OVERLAY_SETTINGS_FIELDS)
-        miscJson.moveFieldsInto("fixes", MISC_FIX_FIELDS)
-        val legacyFixesJson = miscJson.getObjectOrNull("fixes") ?: return
-        val fixesJson = json.getOrCreateObject("fixes")
-        legacyFixesJson.entrySet().forEach { (fieldName, legacyValue) ->
-            if (!fixesJson.has(fieldName)) fixesJson.add(fieldName, legacyValue.deepCopy())
-        }
+        val legacyFixesJson = miscJson.getOrCreateObject("fixes")
+        miscJson.moveFieldsInto(legacyFixesJson, MISC_FIX_FIELDS)
+        legacyFixesJson.moveFieldsInto(json.getOrCreateObject("fixes"), legacyFixesJson.keySet().toList())
         miscJson.remove("fixes")
-    }
-
-    private fun JsonObject.copyFieldInto(target: JsonObject, fieldName: String) {
-        val value = get(fieldName) ?: return
-        if (!target.has(fieldName)) target.add(fieldName, value.deepCopy())
     }
 
     private val DIANA_SETTINGS_FIELDS = listOf(
@@ -398,8 +296,8 @@ internal object SkysoftConfigMigrations {
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
     private const val CONFIG_MENU_ORGANIZATION_VERSION = 3
-    private const val PRICE_TOOLTIP_CUSTOMIZATION_VERSION = 5
     private const val INVENTORY_EQUIPMENT_CATEGORY_VERSION = 4
+    private const val PRICE_TOOLTIP_CUSTOMIZATION_VERSION = 5
     private const val MODERN_STORAGE_OVERLAY_VERSION = 6
     private const val BETTER_SHURIKENS_CATEGORY_VERSION = 7
     private const val VANILLA_UI_CATEGORY_VERSION = 8
@@ -408,9 +306,13 @@ internal object SkysoftConfigMigrations {
     private const val MAX_ENCHANT_CHROMA_CATEGORY_VERSION = 11
     private const val SPOTIFY_LYRICS_MODE_VERSION = 12
     private const val SERVER_INFO_METRIC_COLORS_VERSION = 13
+    private const val CURSOR_POSITION_PRESERVATION_CATEGORY_VERSION = 14
     private const val DIANA_FEATURE_ACCORDIONS_VERSION = 15
     private const val DIANA_AND_TERRAIN_SETTINGS_VERSION = 19
+    private const val PARTICLE_QUALITY_SETUP_VERSION = 20
     private const val MOUSE_LOCK_FARMING_CATEGORY_VERSION = 21
+    private const val HONEYHIVE_HELPER_CATEGORY_VERSION = 23
+    private const val STORAGE_OVERLAY_CATEGORY_VERSION = 24
     private const val SETTINGS_APPEARANCE_ACCORDIONS_VERSION = 25
     private const val CATEGORY_LAYOUT_VERSION = 26
     private const val KEYBIND_NUMBERING_VERSION = 27
@@ -419,69 +321,48 @@ internal object SkysoftConfigMigrations {
 }
 
 private fun migrateDianaFeatureAccordions(json: JsonObject) {
-    val dianaJson = json.getObjectOrNull("events")?.getObjectOrNull("diana") ?: return
-    val globallyEnabled = dianaJson.remove("enabled").booleanPrimitiveOrNull()?.asBoolean ?: false
-    val settingsJson = dianaJson.remove("settings")
-        ?.takeIf { it.isJsonObject }
-        ?.asJsonObject
-        ?: JsonObject()
-    val detailsJson = dianaJson.remove("details")
-        ?.takeIf { it.isJsonObject }
-        ?.asJsonObject
-        ?: JsonObject()
+    val dianaJson = json.getObjectOrNull("events", "diana") ?: return
+    val globallyEnabled = dianaJson.remove("enabled").booleanOrNull() ?: false
+    val settingsJson = dianaJson.remove("settings").objectOrNull() ?: JsonObject()
+    val detailsJson = dianaJson.remove("details").objectOrNull() ?: JsonObject()
 
     fun feature(name: String, enabled: Boolean): JsonObject =
         dianaJson.getOrCreateObject(name).also { featureJson ->
             if (!featureJson.has("enabled")) featureJson.addProperty("enabled", enabled)
         }
 
+    fun isEnabledBy(legacyFieldName: String): Boolean =
+        globallyEnabled && (settingsJson.remove(legacyFieldName).booleanOrNull() ?: true)
+
     val burrowHelper = feature("burrowHelper", globallyEnabled)
     settingsJson.moveFieldsInto(burrowHelper.getOrCreateObject("settings"), DIANA_BURROW_SETTINGS_FIELDS)
     detailsJson.moveFieldsInto(burrowHelper.getOrCreateObject("details"), DIANA_BURROW_DETAILS_FIELDS)
 
-    val shareMobs = settingsJson.remove("rareMobSharing").booleanPrimitiveOrNull()?.asBoolean ?: true
+    val shareMobs = settingsJson.remove("rareMobSharing").booleanOrNull() ?: true
     val rareMobSharing = feature("rareMobSharing", globallyEnabled)
     val rareMobSettings = rareMobSharing.getOrCreateObject("settings")
     if (!rareMobSettings.has("shareMobs")) rareMobSettings.addProperty("shareMobs", shareMobs)
     settingsJson.moveFieldsInto(rareMobSettings, DIANA_RARE_MOB_SETTINGS_FIELDS)
     detailsJson.moveFieldsInto(rareMobSharing.getOrCreateObject("details"), DIANA_RARE_MOB_DETAILS_FIELDS)
 
-    val lobbyCompromised = feature(
-        "lobbyCompromised",
-        globallyEnabled && (settingsJson.remove("lobbyCompromised").booleanPrimitiveOrNull()?.asBoolean ?: true),
-    ).getOrCreateObject("settings")
+    val lobbyCompromised = feature("lobbyCompromised", isEnabledBy("lobbyCompromised")).getOrCreateObject("settings")
     settingsJson.moveFieldInto(lobbyCompromised, "lobbyCompromisedStrangerLimit", "strangerLimit")
     settingsJson.moveFieldInto(lobbyCompromised, "lobbyCompromisedAlerts", "alerts")
 
-    feature(
-        "sphinxHelper",
-        globallyEnabled && (settingsJson.remove("sphinxAnswers").booleanPrimitiveOrNull()?.asBoolean ?: true),
-    )
+    feature("sphinxHelper", isEnabledBy("sphinxAnswers"))
 
-    val quickWarps = feature(
-        "quickWarps",
-        globallyEnabled && (settingsJson.remove("warpHint").booleanPrimitiveOrNull()?.asBoolean ?: true),
-    ).getOrCreateObject("settings")
+    val quickWarps = feature("quickWarps", isEnabledBy("warpHint")).getOrCreateObject("settings")
     settingsJson.moveFieldsInto(quickWarps, DIANA_QUICK_WARP_SETTINGS_FIELDS)
 
-    val keepTerrainLoaded =
-        globallyEnabled && (settingsJson.remove("keepHubTerrainLoaded").booleanPrimitiveOrNull()?.asBoolean ?: true)
+    val keepTerrainLoaded = isEnabledBy("keepHubTerrainLoaded")
     val miscJson = json.getOrCreateObject("misc")
     if (!miscJson.has("keepTerrainLoaded")) miscJson.addProperty("keepTerrainLoaded", keepTerrainLoaded)
 }
 
 private fun migrateDianaAndTerrainSettings(json: JsonObject) {
     json.getObjectOrNull("misc")?.let { miscJson ->
-        val wasEnabled = miscJson.get("keepTerrainLoaded").booleanPrimitiveOrNull()?.asBoolean
-        if (wasEnabled != null) {
-            miscJson.add(
-                "keepTerrainLoaded",
-                JsonObject().also { featureJson -> featureJson.addProperty("enabled", wasEnabled) },
-            )
-        }
-        val islands = miscJson.getObjectOrNull("keepTerrainLoaded")
-            ?.getObjectOrNull("settings")
-            ?.getAsJsonArray("islands")
+        miscJson.wrapFieldAsEnabled("keepTerrainLoaded") { it.isBooleanValue() }
+        val islands = miscJson.getObjectOrNull("keepTerrainLoaded", "settings")?.getAsJsonArray("islands")
         if (islands != null) {
             for (index in islands.size() - 1 downTo 0) {
                 if (islands[index].asString in NON_PERSISTENT_TERRAIN_ISLANDS) islands.remove(index)
@@ -489,39 +370,34 @@ private fun migrateDianaAndTerrainSettings(json: JsonObject) {
         }
     }
 
-    val diana = json.getObjectOrNull("events")?.getObjectOrNull("diana") ?: return
+    val diana = json.getObjectOrNull("events", "diana") ?: return
     val rareMobSharing = diana.getObjectOrNull("rareMobSharing") ?: return
     val lootshare = diana.getObjectOrNull("lootshare")
-        ?: rareMobSharing.remove("lootshare")?.takeIf { it.isJsonObject }?.asJsonObject
+        ?: rareMobSharing.remove("lootshare").objectOrNull()
         ?: JsonObject()
     diana.add("lootshare", lootshare)
     if (!lootshare.has("enabled")) {
-        val rareMobSharingEnabled = rareMobSharing.get("enabled").booleanPrimitiveOrNull()?.asBoolean ?: false
+        val rareMobSharingEnabled = rareMobSharing.get("enabled").booleanOrNull() ?: false
         lootshare.addProperty("enabled", rareMobSharingEnabled)
     }
     val settings = lootshare.getOrCreateObject("settings")
     if (!settings.has("shareSecuredMessage")) settings.addProperty("shareSecuredMessage", true)
     val details = lootshare.getOrCreateObject("details")
-    details.remove("partyCheckmarks")?.let { partyCheckmarks ->
-        if (!settings.has("partyCheckmarks")) settings.add("partyCheckmarks", partyCheckmarks)
-    }
+    details.moveFieldInto(settings, "partyCheckmarks")
     if (!settings.has("partyCheckmarks")) settings.addProperty("partyCheckmarks", true)
-    rareMobSharing.getObjectOrNull("settings")?.moveFieldsInto(details, listOf("lootshareRadius"))
+    rareMobSharing.getObjectOrNull("settings")?.moveFieldInto(details, "lootshareRadius")
     rareMobSharing.getObjectOrNull("details")?.let { legacyDetails ->
-        legacyDetails.moveFieldsInto(details, listOf("lootshareMissingColor", "lootshareReadyColor"))
+        legacyDetails.moveFieldsInto(details, DIANA_RARE_MOB_DETAILS_FIELDS)
         if (legacyDetails.size() == 0) rareMobSharing.remove("details")
     }
 
     val partyCommands = diana.getOrCreateObject("partyCommands")
     if (!partyCommands.has("enabled")) {
         val wasEnabled = listOf("burrowHelper", "rareMobSharing", "lobbyCompromised", "sphinxHelper", "quickWarps")
-            .any { feature -> diana.getObjectOrNull(feature)?.get("enabled").booleanPrimitiveOrNull()?.asBoolean == true }
+            .any { feature -> diana.getObjectOrNull(feature)?.get("enabled").booleanOrNull() == true }
         partyCommands.addProperty("enabled", wasEnabled)
     }
 }
-
-private fun com.google.gson.JsonElement?.booleanPrimitiveOrNull(): com.google.gson.JsonPrimitive? =
-    this?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asJsonPrimitive
 
 private val NON_PERSISTENT_TERRAIN_ISLANDS = setOf(
     "PRIVATE_ISLANDS",
@@ -545,37 +421,36 @@ private val DIANA_RARE_MOB_SETTINGS_FIELDS = listOf("sharedRareMobs", "receivedR
 private val DIANA_RARE_MOB_DETAILS_FIELDS = listOf("lootshareMissingColor", "lootshareReadyColor")
 private val DIANA_QUICK_WARP_SETTINGS_FIELDS = listOf("warpKey", "minWarpSavings")
 
-private const val CURSOR_POSITION_PRESERVATION_CATEGORY_VERSION = 14
-
-private fun migrateCursorPositionPreservation(json: JsonObject, migrationVersion: Int) {
-    if (migrationVersion >= CURSOR_POSITION_PRESERVATION_CATEGORY_VERSION) return
+private fun migrateCursorPositionPreservation(json: JsonObject) {
     val inventoryJson = json.getObjectOrNull("inventory") ?: return
-    val legacyEnabled = inventoryJson.remove("preserveCursorPosition") ?: return
-    val featureJson = inventoryJson.getOrCreateObject("cursorPositionPreservation")
-    if (!featureJson.has("enabled")) featureJson.add("enabled", legacyEnabled.deepCopy())
+    inventoryJson.moveFieldInto(
+        { inventoryJson.getOrCreateObject("cursorPositionPreservation") },
+        "preserveCursorPosition",
+        "enabled",
+    )
+}
+
+private fun migrateDianaParticleQualitySetup(json: JsonObject) {
+    val diana = json.getObjectOrNull("events", "diana") ?: return
+    if (diana.getObjectOrNull("burrowHelper")?.get("enabled").booleanOrNull() != true) return
+    diana.getOrCreateObject("particleQuality").addProperty(
+        "automaticMigrationAttemptsRemaining",
+        DianaParticleQualityConfig.MAX_AUTOMATIC_MIGRATION_ATTEMPTS,
+    )
 }
 
 private val CUSTOM_BAR_RESOURCE_FIELDS = setOf("health", "mana", "vitality", "experience")
 
 private fun migrateSpotifyLyricsMode(json: JsonObject) {
-    val details = json.getObjectOrNull("gui")
-        ?.getObjectOrNull("spotifyDisplay")
-        ?.getObjectOrNull("details")
-        ?: return
-    val enabled = details.remove("syncedLyrics")
-        ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
-        ?.asBoolean
-        ?: return
+    val details = json.getObjectOrNull("gui", "spotifyDisplay", "details") ?: return
+    val enabled = details.remove("syncedLyrics").booleanOrNull() ?: return
     if (!details.has("lyricsMode")) {
         details.addProperty("lyricsMode", if (enabled) SpotifyLyricsMode.FADE.name else SpotifyLyricsMode.OFF.name)
     }
 }
 
 private fun migrateServerInfoMetricColors(json: JsonObject) {
-    val details = json.getObjectOrNull("gui")
-        ?.getObjectOrNull("serverInfoDisplay")
-        ?.getObjectOrNull("details")
-        ?: return
+    val details = json.getObjectOrNull("gui", "serverInfoDisplay", "details") ?: return
     val color = details.remove("color") ?: return
     listOf("fpsColor", "tpsColor", "pingColor").forEach { fieldName ->
         if (!details.has(fieldName)) details.add(fieldName, color.deepCopy())
@@ -583,10 +458,7 @@ private fun migrateServerInfoMetricColors(json: JsonObject) {
 }
 
 private fun migrateCustomBarIcons(json: JsonObject) {
-    val details = json.getObjectOrNull("gui")
-        ?.getObjectOrNull("customBars")
-        ?.getObjectOrNull("details")
-        ?: return
+    val details = json.getObjectOrNull("gui", "customBars", "details") ?: return
     val icons = details.get("icons")?.takeIf { it.isJsonPrimitive }?.asString ?: return
     if (icons != "NONE") return
     details.addProperty("icons", CustomBarIconPosition.LEFT.name)
@@ -597,10 +469,7 @@ private fun migrateCustomBarIcons(json: JsonObject) {
 }
 
 private fun migrateCustomBarDisplayModes(json: JsonObject) {
-    val settings = json.getObjectOrNull("gui")
-        ?.getObjectOrNull("customBars")
-        ?.getObjectOrNull("settings")
-        ?: return
+    val settings = json.getObjectOrNull("gui", "customBars", "settings") ?: return
     val displays = settings.getOrCreateObject("displays")
     val bars = settings.getObjectOrNull("bars")
     CUSTOM_BAR_RESOURCE_FIELDS.forEach { fieldName ->
@@ -612,36 +481,25 @@ private fun migrateCustomBarDisplayModes(json: JsonObject) {
     listOf("defense", "air").forEach { fieldName ->
         numbers.moveBooleanToDisplayMode(displays, fieldName)
     }
-    numbers.remove("speed")?.let { speed ->
-        if (!displays.has("speed")) displays.add("speed", speed.deepCopy())
-    }
+    numbers.moveFieldInto(displays, "speed")
 }
 
 private fun JsonObject.moveBooleanToDisplayMode(target: JsonObject, fieldName: String) {
-    val value = get(fieldName)
-        ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
-        ?: return
+    val enabled = get(fieldName).booleanOrNull() ?: return
     if (!target.has(fieldName)) {
-        val mode = if (value.asBoolean) CustomBarDisplayMode.CUSTOM else CustomBarDisplayMode.VANILLA
+        val mode = if (enabled) CustomBarDisplayMode.CUSTOM else CustomBarDisplayMode.VANILLA
         target.addProperty(fieldName, mode.name)
     }
     remove(fieldName)
 }
 
-private fun migrateHoneyhiveHelper(json: JsonObject, migrationVersion: Int) {
-    if (migrationVersion >= HONEYHIVE_HELPER_CATEGORY_VERSION) return
+private fun migrateHoneyhiveHelper(json: JsonObject) {
     val foraging = json.getObjectOrNull("foraging") ?: return
-    val legacy = foraging.get("honeyhiveHelper") ?: return
-    if (legacy.isJsonPrimitive) {
-        foraging.add("honeyhiveHelper", JsonObject().also { it.add("enabled", legacy.deepCopy()) })
-    }
-    val settings = foraging.getObjectOrNull("honeyhiveHelper")?.getObjectOrNull("settings") ?: return
+    foraging.wrapFieldAsEnabled("honeyhiveHelper") { it.isJsonPrimitive }
+    val settings = foraging.getObjectOrNull("honeyhiveHelper", "settings") ?: return
     mapOf("showDisplay" to "display", "maxRows" to "maximumLines", "showOutsideIsland" to "showOutsideTorrhus")
         .forEach { (oldName, newName) -> settings.moveFieldInto(settings, oldName, newName) }
 }
-
-private const val HONEYHIVE_HELPER_CATEGORY_VERSION = 23
-private const val STORAGE_OVERLAY_CATEGORY_VERSION = 24
 
 private fun migrateStorageOverlayCategory(json: JsonObject) {
     val inventory = json.getObjectOrNull("inventory") ?: return
@@ -654,10 +512,7 @@ private fun migrateStorageOverlayCategory(json: JsonObject) {
 }
 
 private fun migratePriceTooltipCustomization(json: JsonObject) {
-    val settingsJson = json.getObjectOrNull("inventory")
-        ?.getObjectOrNull("priceTooltips")
-        ?.getObjectOrNull("settings")
-        ?: return
+    val settingsJson = json.getObjectOrNull("inventory", "priceTooltips", "settings") ?: return
     val legacyType = settingsJson.remove("bazaarPriceType") ?: return
     if (!settingsJson.has("priceLines")) {
         settingsJson.add("legacyBazaarPriceType", legacyType)
@@ -666,9 +521,7 @@ private fun migratePriceTooltipCustomization(json: JsonObject) {
 
 private fun JsonObject.migrateHeldItemTextureModes() {
     val legacyItemIds = get("vanillaTextureItemIds")?.takeIf { it.isJsonArray }?.asJsonArray ?: return
-    val textureModes = get("itemTextureModes")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject().also {
-        add("itemTextureModes", it)
-    }
+    val textureModes = getOrCreateObject("itemTextureModes")
     val configuredItemIds = textureModes.keySet().mapTo(mutableSetOf()) { it.trim().uppercase(Locale.US) }
     legacyItemIds.forEach { itemIdJson ->
         val itemId = itemIdJson.asString.trim().uppercase(Locale.US)

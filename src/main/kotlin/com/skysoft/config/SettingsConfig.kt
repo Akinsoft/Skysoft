@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.fieldOrNull
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
@@ -9,7 +10,6 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorInfoText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
-import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 
 class SettingsConfig {
     @JvmField
@@ -68,16 +68,11 @@ class SettingsConfig {
         SkysoftMoulConfigGuis.processConfig(config).allCategories.values
             .asSequence()
             .flatMap { it.options.asSequence() }
-            .filter(::isMainFeatureToggle)
+            .filter { it.fieldOrNull()?.isAnnotationPresent(MainFeatureToggle::class.java) == true }
             .forEach { it.set(enabled) }
         clearConfirmations()
         config.saveNow()
     }
-
-    private fun isMainFeatureToggle(option: ProcessedOption): Boolean =
-        (option as? ProcessedOption.HasField)
-            ?.field
-            ?.isAnnotationPresent(MainFeatureToggle::class.java) == true
 }
 
 class ConfigMenuAppearanceConfig {

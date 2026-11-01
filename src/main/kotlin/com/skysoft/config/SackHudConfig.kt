@@ -3,6 +3,7 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
+import com.skysoft.config.core.repairTrimmedEntries
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
@@ -39,13 +40,11 @@ class SackHudConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(8, 110, centerX = false, centerY = false).rememberDefault()
+    val position = HudPosition(8, 110, centerY = false).rememberDefault()
 
     override fun repairLoadedValues() {
         settings.maximumItems = settings.maximumItems.coerceIn(MINIMUM_ITEMS, MAXIMUM_ITEMS)
-        val repaired = trackedItems.asSequence().map(String::trim).filter(String::isNotEmpty).distinct().toList()
-        trackedItems.clear()
-        trackedItems.addAll(repaired)
+        trackedItems.repairTrimmedEntries()
     }
 }
 

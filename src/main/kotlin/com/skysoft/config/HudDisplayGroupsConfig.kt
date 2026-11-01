@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.annotations.Category
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -47,12 +48,7 @@ class PlayerHudConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var isSkyBlockLevelBarEnabled = false
 
-    override fun repairLoadedValues() {
-        selectedItemName.repairLoadedValues()
-        actionBar.repairLoadedValues()
-        inventoryHud.repairLoadedValues()
-        customBars.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(selectedItemName, actionBar, inventoryHud, customBars)
 }
 
 class InformationDisplaysConfig {

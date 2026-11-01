@@ -13,7 +13,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class PriceTooltipsConfig : ConfigRepairable {
+class PriceTooltipsConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show configured prices on item tooltips.")
@@ -32,13 +32,9 @@ class PriceTooltipsConfig : ConfigRepairable {
     @field:ConfigOption(name = "Details", desc = "Price tooltip appearance.")
     @field:Accordion
     val details = PriceTooltipsDetailsConfig()
-
-    override fun repairLoadedValues() {
-        settings.repairLoadedValues()
-    }
 }
 
-class PriceTooltipsSettingsConfig {
+class PriceTooltipsSettingsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Require Key", desc = "Only show price lines while the hotkey is held.")
@@ -73,27 +69,20 @@ class PriceTooltipsSettingsConfig {
     @field:Expose(serialize = false, deserialize = true)
     var legacyBazaarPriceType: BazaarPriceType? = null
 
-    fun repairLoadedValues() {
-        legacyBazaarPriceType?.let { legacyType ->
-            priceLines.get().apply {
-                clear()
-                addAll(
-                    when (legacyType) {
-                        BazaarPriceType.ORDER_PRICES -> defaultPriceTooltipLines()
-                        BazaarPriceType.INSTANT_PRICES -> mutableListOf(
-                            PriceTooltipLine.BAZAAR_INSTANT_BUY,
-                            PriceTooltipLine.BAZAAR_INSTANT_SELL,
-                            PriceTooltipLine.LOWEST_BIN,
-                        )
-                    },
-                )
-            }
-            legacyBazaarPriceType = null
-        }
-        val uniqueLines = priceLines.get().distinct()
+    override fun repairLoadedValues() {
+        val repairedLines = when (legacyBazaarPriceType) {
+            BazaarPriceType.ORDER_PRICES -> defaultPriceTooltipLines()
+            BazaarPriceType.INSTANT_PRICES -> listOf(
+                PriceTooltipLine.BAZAAR_INSTANT_BUY,
+                PriceTooltipLine.BAZAAR_INSTANT_SELL,
+                PriceTooltipLine.LOWEST_BIN,
+            )
+            null -> priceLines.get()
+        }.distinct()
+        legacyBazaarPriceType = null
         priceLines.get().apply {
             clear()
-            addAll(uniqueLines)
+            addAll(repairedLines)
         }
     }
 }

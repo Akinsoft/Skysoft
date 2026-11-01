@@ -41,7 +41,7 @@ class SkysoftBazaarConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(8, 70, 1f, centerX = false, centerY = false).rememberDefault()
+    val position = HudPosition(8, 70, centerY = false).rememberDefault()
 
     override fun repairLoadedValues() {
         settings.maxOrders = settings.maxOrders.coerceIn(

@@ -21,13 +21,9 @@ internal object ConfigMenuOrganizationMigration {
             }
         }
         val petsJson = json.getObjectOrNull("pets") ?: return
-        petsJson.getObjectOrNull("visiblePetPosition")?.let { visiblePetPositionJson ->
-            visiblePetPositionJson.moveFieldsInto("settings", "stopBouncing")
-            visiblePetPositionJson.moveFieldsInto("details", "heightOffset")
-        }
-        petsJson.getObjectOrNull("petDisplay")
-            ?.getObjectOrNull("display")
-            ?.getObjectOrNull("general")
+        petsJson.getObjectOrNull("visiblePetPosition")
+            ?.moveFieldsIntoSettingsAndDetails(listOf("stopBouncing"), listOf("heightOffset"))
+        petsJson.getObjectOrNull("petDisplay", "display", "general")
             ?.moveFieldsInto("settings", "hideInMenus")
     }
 
@@ -37,9 +33,8 @@ internal object ConfigMenuOrganizationMigration {
             ?.moveFieldInto(guiJson, "renderTitlesInFront", "areTitlesRenderedInFront")
         guiJson.getObjectOrNull("heldItem")
             ?.moveFieldsInto("settings", "ignoresMiningEffects")
-        guiJson.getObjectOrNull("actionBar")?.let { actionBarJson ->
-            actionBarJson.moveFieldsInto("details", "roundedCorners", "backgroundOpacity")
-        }
+        guiJson.getObjectOrNull("actionBar")
+            ?.moveFieldsInto("details", "roundedCorners", "backgroundOpacity")
     }
 
     private fun migrateInventory(json: JsonObject) {
@@ -56,15 +51,13 @@ internal object ConfigMenuOrganizationMigration {
             sourcesJson.moveFieldInto(settingsJson, "isRightClickClearEnabled")
         }
         inventoryJson.getObjectOrNull("protectItem")?.let { protectItemJson ->
-            protectItemJson.getObjectOrNull("settings")?.let { settingsJson ->
-                settingsJson.moveFieldsInto(
-                    protectItemJson.getOrCreateObject("details"),
-                    "showProtectedItemStar",
-                    "protectedItemStarColor",
-                    "protectedItemStarScale",
-                    "protectedItemStarOpacity",
-                )
-            }
+            protectItemJson.getObjectOrNull("settings")?.moveFieldsInto(
+                protectItemJson.getOrCreateObject("details"),
+                "showProtectedItemStar",
+                "protectedItemStarColor",
+                "protectedItemStarScale",
+                "protectedItemStarOpacity",
+            )
         }
         inventoryJson.getObjectOrNull("bazaar")?.let { bazaarJson ->
             bazaarJson.getObjectOrNull("details")
@@ -103,13 +96,12 @@ internal object ConfigMenuOrganizationMigration {
     }
 
     private fun migrateFishing(json: JsonObject) {
-        json.getObjectOrNull("fishing")
-            ?.getObjectOrNull("hotspotRadar")
+        json.getObjectOrNull("fishing", "hotspotRadar")
             ?.moveFieldsInto("details", "crosshairLine")
     }
 
     private fun migrateMisc(json: JsonObject) {
-        val blockOverlayJson = json.getObjectOrNull("misc")?.getObjectOrNull("blockOverlay") ?: return
+        val blockOverlayJson = json.getObjectOrNull("misc", "blockOverlay") ?: return
         blockOverlayJson.getObjectOrNull("settings")
             ?.moveFieldInto(blockOverlayJson.getOrCreateObject("details"), "color")
     }

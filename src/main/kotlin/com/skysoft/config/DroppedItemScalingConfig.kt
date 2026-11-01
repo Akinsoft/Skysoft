@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.data.skyblock.SkyBlockRarity
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -20,13 +21,9 @@ class DroppedItemScalingConfig {
     @field:ConfigOption(name = "Settings", desc = "Dropped item sizes by rarity.")
     @field:Accordion
     val settings = DroppedItemScalingSettingsConfig()
-
-    fun repairLoadedValues() {
-        settings.repairLoadedValues()
-    }
 }
 
-class DroppedItemScalingSettingsConfig {
+class DroppedItemScalingSettingsConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Common Size", desc = "Dropped Common item size. 100 matches the default.")
@@ -93,7 +90,7 @@ class DroppedItemScalingSettingsConfig {
         SkyBlockRarity.VERY_SPECIAL -> verySpecialSize
     }
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         commonSize = repairSize(commonSize)
         uncommonSize = repairSize(uncommonSize)
         rareSize = repairSize(rareSize)

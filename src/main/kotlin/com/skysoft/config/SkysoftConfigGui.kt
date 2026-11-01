@@ -72,7 +72,7 @@ private fun <T : Config> selectSearchResult(editor: MoulConfigEditor<T>, query: 
     editor.goToOption(matchingOption)
 }
 
-internal fun matchingSearchOption(options: Iterable<ProcessedOption>, query: String): ProcessedOption? {
+private fun matchingSearchOption(options: Iterable<ProcessedOption>, query: String): ProcessedOption? {
     if (query.isBlank()) return null
     val words = query.trim().lowercase(Locale.ROOT).split(Regex(" +"))
     return options.firstOrNull { option ->

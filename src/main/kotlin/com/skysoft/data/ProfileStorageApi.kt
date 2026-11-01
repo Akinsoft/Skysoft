@@ -33,30 +33,17 @@ object ProfileStorageApi {
     val playerStorage: ProfileStorageView.PlayerSpecific
         get() = state.storageData.activePlayer(storageChanged)
 
-    val allStorage: ProfileStorageView
-        get() = state.storageData
+    fun updateProfile(action: (ProfileStorage.ProfileSpecific) -> Unit) =
+        update(state.storageData.activeProfile(storageChanged), action)
 
-    fun updateProfile(action: (ProfileStorage.ProfileSpecific) -> Unit) {
-        val profile = state.storageData.activeProfile(storageChanged)
-        try {
-            action(profile)
-        } finally {
-            saves.markDirty()
-        }
-    }
+    fun updatePlayer(action: (ProfileStorage.PlayerSpecific) -> Unit) =
+        update(state.storageData.activePlayer(storageChanged), action)
 
-    fun updatePlayer(action: (ProfileStorage.PlayerSpecific) -> Unit) {
-        val player = state.storageData.activePlayer(storageChanged)
-        try {
-            action(player)
-        } finally {
-            saves.markDirty()
-        }
-    }
+    fun updateAll(action: (ProfileStorage) -> Unit) = update(state.storageData, action)
 
-    fun updateAll(action: (ProfileStorage) -> Unit) {
+    private fun <T> update(target: T, action: (T) -> Unit) {
         try {
-            action(state.storageData)
+            action(target)
         } finally {
             saves.markDirty()
         }
@@ -125,7 +112,7 @@ object ProfileStorageApi {
             SkysoftMod.LOGGER.warn("Using default Skysoft profile storage because no fallback storage could be loaded")
             ProfileStorage()
         }
-        StorageState(storageData, storageLoadFailureReason(), loadedFromDisk = true)
+        StorageState(storageData, "$storagePath failed to load. Fix or delete the file to save changes.", loadedFromDisk = true)
     }
 
     private fun loadFallbackStorage(): ProfileStorage? {
@@ -147,9 +134,6 @@ object ProfileStorageApi {
         }
     }
 
-    private fun storageLoadFailureReason(): String =
-        "$storagePath failed to load. Fix or delete the file to save changes."
-
     private class StorageState(
         val storageData: ProfileStorage,
         val saveDisabledReason: String?,
@@ -161,7 +145,7 @@ private val profileStorageGson = GsonBuilder()
     .excludeFieldsWithoutExposeAnnotation()
     .create()
 
-internal fun readProfileStorage(path: Path): ProfileStorage =
+private fun readProfileStorage(path: Path): ProfileStorage =
     Files.newBufferedReader(path).use { reader ->
         val storage = profileStorageGson.fromJson(reader, ProfileStorage::class.java)
             ?: error("Skysoft profile storage is empty: $path")

@@ -5,6 +5,29 @@ import io.github.notenoughupdates.moulconfig.common.text.StructuredText
 import io.github.notenoughupdates.moulconfig.gui.GuiComponent
 import io.github.notenoughupdates.moulconfig.gui.GuiImmediateContext
 import io.github.notenoughupdates.moulconfig.gui.MouseEvent
+import io.github.notenoughupdates.moulconfig.gui.editors.ComponentEditor
+import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
+
+abstract class SkysoftStatusButtonEditor(
+    option: ProcessedOption,
+    private val searchTerms: String,
+) : ComponentEditor(option) {
+    private val component = wrapComponent(
+        SkysoftStatusButtonComponent(::statusText, ::statusColor, ::buttonText, ::click),
+    )
+
+    protected abstract fun statusText(): String
+
+    protected abstract fun statusColor(): Int
+
+    protected abstract fun buttonText(): String
+
+    protected abstract fun click()
+
+    override fun getDelegate(): GuiComponent = component
+
+    override fun fulfillsSearch(word: String): Boolean = super.fulfillsSearch(word) || word in searchTerms
+}
 
 internal class SkysoftStatusButtonComponent(
     private val statusText: () -> String,

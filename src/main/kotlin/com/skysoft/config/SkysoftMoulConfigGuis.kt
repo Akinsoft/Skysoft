@@ -29,7 +29,7 @@ object SkysoftMoulConfigGuis {
         return processor
     }
 
-    fun addProcessors(processor: MoulConfigProcessor<*>) {
+    private fun addProcessors(processor: MoulConfigProcessor<*>) {
         BuiltinMoulConfigGuis.addProcessors(processor)
         processor.registerConfigEditor(ConfigEditorUpdate::class.java) { option, _ ->
             SkysoftUpdateEditor(option)

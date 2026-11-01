@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import io.github.notenoughupdates.moulconfig.ChromaColour
@@ -73,12 +74,7 @@ class WorldFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var keepSkyBlockResourcePack = false
 
-    override fun repairLoadedValues() {
-        waypoints.repairLoadedValues()
-        heldItem.repairLoadedValues()
-        droppedItemScaling.repairLoadedValues()
-        zoom.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(waypoints, heldItem, droppedItemScaling.settings, zoom)
 }
 
 class SkyColorConfig {

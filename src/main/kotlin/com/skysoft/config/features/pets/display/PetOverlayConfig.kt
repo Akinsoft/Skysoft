@@ -2,8 +2,10 @@ package com.skysoft.config.features.pets.display
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import com.skysoft.config.core.repairFiniteFloat
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.features.pets.display.text.PetTextConfig
 import com.skysoft.config.features.pets.display.visual.SharedPetVisualConfig
 import com.skysoft.config.features.pets.display.visual.PetVisualConfig
@@ -20,7 +22,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOrder
 import io.github.notenoughupdates.moulconfig.common.text.StructuredText
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class PetOverlayConfig : Config() {
+class PetOverlayConfig : Config(), ConfigRepairable {
     override fun saveNow() {
         SkysoftConfigGui.config().saveNow()
     }
@@ -135,7 +137,7 @@ class PetOverlayConfig : Config() {
     @field:Category(name = "Preview", desc = "Preview settings for the pet display.")
     val preview: PetOverlayPreviewConfig = PetOverlayPreviewConfig()
 
-    class PetOverlayPreviewConfig {
+    class PetOverlayPreviewConfig : ConfigRepairable {
         @JvmField
         @field:Expose
         @field:ConfigOption(
@@ -146,7 +148,7 @@ class PetOverlayConfig : Config() {
         @field:ConfigOrder(10)
         val scale: Property<Float> = Property.of(1.0f)
 
-        fun repairLoadedValues() {
+        override fun repairLoadedValues() {
             scale.repairFiniteFloat(MIN_PREVIEW_SCALE, MAX_PREVIEW_SCALE, DEFAULT_PREVIEW_SCALE)
         }
 
@@ -157,9 +159,5 @@ class PetOverlayConfig : Config() {
         }
     }
 
-    fun repairLoadedValues() {
-        visual.equippedPet.repairLoadedValues()
-        visual.expSharePets.repairLoadedValues()
-        preview.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(visual.equippedPet, visual.expSharePets, preview)
 }

@@ -29,7 +29,7 @@ class HoneyhiveHelperConfig {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(8, 180, centerX = false, centerY = false).rememberDefault()
+    val position = HudPosition(8, 180, centerY = false).rememberDefault()
 }
 
 class HoneyhiveHelperSettingsConfig {

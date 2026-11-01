@@ -1,6 +1,7 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -10,7 +11,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class InventoryHudConfig {
+class InventoryHudConfig : ConfigRepairable {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show your inventory as part of the in-game HUD.")
@@ -46,7 +47,7 @@ class InventoryHudConfig {
     @field:Expose
     val equipmentPosition = defaultEquipmentPanelPosition().rememberDefault()
 
-    fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         position.rememberDefault(defaultInventoryHudPosition())
         inventoryPosition.rememberDefault(defaultInventoryPanelPosition())
         armorPosition.rememberDefault(defaultArmorPanelPosition())

@@ -3,26 +3,15 @@ package com.skysoft.config
 import com.skysoft.features.misc.update.DownloadOpenResult
 import com.skysoft.features.misc.update.ModUpdateChecker
 import com.skysoft.features.misc.update.UpdateStatus
-import io.github.notenoughupdates.moulconfig.gui.GuiComponent
-import io.github.notenoughupdates.moulconfig.gui.editors.ComponentEditor
 import io.github.notenoughupdates.moulconfig.processor.ProcessedOption
 
-class SkysoftUpdateEditor(option: ProcessedOption) : ComponentEditor(option) {
-    private val component = wrapComponent(
-        SkysoftStatusButtonComponent(
-            statusText = { ModUpdateChecker.statusText() },
-            statusColor = ::statusColor,
-            buttonText = { ModUpdateChecker.buttonText() },
-            onClick = ::click,
-        ),
-    )
+class SkysoftUpdateEditor(option: ProcessedOption) :
+    SkysoftStatusButtonEditor(option, "update download version modrinth") {
+    override fun statusText(): String = ModUpdateChecker.statusText()
 
-    override fun getDelegate(): GuiComponent = component
+    override fun buttonText(): String = ModUpdateChecker.buttonText()
 
-    override fun fulfillsSearch(word: String): Boolean =
-        super.fulfillsSearch(word) || word in "update download version modrinth"
-
-    private fun click() {
+    override fun click() {
         if (
             ModUpdateChecker.status is UpdateStatus.Available &&
             ModUpdateChecker.openDownload() == DownloadOpenResult.OPENED
@@ -30,7 +19,7 @@ class SkysoftUpdateEditor(option: ProcessedOption) : ComponentEditor(option) {
         ModUpdateChecker.check(force = true)
     }
 
-    private fun statusColor(): Int =
+    override fun statusColor(): Int =
         when (ModUpdateChecker.status) {
             UpdateStatus.NotChecked -> 0xFFBDEFFF.toInt()
             UpdateStatus.Checking -> 0xFFFFFF55.toInt()

@@ -1,7 +1,9 @@
 package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.repairFiniteFloat
+import com.skysoft.config.core.repairLoadedConfigs
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
@@ -11,7 +13,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 
 class SharedPetVisualConfig(
     private val scalar: Float = 0.6f,
-) {
+) : ConfigRepairable {
     @Expose
     @ConfigOption(
         name = "Exp-Share Pets",
@@ -87,11 +89,8 @@ class SharedPetVisualConfig(
     @ConfigOrder(65)
     val disabledOpacity: Property<Float> = Property.of(0.5f)
 
-    fun repairLoadedValues() {
-        organization.repairLoadedValues()
-        icon.repairLoadedValues()
-        rarityBackground.repairLoadedValues()
-        petItem.repairLoadedValues()
+    override fun repairLoadedValues() {
+        repairLoadedConfigs(organization.subOrbit, icon, rarityBackground, petItem)
         disabledOpacity.repairFiniteFloat(MIN_DISABLED_OPACITY, MAX_DISABLED_OPACITY, DEFAULT_DISABLED_OPACITY)
     }
 

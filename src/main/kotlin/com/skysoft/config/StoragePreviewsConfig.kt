@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.coerceFiniteIn
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
@@ -22,10 +23,11 @@ class StoragePreviewsConfig : ConfigRepairable {
     val settings = StoragePreviewsSettingsConfig()
 
     override fun repairLoadedValues() {
-        settings.gridScale = settings.gridScale
-            .takeIf(Float::isFinite)
-            ?.coerceIn(MIN_STORAGE_PREVIEW_SCALE, MAX_STORAGE_PREVIEW_SCALE)
-            ?: DEFAULT_STORAGE_PREVIEW_SCALE
+        settings.gridScale = settings.gridScale.coerceFiniteIn(
+            MIN_STORAGE_PREVIEW_SCALE,
+            MAX_STORAGE_PREVIEW_SCALE,
+            DEFAULT_STORAGE_PREVIEW_SCALE,
+        )
     }
 }
 

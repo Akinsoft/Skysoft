@@ -95,14 +95,11 @@ internal object ConfigCategoryLayoutMigration {
     fun apply(json: JsonObject) {
         json.moveFieldInto(json, "profitTracker", "profitTrackers")
         paths.forEach { (oldPath, newPath) ->
-            val source = oldPath.substringBeforeLast('.', "").split('.')
-                .filter(String::isNotEmpty)
-                .fold(json as JsonObject?) { parent, name -> parent?.getObjectOrNull(name) }
-            val field = oldPath.substringAfterLast('.')
-            if (source?.has(field) != true) return@forEach
-            val target = newPath.substringBeforeLast('.').split('.')
-                .fold(json) { parent, name -> parent.getOrCreateObject(name) }
-            source.moveFieldInto(target, field, newPath.substringAfterLast('.'))
+            json.getObjectOrNull(*oldPath.parentPath())?.moveFieldInto(
+                { json.getOrCreateObject(*newPath.parentPath()) },
+                oldPath.substringAfterLast('.'),
+                newPath.substringAfterLast('.'),
+            )
         }
         json.getObjectOrNull("chat")?.remove("messageFiltering")
         json.remove("misc")
@@ -119,6 +116,9 @@ internal object ConfigCategoryLayoutMigration {
         val localIdentity = identity.removePrefix(CONFIG_PACKAGE)
         return fieldIdentities[localIdentity]?.let { CONFIG_PACKAGE + it } ?: identity
     }
+
+    private fun String.parentPath(): Array<String> =
+        substringBeforeLast('.', "").split('.').filter(String::isNotEmpty).toTypedArray()
 
     private const val CONFIG_PACKAGE = "com.skysoft.config."
 }

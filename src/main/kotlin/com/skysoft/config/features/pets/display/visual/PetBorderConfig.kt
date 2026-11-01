@@ -2,7 +2,9 @@ package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.repairFiniteFloat
+import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.features.pets.display.ScalableOverlayConfig
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -17,7 +19,7 @@ import io.github.notenoughupdates.moulconfig.observer.Property
 
 open class PetBorderConfig(
     override val scalar: Float = 1.0f,
-) : ScalableOverlayConfig {
+) : ScalableOverlayConfig, ConfigRepairable {
     @Expose
     @ConfigOption(
         name = "Enabled",
@@ -61,10 +63,7 @@ open class PetBorderConfig(
     @ConfigOrder(40)
     val reset: Runnable = Runnable(::reset)
 
-    open fun repairLoadedValues() {
-        progress.repairLoadedValues()
-        divider.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(progress, divider)
 }
 
 class ProgressRingConfig(scalar: Float = 1.0f) : RingStyleConfig(scalar) {
@@ -96,7 +95,7 @@ class ProgressRingConfig(scalar: Float = 1.0f) : RingStyleConfig(scalar) {
 
 open class RingStyleConfig(
     scalar: Float = 1.0f,
-) : ScalableOverlayConfig {
+) : ScalableOverlayConfig, ConfigRepairable {
     @Transient
     override val scalar: Float = scalar
 
@@ -114,7 +113,7 @@ open class RingStyleConfig(
     @ConfigOrder(30)
     open val reset: Runnable = Runnable(::reset)
 
-    open fun repairLoadedValues() {
+    override fun repairLoadedValues() {
         padding.repairFiniteFloat(MIN_PADDING, MAX_PADDING, defaultPadding())
     }
 

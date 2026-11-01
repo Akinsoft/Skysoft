@@ -31,5 +31,5 @@ class ItemsAndTradingConfig : ConfigRepairable {
     @field:Category(name = "Price Tooltips", desc = "Market and craft values on item tooltips.")
     val priceTooltips = PriceTooltipsConfig()
 
-    override fun repairLoadedValues() = repairLoadedConfigs(itemList, craftingHelper, bazaar, priceTooltips)
+    override fun repairLoadedValues() = repairLoadedConfigs(itemList, craftingHelper, bazaar, priceTooltips.settings)
 }

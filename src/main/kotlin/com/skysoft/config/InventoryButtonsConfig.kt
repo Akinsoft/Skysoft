@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
+import com.skysoft.config.core.coercePositiveIn
 import com.skysoft.features.inventory.InventoryButtonEditorScreen
 import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -47,13 +48,13 @@ class InventoryButtonsConfig : ConfigRepairable {
         buttons = repairedButtons(buttons)
         presets = presets.take(PRESET_COUNT).toMutableList()
         if (presets.isEmpty()) {
-            presets += InventoryButtonPresetConfig(defaultPresetName(0), buttons.mapTo(mutableListOf()) { it.copy() })
+            presets += InventoryButtonPresetConfig(defaultPresetName(0), buttons.copies())
         }
         while (presets.size < PRESET_COUNT) {
             presets += InventoryButtonPresetConfig(defaultPresetName(presets.size))
         }
         presets.forEachIndexed { index, preset ->
-            preset.name = preset.name.trim().take(PRESET_NAME_MAX_LENGTH).ifBlank { defaultPresetName(index) }
+            preset.name = presetName(preset.name, index)
             preset.buttons = repairedButtons(preset.buttons)
         }
         activePreset = activePreset.coerceIn(presets.indices)
@@ -61,29 +62,33 @@ class InventoryButtonsConfig : ConfigRepairable {
     }
 
     fun storeActivePreset() {
-        presets.getOrNull(activePreset)?.buttons = buttons.mapTo(mutableListOf()) { it.copy() }
+        presets.getOrNull(activePreset)?.buttons = buttons.copies()
     }
 
     fun switchPreset(index: Int) {
         if (index !in presets.indices || index == activePreset) return
         storeActivePreset()
         activePreset = index
-        buttons = presets[index].buttons.mapTo(mutableListOf()) { it.copy() }
+        buttons = presets[index].buttons.copies()
     }
 
     fun replaceActiveButtons(replacement: List<InventoryButtonConfig>) {
-        buttons = replacement.mapTo(mutableListOf()) { it.copy() }
-        buttons = repairedButtons(buttons)
+        buttons = repairedButtons(replacement.copies())
         storeActivePreset()
     }
 
     fun renamePreset(index: Int, name: String) {
         val preset = presets.getOrNull(index) ?: return
-        preset.name = name.trim().take(PRESET_NAME_MAX_LENGTH).ifBlank { defaultPresetName(index) }
+        preset.name = presetName(name, index)
     }
 
+    private fun presetName(name: String, index: Int): String =
+        name.trim().take(PRESET_NAME_MAX_LENGTH).ifBlank { defaultPresetName(index) }
+
+    private fun List<InventoryButtonConfig>.copies(): MutableList<InventoryButtonConfig> = mapTo(mutableListOf()) { it.copy() }
+
     private fun repairedButtons(loadedButtons: MutableList<InventoryButtonConfig>): MutableList<InventoryButtonConfig> {
-        val repaired = InventoryButtonDefaults.resettableButtons(loadedButtons)
+        val repaired = loadedButtons.ifEmpty { InventoryButtonDefaults.create() }
         repaired.forEachIndexed { index, button ->
             button.repairLoadedValues(isLegacyExtraButton = index >= InventoryButtonDefaults.DEFAULT_BUTTON_COUNT)
         }
@@ -171,11 +176,8 @@ class InventoryButtonConfig(
     }
 }
 
-internal fun normalizedInventoryButtonScale(scale: Float): Float = scale
-    .takeIf(Float::isFinite)
-    ?.takeIf { it > 0f }
-    ?.coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
-    ?: DEFAULT_INVENTORY_BUTTON_SCALE
+internal fun normalizedInventoryButtonScale(scale: Float): Float =
+    scale.coercePositiveIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE, DEFAULT_INVENTORY_BUTTON_SCALE)
 
 const val MIN_INVENTORY_BUTTON_SCALE = 0.5f
 

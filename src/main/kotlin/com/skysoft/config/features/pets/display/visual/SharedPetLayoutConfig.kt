@@ -1,6 +1,7 @@
 package com.skysoft.config.features.pets.display.visual
 
 import com.google.gson.annotations.Expose
+import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.ConfigResettable
 import com.skysoft.config.core.repairFiniteFloat
 import com.skysoft.utils.gui.OrbitDirection
@@ -46,7 +47,7 @@ class SharedPetLayoutConfig : ConfigResettable {
     @Accordion
     val subOrbit: OrbitSettings = OrbitSettings()
 
-    class OrbitSettings : ConfigResettable {
+    class OrbitSettings : ConfigResettable, ConfigRepairable {
         @Expose
         @ConfigOption(name = "Orbit Distance", desc = "Gap between the orbiting pets and the equipped pet.")
         @ConfigEditorSlider(minValue = 1f, maxValue = 10f, minStep = 1f)
@@ -62,7 +63,7 @@ class SharedPetLayoutConfig : ConfigResettable {
         @ConfigEditorSlider(minValue = 10f, maxValue = 360f, minStep = 10f)
         val orbitSpeed: Property<Float> = Property.of(20f)
 
-        fun repairLoadedValues() {
+        override fun repairLoadedValues() {
             orbitDistance.repairFiniteFloat(MIN_ORBIT_DISTANCE, MAX_ORBIT_DISTANCE, DEFAULT_ORBIT_DISTANCE)
             orbitSpeed.repairFiniteFloat(MIN_ORBIT_SPEED, MAX_ORBIT_SPEED, DEFAULT_ORBIT_SPEED)
         }
@@ -80,8 +81,4 @@ class SharedPetLayoutConfig : ConfigResettable {
     @ConfigOption(name = "Reset Organization", desc = "Reset the organization settings to the default values.")
     @ConfigEditorButton(buttonText = "Reset")
     val reset: Runnable = Runnable(::reset)
-
-    fun repairLoadedValues() {
-        subOrbit.repairLoadedValues()
-    }
 }

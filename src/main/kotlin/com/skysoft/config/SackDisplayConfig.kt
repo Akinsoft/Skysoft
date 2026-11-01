@@ -34,7 +34,7 @@ class SackDisplayConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(8, 70, centerX = false, centerY = false).rememberDefault()
+    val position = HudPosition(8, 70, centerY = false).rememberDefault()
 
     override fun repairLoadedValues() {
         settings.maximumItems = settings.maximumItems.coerceIn(MINIMUM_ITEMS, MAXIMUM_ITEMS)

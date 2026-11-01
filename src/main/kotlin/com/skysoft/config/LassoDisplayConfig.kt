@@ -28,7 +28,7 @@ class LassoDisplayConfig {
 
     @JvmField
     @field:Expose
-    val position = HudPosition(0, 40, centerX = true, centerY = true).rememberDefault()
+    val position = HudPosition(0, 40, centerX = true).rememberDefault()
 }
 
 class LassoDisplaySettingsConfig {
