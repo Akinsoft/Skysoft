@@ -78,10 +78,10 @@ class GuiScaleController private constructor() {
         @JvmStatic
         fun resolve(screen: Screen?, window: Window): ResolvedScales {
             val config = config()
-            val normal = resolve(window, minecraft.options.guiScale().get())
-            val tooltip = resolve(window, config.settings.tooltipGuiScale)
+            val normal = resolveConfiguredScale(window, minecraft.options.guiScale().get())
+            val tooltip = resolveConfiguredScale(window, config.settings.tooltipGuiScale)
             val configuredInventory = if (usesConfiguredInventoryScale(screen)) {
-                resolve(window, config.settings.inventoryGuiScale)
+                resolveConfiguredScale(window, config.settings.inventoryGuiScale)
             } else {
                 normal
             }
@@ -148,7 +148,7 @@ class GuiScaleController private constructor() {
                 }
             }
 
-        private fun resolve(window: Window, configuredScale: Int): Int =
+        internal fun resolveConfiguredScale(window: Window, configuredScale: Int): Int =
             window.calculateScale(configuredScale.coerceAtLeast(0), minecraft.isEnforceUnicode).coerceAtLeast(1)
 
         private fun supportsInventoryScale(screen: Screen?): Boolean =
@@ -162,7 +162,7 @@ class GuiScaleController private constructor() {
             }
 
         private fun shouldCapStorageOverlayScale(screen: Screen?): Boolean {
-            val normalScale = resolve(minecraft.window, minecraft.options.guiScale().get())
+            val normalScale = resolveConfiguredScale(minecraft.window, minecraft.options.guiScale().get())
             return capStorageOverlayScale(
                 normalScale,
                 isStorageOverlayActive(screen),

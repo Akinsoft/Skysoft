@@ -26,7 +26,7 @@ object GuiOverlayRegistry {
             SkysoftMod.id("gui_overlays_below_screen"),
             { context, _ ->
                 SkysoftErrorBoundary.run("GUI overlay world layer") {
-                    renderWorldLayer(GuiOverlayLayer.BELOW_SCREEN, context)
+                    renderLayer(GuiOverlayLayer.BELOW_SCREEN, context, currentContext(), GuiOverlayRenderPass.BEFORE_SCREEN_BACKGROUND)
                 }
             },
         )
@@ -53,7 +53,7 @@ object GuiOverlayRegistry {
 
     @JvmStatic
     fun shouldRenderLayer(layer: GuiOverlayLayer): Boolean {
-        val overlayContext = context()
+        val overlayContext = currentContext()
         return overlays.any { overlay ->
             overlay.layer == layer && SkysoftErrorBoundary.value(overlay.errorBoundary, false) {
                 overlay.isVisible(overlayContext)
@@ -63,7 +63,7 @@ object GuiOverlayRegistry {
 
     @JvmStatic
     fun renderLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor) {
-        val overlayContext = context()
+        val overlayContext = currentContext()
         if (layer == GuiOverlayLayer.BELOW_SCREEN) {
             renderBelowScreenLayer(context, overlayContext)
         } else {
@@ -73,7 +73,7 @@ object GuiOverlayRegistry {
 
     @JvmStatic
     fun isScreenPointCovered(mouseX: Int, mouseY: Int): Boolean {
-        val context = context()
+        val context = currentContext()
         return overlays.asReversed().any { overlay ->
             overlay.layer == GuiOverlayLayer.ABOVE_SCREEN && overlay.coversScreenPoint != null &&
                 SkysoftErrorBoundary.value(overlay.errorBoundary, false) {
@@ -98,36 +98,23 @@ object GuiOverlayRegistry {
         graphics.extractDeferredElements(mouse.x, mouse.y, 0f)
     }
 
-    private fun renderWorldLayer(layer: GuiOverlayLayer, context: GuiGraphicsExtractor) {
-        val overlayContext = context()
-        renderLayer(layer, context, overlayContext, GuiOverlayRenderPass.BEFORE_SCREEN_BACKGROUND)
-    }
-
     private fun renderBelowScreenLayer(context: GuiGraphicsExtractor, overlayContext: GuiOverlayContext) {
+        val renderAfterBackground = {
+            renderLayer(GuiOverlayLayer.BELOW_SCREEN, context, overlayContext, GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND)
+        }
         val screen = overlayContext.screen
         if (screen == null || !GuiScaleController.usesSeparateInventoryScale(screen)) {
-            renderLayer(
-                GuiOverlayLayer.BELOW_SCREEN,
-                context,
-                overlayContext,
-                GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND,
-            )
+            renderAfterBackground()
             return
         }
-
         val window = Minecraft.getInstance().window
         val scales = GuiScaleController.resolve(screen, window)
-        val inventoryScale = scales.inventory()
         val normalScale = scales.normal()
+        val overlayScale = normalScale / scales.inventory().toFloat()
         context.withIsolatedPose {
             GuiScaleController.withNormalOverlayCoordinates(window, normalScale) {
-                context.pose().scale(normalScale / inventoryScale.toFloat(), normalScale / inventoryScale.toFloat())
-                renderLayer(
-                    GuiOverlayLayer.BELOW_SCREEN,
-                    context,
-                    overlayContext,
-                    GuiOverlayRenderPass.AFTER_SCREEN_BACKGROUND,
-                )
+                context.pose().scale(overlayScale, overlayScale)
+                renderAfterBackground()
             }
         }
     }
@@ -151,7 +138,7 @@ object GuiOverlayRegistry {
         }
     }
 
-    private fun context(): GuiOverlayContext {
+    private fun currentContext(): GuiOverlayContext {
         val minecraft = Minecraft.getInstance()
         val screen = MinecraftClient.screen(minecraft)
         return GuiOverlayContext(
