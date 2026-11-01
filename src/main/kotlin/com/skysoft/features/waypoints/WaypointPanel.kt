@@ -66,14 +66,10 @@ internal object WaypointPanel {
     }
 
     fun showPage(presets: Boolean) {
-        WaypointSettingsPanel.clear()
-        WaypointPanelInput.cancelDrag()
+        clearPage()
         WaypointPresetList.blur()
         isBrowsingPresets = presets
         scrollOffset = 0
-        controls = emptyList()
-        layout = null
-        pendingDelete = null
     }
 
     fun dismiss() {
@@ -82,16 +78,20 @@ internal object WaypointPanel {
     }
 
     fun close() {
-        WaypointSettingsPanel.clear()
-        pendingDelete = null
         isOpen = false
         transition.reset()
-        controls = emptyList()
-        layout = null
-        WaypointPanelInput.cancelDrag()
+        clearPage()
         WaypointLibrary.save()
         WaypointPresetList.reset()
         if (MinecraftClient.screen() is WaypointPanelScreen || MinecraftClient.screen() is WaypointDialog) MinecraftClient.setScreen(null)
+    }
+
+    private fun clearPage() {
+        WaypointSettingsPanel.clear()
+        WaypointPanelInput.cancelDrag()
+        controls = emptyList()
+        layout = null
+        pendingDelete = null
     }
 
     fun isVisible(screen: Screen? = MinecraftClient.screen()): Boolean = isOpen && transition.isVisible &&

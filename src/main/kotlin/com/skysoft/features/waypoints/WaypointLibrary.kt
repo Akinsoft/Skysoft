@@ -5,6 +5,7 @@ import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.data.BackgroundSave
 import com.skysoft.utils.SkysoftClientEvents
 import java.nio.file.Files
+import kotlin.math.abs
 
 internal object WaypointLibrary {
     private val path = SkysoftConfigFiles.directory.resolve("waypoints.json")
@@ -29,6 +30,8 @@ internal object WaypointLibrary {
             return content
         }
 
+    fun group(id: String?): WaypointGroup? = groups.firstOrNull { it.id == id }
+
     fun register() {
         SkysoftClientEvents.onEndTick("Waypoint saves", { saves.hasUnsavedChanges && loadError == null }) {
             saves.saveIfDue()
@@ -43,7 +46,7 @@ internal object WaypointLibrary {
         WaypointValidation.validate(groups)
         if (content == groups) return
         val encoded = WaypointJson.encodeLibrary(groups.filter { it.scope != WaypointScope.VISIT })
-        require(encoded.toByteArray(Charsets.UTF_8).size <= WaypointJson.MAX_JSON_BYTES) {
+        require(WaypointJson.fitsSizeLimit(encoded)) {
             "The waypoint library would exceed 8 MB. Remove points or shorten names first."
         }
         content = groups.toList()
@@ -93,7 +96,7 @@ internal object WaypointValidation {
     private fun validateGroup(group: WaypointGroup) {
         require(group.id.isNotBlank()) { "Preset ID is missing." }
         require(group.name.isNotBlank() && group.name.length <= MAX_WAYPOINT_NAME) { "Preset name is invalid." }
-        require(group.name.none { it < ' ' || it == '\u007f' || it == '§' }) {
+        require(group.name.all(Char::isAllowedInWaypointName)) {
             "Preset names cannot contain control characters or formatting."
         }
         require(group.color in 0..MAX_RGB) { "Preset color is invalid." }
@@ -103,10 +106,10 @@ internal object WaypointValidation {
         require(group.scope != WaypointScope.VISIT || !group.visit.isNullOrBlank()) { "Visit is missing." }
         group.points.forEach { point ->
             require(point.id.isNotBlank() && point.name.length <= MAX_WAYPOINT_NAME) { "Point name or ID is invalid." }
-            require(point.name.none { it < ' ' || it == '\u007f' || it == '§' }) {
+            require(point.name.all(Char::isAllowedInWaypointName)) {
                 "Point names cannot contain control characters or formatting."
             }
-            require(listOf(point.x, point.y, point.z).all { it.isFinite() && kotlin.math.abs(it) <= MAX_WAYPOINT_COORDINATE }) {
+            require(listOf(point.x, point.y, point.z).all { it.isFinite() && abs(it) <= MAX_WAYPOINT_COORDINATE }) {
                 "Waypoint coordinates must be finite and within world bounds."
             }
             require(point.color == null || point.color in 0..MAX_RGB) { "Point color is invalid." }

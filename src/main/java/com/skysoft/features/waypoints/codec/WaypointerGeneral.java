@@ -28,12 +28,12 @@ final class WaypointerGeneral {
         int poolSize = input.count(65536);
         List<String> pool = new ArrayList<>();
         for (int i = 0; i < poolSize; i++) pool.add(input.text());
-        int count = input.count(256);
+        int count = input.count(WaypointerDecoder.MAX_GROUPS);
         int points = 0;
         for (int i = 0; i < count; i++) {
             WaypointerRouteData.Group group = group(input, pool);
             points += group.points.size();
-            WaypointBytes.require(points <= 50000, "Waypointer import contains too many points.");
+            WaypointBytes.require(points <= WaypointerDecoder.MAX_ROUTE_POINTS, "Waypointer import contains too many points.");
             result.groups.add(group);
         }
         input.end();
@@ -59,7 +59,7 @@ final class WaypointerGeneral {
             group.endColor = input.rgb();
         }
         if ((flags & 8) != 0) group.radius = radius(input);
-        int count = input.count(20000);
+        int count = input.count(WaypointerDecoder.MAX_GROUP_POINTS);
         int mode = ((flags >>> 4) & 3) | ((flags & 64) != 0 ? 4 : 0);
         int[][] positions = WaypointerCoordinates.read(input, count, mode, false);
         boolean bodyless = (flags & 1) != 0;

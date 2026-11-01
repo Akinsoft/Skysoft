@@ -57,6 +57,12 @@ internal data class WaypointGroup(
         SkysoftChat.mix(SkysoftChat.PREFIX_LEFT, SkysoftChat.PREFIX_RIGHT, index.toFloat() / points.lastIndex.coerceAtLeast(1))
     } else color
 
+    fun point(id: String?): WaypointPoint? = points.firstOrNull { it.id == id }
+
+    fun withPoint(point: WaypointPoint): WaypointGroup = copy(points = points.map { if (it.id == point.id) point else it })
+
+    fun arrivalRadius(point: WaypointPoint): Double = point.radius ?: radius
+
     fun pointStyles(point: WaypointPoint): Set<WaypointStyle> = point.styles ?: styles
 
     fun pointTarget(point: WaypointPoint): WorldVec =
@@ -83,6 +89,8 @@ internal data class WaypointImport(
     val warnings: List<String> = emptyList(),
     val needsIsland: Set<String> = emptySet(),
 )
+
+internal fun Char.isAllowedInWaypointName(): Boolean = this >= ' ' && this != '\u007f' && this != '§'
 
 internal const val DEFAULT_WAYPOINT_COLOR = 0x45A3FF
 internal const val DEFAULT_WAYPOINT_RADIUS = 3.0

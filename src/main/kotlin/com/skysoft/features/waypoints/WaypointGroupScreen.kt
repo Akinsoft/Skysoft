@@ -113,7 +113,7 @@ internal class WaypointGroupScreen private constructor(
     }
 
     private fun selectOriginal(): WaypointGroup {
-        val saved = WaypointLibrary.groups.firstOrNull { it.id == original?.id } ?: error("This preset is no longer available.")
+        val saved = WaypointLibrary.group(original?.id) ?: error("This preset is no longer available.")
         Waypoints.select(saved)
         return saved
     }

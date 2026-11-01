@@ -1,5 +1,6 @@
 package com.skysoft.features.waypoints
 
+import com.skysoft.utils.ColorUtilities.packRgb
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 
@@ -16,7 +17,7 @@ internal object WaypointSoopyImport {
                 val x = input.readFloat().toDouble()
                 val y = input.readFloat().toDouble()
                 val z = input.readFloat().toDouble()
-                val color = (channel(input) shl RED_SHIFT) or (channel(input) shl GREEN_SHIFT) or channel(input)
+                val color = packRgb(channel(input), channel(input), channel(input))
                 val area = input.readUTF()
                 val name = context.name(input.readUTF().ifBlank { id })
                 areas.getOrPut(area) { mutableListOf() } += WaypointPoint(name = name, x = x, y = y, z = z, color = color)
@@ -33,7 +34,4 @@ internal object WaypointSoopyImport {
     private fun channel(input: DataInputStream): Int = input.readByte().toInt().also {
         require(it >= 0) { "Invalid Soopy color channel." }
     } * 2
-
-    private const val RED_SHIFT = 16
-    private const val GREEN_SHIFT = 8
 }

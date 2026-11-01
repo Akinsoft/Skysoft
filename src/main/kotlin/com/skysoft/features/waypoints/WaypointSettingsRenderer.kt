@@ -16,7 +16,7 @@ internal object WaypointSettingsRenderer {
         if (!WaypointSettingsPanel.isOpen) return emptyList()
         val painter = WaypointPanelPainter(context, mouseX, mouseY, opacity, WaypointSettingsPanel.isInteractive)
         painter.controls += WaypointPanelControl(layout.bounds, enabled = false, action = {})
-        OverlayPanelStyle.draw(context, layout.bounds.x, layout.bounds.y, layout.bounds.width, layout.bounds.height, opacity)
+        OverlayPanelStyle.draw(context, layout.bounds, opacity)
         painter.text(
             Rect(layout.bounds.x + WaypointSettingsLayout.INSET, layout.bounds.y + TITLE_Y, TITLE_WIDTH, TITLE_HEIGHT),
             OverlayTextStyle.title("Waypoints Settings"), PixelControlColors.TEXT
@@ -86,7 +86,7 @@ internal object WaypointSettingsRenderer {
             if (!layout.isOptionVisible(index)) return@forEachIndexed
             val row = layout.optionRow(index)
             painter.text(layout.label(row), setting.label)
-            painter.cycle(layout.value(row), setting.label, listOf(false, true), setting.isEnabled(), label = { if (it) "On" else "Off" }) {
+            painter.cycle(layout.value(row), setting.label, listOf(false, true), setting.isEnabled(), label = ::onOffLabel) {
                 setting.toggle()
                 WaypointSettingsPanel.save()
             }

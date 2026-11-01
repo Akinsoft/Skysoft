@@ -25,7 +25,7 @@ internal class WaypointImportContext(val source: String) {
     }
 
     fun name(value: String): String {
-        val clean = value.replace(FORMATTING, "").filter { it >= ' ' && it != '\u007f' && it != '§' }
+        val clean = value.replace(FORMATTING, "").filter(Char::isAllowedInWaypointName)
             .take(MAX_WAYPOINT_NAME).dropLastWhile(Char::isHighSurrogate).trim()
         if (clean != value) warnings += "Long names and text formatting were shortened or removed."
         return clean

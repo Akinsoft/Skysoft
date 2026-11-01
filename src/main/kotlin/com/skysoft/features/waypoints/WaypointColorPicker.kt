@@ -129,10 +129,9 @@ internal class WaypointColorPicker private constructor(
         guiContext.onAfterClose()
         if (draft.color == original.color && draft.chromaMillis == original.chromaMillis) return
         WaypointPanel.perform {
-            val saved = WaypointLibrary.groups.firstOrNull { it.id == group.id } ?: return@perform
-            val current = saved.points.firstOrNull { it.id == original.id } ?: return@perform
-            val updated = current.copy(color = draft.color, chromaMillis = draft.chromaMillis)
-            Waypoints.updateGroup(saved.copy(points = saved.points.map { if (it.id == updated.id) updated else it }))
+            val saved = WaypointLibrary.group(group.id) ?: return@perform
+            val current = saved.point(original.id) ?: return@perform
+            Waypoints.updateGroup(saved.withPoint(current.copy(color = draft.color, chromaMillis = draft.chromaMillis)))
             WaypointLibrary.save()
         }
     }

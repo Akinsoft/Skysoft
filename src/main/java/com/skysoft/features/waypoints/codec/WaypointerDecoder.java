@@ -7,7 +7,10 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
 public final class WaypointerDecoder {
-    private static final int MAX_BYTES = 2_097_152;
+    static final int MAX_BYTES = 2_097_152;
+    static final int MAX_GROUPS = 256;
+    static final int MAX_GROUP_POINTS = 20000;
+    static final int MAX_ROUTE_POINTS = 50000;
 
     private WaypointerDecoder() {}
 
@@ -54,8 +57,7 @@ public final class WaypointerDecoder {
 
     private static WaypointerRouteData.Group bare(WaypointBytes input, boolean delta) {
         WaypointerRouteData.Group group = new WaypointerRouteData.Group();
-        for (int[] point : WaypointerEntropy.read(input, delta)) group.points.add(new WaypointerRouteData.Point(point));
-        input.end();
+        group.addPoints(WaypointerEntropy.readToEnd(input, delta));
         return group;
     }
 
@@ -71,13 +73,13 @@ public final class WaypointerDecoder {
         }
         if (subtype == 0) {
             WaypointerRouteData result = new WaypointerRouteData();
-            int count = input.count(256);
+            int count = input.count(MAX_GROUPS);
             WaypointBytes.require(count >= 2, "A Waypointer route pack requires at least two groups.");
             int points = 0;
             for (int i = 0; i < count; i++) {
                 WaypointerRouteData.Group group = bare(input.section(MAX_BYTES), delta);
                 points += group.points.size();
-                WaypointBytes.require(points <= 50000, "Waypointer route pack contains too many points.");
+                WaypointBytes.require(points <= MAX_ROUTE_POINTS, "Waypointer route pack contains too many points.");
                 result.groups.add(group);
             }
             return result;
@@ -97,7 +99,7 @@ public final class WaypointerDecoder {
             int index = input.count(result.groups.size() - 1);
             WaypointBytes.require(index > previous, "Invalid Waypointer color snapshot order.");
             previous = index;
-            int colors = input.count(20000);
+            int colors = input.count(MAX_GROUP_POINTS);
             WaypointBytes.require(colors == result.groups.get(index).points.size(), "Waypointer color snapshot count does not match.");
             input.bytes(colors * 3);
         }

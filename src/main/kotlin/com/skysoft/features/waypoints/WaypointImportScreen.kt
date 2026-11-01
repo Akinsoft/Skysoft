@@ -12,13 +12,14 @@ internal class WaypointImportScreen private constructor(parent: Screen?) : Waypo
     private var preview: WaypointImport? = null
     private val selected = linkedSetOf<String>()
     private var status = ""
+    private val note get() = if (busy) "Reading waypoints…" else status
     override val preferredWidth = 300
     override val contentHeight: Int
         get() {
             val data = preview
             return if (data == null) {
                 BUTTON_ROW + intro.sumOf { waypointNoteHeight(it, bodyWidth) + GAP } +
-                    waypointNoteHeight(if (busy) "Reading waypoints…" else status, bodyWidth)
+                    waypointNoteHeight(note, bodyWidth)
             } else PREVIEW_TOP + data.groups.size * GROUP_HEIGHT + data.warnings.sumOf { waypointNoteHeight(it, bodyWidth) + GAP }
         }
 
@@ -36,7 +37,7 @@ internal class WaypointImportScreen private constructor(parent: Screen?) : Waypo
                 painter.note(text, x, noteY, width)
                 noteY += waypointNoteHeight(text, width) + GAP
             }
-            painter.note(if (busy) "Reading waypoints…" else status, x, noteY, width)
+            painter.note(note, x, noteY, width)
             return
         }
         painter.info(Rect(x, y + BUTTON_ROW, width, TEXT_HEIGHT), status)

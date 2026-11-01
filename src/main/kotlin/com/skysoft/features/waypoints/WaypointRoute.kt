@@ -17,11 +17,9 @@ internal class WaypointRoute {
         val target = if (point == null) group.points.firstOrNull { it.enabled }
         else group.points.firstOrNull { it.id == point.id && it.enabled }
         require(target != null) { "Enable at least one point to follow this route." }
+        stop()
         groupId = group.id
         pointId = target.id
-        paused = false
-        complete = false
-        mustLeave = null
     }
 
     fun stop() {
@@ -70,18 +68,18 @@ internal class WaypointRoute {
         val previous = group.points.firstOrNull { it.id == mustLeave }
         val previousDistance = previous?.destination?.distance(position)
         val heldDistance = previousDistance?.takeIf {
-            (it <= (previous.radius ?: group.radius) || group.skipAhead && feet == previous.position.roundToBlock()) &&
+            (it <= group.arrivalRadius(previous) || group.skipAhead && feet == previous.position.roundToBlock()) &&
                 it <= currentDistance
         }
         if (heldDistance == null) mustLeave = null
-        val reachedCurrent = currentDistance <= (currentPoint.radius ?: group.radius) &&
+        val reachedCurrent = currentDistance <= group.arrivalRadius(currentPoint) &&
             (heldDistance == null || heldDistance > currentDistance)
         val last = if (group.skipAhead && !reachedCurrent) group.points.lastIndex else current
         for (index in last downTo current) {
             val point = group.points[index]
             if (!point.enabled) continue
             val distance = point.destination.distance(position)
-            val reached = if (index == current) distance <= (point.radius ?: group.radius) else feet == point.position.roundToBlock()
+            val reached = if (index == current) distance <= group.arrivalRadius(point) else feet == point.position.roundToBlock()
             if (!reached || heldDistance != null && heldDistance <= distance) continue
             pointId = point.id
             step(group, 1)

@@ -15,13 +15,14 @@ import com.skysoft.utils.render.shader.SkysoftCircleShaderRenderer
 import java.awt.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.network.chat.Component
 
 internal object WaypointPanelRenderer {
     fun render(context: GuiGraphicsExtractor, layout: WaypointPanelLayout, mouseX: Int, mouseY: Int): List<WaypointPanelControl> {
         val opacity = WaypointPanel.opacity
         if (opacity <= 0.0) return emptyList()
         val painter = WaypointPanelPainter(context, mouseX, mouseY, opacity, WaypointPanel.isInteractive)
-        OverlayPanelStyle.draw(context, layout.bounds.x, layout.bounds.y, layout.bounds.width, layout.bounds.height, opacity)
+        OverlayPanelStyle.draw(context, layout.bounds, opacity)
         renderHeader(painter, layout)
         if (WaypointPanel.isBrowsingPresets) {
             WaypointPresetList.render(context, painter, layout)
@@ -97,10 +98,7 @@ internal object WaypointPanelRenderer {
             ) {}
             if (index == WaypointPointDrag.targetIndex) painter.dropIndicator(bounds, after = index > selectedIndex)
             val visibility = Rect(bounds.x + bounds.width, bounds.y, VISIBILITY_WIDTH, bounds.height)
-            painter.cycle(
-                visibility, "Visibility", listOf(true, false), point.enabled, label = { if (it) "On" else "Off" },
-                color = if (point.enabled) 0xFF55FF55.toInt() else PixelControlColors.MUTED_TEXT,
-            ) { enabled ->
+            painter.visibility(visibility, listOf(true, false), point.enabled) { enabled ->
                 Waypoints.select(group, point)
                 WaypointEditing.updatePoint(point.copy(enabled = enabled))
             }
@@ -163,7 +161,7 @@ internal object WaypointPanelRenderer {
         ) {
             Waypoints.redo()
         }
-        painter.action(cells.last(), "Settings", enabled = Waypoints.group != null, color = 0xFF55FFFF.toInt()) {
+        painter.action(cells.last(), "Settings", enabled = Waypoints.group != null, color = WAYPOINT_SETTINGS_COLOR) {
             WaypointGroupScreen.edit()
         }
     }
@@ -192,7 +190,7 @@ internal class WaypointPanelPainter(
         selected: Boolean = false,
         tone: PixelButtonTone = PixelButtonTone.NORMAL,
         tooltip: String = "",
-        color: Int = 0xFFFFFF55.toInt(),
+        color: Int = ACTION_COLOR,
         action: () -> Unit,
     ) = textControl(bounds, "[$label]", enabled, selected, waypointTooltip(tooltip), tone = tone, textColor = color, action = action)
 
@@ -211,6 +209,11 @@ internal class WaypointPanelPainter(
         tooltip = OverlayControlTooltips.cycle(name, options.map(label), options.indexOf(current)),
         rightClick = { change(OverlayControlCycle.next(options, current, backwards = true)) },
     ) { change(OverlayControlCycle.next(options, current, backwards = false)) }
+
+    fun visibility(bounds: Rect, options: List<Boolean>, enabled: Boolean, change: (Boolean) -> Unit) = cycle(
+        bounds, "Visibility", options, enabled, label = ::onOffLabel,
+        color = if (enabled) SELECTED_TEXT else PixelControlColors.MUTED_TEXT, change = change,
+    )
 
     fun toggle(
         bounds: Rect,
@@ -297,7 +300,7 @@ internal class WaypointPanelPainter(
     }
 
     fun note(text: String, x: Int, y: Int, width: Int) {
-        font.split(net.minecraft.network.chat.Component.literal(text), width).forEachIndexed { index, line ->
+        font.split(Component.literal(text), width).forEachIndexed { index, line ->
             context.text(
                 font, line, x, y + index * WAYPOINT_NOTE_LINE_HEIGHT, PixelControlColors.MUTED_TEXT.withScaledAlpha(opacity), false,
             )
@@ -321,11 +324,12 @@ internal class WaypointPanelPainter(
 }
 
 private const val WAYPOINT_NOTE_LINE_HEIGHT = 10
+internal const val WAYPOINT_SETTINGS_COLOR = 0xFF55FFFF.toInt()
+
+internal fun onOffLabel(value: Boolean): String = if (value) "On" else "Off"
 
 internal fun waypointNoteHeight(text: String, width: Int): Int =
-    if (text.isEmpty()) 0 else Minecraft.getInstance().font.split(
-        net.minecraft.network.chat.Component.literal(text), width,
-    ).size * WAYPOINT_NOTE_LINE_HEIGHT
+    if (text.isEmpty()) 0 else Minecraft.getInstance().font.split(Component.literal(text), width).size * WAYPOINT_NOTE_LINE_HEIGHT
 
 internal fun waypointCoordinates(point: WaypointPoint): String =
     "${waypointCoordinate(point.x)}, ${waypointCoordinate(point.y)}, ${waypointCoordinate(point.z)}"

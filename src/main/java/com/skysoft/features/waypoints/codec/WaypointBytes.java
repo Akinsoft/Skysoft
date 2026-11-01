@@ -40,10 +40,7 @@ final class WaypointBytes {
         return (int) value;
     }
 
-    long signed(int bits) {
-        long value = unsigned(bits);
-        return (value >>> 1) ^ -(value & 1);
-    }
+    long signed(int bits) { return WaypointerCoordinates.unzigzag(unsigned(bits)); }
 
     double number() { return ByteBuffer.wrap(bytes(8)).getDouble(); }
     int rgb() { return (u8() << 16) | (u8() << 8) | u8(); }

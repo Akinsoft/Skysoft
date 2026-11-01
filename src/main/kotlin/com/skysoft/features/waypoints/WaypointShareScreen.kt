@@ -16,9 +16,10 @@ internal class WaypointShareScreen private constructor(parent: Screen?) : Waypoi
     }
     private var scope = if (selected == null) ExportScope.LIBRARY else ExportScope.GROUP
     private var status = ""
+    private val note get() = if (busy) "Preparing export…" else status
     override val preferredWidth = 240
     override val contentHeight: Int get() = BUTTON_ROW * STATUS_ROW +
-        if (status.isEmpty() && !busy) 0 else waypointNoteHeight(if (busy) "Preparing export…" else status, bodyWidth) + GAP
+        if (status.isEmpty() && !busy) 0 else waypointNoteHeight(note, bodyWidth) + GAP
     private val groups get() = when (scope) {
         ExportScope.GROUP -> listOfNotNull(selected)
         ExportScope.ISLAND -> snapshot.filter { it.island == island }
@@ -48,7 +49,7 @@ internal class WaypointShareScreen private constructor(parent: Screen?) : Waypoi
                 status = if (path == null) "File selection cancelled." else "Saved ${path.fileName}."
             }
         }
-        painter.note(if (busy) "Preparing export…" else status, x, y + BUTTON_ROW * STATUS_ROW, width)
+        painter.note(note, x, y + BUTTON_ROW * STATUS_ROW, width)
     }
 
     private fun scopeLabel(scope: ExportScope): String = when (scope) {

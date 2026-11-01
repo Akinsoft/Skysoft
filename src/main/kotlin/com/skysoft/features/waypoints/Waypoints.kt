@@ -22,8 +22,10 @@ internal object Waypoints {
     private var locationKey: Pair<SkyBlockIsland?, String?>? = null
     private var wasEnabled = false
     val currentProfile: String? get() = SkyBlockProfileApi.currentProfileId?.let { "${it.playerKey}/${it.profileKey}" }
-    val group: WaypointGroup? get() = WaypointLibrary.groups.firstOrNull { it.id == selection.groupId }
-    val point: WaypointPoint? get() = group?.points?.firstOrNull { it.id == selection.pointId }
+    val group: WaypointGroup? get() = WaypointLibrary.group(selection.groupId)
+    val point: WaypointPoint? get() = group?.point(selection.pointId)
+    private val routeGroupInContext: WaypointGroup? get() = WaypointLibrary.group(route.groupId)?.takeIf(::isInContext)
+    private val isActive: () -> Boolean = { config.enabled || WaypointPanel.isOpen }
     val island: SkyBlockIsland?
         get() {
             val title = SidebarScoreboardState.title
@@ -37,14 +39,10 @@ internal object Waypoints {
         WaypointLibrary.register()
         WaypointPanel.register()
         WaypointWorldRenderer.register()
-        SkyBlockProfileApi.registerConsumer("Waypoints") { config.enabled || WaypointPanel.isOpen }
-        HypixelLocationState.onChange("Waypoint island change", { config.enabled || WaypointPanel.isOpen }) {
-            updateLocation()
-        }
-        SidebarScoreboardState.onChange("Waypoint island ownership", { config.enabled || WaypointPanel.isOpen }) {
-            updateLocation()
-        }
-        SkyBlockProfileApi.onProfileChange("Waypoint profile change", { config.enabled || WaypointPanel.isOpen }) {
+        SkyBlockProfileApi.registerConsumer("Waypoints", isActive)
+        HypixelLocationState.onChange("Waypoint island change", isActive) { updateLocation() }
+        SidebarScoreboardState.onChange("Waypoint island ownership", isActive) { updateLocation() }
+        SkyBlockProfileApi.onProfileChange("Waypoint profile change", isActive) {
             route.stop()
             WaypointPlacement.clear()
             if (browseIsland == island && group?.let(::isInContext) != true) {
@@ -100,21 +98,19 @@ internal object Waypoints {
         WaypointLibrary.replace(groups)
         if (before != groups) history.record(before, selection)
         selection = after
-        route.reconcile(WaypointLibrary.groups.firstOrNull { it.id == route.groupId && isInContext(it) })
+        route.reconcile(routeGroupInContext)
     }
 
     fun updateGroup(updated: WaypointGroup, after: WaypointSelection = selection) {
         updateGroups(WaypointLibrary.groups.map { if (it.id == updated.id) updated else it }, after)
     }
 
-    fun undo() {
-        selection = history.undo(selection)
-        group?.let { browseIsland = it.island }
-        route.stop()
-    }
+    fun undo() = restore(history.undo(selection))
 
-    fun redo() {
-        selection = history.redo(selection)
+    fun redo() = restore(history.redo(selection))
+
+    private fun restore(restored: WaypointSelection) {
+        selection = restored
         group?.let { browseIsland = it.island }
         route.stop()
     }
@@ -139,22 +135,18 @@ internal object Waypoints {
     }
 
     fun step(direction: Int) {
-        val routeGroup = WaypointLibrary.groups.firstOrNull { it.id == route.groupId } ?: return
+        val routeGroup = WaypointLibrary.group(route.groupId) ?: return
         route.step(routeGroup, direction)
     }
 
     private fun tick(minecraft: Minecraft) {
-        if (!config.enabled) {
+        if (!config.enabled || island == null || minecraft.level == null) {
             route.stop()
             WaypointPlacement.clear()
-            if (wasEnabled) locationKey = null
-        } else if (island == null || minecraft.level == null) {
-            route.stop()
-            WaypointPlacement.clear()
+            if (!config.enabled && wasEnabled) locationKey = null
         } else {
             WaypointPlacement.capture(minecraft)
-            val routeGroup = WaypointLibrary.groups.firstOrNull { it.id == route.groupId && isInContext(it) }
-            localPlayerLocation()?.let { route.tick(routeGroup, it) }
+            localPlayerLocation()?.let { route.tick(routeGroupInContext, it) }
         }
         wasEnabled = config.enabled
         WaypointKeybinds.tick()
@@ -197,7 +189,7 @@ internal object WaypointEditing {
 
     fun updatePoint(point: WaypointPoint) {
         val group = Waypoints.group ?: return
-        Waypoints.updateGroup(group.copy(points = group.points.map { if (it.id == point.id) point else it }))
+        Waypoints.updateGroup(group.withPoint(point))
     }
 
     fun removePoint() {
