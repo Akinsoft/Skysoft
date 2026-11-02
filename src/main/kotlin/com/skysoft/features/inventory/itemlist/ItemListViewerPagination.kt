@@ -1,7 +1,10 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal data class ViewerCardGrid(
     val bounds: Rect,
@@ -228,3 +231,21 @@ private fun viewerContentScale(tile: Rect, baseWidth: Int, baseHeight: Int): Flo
 private fun scaled(value: Int, scale: Float): Int = (value * scale).roundToInt().coerceAtLeast(1)
 
 internal fun recipePageCount(recipeCount: Int, pageSize: Int): Int = Math.ceilDiv(recipeCount, pageSize)
+
+internal fun viewerPageLabel(page: Int, pageCount: Int): String =
+    if (pageCount == 0) "0 / 0" else "${page + 1} / $pageCount"
+
+internal fun drawPageButtons(
+    context: GuiGraphicsExtractor,
+    font: Font,
+    previous: Rect,
+    next: Rect,
+    mouseX: Int,
+    mouseY: Int,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean,
+    alpha: Double = 1.0,
+) {
+    PixelButtonRenderer.draw(context, font, previous, "<", false, previous.contains(mouseX, mouseY), canGoPrevious, alpha = alpha)
+    PixelButtonRenderer.draw(context, font, next, ">", false, next.contains(mouseX, mouseY), canGoNext, alpha = alpha)
+}

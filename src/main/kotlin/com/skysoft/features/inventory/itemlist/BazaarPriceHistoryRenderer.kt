@@ -9,7 +9,6 @@ import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import com.skysoft.utils.IdentityRefreshCache
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.GuiLineRenderer
-import com.skysoft.utils.render.LegacyTextRenderer
 import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -31,7 +30,7 @@ internal object BazaarPriceHistoryRenderer {
     ) {
         val series = visibleSeries(preferences)
         if (series.isEmpty()) {
-            renderMessage(context, bounds, "§8No price filters selected")
+            renderBazaarGraphMessage(context, bounds, "§8No price filters selected")
             return
         }
         val now = System.currentTimeMillis()
@@ -41,7 +40,7 @@ internal object BazaarPriceHistoryRenderer {
             series.mapNotNull { it.value(row).takeIf { price -> price > 0.0 } }
         }
         if (visiblePrices.isEmpty()) {
-            renderMessage(context, bounds, "§8No Bazaar price history in this range")
+            renderBazaarGraphMessage(context, bounds, "§8No Bazaar price history in this range")
             return
         }
         val plot = pricePlot(bounds, visiblePrices)
@@ -103,14 +102,7 @@ internal object BazaarPriceHistoryRenderer {
             val row = entry.legendIndex / PriceHistoryLayout.LEGEND_COLUMNS
             val x = bounds.x + PriceHistoryLayout.PLOT_INSET + column * bounds.width / PriceHistoryLayout.LEGEND_COLUMNS
             val y = bounds.y + PriceHistoryLayout.LEGEND_Y + row * PriceHistoryLayout.LEGEND_ROW_HEIGHT
-            context.fill(
-                x,
-                y + PriceHistoryLayout.LEGEND_SWATCH_Y,
-                x + PriceHistoryLayout.LEGEND_SWATCH,
-                y + PriceHistoryLayout.LEGEND_SWATCH_Y + PriceHistoryLayout.LEGEND_SWATCH,
-                entry.color,
-            )
-            LegacyTextRenderer.draw(context, entry.coloredLabel, x + PriceHistoryLayout.LEGEND_TEXT_GAP, y)
+            drawBazaarGraphLegendEntry(context, entry.coloredLabel, x, y, entry.color)
         }
     }
 
@@ -121,7 +113,7 @@ internal object BazaarPriceHistoryRenderer {
             middleY,
             plot.bounds.x + plot.bounds.width,
             middleY + 1,
-            PriceHistoryStyle.GRID,
+            BAZAAR_GRAPH_GRID_COLOR,
         )
     }
 
@@ -139,15 +131,7 @@ internal object BazaarPriceHistoryRenderer {
         points.zipWithNext().forEach { (first, second) ->
             GuiLineRenderer.drawStep(context, first.first, first.second, second.first, second.second, series.color)
         }
-        points.forEach { point ->
-            context.fill(
-                point.first - PriceHistoryLayout.DOT_RADIUS,
-                point.second - PriceHistoryLayout.DOT_RADIUS,
-                point.first + PriceHistoryLayout.DOT_RADIUS + 1,
-                point.second + PriceHistoryLayout.DOT_RADIUS + 1,
-                series.color,
-            )
-        }
+        points.forEach { point -> drawBazaarGraphDot(context, point.first, point.second, series.color) }
     }
 
     private fun renderHover(
@@ -165,9 +149,9 @@ internal object BazaarPriceHistoryRenderer {
         val hoveredAt = start + ((end - start) * progress).roundToLong()
         val row = rows.minByOrNull { abs(it.at - hoveredAt) } ?: return
         val x = pricePoint(plot, row.at, plot.minimumPrice, start, end).first
-        context.fill(x, plot.bounds.y, x + 1, plot.bounds.y + plot.bounds.height, PriceHistoryStyle.CROSSHAIR)
+        context.fill(x, plot.bounds.y, x + 1, plot.bounds.y + plot.bounds.height, PRICE_HISTORY_CROSSHAIR_COLOR)
         val tooltip = buildList {
-            add("§f${BazaarPriceSeries.TIME_FORMAT.format(Instant.ofEpochMilli(row.at))}")
+            add("§f${BAZAAR_GRAPH_TIME_FORMAT.format(Instant.ofEpochMilli(row.at))}")
             series.forEach { entry ->
                 val price = entry.value(row)
                 if (price > 0.0) add("${entry.coloredLabel}: §6${price.coinAmountFormat()} coins")
@@ -187,15 +171,6 @@ internal object BazaarPriceHistoryRenderer {
         val yProgress = ((price - plot.minimumPrice) / plot.priceRange).coerceIn(0.0, 1.0)
         return plot.bounds.x + (plot.bounds.width * xProgress).roundToInt() to
             plot.bounds.y + plot.bounds.height - (plot.bounds.height * yProgress).roundToInt()
-    }
-
-    private fun renderMessage(context: GuiGraphicsExtractor, bounds: Rect, message: String) {
-        LegacyTextRenderer.draw(
-            context,
-            message,
-            bounds.x + PriceHistoryLayout.MESSAGE_INSET,
-            bounds.y + PriceHistoryLayout.MESSAGE_INSET,
-        )
     }
 }
 
@@ -217,12 +192,6 @@ private enum class BazaarPriceSeries(
     INSTANT_SELL("§6Instant Sell", 0xFFFFAA00.toInt(), 2, SkysoftBazaarPriceSnapshot::instantSellPrice),
     BUY_ORDER("§aBuy Orders", 0xFF55FF55.toInt(), 1, SkysoftBazaarPriceSnapshot::buyOrderPrice),
     SELL_ORDER("§cSell Orders", 0xFFFF5555.toInt(), 3, SkysoftBazaarPriceSnapshot::sellOrderPrice),
-    ;
-
-    companion object {
-        val TIME_FORMAT = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
-            .withZone(java.time.ZoneId.systemDefault())
-    }
 }
 
 private object PriceHistoryLayout {
@@ -231,11 +200,6 @@ private object PriceHistoryLayout {
     const val LEGEND_Y = 2
     const val LEGEND_COLUMNS = 2
     const val LEGEND_ROW_HEIGHT = 10
-    const val LEGEND_SWATCH_Y = 2
-    const val LEGEND_SWATCH = 5
-    const val LEGEND_TEXT_GAP = 8
-    const val MESSAGE_INSET = 5
-    const val DOT_RADIUS = 1
     const val CACHE_MILLIS = 1_000L
     const val RANGE_PADDING = 0.08
     const val FLAT_PADDING = 0.02
@@ -243,7 +207,4 @@ private object PriceHistoryLayout {
     const val HALF = 2
 }
 
-private object PriceHistoryStyle {
-    const val GRID = 0x5048515A
-    val CROSSHAIR = 0xA0FFFFFF.toInt()
-}
+private val PRICE_HISTORY_CROSSHAIR_COLOR = 0xA0FFFFFF.toInt()

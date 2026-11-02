@@ -1,16 +1,17 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.mojang.serialization.DynamicOps
 import com.skysoft.data.MinecraftProfileLookup
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.data.skyblock.SkyBlockItemStackCodec
 import com.skysoft.data.skyblock.price.BazaarProductAvailability
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.data.skyblock.price.SkysoftAuctionHouseResponse
 import com.skysoft.data.skyblock.price.SkysoftAuctionListing
-import com.skysoft.features.inventory.registryOps
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.DurationParts
 import com.skysoft.utils.MinecraftClient
@@ -26,6 +27,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.core.component.DataComponents
+import net.minecraft.nbt.Tag
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
@@ -46,7 +48,7 @@ internal class ItemListAuctionHousePanel {
 
     val canGoPrevious: Boolean get() = page > 0
     val canGoNext: Boolean get() = page + 1 < pageCount
-    val pageLabel: String get() = if (pageCount == 0) "0 / 0" else "${page + 1} / $pageCount"
+    val pageLabel: String get() = viewerPageLabel(page, pageCount)
 
     fun render(
         context: GuiGraphicsExtractor,
@@ -109,7 +111,7 @@ internal class ItemListAuctionHousePanel {
         val requestedPage = page
         requestSlot.startIfIdle(
             requestFactory = {
-                val ops = registryOps()
+                val ops = SkyBlockItemStackCodec.registryOps()
                 SkyBlockPriceData.refreshAuctionHouse(key.id, requestedPage)
                     .thenApplyAsync { response -> decodedResponse(response, key, ops) }
             },
@@ -147,8 +149,7 @@ internal class ItemListAuctionHousePanel {
     ) {
         val grid = AuctionHouseGridLayout.create(bounds)
         grid.slots.forEach { slot ->
-            context.fill(slot.x, slot.y, slot.x + slot.width, slot.y + slot.height, ItemListSlotStyle.BORDER)
-            context.fill(slot.x + 1, slot.y + 1, slot.x + slot.width - 1, slot.y + slot.height - 1, ItemListSlotStyle.FILL)
+            ItemListSlotStyle.draw(context, slot)
         }
         grid.slots.zip(listings).forEach { (slot, listing) ->
             val stack = listing.stack ?: FAILED_STACK
@@ -281,7 +282,7 @@ private fun auctionTooltipStack(
 private fun decodedResponse(
     response: SkysoftAuctionHouseResponse,
     key: ItemListEntryKey,
-    ops: com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag>,
+    ops: DynamicOps<Tag>,
 ): DecodedAuctionResponse {
     require(response.itemId == key.id) { "Auction House returned the wrong item" }
     require(response.pageSize == AuctionHouseGridLayout.PAGE_SIZE) { "Auction House returned an invalid page size" }

@@ -8,12 +8,12 @@ import com.skysoft.data.skyblock.SkyBlockEntityInfo
 import com.skysoft.data.skyblock.SkyBlockEntityLootTable
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.TextUtilities.nonItalicText
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.core.component.DataComponents
-import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
@@ -53,14 +53,7 @@ internal class ItemListEntityDropsPanel {
         mouseY: Int,
     ) {
         val hovered = bounds.contains(mouseX, mouseY)
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
-        context.fill(
-            bounds.x + 1,
-            bounds.y + 1,
-            bounds.x + bounds.width - 1,
-            bounds.y + bounds.height - 1,
-            if (hovered) CARD_HOVER else ItemListSlotStyle.FILL,
-        )
+        ItemListSlotStyle.draw(context, bounds, if (hovered) CARD_HOVER else ItemListSlotStyle.FILL)
         val icon = Rect(bounds.x + CARD_INSET, bounds.y + (bounds.height - ICON_SIZE) / 2, ICON_SIZE, ICON_SIZE)
         renderViewerItem(
             context,
@@ -117,7 +110,7 @@ private fun entityDropStack(drop: SkyBlockEntityDrop, key: ItemListEntryKey?): I
     return drop.currency?.let { SkyBlockCurrencyStacks.supportedStack(it, amount) }
         ?: key?.let(SkyBlockDataRepository::displayStack)
         ?: ItemStack(Items.PAPER).apply {
-            set(DataComponents.CUSTOM_NAME, Component.literal(drop.displayName).withStyle { it.withItalic(false) })
+            set(DataComponents.CUSTOM_NAME, nonItalicText(drop.displayName))
         }
 }
 

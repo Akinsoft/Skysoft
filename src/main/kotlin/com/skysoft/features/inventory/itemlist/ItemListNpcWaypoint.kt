@@ -48,7 +48,7 @@ internal object ItemListNpcWaypoint {
 
     fun requestWarp(entityId: String): NpcWarpRequestResult {
         if (!HypixelLocationState.inSkyBlock) return NpcWarpRequestResult.REJECTED
-        if (!isNpcAvailable(entityId)) return NpcWarpRequestResult.REJECTED
+        if (isOnVacation(entityId)) return NpcWarpRequestResult.REJECTED
         val minecraft = Minecraft.getInstance()
         val connection = minecraft.connection ?: return NpcWarpRequestResult.REJECTED
         val player = minecraft.player ?: return NpcWarpRequestResult.REJECTED
@@ -85,7 +85,6 @@ internal object ItemListNpcWaypoint {
     }
 
     private fun tick() {
-        val minecraft = Minecraft.getInstance()
         val playerPosition = localPlayerLocation()
         val now = System.currentTimeMillis()
         warpFailures.entries.removeIf { it.value <= now }
@@ -152,10 +151,7 @@ internal object ItemListNpcWaypoint {
     }
 
     fun warpActionLabel(entityId: String, now: Long = System.currentTimeMillis()): String {
-        val entity = SkyBlockDataRepository.entity(entityId)
-        if (entity?.availability?.let { SkyBlockEventState.availability(it, now) } == SkyBlockEventAvailability.INACTIVE) {
-            return "§c§lON VACATION"
-        }
+        if (isOnVacation(entityId, now)) return "§c§lON VACATION"
         return if ((warpFailures[entityId] ?: 0L) > now) {
             "§c§lWARP NOT UNLOCKED"
         } else {
@@ -163,10 +159,9 @@ internal object ItemListNpcWaypoint {
         }
     }
 
-    private fun isNpcAvailable(entityId: String, now: Long = System.currentTimeMillis()): Boolean =
-        SkyBlockDataRepository.entity(entityId)?.availability?.let {
-            SkyBlockEventState.availability(it, now) != SkyBlockEventAvailability.INACTIVE
-        } != false
+    private fun isOnVacation(entityId: String, now: Long = System.currentTimeMillis()): Boolean =
+        SkyBlockDataRepository.entity(entityId)?.availability?.let { SkyBlockEventState.availability(it, now) } ==
+            SkyBlockEventAvailability.INACTIVE
 
     private fun recordWarpFailure(message: String) {
         if (!message.contains(WARP_NOT_UNLOCKED_MESSAGE, ignoreCase = true)) return
@@ -254,4 +249,4 @@ private const val WAYPOINT_LIFETIME_MILLIS = 120_000L
 
 internal fun SkyBlockEntityInfo.canNavigateToEntity(): Boolean =
     SkyBlockDataRepository.ViewerData.bestWarpFor(id) != null &&
-        (position != null || island != com.skysoft.data.hypixel.HypixelLocationState.currentIsland)
+        (position != null || island != HypixelLocationState.currentIsland)

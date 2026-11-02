@@ -39,12 +39,7 @@ internal object BazaarGraphPlotRenderer {
         mouseY: Int,
     ) {
         if (!preferences.showBazaarBuyData && !preferences.showBazaarSellData) {
-            LegacyTextRenderer.draw(
-                context,
-                "§8No price filters selected",
-                bounds.x + PlotLayout.MESSAGE_INSET,
-                bounds.y + PlotLayout.MESSAGE_INSET,
-            )
+            renderBazaarGraphMessage(context, bounds, "§8No price filters selected")
             return
         }
         val plot = depthPlotCache.plot(
@@ -54,12 +49,7 @@ internal object BazaarGraphPlotRenderer {
             preferences.showBazaarSellData,
         )
         if (plot == null) {
-            LegacyTextRenderer.draw(
-                context,
-                "§8No active Bazaar orders",
-                bounds.x + PlotLayout.MESSAGE_INSET,
-                bounds.y + PlotLayout.MESSAGE_INSET,
-            )
+            renderBazaarGraphMessage(context, bounds, "§8No active Bazaar orders")
             return
         }
         val investmentCost = investment?.averageCost?.takeIf { preferences.showBazaarPlayerData }
@@ -70,7 +60,7 @@ internal object BazaarGraphPlotRenderer {
             plot.layout.baselineY,
             PlotStyle.BUY,
             PlotStyle.BUY_FILL,
-            "Buy",
+            "§aBuy order depth",
             mouseX,
             mouseY,
         )
@@ -80,7 +70,7 @@ internal object BazaarGraphPlotRenderer {
             plot.layout.baselineY,
             PlotStyle.SELL,
             PlotStyle.SELL_FILL,
-            "Sell",
+            "§cSell order depth",
             mouseX,
             mouseY,
         )
@@ -107,21 +97,11 @@ internal object BazaarGraphPlotRenderer {
         val visibleTransactions = transactions
             .filter { preferences.showBazaarPlayerData && it.atMillis >= cutoff }
         if (rows.isEmpty() && visibleTransactions.isEmpty()) {
-            LegacyTextRenderer.draw(
-                context,
-                "§8No Bazaar trade volume in this range",
-                bounds.x + PlotLayout.MESSAGE_INSET,
-                bounds.y + PlotLayout.MESSAGE_INSET,
-            )
+            renderBazaarGraphMessage(context, bounds, "§8No Bazaar trade volume in this range")
             return
         }
         if (!preferences.showBazaarBuyData && !preferences.showBazaarSellData && visibleTransactions.isEmpty()) {
-            LegacyTextRenderer.draw(
-                context,
-                "§8No volume filters selected",
-                bounds.x + PlotLayout.MESSAGE_INSET,
-                bounds.y + PlotLayout.MESSAGE_INSET,
-            )
+            renderBazaarGraphMessage(context, bounds, "§8No volume filters selected")
             return
         }
         val maximum = maxOf(
@@ -183,12 +163,7 @@ internal object BazaarGraphPlotRenderer {
         mouseX: Int,
         mouseY: Int,
     ) {
-        LegacyTextRenderer.draw(
-            context,
-            "§cBazaar graph unavailable",
-            bounds.x + PlotLayout.MESSAGE_INSET,
-            bounds.y + PlotLayout.MESSAGE_INSET,
-        )
+        renderBazaarGraphMessage(context, bounds, "§cBazaar graph unavailable")
         if (bounds.contains(mouseX, mouseY) && error != null) {
             SkysoftNativeTooltip.setForNextFrame(context, listOf("§c$error"), mouseX, mouseY)
         }
@@ -200,7 +175,7 @@ internal object BazaarGraphPlotRenderer {
         baselineY: Int,
         color: Int,
         fillColor: Int,
-        label: String,
+        tooltipTitle: String,
         mouseX: Int,
         mouseY: Int,
     ) {
@@ -216,13 +191,13 @@ internal object BazaarGraphPlotRenderer {
         val hovered = depthPoints.minByOrNull { abs(mouseX - it.x) } ?: return
         val sideRange = depthPoints.minOf(DepthGraphPoint::x)..depthPoints.maxOf(DepthGraphPoint::x)
         if (mouseX !in sideRange || mouseY !in hovered.y..baselineY) return
-        renderDepthTooltip(context, hovered, label, mouseX, mouseY)
+        renderDepthTooltip(context, hovered, tooltipTitle, mouseX, mouseY)
     }
 
     private fun renderDepthTooltip(
         context: GuiGraphicsExtractor,
         point: DepthGraphPoint,
-        label: String,
+        tooltipTitle: String,
         mouseX: Int,
         mouseY: Int,
     ) {
@@ -230,7 +205,7 @@ internal object BazaarGraphPlotRenderer {
         SkysoftNativeTooltip.setForNextFrame(
             context,
             listOf(
-                "${if (label == "Buy") "§aBuy order depth" else "§cSell order depth"}",
+                tooltipTitle,
                 "§7Price: §6${row.pricePerUnit.coinAmountFormat()} coins",
                 "§7Amount: §f${row.amount.addSeparators()}",
                 "§7Orders: §f${row.orders.addSeparators()}",
@@ -294,7 +269,7 @@ internal object BazaarGraphPlotRenderer {
             GuiLineRenderer.drawStep(context, first.first, first.second, second.first, second.second, color)
         }
         points.forEachIndexed { index, point ->
-            drawGraphDot(context, point.first, point.second, color)
+            drawBazaarGraphDot(context, point.first, point.second, color)
             if (abs(mouseX - point.first) <= PlotLayout.HIT_RADIUS && abs(mouseY - point.second) <= PlotLayout.HIT_RADIUS) {
                 renderTradeVolumeTooltip(context, rows[index], isBuy, mouseX, mouseY)
             }
@@ -312,7 +287,7 @@ internal object BazaarGraphPlotRenderer {
         SkysoftNativeTooltip.setForNextFrame(
             context,
             listOf(
-                "§f${PlotStyle.TIME_FORMAT.format(Instant.ofEpochMilli(row.at))}",
+                "§f${BAZAAR_GRAPH_TIME_FORMAT.format(Instant.ofEpochMilli(row.at))}",
                 "${if (isBuy) "§aBuy" else "§cSell"} volume: §f${value.roundToInt().addSeparators()}",
             ),
             mouseX,
@@ -358,7 +333,7 @@ internal object BazaarGraphPlotRenderer {
             context,
             listOf(
                 "§f${transaction.type.displayName}",
-                "§7Time: §f${PlotStyle.TIME_FORMAT.format(Instant.ofEpochMilli(transaction.atMillis))}",
+                "§7Time: §f${BAZAAR_GRAPH_TIME_FORMAT.format(Instant.ofEpochMilli(transaction.atMillis))}",
                 "§7Quantity: §f${transaction.amount.addSeparators()}",
                 "§7Price each: §6${transaction.pricePerUnit().coinAmountFormat()} coins",
                 "§7Total: §6${transaction.totalCoins.coinAmountFormat()} coins",
@@ -384,16 +359,6 @@ internal object BazaarGraphPlotRenderer {
             ((bounds.height - PlotLayout.POINT_INSET * 2) * yProgress).roundToInt()
     }
 
-    private fun drawGraphDot(context: GuiGraphicsExtractor, x: Int, y: Int, color: Int) {
-        context.fill(
-            x - PlotLayout.DOT_START,
-            y - PlotLayout.DOT_START,
-            x + PlotLayout.DOT_END,
-            y + PlotLayout.DOT_END,
-            color,
-        )
-    }
-
     private fun drawTransactionDot(context: GuiGraphicsExtractor, x: Int, y: Int, color: Int) {
         context.fill(
             x - PlotLayout.TRANSACTION_DOT_RADIUS,
@@ -402,7 +367,7 @@ internal object BazaarGraphPlotRenderer {
             y + PlotLayout.TRANSACTION_DOT_RADIUS + 1,
             PlotStyle.TRANSACTION_OUTLINE,
         )
-        context.fill(x - 1, y - 1, x + 2, y + 2, color)
+        drawBazaarGraphDot(context, x, y, color)
     }
 
     private fun transactionColor(type: ProfileStorage.BazaarTransactionType): Int = when (type) {
@@ -418,7 +383,7 @@ private fun renderDepthGrid(context: GuiGraphicsExtractor, plot: BazaarDepthPlot
     repeat(PlotLayout.DEPTH_GRID_DIVISIONS) { index ->
         val division = index + 1
         val y = layout.baselineY - layout.plotHeight * division / PlotLayout.DEPTH_GRID_DIVISIONS
-        drawDashedHorizontal(context, layout.leftX, layout.rightX, y, PlotStyle.GRID)
+        drawDashedHorizontal(context, layout.leftX, layout.rightX, y, BAZAAR_GRAPH_GRID_COLOR)
     }
     context.fill(layout.leftX - 1, layout.plotTop, layout.leftX, layout.baselineY + 1, PlotStyle.AXIS)
     context.fill(layout.leftX, layout.baselineY, layout.rightX + 1, layout.baselineY + 1, PlotStyle.AXIS)
@@ -434,25 +399,21 @@ private fun renderDepthLegend(context: GuiGraphicsExtractor, plot: BazaarDepthPl
         layout.quantityLabelX,
         layout.legendY + PlotLayout.QUANTITY_LABEL_LINE_HEIGHT,
     )
-    val buyX = layout.leftX + PlotLayout.LEGEND_SIDE_INSET
-    context.fill(
-        buyX,
-        layout.legendY + PlotLayout.LEGEND_SWATCH_Y,
-        buyX + PlotLayout.LEGEND_SWATCH,
-        layout.legendY + PlotLayout.LEGEND_SWATCH_Y + PlotLayout.LEGEND_SWATCH,
+    drawBazaarGraphLegendEntry(
+        context,
+        "§aBuy orders",
+        layout.leftX + PlotLayout.LEGEND_SIDE_INSET,
+        layout.legendY,
         PlotStyle.BUY,
     )
-    LegacyTextRenderer.draw(context, "§aBuy orders", buyX + PlotLayout.LEGEND_TEXT_GAP, layout.legendY)
     val sellText = "§cSell orders"
-    val sellTextX = layout.rightX - LegacyTextRenderer.width(sellText)
-    context.fill(
-        sellTextX - PlotLayout.LEGEND_TEXT_GAP,
-        layout.legendY + PlotLayout.LEGEND_SWATCH_Y,
-        sellTextX - PlotLayout.LEGEND_TEXT_GAP + PlotLayout.LEGEND_SWATCH,
-        layout.legendY + PlotLayout.LEGEND_SWATCH_Y + PlotLayout.LEGEND_SWATCH,
+    drawBazaarGraphLegendEntry(
+        context,
+        sellText,
+        layout.rightX - LegacyTextRenderer.width(sellText) - BazaarGraphLayout.TEXT_GAP,
+        layout.legendY,
         PlotStyle.SELL,
     )
-    LegacyTextRenderer.draw(context, sellText, sellTextX, layout.legendY)
 }
 
 private fun renderSpread(
@@ -471,20 +432,15 @@ private fun renderSpread(
     drawDashedVertical(context, bidX, markerY, layout.baselineY, PlotStyle.SPREAD)
     drawDashedVertical(context, askX, markerY, layout.baselineY, PlotStyle.SPREAD)
     context.fill(bidX, markerY, askX + 1, markerY + 1, PlotStyle.SPREAD)
-    context.fill(
-        bidX,
-        markerY - PlotLayout.SPREAD_TICK_TOP,
-        bidX + 1,
-        markerY + PlotLayout.SPREAD_TICK_BOTTOM,
-        PlotStyle.SPREAD,
-    )
-    context.fill(
-        askX,
-        markerY - PlotLayout.SPREAD_TICK_TOP,
-        askX + 1,
-        markerY + PlotLayout.SPREAD_TICK_BOTTOM,
-        PlotStyle.SPREAD,
-    )
+    listOf(bidX, askX).forEach { tickX ->
+        context.fill(
+            tickX,
+            markerY - PlotLayout.SPREAD_TICK_TOP,
+            tickX + 1,
+            markerY + PlotLayout.SPREAD_TICK_BOTTOM,
+            PlotStyle.SPREAD,
+        )
+    }
     drawCenteredWithin(context, "§7Spread", bidX, askX, markerY - PlotLayout.SPREAD_LABEL_OFFSET)
     if (mouseX !in bidX..askX || abs(mouseY - markerY) > PlotLayout.SPREAD_HIT_RADIUS) return
     val spread = bestAsk - bestBid
@@ -585,6 +541,36 @@ private fun drawDashedVertical(context: GuiGraphicsExtractor, x: Int, top: Int, 
     }
 }
 
+internal fun renderBazaarGraphMessage(context: GuiGraphicsExtractor, bounds: Rect, message: String) {
+    LegacyTextRenderer.draw(context, message, bounds.x + BazaarGraphLayout.MESSAGE_INSET, bounds.y + BazaarGraphLayout.MESSAGE_INSET)
+}
+
+internal fun drawBazaarGraphLegendEntry(context: GuiGraphicsExtractor, text: String, x: Int, y: Int, color: Int) {
+    context.fill(
+        x,
+        y + BazaarGraphLayout.SWATCH_Y,
+        x + BazaarGraphLayout.SWATCH_SIZE,
+        y + BazaarGraphLayout.SWATCH_Y + BazaarGraphLayout.SWATCH_SIZE,
+        color,
+    )
+    LegacyTextRenderer.draw(context, text, x + BazaarGraphLayout.TEXT_GAP, y)
+}
+
+internal fun drawBazaarGraphDot(context: GuiGraphicsExtractor, x: Int, y: Int, color: Int) {
+    context.fill(x - 1, y - 1, x + 2, y + 2, color)
+}
+
+internal val BAZAAR_GRAPH_TIME_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+internal const val BAZAAR_GRAPH_GRID_COLOR = 0x5048515A
+
+internal object BazaarGraphLayout {
+    const val MESSAGE_INSET = 5
+    const val SWATCH_SIZE = 5
+    const val SWATCH_Y = 2
+    const val TEXT_GAP = 8
+}
+
 private data class TransactionGraphPoint(
     val point: Pair<Int, Int>,
     val transaction: ProfileStorageView.BazaarTransactionData,
@@ -598,12 +584,9 @@ private data class BazaarTradeVolumeRows(
 private object PlotLayout {
     const val PANEL_INSET = 6
     const val INVESTMENT_Y = 66
-    const val MESSAGE_INSET = 5
     const val POINT_INSET = 4
     const val HIT_RADIUS = 3
     const val INVESTMENT_HIT_RADIUS = 2
-    const val DOT_START = 1
-    const val DOT_END = 2
     const val TRANSACTION_DOT_RADIUS = 2
     const val TRANSACTION_HIT_RADIUS = 4
     const val TRADE_VOLUME_CACHE_MILLIS = 1_000L
@@ -611,9 +594,6 @@ private object PlotLayout {
     const val QUANTITY_LABEL_LINE_HEIGHT = 9
     const val AXIS_TICK_LENGTH = 4
     const val LEGEND_SIDE_INSET = 8
-    const val LEGEND_SWATCH = 5
-    const val LEGEND_SWATCH_Y = 2
-    const val LEGEND_TEXT_GAP = 8
     const val DEPTH_GRID_DIVISIONS = 4
     const val DASH_LENGTH = 3
     const val DASH_GAP = 3
@@ -634,7 +614,6 @@ private object PlotStyle {
     val SELL = 0xFFFF5555.toInt()
     const val BUY_FILL = 0x4055FF55
     const val SELL_FILL = 0x40FF5555
-    const val GRID = 0x5048515A
     val AXIS = 0xA0687480.toInt()
     val SPREAD = 0xA0788798.toInt()
     val INVESTMENT = 0xFFFFAA00.toInt()
@@ -643,5 +622,4 @@ private object PlotStyle {
     val BUY_ORDER = 0xFF5599FF.toInt()
     val SELL_ORDER = 0xFFFF55FF.toInt()
     val TRANSACTION_OUTLINE = 0xFF101316.toInt()
-    val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
 }

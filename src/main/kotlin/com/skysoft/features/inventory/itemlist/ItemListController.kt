@@ -20,7 +20,6 @@ import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.SmoothFloatTransition
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.formatSkyBlockCalculation
-import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
@@ -38,7 +37,10 @@ import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPosition
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.core.component.DataComponents
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import org.joml.Vector2i
 import kotlin.math.roundToInt
 
@@ -49,6 +51,7 @@ object ItemListController {
     private var lastLayout: ItemListLayout? = null
     private var lastEntries: List<ItemListEntry> = emptyList()
     private val tierDropdown = ItemListTierDropdownState()
+    private val isSearchActive: Boolean get() = searchField.focused || ItemListState.search.isNotBlank()
     private val searchResults = ItemListSearchResults()
     private val footerAlpha = SmoothFloatTransition(
         FooterPresentation.IDLE_ALPHA.toFloat(),
@@ -96,9 +99,8 @@ object ItemListController {
         val pageCount = pageCount(entries.size, layout.pageSize)
         ItemListState.page = ItemListState.page.coerceIn(0, pageCount - 1)
         hoveredKey = null
-        val calculation = itemListCalculation(ItemListState.search)
+        val calculation = formatSkyBlockCalculation(ItemListState.search, grouped = true)
         lastEntries = if (calculation == null) entries else emptyList()
-        val isSearchActive = searchField.focused || ItemListState.search.isNotBlank()
         val footerOpacity = footerAlpha.value(
             if (isSearchActive) 1f else FooterPresentation.IDLE_ALPHA.toFloat(),
         ).toDouble()
@@ -111,24 +113,15 @@ object ItemListController {
             drawEntry(context, bounds, entry, null, scale, mouseX, mouseY, true)
         }
         if (navigationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
-            PixelButtonRenderer.draw(
+            drawPageButtons(
                 context,
                 Minecraft.getInstance().font,
                 layout.previous,
-                "<",
-                selected = false,
-                hovered = layout.previous.contains(mouseX, mouseY),
-                enabled = ItemListState.page > 0,
-                alpha = navigationOpacity,
-            )
-            PixelButtonRenderer.draw(
-                context,
-                Minecraft.getInstance().font,
                 layout.next,
-                ">",
-                selected = false,
-                hovered = layout.next.contains(mouseX, mouseY),
-                enabled = ItemListState.page + 1 < pageCount,
+                mouseX,
+                mouseY,
+                canGoPrevious = ItemListState.page > 0,
+                canGoNext = ItemListState.page + 1 < pageCount,
                 alpha = navigationOpacity,
             )
             val paginationOpacity = navigationOpacity * if (layout.isSearchDetached) 1f else labelAlphas.first
@@ -168,7 +161,7 @@ object ItemListController {
         if (layout.config?.contains(mouseX, mouseY) == true) {
             context.setTooltipForNextFrame(
                 Minecraft.getInstance().font,
-                net.minecraft.network.chat.Component.literal("Item List settings"),
+                Component.literal("Item List settings"),
                 mouseX,
                 mouseY,
             )
@@ -200,7 +193,7 @@ object ItemListController {
             !layout.containsInteractive(
                 mouseX,
                 mouseY,
-                searchField.focused || ItemListState.search.isNotBlank(),
+                isSearchActive,
                 entryAt(layout, mouseX, mouseY) != null,
             )
         ) {
@@ -243,11 +236,11 @@ object ItemListController {
                 SkysoftConfigGui.open("Item List")
             }
             layout.previous.contains(mouseX, mouseY) && click.button() == InputConstants.MOUSE_BUTTON_LEFT &&
-                (searchField.focused || ItemListState.search.isNotBlank()) -> {
+                isSearchActive -> {
                 changePage(-1, layout)
             }
             layout.next.contains(mouseX, mouseY) && click.button() == InputConstants.MOUSE_BUTTON_LEFT &&
-                (searchField.focused || ItemListState.search.isNotBlank()) -> {
+                isSearchActive -> {
                 changePage(1, layout)
             }
             else -> openClickedEntry(screen, click, layout, mouseX, mouseY)
@@ -293,7 +286,7 @@ object ItemListController {
         val isItemListVisible = isVisible(screen)
         if (isSearchFocused(screen)) {
             if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
-                itemListCompiledCalculation(searchField.text)?.let { result ->
+                formatSkyBlockCalculation(searchField.text, grouped = false)?.let { result ->
                     searchField.text = result
                     searchField.moveCursorToEnd()
                     MinecraftClient.setClipboard(result)
@@ -356,7 +349,7 @@ object ItemListController {
             it.containsInteractive(
                 pointX,
                 pointY,
-                searchField.focused || ItemListState.search.isNotBlank(),
+                isSearchActive,
                 entryAt(it, pointX, pointY) != null,
             )
         } == true
@@ -431,14 +424,7 @@ object ItemListController {
     ) {
         val hovered = canHover && bounds.contains(mouseX, mouseY)
         if (config.sources.showItemBackgrounds) {
-            context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
-            context.fill(
-                bounds.x + 1,
-                bounds.y + 1,
-                bounds.x + bounds.width - 1,
-                bounds.y + bounds.height - 1,
-                if (hovered) SLOT_HOVER else SLOT_FILL,
-            )
+            ItemListSlotStyle.draw(context, bounds, if (hovered) SLOT_HOVER else SLOT_FILL)
         }
         SkyBlockDataRepository.displayStack(entry.key)?.let { sourceStack ->
             val stack = if (family == null) {
@@ -459,7 +445,7 @@ object ItemListController {
             if (ItemListState.isFavorite(entry.key)) {
                 val heartSize = (FAVORITE_HEART_SIZE * itemScale).roundToInt()
                 context.blitSprite(
-                    net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,
+                    RenderPipelines.GUI_TEXTURED,
                     FAVORITE_HEART,
                     bounds.x,
                     bounds.y,
@@ -534,7 +520,7 @@ object ItemListController {
     private const val TOOLTIP_EDGE = 4
     private val SLOT_FILL = 0xB0181B1E.toInt()
     private val SLOT_HOVER = 0xD03B5567.toInt()
-    private val FAVORITE_HEART = net.minecraft.resources.Identifier.withDefaultNamespace("hud/heart/full")
+    private val FAVORITE_HEART = Identifier.withDefaultNamespace("hud/heart/full")
     private const val FAVORITE_HEART_SIZE = 9
 }
 
@@ -558,17 +544,12 @@ private data class EntryHit(
 internal fun calculationLabelAlphas(calculationBlend: Float): Pair<Float, Float> =
     (1f - calculationBlend * 2f).coerceIn(0f, 1f) to (calculationBlend * 2f - 1f).coerceIn(0f, 1f)
 
-internal fun itemListCalculation(query: String): String? = formatSkyBlockCalculation(query, grouped = true)
-
-internal fun itemListCompiledCalculation(query: String): String? =
-    formatSkyBlockCalculation(query, grouped = false)
-
 private fun drawCenteredText(
     context: GuiGraphicsExtractor,
     bounds: Rect,
     text: String,
     alpha: Double = 1.0,
-    color: Int = CENTERED_TEXT_COLOR,
+    color: Int = ITEM_LIST_TEXT_COLOR,
 ) {
     val font = Minecraft.getInstance().font
     context.text(
@@ -592,7 +573,6 @@ private fun consume(action: () -> Unit): InputHandlingResult {
 }
 
 private const val CENTERED_TEXT_Y_OFFSET = 4
-private val CENTERED_TEXT_COLOR = 0xFFE0E4E8.toInt()
 private val CALCULATION_TEXT_COLOR = 0xFF55FF55.toInt()
 
 enum class ItemListViewMode {
