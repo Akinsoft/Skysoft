@@ -4,12 +4,9 @@ import com.skysoft.data.skyblock.RecipeIngredient
 import com.skysoft.data.skyblock.expandedOptions
 import net.minecraft.world.item.ItemStack
 
-internal fun displayedRecipeIngredient(
-    ingredient: RecipeIngredient,
-    nowMillis: Long = System.currentTimeMillis(),
-): RecipeIngredient {
+internal fun displayedRecipeIngredient(ingredient: RecipeIngredient): RecipeIngredient {
     val options = ingredient.expandedOptions()
-    val index = ((nowMillis / ALTERNATIVE_INGREDIENT_INTERVAL_MILLIS) % options.size).toInt()
+    val index = ((System.currentTimeMillis() / ALTERNATIVE_INGREDIENT_INTERVAL_MILLIS) % options.size).toInt()
     return options[index]
 }
 

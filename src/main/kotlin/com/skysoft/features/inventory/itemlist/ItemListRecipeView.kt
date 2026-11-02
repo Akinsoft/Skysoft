@@ -8,6 +8,7 @@ import com.skysoft.data.skyblock.RecipeIngredientKeyContext
 import com.skysoft.data.skyblock.RecipeIngredientKind
 import com.skysoft.data.skyblock.SkyBlockCurrencyStacks
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockEntityInfo
 import com.skysoft.data.skyblock.SkyBlockEntityStacks
 import com.skysoft.data.skyblock.SkyBlockProgressionIconKind
 import com.skysoft.data.skyblock.SkyBlockProgressionRequirement
@@ -25,12 +26,13 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderAt
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 
 internal class ItemListRecipeView(
     private val selection: ItemListViewerSelection,
-    private val fontProvider: () -> net.minecraft.client.gui.Font,
+    private val fontProvider: () -> Font,
 ) {
     private val font get() = fontProvider()
     private val currentKey by selection::currentKey
@@ -68,8 +70,7 @@ internal class ItemListRecipeView(
 
     fun pagination(layout: ItemListViewerLayout): ItemListRecipePagination? {
         if (mode == ItemListViewMode.INFO) return null
-        val entity = currentKey.takeIf { it.kind == ItemListEntryKind.ENTITY }
-            ?.let { SkyBlockDataRepository.entity(it.id) }
+        val entity = currentEntity()
         if (entity != null) return numberedPagination(entityDropCount(entity), layout.entityGrid.pageSize)
         if (fusionSelectorPanel.isOpen) return null
         if (selectedSupplemental == ViewerSupplementalCategory.AUCTION_HOUSE) {
@@ -84,12 +85,18 @@ internal class ItemListRecipeView(
         return numberedPagination(recipes.size, layout.recipeGrid.pageSize)
     }
 
+    private fun currentEntity(): SkyBlockEntityInfo? =
+        currentKey.takeIf { it.kind == ItemListEntryKind.ENTITY }?.let { SkyBlockDataRepository.entity(it.id) }
+
+    private fun isSupplementalShown(category: ViewerSupplementalCategory): Boolean =
+        mode == ItemListViewMode.RECIPES && selectedSupplemental == category
+
     private fun numberedPagination(count: Int, pageSize: Int): ItemListRecipePagination {
         val pageCount = recipePageCount(count, pageSize)
         return ItemListRecipePagination(
             recipePage > 0,
             recipePage + 1 < pageCount,
-            if (pageCount == 0) "0 / 0" else "${recipePage + 1} / $pageCount",
+            viewerPageLabel(recipePage, pageCount),
         )
     }
 
@@ -100,7 +107,7 @@ internal class ItemListRecipeView(
         return categoryClick.orElse {
             clickMarketPanel(layout.recipeGrid.bounds, mouseX, mouseY)
         }.orElse {
-            if (mode == ItemListViewMode.RECIPES && selectedSupplemental == ViewerSupplementalCategory.HUNTING) {
+            if (isSupplementalShown(ViewerSupplementalCategory.HUNTING)) {
                 obtainSourcesPanel.clickHunting(currentKey, mouseX, mouseY)
             } else {
                 ViewerInputResult.IGNORED
@@ -122,14 +129,13 @@ internal class ItemListRecipeView(
 
     private fun clickMarketPanel(bounds: Rect, mouseX: Int, mouseY: Int): ViewerInputResult =
         auctionHousePanel.click(
-            mode == ItemListViewMode.RECIPES && selectedSupplemental == ViewerSupplementalCategory.AUCTION_HOUSE,
+            isSupplementalShown(ViewerSupplementalCategory.AUCTION_HOUSE),
             bounds,
             mouseX,
             mouseY,
         ).orElse {
-            if (mode == ItemListViewMode.RECIPES && selectedSupplemental == ViewerSupplementalCategory.BAZAAR) {
-                val click = bazaarPanel.click(bounds, currentKey, mouseX, mouseY)
-                if (click.isHandled) ViewerInputResult.HANDLED else ViewerInputResult.IGNORED
+            if (isSupplementalShown(ViewerSupplementalCategory.BAZAAR)) {
+                bazaarPanel.click(bounds, currentKey, mouseX, mouseY)
             } else {
                 ViewerInputResult.IGNORED
             }
@@ -160,14 +166,8 @@ internal class ItemListRecipeView(
     }
 
     fun render(context: GuiGraphicsExtractor, layout: ItemListViewerLayout, mouseX: Int, mouseY: Int) {
-        progressionBounds = emptyList()
-        quickCraftBounds = emptyList()
-        craftingHelperBounds = emptyList()
-        entityBounds = emptyList()
-        petBounds = emptyList()
-        fusionIngredientTriggers = emptyList()
-        val entity = currentKey.takeIf { it.kind == ItemListEntryKind.ENTITY }
-            ?.let { SkyBlockDataRepository.entity(it.id) }
+        clearInteractionAreas()
+        val entity = currentEntity()
         if (entity != null) {
             val dropCount = entityDropCount(entity)
             val pageCount = recipePageCount(dropCount, layout.entityGrid.pageSize)
@@ -199,7 +199,6 @@ internal class ItemListRecipeView(
         }
         when (selectedSupplemental) {
             ViewerSupplementalCategory.SOURCES -> {
-                ingredientBounds = emptyList()
                 entityBounds = obtainSourcesPanel.render(
                     context,
                     font,
@@ -211,7 +210,6 @@ internal class ItemListRecipeView(
                 return
             }
             ViewerSupplementalCategory.HUNTING -> {
-                ingredientBounds = emptyList()
                 entityBounds = obtainSourcesPanel.render(
                     context,
                     font,
@@ -224,12 +222,10 @@ internal class ItemListRecipeView(
                 return
             }
             ViewerSupplementalCategory.BAZAAR -> {
-                ingredientBounds = emptyList()
                 bazaarPanel.render(context, font, layout.recipeGrid.bounds, currentKey, mouseX, mouseY)
                 return
             }
             ViewerSupplementalCategory.AUCTION_HOUSE -> {
-                ingredientBounds = emptyList()
                 auctionHousePanel.render(context, font, layout.recipeGrid.bounds, currentKey, mouseX, mouseY)
                 return
             }
@@ -270,16 +266,12 @@ internal class ItemListRecipeView(
         itemListQuickCraftCommand(recipe.result.id)?.let { command ->
             val button = itemListQuickCraftButtonBounds(crafting.result)
             quickCraftBounds += button to command
-            val isHovered = button.contains(mouseX, mouseY)
-            PixelButtonRenderer.draw(context, font, button, "+", false, isHovered, true)
-            if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eQuick Craft"), mouseX, mouseY)
+            drawRecipeActionButton(context, button, "+", "§eQuick Craft", mouseX, mouseY)
         }
         if (SkysoftConfigGui.config().items.craftingHelper.enabled) {
             val button = itemListCraftingHelperButtonBounds(crafting.result)
             craftingHelperBounds += button to recipe.result.id
-            val isHovered = button.contains(mouseX, mouseY)
-            PixelButtonRenderer.draw(context, font, button, "*", false, isHovered, true)
-            if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf("§eHelp me craft"), mouseX, mouseY)
+            drawRecipeActionButton(context, button, "*", "§eHelp me craft", mouseX, mouseY)
         }
         if (crafting.progressionRequirement != null && recipe.progressionRequirement != null) {
             progressionBounds += renderProgressionRequirement(
@@ -292,6 +284,19 @@ internal class ItemListRecipeView(
             )
         }
         return clickable
+    }
+
+    private fun drawRecipeActionButton(
+        context: GuiGraphicsExtractor,
+        button: Rect,
+        label: String,
+        tooltip: String,
+        mouseX: Int,
+        mouseY: Int,
+    ) {
+        val isHovered = button.contains(mouseX, mouseY)
+        PixelButtonRenderer.draw(context, font, button, label, false, isHovered, true)
+        if (isHovered) SkysoftNativeTooltip.setForNextFrame(context, listOf(tooltip), mouseX, mouseY)
     }
 
     private fun renderProcess(
@@ -342,8 +347,7 @@ internal class ItemListRecipeView(
         displayedOverride: RecipeIngredient? = null,
         isSelectable: Boolean = false,
     ): ItemListEntryKey? {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
-        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
+        ItemListSlotStyle.draw(context, bounds)
         if (ingredient == null) return null
         val displayedIngredient = displayedOverride ?: displayedRecipeIngredient(ingredient)
         val key = displayedIngredient.itemListKey(RecipeIngredientKeyContext.VIEWER)
@@ -412,8 +416,7 @@ internal class ItemListRecipeView(
         }
         val quickCraftCommand = quickCraftBounds.firstOrNull { it.first.contains(mouseX, mouseY) }?.second
         if (canQuickCraft && quickCraftCommand != null) {
-            val connection = Minecraft.getInstance().connection
-            if (connection == null) return ViewerInputResult.IGNORED
+            val connection = Minecraft.getInstance().connection ?: return ViewerInputResult.IGNORED
             connection.sendCommand(quickCraftCommand)
             return ViewerInputResult.HANDLED
         }
@@ -430,7 +433,7 @@ internal class ItemListRecipeView(
 
 private fun renderProgressionRequirement(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     bounds: Rect,
     requirement: SkyBlockProgressionRequirement,
     mouseX: Int,
@@ -471,7 +474,7 @@ private fun sendProgressionCommandAt(
 
 private fun renderProcessDetails(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     bounds: Rect,
     recipe: SkyBlockRecipe.Process,
     petLevels: Map<RecipePetLevelKey, Int>,
@@ -493,7 +496,7 @@ private fun renderProcessDetails(
 
 private fun drawCurrencyAmount(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     bounds: Rect,
     amount: Long,
     color: String,

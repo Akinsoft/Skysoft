@@ -34,8 +34,6 @@ internal class ItemListViewerSelection(
 
     fun navigateTo(key: ItemListEntryKey): ViewerInputResult {
         if (key == currentKey && mode == ItemListViewMode.INFO) return ViewerInputResult.IGNORED
-        backStack += location()
-        forwardStack.clear()
         open(key)
         return ViewerInputResult.HANDLED
     }
@@ -58,8 +56,6 @@ internal class ItemListViewerSelection(
         val family = minionFamily(currentKey) ?: return ViewerInputResult.IGNORED
         val currentIndex = family.tiers.indexOf(currentKey)
         val nextKey = family.tiers.getOrNull(currentIndex + delta) ?: return ViewerInputResult.IGNORED
-        backStack += location()
-        forwardStack.clear()
         open(nextKey)
         return ViewerInputResult.HANDLED
     }
@@ -86,18 +82,13 @@ internal class ItemListViewerSelection(
 
     fun currentCategories(): List<ViewerCategory> = buildList {
         currentRecipes().map(SkyBlockRecipe::type).distinct().forEach { add(ViewerCategory(recipeType = it)) }
-        if (mode == ItemListViewMode.RECIPES && hasAuctionHouseObtainSource(currentKey)) {
-            add(ViewerCategory(supplemental = ViewerSupplementalCategory.AUCTION_HOUSE))
-        }
-        if (mode == ItemListViewMode.RECIPES && hasObtainSourcesMatching(currentKey, SPECIALIZED_DETAIL_MARKERS)) {
+        if (mode != ItemListViewMode.RECIPES) return@buildList
+        if (hasAuctionHouseObtainSource(currentKey)) add(ViewerCategory(supplemental = ViewerSupplementalCategory.AUCTION_HOUSE))
+        if (hasObtainSourcesMatching(currentKey, SPECIALIZED_DETAIL_MARKERS)) {
             add(ViewerCategory(supplemental = ViewerSupplementalCategory.HUNTING))
         }
-        if (mode == ItemListViewMode.RECIPES && hasOtherObtainSources(currentKey)) {
-            add(ViewerCategory(supplemental = ViewerSupplementalCategory.SOURCES))
-        }
-        if (mode == ItemListViewMode.RECIPES && hasBazaarObtainSource(currentKey)) {
-            add(ViewerCategory(supplemental = ViewerSupplementalCategory.BAZAAR))
-        }
+        if (hasOtherObtainSources(currentKey)) add(ViewerCategory(supplemental = ViewerSupplementalCategory.SOURCES))
+        if (hasBazaarObtainSource(currentKey)) add(ViewerCategory(supplemental = ViewerSupplementalCategory.BAZAAR))
     }
 
     fun ensureSelectedCategory(categories: List<ViewerCategory>) {
@@ -152,6 +143,8 @@ internal class ItemListViewerSelection(
     }
 
     private fun open(key: ItemListEntryKey) {
+        backStack += location()
+        forwardStack.clear()
         currentKey = key
         mode = ItemListViewMode.INFO
         selectedType = null
@@ -203,10 +196,8 @@ private fun hasObtainMethods(key: ItemListEntryKey): Boolean {
         hasBazaarObtainSource(key)
 }
 
-
 internal fun minionFamily(key: ItemListEntryKey): ItemListTierFamily? =
     SkyBlockDataRepository.ItemListData.tierFamily(key)?.takeIf { it.kind == ItemListTierFamilyKind.MINION }
-
 
 private fun availableViewerMode(
     requested: ItemListViewMode,

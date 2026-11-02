@@ -9,6 +9,7 @@ import com.skysoft.data.skyblock.isMob
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.gui.Rect
+import java.util.Locale
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -21,8 +22,7 @@ internal fun renderEntityIcon(
     mouseX: Int,
     mouseY: Int,
 ) {
-    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
-    context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
+    ItemListSlotStyle.draw(context, bounds)
     val entity = SkyBlockDataRepository.entity(entityId)
     val stack = entity?.let(SkyBlockEntityStacks::stack)
     if (stack != null) {
@@ -130,7 +130,7 @@ internal fun formatDropChance(chance: Double): String {
         percent >= SMALL_PERCENT_THRESHOLD -> SMALL_PERCENT_DECIMALS
         else -> TINY_PERCENT_DECIMALS
     }
-    return "% .${decimals}f%%".format(java.util.Locale.ROOT, percent).trim().trimStart('0')
+    return "% .${decimals}f%%".format(Locale.ROOT, percent).trim().trimStart('0')
 }
 
 private fun slayerSpawnDescription(entityId: String): String {

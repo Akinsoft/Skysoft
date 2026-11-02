@@ -11,14 +11,7 @@ internal data class ItemListTierDropdown(
     val tierBounds: List<Rect>,
 ) {
     fun renderBackground(context: GuiGraphicsExtractor) {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, DROPDOWN_BORDER)
-        context.fill(
-            bounds.x + 1,
-            bounds.y + 1,
-            bounds.x + bounds.width - 1,
-            bounds.y + bounds.height - 1,
-            DROPDOWN_FILL,
-        )
+        ItemListSlotStyle.draw(context, bounds, DROPDOWN_FILL, DROPDOWN_BORDER)
     }
 
     companion object {

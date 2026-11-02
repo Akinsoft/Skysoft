@@ -6,7 +6,6 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.core.HudPosition
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorSnapshot
-import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
@@ -92,7 +91,7 @@ internal class ItemListHudEditorElement(private val currentLayout: () -> ItemLis
         val positionSnapshot = position.snapshot()
         val settings = SkysoftConfigGui.config().items.itemList.settings
         val settingsSnapshot = Triple(settings.itemScale, settings.columns, settings.rows)
-        return hudEditorSnapshot(positionSnapshot to settingsSnapshot) {
+        return HudEditorSnapshot(positionSnapshot to settingsSnapshot) {
             position.restore(positionSnapshot)
             settings.itemScale = settingsSnapshot.first
             settings.columns = settingsSnapshot.second
@@ -193,7 +192,7 @@ internal class ItemListSearchHudEditorElement(
         val sources = itemList.sources
         val positionSnapshot = sources.searchPosition.snapshot()
         val values = positionSnapshot to (sources.searchWidth to itemList.settings.itemScale)
-        return hudEditorSnapshot(values) {
+        return HudEditorSnapshot(values) {
             sources.searchPosition.restore(positionSnapshot)
             sources.searchWidth = values.second.first
             itemList.settings.itemScale = values.second.second
@@ -235,7 +234,7 @@ internal fun itemListColumnsAfterEditorDrag(
     startColumns: Int,
     horizontalDelta: Int,
     slotSize: Int,
-    maximumColumns: Int = ItemListSettingsConfig.MAX_COLUMNS,
+    maximumColumns: Int,
 ): Int {
     require(slotSize > 0)
     require(maximumColumns >= ItemListSettingsConfig.MIN_COLUMNS)

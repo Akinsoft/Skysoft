@@ -8,10 +8,13 @@ import com.skysoft.data.skyblock.SkyBlockItemInfo
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.enableScissor
 import com.skysoft.utils.render.LegacyTextRenderer
+import java.util.Locale
 import kotlin.math.roundToLong
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
@@ -53,7 +56,7 @@ internal class ItemListInfoPanel {
         val contentHeight = lines.size * LINE_HEIGHT + enchantmentHeight
         updateScrollBounds(contentHeight, bounds)
 
-        context.enableScissor(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height)
+        context.enableScissor(bounds)
         try {
             var y = bounds.y + CONTENT_INSET - scrollOffset
             headerLines.forEach { line ->
@@ -167,9 +170,8 @@ internal class ItemListInfoPanel {
     }
 
     private fun infoIconBounds(font: Font, bounds: Rect, y: Int, label: String, count: Int): List<Rect> {
-        val iconStartX = bounds.x + CONTENT_INSET + font.width(label) + LABEL_ICON_GAP
-        val availableWidth = bounds.x + bounds.width - SCROLLBAR_RESERVED_WIDTH - iconStartX
-        val columns = (availableWidth / INFO_ICON_SIZE).coerceAtLeast(1)
+        val iconStartX = infoIconStartX(font, bounds, label)
+        val columns = infoIconColumns(bounds, iconStartX)
         return List(count) { index ->
             Rect(
                 iconStartX + index % columns * INFO_ICON_SIZE,
@@ -182,11 +184,15 @@ internal class ItemListInfoPanel {
 
     private fun infoIconSectionHeight(font: Font, bounds: Rect, label: String, count: Int): Int {
         if (count == 0) return LINE_HEIGHT + SECTION_GAP
-        val iconStartX = bounds.x + CONTENT_INSET + font.width(label) + LABEL_ICON_GAP
-        val availableWidth = bounds.x + bounds.width - SCROLLBAR_RESERVED_WIDTH - iconStartX
-        val columns = (availableWidth / INFO_ICON_SIZE).coerceAtLeast(1)
+        val columns = infoIconColumns(bounds, infoIconStartX(font, bounds, label))
         return Math.ceilDiv(count, columns) * INFO_ICON_SIZE + SECTION_GAP
     }
+
+    private fun infoIconStartX(font: Font, bounds: Rect, label: String): Int =
+        bounds.x + CONTENT_INSET + font.width(label) + LABEL_ICON_GAP
+
+    private fun infoIconColumns(bounds: Rect, iconStartX: Int): Int =
+        ((bounds.x + bounds.width - SCROLLBAR_RESERVED_WIDTH - iconStartX) / INFO_ICON_SIZE).coerceAtLeast(1)
 
     private companion object {
         const val CONTENT_INSET = 8
@@ -215,13 +221,12 @@ private fun renderInfoIcon(
     mouseX: Int,
     mouseY: Int,
 ) {
-    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
-    context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
+    ItemListSlotStyle.draw(context, bounds)
     context.item(stack, bounds.x + 1, bounds.y + 1)
     if (bounds.contains(mouseX, mouseY)) SkysoftNativeTooltip.setForNextFrame(context, tooltip, mouseX, mouseY)
 }
 
-private data class EnchantmentTarget(val displayName: String, val item: net.minecraft.world.item.Item)
+private data class EnchantmentTarget(val displayName: String, val item: Item)
 
 private fun enchantmentTargets(value: String): List<EnchantmentTarget> = value.split(',')
     .map(String::trim)
@@ -230,7 +235,7 @@ private fun enchantmentTargets(value: String): List<EnchantmentTarget> = value.s
     .distinctBy(EnchantmentTarget::displayName)
 
 private fun enchantmentTarget(value: String): EnchantmentTarget {
-    val normalized = value.lowercase(java.util.Locale.ROOT)
+    val normalized = value.lowercase(Locale.ROOT)
     return when {
         "melee" in normalized || normalized == "weapons" -> EnchantmentTarget("Melee Weapons", Items.DIAMOND_SWORD)
         "longsword" in normalized || normalized == "sword" -> EnchantmentTarget("Swords", Items.IRON_SWORD)

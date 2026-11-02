@@ -5,7 +5,6 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockRecipe
 import com.skysoft.data.skyblock.expandedOptions
 import com.skysoft.utils.NumberUtilities.addSeparators
-import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import java.util.Locale
@@ -48,23 +47,15 @@ internal class ItemListFusionSelectorPanel {
         dropdown.renderBackground(context)
         val previous = dropdown.tierBounds[PREVIOUS_CELL]
         val next = dropdown.tierBounds[NEXT_CELL]
-        PixelButtonRenderer.draw(
+        drawPageButtons(
             context,
             font,
             previous,
-            "<",
-            false,
-            previous.contains(mouseX, mouseY),
-            currentPage.page > 0,
-        )
-        PixelButtonRenderer.draw(
-            context,
-            font,
             next,
-            ">",
-            false,
-            next.contains(mouseX, mouseY),
-            currentPage.page + 1 < currentPage.pageCount,
+            mouseX,
+            mouseY,
+            canGoPrevious = currentPage.page > 0,
+            canGoNext = currentPage.page + 1 < currentPage.pageCount,
         )
         val labelBounds = Rect(
             dropdown.tierBounds[PAGE_LABEL_START_CELL].x,
@@ -145,20 +136,7 @@ internal class ItemListFusionSelectorPanel {
         mouseX: Int,
         mouseY: Int,
     ) {
-        context.fill(
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            if (isSelected) SELECTED_BORDER else ItemListSlotStyle.BORDER,
-        )
-        context.fill(
-            bounds.x + 1,
-            bounds.y + 1,
-            bounds.x + bounds.width - 1,
-            bounds.y + bounds.height - 1,
-            ItemListSlotStyle.FILL,
-        )
+        ItemListSlotStyle.draw(context, bounds, border = if (isSelected) SELECTED_BORDER else ItemListSlotStyle.BORDER)
         val key = SkyBlockDataRepository.itemKey(ingredient.id)
         val stack = SkyBlockDataRepository.displayStack(key)?.withActionHint("SELECT") ?: return
         context.item(stack, bounds.x + 1, bounds.y + 1)
@@ -219,11 +197,7 @@ internal data class FusionDropdownPage(
     val optionIndices: IntRange,
 ) {
     companion object {
-        fun create(
-            optionCount: Int,
-            requestedPage: Int,
-            optionsPerPage: Int = MAX_OPTIONS_PER_PAGE,
-        ): FusionDropdownPage {
+        fun create(optionCount: Int, requestedPage: Int, optionsPerPage: Int): FusionDropdownPage {
             require(optionCount > 0)
             require(optionsPerPage > 0)
             val pageCount = Math.ceilDiv(optionCount, optionsPerPage)
@@ -239,7 +213,6 @@ internal data class FusionDropdownPage(
             return (rows - 1).coerceAtMost(MAX_OPTION_ROWS) * DROPDOWN_COLUMNS
         }
 
-        private const val MAX_OPTIONS_PER_PAGE = 36
         private const val HEADER_CELL_COUNT = 9
         private const val DROPDOWN_COLUMNS = 9
         private const val MAX_OPTION_ROWS = 4

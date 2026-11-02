@@ -76,13 +76,10 @@ internal class ItemListBazaarPanel {
         renderOpenButton(context, font, bounds, key, mouseX, mouseY, product != null)
     }
 
-    fun click(bounds: Rect, key: ItemListEntryKey, mouseX: Int, mouseY: Int): BazaarPanelClickResult {
-        if (graph.processClick(bounds, mouseX, mouseY).isHandled) {
-            return BazaarPanelClickResult.HANDLED
+    fun click(bounds: Rect, key: ItemListEntryKey, mouseX: Int, mouseY: Int): ViewerInputResult =
+        graph.processClick(bounds, mouseX, mouseY).orElse {
+            if (openButton(bounds).contains(mouseX, mouseY)) openBazaar(key) else ViewerInputResult.IGNORED
         }
-        if (!openButton(bounds).contains(mouseX, mouseY)) return BazaarPanelClickResult.IGNORED
-        return openBazaar(key)
-    }
 
     private fun renderProduct(
         context: GuiGraphicsExtractor,
@@ -157,14 +154,14 @@ internal class ItemListBazaarPanel {
         }
     }
 
-    private fun openBazaar(key: ItemListEntryKey): BazaarPanelClickResult {
-        if (SkyBlockPriceData.getBazaarProduct(key.id) == null) return BazaarPanelClickResult.IGNORED
+    private fun openBazaar(key: ItemListEntryKey): ViewerInputResult {
+        if (SkyBlockPriceData.getBazaarProduct(key.id) == null) return ViewerInputResult.IGNORED
         val access = bazaarRemoteAccess(HypixelLocationState.inSkyBlock, SkyBlockCookieBuffApi.status)
-        if (!access.canOpen) return BazaarPanelClickResult.IGNORED
-        val connection = Minecraft.getInstance().connection ?: return BazaarPanelClickResult.IGNORED
+        if (!access.canOpen) return ViewerInputResult.IGNORED
+        val connection = Minecraft.getInstance().connection ?: return ViewerInputResult.IGNORED
         connection.sendCommand("bz ${bazaarSearchName(key)}")
         MinecraftClient.setScreen(null)
-        return BazaarPanelClickResult.OPENED
+        return ViewerInputResult.HANDLED
     }
 
     private fun bazaarSearchName(key: ItemListEntryKey): String {
@@ -177,16 +174,20 @@ internal class ItemListBazaarPanel {
     private fun prepare(key: ItemListEntryKey) {
         if (currentKey == key) return
         currentKey = key
-        depthState = BazaarDepthState.NOT_LOADED
+        resetDepth(BazaarDepthState.NOT_LOADED)
+        graph.reset()
+        requestedWindow = null
+        SkyBlockPriceData.refreshBazaarNow()
+    }
+
+    private fun resetDepth(state: BazaarDepthState) {
+        depthState = state
         depthProduct = null
         depthError = null
         depthRequest.cancel()
         depthRefreshSchedule.reset()
-        graph.reset()
         playerMarketSnapshot = BazaarPlayerMarketSnapshot()
         nextPlayerMarketRefreshAt = 0L
-        requestedWindow = null
-        SkyBlockPriceData.refreshBazaarNow()
     }
 
     private fun playerMarketSnapshot(key: ItemListEntryKey): BazaarPlayerMarketSnapshot {
@@ -207,13 +208,7 @@ internal class ItemListBazaarPanel {
         val window = selectedWindow()
         if (requestedWindow != window) {
             requestedWindow = window
-            depthState = BazaarDepthState.LOADING
-            depthProduct = null
-            depthError = null
-            depthRequest.cancel()
-            depthRefreshSchedule.reset()
-            playerMarketSnapshot = BazaarPlayerMarketSnapshot()
-            nextPlayerMarketRefreshAt = 0L
+            resetDepth(BazaarDepthState.LOADING)
         }
         val now = System.currentTimeMillis()
         if (!depthRefreshSchedule.isDue(now) || depthRequest.isPending) return
@@ -278,12 +273,6 @@ private data class BazaarPlayerMarketSnapshot(
     val investment: BazaarInvestmentPosition? = null,
     val transactions: List<ProfileStorageView.BazaarTransactionData> = emptyList(),
 )
-
-internal enum class BazaarPanelClickResult(val isHandled: Boolean) {
-    IGNORED(false),
-    HANDLED(true),
-    OPENED(true),
-}
 
 internal enum class BazaarDepthState {
     NOT_LOADED,

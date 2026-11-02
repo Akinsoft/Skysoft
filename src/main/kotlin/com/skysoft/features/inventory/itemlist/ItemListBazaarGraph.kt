@@ -7,8 +7,11 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.price.SkysoftBazaarDepthProduct
 import com.skysoft.features.bazaar.BazaarInvestmentPosition
+import com.skysoft.utils.MILLIS_PER_SECOND
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.fill
+import com.skysoft.utils.gui.outline
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -40,7 +43,7 @@ internal class ItemListBazaarGraph {
         BazaarGraphPlotRenderer.renderInvestment(context, bounds, investment, exitPrice, preferences.showBazaarPlayerData)
         val graph = graphBounds(bounds)
         drawGraphFrame(context, graph)
-        renderGraphLabel(context, graph, bounds, preferences.graphMode(), updatedAtMillis, product, preferences)
+        renderGraphLabel(context, graph, bounds, updatedAtMillis, product, preferences)
         renderPlot(
             context,
             graph,
@@ -58,46 +61,46 @@ internal class ItemListBazaarGraph {
         if (filtersOpen) renderFilterMenu(context, font, bounds, mouseX, mouseY)
     }
 
-    fun processClick(bounds: Rect, mouseX: Int, mouseY: Int): BazaarGraphInputResult =
+    fun processClick(bounds: Rect, mouseX: Int, mouseY: Int): ViewerInputResult =
         processFilterInput(bounds, mouseX, mouseY) ?: processRangeInput(bounds, mouseX, mouseY)
 
-    private fun processFilterInput(bounds: Rect, mouseX: Int, mouseY: Int): BazaarGraphInputResult? {
-        if (filterButton(bounds).contains(mouseX, mouseY)) {
+    private fun processFilterInput(bounds: Rect, mouseX: Int, mouseY: Int): ViewerInputResult? {
+        if (bazaarFilterButton(bounds).contains(mouseX, mouseY)) {
             filtersOpen = !filtersOpen
             rangeOpen = false
-            return BazaarGraphInputResult.HANDLED
+            return ViewerInputResult.HANDLED
         }
         if (!filtersOpen) return null
-        val row = BazaarGraphFilter.entries.indices
-            .firstOrNull { filterRow(bounds, it).contains(mouseX, mouseY) }
-            ?: return null
-        return processFilterChange(row)
+        val filter = BazaarGraphFilter.entries.withIndex()
+            .firstOrNull { (index, _) -> bazaarFilterRow(bounds, index).contains(mouseX, mouseY) }
+            ?.value ?: return null
+        filter.apply(preferences())
+        if (filter.mode != null) {
+            filtersOpen = false
+            rangeOpen = false
+        }
+        savePreferences()
+        return ViewerInputResult.HANDLED
     }
 
-    private fun processRangeInput(bounds: Rect, mouseX: Int, mouseY: Int): BazaarGraphInputResult {
+    private fun processRangeInput(bounds: Rect, mouseX: Int, mouseY: Int): ViewerInputResult {
         val preferences = preferences()
-        if (preferences.graphMode() == BazaarGraphMode.ORDER_BOOK) return BazaarGraphInputResult.IGNORED
-        if (rangeButton(bounds).contains(mouseX, mouseY)) {
+        if (preferences.graphMode() == BazaarGraphMode.ORDER_BOOK) return ViewerInputResult.IGNORED
+        if (bazaarRangeButton(bounds).contains(mouseX, mouseY)) {
             rangeOpen = !rangeOpen
             filtersOpen = false
-            return BazaarGraphInputResult.HANDLED
+            return ViewerInputResult.HANDLED
         }
-        if (!rangeOpen) return BazaarGraphInputResult.IGNORED
+        if (!rangeOpen) return ViewerInputResult.IGNORED
         val window = BazaarGraphWindow.entries.withIndex()
-            .firstOrNull { (index, _) -> rangeRow(bounds, index).contains(mouseX, mouseY) }
-            ?.value ?: return BazaarGraphInputResult.IGNORED
-        return selectGraphWindow(window, preferences)
-    }
-
-    private fun selectGraphWindow(
-        window: BazaarGraphWindow,
-        preferences: ItemListSourcesConfig,
-    ): BazaarGraphInputResult {
+            .firstOrNull { (index, _) -> bazaarRangeRow(bounds, index).contains(mouseX, mouseY) }
+            ?.value ?: return ViewerInputResult.IGNORED
         rangeOpen = false
-        if (window == preferences.graphWindow()) return BazaarGraphInputResult.HANDLED
-        preferences.bazaarGraphWindow = window.name
-        savePreferences()
-        return BazaarGraphInputResult.HANDLED
+        if (window != preferences.graphWindow()) {
+            preferences.bazaarGraphWindow = window.name
+            savePreferences()
+        }
+        return ViewerInputResult.HANDLED
     }
 
     private fun renderPlot(
@@ -120,12 +123,7 @@ internal class ItemListBazaarGraph {
                 mouseX,
                 mouseY,
             )
-            state != BazaarDepthState.READY -> LegacyTextRenderer.draw(
-                context,
-                "§7Loading Bazaar graph...",
-                bounds.x + GraphLayout.MESSAGE_INSET,
-                bounds.y + GraphLayout.MESSAGE_INSET,
-            )
+            state != BazaarDepthState.READY -> renderBazaarGraphMessage(context, bounds, "§7Loading Bazaar graph...")
             preferences.graphMode() == BazaarGraphMode.PRICE_HISTORY -> BazaarPriceHistoryRenderer.render(
                 context,
                 bounds,
@@ -155,27 +153,15 @@ internal class ItemListBazaarGraph {
         }
     }
 
-    private fun processFilterChange(row: Int): BazaarGraphInputResult {
-        val preferences = preferences()
-        val filter = BazaarGraphFilter.entries.getOrNull(row) ?: return BazaarGraphInputResult.IGNORED
-        filter.apply(preferences)
-        if (filter.changesMode) {
-            filtersOpen = false
-            rangeOpen = false
-        }
-        savePreferences()
-        return BazaarGraphInputResult.HANDLED
-    }
-
     private fun renderGraphLabel(
         context: GuiGraphicsExtractor,
         graph: Rect,
         panel: Rect,
-        mode: BazaarGraphMode,
         updatedAtMillis: Long,
         product: SkysoftBazaarDepthProduct?,
         preferences: ItemListSourcesConfig,
     ) {
+        val mode = preferences.graphMode()
         val label = "§f${mode.label}"
         val labelY = graph.y - GraphLayout.LABEL_Y_OFFSET
         LegacyTextRenderer.draw(context, label, graph.x, labelY)
@@ -206,7 +192,7 @@ internal class ItemListBazaarGraph {
         mouseX: Int,
         mouseY: Int,
     ) {
-        val button = filterButton(bounds)
+        val button = bazaarFilterButton(bounds)
         PixelButtonRenderer.draw(context, font, button, "Filters", filtersOpen, button.contains(mouseX, mouseY), true)
     }
 
@@ -215,7 +201,7 @@ internal class ItemListBazaarGraph {
         BazaarGraphFilter.entries.forEachIndexed { index, filter ->
             val label = filter.label(preferences.graphMode())
             val selected = filter.isSelected(preferences)
-            val row = filterRow(bounds, index)
+            val row = bazaarFilterRow(bounds, index)
             PixelButtonRenderer.draw(context, font, row, label, selected, row.contains(mouseX, mouseY), true)
         }
     }
@@ -231,7 +217,7 @@ internal class ItemListBazaarGraph {
     ) {
         if (mode == BazaarGraphMode.ORDER_BOOK) return
         val selected = preferences().graphWindow()
-        val button = rangeButton(bounds)
+        val button = bazaarRangeButton(bounds)
         PixelButtonRenderer.draw(
             context,
             font,
@@ -243,7 +229,7 @@ internal class ItemListBazaarGraph {
         )
         if (!rangeOpen) return
         BazaarGraphWindow.entries.forEachIndexed { index, window ->
-            val row = rangeRow(bounds, index)
+            val row = bazaarRangeRow(bounds, index)
             PixelButtonRenderer.draw(
                 context,
                 font,
@@ -257,8 +243,8 @@ internal class ItemListBazaarGraph {
     }
 
     private fun drawGraphFrame(context: GuiGraphicsExtractor, bounds: Rect) {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, GraphStyle.BACKGROUND)
-        context.outline(bounds.x, bounds.y, bounds.width, bounds.height, GraphStyle.OUTLINE)
+        context.fill(bounds, GraphStyle.BACKGROUND)
+        context.outline(bounds, GraphStyle.OUTLINE)
     }
 
     private fun graphBounds(bounds: Rect) = Rect(
@@ -269,30 +255,22 @@ internal class ItemListBazaarGraph {
             .coerceAtLeast(GraphLayout.MIN_HEIGHT),
     )
 
-    private fun filterButton(bounds: Rect) = bazaarFilterButton(bounds)
-
-    private fun filterRow(bounds: Rect, index: Int): Rect = bazaarFilterRow(bounds, index)
-
-    private fun rangeButton(bounds: Rect) = bazaarRangeButton(bounds)
-
-    private fun rangeRow(bounds: Rect, index: Int) = bazaarRangeRow(bounds, index)
-
     private fun preferences(): ItemListSourcesConfig = SkysoftConfigGui.config().items.itemList.sources
 
     private fun savePreferences() = SkysoftConfigGui.config().saveNow()
 }
 
-internal fun bazaarFilterButton(bounds: Rect) = Rect(
+private fun bazaarFilterButton(bounds: Rect) = Rect(
     bounds.x + bounds.width - GraphLayout.INSET - GraphLayout.FILTER_WIDTH,
     bazaarGraphLabelY(bounds) - GraphLayout.FILTER_LABEL_ALIGNMENT,
     GraphLayout.FILTER_WIDTH,
     GraphLayout.FILTER_HEIGHT,
 )
 
-internal fun bazaarGraphLabelY(bounds: Rect): Int =
+private fun bazaarGraphLabelY(bounds: Rect): Int =
     bounds.y + GraphLayout.TOP - GraphLayout.LABEL_Y_OFFSET
 
-internal fun bazaarFilterRow(bounds: Rect, index: Int): Rect {
+private fun bazaarFilterRow(bounds: Rect, index: Int): Rect {
     require(index >= 0) { "Bazaar filter row index must not be negative" }
     val button = bazaarFilterButton(bounds)
     return Rect(
@@ -303,14 +281,14 @@ internal fun bazaarFilterRow(bounds: Rect, index: Int): Rect {
     )
 }
 
-internal fun bazaarRangeButton(bounds: Rect) = Rect(
+private fun bazaarRangeButton(bounds: Rect) = Rect(
     bounds.x + GraphLayout.INSET,
     bounds.y + bounds.height - GraphLayout.CONTROL_HEIGHT,
     GraphLayout.RANGE_MENU_WIDTH,
     GraphLayout.CONTROL_HEIGHT,
 )
 
-internal fun bazaarRangeRow(bounds: Rect, index: Int): Rect {
+private fun bazaarRangeRow(bounds: Rect, index: Int): Rect {
     require(index in BazaarGraphWindow.entries.indices) { "Bazaar range row index is out of bounds" }
     val button = bazaarRangeButton(bounds)
     return Rect(
@@ -328,7 +306,6 @@ private object GraphLayout {
     const val LABEL_Y_OFFSET = 12
     const val UPDATED_GAP = 6
     const val HEADER_VALUE_GAP = 5
-    const val MESSAGE_INSET = 5
     const val CONTROL_HEIGHT = 18
     const val CONTROL_GAP = 5
     const val MIN_HEIGHT = 38
@@ -348,48 +325,36 @@ private object GraphStyle {
     val OUTLINE = 0xFF48515A.toInt()
 }
 
-private enum class BazaarGraphFilter(val changesMode: Boolean = false) {
-    PRICE_HISTORY(true),
-    ORDER_BOOK(true),
-    TRADE_VOLUME(true),
+private enum class BazaarGraphFilter(val mode: BazaarGraphMode? = null) {
+    PRICE_HISTORY(BazaarGraphMode.PRICE_HISTORY),
+    ORDER_BOOK(BazaarGraphMode.ORDER_BOOK),
+    TRADE_VOLUME(BazaarGraphMode.TRADE_VOLUME),
     BUY,
     SELL,
     PLAYER,
     ;
 
-    fun label(mode: BazaarGraphMode): String = when (this) {
-        PRICE_HISTORY -> BazaarGraphMode.PRICE_HISTORY.label
-        ORDER_BOOK -> BazaarGraphMode.ORDER_BOOK.label
-        TRADE_VOLUME -> BazaarGraphMode.TRADE_VOLUME.label
-        BUY -> mode.buyFilterLabel
-        SELL -> mode.sellFilterLabel
+    fun label(currentMode: BazaarGraphMode): String = when (this) {
+        BUY -> currentMode.buyFilterLabel
+        SELL -> currentMode.sellFilterLabel
         PLAYER -> "My Trades"
+        else -> requireNotNull(mode).label
     }
 
     fun isSelected(preferences: ItemListSourcesConfig): Boolean = when (this) {
-        PRICE_HISTORY -> preferences.graphMode() == BazaarGraphMode.PRICE_HISTORY
-        ORDER_BOOK -> preferences.graphMode() == BazaarGraphMode.ORDER_BOOK
-        TRADE_VOLUME -> preferences.graphMode() == BazaarGraphMode.TRADE_VOLUME
         BUY -> preferences.showBazaarBuyData
         SELL -> preferences.showBazaarSellData
         PLAYER -> preferences.showBazaarPlayerData
+        else -> preferences.graphMode() == mode
     }
 
     fun apply(preferences: ItemListSourcesConfig) {
         when (this) {
-            PRICE_HISTORY -> preferences.bazaarGraphMode = BazaarGraphMode.PRICE_HISTORY.name
-            ORDER_BOOK -> preferences.bazaarGraphMode = BazaarGraphMode.ORDER_BOOK.name
-            TRADE_VOLUME -> preferences.bazaarGraphMode = BazaarGraphMode.TRADE_VOLUME.name
             BUY -> preferences.showBazaarBuyData = !preferences.showBazaarBuyData
             SELL -> preferences.showBazaarSellData = !preferences.showBazaarSellData
             PLAYER -> preferences.showBazaarPlayerData = !preferences.showBazaarPlayerData
+            else -> preferences.bazaarGraphMode = requireNotNull(mode).name
         }
     }
 }
 
-internal enum class BazaarGraphInputResult(val isHandled: Boolean) {
-    IGNORED(false),
-    HANDLED(true),
-}
-
-private const val MILLIS_PER_SECOND = 1_000L

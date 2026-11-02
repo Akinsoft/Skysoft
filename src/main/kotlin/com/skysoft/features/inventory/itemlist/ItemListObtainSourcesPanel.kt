@@ -13,7 +13,6 @@ import com.skysoft.data.skyblock.SkyBlockRecipeType
 import com.skysoft.data.skyblock.price.BazaarProductAvailability
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
-import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.gui.Font
@@ -98,8 +97,7 @@ internal class ItemListObtainSourcesPanel {
         val visibleSources = sources.drop(layout.page * layout.pageSize).take(layout.pageSize)
         val clickable = mutableListOf<Pair<Rect, String>>()
         layout.cards.zip(visibleSources).forEach { (card, source) ->
-            context.fill(card.x, card.y, card.x + card.width, card.y + card.height, ItemListSlotStyle.BORDER)
-            context.fill(card.x + 1, card.y + 1, card.x + card.width - 1, card.y + card.height - 1, ItemListSlotStyle.FILL)
+            ItemListSlotStyle.draw(context, card)
             val entityId = source.entityId
             if (source.kind == SkyBlockInfoSourceKind.ENTITY && entityId != null) {
                 renderHuntingEntity(context, font, card, key, entityId, mouseX, mouseY)
@@ -140,22 +138,14 @@ internal class ItemListObtainSourcesPanel {
         mouseX: Int,
         mouseY: Int,
     ) {
-        PixelButtonRenderer.draw(
+        drawPageButtons(
             context,
             font,
             layout.previous,
-            "<",
-            false,
-            layout.previous.contains(mouseX, mouseY),
-            layout.page > 0,
-        )
-        PixelButtonRenderer.draw(
-            context,
-            font,
             layout.next,
-            ">",
-            false,
-            layout.next.contains(mouseX, mouseY),
+            mouseX,
+            mouseY,
+            layout.page > 0,
             layout.page + 1 < layout.pageCount,
         )
         val label = "${layout.page + 1} / ${layout.pageCount}"
@@ -211,8 +201,7 @@ internal class ItemListObtainSourcesPanel {
         mouseX: Int,
         mouseY: Int,
     ) {
-        context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, ItemListSlotStyle.BORDER)
-        context.fill(bounds.x + 1, bounds.y + 1, bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, ItemListSlotStyle.FILL)
+        ItemListSlotStyle.draw(context, bounds)
         context.item(sourceStack(source), bounds.x + 1, bounds.y + 1)
         if (bounds.contains(mouseX, mouseY)) {
             SkysoftNativeTooltip.setForNextFrame(context, sourceTooltip(font, source), mouseX, mouseY)
@@ -292,22 +281,16 @@ private fun sourceMatchesSection(
 ): Boolean {
     val entityId = source.entityId ?: return detailMarkers == null
     val details = drops.filter { it.entityId == entityId }.flatMap(SkyBlockDropSource::details)
-    return if (detailMarkers == null) {
-        SPECIALIZED_DETAIL_MARKERS.none { marker -> details.any { it.contains(marker, ignoreCase = true) } }
-    } else {
-        detailMarkers.any { marker -> details.any { it.contains(marker, ignoreCase = true) } }
-    }
+    val hasMarkedDetail = details.any { it.containsAnyMarker(detailMarkers ?: SPECIALIZED_DETAIL_MARKERS) }
+    return if (detailMarkers == null) !hasMarkedDetail else hasMarkedDetail
 }
 
-internal fun representedObtainEntityIds(key: ItemListEntryKey): Set<String> =
-    representedObtainEntityIds(SkyBlockDataRepository.recipesFor(key))
-
-internal fun isCraftingSourceRepresentedByRecipes(summary: String, recipes: List<SkyBlockRecipe>): Boolean =
+private fun isCraftingSourceRepresentedByRecipes(summary: String, recipes: List<SkyBlockRecipe>): Boolean =
     recipes.any { it.type == SkyBlockRecipeType.CRAFTING } &&
         (summary == "Crafting" || summary.startsWith("Crafting:")) &&
         !OTHER_OBTAIN_METHOD.containsMatchIn(summary)
 
-internal fun representedObtainEntityIds(recipes: List<SkyBlockRecipe>): Set<String> =
+private fun representedObtainEntityIds(recipes: List<SkyBlockRecipe>): Set<String> =
     recipes.asSequence()
         .filterIsInstance<SkyBlockRecipe.Process>()
         .filter { it.type == SkyBlockRecipeType.SHOP }

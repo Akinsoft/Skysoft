@@ -16,6 +16,7 @@ import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
@@ -53,13 +54,7 @@ internal class ItemListViewerScreen(
         context.fill(0, 0, width, height, SCREEN_OVERLAY)
         val currentLayout = ItemListViewerLayout.create(width, height)
         layout = currentLayout
-        OverlayPanelStyle.draw(
-            context,
-            currentLayout.panel.x,
-            currentLayout.panel.y,
-            currentLayout.panel.width,
-            currentLayout.panel.height,
-        )
+        OverlayPanelStyle.draw(context, currentLayout.panel)
         renderHeader(context, currentLayout, mouseX, mouseY)
         renderTabs(context, currentLayout, mouseX, mouseY)
         when (mode) {
@@ -184,22 +179,14 @@ internal class ItemListViewerScreen(
             layout.title.y + LINE_HEIGHT,
             shadow = false,
         )
-        PixelButtonRenderer.draw(
+        drawPageButtons(
             context,
             font,
             layout.back,
-            "<",
-            false,
-            layout.back.contains(mouseX, mouseY),
-            selection.canGoBack,
-        )
-        PixelButtonRenderer.draw(
-            context,
-            font,
             layout.forward,
-            ">",
-            false,
-            layout.forward.contains(mouseX, mouseY),
+            mouseX,
+            mouseY,
+            selection.canGoBack,
             selection.canGoForward,
         )
         renderFavoriteButton(context, font, layout.favorite, currentKey, mouseX, mouseY)
@@ -258,7 +245,7 @@ internal class ItemListViewerScreen(
 
 private fun renderTierFooter(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     layout: ItemListViewerLayout,
     key: ItemListEntryKey,
     family: ItemListTierFamily?,
@@ -267,22 +254,14 @@ private fun renderTierFooter(
 ) {
     if (family == null) return
     val index = family.tiers.indexOf(key)
-    PixelButtonRenderer.draw(
+    drawPageButtons(
         context,
         font,
         layout.tierPrevious,
-        "<",
-        false,
-        layout.tierPrevious.contains(mouseX, mouseY),
-        index > 0,
-    )
-    PixelButtonRenderer.draw(
-        context,
-        font,
         layout.tierNext,
-        ">",
-        false,
-        layout.tierNext.contains(mouseX, mouseY),
+        mouseX,
+        mouseY,
+        index > 0,
         index + 1 < family.tiers.size,
     )
     drawViewerCentered(context, font, layout.tierPage, "${index + 1} / ${family.tiers.size}")
@@ -290,7 +269,7 @@ private fun renderTierFooter(
 
 private fun renderFavoriteButton(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     bounds: Rect,
     key: ItemListEntryKey,
     mouseX: Int,
@@ -314,7 +293,7 @@ private fun renderFavoriteButton(
 
 private fun drawViewerTab(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     bounds: Rect,
     label: String,
     isSelected: Boolean,
@@ -350,7 +329,7 @@ private enum class NpcWarpClickResult(
 
 private fun renderInfoLinks(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     layout: ItemListViewerLayout,
     key: ItemListEntryKey,
     mouseX: Int,
@@ -370,7 +349,7 @@ private fun renderInfoLinks(
 
 private fun drawViewerCentered(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     bounds: Rect,
     text: String,
 ) {
@@ -379,7 +358,7 @@ private fun drawViewerCentered(
         text,
         bounds.x + (bounds.width - font.width(text)) / 2,
         bounds.y + (bounds.height - font.lineHeight) / 2,
-        VIEWER_TEXT_COLOR,
+        ITEM_LIST_TEXT_COLOR,
         false,
     )
 }
@@ -387,7 +366,6 @@ private fun drawViewerCentered(
 private const val HEART_SIZE = 9
 private val HEART_CONTAINER = Identifier.withDefaultNamespace("hud/heart/container")
 private val HEART_FULL = Identifier.withDefaultNamespace("hud/heart/full")
-private val VIEWER_TEXT_COLOR = 0xFFE0E4E8.toInt()
 
 private fun openWiki(key: ItemListEntryKey, isVisible: Boolean): ViewerInputResult {
     if (!isVisible) return ViewerInputResult.IGNORED
@@ -398,7 +376,7 @@ private fun openWiki(key: ItemListEntryKey, isVisible: Boolean): ViewerInputResu
 
 private fun ItemListViewerLayout.renderPageFooter(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     mouseX: Int,
     mouseY: Int,
     canGoPrevious: Boolean,
@@ -406,24 +384,7 @@ private fun ItemListViewerLayout.renderPageFooter(
     label: String,
     hasTierNavigation: Boolean,
 ) {
-    PixelButtonRenderer.draw(
-        context,
-        font,
-        previous,
-        "<",
-        false,
-        previous.contains(mouseX, mouseY),
-        canGoPrevious,
-    )
-    PixelButtonRenderer.draw(
-        context,
-        font,
-        next,
-        ">",
-        false,
-        next.contains(mouseX, mouseY),
-        canGoNext,
-    )
+    drawPageButtons(context, font, previous, next, mouseX, mouseY, canGoPrevious, canGoNext)
     drawViewerCentered(
         context,
         font,
