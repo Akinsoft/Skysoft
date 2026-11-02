@@ -88,7 +88,7 @@ private class InventoryEquipmentSlotLayout {
             container,
             index,
             InventoryEquipmentLayout.SLOT_X,
-            InventoryEquipmentLayout.FIRST_SLOT_Y + InventoryEquipmentLayout.SLOT_STEP * index,
+            InventoryEquipmentLayout.slotY(index),
         )
     }
 

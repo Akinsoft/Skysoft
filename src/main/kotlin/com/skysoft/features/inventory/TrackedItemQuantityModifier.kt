@@ -1,17 +1,21 @@
 package com.skysoft.features.inventory
 
 import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ACTION_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.DANGER_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.MUTED_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ROW_HEIGHT
+import com.skysoft.features.inventory.TrackedItemPanelStyle.TEXT_HEIGHT
+import com.skysoft.features.inventory.TrackedItemPanelStyle.styledText
 import com.skysoft.gui.OverlayControlArea
-import com.skysoft.utils.ColorUtilities.RGB_MASK
-import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 
 internal sealed interface TrackedItemQuantityAction {
@@ -25,7 +29,7 @@ internal class TrackedItemQuantityModifier {
     private var direction = 0
 
     val height: Int
-        get() = if (direction == 0) QUANTITY_ROW_HEIGHT else QUANTITY_FIELD_HEIGHT
+        get() = if (direction == 0) ROW_HEIGHT else QUANTITY_FIELD_HEIGHT
 
     fun width(): Int {
         val font = Minecraft.getInstance().font
@@ -100,23 +104,8 @@ internal class TrackedItemQuantityModifier {
                 interactive && control.bounds.contains(mouseX, mouseY)
             }
         }
-        hovered?.bounds?.let { bounds ->
-            context.fill(
-                bounds.x,
-                bounds.y,
-                bounds.x + bounds.width,
-                bounds.y + bounds.height,
-                QUANTITY_HOVER.withScaledAlpha(opacity),
-            )
-        }
-        context.text(
-            font,
-            text,
-            textX,
-            y + (height - QUANTITY_TEXT_HEIGHT) / 2,
-            QUANTITY_TEXT_COLOR.withScaledAlpha(opacity),
-            false,
-        )
+        hovered?.bounds?.let { bounds -> TrackedItemPanelStyle.drawHover(context, bounds, opacity) }
+        TrackedItemPanelStyle.drawText(context, text, textX, y + (height - TEXT_HEIGHT) / 2, opacity)
         fieldBounds?.let { bounds ->
             field.render(
                 context,
@@ -126,66 +115,51 @@ internal class TrackedItemQuantityModifier {
                 bounds.height,
                 "Quantity...",
                 alpha = opacity,
-                textColor = if (direction < 0) QUANTITY_REMOVE_COLOR else QUANTITY_ADD_COLOR,
+                textColor = directionColor(direction),
             )
         }
         return hovered
     }
 
     private fun label(): MutableComponent {
-        if (direction != 0) {
-            val color = if (direction < 0) QUANTITY_REMOVE_COLOR else QUANTITY_ADD_COLOR
-            return quantityText("Modify ", QUANTITY_MUTED_COLOR).append(
-                quantityText(if (direction < 0) "-" else "+", color),
-            )
+        val text = styledText(MODIFY_PREFIX, MUTED_COLOR)
+        if (direction != 0) return text.append(styledText(directionSign(direction), directionColor(direction)))
+        MODIFY_ITEM_AMOUNTS.forEachIndexed { index, amount ->
+            if (index > 0) text.append(" ")
+            text.append(styledText(modifyButtonLabel(index, amount), directionColor(modifyButtonDirection(index))))
         }
-        return quantityText("Modify ", QUANTITY_MUTED_COLOR).also { text ->
-            MODIFY_ITEM_AMOUNTS.forEachIndexed { index, amount ->
-                if (index > 0) text.append(" ")
-                val buttonDirection = if (index < MODIFY_MINUS_BUTTON_COUNT) -1 else 1
-                text.append(
-                    quantityText(
-                        "[${amount?.let { if (it > 0) "+$it" else it.toString() } ?: if (buttonDirection < 0) "-" else "+"}]",
-                        if (buttonDirection < 0) QUANTITY_REMOVE_COLOR else QUANTITY_ADD_COLOR,
-                    ),
-                )
-            }
-        }
+        return text
     }
 
-    private fun quantityButtons(
-        textX: Int,
-        y: Int,
-        font: net.minecraft.client.gui.Font,
-    ): List<OverlayControlArea<TrackedItemQuantityAction>> {
-        var offset = font.width(quantityText("Modify ", QUANTITY_MUTED_COLOR))
+    private fun quantityButtons(textX: Int, y: Int, font: Font): List<OverlayControlArea<TrackedItemQuantityAction>> {
+        var offset = font.width(styledText(MODIFY_PREFIX, MUTED_COLOR))
         return MODIFY_ITEM_AMOUNTS.mapIndexed { index, amount ->
             if (index > 0) offset += font.width(" ")
-            val buttonDirection = if (index < MODIFY_MINUS_BUTTON_COUNT) -1 else 1
-            val label = "[${amount?.let { if (it > 0) "+$it" else it.toString() } ?: if (buttonDirection < 0) "-" else "+"}]"
-            val width = font.width(label)
+            val width = font.width(modifyButtonLabel(index, amount))
             OverlayControlArea<TrackedItemQuantityAction>(
                 amount?.let(TrackedItemQuantityAction::Modify)
-                    ?: TrackedItemQuantityAction.BeginCustom(buttonDirection),
+                    ?: TrackedItemQuantityAction.BeginCustom(modifyButtonDirection(index)),
                 Rect(textX + offset, y, width, height),
             ).also { offset += width }
         }
     }
 }
 
-private fun quantityText(text: String, color: Int): MutableComponent =
-    Component.literal(text).withStyle { style -> style.withColor(color and RGB_MASK) }
+private fun modifyButtonDirection(index: Int): Int = if (index < MODIFY_MINUS_BUTTON_COUNT) -1 else 1
 
+private fun modifyButtonLabel(index: Int, amount: Long?): String {
+    val value = amount?.let { if (it > 0) "+$it" else it.toString() } ?: directionSign(modifyButtonDirection(index))
+    return "[$value]"
+}
+
+private fun directionSign(direction: Int): String = if (direction < 0) "-" else "+"
+
+private fun directionColor(direction: Int): Int = if (direction < 0) DANGER_COLOR else ACTION_COLOR
+
+private const val MODIFY_PREFIX = "Modify "
 private val MODIFY_ITEM_AMOUNTS = listOf<Long?>(null, -4, -1, 1, 4, null)
 private const val MODIFY_MINUS_BUTTON_COUNT = 3
 private const val QUANTITY_MAXIMUM_LENGTH = 19
 private const val QUANTITY_FIELD_WIDTH = 80
 private const val QUANTITY_FIELD_HEIGHT = 18
 private const val QUANTITY_FIELD_GAP = 3
-private const val QUANTITY_ROW_HEIGHT = 11
-private const val QUANTITY_TEXT_HEIGHT = 9
-private const val QUANTITY_TEXT_COLOR = 0xFFFFFFFF.toInt()
-private const val QUANTITY_MUTED_COLOR = 0xFFAAAAAA.toInt()
-private const val QUANTITY_ADD_COLOR = 0xFF55FF55.toInt()
-private const val QUANTITY_REMOVE_COLOR = 0xFFFF5555.toInt()
-private const val QUANTITY_HOVER = 0x28FFFFFF

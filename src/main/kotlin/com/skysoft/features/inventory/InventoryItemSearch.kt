@@ -6,6 +6,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.ItemStackComponentCache
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.inventory.Slot
@@ -26,12 +27,10 @@ internal class InventoryItemSearchQuery private constructor(internal val terms: 
             val terms = text.cleanSkyBlockText()
                 .lowercase()
                 .trim()
-                .split(WHITESPACE_PATTERN)
+                .split(whitespacePattern)
                 .filter(String::isNotEmpty)
             return if (terms.isEmpty()) EMPTY else InventoryItemSearchQuery(terms)
         }
-
-        private val WHITESPACE_PATTERN = Regex("""\s+""")
     }
 }
 
@@ -79,8 +78,7 @@ object ContainerSearchHighlighter {
     @JvmStatic
     fun toggle(text: String) {
         if (active) {
-            active = false
-            query = InventoryItemSearchQuery.EMPTY
+            clear()
             return
         }
         active = true

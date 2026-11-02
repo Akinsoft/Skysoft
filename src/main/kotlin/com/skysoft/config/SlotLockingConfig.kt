@@ -29,9 +29,6 @@ class SlotLockingConfig {
     @field:ConfigOption(name = "Details", desc = "Slot lock visual settings.")
     @field:Accordion
     val details = SlotLockingDetailsConfig()
-
-    val lockKey: Int
-        get() = settings.lockKey
 }
 
 class SlotLockingSettingsConfig {

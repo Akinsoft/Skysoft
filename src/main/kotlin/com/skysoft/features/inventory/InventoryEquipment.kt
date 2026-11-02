@@ -46,7 +46,7 @@ object InventoryEquipment {
     fun isEquipmentSlot(slot: Slot?): Boolean = isInventoryEquipmentSlot(slot)
 }
 
-internal val inventoryEquipmentConfig
+private val inventoryEquipmentConfig
     get() = SkysoftConfigGui.config().inventory.equipment.inventoryEquipment
 
 internal fun isInventoryEquipmentAvailable(): Boolean =

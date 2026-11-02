@@ -57,12 +57,12 @@ object ItemProtectionManager {
             reportChange(changeProtection(hoveredStorageItem))
             return InputHandlingResult.CONSUMED
         }
-        val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
-        if (!isPlayerInventorySlot(slot)) {
+        val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()?.takeIf(::isPlayerInventorySlot)
+        if (slot == null) {
             SkysoftChat.error("Hover an item in your inventory to protect it.")
             return InputHandlingResult.CONSUMED
         }
-        reportChange(changeProtection(requireNotNull(slot).item))
+        reportChange(changeProtection(slot.item))
         return InputHandlingResult.CONSUMED
     }
 
@@ -141,13 +141,12 @@ object ItemProtectionManager {
         clearInputState()
     }
 
-    internal fun worldDropDecision(stack: ItemStack): ItemDropProtectionDecision =
-        itemDropProtectionDecision(
-            isFeatureAvailable = isFeatureAvailable(),
-            isProtected = isProtected(stack),
-            isDungeon = HypixelLocationState.currentIsland == SkyBlockIsland.DUNGEONS,
-            allowDungeonUltimates = config.settings.allowDungeonUltimates,
-        )
+    private fun worldDropDecision(stack: ItemStack): ItemDropProtectionDecision = when {
+        !isFeatureAvailable() || !isProtected(stack) -> ItemDropProtectionDecision.ALLOW
+        HypixelLocationState.currentIsland == SkyBlockIsland.DUNGEONS && config.settings.allowDungeonUltimates ->
+            ItemDropProtectionDecision.ALLOW_DUNGEON_ULTIMATE
+        else -> ItemDropProtectionDecision.BLOCK
+    }
 
     private fun blockProtectedItemAction(stack: ItemStack, hideMessage: Boolean): InputHandlingResult {
         if (!hideMessage) {
@@ -190,26 +189,15 @@ object ItemProtectionManager {
     }
 }
 
-internal fun isItemSaleInteraction(menuTitle: String, itemLore: List<String>): Boolean =
+private fun isItemSaleInteraction(menuTitle: String, itemLore: List<String>): Boolean =
     menuTitle == CREATE_AUCTION_TITLE ||
         menuTitle == CREATE_BIN_AUCTION_TITLE ||
         itemLore.any { it.cleanSkyBlockText() == CLICK_TO_SELL_LORE }
 
-enum class ItemDropProtectionDecision {
+private enum class ItemDropProtectionDecision {
     ALLOW,
     ALLOW_DUNGEON_ULTIMATE,
     BLOCK,
-}
-
-internal fun itemDropProtectionDecision(
-    isFeatureAvailable: Boolean,
-    isProtected: Boolean,
-    isDungeon: Boolean,
-    allowDungeonUltimates: Boolean,
-): ItemDropProtectionDecision = when {
-    !isFeatureAvailable || !isProtected -> ItemDropProtectionDecision.ALLOW
-    isDungeon && allowDungeonUltimates -> ItemDropProtectionDecision.ALLOW_DUNGEON_ULTIMATE
-    else -> ItemDropProtectionDecision.BLOCK
 }
 
 internal fun isContainerItemDrop(action: ContainerInput, slotId: Int): Boolean =

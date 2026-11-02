@@ -115,15 +115,7 @@ object SmoothSwapping {
         val top = accessor.skysoftGetTopPos()
         return screen.menu.slots.asSequence()
             .filter { it.isActive }
-            .map { slot ->
-                val stack = slot.item
-                SlotSnapshot(
-                    slotId = slot.index,
-                    x = left + slot.x,
-                    y = top + slot.y,
-                    stack = if (stack.isEmpty) ItemStack.EMPTY else stack.copy(),
-                )
-            }
+            .map { slot -> SlotSnapshot(slot.index, left + slot.x, top + slot.y, slot.item.copy()) }
             .associateBy { it.slotId }
     }
 
@@ -228,13 +220,14 @@ object SmoothSwapping {
         suppressedSlots.removeIf { slotId -> animations.none { it.destinationSlotId == slotId && it.suppressDestination } }
     }
 
-    private fun easedProgress(animation: SlotAnimation, now: Long): Double =
-        when (config.details.animationCurve) {
-            SmoothSwappingCurve.LINEAR -> animationProgress(animation, now)
-            SmoothSwappingCurve.EASE_OUT -> EasingUtilities.easeOutCubic(animationProgress(animation, now))
-
-            SmoothSwappingCurve.EASE_IN_OUT -> EasingUtilities.smoothStep(animationProgress(animation, now))
+    private fun easedProgress(animation: SlotAnimation, now: Long): Double {
+        val progress = animationProgress(animation, now)
+        return when (config.details.animationCurve) {
+            SmoothSwappingCurve.LINEAR -> progress
+            SmoothSwappingCurve.EASE_OUT -> EasingUtilities.easeOutCubic(progress)
+            SmoothSwappingCurve.EASE_IN_OUT -> EasingUtilities.smoothStep(progress)
         }
+    }
 
     private fun animationProgress(animation: SlotAnimation, now: Long): Double =
         ((now - animation.startedMillis).toDouble() / animation.durationMillis).coerceIn(0.0, 1.0)
@@ -248,7 +241,6 @@ object SmoothSwapping {
             .roundToInt()
             .coerceIn(MIN_DURATION_MS, MAX_DURATION_MS)
     }
-
 }
 
 private const val OFFSCREEN_THRESHOLD = 10_000

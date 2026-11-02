@@ -1,7 +1,7 @@
 package com.skysoft.features.inventory
 
-import com.mojang.datafixers.DataFixer
 import com.mojang.serialization.Dynamic
+import com.skysoft.data.skyblock.SkyBlockItemStackCodec
 import net.minecraft.SharedConstants
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NbtOps
@@ -9,48 +9,35 @@ import net.minecraft.util.datafix.DataFixers
 import net.minecraft.util.datafix.fixes.References
 import net.minecraft.world.item.ItemStack
 
-internal fun decodeLegacySkyBlockItem(
-    item: CompoundTag,
-    dataFixer: DataFixer = DataFixers.getDataFixer(),
-    currentDataVersion: Int = SharedConstants.getCurrentVersion().dataVersion().version(),
-): ItemStack {
-    val migrated = migrateLegacySkyBlockItem(item, dataFixer, currentDataVersion)
-    return ItemStack.CODEC.parse(registryOps(), migrated)
+internal fun decodeLegacySkyBlockItem(item: CompoundTag): ItemStack {
+    val migrated = migrateLegacySkyBlockItem(item)
+    return ItemStack.CODEC.parse(SkyBlockItemStackCodec.registryOps(), migrated)
         .resultOrPartial { error -> throw IllegalArgumentException("Failed to decode legacy SkyBlock item: $error") }
         .orElseThrow { IllegalArgumentException("Failed to decode legacy SkyBlock item") }
 }
 
-internal fun migrateLegacySkyBlockItem(
-    item: CompoundTag,
-    dataFixer: DataFixer = DataFixers.getDataFixer(),
-    currentDataVersion: Int = SharedConstants.getCurrentVersion().dataVersion().version(),
-): CompoundTag {
+internal fun migrateLegacySkyBlockItem(item: CompoundTag): CompoundTag {
     val currentComponents = item.getCompound("components").orElse(null)
-    val migrated = dataFixer.update(
+    val migrated = DataFixers.getDataFixer().update(
         References.ITEM_STACK,
         Dynamic(NbtOps.INSTANCE, item),
         LEGACY_ITEM_DATA_VERSION,
-        currentDataVersion,
+        SharedConstants.getCurrentVersion().dataVersion().version(),
     ).value as? CompoundTag ?: throw IllegalArgumentException("Legacy SkyBlock item migration returned invalid data")
     if (currentComponents != null) {
         val components = migrated.getCompoundOrEmpty("components").copy().apply { merge(currentComponents) }
         migrated.put("components", components)
     }
-    migrated.getCompoundOrEmpty("components")
-        .getCompound("minecraft:custom_data")
-        .orElse(null)
-        ?.getCompound("ExtraAttributes")
-        ?.orElse(null)
-        ?.let { extraAttributes ->
-            val customData = migrated.getCompoundOrEmpty("components")
-                .getCompoundOrEmpty("minecraft:custom_data")
-                .copy()
-                .apply {
-                    remove("ExtraAttributes")
-                    merge(extraAttributes)
-                }
-            migrated.getCompoundOrEmpty("components").put("minecraft:custom_data", customData)
+    val components = migrated.getCompoundOrEmpty("components")
+    components.getCompound("minecraft:custom_data").ifPresent { customData ->
+        customData.getCompound("ExtraAttributes").ifPresent { extraAttributes ->
+            val flattened = customData.copy().apply {
+                remove("ExtraAttributes")
+                merge(extraAttributes)
+            }
+            components.put("minecraft:custom_data", flattened)
         }
+    }
     return migrated
 }
 

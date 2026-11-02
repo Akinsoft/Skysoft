@@ -29,11 +29,9 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 
 object InventoryHud {
-    private val config get() = SkysoftConfigGui.config().gui.playerHud.inventoryHud
-
     fun register() {
         InventoryEquipmentCache.registerConsumer("Inventory HUD") {
-            config.enabled && config.settings.equipment
+            inventoryHudConfig.enabled && inventoryHudConfig.settings.equipment
         }
         BottomHudLayout.registerReservation("inventory_hud", ::bottomReservation)
         registerVanillaHudElements()
@@ -53,7 +51,7 @@ object InventoryHud {
                 override val position get() = part.position()
                 override val editorGridSpacing: Int = INVENTORY_HUD_GRID_SPACING
                 override val hasEditorBackground: Boolean
-                    get() = !config.details.background && !config.details.outline && !config.details.slotBackgrounds
+                    get() = with(inventoryHudConfig.details) { !background && !outline && !slotBackgrounds }
                 override fun width(): Int = part.width
                 override fun height(): Int = part.height
                 override fun isVisible(): Boolean = isLiveVisible() && part.isEnabled()
@@ -99,29 +97,29 @@ object InventoryHud {
     }
 
     private fun isVisible(context: GuiOverlayContext): Boolean =
-        isLiveVisible() && (context.type == GuiOverlayContextType.WORLD || config.settings.showInScreens)
+        isLiveVisible() && (context.type == GuiOverlayContextType.WORLD || inventoryHudConfig.settings.showInScreens)
 
     private fun isLiveVisible(): Boolean {
         val minecraft = Minecraft.getInstance()
         val screen = MinecraftClient.screen(minecraft)
         return isActive() &&
             !MinecraftClient.isGuiHidden(minecraft) &&
-            (screen == null || config.settings.showInScreens || screen is SkysoftHudEditor.EditorScreen)
+            (screen == null || inventoryHudConfig.settings.showInScreens || screen is SkysoftHudEditor.EditorScreen)
     }
 
     private fun isActive(): Boolean {
         val player = Minecraft.getInstance().player
-        return config.enabled && HypixelLocationState.inSkyBlock && player != null && !player.isSpectator
+        return inventoryHudConfig.enabled && HypixelLocationState.inSkyBlock && player != null && !player.isSpectator
     }
 
     private fun bottomReservation(): Int {
         if (!isLiveVisible()) return 0
-        val inventoryOffset = if (config.settings.inventory) {
+        val inventoryOffset = if (inventoryHudConfig.settings.inventory) {
             InventoryHudLayout.MAIN_PANEL_HEIGHT + InventoryHudLayout.GROUP_GAP
         } else {
             0
         }
-        val sideOffset = if (config.settings.armor || config.settings.equipment) {
+        val sideOffset = if (inventoryHudConfig.settings.armor || inventoryHudConfig.settings.equipment) {
             InventoryHudLayout.MAIN_PANEL_HEIGHT
         } else {
             0
@@ -134,7 +132,7 @@ object InventoryHud {
 
     private fun currentRenderable(part: InventoryHudPart): InventoryHudRenderable {
         val player = Minecraft.getInstance().player
-        val equipment = if (config.settings.equipment) InventoryEquipmentCache.stacks() else emptyList()
+        val equipment = if (inventoryHudConfig.settings.equipment) InventoryEquipmentCache.stacks() else emptyList()
         return InventoryHudRenderable(part, player, equipment)
     }
 
@@ -168,20 +166,20 @@ private enum class InventoryHudPart(val label: String, val width: Int, val heigh
 
     fun isEnabled(): Boolean = when (this) {
         HOTBAR -> true
-        INVENTORY -> inventoryHudConfig().settings.inventory
-        ARMOR -> inventoryHudConfig().settings.armor
-        EQUIPMENT -> inventoryHudConfig().settings.equipment
+        INVENTORY -> inventoryHudConfig.settings.inventory
+        ARMOR -> inventoryHudConfig.settings.armor
+        EQUIPMENT -> inventoryHudConfig.settings.equipment
     }
 
     fun position() = when (this) {
-        HOTBAR -> inventoryHudConfig().position
-        INVENTORY -> inventoryHudConfig().inventoryPosition
-        ARMOR -> inventoryHudConfig().armorPosition
-        EQUIPMENT -> inventoryHudConfig().equipmentPosition
+        HOTBAR -> inventoryHudConfig.position
+        INVENTORY -> inventoryHudConfig.inventoryPosition
+        ARMOR -> inventoryHudConfig.armorPosition
+        EQUIPMENT -> inventoryHudConfig.equipmentPosition
     }
 }
 
-private fun inventoryHudConfig() = SkysoftConfigGui.config().gui.playerHud.inventoryHud
+private val inventoryHudConfig get() = SkysoftConfigGui.config().gui.playerHud.inventoryHud
 
 private class InventoryHudRenderable(
     private val part: InventoryHudPart,
@@ -191,7 +189,7 @@ private class InventoryHudRenderable(
     override val width: Int = part.width
     override val height: Int = part.height
 
-    private val details = SkysoftConfigGui.config().gui.playerHud.inventoryHud.details
+    private val details = inventoryHudConfig.details
     private val backgroundColor = details.backgroundColor.get().toColor().rgb
     private val outlineColor = details.outlineColor.get().toColor().rgb
     private val slotBackgroundColor = details.slotBackgroundColor.get().toColor().rgb
@@ -295,11 +293,11 @@ private class InventoryHudRenderable(
         RarityHighlightRenderer.renderSlot(context, rarityStack, itemX, itemY) {
             context.item(renderStack, itemX, itemY)
         }
+        val font = Minecraft.getInstance().font
         val countText = if (renderStack.count == 1) null else ""
-        context.itemDecorations(Minecraft.getInstance().font, renderStack, itemX, itemY, countText)
+        context.itemDecorations(font, renderStack, itemX, itemY, countText)
         if (renderStack.count != 1) {
             val text = renderStack.count.toString()
-            val font = Minecraft.getInstance().font
             context.text(
                 font,
                 text,

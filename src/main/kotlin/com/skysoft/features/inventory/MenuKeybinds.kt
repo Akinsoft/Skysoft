@@ -10,6 +10,7 @@ import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
+import com.skysoft.utils.renderables.withIsolatedPose
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.EditBox
@@ -73,14 +74,10 @@ object MenuKeybinds {
     fun renderKeybind(context: GuiGraphicsExtractor, font: Font, label: String, x: Int, y: Int) {
         val width = font.width(label)
         val scale = minOf(1f, SLOT_SIZE.toFloat() / width.coerceAtLeast(1))
-        val pose = context.pose()
-        pose.pushMatrix()
-        try {
-            pose.translate(x + COUNT_RIGHT, y + COUNT_TOP + font.lineHeight * (1f - scale))
-            pose.scale(scale, scale)
-            context.text(font, label, -width, 0, -1, true)
-        } finally {
-            pose.popMatrix()
+        context.withIsolatedPose {
+            pose().translate(x + COUNT_RIGHT, y + COUNT_TOP + font.lineHeight * (1f - scale))
+            pose().scale(scale, scale)
+            text(font, label, -width, 0, -1, true)
         }
     }
 

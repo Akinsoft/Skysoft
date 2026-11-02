@@ -135,7 +135,7 @@ internal class ExperimentationTableHelperState {
     }
 
     private fun observeActiveChronomatronSlot(slotId: Int, color: String) {
-        if (game != ExperimentationGame.CHRONOMATRON || phase != ExperimentationPhase.MEMORY) return
+        if (phase != ExperimentationPhase.MEMORY) return
         if (activeChronomatronSlots[slotId] == color) return
         activeChronomatronSlots.remove(slotId)
         val isNewNote = color !in activeChronomatronSlots.values

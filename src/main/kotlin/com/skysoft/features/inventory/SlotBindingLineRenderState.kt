@@ -46,20 +46,12 @@ internal class SlotBindingLineRenderState(
         var y1 = endY.toDouble()
         val steep = abs(y1 - y0) > abs(x1 - x0)
         if (steep) {
-            val oldX0 = x0
-            x0 = y0
-            y0 = oldX0
-            val oldX1 = x1
-            x1 = y1
-            y1 = oldX1
+            x0 = y0.also { y0 = x0 }
+            x1 = y1.also { y1 = x1 }
         }
         if (x0 > x1) {
-            val oldX0 = x0
-            x0 = x1
-            x1 = oldX0
-            val oldY0 = y0
-            y0 = y1
-            y1 = oldY0
+            x0 = x1.also { x1 = x0 }
+            y0 = y1.also { y1 = y0 }
         }
 
         val dx = x1 - x0
