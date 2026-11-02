@@ -47,7 +47,8 @@ private val inventoryEquipmentStorage: List<ProfileStorageView.SkyBlockStorageIt
 private var lastEquipmentInventoryKey: String? = null
 
 private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapshot?) {
-    if (snapshot == null || !isInventoryEquipmentMenuName(snapshot.title)) {
+    val menuType = snapshot?.let { inventoryEquipmentMenuType(it.title) }
+    if (snapshot == null || menuType == null) {
         lastEquipmentInventoryKey = null
         return
     }
@@ -55,59 +56,33 @@ private fun readInventoryEquipmentSnapshot(snapshot: SkyBlockOpenInventorySnapsh
     if (snapshot.key == lastEquipmentInventoryKey) return
     lastEquipmentInventoryKey = snapshot.key
 
-    val items = selectEquipmentMenuItems(
-        snapshot.title,
-        snapshot.cells.map { cell ->
-            EquipmentMenuCell(
-                index = cell.index,
-                item = cell.item,
-                cleanName = cell.item.formattedHoverName().cleanSkyBlockText(),
-                isFiller = cell.item.item in MinecraftItems.stainedGlassPanes(),
-                isEquippedSelector = cell.item.item == MinecraftItems.limeDye(),
-            )
-        },
-        emptyItem = ItemStack.EMPTY,
-    )
-    if (items.size < ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) return
+    val cells = snapshot.cells.map { cell ->
+        EquipmentMenuCell(
+            index = cell.index,
+            item = cell.item,
+            cleanName = cell.item.formattedHoverName().cleanSkyBlockText(),
+            isFiller = cell.item.item in MinecraftItems.stainedGlassPanes(),
+            isEquippedSelector = cell.item.item == MinecraftItems.limeDye(),
+        )
+    }
+    val items = when (menuType) {
+        InventoryEquipmentMenuType.FIXED_COLUMN -> selectEquipmentItems(cells, InventoryEquipmentMenu.FIXED_EQUIPMENT_SLOTS)
+        InventoryEquipmentMenuType.EQUIPMENT_SETS -> selectEquipmentSetItems(cells)
+    }
+    if (items.isEmpty()) return
 
     updateInventoryEquipmentStorage(items.map(::encodeItem))
 }
 
-private fun repairInventoryEquipmentItems(items: MutableList<ProfileStorage.SkyBlockStorageItemData>) {
-    while (items.size > ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) items.removeAt(items.lastIndex)
-    while (items.size < ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) items.add(ProfileStorage.SkyBlockStorageItemData())
-}
-
-internal fun <T> selectEquipmentMenuItems(
-    inventoryName: String,
-    cells: List<EquipmentMenuCell<T>>,
-    emptyItem: T,
-): List<T> = when (inventoryEquipmentMenuType(inventoryName)) {
-    InventoryEquipmentMenuType.FIXED_COLUMN -> selectEquipmentItems(
-        cells,
-        InventoryEquipmentMenu.FIXED_EQUIPMENT_SLOTS,
-        emptyItem,
-    )
-
-    InventoryEquipmentMenuType.EQUIPMENT_SETS -> selectEquipmentSetItems(cells, emptyItem)
-    null -> emptyList()
-}
-
-internal data class EquipmentMenuCell<T>(
+private data class EquipmentMenuCell(
     val index: Int,
-    val item: T,
+    val item: ItemStack,
     val cleanName: String,
     val isFiller: Boolean,
-    val isEquippedSelector: Boolean = false,
+    val isEquippedSelector: Boolean,
 )
 
-internal fun isInventoryEquipmentMenuName(name: String): Boolean =
-    inventoryEquipmentMenuType(name) != null
-
-private fun <T> selectEquipmentSetItems(
-    cells: List<EquipmentMenuCell<T>>,
-    emptyItem: T,
-): List<T> {
+private fun selectEquipmentSetItems(cells: List<EquipmentMenuCell>): List<ItemStack> {
     val equippedSelector = cells.singleOrNull { cell ->
         cell.index in InventoryEquipmentMenu.SELECTOR_SLOTS &&
             cell.isEquippedSelector &&
@@ -115,20 +90,16 @@ private fun <T> selectEquipmentSetItems(
     } ?: return emptyList()
     val column = equippedSelector.index - InventoryEquipmentMenu.SELECTOR_ROW_START
     val equipmentSlots = InventoryEquipmentMenu.EQUIPMENT_SET_ROW_STARTS.map { it + column }
-    return selectEquipmentItems(cells, equipmentSlots, emptyItem)
+    return selectEquipmentItems(cells, equipmentSlots)
 }
 
-private fun <T> selectEquipmentItems(
-    cells: List<EquipmentMenuCell<T>>,
-    equipmentSlots: List<Int>,
-    emptyItem: T,
-): List<T> {
-    val cellsByIndex = cells.associateBy(EquipmentMenuCell<T>::index)
+private fun selectEquipmentItems(cells: List<EquipmentMenuCell>, equipmentSlots: List<Int>): List<ItemStack> {
+    val cellsByIndex = cells.associateBy(EquipmentMenuCell::index)
     return equipmentSlots.map { index ->
         val cell = cellsByIndex[index] ?: return emptyList()
         val isEmptyPlaceholder = cell.cleanName.isEmptyEquipmentPlaceholder()
         if (cell.isFiller && !isEmptyPlaceholder) return emptyList()
-        if (isEmptyPlaceholder) emptyItem else cell.item
+        if (isEmptyPlaceholder) ItemStack.EMPTY else cell.item
     }
 }
 
@@ -145,7 +116,6 @@ private fun updateInventoryEquipmentStorage(items: List<ProfileStorage.SkyBlockS
     ProfileStorageApi.updateProfile { profile ->
         profile.inventoryEquipment.clear()
         profile.inventoryEquipment.addAll(items)
-        repairInventoryEquipmentItems(profile.inventoryEquipment)
     }
 }
 

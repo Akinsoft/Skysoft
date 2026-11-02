@@ -2,7 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.BazaarTooltipWording
 import com.skysoft.config.PriceTooltipLine
-import com.skysoft.data.skyblock.price.BazaarPriceData
+import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import net.minecraft.network.chat.Component
@@ -13,24 +13,24 @@ internal data class PriceTooltipValue(
 )
 
 internal fun collectPriceTooltipValues(
+    itemId: String,
     selectedLines: List<PriceTooltipLine>,
     wording: BazaarTooltipWording,
-    bazaar: BazaarPriceData?,
-    lowestBin: Double?,
-    npcSellPrice: Double?,
-    rawCraftCost: () -> Double?,
-): List<PriceTooltipValue> = selectedLines.distinct().mapNotNull { line ->
-    val price = when (line) {
-        PriceTooltipLine.BAZAAR_BUY_ORDER -> bazaar?.buyOrderPrice
-        PriceTooltipLine.BAZAAR_SELL_ORDER -> bazaar?.sellOrderPrice
-        PriceTooltipLine.BAZAAR_INSTANT_BUY -> bazaar?.instantBuyPrice
-        PriceTooltipLine.BAZAAR_INSTANT_SELL -> bazaar?.instantSellPrice
-        PriceTooltipLine.LOWEST_BIN -> lowestBin
-        PriceTooltipLine.NPC_SELL_PRICE -> npcSellPrice
-        PriceTooltipLine.RAW_CRAFT_COST -> rawCraftCost()
-    }
-    price?.takeIf { it.isFinite() && it > 0.0 }?.let {
-        PriceTooltipValue(line.tooltipLabel(wording), it)
+): List<PriceTooltipValue> {
+    val bazaar by lazy { SkyBlockPriceData.getBazaarPrice(itemId) }
+    return selectedLines.distinct().mapNotNull { line ->
+        val price = when (line) {
+            PriceTooltipLine.BAZAAR_BUY_ORDER -> bazaar?.buyOrderPrice
+            PriceTooltipLine.BAZAAR_SELL_ORDER -> bazaar?.sellOrderPrice
+            PriceTooltipLine.BAZAAR_INSTANT_BUY -> bazaar?.instantBuyPrice
+            PriceTooltipLine.BAZAAR_INSTANT_SELL -> bazaar?.instantSellPrice
+            PriceTooltipLine.LOWEST_BIN -> SkyBlockPriceData.getLowestBin(itemId)?.toDouble()
+            PriceTooltipLine.NPC_SELL_PRICE -> SkyBlockPriceData.getNpcSellPrices(itemId).coins
+            PriceTooltipLine.RAW_CRAFT_COST -> PriceTooltipRawCraftCosts.cost(itemId)
+        }
+        price?.takeIf { it.isFinite() && it > 0.0 }?.let {
+            PriceTooltipValue(line.tooltipLabel(wording), it)
+        }
     }
 }
 

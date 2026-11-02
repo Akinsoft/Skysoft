@@ -34,18 +34,22 @@ object MaxEnchantChroma {
             )
             if (labels.isEmpty()) return@tooltip
             tooltip.indices.forEach { index ->
-                tooltip[index] = applyMaxEnchantChroma(tooltip[index], labels, MAX_ENCHANT_CHROMA)
+                tooltip[index] = applyMaxEnchantChroma(tooltip[index], labels)
             }
         }
     }
 }
 
-internal data class MaxEnchantment(
+private data class MaxEnchantment(
     val displayName: String,
     val level: Int,
 )
 
-internal fun readMaxEnchantments(json: String): Map<String, MaxEnchantment> {
+private fun loadGeneratedMaxEnchantments(): Map<String, MaxEnchantment> {
+    val json = MaxEnchantChroma::class.java.getResourceAsStream(MAX_ENCHANTMENT_RESOURCE)
+        ?.bufferedReader()
+        ?.use { reader -> reader.readText() }
+        ?: error("Max enchantment data is missing")
     val catalog = Gson().fromJson(json, GeneratedMaxEnchantments::class.java)
     require(catalog.schemaVersion == MAX_ENCHANTMENT_SCHEMA_VERSION)
     val result = catalog.enchantments.associate { enchantment ->
@@ -54,14 +58,6 @@ internal fun readMaxEnchantments(json: String): Map<String, MaxEnchantment> {
     }
     require(result.size == catalog.enchantments.size && result.size >= MINIMUM_ENCHANTMENT_COUNT)
     return result
-}
-
-private fun loadGeneratedMaxEnchantments(): Map<String, MaxEnchantment> {
-    val json = MaxEnchantChroma::class.java.getResourceAsStream(MAX_ENCHANTMENT_RESOURCE)
-        ?.bufferedReader()
-        ?.use { reader -> reader.readText() }
-        ?: error("Max enchantment data is missing")
-    return readMaxEnchantments(json)
 }
 
 private data class GeneratedMaxEnchantments(
@@ -75,7 +71,7 @@ private data class GeneratedMaxEnchantment(
     val maxLevel: Int = 0,
 )
 
-internal fun maxedEnchantmentLabels(
+private fun maxedEnchantmentLabels(
     appliedEnchantments: Map<String, Int>,
     maximums: Map<String, MaxEnchantment>,
     includeUltimateEnchantments: Boolean,
@@ -92,18 +88,14 @@ internal fun maxedEnchantmentLabels(
     }
 }
 
-internal fun maximumEfficiencyLevel(itemId: String?, itemCategory: String?): Int = when {
+private fun maximumEfficiencyLevel(itemId: String?, itemCategory: String?): Int = when {
     itemId == STONK_ITEM_ID -> STONK_EFFICIENCY_MAX_LEVEL
     itemId == PROMISING_SHOVEL_ITEM_ID || itemCategory in EXTENDED_EFFICIENCY_ITEM_CATEGORIES ->
         EXTENDED_EFFICIENCY_MAX_LEVEL
     else -> STANDARD_EFFICIENCY_MAX_LEVEL
 }
 
-internal fun applyMaxEnchantChroma(
-    line: Component,
-    labels: Set<String>,
-    colour: ChromaColour,
-): Component {
+private fun applyMaxEnchantChroma(line: Component, labels: Set<String>): Component {
     val text = line.string
     if (!ENCHANTMENT_LINE_PATTERN.matches(text)) return line
     val highlighted = BooleanArray(text.length)
@@ -129,7 +121,7 @@ internal fun applyMaxEnchantChroma(
             val usesChroma = highlighted.getOrElse(offset + start) { false }
             var end = start + 1
             while (end < segment.length && highlighted.getOrElse(offset + end) { false } == usesChroma) end++
-            val segmentStyle = if (usesChroma) ChromaTextRendering.apply(style, colour) else style
+            val segmentStyle = if (usesChroma) ChromaTextRendering.apply(style, MAX_ENCHANT_CHROMA) else style
             result.append(Component.literal(segment.substring(start, end)).withStyle(segmentStyle))
             start = end
         }

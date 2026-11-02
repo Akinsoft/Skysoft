@@ -74,28 +74,22 @@ internal fun handleInventoryEquipmentMouseClick(
     return InputHandlingResult.CONSUMED
 }
 
-internal fun inventoryEquipmentSlotGeometry(left: Int, top: Int): List<InventoryEquipmentSlotGeometry> =
-    List(ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) { index ->
+internal fun inventoryEquipmentSlotGeometry(screen: AbstractContainerScreen<*>): List<InventoryEquipmentSlotGeometry> {
+    val accessor = screen as AbstractContainerScreenAccessor
+    val left = accessor.skysoftGetLeftPos()
+    val top = accessor.skysoftGetTopPos()
+    return List(ProfileStorage.INVENTORY_EQUIPMENT_SLOT_COUNT) { index ->
         val localBounds = Rect(
             InventoryEquipmentLayout.SLOT_X,
-            InventoryEquipmentLayout.FIRST_SLOT_Y + InventoryEquipmentLayout.SLOT_STEP * index,
+            InventoryEquipmentLayout.slotY(index),
             InventoryEquipmentLayout.SLOT_SIZE,
             InventoryEquipmentLayout.SLOT_SIZE,
         )
         InventoryEquipmentSlotGeometry(
             localBounds = localBounds,
-            screenBounds = Rect(
-                left + localBounds.x,
-                top + localBounds.y,
-                localBounds.width,
-                localBounds.height,
-            ),
+            screenBounds = Rect(left + localBounds.x, top + localBounds.y, localBounds.width, localBounds.height),
         )
     }
-
-internal fun inventoryEquipmentSlotGeometry(screen: AbstractContainerScreen<*>): List<InventoryEquipmentSlotGeometry> {
-    val accessor = screen as AbstractContainerScreenAccessor
-    return inventoryEquipmentSlotGeometry(accessor.skysoftGetLeftPos(), accessor.skysoftGetTopPos())
 }
 
 internal data class InventoryEquipmentSlotGeometry(
@@ -126,20 +120,8 @@ private fun drawInventoryEquipmentSlot(context: GuiGraphicsExtractor, bounds: Re
 internal fun drawInventoryEquipmentSlotRightEdge(context: GuiGraphicsExtractor, bounds: Rect, index: Int) {
     val outsideRightEdgeSourceX = InventoryEquipmentLayout.ARMOR_SLOT_TEXTURE_SOURCE_X +
         InventoryEquipmentLayout.SLOT_TEXTURE_SIZE
-    val insideRightEdgeSourceX = outsideRightEdgeSourceX - 1
-
-    drawInventoryEquipmentSlotRightEdgeColumn(
-        context,
-        bounds,
-        index,
-        outsideRightEdgeSourceX,
-    )
-    drawInventoryEquipmentSlotRightEdgeColumn(
-        context,
-        bounds,
-        index,
-        insideRightEdgeSourceX,
-    )
+    drawInventoryEquipmentSlotRightEdgeColumn(context, bounds, index, outsideRightEdgeSourceX)
+    drawInventoryEquipmentSlotRightEdgeColumn(context, bounds, index, outsideRightEdgeSourceX - 1)
 }
 
 private fun drawInventoryEquipmentSlotRightEdgeColumn(
@@ -187,6 +169,8 @@ internal object InventoryEquipmentLayout {
     const val OFFHAND_SLOT_INDEX = 45
     const val HIDDEN_SLOT_X = -10_000
     const val HIDDEN_SLOT_Y = -10_000
+
+    fun slotY(index: Int): Int = FIRST_SLOT_Y + SLOT_STEP * index
 
     fun armorSlotTextureSourceY(index: Int): Int = FIRST_ARMOR_SLOT_TEXTURE_SOURCE_Y + SLOT_STEP * index
 }

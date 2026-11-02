@@ -55,7 +55,7 @@ object AnimatedDyeArmorCache {
         return displayStack(stack, stacks[equipmentSlot])
     }
 
-    internal fun displayStack(current: ItemStack, remembered: ItemStack?): ItemStack {
+    private fun displayStack(current: ItemStack, remembered: ItemStack?): ItemStack {
         if (!current.hasHiddenTooltip() || remembered == null || remembered.hasHiddenTooltip()) return current
         if (current.item != remembered.item || current.count != remembered.count) return current
         val itemId = current.skyBlockId() ?: return current
@@ -83,7 +83,7 @@ object AnimatedDyeArmorCache {
     )
 }
 
-internal fun wardrobeArmorSlotIndexes(title: String, selectorIndex: Int, selectorName: String): List<Int>? {
+private fun wardrobeArmorSlotIndexes(title: String, selectorIndex: Int, selectorName: String): List<Int>? {
     if (!WARDROBE_TITLE.matches(title) || selectorIndex !in WARDROBE_SELECTORS || !WARDROBE_READY.matches(selectorName)) {
         return null
     }

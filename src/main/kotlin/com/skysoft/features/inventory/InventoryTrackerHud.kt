@@ -79,7 +79,7 @@ internal class InventoryTrackerLayout(
         moreTooltip: List<String> = emptyList(),
         renderRow: (index: Int, left: Int, right: Int, y: Int) -> OverlayControlArea<T>?,
     ): OverlayControlArea<T>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+        if (background) OverlayPanelStyle.drawHudBackground(context, width, height)
         var y = padding
         if (showTitle) {
             LegacyTextRenderer.draw(context, titleText, padding, y)
@@ -102,7 +102,7 @@ internal class InventoryTrackerLayout(
         if (inventoryOpen) {
             val moreWidth = LegacyTextRenderer.width(moreLine)
             val bounds = Rect(width - padding - moreWidth, y, moreWidth, CONTROL_ROW_HEIGHT)
-            if (mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)) {
+            if (bounds.contains(mouseX, mouseY)) {
                 OverlayTextStyle.drawControlHover(context, bounds, 1.0)
                 hovered = OverlayControlArea(moreAction, bounds, moreTooltip)
             }

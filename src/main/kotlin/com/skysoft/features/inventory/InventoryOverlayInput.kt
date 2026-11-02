@@ -1,9 +1,13 @@
 package com.skysoft.features.inventory
 
+import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftScreenEvents
 import com.skysoft.utils.input.InputHandlingResult
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 
@@ -46,6 +50,21 @@ object InventoryOverlayInput {
         scrollHandlers.register(boundary, isActive, handler)
     }
 
+    internal fun registerTrackerInput(
+        boundary: String,
+        isActive: () -> Boolean,
+        shouldAllowClick: (AbstractContainerScreen<*>, MouseButtonEvent) -> Boolean,
+        wasScrollHandled: (Double) -> Boolean,
+    ) {
+        registerClickHandler("$boundary mouse click", isActive) { screen, click ->
+            if (shouldAllowClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
+        }
+        registerScrollHandler("$boundary mouse scroll", isActive) { screen, mouseX, mouseY, verticalAmount ->
+            val allowed = isPointCovered(screen, mouseX, mouseY) || !wasScrollHandled(verticalAmount)
+            if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
+        }
+    }
+
     internal fun registerCoverageProvider(
         boundary: String,
         isActive: () -> Boolean,
@@ -80,4 +99,16 @@ object InventoryOverlayInput {
             }
         }
     }
+}
+
+internal inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
+    if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
+    action()
+    return true
+}
+
+internal fun hoveredPlayerInventoryItemId(screen: AbstractContainerScreen<*>): String? {
+    val player = Minecraft.getInstance().player ?: return null
+    val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
+    return slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId()
 }

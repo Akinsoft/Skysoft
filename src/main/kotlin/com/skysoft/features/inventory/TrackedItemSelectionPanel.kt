@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.gui.OverlayListScroll
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.data.skyblock.ItemListEntry
@@ -8,7 +9,11 @@ import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.utils.ColorUtilities.RGB_MASK
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ACTION_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.MUTED_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ROW_HEIGHT
+import com.skysoft.features.inventory.TrackedItemPanelStyle.TITLE_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.styledText
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -22,7 +27,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
 
 internal sealed interface TrackedItemSelectionAction {
@@ -111,7 +115,7 @@ internal class TrackedItemSelectionPanel {
         if (mode != TrackedItemSelectionMode.SEARCH || !searchResultsHovered || verticalAmount == 0.0) return false
         val results = searchResults(isSelectable)
         val maximumOffset = (results.size - SEARCH_VISIBLE_RESULTS).coerceAtLeast(0)
-        searchOffset = (searchOffset + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
+        searchOffset = OverlayListScroll.nextOffset(searchOffset, verticalAmount, maximumOffset)
         selectedSearchIndex = selectedSearchIndex.coerceIn(
             searchOffset,
             (searchOffset + SEARCH_VISIBLE_RESULTS - 1).coerceAtMost((results.size - 1).coerceAtLeast(0)),
@@ -131,35 +135,25 @@ internal class TrackedItemSelectionPanel {
         isSelectable: (String) -> Boolean,
     ): OverlayControlArea<TrackedItemSelectionAction>? {
         val height = if (mode == TrackedItemSelectionMode.SEARCH) SEARCH_PANEL_HEIGHT else INVENTORY_PANEL_HEIGHT
-        val panelX = if (placeRight) trackerWidth + PANEL_GAP else -PANEL_WIDTH - PANEL_GAP
-        isHovered = Rect(panelX, 0, PANEL_WIDTH, height).contains(mouseX, mouseY)
-        val frame = RenderFrame(context, panelX, mouseX, mouseY, opacity, interactive)
-        context.fill(panelX, 0, panelX + PANEL_WIDTH, height, OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity))
-        context.outline(panelX, 0, PANEL_WIDTH, height, OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity))
+        val panel = OverlayPanelStyle.drawBeside(context, trackerWidth, placeRight, PANEL_WIDTH, height, opacity)
+        isHovered = panel.contains(mouseX, mouseY)
+        val frame = RenderFrame(context, panel.x, mouseX, mouseY, opacity, interactive)
         var y = OverlayPanelStyle.PADDING
-        context.text(
-            frame.font,
-            styledText(title, TITLE_COLOR, bold = true),
-            frame.contentX,
-            y + (PANEL_ROW_HEIGHT - PANEL_TEXT_HEIGHT) / 2,
-            TEXT_BASE_COLOR.withScaledAlpha(opacity),
-            false,
-        )
-        y += PANEL_ROW_HEIGHT
+        TrackedItemPanelStyle.drawText(context, styledText(title, TITLE_COLOR, bold = true), frame.contentX, rowTextY(y), opacity)
+        y += ROW_HEIGHT
         val hoveredMode = renderModeSelector(frame, y)
-        y += PANEL_ROW_HEIGHT
+        y += ROW_HEIGHT
         if (mode == TrackedItemSelectionMode.SEARCH) {
             return renderSearch(frame, isSelectable, y, hoveredMode)
         }
         searchFieldBounds = null
         searchResultsHovered = false
-        context.text(
-            frame.font,
+        TrackedItemPanelStyle.drawText(
+            context,
             styledText("Click an inventory item.", MUTED_COLOR),
             frame.contentX,
-            y + (PANEL_ROW_HEIGHT - PANEL_TEXT_HEIGHT) / 2,
-            TEXT_BASE_COLOR.withScaledAlpha(opacity),
-            false,
+            rowTextY(y),
+            opacity,
         )
         return hoveredMode
     }
@@ -175,12 +169,12 @@ internal class TrackedItemSelectionPanel {
             if (mode == TrackedItemSelectionMode.SEARCH) TITLE_COLOR else ACTION_COLOR,
             bold = mode == TrackedItemSelectionMode.SEARCH,
         )
-        val inventoryBounds = Rect(frame.contentX, y, frame.font.width(inventoryLabel), PANEL_ROW_HEIGHT)
+        val inventoryBounds = Rect(frame.contentX, y, frame.font.width(inventoryLabel), ROW_HEIGHT)
         val searchBounds = Rect(
             inventoryBounds.x + inventoryBounds.width + MODE_GAP,
             y,
             frame.font.width(searchLabel),
-            PANEL_ROW_HEIGHT,
+            ROW_HEIGHT,
         )
         val hovered = when {
             frame.interactive && inventoryBounds.contains(frame.mouseX, frame.mouseY) ->
@@ -189,31 +183,9 @@ internal class TrackedItemSelectionPanel {
                 OverlayControlArea<TrackedItemSelectionAction>(TrackedItemSelectionAction.Search, searchBounds)
             else -> null
         }
-        hovered?.bounds?.let { bounds ->
-            frame.context.fill(
-                bounds.x,
-                bounds.y,
-                bounds.x + bounds.width,
-                bounds.y + bounds.height,
-                PANEL_HOVER.withScaledAlpha(frame.opacity),
-            )
-        }
-        frame.context.text(
-            frame.font,
-            inventoryLabel,
-            inventoryBounds.x,
-            y + 1,
-            TEXT_BASE_COLOR.withScaledAlpha(frame.opacity),
-            false,
-        )
-        frame.context.text(
-            frame.font,
-            searchLabel,
-            searchBounds.x,
-            y + 1,
-            TEXT_BASE_COLOR.withScaledAlpha(frame.opacity),
-            false,
-        )
+        hovered?.bounds?.let { bounds -> TrackedItemPanelStyle.drawHover(frame.context, bounds, frame.opacity) }
+        TrackedItemPanelStyle.drawText(frame.context, inventoryLabel, inventoryBounds.x, y + 1, frame.opacity)
+        TrackedItemPanelStyle.drawText(frame.context, searchLabel, searchBounds.x, y + 1, frame.opacity)
         return hovered
     }
 
@@ -266,28 +238,21 @@ internal class TrackedItemSelectionPanel {
             val bounds = Rect(resultBounds.x, rowY, resultBounds.width, SEARCH_RESULT_HEIGHT)
             val hovered = frame.interactive && bounds.contains(frame.mouseX, frame.mouseY)
             if (hovered || resultIndex == selectedSearchIndex) {
-                frame.context.fill(
-                    bounds.x,
-                    bounds.y,
-                    bounds.x + bounds.width,
-                    bounds.y + bounds.height,
-                    PANEL_HOVER.withScaledAlpha(frame.opacity),
-                )
+                TrackedItemPanelStyle.drawHover(frame.context, bounds, frame.opacity)
             }
             val presentation = trackedItemPresentation(entry.key.id)
             presentation.stack?.let {
-                ItemIconRenderable(it, PANEL_ICON_SCALE).renderAt(frame.context, bounds.x, bounds.y)
+                ItemIconRenderable(it, TrackedItemPanelStyle.ICON_SCALE).renderAt(frame.context, bounds.x, bounds.y)
             }
-            frame.context.text(
-                frame.font,
+            TrackedItemPanelStyle.drawText(
+                frame.context,
                 frame.font.elide(
                     presentation.component,
-                    bounds.width - PANEL_ICON_TEXT_OFFSET - SEARCH_SCROLLBAR_INSET,
+                    bounds.width - TrackedItemPanelStyle.ICON_TEXT_OFFSET - SEARCH_SCROLLBAR_INSET,
                 ),
-                bounds.x + PANEL_ICON_TEXT_OFFSET,
-                bounds.y + (bounds.height - PANEL_TEXT_HEIGHT) / 2,
-                TEXT_BASE_COLOR.withScaledAlpha(frame.opacity),
-                false,
+                bounds.x + TrackedItemPanelStyle.ICON_TEXT_OFFSET,
+                bounds.y + (bounds.height - TrackedItemPanelStyle.TEXT_HEIGHT) / 2,
+                frame.opacity,
             )
             if (hovered) {
                 hoveredResult = OverlayControlArea<TrackedItemSelectionAction>(
@@ -308,14 +273,7 @@ internal class TrackedItemSelectionPanel {
             SkyBlockDataRepository.status.state == SkyBlockDataLoadState.FAILED -> "Item search unavailable."
             else -> "Loading items..."
         }
-        frame.context.text(
-            frame.font,
-            styledText(text, MUTED_COLOR),
-            bounds.x,
-            bounds.y + 1,
-            TEXT_BASE_COLOR.withScaledAlpha(frame.opacity),
-            false,
-        )
+        TrackedItemPanelStyle.drawText(frame.context, styledText(text, MUTED_COLOR), bounds.x, bounds.y + 1, frame.opacity)
     }
 
     private fun renderScrollbar(frame: RenderFrame, bounds: Rect, resultCount: Int) {
@@ -370,8 +328,6 @@ internal enum class TrackedItemSelectionMode {
 }
 
 internal data class TrackedItemPresentation(
-    val name: String,
-    val formattedName: String,
     val stack: ItemStack?,
     val component: Component,
 )
@@ -386,7 +342,7 @@ internal fun trackedItemPresentation(itemId: String): TrackedItemPresentation {
     val rarity = LEGACY_COLOR_PATTERN.find(formattedName)?.groupValues?.get(1)?.singleOrNull()
         ?.let(SkyBlockRarity::getByColorCode) ?: stack?.let(SkyBlockItemRarity::from)
     val color = rarity?.color?.rgb ?: ITEM_DEFAULT_COLOR
-    return TrackedItemPresentation(name, formattedName, stack, styledText(name, color))
+    return TrackedItemPresentation(stack, styledText(name, color))
 }
 
 private data class RenderFrame(
@@ -407,17 +363,11 @@ private data class SearchCacheKey(
     val snapshotVersion: Long,
 )
 
-private fun styledText(text: String, color: Int, bold: Boolean = false): MutableComponent =
-    Component.literal(text).withStyle { style -> style.withColor(color and RGB_MASK).withBold(bold) }
+private fun rowTextY(y: Int): Int = y + (ROW_HEIGHT - TrackedItemPanelStyle.TEXT_HEIGHT) / 2
 
 private val LEGACY_COLOR_PATTERN = Regex("§([0-9a-f])", RegexOption.IGNORE_CASE)
 
 private const val PANEL_WIDTH = 180
-private const val PANEL_ROW_HEIGHT = 11
-private const val PANEL_TEXT_HEIGHT = 9
-private const val PANEL_ICON_TEXT_OFFSET = 16
-private const val PANEL_ICON_SCALE = 0.75
-private const val PANEL_GAP = 4
 private const val MODE_GAP = 8
 private const val SEARCH_MAXIMUM_LENGTH = 128
 private const val SEARCH_FIELD_TOP_GAP = 2
@@ -430,11 +380,6 @@ private const val SEARCH_PANEL_HEIGHT = 177
 private const val SEARCH_SCROLLBAR_INSET = 4
 private const val SEARCH_SCROLLBAR_WIDTH = 2
 private const val SEARCH_SCROLLBAR_MINIMUM_HEIGHT = 10
-private const val TEXT_BASE_COLOR = 0xFFFFFFFF.toInt()
-private const val TITLE_COLOR = 0xFFFFFF55.toInt()
 private const val ITEM_DEFAULT_COLOR = 0xFFFFFFFF.toInt()
-private const val MUTED_COLOR = 0xFFAAAAAA.toInt()
-private const val ACTION_COLOR = 0xFF55FF55.toInt()
-private const val PANEL_HOVER = 0x28FFFFFF
 private const val SEARCH_SCROLLBAR_TRACK = 0xFF303030.toInt()
 private const val SEARCH_SCROLLBAR_KNOB = 0xFF909090.toInt()

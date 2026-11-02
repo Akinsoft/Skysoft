@@ -22,8 +22,6 @@ import net.minecraft.world.item.Items
 
 private const val FIRST_PLAYER_SLOT = 0
 private const val LAST_PLAYER_SLOT = 40
-private const val FIRST_HOTBAR_SLOT = 0
-private const val LAST_HOTBAR_SLOT = 8
 private const val OFFHAND_SLOT = 40
 private const val BLOCKED_PULSE_MILLIS = 320L
 private const val SLOT_SIZE = 16
@@ -103,9 +101,9 @@ object SlotLockManager {
         button: Int,
         action: ContainerInput,
     ): InputHandlingResult {
-        val decision = slotInteractionDecision(screen, slot, button, action)
-        if (decision == SlotLockInteractionDecision.ALLOW) return InputHandlingResult.IGNORED
-        markBlocked(SlotLockInteractionResolver.blockedSlotFor(screen, slot, button, action, decision, lockedSlots))
+        val interaction = slotInteraction(screen, slot, button, action)
+        if (interaction.decision == SlotLockInteractionDecision.ALLOW) return InputHandlingResult.IGNORED
+        markBlocked(interaction.blockedSlot)
         return InputHandlingResult.CONSUMED
     }
 
@@ -136,17 +134,23 @@ object SlotLockManager {
         slot: Slot?,
         button: Int,
         action: ContainerInput,
-    ): SlotLockInteractionDecision {
-        if (!isFeatureAvailable() || lockedSlots.isEmpty()) return SlotLockInteractionDecision.ALLOW
-        return SlotLockInteractionResolver.decision(screen, slot, button, action, lockedSlots)
+    ): SlotLockInteractionDecision = slotInteraction(screen, slot, button, action).decision
+
+    private fun slotInteraction(
+        screen: AbstractContainerScreen<*>,
+        slot: Slot?,
+        button: Int,
+        action: ContainerInput,
+    ): SlotLockInteraction {
+        if (!isFeatureAvailable() || lockedSlots.isEmpty()) return SlotLockInteraction.ALLOWED
+        return SlotLockInteractionResolver.resolve(screen, slot, button, action, lockedSlots)
     }
 
     @JvmStatic
-    fun isSlotLocked(slot: Slot?): Boolean =
-        slot?.let { isLockablePlayerSlot(it) && it.containerSlot in lockedSlots } == true
+    fun isSlotLocked(slot: Slot?): Boolean = playerSlotIndex(slot) in lockedSlots
 
     @JvmStatic
-    fun isLockKey(key: Int): Boolean = config.lockKey != MinecraftInput.NO_BINDING && key == config.lockKey
+    fun isLockKey(key: Int): Boolean = config.settings.lockKey != MinecraftInput.NO_BINDING && key == config.settings.lockKey
 
     @JvmStatic
     fun isFeatureAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
@@ -176,36 +180,25 @@ object SlotLockManager {
 }
 
 private object SlotLockInteractionResolver {
-    fun decision(
+    fun resolve(
         screen: AbstractContainerScreen<*>,
         slot: Slot?,
         button: Int,
         action: ContainerInput,
         lockedSlots: Collection<Int>,
-    ): SlotLockInteractionDecision = slotLockInteractionDecision(
-        lockedSlots = lockedSlots.toSet(),
-        action = action,
-        clickedPlayerSlot = playerSlotIndex(slot),
-        swapPlayerSlot = swapTargetSlot(action, button),
-        hasQuickMoveLockedTarget = action == ContainerInput.QUICK_MOVE &&
-            firstQuickMoveTarget(screen, slot, lockedSlots) != null,
-        hasPickupAllLockedSource = action == ContainerInput.PICKUP_ALL &&
-            firstPickupAllSource(screen, lockedSlots) != null,
-    )
-
-    fun blockedSlotFor(
-        screen: AbstractContainerScreen<*>,
-        slot: Slot?,
-        button: Int,
-        action: ContainerInput,
-        decision: SlotLockInteractionDecision,
-        lockedSlots: Collection<Int>,
-    ): Int? = when (decision) {
-        SlotLockInteractionDecision.ALLOW -> null
-        SlotLockInteractionDecision.LOCKED_SLOT -> playerSlotIndex(slot)
-        SlotLockInteractionDecision.LOCKED_SWAP_TARGET -> swapTargetSlot(action, button)
-        SlotLockInteractionDecision.LOCKED_QUICK_MOVE_TARGET -> firstQuickMoveTarget(screen, slot, lockedSlots)
-        SlotLockInteractionDecision.LOCKED_PICKUP_ALL_SOURCE -> firstPickupAllSource(screen, lockedSlots)
+    ): SlotLockInteraction {
+        playerSlotIndex(slot)?.takeIf { it in lockedSlots }?.let {
+            return SlotLockInteraction(SlotLockInteractionDecision.LOCKED_SLOT, it)
+        }
+        return when (action) {
+            ContainerInput.SWAP -> swapTargetSlot(button)?.takeIf { it in lockedSlots }
+                ?.let { SlotLockInteraction(SlotLockInteractionDecision.LOCKED_SWAP_TARGET, it) }
+            ContainerInput.QUICK_MOVE -> firstQuickMoveTarget(screen, slot, lockedSlots)
+                ?.let { SlotLockInteraction(SlotLockInteractionDecision.LOCKED_QUICK_MOVE_TARGET, it) }
+            ContainerInput.PICKUP_ALL -> firstPickupAllSource(screen, lockedSlots)
+                ?.let { SlotLockInteraction(SlotLockInteractionDecision.LOCKED_PICKUP_ALL_SOURCE, it) }
+            else -> null
+        } ?: SlotLockInteraction.ALLOWED
     }
 
     private fun firstQuickMoveTarget(
@@ -215,7 +208,7 @@ private object SlotLockInteractionResolver {
     ): Int? {
         if (slot == null || slot.container is Inventory || slot.item.isEmpty) return null
         return screen.menu.slots.firstNotNullOfOrNull { target ->
-            target.containerSlot.takeIf { isSlotLocked(target, lockedSlots) && canReceive(target, slot.item) }
+            playerSlotIndex(target)?.takeIf { it in lockedSlots && canReceive(target, slot.item) }
         }
     }
 
@@ -223,8 +216,8 @@ private object SlotLockInteractionResolver {
         val carried = screen.menu.carried
         if (carried.isEmpty) return null
         return screen.menu.slots.firstNotNullOfOrNull { target ->
-            target.containerSlot.takeIf {
-                isSlotLocked(target, lockedSlots) &&
+            playerSlotIndex(target)?.takeIf {
+                it in lockedSlots &&
                     target.hasItem() && ItemStack.isSameItemSameComponents(target.item, carried)
             }
         }
@@ -236,17 +229,12 @@ private object SlotLockInteractionResolver {
         return current.isEmpty ||
             ItemStack.isSameItemSameComponents(current, item) && current.count < slot.getMaxStackSize(item)
     }
-
-    private fun isSlotLocked(slot: Slot, lockedSlots: Collection<Int>): Boolean =
-        isLockablePlayerSlot(slot) && slot.containerSlot in lockedSlots
 }
 
 private fun playerSlotIndex(slot: Slot?): Int? = slot?.containerSlot?.takeIf { isLockablePlayerSlot(slot) }
 
-private fun swapTargetSlot(action: ContainerInput, button: Int): Int? =
-    button.takeIf {
-        action == ContainerInput.SWAP && (button in FIRST_HOTBAR_SLOT..LAST_HOTBAR_SLOT || button == OFFHAND_SLOT)
-    }
+private fun swapTargetSlot(button: Int): Int? =
+    button.takeIf { Inventory.isHotbarSlot(button) || button == OFFHAND_SLOT }
 
 private fun isLockablePlayerSlot(slot: Slot?): Boolean =
     slot?.container is Inventory && slot.containerSlot in FIRST_PLAYER_SLOT..LAST_PLAYER_SLOT
@@ -279,19 +267,8 @@ enum class SlotLockInteractionDecision {
     LOCKED_PICKUP_ALL_SOURCE,
 }
 
-internal fun slotLockInteractionDecision(
-    lockedSlots: Set<Int>,
-    action: ContainerInput,
-    clickedPlayerSlot: Int?,
-    swapPlayerSlot: Int?,
-    hasQuickMoveLockedTarget: Boolean,
-    hasPickupAllLockedSource: Boolean,
-): SlotLockInteractionDecision = when {
-    clickedPlayerSlot in lockedSlots -> SlotLockInteractionDecision.LOCKED_SLOT
-    action == ContainerInput.SWAP && swapPlayerSlot in lockedSlots -> SlotLockInteractionDecision.LOCKED_SWAP_TARGET
-    action == ContainerInput.QUICK_MOVE && hasQuickMoveLockedTarget ->
-        SlotLockInteractionDecision.LOCKED_QUICK_MOVE_TARGET
-    action == ContainerInput.PICKUP_ALL && hasPickupAllLockedSource ->
-        SlotLockInteractionDecision.LOCKED_PICKUP_ALL_SOURCE
-    else -> SlotLockInteractionDecision.ALLOW
+private data class SlotLockInteraction(val decision: SlotLockInteractionDecision, val blockedSlot: Int?) {
+    companion object {
+        val ALLOWED = SlotLockInteraction(SlotLockInteractionDecision.ALLOW, null)
+    }
 }
