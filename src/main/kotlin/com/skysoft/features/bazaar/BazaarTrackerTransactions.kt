@@ -8,15 +8,8 @@ import com.skysoft.data.skyblock.instantSellPattern
 
 internal fun ProfileStorage.BazaarTrackerData.tryHandleInstantTransactionMessage(message: String): Boolean {
     val transaction = parseInstantBazaarTransaction(message, System.currentTimeMillis()) ?: return false
-    recordBazaarTransaction(this, transaction)
+    recordTransaction(transaction)
     return true
-}
-
-internal fun recordBazaarTransaction(
-    data: ProfileStorage.BazaarTrackerData,
-    transaction: ProfileStorage.BazaarTransactionData,
-) {
-    data.recordTransaction(transaction)
 }
 
 internal fun bazaarTransactionsFor(
@@ -27,10 +20,10 @@ internal fun bazaarTransactionsFor(
 ): List<ProfileStorageView.BazaarTransactionData> {
     val recorded = data.transactions.asSequence()
         .filter { it.atMillis >= sinceMillis }
-        .filter { transactionMatches(it, productId, itemName) }
+        .filter { entryMatches(it.productId, it.itemName, productId, itemName) }
     val active = data.activeOrders.asSequence()
         .filter { it.createdAtMillis >= sinceMillis }
-        .filter { orderMatches(it, productId, itemName) }
+        .filter { entryMatches(it.productId, it.itemName, productId, itemName) }
         .map(ProfileStorageView.BazaarOrderData::toBazaarTransaction)
     return (active + recorded)
         .distinctBy(::transactionIdentity)
@@ -38,11 +31,7 @@ internal fun bazaarTransactionsFor(
         .toList()
 }
 
-internal fun parseInstantBazaarTransaction(
-    message: String,
-    atMillis: Long,
-    productResolver: (String) -> String? = ::resolveProductId,
-): ProfileStorage.BazaarTransactionData? {
+private fun parseInstantBazaarTransaction(message: String, atMillis: Long): ProfileStorage.BazaarTransactionData? {
     val (type, match) = instantBuyPattern.matchEntire(message)?.let {
         ProfileStorage.BazaarTransactionType.INSTANT_BUY to it
     } ?: instantSellPattern.matchEntire(message)?.let {
@@ -52,7 +41,7 @@ internal fun parseInstantBazaarTransaction(
     return ProfileStorage.BazaarTransactionData(
         type = type,
         itemName = itemName,
-        productId = productResolver(itemName),
+        productId = resolveProductId(itemName),
         amount = parseExactLong(match.groupValues[INSTANT_AMOUNT_GROUP]),
         totalCoins = parseNumber(match.groupValues[INSTANT_TOTAL_GROUP]).value,
         atMillis = atMillis,
@@ -71,15 +60,9 @@ internal fun ProfileStorageView.BazaarOrderData.toBazaarTransaction() = ProfileS
     atMillis = createdAtMillis,
 )
 
-private fun transactionMatches(
-    transaction: ProfileStorageView.BazaarTransactionData,
-    productId: String,
-    itemName: String,
-): Boolean = transaction.productId?.equals(productId, ignoreCase = true) == true ||
-    transaction.productId == null && namesMatch(transaction.itemName, itemName)
-
-private fun orderMatches(order: ProfileStorageView.BazaarOrderData, productId: String, itemName: String): Boolean =
-    order.productId?.equals(productId, ignoreCase = true) == true || order.productId == null && namesMatch(order.itemName, itemName)
+private fun entryMatches(entryProductId: String?, entryItemName: String, productId: String, itemName: String): Boolean =
+    entryProductId?.equals(productId, ignoreCase = true) == true ||
+        entryProductId == null && namesMatch(entryItemName, itemName)
 
 private fun transactionIdentity(transaction: ProfileStorageView.BazaarTransactionData): String = listOf(
     transaction.type.name,

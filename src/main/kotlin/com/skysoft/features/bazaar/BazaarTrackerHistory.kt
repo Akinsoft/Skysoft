@@ -3,10 +3,7 @@ package com.skysoft.features.bazaar
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorageView
-import com.skysoft.utils.gui.nonPlayerSlotAt
 import com.skysoft.utils.trimStartToSize
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
-import net.minecraft.world.inventory.Slot
 
 internal fun rememberResolvedOrder(order: ProfileStorageView.BazaarOrderData) {
     BazaarTrackingState.forgetOrder(order.id)
@@ -22,6 +19,11 @@ internal fun rememberResolvedOrder(order: ProfileStorageView.BazaarOrderData) {
         ),
     )
     BazaarTrackingState.recentResolvedOrders.trimStartToSize(MAX_RECENT_RESOLVED_ORDERS)
+}
+
+internal fun ProfileStorage.BazaarTrackerData.resolveTrackedOrder(order: ProfileStorageView.BazaarOrderData) {
+    rememberResolvedOrder(order)
+    this.activeOrders.remove(order)
 }
 
 internal fun ProfileStorage.BazaarTrackerData.discardTrackedOrder(order: ProfileStorageView.BazaarOrderData) {
@@ -58,9 +60,6 @@ internal fun pruneRecentResolvedOrders() {
     val orders = BazaarTrackingState.recentResolvedOrders
     while (orders.firstOrNull()?.timestampMillis?.let { it < cutoff } == true) orders.removeFirst()
 }
-
-internal fun slotAt(screen: AbstractContainerScreen<*>, mouseX: Int, mouseY: Int): Slot? =
-    screen.nonPlayerSlotAt(mouseX, mouseY)
 
 internal data class RecentResolvedOrder(
     val type: BazaarOrderType,

@@ -21,8 +21,7 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
         return
     }
     val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
-    val inventoryOpen = inventoryScreen != null
-    val renderable = buildRenderable(inventoryOpen)
+    val renderable = buildRenderable(inventoryOpen = inventoryScreen != null)
     if (renderable.width <= 0 || renderable.height <= 0) {
         BazaarDisplayState.hoveredControlArea = null
         return
@@ -46,21 +45,16 @@ internal fun shouldRenderBazaarTrackerInventoryOverlay(): Boolean {
         MinecraftClient.screen(minecraft) is AbstractContainerScreen<*>
 }
 
-internal fun shouldShowBazaarTrackerContent(hideWhenEmpty: Boolean, hasOrders: Boolean): Boolean =
-    !hideWhenEmpty || hasOrders
-
-internal fun renderPositioned(
+private fun renderPositioned(
     context: GuiGraphicsExtractor,
     renderable: BazaarTrackerRenderable,
     updateControls: Boolean,
-    mouseX: Int? = null,
-    mouseY: Int? = null,
+    mouseX: Int,
+    mouseY: Int,
 ) {
     val transform = config.position.transform(renderable.width, renderable.height)
-    val localMouseX = mouseX?.let(transform::localX)
-    val localMouseY = mouseY?.let(transform::localY)
     val hoveredArea = transform.render(context) {
-        if (updateControls) renderable.render(context, localMouseX, localMouseY) else {
+        if (updateControls) renderable.render(context, transform.localX(mouseX), transform.localY(mouseY)) else {
             renderable.render(context)
             null
         }
@@ -96,8 +90,10 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
             }
             add(DisplayLine.text("§7Invested: §6${activeValue.coinFormat()}"))
             add(DisplayLine.text("§7Profit: §a${profit.signedCoinFormat()}"))
-            if (inventoryOpen) add(displayModeLine())
-            if (inventoryOpen) add(resetLine())
+            if (inventoryOpen) {
+                add(displayModeLine())
+                add(resetLine())
+            }
         }
     }
     return BazaarTrackerRenderable(lines, config.details.showBackground)
@@ -105,13 +101,10 @@ internal fun buildRenderable(inventoryOpen: Boolean): BazaarTrackerRenderable {
 
 private fun displayModeLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§7Display Mode "),
-    LineSegment(
-        if (BazaarDisplayState.mode == TrackerDisplayMode.SESSION) "§a§l[Session]" else "§a§l[Total]",
-        TrackerControl.TOGGLE_MODE,
-    ),
+    LineSegment("§a§l[${BazaarDisplayState.mode.displayName}]", TrackerControl.TOGGLE_MODE),
 )
 
-internal fun resetLine(): DisplayLine = DisplayLine.segments(
+private fun resetLine(): DisplayLine = DisplayLine.segments(
     LineSegment("§c[Reset ${BazaarDisplayState.mode.displayName}]", TrackerControl.RESET),
 )
 
@@ -122,7 +115,7 @@ private fun displayOrders(): List<ProfileStorageView.BazaarOrderData> =
             .thenBy { it.createdAtMillis },
     )
 
-internal fun orderLine(order: ProfileStorageView.BazaarOrderData): DisplayLine {
+private fun orderLine(order: ProfileStorageView.BazaarOrderData): DisplayLine {
     val status = statusFor(order)
     val typeColor = if (order.type == BazaarOrderType.BUY) "§b" else "§d"
     val progress = "${fillProgressStyle(order)}(${visibleFilledAmount(order).addSeparators()}/${formatOrderAmount(order)})"

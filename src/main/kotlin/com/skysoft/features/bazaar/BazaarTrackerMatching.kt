@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemNames
@@ -11,12 +12,10 @@ import net.minecraft.world.item.ItemStack
 import java.util.Locale
 import kotlin.math.abs
 
-internal fun ItemStack.textLines(): List<String> = buildList {
+internal fun ItemStack.cleanTextLines(): List<String> = buildList {
     add(formattedHoverName())
     addAll(loreLines())
-}
-
-internal fun String.clean(): String = cleanSkyBlockText()
+}.map { it.cleanSkyBlockText() }
 
 internal fun namesMatch(a: String, b: String): Boolean = normalizeName(a) == normalizeName(b)
 
@@ -37,7 +36,7 @@ internal fun resolveOrderProductId(order: ProfileStorageView.BazaarOrderData): S
 internal fun isGenericBazaarProductId(productId: String?): Boolean = productId == ENCHANTED_BOOK_ID
 
 internal fun resolveProductId(itemName: String): String? {
-    val cleanName = itemName.clean()
+    val cleanName = itemName.cleanSkyBlockText()
     return SkyBlockItemNames.itemId(cleanName)
         ?: resolveEnchantmentProductId(cleanName)
         ?: SkyBlockItemNames.resolveItemId(itemName)
@@ -50,9 +49,8 @@ private fun resolveEnchantmentProductId(itemName: String): String? {
     return SkyBlockItemNames.itemId(catalogName)?.takeIf { it.startsWith(ENCHANTMENT_PRODUCT_PREFIX) }
 }
 
-private val nameWhitespacePattern = Regex("\\s+")
-
-internal fun normalizeName(name: String): String = name.clean().lowercase(Locale.US).replace(nameWhitespacePattern, " ")
+internal fun normalizeName(name: String): String =
+    name.cleanSkyBlockText().lowercase(Locale.US).replace(whitespacePattern, " ")
 
 internal fun orderMatchesParsedIdentity(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
     if (

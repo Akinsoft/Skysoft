@@ -13,8 +13,7 @@ internal fun ProfileStorage.BazaarTrackerData.applyCancel(cancel: PendingCancel)
             return
         }
 
-    rememberResolvedOrder(order)
-    this.activeOrders.remove(order)
+    resolveTrackedOrder(order)
     clearPendingOrderAction()
 }
 
@@ -54,10 +53,6 @@ private fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: Pendin
     return amountDistance(expectedUnfilled, amount)
 }
 
-internal fun ProfileStorage.BazaarTrackerData.removeOrReduceOrderAfterClaim(order: ProfileStorage.BazaarOrderData, amount: Long) {
-    applyClaimedAmount(order, amount, alert = false)
-}
-
 internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): ChangeResult {
     val previousFilled = order.filledAmount
     var progressAlertBaseline = previousFilled
@@ -80,33 +75,29 @@ internal fun ProfileStorage.BazaarTrackerData.findClaimOrder(
     amount: Long,
     unitPrice: Double,
 ): ProfileStorage.BazaarOrderData? {
-    BazaarTrackingState.pendingOrderOptionId?.let { id ->
-        this.activeOrders.firstOrNull { isPlausibleClaimOrder(it, id, type, itemName, amount, unitPrice) }?.let {
-            return it
-        }
-    }
-    val candidates = this.activeOrders
-        .filter { isPlausibleClaimOrder(it, it.id, type, itemName, amount, unitPrice) }
+    val candidates = this.activeOrders.filter { isPlausibleClaimOrder(it, type, itemName, amount, unitPrice) }
+    BazaarTrackingState.pendingOrderOptionId?.let { id -> candidates.firstOrNull { it.id == id }?.let { return it } }
     return candidates.minWithOrNull(
         compareBy<ProfileStorage.BazaarOrderData> {
             if (it.filledAmount - it.claimedAmount >= amount) 0 else 1
-        }.thenBy {
-            amountDistance(it.remainingAmount().takeIf { remaining -> remaining > 0 } ?: it.amountOrdered, amount)
-        }.thenBy { it.createdAtMillis },
+        }.thenBy { amountDistance(claimableAmount(it), amount) }
+            .thenBy { it.createdAtMillis },
     )
 }
 
+private fun claimableAmount(order: ProfileStorage.BazaarOrderData): Long =
+    order.remainingAmount().takeIf { it > 0 } ?: order.amountOrdered
+
 private fun isPlausibleClaimOrder(
     order: ProfileStorage.BazaarOrderData,
-    id: String,
     type: BazaarOrderType,
     itemName: String,
     amount: Long,
     unitPrice: Double,
 ): Boolean {
-    if (order.id != id || order.type != type || !namesMatch(order.itemName, itemName)) return false
+    if (order.type != type || !namesMatch(order.itemName, itemName)) return false
     if (order.amountOrdered <= 0 && order.pricePerUnit <= 0.0) return false
-    val remaining = order.remainingAmount().takeIf { it > 0 } ?: order.amountOrdered
+    val remaining = claimableAmount(order)
     if (
         remaining > 0 &&
         amount > remaining + max(
@@ -142,11 +133,11 @@ internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
     val iterator = this.activeOrders.iterator()
     while (iterator.hasNext()) {
         val order = iterator.next()
-        if (order.id in matchedOrderIds) {
-            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
-        } else if (visibleScanMayBeWindowed) {
-            BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
-        } else if (!shouldPruneMissingFromGui(order, parsedOrders, recentlyClickedOrder, now)) {
+        if (
+            order.id in matchedOrderIds ||
+            visibleScanMayBeWindowed ||
+            !shouldPruneMissingFromGui(order, parsedOrders, recentlyClickedOrder, now)
+        ) {
             BazaarTrackingState.missingFromOrdersGuiScans.remove(order.id)
         } else {
             val previous = BazaarTrackingState.missingFromOrdersGuiScans[order.id]
@@ -180,23 +171,14 @@ private fun shouldPruneMissingFromGui(
     if (recentlyClickedOrder) return false
     if (BazaarTrackingState.pendingCancel?.orderId == order.id) return false
     if (now - order.createdAtMillis < GUI_MISSING_PRUNE_NEW_ORDER_GRACE_MILLIS) return false
-
-    // If we have seen this order in a real Bazaar Orders slot before, then a stable scan
-    // where it did not match any current order means the tracked entry is stale. This catches
-    // ghosts like an old SELL in slot 10 while the actual menu now only contains BUY rows.
     if (order.lastGuiSlot >= 0) return true
-
-    // New chat-confirmed orders start without a slot. Keep them only if the current GUI still
-    // contains a plausible matching row that may be claimed by another duplicate this scan.
     return parsedOrders.none { parsed -> parsedRepresentsOrder(order, parsed) }
 }
 
-private fun parsedRepresentsOrder(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
-    if (order.type != parsed.type) return false
-    if (!productMatches(order.productId, parsed.productId) && !namesMatch(order.itemName, parsed.itemName)) return false
-    if (!orderMatchesParsedIdentity(order, parsed)) return false
-    return guiMatchIsPlausible(order, parsed)
-}
+private fun parsedRepresentsOrder(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean =
+    isSameOrderItem(order, parsed) &&
+        orderMatchesParsedIdentity(order, parsed) &&
+        guiMatchIsPlausible(order, parsed)
 
 private const val GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS = 1_500L
 private const val GUI_MISSING_PRUNE_NEW_ORDER_GRACE_MILLIS = 1_500L
@@ -207,3 +189,9 @@ private const val BAZAAR_MATCH_TOLERANCE_RATE = 0.08
 private const val MIN_CANCEL_AMOUNT_TOLERANCE = 1L
 private const val MIN_CLAIM_AMOUNT_TOLERANCE = 2L
 private const val MIN_UNIT_PRICE_TOLERANCE = 2.0
+
+internal fun ProfileStorage.BazaarTrackerData.pendingCancelOrder(
+    pending: PendingCancel?,
+    type: BazaarOrderType,
+): ProfileStorage.BazaarOrderData? =
+    pending?.orderId?.let { id -> activeOrders.firstOrNull { it.id == id } } ?: activeOrders.pendingOptionOrder(type)

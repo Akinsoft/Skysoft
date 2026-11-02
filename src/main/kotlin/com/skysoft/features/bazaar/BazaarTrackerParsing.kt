@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView
@@ -8,45 +9,21 @@ import com.skysoft.utils.NumberUtilities.CompactNumber
 import net.minecraft.world.item.ItemStack
 import java.util.UUID
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.roundToLong
 
-internal fun guiMatchIsPlausible(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean {
-    if (
-        parsed.amount > 0 &&
-        order.filledAmount >= parsed.amount + max(parsed.amountResolution, MIN_GUI_FILL_TOLERANCE.toDouble())
-    ) {
-        return false
-    }
-    return true
-}
-
-internal fun guiFilledScore(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long {
-    val parsedFilled = parsed.filledAmount ?: 0L
-    return amountDistance(order.filledAmount, parsedFilled)
-}
-
-internal fun guiSlotScore(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Int {
-    val slot = parsed.guiSlot ?: return 1
-    return when (order.lastGuiSlot) {
-        slot -> EXACT_GUI_SLOT_SCORE
-        -1 -> UNKNOWN_GUI_SLOT_SCORE
-        else -> MISMATCHED_GUI_SLOT_SCORE
-    }
-}
+private fun List<String>.firstNumber(pattern: Regex): CompactNumber? =
+    firstNotNullOfOrNull { line -> pattern.matchEntire(line)?.groupValues?.get(1) }?.let(::parseNumber)
 
 internal fun parseConfirmStack(stack: ItemStack, expectedType: BazaarOrderType): PendingOrder? {
     if (stack.isEmpty) return null
-    val clean = stack.textLines().map { it.clean() }
+    val clean = stack.cleanTextLines()
     val type = when {
         clean.any { it == "Buy Order" } -> BazaarOrderType.BUY
         clean.any { it == "Sell Offer" } -> BazaarOrderType.SELL
         else -> return null
     }
     if (type != expectedType) return null
-    val priceParsed = clean.firstNotNullOfOrNull { line -> pricePerUnitPattern.matchEntire(line)?.groupValues?.get(1) }
-        ?.let { parseNumber(it) }
-        ?: return null
+    val priceParsed = clean.firstNumber(pricePerUnitPattern) ?: return null
     val orderLine = clean.firstNotNullOfOrNull { line ->
         when (type) {
             BazaarOrderType.BUY -> confirmBuyAmountPattern.matchEntire(line)
@@ -55,14 +32,13 @@ internal fun parseConfirmStack(stack: ItemStack, expectedType: BazaarOrderType):
     } ?: return null
     val amount = parseExactLong(orderLine.groupValues[CONFIRM_ORDER_AMOUNT_GROUP])
     val itemName = orderLine.groupValues[CONFIRM_ORDER_ITEM_GROUP].trim()
-    val totalParsed = clean.firstNotNullOfOrNull { line ->
+    val totalParsed = clean.firstNumber(
         when (type) {
-            BazaarOrderType.BUY -> totalPricePattern.matchEntire(line)?.groupValues?.get(1)
-            BazaarOrderType.SELL -> youEarnPattern.matchEntire(line)?.groupValues?.get(1)
-        }
-    }?.let { parseNumber(it) }
-    val tax = clean.firstNotNullOfOrNull { line -> taxPattern.matchEntire(line)?.groupValues?.get(1) }
-        ?.let { parseNumber(it).value }
+            BazaarOrderType.BUY -> totalPricePattern
+            BazaarOrderType.SELL -> youEarnPattern
+        },
+    )
+    val tax = clean.firstNumber(taxPattern)?.value
     return PendingOrder(
         type = type,
         itemName = itemName,
@@ -85,7 +61,7 @@ internal fun parseConfirmStack(stack: ItemStack, expectedType: BazaarOrderType):
 
 internal fun parseOrdersStack(stack: ItemStack): PendingOrder? {
     if (stack.isEmpty) return null
-    val clean = stack.textLines().map { it.clean() }
+    val clean = stack.cleanTextLines()
     val header = clean.firstOrNull() ?: return null
     val headerMatch = orderHeaderPattern.matchEntire(header) ?: return null
     val type = if (headerMatch.groupValues[ORDERS_HEADER_TYPE_GROUP] == "BUY") BazaarOrderType.BUY else BazaarOrderType.SELL
@@ -112,8 +88,7 @@ internal fun parseOrdersStack(stack: ItemStack): PendingOrder? {
 }
 
 private fun parseOrderNumbers(clean: List<String>, type: BazaarOrderType): ParsedOrderNumbers {
-    val explicitAmountParsed = clean.firstNotNullOfOrNull { line -> orderAmountPattern.matchEntire(line)?.groupValues?.get(1) }
-        ?.let { parseNumber(it) }
+    val explicitAmountParsed = clean.firstNumber(orderAmountPattern)
     val filledMatch = clean.firstNotNullOfOrNull { line -> filledPatternGui.matchEntire(line) }
     val filledParsed = filledMatch?.groupValues?.get(1)?.let { parseNumber(it) }
     val filled = filledParsed?.value?.roundToLong()
@@ -121,19 +96,11 @@ private fun parseOrderNumbers(clean: List<String>, type: BazaarOrderType): Parse
     val amountParsed = explicitAmountParsed
         ?: filledTotalParsed
         ?: CompactNumber(0.0, approximate = true, resolution = 0.0)
-    val worthParsed = clean.firstNotNullOfOrNull { line -> worthPattern.matchEntire(line)?.groupValues?.get(1) }
-        ?.let { parseNumber(it) }
-    val unitPriceParsed = clean.firstNotNullOfOrNull { line -> pricePerUnitPattern.matchEntire(line)?.groupValues?.get(1) }
-        ?.let { parseNumber(it) }
-    val tax = clean.firstNotNullOfOrNull { line -> taxPattern.matchEntire(line)?.groupValues?.get(1) }
-        ?.let { parseNumber(it).value }
+    val worthParsed = clean.firstNumber(worthPattern)
+    val unitPriceParsed = clean.firstNumber(pricePerUnitPattern)
+    val tax = clean.firstNumber(taxPattern)?.value
     val amount = amountParsed.value.roundToLong()
-    val taxMultiplier = if (type == BazaarOrderType.SELL) {
-        (1.0 - (tax ?: storage.taxPercent) / BAZAAR_PERCENT_SCALE)
-            .coerceAtLeast(MIN_BAZAAR_TAX_MULTIPLIER)
-    } else {
-        1.0
-    }
+    val taxMultiplier = if (type == BazaarOrderType.SELL) sellTaxMultiplier(tax ?: storage.taxPercent) else 1.0
     val pricePerUnit = unitPriceParsed?.value
         ?: if (worthParsed != null && amount > 0) worthParsed.value / amount / taxMultiplier else 0.0
     val priceResolution = unitPriceParsed?.resolution
@@ -169,10 +136,10 @@ private data class ParsedOrderNumbers(
 
 internal fun parseCancelStack(stack: ItemStack, order: ProfileStorageView.BazaarOrderData?): PendingCancel? {
     if (stack.isEmpty) return null
-    val clean = stack.textLines().map { it.clean() }
+    val clean = stack.cleanTextLines()
     if (clean.none { it.contains("Cancel Order") }) return null
     if (clean.any { it.startsWith("Cannot cancel order while", ignoreCase = true) }) return null
-    val joined = clean.joinToString(" ").replace(Regex("\\s+"), " ")
+    val joined = clean.joinToString(" ").replace(whitespacePattern, " ")
     val buyMatch = cancelBuyTooltipPattern.find(joined)
     if (buyMatch != null) {
         return PendingCancel(
@@ -211,14 +178,14 @@ internal fun parseCancelStack(stack: ItemStack, order: ProfileStorageView.Bazaar
     }
 }
 
-internal fun updateTax(taxPercent: Double) {
-    if (taxPercent <= 0.0 || abs(storage.taxPercent - taxPercent) < BAZAAR_PRICE_EPSILON) return
+internal fun sellTaxMultiplier(taxPercent: Double): Double =
+    (1.0 - taxPercent / BAZAAR_PERCENT_SCALE).coerceAtLeast(MIN_BAZAAR_TAX_MULTIPLIER)
+
+internal fun updateTax(taxPercent: Double?) {
+    if (taxPercent == null || taxPercent <= 0.0 || abs(storage.taxPercent - taxPercent) < BAZAAR_PRICE_EPSILON) return
     ProfileStorageApi.updateProfile { it.bazaarTracker.taxPercent = taxPercent }
 }
 
-private const val EXACT_GUI_SLOT_SCORE = 0
-private const val UNKNOWN_GUI_SLOT_SCORE = 1
-private const val MISMATCHED_GUI_SLOT_SCORE = 2
 private const val CONFIRM_ORDER_AMOUNT_GROUP = 1
 private const val CONFIRM_ORDER_ITEM_GROUP = 2
 private const val ORDERS_HEADER_TYPE_GROUP = 1
@@ -293,6 +260,5 @@ private val cancelBuyTooltipPattern =
     )
 
 private val cancelSellTooltipPattern = Regex("""refunded ([\d,.]+[kKmMbB]?)x (.+?)(?: from|\.|$)""", RegexOption.IGNORE_CASE)
-internal const val BAZAAR_PERCENT_SCALE = 100.0
-internal const val MIN_BAZAAR_TAX_MULTIPLIER = 0.01
-private const val MIN_GUI_FILL_TOLERANCE = 1L
+private const val BAZAAR_PERCENT_SCALE = 100.0
+private const val MIN_BAZAAR_TAX_MULTIPLIER = 0.01

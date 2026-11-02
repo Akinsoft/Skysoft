@@ -23,41 +23,15 @@ internal fun SkysoftBazaarDepthProduct.eligibleFlowSince(type: BazaarOrderType, 
     return flow.toLong().coerceAtLeast(0L)
 }
 
-internal fun List<SkysoftBazaarDepthRow>.queueSnapshot(
-    type: BazaarOrderType,
-    pricePerUnit: Double,
-    remaining: Long,
-): BazaarQueueSnapshot? {
-    var betterAmount = 0L
-    var sameAmount = 0L
-    var sameOrders = 0L
-
-    for (row in this) {
-        when {
-            row.isBetterThan(type, pricePerUnit) -> betterAmount += row.amount
-            abs(row.pricePerUnit - pricePerUnit) <= BAZAAR_PRICE_EPSILON -> {
-                sameAmount += row.amount
-                sameOrders += row.orders
-            }
-        }
-    }
-
-    if (sameAmount <= 0L && sameOrders <= 0L) return null
-    return BazaarQueueSnapshot(
-        amountAtPrice = sameAmount,
-        ordersAtPrice = sameOrders,
-        queueAhead = betterAmount + (sameAmount - remaining).coerceAtLeast(0L),
-    )
+internal fun List<SkysoftBazaarDepthRow>.queueSnapshot(pricePerUnit: Double): BazaarQueueSnapshot? {
+    val samePriceRows = filter { abs(it.pricePerUnit - pricePerUnit) <= BAZAAR_PRICE_EPSILON }
+    val amountAtPrice = samePriceRows.sumOf { it.amount }
+    val ordersAtPrice = samePriceRows.sumOf { it.orders }
+    if (amountAtPrice <= 0L && ordersAtPrice <= 0L) return null
+    return BazaarQueueSnapshot(amountAtPrice, ordersAtPrice)
 }
 
-private fun SkysoftBazaarDepthRow.isBetterThan(type: BazaarOrderType, pricePerUnit: Double): Boolean =
-    when (type) {
-        BazaarOrderType.BUY -> this.pricePerUnit > pricePerUnit + BAZAAR_PRICE_EPSILON
-        BazaarOrderType.SELL -> this.pricePerUnit < pricePerUnit - BAZAAR_PRICE_EPSILON
-    }
-
 internal data class BazaarQueueSnapshot(
-    val amountAtPrice: Long = 0,
-    val ordersAtPrice: Long = 0,
-    val queueAhead: Long = 0,
+    val amountAtPrice: Long,
+    val ordersAtPrice: Long,
 )

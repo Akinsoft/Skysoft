@@ -3,7 +3,6 @@ package com.skysoft.features.bazaar
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView
-import com.skysoft.utils.ChangeResult
 
 internal fun activeFlipBatch(data: ProfileStorage.BazaarTrackerData): Long {
     if (data.activeFlipBatchId > 0L) return data.activeFlipBatchId
@@ -33,9 +32,9 @@ internal fun addTrackedBuyLot(
     order: ProfileStorage.BazaarOrderData,
     amount: Long,
     unitCost: Double,
-): ChangeResult {
-    val batchId = order.flipBatchId ?: return ChangeResult.UNCHANGED
-    if (amount <= 0L || unitCost <= 0.0) return ChangeResult.UNCHANGED
+) {
+    val batchId = order.flipBatchId ?: return
+    if (amount <= 0L || unitCost <= 0.0) return
     data.itemLots += ProfileStorage.BazaarItemLotData(
         itemName = order.itemName,
         productId = order.productId,
@@ -43,38 +42,21 @@ internal fun addTrackedBuyLot(
         unitCost = unitCost,
         flipBatchId = batchId,
     )
-    return ChangeResult.CHANGED
 }
 
 internal fun ProfileStorage.BazaarTrackerData.prepareCraftedCostBasis(
     productId: String?,
     itemName: String,
     neededAmount: Long,
-): CraftPreparationResult {
-    if (productId == null || neededAmount <= trackedLotAmount(this, productId, itemName)) {
-        return CraftPreparationResult.NOT_NEEDED
-    }
-    val recipes = BazaarCraftingRecipes.recipesFor(productId)
-        ?: return CraftPreparationResult.RECIPE_DATA_UNAVAILABLE
-    return prepareCraftedCostBasis(this, productId, itemName, neededAmount, recipes)
-}
-
-internal fun prepareCraftedCostBasis(
-    data: ProfileStorage.BazaarTrackerData,
-    productId: String,
-    itemName: String,
-    neededAmount: Long,
-    recipes: List<BazaarCraftingRecipe>,
-): CraftPreparationResult {
-    val shortfall = (neededAmount - trackedLotAmount(data, productId, itemName)).coerceAtLeast(0L)
-    if (shortfall == 0L) return CraftPreparationResult.NOT_NEEDED
+) {
+    if (productId == null) return
+    val shortfall = neededAmount - trackedLotAmount(this, productId, itemName)
+    if (shortfall <= 0L) return
+    val recipes = BazaarCraftingRecipes.recipesFor(productId) ?: return
     val candidates = recipes
         .distinctBy { it.outputCount to it.ingredients }
-        .flatMap { recipe -> craftPlans(data, recipe, shortfall) }
-    if (candidates.isEmpty()) return CraftPreparationResult.INSUFFICIENT_INGREDIENTS
-    if (candidates.size > 1) return CraftPreparationResult.AMBIGUOUS_RECIPE
-    applyCraftPlan(data, productId, itemName, candidates.single())
-    return CraftPreparationResult.CONVERTED
+        .flatMap { recipe -> craftPlans(this, recipe, shortfall) }
+    applyCraftPlan(this, productId, itemName, candidates.singleOrNull() ?: return)
 }
 
 internal fun consumeTrackedLotsForSale(
@@ -84,30 +66,9 @@ internal fun consumeTrackedLotsForSale(
     soldAmount: Long,
     revenue: Double,
 ): Double {
-    var remaining = soldAmount
-    var knownCost = 0.0
-    var knownAmount = 0L
-    val iterator = data.itemLots.iterator()
-    while (iterator.hasNext() && remaining > 0L) {
-        val lot = iterator.next()
-        if (lot.flipBatchId == null || !lotMatches(lot, productId, itemName)) continue
-        val used = minOf(remaining, lot.amount)
-        knownCost += used * lot.unitCost
-        knownAmount += used
-        lot.amount -= used
-        remaining -= used
-        if (lot.amount <= 0L) iterator.remove()
-    }
-    val knownRevenue = revenue * (knownAmount.toDouble() / soldAmount.coerceAtLeast(1L))
-    return knownRevenue - knownCost
-}
-
-internal enum class CraftPreparationResult {
-    NOT_NEEDED,
-    CONVERTED,
-    RECIPE_DATA_UNAVAILABLE,
-    INSUFFICIENT_INGREDIENTS,
-    AMBIGUOUS_RECIPE,
+    val consumed = consumeLots(data, soldAmount) { lot -> lot.flipBatchId != null && lotMatches(lot, productId, itemName) }
+    val knownRevenue = revenue * (consumed.amount.toDouble() / soldAmount.coerceAtLeast(1L))
+    return knownRevenue - consumed.cost
 }
 
 private data class CraftPlan(
@@ -115,6 +76,28 @@ private data class CraftPlan(
     val ingredientAmounts: Map<String, Long>,
     val batchId: Long,
 )
+
+private data class ConsumedLots(val amount: Long, val cost: Double)
+
+private fun consumeLots(
+    data: ProfileStorage.BazaarTrackerData,
+    amount: Long,
+    matches: (ProfileStorage.BazaarItemLotData) -> Boolean,
+): ConsumedLots {
+    var remaining = amount
+    var cost = 0.0
+    val iterator = data.itemLots.iterator()
+    while (iterator.hasNext() && remaining > 0L) {
+        val lot = iterator.next()
+        if (!matches(lot)) continue
+        val used = minOf(remaining, lot.amount)
+        cost += used * lot.unitCost
+        lot.amount -= used
+        remaining -= used
+        if (lot.amount <= 0L) iterator.remove()
+    }
+    return ConsumedLots(amount - remaining, cost)
+}
 
 private fun trackedLotAmount(data: ProfileStorage.BazaarTrackerData, productId: String?, itemName: String): Long =
     data.itemLots.asSequence()
@@ -148,20 +131,12 @@ private fun applyCraftPlan(
     itemName: String,
     plan: CraftPlan,
 ) {
-    var totalCost = 0.0
-    plan.ingredientAmounts.forEach { (ingredientId, requiredAmount) ->
-        var remaining = requiredAmount
-        val iterator = data.itemLots.iterator()
-        while (iterator.hasNext() && remaining > 0L) {
-            val lot = iterator.next()
-            if (lot.flipBatchId != plan.batchId || !productMatches(lot.productId, ingredientId)) continue
-            val used = minOf(remaining, lot.amount)
-            totalCost += used * lot.unitCost
-            lot.amount -= used
-            remaining -= used
-            if (lot.amount <= 0L) iterator.remove()
+    val totalCost = plan.ingredientAmounts.entries.sumOf { (ingredientId, requiredAmount) ->
+        val consumed = consumeLots(data, requiredAmount) { lot ->
+            lot.flipBatchId == plan.batchId && productMatches(lot.productId, ingredientId)
         }
-        check(remaining == 0L) { "Craft plan changed before it was applied" }
+        check(consumed.amount == requiredAmount) { "Craft plan changed before it was applied" }
+        consumed.cost
     }
     data.itemLots += ProfileStorage.BazaarItemLotData(
         itemName = itemName,

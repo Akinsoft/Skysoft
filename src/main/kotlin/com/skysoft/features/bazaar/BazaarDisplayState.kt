@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.gui.OverlayControlArea
+import com.skysoft.gui.OverlayControlCycle
 
 internal object BazaarDisplayState {
     var mode = TrackerDisplayMode.SESSION
@@ -12,10 +13,7 @@ internal object BazaarDisplayState {
     }
 
     fun cycleMode(backwards: Boolean) {
-        val currentIndex = displayModeCycle.indexOf(mode)
-        check(currentIndex in displayModeCycle.indices) { "Display mode is missing from its cycle" }
-        val step = if (backwards) -1 else 1
-        mode = displayModeCycle[Math.floorMod(currentIndex + step, displayModeCycle.size)]
+        mode = OverlayControlCycle.next(displayModeCycle, mode, backwards)
     }
 }
 

@@ -56,7 +56,7 @@ internal class BazaarTrackerRenderable(
 
     fun render(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): OverlayControlArea<TrackerControl>? {
         if (background) {
-            OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+            OverlayPanelStyle.drawHudBackground(context, width, height)
         }
         var hovered: OverlayControlArea<TrackerControl>? = null
         var y = padding
@@ -78,12 +78,11 @@ internal class BazaarTrackerRenderable(
         var drawX = x
         val tag = line.tag
         if (tag != null) {
-            val tagText = tag.uppercase(Locale.US)
-            val tagWidth = LegacyTextRenderer.width("§l$tagText") + TAG_BACKGROUND_EXTRA_WIDTH
+            val tagWidth = tagWidth(tag)
             context.fill(x, y - 1, x + tagWidth, y + font.lineHeight + 1, line.tagColor)
             LegacyTextRenderer.draw(
                 context,
-                "§f§l$tagText",
+                "§f§l${tag.uppercase(Locale.US)}",
                 x + TAG_TEXT_X_OFFSET,
                 y,
                 defaultColor = WHITE_TEXT_COLOR,
@@ -95,7 +94,7 @@ internal class BazaarTrackerRenderable(
             val width = LegacyTextRenderer.width(segment.text)
             segment.action?.let {
                 val area = controlArea(it, drawX, y, width)
-                if (mouseX != null && mouseY != null && area.contains(mouseX, mouseY)) hovered = area
+                if (area.contains(mouseX, mouseY)) hovered = area
             }
             LegacyTextRenderer.draw(context, segment.text, drawX, y, defaultColor = WHITE_TEXT_COLOR)
             drawX += width
@@ -114,12 +113,11 @@ internal class BazaarTrackerRenderable(
         tooltipLines = trackerControlTooltip(action),
     )
 
-    private fun lineWidth(line: DisplayLine): Int = tagOffset(line) + LegacyTextRenderer.width(line.text)
+    private fun lineWidth(line: DisplayLine): Int =
+        (line.tag?.let { tagWidth(it) + TAG_TRAILING_GAP } ?: 0) + LegacyTextRenderer.width(line.text)
 
-    private fun tagOffset(line: DisplayLine): Int {
-        val tag = line.tag ?: return 0
-        return LegacyTextRenderer.width("§l${tag.uppercase(Locale.US)}") + TAG_OFFSET_EXTRA_WIDTH
-    }
+    private fun tagWidth(tag: String): Int =
+        LegacyTextRenderer.width("§l${tag.uppercase(Locale.US)}") + TAG_BACKGROUND_EXTRA_WIDTH
 }
 
 private const val CONTROL_HIT_PADDING_X = 2
@@ -127,5 +125,4 @@ private const val CONTROL_HIT_PADDING_Y = 3
 private const val TAG_BACKGROUND_EXTRA_WIDTH = 6
 private const val TAG_TEXT_X_OFFSET = 3
 private const val TAG_TRAILING_GAP = 4
-private const val TAG_OFFSET_EXTRA_WIDTH = TAG_BACKGROUND_EXTRA_WIDTH + TAG_TRAILING_GAP
 private val WHITE_TEXT_COLOR = 0xFFFFFFFF.toInt()
