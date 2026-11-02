@@ -1,5 +1,7 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.data.ProfileStorageView
+import com.skysoft.data.skyblock.BazaarOrderType
 import java.util.ArrayDeque
 
 internal object BazaarTrackingState {
@@ -78,3 +80,8 @@ internal data class MissingOrderObservation(
 )
 
 private const val GUI_MISSING_PRUNE_INVENTORY_STABLE_TICKS = 3
+
+internal fun <T : ProfileStorageView.BazaarOrderData> List<T>.pendingOptionOrder(type: BazaarOrderType? = null): T? =
+    BazaarTrackingState.pendingOrderOptionId?.let { id ->
+        firstOrNull { it.id == id && (type == null || it.type == type) }
+    }

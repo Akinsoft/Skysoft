@@ -1,7 +1,6 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.mixin.AbstractContainerScreenAccessor
-import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.ScreenSlotLayout
 import com.skysoft.utils.gui.nonPlayerSlots
@@ -19,6 +18,7 @@ internal data class BazaarOrderMenuOrder(
     val visibleIndex: Int?,
 ) {
     val isLocal: Boolean get() = visibleIndex != null
+    val row: Int get() = slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
 }
 
 internal data class BazaarOrderMenuPlan(
@@ -26,25 +26,12 @@ internal data class BazaarOrderMenuPlan(
     val orders: List<BazaarOrderMenuOrder>,
 )
 
-internal fun compactBazaarOrderMenuRows(
-    containerRows: Int,
-    occupiedOrderRows: Set<Int>,
-    ownedOrderRows: Set<Int>,
-): Int = maxOf(
-    containerRows.coerceAtMost(BazaarOrderMenuLayout.MIN_VISIBLE_ROWS),
-    containerRows - (occupiedOrderRows - ownedOrderRows).size,
-)
-
 internal fun compactBazaarOrderMenuCell(visibleIndex: Int): BazaarOrderMenuCell = BazaarOrderMenuCell(
     row = BazaarOrderMenuLayout.FIRST_ORDER_ROW + visibleIndex / BazaarOrderMenuLayout.ORDER_COLUMNS,
     column = BazaarOrderMenuLayout.FIRST_ORDER_COLUMN + visibleIndex % BazaarOrderMenuLayout.ORDER_COLUMNS,
 )
 
-internal fun bazaarOrderMenuSlotPosition(row: Int, column: Int): Pair<Int, Int> =
-    BazaarOrderMenuLayout.SLOT_X_ORIGIN + column * BazaarOrderMenuLayout.SLOT_STEP to
-        BazaarOrderMenuLayout.SLOT_Y_ORIGIN + row * BazaarOrderMenuLayout.SLOT_STEP
-
-internal fun bazaarOrderSlotRange(containerRows: Int): IntRange =
+private fun bazaarOrderSlotRange(containerRows: Int): IntRange =
     BazaarOrderMenuLayout.MENU_COLUMNS until (containerRows - 1) * BazaarOrderMenuLayout.MENU_COLUMNS
 
 internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Set<Int>): Boolean {
@@ -64,23 +51,19 @@ internal fun isBazaarOrderAreaEmpty(containerSlots: List<Int>, occupiedSlots: Se
 }
 
 internal fun bazaarOrderMenuPlan(screen: ContainerScreen): BazaarOrderMenuPlan? {
-    val playerName = localPlayerName()?.takeIf(String::isNotBlank) ?: return null
+    val playerName = localBazaarPlayerName() ?: return null
     val slots = screen.nonPlayerSlots().sortedBy { slot -> slot.containerSlot }
     if (!isSupportedBazaarOrderMenu(screen, slots)) return null
     val containerRows = screen.menu.rowCount
     val orders = readBazaarOrderMenuOrders(slots, playerName, bazaarOrderSlotRange(containerRows)) ?: return null
-    val visibleOrders = orders.count(BazaarOrderMenuOrder::isLocal)
-    if (orders.size == visibleOrders) return null
-    val occupiedOrderRows = orders.mapTo(mutableSetOf()) { order ->
-        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
-    }
-    val ownedOrderRows = orders.filter(BazaarOrderMenuOrder::isLocal).mapTo(mutableSetOf()) { order ->
-        order.slot.containerSlot / BazaarOrderMenuLayout.MENU_COLUMNS
-    }
-    return BazaarOrderMenuPlan(
-        visibleRows = compactBazaarOrderMenuRows(containerRows, occupiedOrderRows, ownedOrderRows),
-        orders = orders,
+    if (orders.all(BazaarOrderMenuOrder::isLocal)) return null
+    val occupiedOrderRows = orders.mapTo(mutableSetOf(), BazaarOrderMenuOrder::row)
+    val ownedOrderRows = orders.filter(BazaarOrderMenuOrder::isLocal).mapTo(mutableSetOf(), BazaarOrderMenuOrder::row)
+    val visibleRows = maxOf(
+        containerRows.coerceAtMost(BazaarOrderMenuLayout.MIN_VISIBLE_ROWS),
+        containerRows - (occupiedOrderRows - ownedOrderRows).size,
     )
+    return BazaarOrderMenuPlan(visibleRows, orders)
 }
 
 private fun isSupportedBazaarOrderMenu(screen: ContainerScreen, slots: List<Slot>): Boolean {
@@ -108,9 +91,7 @@ private fun readBazaarOrderMenuOrders(
             continue
         }
         if (parsed == null) continue
-        val owner = parseBazaarOrderOwner(slot.item)
-            ?: return null
-        val isLocal = !shouldBlockBazaarOrderOwner(owner, playerName)
+        val isLocal = isLocalBazaarOrder(slot.item, playerName) ?: return null
         orders += BazaarOrderMenuOrder(
             slot = slot,
             visibleIndex = if (isLocal) visibleIndex++ else null,
@@ -183,18 +164,16 @@ internal fun restoreBazaarOrderMenu(screen: AbstractContainerScreen<*>) {
 
 internal fun shouldBlockBazaarOrderInteraction(screen: AbstractContainerScreen<*>, slotId: Int): Boolean {
     if (slotId < 0 || screen !is ContainerScreen) return false
-    val plan = bazaarOrderMenuPlan(screen)
-    if (plan == null) return false
+    val plan = bazaarOrderMenuPlan(screen) ?: return false
     return plan.orders.firstOrNull { order -> order.slot.index == slotId }?.isLocal == false
 }
 
 private fun moveBazaarOrderMenuSlot(screen: ContainerScreen, slot: Slot, row: Int, column: Int) {
-    val (x, y) = bazaarOrderMenuSlotPosition(row, column)
     bazaarOrderMenuSlots.move(
         screen,
         slot,
-        x,
-        y,
+        BazaarOrderMenuLayout.SLOT_X_ORIGIN + column * BazaarOrderMenuLayout.SLOT_STEP,
+        BazaarOrderMenuLayout.SLOT_Y_ORIGIN + row * BazaarOrderMenuLayout.SLOT_STEP,
     )
 }
 

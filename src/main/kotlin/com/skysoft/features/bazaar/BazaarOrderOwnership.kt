@@ -12,27 +12,28 @@ internal data class BazaarOrderScan(
     val localOrderSlots: Set<Int>,
 )
 
-internal fun parseBazaarOrderOwner(lines: List<String>): String? =
-    lines.firstNotNullOfOrNull { line -> bazaarOrderOwnerPattern.matchEntire(line)?.groupValues?.get(1) }
-
 internal fun parseBazaarOrderOwner(stack: ItemStack): String? =
-    parseBazaarOrderOwner(stack.textLines().map(String::clean))
+    stack.cleanTextLines().firstNotNullOfOrNull { line ->
+        bazaarOrderOwnerPattern.matchEntire(line)?.groupValues?.get(1)
+    }
 
 internal fun shouldBlockBazaarOrderOwner(owner: String, playerName: String): Boolean =
     !owner.equals(playerName, ignoreCase = true)
 
-private fun isLocalBazaarOrder(stack: ItemStack, playerName: String): Boolean? =
+internal fun isLocalBazaarOrder(stack: ItemStack, playerName: String): Boolean? =
     parseBazaarOrderOwner(stack)?.let { owner -> !shouldBlockBazaarOrderOwner(owner, playerName) }
 
+internal fun localBazaarPlayerName(): String? = localPlayerName()?.takeIf(String::isNotBlank)
+
 internal fun isLocalCoopBazaarOrder(stack: ItemStack): Boolean {
-    val playerName = localPlayerName()?.takeIf(String::isNotBlank) ?: return false
+    val playerName = localBazaarPlayerName() ?: return false
     return isLocalBazaarOrder(stack, playerName) == true
 }
 
 internal fun parseBazaarOrderScan(title: String, cells: List<SkyBlockOpenInventoryCell>): BazaarOrderScan? {
     if (!ordersMenuLoaded(cells.asSequence().map { cell -> cell.item })) return null
     val playerName = if (title == COOP_BAZAAR_ORDERS_TITLE) {
-        localPlayerName()?.takeIf(String::isNotBlank) ?: return null
+        localBazaarPlayerName() ?: return null
     } else {
         null
     }

@@ -12,7 +12,6 @@ internal data class BazaarOrderRowMatch(
 
 internal data class BazaarSnapshotReconciliation(
     val matches: List<BazaarOrderRowMatch>,
-    val unmatchedOrders: List<ProfileStorageView.BazaarOrderData>,
     val unmatchedRows: List<PendingOrder>,
 )
 
@@ -25,8 +24,8 @@ internal fun reconcileBazaarSnapshot(
     orders: List<ProfileStorageView.BazaarOrderData>,
     rows: List<PendingOrder>,
 ): BazaarSnapshotReconciliation {
-    if (orders.isEmpty()) return BazaarSnapshotReconciliation(emptyList(), emptyList(), rows)
-    if (rows.isEmpty()) return BazaarSnapshotReconciliation(emptyList(), orders, emptyList())
+    if (orders.isEmpty()) return BazaarSnapshotReconciliation(emptyList(), rows)
+    if (rows.isEmpty()) return BazaarSnapshotReconciliation(emptyList(), emptyList())
 
     val matchCosts = Array(orders.size) { orderIndex ->
         LongArray(rows.size) { rowIndex -> bazaarIdentityCost(orders[orderIndex], rows[rowIndex]) }
@@ -42,7 +41,6 @@ internal fun reconcileBazaarSnapshot(
         }
     }
     val assignment = minimumCostAssignment(costs)
-    val matchedOrderIndexes = mutableSetOf<Int>()
     val matchedRowIndexes = mutableSetOf<Int>()
     val matches = buildList {
         orders.indices.forEach { orderIndex ->
@@ -50,7 +48,6 @@ internal fun reconcileBazaarSnapshot(
             if (rowIndex !in rows.indices) return@forEach
             val cost = matchCosts[orderIndex][rowIndex]
             if (cost >= UNMATCHED_ASSIGNMENT_COST) return@forEach
-            matchedOrderIndexes += orderIndex
             matchedRowIndexes += rowIndex
             add(
                 BazaarOrderRowMatch(
@@ -62,24 +59,31 @@ internal fun reconcileBazaarSnapshot(
     }
     return BazaarSnapshotReconciliation(
         matches = matches,
-        unmatchedOrders = orders.filterIndexed { index, _ -> index !in matchedOrderIndexes },
         unmatchedRows = rows.filterIndexed { index, _ -> index !in matchedRowIndexes },
     )
 }
 
-internal fun findMatchingOrderMatch(parsed: PendingOrder, excludeIds: Set<String>): BazaarOrderRowMatch? =
-    reconcileBazaarSnapshot(storage.activeOrders.filter { it.id !in excludeIds }, listOf(parsed))
-        .matches
-        .singleOrNull()
+internal fun findMatchingOrder(parsed: PendingOrder): ProfileStorageView.BazaarOrderData? =
+    reconcileBazaarSnapshot(storage.activeOrders, listOf(parsed)).matches.singleOrNull()?.order
 
-internal fun findMatchingOrder(parsed: PendingOrder, excludeIds: Set<String>): ProfileStorageView.BazaarOrderData? =
-    findMatchingOrderMatch(parsed, excludeIds)?.order
+internal fun guiMatchIsPlausible(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean =
+    parsed.amount <= 0 ||
+        order.filledAmount < parsed.amount + max(parsed.amountResolution, MIN_GUI_FILL_TOLERANCE.toDouble())
+
+private fun guiFilledScore(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long =
+    amountDistance(order.filledAmount, parsed.filledAmount ?: 0L)
+
+private fun guiSlotScore(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Int {
+    val slot = parsed.guiSlot ?: return UNKNOWN_GUI_SLOT_SCORE
+    return when (order.lastGuiSlot) {
+        slot -> EXACT_GUI_SLOT_SCORE
+        -1 -> UNKNOWN_GUI_SLOT_SCORE
+        else -> MISMATCHED_GUI_SLOT_SCORE
+    }
+}
 
 internal fun bazaarIdentityCost(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long {
-    if (order.type != parsed.type) return IMPOSSIBLE_ASSIGNMENT_COST
-    if (!productMatches(order.productId, parsed.productId) && !namesMatch(order.itemName, parsed.itemName)) {
-        return IMPOSSIBLE_ASSIGNMENT_COST
-    }
+    if (!isSameOrderItem(order, parsed)) return IMPOSSIBLE_ASSIGNMENT_COST
     if (
         !haveOverlappingRanges(
             order.amountOrdered.toDouble(),
@@ -127,6 +131,10 @@ internal fun bazaarIdentityCost(order: ProfileStorageView.BazaarOrderData, parse
     return totalPenalty + fillCost + slotCost + ageTieBreak
 }
 
+internal fun isSameOrderItem(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Boolean =
+    order.type == parsed.type &&
+        (productMatches(order.productId, parsed.productId) || namesMatch(order.itemName, parsed.itemName))
+
 internal fun updateOrderIdentityFromGui(
     order: ProfileStorage.BazaarOrderData,
     parsed: PendingOrder,
@@ -152,16 +160,9 @@ internal fun updateOrderIdentityFromGui(
         order.totalCoins = parsed.totalCoins
         order.totalCoinsResolution = parsed.totalCoinsResolution
     }
-    if (parsed.amount > 0 && order.amountOrdered <= 0) {
-        update {
-            order.amountOrdered = parsed.amount
-            order.amountResolution = parsed.amountResolution
-        }
-    } else if (shouldUpdateUnconfirmedAmount(order, parsed)) {
-        update {
-            order.amountOrdered = parsed.amount
-            order.amountResolution = parsed.amountResolution
-        }
+    if ((parsed.amount > 0 && order.amountOrdered <= 0) || shouldUpdateUnconfirmedAmount(order, parsed)) update {
+        order.amountOrdered = parsed.amount
+        order.amountResolution = parsed.amountResolution
     }
     if (shouldUpdateUnconfirmedTotal(order, parsed)) update {
         order.totalCoins = requireNotNull(parsed.totalCoins)
@@ -265,6 +266,10 @@ private fun minimumCostAssignment(costs: Array<LongArray>): IntArray {
     return assignment
 }
 
+private const val EXACT_GUI_SLOT_SCORE = 0
+private const val UNKNOWN_GUI_SLOT_SCORE = 1
+private const val MISMATCHED_GUI_SLOT_SCORE = 2
+private const val MIN_GUI_FILL_TOLERANCE = 1L
 private const val PRICE_EPSILON = 0.01
 private const val TOTAL_EPSILON = 1.0
 private const val TOTAL_MISMATCH_COST = 100_000L
