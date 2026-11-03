@@ -22,7 +22,7 @@ private fun recordBackpackRemoval(message: String) {
     }
 }
 
-internal fun removedBackpackPageIndex(message: String): Int? {
+private fun removedBackpackPageIndex(message: String): Int? {
     val backpackSlot = removedBackpackPattern.matchEntire(message)?.groupValues?.get(1)?.toIntOrNull() ?: return null
     if (backpackSlot !in 1..ProfileStorage.SKYBLOCK_STORAGE_BACKPACK_PAGES) return null
     return ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + backpackSlot - 1

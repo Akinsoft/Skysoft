@@ -14,10 +14,8 @@ import net.minecraft.client.input.KeyEvent
 
 internal var editingTitlePage: Int? = null
     private set
-internal var editingTitleText = ""
-    private set
-internal var editingTitleSelected = false
-    private set
+private var editingTitleText = ""
+private var editingTitleSelected = false
 internal val titleTextInput = TextInputFocus()
 
 internal fun titlePageAt(layouts: Map<Int, PageLayout>, mouseX: Int, mouseY: Int): Int? =
@@ -41,21 +39,8 @@ internal fun titleText(pageIndex: Int, title: String? = storageEntry(pageIndex)?
     return title?.ifBlank { defaultPageTitle(pageIndex) } ?: defaultPageTitle(pageIndex)
 }
 
-internal fun titleDisplayText(title: String): String {
-    val builder = StringBuilder(title.length)
-    var index = 0
-    while (index < title.length) {
-        val next = title.getOrNull(index + 1)
-        if (title[index] == '&' && next != null && next.lowercaseChar() in "0123456789abcdefklmnor") {
-            builder.append('§').append(next.lowercaseChar())
-            index += FORMATTING_CODE_LENGTH
-        } else {
-            builder.append(title[index])
-            index++
-        }
-    }
-    return builder.toString()
-}
+internal fun titleDisplayText(title: String): String =
+    ampersandFormattingPattern.replace(title) { "§${it.groupValues[1].lowercase()}" }
 
 internal fun startTitleEdit(pageIndex: Int) {
     editingTitleText = titleText(pageIndex)
@@ -144,4 +129,4 @@ private fun String.filterTitle(): String =
             it.code > StorageTextInput.EXTENDED_TEXT_START
     }
 
-private const val FORMATTING_CODE_LENGTH = 2
+private val ampersandFormattingPattern = Regex("&([0-9a-fk-or])", RegexOption.IGNORE_CASE)

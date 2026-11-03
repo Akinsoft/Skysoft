@@ -7,6 +7,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.ScreenSlotLayout
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
@@ -55,8 +56,7 @@ object StorageOverlayController {
     ) = renderStorageOverlayBackground(screen, context, mouseX, mouseY)
 
     @JvmStatic
-    fun shouldSuppressContainerLabels(screen: AbstractContainerScreen<*>): Boolean =
-        shouldSuppressStorageOverlayContainerLabels(screen)
+    fun shouldSuppressContainerLabels(screen: AbstractContainerScreen<*>): Boolean = storageOverlayIsActive(screen)
 
     @JvmStatic
     fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
@@ -107,7 +107,7 @@ internal val isModernStorageOverlay get() = config.settings.mode == StorageOverl
 internal val isLightStorageOverlay get() = config.details.theme == StorageOverlayTheme.LIGHT
 
 internal val storageSearchField = TextFieldState()
-internal var lastCommandMillis = 0L
+internal val storageSlotLayout = ScreenSlotLayout()
 internal var rememberedPageIndex: Int? = null
 internal var redirectedOverviewScreenId: Int? = null
 internal var focusedPageKey: String? = null
@@ -200,15 +200,14 @@ internal data class PageLayout(
     val width: Int,
     val height: Int,
 ) {
-    fun contains(mouseX: Int, mouseY: Int): Boolean = Rect(x, y, width, height).contains(mouseX, mouseY)
+    val bounds get() = Rect(x, y, width, height)
+
+    fun contains(mouseX: Int, mouseY: Int): Boolean = bounds.contains(mouseX, mouseY)
+
     fun isVerticallyVisibleWithin(rect: Rect): Boolean =
         y >= rect.y && y + height <= rect.y + rect.height
 
-    fun intersects(rect: Rect): Boolean =
-        x < rect.x + rect.width &&
-            x + width > rect.x &&
-            y < rect.y + rect.height &&
-            y + height > rect.y
+    fun intersects(rect: Rect): Boolean = bounds.intersects(rect)
 }
 
 internal data class PendingOverviewShortcutClick(

@@ -37,7 +37,7 @@ internal fun registerStorageOverlay() {
 
 private fun registerMouseClickInterceptor() {
     InventoryOverlayInput.registerClickHandler("Storage Overlay mouse click", { isStorageOverlayEnabled }) { screen, click ->
-        handlePreScreenMouseClick(screen, click)
+        handleStorageOverlayMouseClick(screen, click)
     }
 }
 
@@ -49,7 +49,7 @@ internal fun storageOverlayLayoutScreen(
     screen: AbstractContainerScreen<*>,
 ): StorageOverlayLayoutState? {
     val handle = handleFor(screen) ?: run {
-        restoreStorageOverlaySlots(screen)
+        storageSlotLayout.restore(screen)
         return null
     }
     rememberActivePage(handle)
@@ -80,16 +80,11 @@ internal fun storageOverlayLayoutScreen(
                 playerSlotPosition(measurements, slot.containerSlot)
 
             handle.gridRows() != null ->
-                pageSlotPosition(
-                    measurements,
-                    handle,
-                    handle.entryIndex()?.let { pageLayouts[it] },
-                    slot,
-                )
+                pageSlotPosition(measurements, handle, activePage?.let(pageLayouts::get), slot)
 
             else -> null
         }
-        moveStorageOverlaySlot(
+        storageSlotLayout.move(
             screen,
             slot,
             position?.x?.minus(left) ?: StorageRuntime.OFFSCREEN,
@@ -106,10 +101,6 @@ internal fun renderStorageOverlayBackground(
     mouseY: Int,
 ) {
     if (!storageOverlayIsActive(screen)) return
-    renderOverlay(screen, context, mouseX, mouseY)
-}
-
-private fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
     val layoutState = storageOverlayLayoutScreen(screen) ?: return
     SmoothSwapping.beginFrame(screen)
     val handle = layoutState.handle
@@ -151,30 +142,11 @@ private fun renderOverlay(screen: ContainerScreen, context: GuiGraphicsExtractor
     SmoothSwapping.render(screen, context)
 }
 
-internal fun shouldSuppressStorageOverlayContainerLabels(screen: AbstractContainerScreen<*>): Boolean =
-    storageOverlayIsActive(screen)
-
-private fun handlePreScreenMouseClick(
+internal fun handleStorageOverlayMouseClick(
     screen: AbstractContainerScreen<*>,
     click: MouseButtonEvent,
 ): InputHandlingResult {
     val layoutState = storageOverlayLayoutScreen(screen) ?: return InputHandlingResult.IGNORED
-    val mouseX = click.x().toInt()
-    val mouseY = click.y().toInt()
-    if (processStorageSettingsClick(screen, click, layoutState.measurements) == InputHandlingResult.CONSUMED) {
-        return InputHandlingResult.CONSUMED
-    }
-    updateSearchFocusFromClick(layoutState.measurements, mouseX, mouseY)
-
-    return handleStorageOverlayMouseClick(screen, click, layoutState)
-}
-
-internal fun handleStorageOverlayMouseClick(
-    screen: AbstractContainerScreen<*>,
-    click: MouseButtonEvent,
-    preparedLayout: StorageOverlayLayoutState? = null,
-): InputHandlingResult {
-    val layoutState = preparedLayout ?: storageOverlayLayoutScreen(screen) ?: return InputHandlingResult.IGNORED
     val handle = layoutState.handle
     val measurements = layoutState.measurements
     val activePage = handle.entryIndex()
@@ -206,7 +178,7 @@ internal fun handleStorageOverlayMouseClick(
             setStorageScrollFromScrollbar(mouseY, dragOffset, measurements.scrollbar, knob.height, maximum)
             InputHandlingResult.CONSUMED
         }
-        pointInSearch(measurements, mouseX, mouseY) -> {
+        measurements.search.contains(mouseX, mouseY) -> {
             storageSearchField.focused = true
             finishTitleEdit()
             if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {

@@ -61,7 +61,7 @@ object StoragePreviews {
         val hoveredSlot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot() ?: return null
         if (hoveredSlot.item !== stack) return null
         val pageIndex = StorageOverviewSlots.pageIndexForSlot(hoveredSlot.containerSlot) ?: return null
-        val isEnderChest = pageIndex < ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES
+        val isEnderChest = isEnderChestPage(pageIndex)
         if (isEnderChest && !config.settings.enderChests) return null
         if (!isEnderChest && !config.settings.backpacks) return null
         val page = storage.skyBlockStoragePages[pageIndex] ?: return null

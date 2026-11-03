@@ -10,6 +10,7 @@ import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.PixelControlColors
 import com.skysoft.utils.gui.PixelControlPanelRenderer
 import com.skysoft.utils.gui.PixelSliderRenderer
+import com.skysoft.utils.gui.enableScissor
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -34,14 +35,14 @@ internal fun drawStorageSettingsPanel(
     mouseY: Int,
 ) {
     val layout = storageSettingsPanelLayout(screenWidth, screenHeight, measurements)
-    val progress = storageSettingsTransition.value(if (isStorageSettingsPanelOpen) 1f else 0f)
+    val progress = storageSettingsProgress()
     if (progress <= MIN_VISIBLE_PROGRESS) {
         drawStorageSettingsButton(context, layout, mouseX, mouseY)
         return
     }
     val visiblePanel = layout.animatedPanel(progress)
     PixelControlPanelRenderer.draw(context, visiblePanel, StorageSettingsPanel.HEADER_HEIGHT)
-    context.enableScissor(visiblePanel.x, visiblePanel.y, visiblePanel.x + visiblePanel.width, visiblePanel.y + visiblePanel.height)
+    context.enableScissor(visiblePanel)
     try {
         val font = Minecraft.getInstance().font
         val title = "Storage Settings"
@@ -136,13 +137,16 @@ internal fun storageSettingsContains(
     mouseY: Int,
 ): Boolean {
     val layout = storageSettingsPanelLayout(screenWidth, screenHeight, measurements)
-    val progress = storageSettingsTransition.value(if (isStorageSettingsPanelOpen) 1f else 0f)
+    val progress = storageSettingsProgress()
     return if (progress <= MIN_VISIBLE_PROGRESS) {
         layout.button.contains(mouseX, mouseY)
     } else {
         layout.animatedPanel(progress).contains(mouseX, mouseY)
     }
 }
+
+private fun storageSettingsProgress(): Float =
+    storageSettingsTransition.value(if (isStorageSettingsPanelOpen) 1f else 0f)
 
 internal fun storageSettingsPanelLayout(
     screenWidth: Int,
@@ -194,15 +198,14 @@ private fun processOpenStorageSettingsClick(
     }
     if (layout.themeToggle.contains(mouseX, mouseY)) {
         SoundUtilities.playClickSound()
-        val theme = StorageVisualSetting.THEME
-        theme.set(if (theme.value() == 0) 1 else 0)
+        StorageVisualSetting.THEME.toggle()
         saveStorageSettings()
         return InputHandlingResult.CONSUMED
     }
     val setting = layout.settingAt(mouseX, mouseY) ?: return InputHandlingResult.CONSUMED
     SoundUtilities.playClickSound()
     if (setting.isToggle) {
-        setting.set(if (setting.value() == 0) 1 else 0)
+        setting.toggle()
         saveStorageSettings()
         storageOverlayLayoutScreen(screen)
     } else {

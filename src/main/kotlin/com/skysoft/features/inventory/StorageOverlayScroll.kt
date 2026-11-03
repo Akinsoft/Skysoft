@@ -52,25 +52,15 @@ internal fun setStorageScrollFromScrollbar(
     knobHeight: Int,
     maximum: Int,
 ) {
-    snapStorageScroll(scrollbarScrollPosition(pointerY, dragOffset, bar, knobHeight, maximum))
+    val knobTravel = (bar.height - knobHeight).coerceAtLeast(0)
+    val knobY = (pointerY - dragOffset - bar.y).coerceIn(0, knobTravel)
+    snapStorageScroll(if (knobTravel == 0) 0.0 else knobY.toDouble() / knobTravel * maximum)
 }
 
 private fun snapStorageScroll(position: Double) {
     scrollPosition = position
     scrollTarget = position
     scroll = position.roundToInt()
-}
-
-internal fun scrollbarScrollPosition(
-    pointerY: Int,
-    dragOffset: Int,
-    bar: Rect,
-    knobHeight: Int,
-    maximum: Int,
-): Double {
-    val knobTravel = (bar.height - knobHeight).coerceAtLeast(0)
-    val knobY = (pointerY - dragOffset - bar.y).coerceIn(0, knobTravel)
-    return if (knobTravel == 0) 0.0 else knobY.toDouble() / knobTravel * maximum
 }
 
 internal fun handleStorageOverlayMouseDrag(
@@ -123,15 +113,8 @@ internal fun shouldPreferStorageOverlayMouseScroll(
         storageSettingsContains(screen.width, screen.height, measurements, mouseX.toInt(), mouseY.toInt())
 }
 
-internal fun shouldPreferStorageOverlayMouseScroll(
-    isActive: Boolean,
-    scrollPanel: Rect,
-    mouseX: Double,
-    mouseY: Double,
-    scrollY: Double,
-): Boolean = isActive && scrollY != 0.0 && scrollPanel.contains(mouseX.toInt(), mouseY.toInt())
-
-internal fun advanceStorageScroll(nowNanos: Long = System.nanoTime()) {
+internal fun advanceStorageScroll() {
+    val nowNanos = System.nanoTime()
     if (lastScrollUpdateNanos == 0L) {
         lastScrollUpdateNanos = nowNanos
         return
@@ -165,7 +148,7 @@ internal fun freezeStorageScroll() {
     lastScrollUpdateNanos = 0L
 }
 
-internal fun smoothedScrollPosition(current: Double, target: Double, elapsedMillis: Double): Double {
+private fun smoothedScrollPosition(current: Double, target: Double, elapsedMillis: Double): Double {
     if (current == target || elapsedMillis <= 0.0) return current
     val progress = 1.0 - exp(-elapsedMillis / StorageRuntime.SCROLL_RESPONSE_MILLIS)
     return current + (target - current) * progress

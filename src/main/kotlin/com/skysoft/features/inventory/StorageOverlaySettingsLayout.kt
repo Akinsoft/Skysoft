@@ -36,9 +36,10 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
             config.details.pageSpacing,
         )
         HEIGHT -> {
-            val isSelectorStacked = measurements.isSelectorVisible &&
-                StorageSelectorLayout.sideX(measurements.playerBounds.x) == null
-            val stackedHeight = if (isSelectorStacked) StorageSelector.HEIGHT + StorageSelector.STACKED_GAP else 0
+            val stackedHeight = StorageSelectorLayout.stackedHeight(
+                measurements.isSelectorVisible,
+                StorageSelectorLayout.sideX(measurements.playerBounds.x),
+            )
             StorageOverlayConfigBounds.MIN_HEIGHT..maximumStorageHeight(screenHeight, stackedHeight)
         }
         PAGE_SPACING -> StorageOverlayConfigBounds.MIN_PAGE_SPACING..StorageOverlayConfigBounds.MAX_PAGE_SPACING
@@ -66,6 +67,8 @@ internal enum class StorageVisualSetting(val label: String, val isToggle: Boolea
         }
         config.repairLoadedValues()
     }
+
+    fun toggle() = set(if (value() == 0) 1 else 0)
 
     fun displayValue(): String = if (isToggle) {
         when (this) {
@@ -163,11 +166,10 @@ internal data class StorageSettingsPanelLayout(
             screenWidth: Int,
             screenHeight: Int,
             playerBounds: Rect,
-            settings: List<StorageVisualSetting> = StorageVisualSetting.entries,
-            buttonAnchor: Rect = playerBounds,
+            settings: List<StorageVisualSetting>,
+            buttonAnchor: Rect,
         ): StorageSettingsPanelLayout {
-            val visibleSettings = settings.filter { it != StorageVisualSetting.THEME }
-            val panelHeight = StorageSettingsPanel.height(visibleSettings.size)
+            val panelHeight = StorageSettingsPanel.height(settings.size)
             val panelWidth = (screenWidth - StoragePanel.EDGE_MARGIN * 2)
                 .coerceAtMost(StorageSettingsPanel.WIDTH)
                 .coerceAtLeast(1)
@@ -197,7 +199,7 @@ internal data class StorageSettingsPanelLayout(
                     StorageSettingsPanel.BUTTON_SIZE,
                 ),
                 panel = Rect(panelX, panelY, panelWidth, panelHeight),
-                settings = visibleSettings,
+                settings = settings,
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.skysoft.features.inventory
 
 import com.skysoft.gui.tooltip.SkysoftTooltipComponent
+import com.skysoft.utils.gui.itemWithDecorations
 import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.ceil
 import net.minecraft.client.gui.Font
@@ -46,10 +47,7 @@ internal class ClientStoragePreviewTooltip(
                 val slotY = index / preview.columns * SLOT_SIZE
                 context.fill(slotX, slotY, slotX + SLOT_SIZE, slotY + SLOT_SIZE, SLOT_BORDER_COLOR)
                 context.fill(slotX + 1, slotY + 1, slotX + SLOT_SIZE - 1, slotY + SLOT_SIZE - 1, SLOT_COLOR)
-                if (!stack.isEmpty) {
-                    context.item(stack, slotX + 1, slotY + 1)
-                    context.itemDecorations(font, stack, slotX + 1, slotY + 1)
-                }
+                context.itemWithDecorations(stack, slotX + 1, slotY + 1)
             }
         }
     }

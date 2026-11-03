@@ -10,6 +10,8 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.ContainerInput
 
+private var lastCommandMillis = 0L
+
 internal fun rememberActivePage(handle: StorageHandle) {
     handle.entryIndex()?.let { rememberedPageIndex = it }
 }
@@ -35,12 +37,8 @@ internal fun requestOverviewShortcutClick(
     ) {
         return InputHandlingResult.IGNORED
     }
-    val connection = Minecraft.getInstance().connection ?: return InputHandlingResult.IGNORED
-    val now = System.currentTimeMillis()
-    if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return InputHandlingResult.IGNORED
-    lastCommandMillis = now
-    pendingOverviewShortcutClick = PendingOverviewShortcutClick(pageIndex, click.button(), now)
-    connection.sendCommand("storage")
+    if (!trySendStorageCommand("storage")) return InputHandlingResult.IGNORED
+    pendingOverviewShortcutClick = PendingOverviewShortcutClick(pageIndex, click.button(), lastCommandMillis)
     return InputHandlingResult.CONSUMED
 }
 
@@ -150,11 +148,16 @@ private fun tryNavigateRiftStorage(
 
 private fun trySendPageCommand(pageIndex: Int): Boolean {
     val command = commandForPage(pageIndex) ?: return false
+    if (!trySendStorageCommand(command)) return false
+    freezeStorageScroll()
+    return true
+}
+
+private fun trySendStorageCommand(command: String): Boolean {
     val connection = Minecraft.getInstance().connection ?: return false
     val now = System.currentTimeMillis()
     if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return false
     lastCommandMillis = now
-    freezeStorageScroll()
     connection.sendCommand(command)
     return true
 }
@@ -168,9 +171,7 @@ private fun commandForPage(pageIndex: Int): String? = when (pageIndex) {
     in 0 until ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES -> "enderchest ${pageIndex + 1}"
     in ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES until ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT ->
         "backpack ${pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1}"
-    StorageToolkit.FARMING_PAGE_INDEX -> ToolkitType.FARMING.command
-    StorageToolkit.HUNTING_PAGE_INDEX -> ToolkitType.HUNTING.command
-    else -> null
+    else -> ToolkitType.fromPageIndex(pageIndex)?.command
 }
 
 private fun requestPageFocus(pageIndex: Int) {
