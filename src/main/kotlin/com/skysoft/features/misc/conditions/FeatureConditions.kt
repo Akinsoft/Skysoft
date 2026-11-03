@@ -17,33 +17,13 @@ import java.util.Locale
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.client.Minecraft
 
-data class FeatureConditionContext(
-    val isInSkyBlock: Boolean,
-    val island: SkyBlockIsland?,
-    val activeEvents: Set<SkyBlockEvent>,
-    val heldItemId: String?,
-)
-
 object FeatureConditions {
-    fun isActivationAllowed(
-        combinations: List<FeatureConditionCombination>,
-        context: FeatureConditionContext,
-        isConditionActivationReversed: Boolean,
-    ): Boolean = combinations.isEmpty() || matches(combinations, context) != isConditionActivationReversed
-
-    fun matches(
-        combinations: List<FeatureConditionCombination>,
-        context: FeatureConditionContext,
-    ): Boolean = combinations.isEmpty() || combinations.any { combination ->
-        combination.conditions.isNotEmpty() && combination.conditions.all { it.matches(context) }
-    }
-
     fun builtInConditions(): List<FeatureCondition> = buildList {
         SkyBlockEvent.entries.forEach { event ->
-            add(FeatureCondition(FeatureConditionKind.EVENT, event.name, "Event: ${event.displayName}"))
+            add(FeatureCondition(FeatureConditionKind.EVENT, event.name, "$EVENT_PREFIX${event.displayName}"))
         }
         SkyBlockIsland.entries.forEach { island ->
-            add(FeatureCondition(FeatureConditionKind.ISLAND, island.name, "On Island: ${island.displayName}"))
+            add(FeatureCondition(FeatureConditionKind.ISLAND, island.name, "$ISLAND_PREFIX${island.displayName}"))
         }
     }
 
@@ -51,11 +31,21 @@ object FeatureConditions {
 
     fun FeatureCondition.copyCondition(): FeatureCondition = FeatureCondition(kind, value, displayName)
 
-    fun FeatureCondition.selectedDisplayName(): String = when (kind) {
-        FeatureConditionKind.EVENT -> displayName.removePrefix("Event: ")
-        FeatureConditionKind.ISLAND -> displayName.removePrefix("On Island: ")
-        FeatureConditionKind.ITEM -> displayName.removePrefix("Holding Item: ")
-    }
+    fun FeatureCondition.selectedDisplayName(): String = displayName.removePrefix(
+        when (kind) {
+            FeatureConditionKind.EVENT -> EVENT_PREFIX
+            FeatureConditionKind.ISLAND -> ISLAND_PREFIX
+            FeatureConditionKind.ITEM -> ITEM_PREFIX
+        },
+    )
+
+    internal fun isActivationAllowed(
+        combinations: List<FeatureConditionCombination>,
+        context: FeatureConditionContext,
+        isConditionActivationReversed: Boolean,
+    ): Boolean = combinations.isEmpty() || combinations.any { combination ->
+        combination.conditions.isNotEmpty() && combination.conditions.all { it.matches(context) }
+    } != isConditionActivationReversed
 
     private fun FeatureCondition.matches(context: FeatureConditionContext): Boolean = when (kind) {
         FeatureConditionKind.EVENT ->
@@ -68,35 +58,46 @@ object FeatureConditions {
     private fun String.normalizedValue(): String = trim().uppercase(Locale.US)
 }
 
+internal data class FeatureConditionContext(
+    val isInSkyBlock: Boolean,
+    val island: SkyBlockIsland?,
+    val activeEvents: Set<SkyBlockEvent>,
+    val heldItemId: String?,
+)
+
 internal class FeatureConditionState {
-    private val activationCache = FeatureConditionActivationCache()
-    private val itemCatalogue = FeatureItemConditionCatalogue()
+    private val itemNames = linkedMapOf<String, String>()
+    private var cachedActivation: CachedActivation? = null
     @Volatile
     private var version = 0L
 
     fun startSession(combinations: List<FeatureConditionCombination>) {
-        combinations.flatMap { it.conditions }.filter { it.kind == FeatureConditionKind.ISLAND }.forEach { condition ->
+        val conditions = combinations.flatMap { it.conditions }
+        conditions.filter { it.kind == FeatureConditionKind.ISLAND }.forEach { condition ->
             val island = SkyBlockIsland.getByConditionValue(condition.value) ?: return@forEach
             condition.value = island.name
-            condition.displayName = "On Island: ${island.displayName}"
+            condition.displayName = "$ISLAND_PREFIX${island.displayName}"
         }
-        itemCatalogue.startSession(combinations)
+        itemNames.clear()
+        conditions.filter { it.kind == FeatureConditionKind.ITEM }.forEach { condition ->
+            itemNames.putIfAbsent(condition.value, condition.displayName)
+        }
     }
 
     fun isActivationAllowed(
         combinations: List<FeatureConditionCombination>,
         heldItemId: String?,
         isConditionActivationReversed: Boolean,
-    ): Boolean = activationCache.isActivationAllowed(
-        FeatureConditionActivationKey(
+    ): Boolean {
+        val key = ActivationKey(
             locationVersion = HypixelLocationState.locationVersion,
             eventVersion = SkyBlockEventState.version,
             rulesVersion = version,
             heldItemId = heldItemId,
             isConditionActivationReversed = isConditionActivationReversed,
-        ),
-    ) {
-        FeatureConditions.isActivationAllowed(
+        )
+        cachedActivation?.takeIf { it.key == key }?.let { return it.isActivationAllowed }
+        val isActivationAllowed = FeatureConditions.isActivationAllowed(
             combinations,
             FeatureConditionContext(
                 isInSkyBlock = HypixelLocationState.inSkyBlock,
@@ -106,67 +107,62 @@ internal class FeatureConditionState {
             ),
             isConditionActivationReversed,
         )
+        cachedActivation = CachedActivation(key, isActivationAllowed)
+        return isActivationAllowed
     }
 
     fun addHeldItem(
         source: FabricClientCommandSource,
         featureName: String,
         combinations: MutableList<FeatureConditionCombination>,
-    ): Int = FeatureItemConditionCommand.addHeldItem(
-        source = source,
-        featureName = featureName,
-        combinations = combinations,
-        catalogue = itemCatalogue,
-        onChanged = ::markChanged,
-    )
+    ): Int {
+        val stack = Minecraft.getInstance().player?.mainHandItem
+        val rawItemId = stack?.skyBlockId()
+        val item = when (
+            val result = FeatureItemConditionInput.resolve(
+                isEmpty = stack == null || stack.isEmpty,
+                itemId = rawItemId,
+                canonicalName = SkyBlockItemNames.displayName(rawItemId),
+            )
+        ) {
+            is FeatureItemInputResult.Rejected -> {
+                SkysoftChat.error(source, result.reason.message)
+                return 0
+            }
+            is FeatureItemInputResult.Ready -> result
+        }
+        val label = "$ITEM_PREFIX${item.cleanName}"
+        if (itemNames.putIfAbsent(item.itemId, label) != null) {
+            SkysoftChat.error(source, "That item is already available in $featureName combinations.")
+            return 0
+        }
+        combinations.add(
+            0,
+            FeatureConditionCombination(mutableListOf(FeatureCondition(FeatureConditionKind.ITEM, item.itemId, label))),
+        )
+        markChanged()
+        SkysoftConfigGui.config().saveNow()
+        SkysoftChat.feedback(source, "Added ${item.cleanName} as a new $featureName combination.")
+        return Command.SINGLE_SUCCESS
+    }
 
-    fun itemConditions(): List<FeatureCondition> = itemCatalogue.conditions()
+    fun itemConditions(): List<FeatureCondition> = itemNames.map { (itemId, displayName) ->
+        FeatureCondition(FeatureConditionKind.ITEM, itemId, displayName)
+    }
 
     fun markChanged() {
         version++
     }
-}
 
-class FeatureItemConditionCatalogue {
-    private val itemNames = linkedMapOf<String, String>()
+    private data class ActivationKey(
+        val locationVersion: Long,
+        val eventVersion: Long,
+        val rulesVersion: Long,
+        val heldItemId: String?,
+        val isConditionActivationReversed: Boolean,
+    )
 
-    fun startSession(combinations: List<FeatureConditionCombination>) {
-        itemNames.clear()
-        rememberActiveItems(combinations)
-    }
-
-    fun rememberActiveItems(combinations: List<FeatureConditionCombination>) {
-        combinations.asSequence()
-            .flatMap { it.conditions.asSequence() }
-            .filter { it.kind == FeatureConditionKind.ITEM }
-            .forEach { condition -> itemNames.putIfAbsent(condition.value, condition.displayName) }
-    }
-
-    fun addActiveItem(
-        combinations: MutableList<FeatureConditionCombination>,
-        itemId: String,
-        displayName: String,
-    ): FeatureItemAddResult {
-        if (itemNames.putIfAbsent(itemId, displayName) != null) return FeatureItemAddResult.ALREADY_AVAILABLE
-        combinations.add(
-            0,
-            FeatureConditionCombination(
-                mutableListOf(FeatureCondition(FeatureConditionKind.ITEM, itemId, displayName)),
-            ),
-        )
-        return FeatureItemAddResult.ADDED
-    }
-
-    fun contains(itemId: String): Boolean = itemId in itemNames
-
-    fun conditions(): List<FeatureCondition> = itemNames.map { (itemId, displayName) ->
-        FeatureCondition(FeatureConditionKind.ITEM, itemId, displayName)
-    }
-}
-
-enum class FeatureItemAddResult {
-    ADDED,
-    ALREADY_AVAILABLE,
+    private data class CachedActivation(val key: ActivationKey, val isActivationAllowed: Boolean)
 }
 
 object FeatureItemConditionInput {
@@ -185,80 +181,12 @@ sealed interface FeatureItemInputResult {
     data class Rejected(val reason: FeatureItemRejection) : FeatureItemInputResult
 }
 
-enum class FeatureItemRejection {
-    EMPTY_HAND,
-    MISSING_ID,
-    NAME_UNAVAILABLE,
+enum class FeatureItemRejection(val message: String) {
+    EMPTY_HAND("Hold a SkyBlock item first."),
+    MISSING_ID("The held item has no SkyBlock item ID."),
+    NAME_UNAVAILABLE("The clean item name is still loading. Try the command again shortly."),
 }
 
-object FeatureItemConditionCommand {
-    fun addHeldItem(
-        source: FabricClientCommandSource,
-        featureName: String,
-        combinations: MutableList<FeatureConditionCombination>,
-        catalogue: FeatureItemConditionCatalogue,
-        onChanged: () -> Unit,
-    ): Int {
-        val stack = Minecraft.getInstance().player?.mainHandItem
-        val rawItemId = stack?.skyBlockId()
-        return when (
-            val result = FeatureItemConditionInput.resolve(
-                isEmpty = stack == null || stack.isEmpty,
-                itemId = rawItemId,
-                canonicalName = SkyBlockItemNames.displayName(rawItemId),
-            )
-        ) {
-            is FeatureItemInputResult.Rejected -> reject(source, result.reason)
-            is FeatureItemInputResult.Ready -> {
-                val label = "Holding Item: ${result.cleanName}"
-                if (
-                    catalogue.addActiveItem(combinations, result.itemId, label) ==
-                    FeatureItemAddResult.ALREADY_AVAILABLE
-                ) {
-                    SkysoftChat.error(source, "That item is already available in $featureName combinations.")
-                    return 0
-                }
-                onChanged()
-                SkysoftConfigGui.config().saveNow()
-                SkysoftChat.feedback(source, "Added ${result.cleanName} as a new $featureName combination.")
-                Command.SINGLE_SUCCESS
-            }
-        }
-    }
-
-    private fun reject(source: FabricClientCommandSource, rejection: FeatureItemRejection): Int {
-        val message = when (rejection) {
-            FeatureItemRejection.EMPTY_HAND -> "Hold a SkyBlock item first."
-            FeatureItemRejection.MISSING_ID -> "The held item has no SkyBlock item ID."
-            FeatureItemRejection.NAME_UNAVAILABLE ->
-                "The clean item name is still loading. Try the command again shortly."
-        }
-        SkysoftChat.error(source, message)
-        return 0
-    }
-}
-
-internal data class FeatureConditionActivationKey(
-    val locationVersion: Long,
-    val eventVersion: Long,
-    val rulesVersion: Long,
-    val heldItemId: String?,
-    val isConditionActivationReversed: Boolean = false,
-)
-
-internal class FeatureConditionActivationCache {
-    private var cachedActivation: CachedActivation? = null
-
-    fun isActivationAllowed(key: FeatureConditionActivationKey, calculateIsActivationAllowed: () -> Boolean): Boolean {
-        val cached = cachedActivation
-        if (key == cached?.key) return cached.isActivationAllowed
-        val isActivationAllowed = calculateIsActivationAllowed()
-        cachedActivation = CachedActivation(key, isActivationAllowed)
-        return isActivationAllowed
-    }
-
-    private data class CachedActivation(
-        val key: FeatureConditionActivationKey,
-        val isActivationAllowed: Boolean,
-    )
-}
+private const val EVENT_PREFIX = "Event: "
+private const val ISLAND_PREFIX = "On Island: "
+private const val ITEM_PREFIX = "Holding Item: "
