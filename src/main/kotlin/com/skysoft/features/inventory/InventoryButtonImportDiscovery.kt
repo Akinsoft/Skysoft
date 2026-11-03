@@ -14,7 +14,7 @@ internal fun discoverInventoryButtonImportSources(path: Path): List<InventoryBut
     return findInventoryButtonImportSources(candidateRoots(normalized))
 }
 
-internal fun findInventoryButtonImportSources(roots: Iterable<Path>): List<InventoryButtonImportSource> {
+private fun findInventoryButtonImportSources(roots: Iterable<Path>): List<InventoryButtonImportSource> {
     val sources = linkedMapOf<Path, InventoryButtonImportSource>()
     roots.asSequence()
         .map { it.toAbsolutePath().normalize() }
@@ -51,15 +51,12 @@ private fun defaultInventoryButtonImportRoots(): Set<Path> {
 }
 
 private fun candidateRoots(path: Path): Set<Path> = buildSet {
+    val name = path.fileName?.toString()
+    val isMinecraftDirectory = name.equals(".minecraft", ignoreCase = true)
     add(path)
     add(path.resolve(".minecraft"))
-    if (path.fileName?.toString()?.equals("config", ignoreCase = true) == true) path.parent?.let(::add)
-    if (path.fileName?.toString()?.equals(".minecraft", ignoreCase = true) == true) path.parent?.let(::add)
-    val parent = if (path.fileName?.toString()?.equals(".minecraft", ignoreCase = true) == true) {
-        path.parent?.parent
-    } else {
-        path.parent
-    }
+    if (isMinecraftDirectory || name.equals("config", ignoreCase = true)) path.parent?.let(::add)
+    val parent = if (isMinecraftDirectory) path.parent?.parent else path.parent
     parent?.takeIf { it.fileName?.toString()?.lowercase(Locale.ROOT) in PROFILE_CONTAINER_NAMES }?.let {
         addAll(profileRoots(it))
     }

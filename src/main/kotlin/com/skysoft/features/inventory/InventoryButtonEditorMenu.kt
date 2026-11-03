@@ -5,7 +5,6 @@ import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.InventoryButtonsConfig
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
-import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
@@ -24,14 +23,14 @@ import net.minecraft.client.input.MouseButtonEvent
 internal class InventoryButtonEditorMenu(
     private val config: () -> InventoryButtonsConfig,
     private val onLayoutChanged: () -> Unit,
-    nanoTime: () -> Long = System::nanoTime,
 ) {
-    private val transition = PanelFadeTransition(nanoTime)
+    private val transition = PanelFadeTransition()
     private val renameField = TextFieldState(maxLength = InventoryButtonsConfig.PRESET_NAME_MAX_LENGTH)
     private var pendingAction: PendingAction? = null
     private var renamingPreset: Int? = null
     private var lastMenuLayout: MenuLayout? = null
     private var status: MenuStatus? = null
+    private val isOpen get() = transition.isVisible && !transition.isClosing
 
     fun render(
         context: GuiGraphicsExtractor,
@@ -47,14 +46,14 @@ internal class InventoryButtonEditorMenu(
             Minecraft.getInstance().font,
             toggle,
             "...",
-            selected = transition.isVisible && !transition.isClosing,
+            selected = isOpen,
             hovered = toggle.contains(mouseX, mouseY),
             enabled = true,
         )
         if (toggle.contains(mouseX, mouseY)) {
             SkysoftNativeTooltip.setForNextFrame(
                 context,
-                listOf(if (transition.isVisible && !transition.isClosing) "§7Close layout menu" else "§7Open layout menu"),
+                listOf(if (isOpen) "§7Close layout menu" else "§7Open layout menu"),
                 mouseX,
                 mouseY,
             )
@@ -67,20 +66,7 @@ internal class InventoryButtonEditorMenu(
         }
         val layout = MenuLayout.create(editorPanel, screenWidth, screenHeight)
         lastMenuLayout = layout
-        context.fill(
-            layout.panel.x,
-            layout.panel.y,
-            layout.panel.x + layout.panel.width,
-            layout.panel.y + layout.panel.height,
-            OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity),
-        )
-        context.outline(
-            layout.panel.x,
-            layout.panel.y,
-            layout.panel.width,
-            layout.panel.height,
-            OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity),
-        )
+        OverlayPanelStyle.draw(context, layout.panel, opacity)
         renderPrimaryActions(context, layout, mouseX, mouseY, opacity)
         renderPresets(context, layout, mouseX, mouseY, opacity)
         renderSharingActions(context, layout, mouseX, mouseY, opacity)
@@ -93,7 +79,7 @@ internal class InventoryButtonEditorMenu(
             toggleBounds(editorPanel).contains(mouseX, mouseY)
         ) {
             SoundUtilities.playClickSound()
-            if (transition.isVisible && !transition.isClosing) closeMenu() else transition.show()
+            if (isOpen) closeMenu() else transition.show()
             true
         } else {
             wasPanelClickHandled(click, mouseX, mouseY)

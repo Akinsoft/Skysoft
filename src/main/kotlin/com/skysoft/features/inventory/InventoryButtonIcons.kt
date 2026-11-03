@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.mojang.authlib.GameProfile
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
@@ -24,6 +25,7 @@ internal object InventoryButtonIcons {
     )
 
     private const val PLAYER_HEAD_CACHE_REFRESH_INTERVAL_MILLIS = 4 * 60 * 1000L
+    private const val MAX_ICON_CANDIDATES = 1024
 
     private val iconStackCache = linkedMapOf<String, ItemStack>()
     private val playerNamePattern = Regex("^[A-Za-z0-9_]{3,16}$")
@@ -58,10 +60,10 @@ internal object InventoryButtonIcons {
         if (trimmed.isEmpty() || trimmed.startsWith("text:", ignoreCase = true)) return null
         inventoryButtonTextureHash(trimmed)?.let { textureHash ->
             return iconStackCache.getOrPut("skull:$textureHash") {
-                texturedHeadStack(textureHash)
+                SkyBlockStackFactory.texturedHead(textureHash, name = null)
             }.copy()
         }
-        playerNameFromIcon(trimmed)?.let { playerName ->
+        explicitPlayerNameQuery(trimmed)?.let { playerName ->
             return iconStackCache.getOrPut("player:${playerName.lowercase(Locale.ROOT)}") {
                 playerHeadStack(playerName)
             }.copy()
@@ -74,30 +76,30 @@ internal object InventoryButtonIcons {
         }.takeUnless { it.isEmpty }
     }
 
-    fun searchIconCandidates(query: String, limit: Int = 1024): List<IconCandidate> {
+    fun searchIconCandidates(query: String): List<IconCandidate> {
         explicitPlayerNameQuery(query)?.let { playerName ->
-            return listOf(playerHeadCandidate(playerName)).take(limit)
+            return listOf(playerHeadCandidate(playerName))
         }
 
         val results = linkedMapOf<String, IconCandidate>()
-        vanillaIconCandidates(query, limit).forEach { candidate ->
+        vanillaIconCandidates(query).forEach { candidate ->
             results.putIfAbsent(candidate.id, candidate)
         }
         if (query.isNotBlank()) {
             SkyBlockDataRepository.ensureLoaded()
             SkyBlockDataRepository.search(query).asSequence()
                 .filter { it.key.kind == ItemListEntryKind.SKYBLOCK }
-                .take(limit)
+                .take(MAX_ICON_CANDIDATES)
                 .forEach { entry ->
                     val stack = SkyBlockDataRepository.stack(entry.key) ?: return@forEach
                     val id = "skyblock:${entry.key.id}"
                     results.putIfAbsent(id, IconCandidate(id, entry.displayName, stack))
                 }
         }
-        playerIconCandidates(query, limit).forEach { candidate ->
+        playerIconCandidates(query).forEach { candidate ->
             results.putIfAbsent(candidate.id, candidate)
         }
-        return results.values.take(limit).toList()
+        return results.values.take(MAX_ICON_CANDIDATES).toList()
     }
 
     fun clearIconCache() {
@@ -105,10 +107,10 @@ internal object InventoryButtonIcons {
         nextPlayerHeadCacheRefreshMillis = 0L
     }
 
-    private fun playerIconCandidates(query: String, limit: Int): List<IconCandidate> {
+    private fun playerIconCandidates(query: String): List<IconCandidate> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return emptyList()
-        val words = trimmed.lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.isNotBlank() }
+        val words = searchWords(trimmed)
         val results = linkedMapOf<String, IconCandidate>()
 
         fun add(candidate: IconCandidate) {
@@ -117,14 +119,14 @@ internal object InventoryButtonIcons {
 
         TabListApi.playerProfiles.asSequence()
             .filter { player -> player.profileName.isNotBlank() && matchesPlayerQuery(player.profileName, words) }
-            .take(limit)
+            .take(MAX_ICON_CANDIDATES)
             .forEach { player -> add(playerHeadCandidate(player.profileName, player.profile)) }
 
         typedPlayerNameQuery(trimmed)?.let { playerName ->
             add(playerHeadCandidate(playerName))
         }
 
-        return results.values.take(limit).toList()
+        return results.values.take(MAX_ICON_CANDIDATES).toList()
     }
 
     private fun playerHeadCandidate(
@@ -146,31 +148,25 @@ internal object InventoryButtonIcons {
         return stack
     }
 
-    private fun texturedHeadStack(textureHash: String): ItemStack =
-        SkyBlockStackFactory.texturedHead(textureHash, name = null)
-
-    private fun playerNameFromIcon(icon: String): String? = explicitPlayerNameQuery(icon)
-
     private fun explicitPlayerNameQuery(query: String): String? {
         val trimmed = query.trim()
         val prefix = playerIconPrefixes.firstOrNull { trimmed.startsWith("$it:", ignoreCase = true) } ?: return null
         return typedPlayerNameQuery(trimmed.substring(prefix.length + 1))
     }
 
-    private fun typedPlayerNameQuery(query: String): String? {
-        val name = query.trim().removePrefix("@").takeIf { it.isNotBlank() } ?: return null
-        return name.takeIf { playerNamePattern.matches(it) }
-    }
+    private fun typedPlayerNameQuery(query: String): String? =
+        query.trim().removePrefix("@").takeIf(playerNamePattern::matches)
 
     private fun matchesPlayerQuery(playerName: String, words: List<String>): Boolean {
-        if (words.isEmpty()) return false
         val searchable = playerName.lowercase(Locale.ROOT)
         return words.all { it in searchable }
     }
 
-    private fun vanillaIconCandidates(query: String, limit: Int): List<IconCandidate> {
-        val normalizedQuery = query.trim().lowercase(Locale.ROOT)
-        val words = normalizedQuery.split(Regex("\\s+")).filter { it.isNotBlank() }
+    private fun searchWords(query: String): List<String> =
+        query.trim().lowercase(Locale.ROOT).split(whitespacePattern).filter { it.isNotBlank() }
+
+    private fun vanillaIconCandidates(query: String): List<IconCandidate> {
+        val words = searchWords(query)
         return BuiltInRegistries.ITEM.keySet().asSequence()
             .mapNotNull { id ->
                 val item = BuiltInRegistries.ITEM.getValue(id)
@@ -180,9 +176,9 @@ internal object InventoryButtonIcons {
                 val searchable = buildString {
                     append(id.toString()).append(' ')
                     append(id.path.replace('_', ' ')).append(' ')
-                    append(display.lowercase(Locale.ROOT))
+                    append(display)
                 }.lowercase(Locale.ROOT)
-                if (words.isNotEmpty() && words.any { it !in searchable }) return@mapNotNull null
+                if (words.any { it !in searchable }) return@mapNotNull null
                 IconCandidate(id.toString(), display, stack)
             }
             .sortedWith(
@@ -190,7 +186,7 @@ internal object InventoryButtonIcons {
                     it.id in priorityIcons
                 }.thenBy { it.displayName },
             )
-            .take(limit)
+            .take(MAX_ICON_CANDIDATES)
             .toList()
     }
 
@@ -198,7 +194,7 @@ internal object InventoryButtonIcons {
         if (icon.startsWith("skyblock:", ignoreCase = true)) return icon.substringAfter(':').trim().takeIf { it.isNotEmpty() }
         if (':' in icon) return null
         if (resolveItem(icon) != null) return null
-        return icon.trim().uppercase(Locale.ROOT).takeIf { it.isNotEmpty() }
+        return icon.uppercase(Locale.ROOT)
     }
 
     private fun resolveItem(icon: String): Item? {
@@ -221,7 +217,7 @@ internal object InventoryButtonIcons {
     )
 }
 
-internal fun inventoryButtonVanillaIconIdentifier(icon: String): Identifier? {
+private fun inventoryButtonVanillaIconIdentifier(icon: String): Identifier? {
     val alias = iconAliases[icon.uppercase(Locale.ROOT)] ?: icon
     val normalized = when {
         ':' in alias -> alias.lowercase(Locale.ROOT)

@@ -11,6 +11,7 @@ import com.skysoft.config.normalizedInventoryButtonScale
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.features.inventory.InventoryButtonLayout.BUTTON_SIZE
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ColorUtilities.withAlpha
@@ -32,8 +33,6 @@ private const val ADD_ICON_X_OFFSET = 6
 private const val ADD_ICON_Y_OFFSET = 5
 
 object InventoryButtonManager {
-    const val BUTTON_SIZE = InventoryButtonLayout.BUTTON_SIZE
-
     private const val BUTTON_INNER_INSET = 1
     private const val BUTTON_HIGHLIGHT_INSET = 2
     private const val BUTTON_HIGHLIGHT_BOTTOM_Y_OFFSET = 7
@@ -43,6 +42,8 @@ object InventoryButtonManager {
     private const val INACTIVE_BUTTON_ALPHA = 0xAA
     private const val BUTTON_HOVER_COLOR = 0x35FFFFFF
     private const val BUTTON_SELECTED_COLOR = 0xFF55FFFF.toInt()
+
+    internal val backgroundCount get() = buttonStyles.size
 
     private val config get() = SkysoftConfigGui.config().inventory.controls.inventoryButtons
     private var hoveredButton: InventoryButtonConfig? = null
@@ -112,64 +113,42 @@ object InventoryButtonManager {
     }
 
     @JvmStatic
-    fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult {
-        if (!shouldRender(screen)) return InputHandlingResult.IGNORED
-        if (config.settings.clickType != InventoryButtonClickType.MOUSE_DOWN) return InputHandlingResult.IGNORED
-        return activateButtonAtClick(screen, click)
-    }
+    fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
+        activateButtonAtClick(screen, click, InventoryButtonClickType.MOUSE_DOWN)
 
     @JvmStatic
-    fun handleMouseRelease(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult {
-        if (!shouldRender(screen)) return InputHandlingResult.IGNORED
-        if (config.settings.clickType != InventoryButtonClickType.MOUSE_UP) return InputHandlingResult.IGNORED
-        return activateButtonAtClick(screen, click)
-    }
+    fun handleMouseRelease(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
+        activateButtonAtClick(screen, click, InventoryButtonClickType.MOUSE_UP)
 
     fun placements(screen: AbstractContainerScreen<*>, includeInactive: Boolean): List<ButtonPlacement> {
-        val accessor = screen as AbstractContainerScreenAccessor
         val reserved = ItemListController.reservedBounds(screen)
-        return placements(
-            left = accessor.skysoftGetLeftPos(),
-            top = accessor.skysoftGetTopPos(),
-            imageWidth = accessor.skysoftGetImageWidth(),
-            imageHeight = accessor.skysoftGetImageHeight(),
-            playerInventory = screen is InventoryScreen,
-            includeInactive = includeInactive,
-        ).filterNot { placement -> reserved?.intersects(placement.bounds) == true }
+        return placements(canvas(screen), includeInactive)
+            .filterNot { placement -> reserved?.intersects(placement.bounds) == true }
     }
 
-    fun placements(
-        left: Int,
-        top: Int,
-        imageWidth: Int,
-        imageHeight: Int,
-        playerInventory: Boolean,
-        includeInactive: Boolean,
-    ): List<ButtonPlacement> {
-        val canvas = InventoryButtonCanvas(Rect(left, top, imageWidth, imageHeight), playerInventory)
-        return config.buttons.mapIndexedNotNull { index, button ->
+    internal fun placements(canvas: InventoryButtonCanvas, includeInactive: Boolean): List<ButtonPlacement> =
+        config.buttons.mapIndexedNotNull { index, button ->
             if (!includeInactive && !button.isActive()) return@mapIndexedNotNull null
-            if (button.playerInvOnly && !playerInventory) return@mapIndexedNotNull null
+            if (button.playerInvOnly && !canvas.playerInventory) return@mapIndexedNotNull null
             val bounds = InventoryButtonLayout.buttonBounds(canvas, button)
             if (canvas.overlapsContainer(bounds)) return@mapIndexedNotNull null
             ButtonPlacement(index, button, bounds)
         }
-    }
 
     fun moveButton(screen: AbstractContainerScreen<*>, index: Int, screenX: Int, screenY: Int) {
         val button = config.buttons.getOrNull(index) ?: return
+        InventoryButtonLayout.moveButton(canvas(screen), button, screenX, screenY)
+    }
+
+    private fun canvas(screen: AbstractContainerScreen<*>): InventoryButtonCanvas {
         val accessor = screen as AbstractContainerScreenAccessor
-        val left = accessor.skysoftGetLeftPos()
-        val top = accessor.skysoftGetTopPos()
-        val imageWidth = accessor.skysoftGetImageWidth()
-        val imageHeight = accessor.skysoftGetImageHeight()
-        val playerInventory = screen is InventoryScreen
-        InventoryButtonLayout.moveButton(
-            InventoryButtonCanvas(Rect(left, top, imageWidth, imageHeight), playerInventory),
-            button,
-            screenX,
-            screenY,
+        val container = Rect(
+            accessor.skysoftGetLeftPos(),
+            accessor.skysoftGetTopPos(),
+            accessor.skysoftGetImageWidth(),
+            accessor.skysoftGetImageHeight(),
         )
+        return InventoryButtonCanvas(container, playerInventory = screen is InventoryScreen)
     }
 
     fun drawButton(
@@ -243,24 +222,12 @@ object InventoryButtonManager {
 
     fun applySkyBlockPreset() {
         val defaults = InventoryButtonDefaults.create()
-        val universalSlots = defaults.withIndex()
-            .filter { !it.value.playerInvOnly }
-            .map { it.index }
-        val active = listOf(
-            "/craft" to "minecraft:crafting_table",
-            "/storage" to "minecraft:chest",
-            "/wardrobe" to "minecraft:leather_chestplate",
-            "/pets" to "minecraft:bone",
-            "/bz" to "minecraft:gold_ingot",
-            "/warp hub" to "minecraft:compass",
-            "/warp home" to "minecraft:grass_block",
-            "/warp dungeon_hub" to "minecraft:diamond_sword",
-        ).mapIndexed { index, (command, icon) -> PresetButton(index, command, icon) }
-        for (preset in active) {
-            val button = defaults.getOrNull(universalSlots.getOrNull(preset.index) ?: continue) ?: continue
-            button.command = preset.command
-            button.icon = preset.icon
-            button.backgroundIndex = preset.index % buttonStyles.size
+        val universalButtons = defaults.filter { !it.playerInvOnly }
+        skyBlockPresetButtons.zip(universalButtons).forEachIndexed { index, (preset, button) ->
+            val (command, icon) = preset
+            button.command = command
+            button.icon = icon
+            button.backgroundIndex = index % buttonStyles.size
         }
         config.replaceActiveButtons(defaults)
     }
@@ -273,7 +240,12 @@ object InventoryButtonManager {
         return config.buttons.any { it.isActive() && (!it.playerInvOnly || screen is InventoryScreen) }
     }
 
-    private fun activateButtonAtClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult {
+    private fun activateButtonAtClick(
+        screen: AbstractContainerScreen<*>,
+        click: MouseButtonEvent,
+        clickType: InventoryButtonClickType,
+    ): InputHandlingResult {
+        if (!shouldRender(screen) || config.settings.clickType != clickType) return InputHandlingResult.IGNORED
         if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return InputHandlingResult.IGNORED
         val mouseX = click.x().toInt()
         val mouseY = click.y().toInt()
@@ -300,7 +272,17 @@ object InventoryButtonManager {
     }
 
     private data class ButtonStyle(val border: Int, val fill: Int, val highlight: Int)
-    private data class PresetButton(val index: Int, val command: String, val icon: String)
+
+    private val skyBlockPresetButtons = listOf(
+        "/craft" to "minecraft:crafting_table",
+        "/storage" to "minecraft:chest",
+        "/wardrobe" to "minecraft:leather_chestplate",
+        "/pets" to "minecraft:bone",
+        "/bz" to "minecraft:gold_ingot",
+        "/warp hub" to "minecraft:compass",
+        "/warp home" to "minecraft:grass_block",
+        "/warp dungeon_hub" to "minecraft:diamond_sword",
+    )
 
     private val buttonStyles = listOf(
         ButtonStyle(0xFF6B6B6B.toInt(), 0xFF2C2C2C.toInt(), 0xFF404040.toInt()),
@@ -311,8 +293,6 @@ object InventoryButtonManager {
         ButtonStyle(0xFFD84343.toInt(), 0xFF4A1818.toInt(), 0xFF742525.toInt()),
         ButtonStyle(0xFF00A6A6.toInt(), 0xFF083B3B.toInt(), 0xFF0E5D5D.toInt()),
     )
-
-
 }
 
 private fun drawButtonContents(
@@ -330,14 +310,14 @@ private fun drawButtonContents(
             context.item(stack, 1, 1)
             return
         }
-        drawFallbackIcon(context, 0, 0, button.command, icon)
+        drawFallbackIcon(context, button.command, icon)
     } else {
         val color = if (hovered || selected) 0xFFFFFFFF.toInt() else 0xFFCCCCCC.toInt()
         context.text(Minecraft.getInstance().font, "+", ADD_ICON_X_OFFSET, ADD_ICON_Y_OFFSET, color, false)
     }
 }
 
-private fun drawFallbackIcon(context: GuiGraphicsExtractor, x: Int, y: Int, command: String, icon: String?) {
+private fun drawFallbackIcon(context: GuiGraphicsExtractor, command: String, icon: String?) {
     val font = Minecraft.getInstance().font
     val explicitText = icon?.takeIf { it.startsWith("text:", ignoreCase = true) }
         ?.substringAfter(':')
@@ -349,9 +329,9 @@ private fun drawFallbackIcon(context: GuiGraphicsExtractor, x: Int, y: Int, comm
         else -> "?"
     }.uppercase(Locale.ROOT)
     val draw = text.take(max(MIN_FALLBACK_ICON_LENGTH, EXPLICIT_TEXT_ICON_MAX_LENGTH - text.length / 2))
-    val textX = x + (InventoryButtonManager.BUTTON_SIZE - font.width(draw)) / 2
+    val textX = (BUTTON_SIZE - font.width(draw)) / 2
     val color = if (icon != null && explicitText == null) 0xFFFF5555.toInt() else 0xFFFFFFFF.toInt()
-    context.text(font, draw, textX, y + FALLBACK_ICON_TEXT_Y_OFFSET, color, true)
+    context.text(font, draw, textX, FALLBACK_ICON_TEXT_Y_OFFSET, color, true)
 }
 
 private const val EXPLICIT_TEXT_ICON_MAX_LENGTH = 3

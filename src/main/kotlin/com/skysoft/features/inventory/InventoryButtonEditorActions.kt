@@ -5,14 +5,13 @@ import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.HudEditorSnapshot
-import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.input.InputHandlingResult
 
 internal fun inventoryButtonEditorState(): HudEditorSnapshot {
     val config = SkysoftConfigGui.config().inventory.controls.inventoryButtons
     val buttons = config.buttons.map(InventoryButtonConfig::copy)
     val values = buttons.map(InventoryButtonConfig::editorValue)
-    return hudEditorSnapshot(values) { config.replaceActiveButtons(buttons) }
+    return HudEditorSnapshot(values) { config.replaceActiveButtons(buttons) }
 }
 
 private data class InventoryButtonEditorValue(
