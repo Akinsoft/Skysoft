@@ -1,6 +1,5 @@
 package com.skysoft.features.misc.custombars
 
-import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.core.HudPosition
 import com.skysoft.features.misc.AbsorptionHeartLayout
 import com.skysoft.features.misc.SkyBlockLevelBar
@@ -42,7 +41,7 @@ internal enum class VanillaCustomBarDisplay {
             } == true
             EXPERIENCE -> gameMode.hasExperience() && (
                 (
-                    !SkysoftConfigGui.config().gui.playerHud.customBars.settings.numbers.experience &&
+                    !config.settings.numbers.experience &&
                         SkyBlockLevelBar.experienceLevelVisibility(player.experienceLevel) > 0
                     ) || isExperienceBarVisible()
                 )

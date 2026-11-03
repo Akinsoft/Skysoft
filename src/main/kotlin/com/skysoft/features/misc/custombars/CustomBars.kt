@@ -1,8 +1,6 @@
 package com.skysoft.features.misc.custombars
 
 import com.skysoft.config.CustomBarDisplayMode
-import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.misc.actionbar.withoutRanges
 import com.skysoft.gui.BottomHudLayout
@@ -23,8 +21,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.resources.Identifier
 
 object CustomBars {
-    private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
-    private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
     private val textElements by lazy {
         CustomBarPart.entries.filter(CustomBarPart::isResource).map(::CustomBarTextElement)
     }

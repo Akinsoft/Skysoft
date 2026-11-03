@@ -2,8 +2,6 @@ package com.skysoft.features.misc.custombars
 
 import com.skysoft.config.CustomReadoutDetailsConfig
 import com.skysoft.config.CustomResourceBarDetailsConfig
-import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.skyblock.SkyBlockStatGlyph
 import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.custombars.CustomBarPart.Companion.MIN_TRACK_HEIGHT
@@ -27,6 +25,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.util.ARGB
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
@@ -172,7 +171,7 @@ internal class CustomBarRenderable private constructor(
 
     private fun drawExperienceIcon(context: GuiGraphicsExtractor, x: Int, barHeight: Int) {
         if (part.iconSlotWidth == 0) return
-        if (inRift && !SkyBlockLevelBar.isReplacingExperience) {
+        if (showsRiftTime) {
             val y = RESOURCE_BAR_Y + (barHeight - Minecraft.getInstance().font.lineHeight) / 2
             drawCustomBarText(
                 context,
@@ -196,25 +195,9 @@ internal class CustomBarRenderable private constructor(
         value: String,
         details: CustomReadoutDetailsConfig,
     ) {
-        val font = Minecraft.getInstance().font
-        val iconWidth = if (details.showIcon) font.width(icon) + READOUT_CONTENT_GAP else 0
-        val contentWidth = iconWidth + font.width(value)
-        val contentX = centeredReadoutX(contentWidth)
-        context.fillRoundedRect(
-            0,
-            READOUT_BACKGROUND_Y,
-            READOUT_WIDTH,
-            READOUT_HEIGHT,
-            details.backgroundColor.get().toColor().rgb,
-        )
-        if (details.showIcon) drawCustomBarText(context, icon, contentX, READOUT_CONTENT_Y, details.iconColor.get().toColor().rgb)
-        drawCustomBarText(
-            context,
-            value,
-            contentX + iconWidth,
-            READOUT_CONTENT_Y,
-            details.textColor.get().toColor().rgb,
-        )
+        drawReadout(context, value, details, Minecraft.getInstance().font.width(icon)) { x ->
+            drawCustomBarText(context, icon, x, READOUT_CONTENT_Y, details.iconColor.get().toColor().rgb)
+        }
     }
 
     private fun drawAirReadout(
@@ -222,11 +205,28 @@ internal class CustomBarRenderable private constructor(
         seconds: Int,
         details: CustomReadoutDetailsConfig,
     ) {
-        val text = "${seconds}s"
-        val font = Minecraft.getInstance().font
-        val iconWidth = if (details.showIcon) ICON_SIZE + READOUT_CONTENT_GAP else 0
-        val contentWidth = iconWidth + font.width(text)
-        val contentX = centeredReadoutX(contentWidth)
+        drawReadout(context, "${seconds}s", details, ICON_SIZE) { x ->
+            context.blitSprite(
+                RenderPipelines.GUI_TEXTURED,
+                AIR_SPRITE,
+                x,
+                READOUT_CONTENT_Y,
+                ICON_SIZE,
+                ICON_SIZE,
+                details.iconColor.get().toColor().rgb,
+            )
+        }
+    }
+
+    private fun drawReadout(
+        context: GuiGraphicsExtractor,
+        value: String,
+        details: CustomReadoutDetailsConfig,
+        iconSize: Int,
+        drawIcon: (Int) -> Unit,
+    ) {
+        val iconWidth = if (details.showIcon) iconSize + READOUT_CONTENT_GAP else 0
+        val contentX = centeredReadoutX(iconWidth + Minecraft.getInstance().font.width(value))
         context.fillRoundedRect(
             0,
             READOUT_BACKGROUND_Y,
@@ -234,20 +234,10 @@ internal class CustomBarRenderable private constructor(
             READOUT_HEIGHT,
             details.backgroundColor.get().toColor().rgb,
         )
-        if (details.showIcon) {
-            context.blitSprite(
-                RenderPipelines.GUI_TEXTURED,
-                AIR_SPRITE,
-                contentX,
-                READOUT_CONTENT_Y,
-                ICON_SIZE,
-                ICON_SIZE,
-                details.iconColor.get().toColor().rgb,
-            )
-        }
+        if (details.showIcon) drawIcon(contentX)
         drawCustomBarText(
             context,
-            text,
+            value,
             contentX + iconWidth,
             READOUT_CONTENT_Y,
             details.textColor.get().toColor().rgb,
@@ -269,10 +259,7 @@ internal class CustomBarRenderable private constructor(
     }
 }
 
-private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
-private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
-
-private fun net.minecraft.world.entity.player.Player.skyBlockSpeed(): Int =
+private fun Player.skyBlockSpeed(): Int =
     ((if (isSprinting) speed / SPRINT_SPEED_MULTIPLIER else speed) * SPEED_SCALE).roundToInt()
 
 private const val READOUT_HEIGHT = 9
