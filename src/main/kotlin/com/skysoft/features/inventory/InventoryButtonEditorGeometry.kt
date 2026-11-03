@@ -20,24 +20,24 @@ internal class InventoryButtonEditorGeometry(
     fun panelBounds(width: Int, height: Int, placements: List<Rect>): Rect {
         val content = previewContentBounds(placements)
         val maxPanelLeft = max(PANEL_MARGIN, width - PANEL_WIDTH - PANEL_MARGIN)
-        val right = content.x + content.width + previewSideGap(placements, rightSide = true)
+        val right = content.x + content.width + previewGap(placements) { it.x - InventoryButtonPreviewDimensions.WIDTH }
         if (right + PANEL_WIDTH <= width - PANEL_MARGIN) {
             return Rect(right, sidePanelTop(height, placements, rightSide = true), PANEL_WIDTH, PANEL_HEIGHT)
         }
 
-        val left = content.x - PANEL_WIDTH - previewSideGap(placements, rightSide = false)
+        val left = content.x - PANEL_WIDTH - previewGap(placements) { -(it.x + it.width) }
         if (left >= PANEL_MARGIN) {
             return Rect(left, sidePanelTop(height, placements, rightSide = false), PANEL_WIDTH, PANEL_HEIGHT)
         }
 
         val horizontal = (content.x + (content.width - PANEL_WIDTH) / 2)
             .coerceIn(PANEL_MARGIN, maxPanelLeft)
-        val below = content.y + content.height + previewVerticalGap(placements, bottomSide = true)
+        val below = content.y + content.height + previewGap(placements) { it.y - InventoryButtonPreviewDimensions.HEIGHT }
         if (below + PANEL_HEIGHT <= height - PANEL_MARGIN) {
             return Rect(horizontal, below, PANEL_WIDTH, PANEL_HEIGHT)
         }
 
-        val above = content.y - PANEL_HEIGHT - previewVerticalGap(placements, bottomSide = false)
+        val above = content.y - PANEL_HEIGHT - previewGap(placements) { -(it.y + it.height) }
         if (above >= PANEL_MARGIN) return Rect(horizontal, above, PANEL_WIDTH, PANEL_HEIGHT)
 
         val rightSpace = width - (content.x + content.width)
@@ -86,25 +86,8 @@ internal class InventoryButtonEditorGeometry(
         return Rect(x0, y0, x1 - x0, y1 - y0)
     }
 
-    private fun previewSideGap(placements: List<Rect>, rightSide: Boolean): Int {
-        val rawGap = placements.mapNotNull { placement ->
-            if (rightSide) {
-                (placement.x - InventoryButtonPreviewDimensions.WIDTH).takeIf { it >= 0 }
-            } else {
-                (0 - (placement.x + placement.width)).takeIf { it >= 0 }
-            }
-        }.minOrNull() ?: PREVIEW_PLACEMENT_GAP_FALLBACK
-        return (rawGap * scale).roundToInt().coerceAtLeast(1)
-    }
-
-    private fun previewVerticalGap(placements: List<Rect>, bottomSide: Boolean): Int {
-        val rawGap = placements.mapNotNull { placement ->
-            if (bottomSide) {
-                (placement.y - InventoryButtonPreviewDimensions.HEIGHT).takeIf { it >= 0 }
-            } else {
-                (0 - (placement.y + placement.height)).takeIf { it >= 0 }
-            }
-        }.minOrNull() ?: PREVIEW_PLACEMENT_GAP_FALLBACK
+    private fun previewGap(placements: List<Rect>, gap: (Rect) -> Int): Int {
+        val rawGap = placements.map(gap).filter { it >= 0 }.minOrNull() ?: PREVIEW_PLACEMENT_GAP_FALLBACK
         return (rawGap * scale).roundToInt().coerceAtLeast(1)
     }
 
@@ -142,4 +125,5 @@ internal object InventoryButtonPreviewDimensions {
     const val HEIGHT = InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT
     const val HORIZONTAL_MARGIN = 48
     const val VERTICAL_MARGIN = 32
+    val canvas = InventoryButtonCanvas(Rect(0, 0, WIDTH, HEIGHT), playerInventory = true)
 }

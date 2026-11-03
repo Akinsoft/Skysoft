@@ -3,6 +3,7 @@ package com.skysoft.features.inventory
 import com.skysoft.config.InventoryButtonClickType
 import com.skysoft.config.InventoryButtonConfig
 import com.skysoft.config.InventoryButtonDefaults
+import com.skysoft.config.InventoryButtonsConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.gui.Rect
 import java.nio.file.Path
@@ -21,13 +22,9 @@ internal object InventoryButtonImportService {
         recordDiscovery(discoverInventoryButtonImportSources(path))
 
     fun prepare(source: InventoryButtonImportSource): InventoryButtonImportPlan {
-        return try {
-            val read = InventoryButtonImportParser.read(source)
-            planInventoryButtonImport(read, config().buttons).also { pendingPlan = it }
-        } catch (exception: Exception) {
-            pendingPlan = null
-            throw exception
-        }
+        pendingPlan = null
+        val read = InventoryButtonImportParser.read(source)
+        return planInventoryButtonImport(read, config().buttons).also { pendingPlan = it }
     }
 
     fun confirmMerge(): InventoryButtonImportPlan? {
@@ -67,7 +64,7 @@ internal object InventoryButtonImportService {
         return sources
     }
 
-    private fun snapshot(config: com.skysoft.config.InventoryButtonsConfig) = ImportSnapshot(
+    private fun snapshot(config: InventoryButtonsConfig) = ImportSnapshot(
         config.buttons.map(InventoryButtonConfig::copy),
         config.enabled,
         config.settings.clickType,
@@ -96,7 +93,7 @@ internal object InventoryButtonImportService {
     )
 }
 
-internal fun planInventoryButtonImport(
+private fun planInventoryButtonImport(
     read: InventoryButtonImportReadResult,
     existingButtons: List<InventoryButtonConfig>,
 ): InventoryButtonImportPlan {
@@ -124,19 +121,12 @@ internal fun planInventoryButtonImport(
     return InventoryButtonImportPlan(read, merged, imported, duplicates, conflicts)
 }
 
-private fun importBounds(button: InventoryButtonConfig): Rect = InventoryButtonLayout.buttonBounds(
-    InventoryButtonCanvas(
-        Rect(0, 0, IMPORT_INVENTORY_WIDTH, InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT),
-        playerInventory = true,
-    ),
-    button,
-)
+private fun importBounds(button: InventoryButtonConfig): Rect =
+    InventoryButtonLayout.buttonBounds(InventoryButtonPreviewDimensions.canvas, button)
 
-internal fun inventoryButtonsWithEditorSlots(buttons: List<InventoryButtonConfig>): List<InventoryButtonConfig> =
+private fun inventoryButtonsWithEditorSlots(buttons: List<InventoryButtonConfig>): List<InventoryButtonConfig> =
     buttons + InventoryButtonDefaults.create().filter { slot ->
         buttons.none { button -> importBounds(button).intersects(importBounds(slot)) }
     }
 
 private fun normalizedCommand(command: String): String = command.trim().removePrefix("/").lowercase(Locale.ROOT)
-
-private const val IMPORT_INVENTORY_WIDTH = 176

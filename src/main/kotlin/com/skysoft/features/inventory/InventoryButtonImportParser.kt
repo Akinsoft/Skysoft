@@ -7,6 +7,7 @@ import com.google.gson.JsonParser
 import com.skysoft.config.InventoryButtonClickType
 import com.skysoft.config.InventoryButtonConfig
 import java.nio.file.Files
+import java.nio.file.Path
 
 internal object InventoryButtonImportParser {
     fun read(source: InventoryButtonImportSource): InventoryButtonImportReadResult = when (source.kind) {
@@ -89,7 +90,7 @@ internal object InventoryButtonImportParser {
                 playerInvOnly = if (kind == InventoryButtonImportKind.NEU) raw.playerInvOnly else isPlayerInventoryOnly,
                 anchorRight = raw.anchorRight,
                 anchorBottom = raw.anchorBottom,
-                backgroundIndex = raw.backgroundIndex.coerceIn(0, MAX_BACKGROUND_INDEX),
+                backgroundIndex = raw.backgroundIndex.coerceIn(0, InventoryButtonManager.backgroundCount - 1),
                 command = raw.command.orEmpty().trim().removePrefix("/"),
                 isUserCreated = false,
             )
@@ -97,7 +98,7 @@ internal object InventoryButtonImportParser {
         return ParsedButtons(parsed, malformed, substitutedIcons, unsupportedIcons, giganticButtons)
     }
 
-    private fun readJson(path: java.nio.file.Path): JsonObject {
+    private fun readJson(path: Path): JsonObject {
         val size = Files.size(path)
         if (size > MAX_IMPORT_FILE_BYTES) throw InventoryButtonImportException("Config is larger than 2 MB: $path")
         return try {
@@ -161,7 +162,6 @@ internal object InventoryButtonImportParser {
     private const val MAX_COMMAND_LENGTH = 256
     private const val MAX_ICON_LENGTH = 1024
     private const val MAX_TOOLTIP_DELAY = 1500
-    private const val MAX_BACKGROUND_INDEX = 6
     private val GSON = Gson()
 }
 

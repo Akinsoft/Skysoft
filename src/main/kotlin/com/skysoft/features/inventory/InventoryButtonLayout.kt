@@ -2,7 +2,6 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.INVENTORY_BUTTON_SCALE_STEP
 import com.skysoft.config.InventoryButtonConfig
-import com.skysoft.config.InventoryButtonDefaults
 import com.skysoft.config.MAX_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.MIN_INVENTORY_BUTTON_SCALE
 import com.skysoft.config.normalizedInventoryButtonScale
@@ -11,7 +10,7 @@ import kotlin.math.roundToInt
 
 internal object InventoryButtonLayout {
     internal val editorAddButtonBounds = Rect(
-        EDITOR_INVENTORY_WIDTH + EDITOR_ADD_BUTTON_GAP,
+        InventoryButtonPreviewDimensions.WIDTH + EDITOR_ADD_BUTTON_GAP,
         EDITOR_ADD_BUTTON_Y,
         BUTTON_SIZE,
         BUTTON_SIZE,
@@ -50,11 +49,7 @@ internal object InventoryButtonLayout {
     }
 
     fun nextEditorButtonSlot(buttons: List<InventoryButtonConfig>): InventoryButtonConfig {
-        val canvas = InventoryButtonCanvas(
-            Rect(0, 0, EDITOR_INVENTORY_WIDTH, InventoryButtonDefaults.PLAYER_INVENTORY_HEIGHT),
-            playerInventory = true,
-        )
-        val occupied = buttons.map { button -> buttonBounds(canvas, button) }
+        val occupied = buttons.map { button -> buttonBounds(InventoryButtonPreviewDimensions.canvas, button) }
         var x = editorAddButtonBounds.x + editorAddButtonBounds.width + EDITOR_BUTTON_GAP
         while (occupied.any { it.intersects(Rect(x, EDITOR_ADD_BUTTON_Y, BUTTON_SIZE, BUTTON_SIZE)) }) {
             x += BUTTON_SIZE + EDITOR_BUTTON_GAP
@@ -63,7 +58,6 @@ internal object InventoryButtonLayout {
     }
 
     const val BUTTON_SIZE = 18
-    private const val EDITOR_INVENTORY_WIDTH = 176
     private const val EDITOR_ADD_BUTTON_GAP = 2
     private const val EDITOR_ADD_BUTTON_Y = -19
     private const val EDITOR_BUTTON_GAP = 2
@@ -79,5 +73,5 @@ internal fun inventoryButtonScaleAfterScroll(scale: Float, scrollY: Double): Flo
         .coerceIn(MIN_INVENTORY_BUTTON_SCALE, MAX_INVENTORY_BUTTON_SCALE)
 }
 
-internal fun inventoryButtonSizeAtScale(scale: Float): Int =
+private fun inventoryButtonSizeAtScale(scale: Float): Int =
     (InventoryButtonLayout.BUTTON_SIZE * normalizedInventoryButtonScale(scale)).roundToInt().coerceAtLeast(1)

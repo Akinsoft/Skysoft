@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.InventoryButtonClickType
 import com.skysoft.config.InventoryButtonConfig
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import java.nio.file.Path
 import java.util.Locale
 
@@ -75,7 +76,7 @@ private fun normalizeImportedGiveIcon(icon: String): ImportedIcon {
         return ImportedIcon("player:$it", isSubstituted = true)
     }
     val item = icon.removePrefix("/")
-        .split(Regex("\\s+"))
+        .split(whitespacePattern)
         .drop(1)
         .firstOrNull { !it.startsWith('@') }
         ?.substringBefore('[')
