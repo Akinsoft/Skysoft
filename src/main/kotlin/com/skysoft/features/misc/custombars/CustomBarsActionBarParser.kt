@@ -34,12 +34,12 @@ internal object CustomBarsActionBarParser {
                 BarValue(it.value("current"), it.value("maximum"))
             },
             mana = manaMatch?.let {
-                BarValue(it.value("current"), it.value("maximum"), it.groups["overflow"]?.value?.skyBlockInt() ?: 0)
+                BarValue(it.value("current"), it.value("maximum"), it.groups["overflow"]?.value?.formatInt() ?: 0)
             },
             vitality = vitalityMatch?.let {
                 BarValue(it.value("current"), it.value("maximum"))
             },
-            defense = defenseMatch?.groups?.get("defense")?.value?.skyBlockInt(),
+            defense = defenseMatch?.groups?.get("defense")?.value?.formatInt(),
             removals = buildList {
                 healthMatch?.let {
                     val healingFollows = normalized.text.getOrNull(it.range.last + 1) == '+'
@@ -51,25 +51,19 @@ internal object CustomBarsActionBarParser {
                         ),
                     )
                 }
-                manaMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.MANA, text.actionBarSegmentRange(normalized.rawRange(it.range))))
-                }
-                vitalityMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.VITALITY, text.actionBarSegmentRange(normalized.rawRange(it.range))))
-                }
-                defenseMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.DEFENSE, text.actionBarSegmentRange(normalized.rawRange(it.range))))
-                }
-                riftTimeMatch?.let {
-                    add(StatusRemoval(CustomBarStatus.RIFT_TIME, text.actionBarSegmentRange(normalized.rawRange(it.range))))
+                listOf(
+                    CustomBarStatus.MANA to manaMatch,
+                    CustomBarStatus.VITALITY to vitalityMatch,
+                    CustomBarStatus.DEFENSE to defenseMatch,
+                    CustomBarStatus.RIFT_TIME to riftTimeMatch,
+                ).forEach { (status, match) ->
+                    match?.let { add(StatusRemoval(status, text.actionBarSegmentRange(normalized.rawRange(it.range)))) }
                 }
             },
         )
     }
 
-    private fun MatchResult.value(name: String): Int = groups[name]!!.value.skyBlockInt()
-
-    private fun String.skyBlockInt(): Int = formatInt()
+    private fun MatchResult.value(name: String): Int = groups[name]!!.value.formatInt()
 }
 
 internal enum class CustomBarStatus {

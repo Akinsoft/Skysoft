@@ -6,7 +6,6 @@ import com.skysoft.features.misc.custombars.CustomBarPart.Companion.MIN_RESOURCE
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorSnapshot
-import com.skysoft.gui.hudEditorSnapshot
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal class CustomBarEditorElement(private val part: CustomBarPart) : HudEditorElement {
@@ -38,7 +37,7 @@ internal class CustomBarEditorElement(private val part: CustomBarPart) : HudEdit
         val positionSnapshot = position.snapshot()
         val dimensions = part.editorDimensions()
         val dimensionsSnapshot = dimensions?.snapshot()
-        return hudEditorSnapshot(positionSnapshot to dimensionsSnapshot) {
+        return HudEditorSnapshot(positionSnapshot to dimensionsSnapshot) {
             position.restore(positionSnapshot)
             if (dimensions != null && dimensionsSnapshot != null) dimensions.restore(dimensionsSnapshot)
         }

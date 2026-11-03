@@ -2,7 +2,6 @@ package com.skysoft.features.misc.custombars
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.core.HudPosition
-import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.HudEditorElement
@@ -127,9 +126,6 @@ internal fun drawCustomBarText(context: GuiGraphicsExtractor, text: String, x: I
     }
     context.text(font, text, x, y, color, false)
 }
-
-private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
-private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
 
 private const val RESOURCE_TEXT_Y = 1
 private const val TEXT_PADDING = 2

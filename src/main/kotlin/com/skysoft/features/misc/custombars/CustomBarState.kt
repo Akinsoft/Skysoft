@@ -1,7 +1,6 @@
 package com.skysoft.features.misc.custombars
 
 import com.skysoft.config.CustomBarDisplayMode
-import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
@@ -13,8 +12,6 @@ import net.minecraft.client.Minecraft
 import kotlin.math.ceil
 
 internal object CustomBarState {
-    private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
-    private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
     var health: BarValue? = null
         private set
     var mana: BarValue? = null
@@ -77,5 +74,4 @@ internal object CustomBarState {
     }
 
     fun displayedDefense(): Int? = if (inRift) riftDamage else defense
-
 }

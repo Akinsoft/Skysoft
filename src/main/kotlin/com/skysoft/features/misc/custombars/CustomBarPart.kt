@@ -8,6 +8,7 @@ import com.skysoft.config.core.HudDimensions
 import com.skysoft.config.core.HudPosition
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.inventory.InventoryHudLayout
+import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.custombars.VanillaCustomBarDisplay.Companion.HOTBAR_WIDTH
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
@@ -181,5 +182,6 @@ internal enum class CustomBarPart(val label: String) {
     }
 }
 
-private val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
-private val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
+internal val config get() = SkysoftConfigGui.config().gui.playerHud.customBars
+internal val inRift get() = SkyBlockIsland.THE_RIFT.isInIsland()
+internal val showsRiftTime get() = inRift && !SkyBlockLevelBar.isReplacingExperience
