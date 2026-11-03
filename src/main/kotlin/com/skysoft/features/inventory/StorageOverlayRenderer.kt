@@ -5,14 +5,15 @@ import com.skysoft.data.ProfileStorageView
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.Rect
+import com.skysoft.utils.gui.enableScissor
+import com.skysoft.utils.gui.fill
 import com.skysoft.utils.gui.itemWithDecorations
+import com.skysoft.utils.gui.outline
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
-import net.minecraft.core.component.DataComponents
-import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
@@ -22,20 +23,8 @@ internal var hoveredStorageItem: ItemStack = ItemStack.EMPTY
     private set
 
 internal fun drawStoragePanel(context: GuiGraphicsExtractor, measurements: Measurements) {
-    context.fill(
-        measurements.storageX,
-        measurements.storageY,
-        measurements.storageX + measurements.storageWidth,
-        measurements.storageY + measurements.storageHeight,
-        StorageColors.PANEL,
-    )
-    context.outline(
-        measurements.storageX,
-        measurements.storageY,
-        measurements.storageWidth,
-        measurements.storageHeight,
-        StorageColors.PANEL_OUTLINE,
-    )
+    val bounds = Rect(measurements.storageX, measurements.storageY, measurements.storageWidth, measurements.storageHeight)
+    drawPanel(context, bounds, StorageColors.PANEL, StorageColors.PANEL_OUTLINE)
 }
 
 internal fun drawPages(
@@ -52,12 +41,7 @@ internal fun drawPages(
     val activeSlots = activeHandle?.let { activePageSlots(screen, it) }.orEmpty()
     val focusedPageIndex = measurements.focusedPageIndex
         ?.takeIf { measurements.focusProgress > ModernStoragePanel.MIN_VISIBLE_PROGRESS }
-    context.enableScissor(
-        measurements.scrollPanel.x,
-        measurements.scrollPanel.y,
-        measurements.scrollPanel.x + measurements.scrollPanel.width,
-        measurements.scrollPanel.y + measurements.scrollPanel.height,
-    )
+    context.enableScissor(measurements.scrollPanel)
     try {
         for (layout in layouts.values) {
             if (layout.pageIndex == focusedPageIndex) continue
@@ -82,19 +66,11 @@ internal fun drawPages(
     val focusedPage = focusedPageIndex?.let(::storageEntry)
     if (focusedPageIndex != null && focusedLayout != null && focusedPage != null) {
         context.fill(
-            measurements.totalBounds.x,
-            measurements.totalBounds.y,
-            measurements.totalBounds.x + measurements.totalBounds.width,
-            measurements.totalBounds.y + measurements.totalBounds.height,
-            focusBackdropColor(measurements.focusProgress),
+            measurements.totalBounds,
+            StorageColors.FOCUS_BACKDROP.withScaledAlpha(measurements.focusProgress.toDouble()),
         )
         val visibleBounds = storagePageVisibleBounds(measurements, focusedLayout)
-        context.enableScissor(
-            visibleBounds.x,
-            visibleBounds.y,
-            visibleBounds.x + visibleBounds.width,
-            visibleBounds.y + visibleBounds.height,
-        )
+        context.enableScissor(visibleBounds)
         try {
             drawPage(
                 context,
@@ -113,10 +89,6 @@ internal fun drawPages(
     }
 }
 
-private fun focusBackdropColor(progress: Float): Int {
-    return StorageColors.FOCUS_BACKDROP.withScaledAlpha(progress.toDouble())
-}
-
 private fun drawPage(
     context: GuiGraphicsExtractor,
     screen: ContainerScreen,
@@ -130,18 +102,10 @@ private fun drawPage(
 ) {
     val titleColor = if (active) "§b" else if (isLightStorageOverlay) "§8" else "§f"
     val title = titleDisplayText(titleText(layout.pageIndex))
-    context.fill(
-        layout.x,
-        layout.y,
-        layout.x + layout.width,
-        layout.y + layout.height,
+    drawPanel(
+        context,
+        layout.bounds,
         StorageColors.PAGE_PANEL,
-    )
-    context.outline(
-        layout.x,
-        layout.y,
-        layout.width,
-        layout.height,
         if (active) StorageColors.SELECTED else StorageColors.PAGE_PANEL_OUTLINE,
     )
     if (editingTitlePage == layout.pageIndex) {
@@ -239,22 +203,13 @@ private fun drawPageSlots(
             val isMatch = if (active) StorageSearchIndex.matches(stack) else StorageSearchIndex.matches(storedItem)
             if (!isMatch) InventoryItemSearchHighlight.render(context, slotX, slotY, matches = false)
         }
-        if (hovered) {
-            drawSlotHover(context, slotX, slotY)
-            if (!stack.isEmpty) {
-                hoveredStorageItem = stack
-                context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
-            }
-        }
+        if (hovered) drawHoveredSlot(context, stack, slotX, slotY, mouseX, mouseY)
     }
 }
 
 internal fun drawScrollBar(context: GuiGraphicsExtractor, measurements: Measurements, contentHeight: Int) {
-    val bar = measurements.scrollbar
-    context.fill(bar.x, bar.y, bar.x + bar.width, bar.y + bar.height, StorageColors.SCROLLBAR_TRACK)
-    context.outline(bar.x, bar.y, bar.width, bar.height, StorageColors.SCROLLBAR_OUTLINE)
-    val knob = scrollbarKnobBounds(measurements, contentHeight)
-    context.fill(knob.x, knob.y, knob.x + knob.width, knob.y + knob.height, StorageColors.SCROLLBAR_KNOB)
+    drawPanel(context, measurements.scrollbar, StorageColors.SCROLLBAR_TRACK, StorageColors.SCROLLBAR_OUTLINE)
+    context.fill(scrollbarKnobBounds(measurements, contentHeight), StorageColors.SCROLLBAR_KNOB)
 }
 
 internal fun drawSearchBox(context: GuiGraphicsExtractor, measurements: Measurements) {
@@ -284,7 +239,6 @@ internal fun drawPlayerInventoryPanel(
     mouseX: Int,
     mouseY: Int,
 ) {
-    val bounds = measurements.playerBounds
     val playerInventory = Minecraft.getInstance().player?.inventory
     val playerSlots = arrayOfNulls<Slot>(Inventory.INVENTORY_SIZE)
     if (playerInventory != null) {
@@ -294,8 +248,7 @@ internal fun drawPlayerInventoryPanel(
             }
         }
     }
-    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, StorageColors.PLAYER_PANEL)
-    context.outline(bounds.x, bounds.y, bounds.width, bounds.height, StorageColors.PANEL_OUTLINE)
+    drawPanel(context, measurements.playerBounds, StorageColors.PLAYER_PANEL, StorageColors.PANEL_OUTLINE)
     val inventoryStart = playerSlotPosition(measurements, StoragePlayerInventory.HOTBAR_SLOT_COUNT)
     drawSlotGridBackground(context, inventoryStart.x, inventoryStart.y, StoragePages.COLUMNS, PLAYER_INVENTORY_ROWS)
     val hotbarStart = playerSlotPosition(measurements, 0)
@@ -330,13 +283,14 @@ private fun drawPlayerSlot(
     if (StorageSearchIndex.hasQuery && !StorageSearchIndex.matches(stack)) {
         InventoryItemSearchHighlight.render(context, pos.x, pos.y, matches = false)
     }
-    if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) {
-        drawSlotHover(context, pos.x, pos.y)
-        if (!stack.isEmpty) {
-            hoveredStorageItem = stack
-            context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
-        }
-    }
+    if (isSlotHovered(mouseX, mouseY, pos.x, pos.y)) drawHoveredSlot(context, stack, pos.x, pos.y, mouseX, mouseY)
+}
+
+private fun drawHoveredSlot(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int, mouseX: Int, mouseY: Int) {
+    drawSlotHover(context, x, y)
+    if (stack.isEmpty) return
+    hoveredStorageItem = stack
+    context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
 }
 
 internal fun drawStorageSelectorPanel(
@@ -347,8 +301,7 @@ internal fun drawStorageSelectorPanel(
     mouseY: Int,
 ) {
     val bounds = measurements.selectorBounds
-    context.fill(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, StorageColors.PAGE_PANEL)
-    context.outline(bounds.x, bounds.y, bounds.width, bounds.height, StorageColors.PAGE_PANEL_OUTLINE)
+    drawPanel(context, bounds, StorageColors.PAGE_PANEL, StorageColors.PAGE_PANEL_OUTLINE)
     LegacyTextRenderer.draw(
         context,
         "Shortcut",
@@ -368,32 +321,17 @@ internal fun drawStorageSelectorPanel(
     )
     for (pageIndex in selectorPageIndices(activePage)) {
         val page = storageEntry(pageIndex)
-        val pos = selectorPagePosition(measurements, pageIndex)
+        val pos = selectorSlotPosition(measurements, pageIndex)
         val stack = selectorIconStack(pageIndex, page)
-        if (!stack.isEmpty) drawMiniItem(context, stack, pos.x, pos.y)
-        if (pageIndex == activePage) {
-            context.outline(
-                pos.x - 1,
-                pos.y - 1,
-                StorageSelector.SLOT_SIZE,
-                StorageSelector.SLOT_SIZE,
-                StorageColors.SELECTED,
-            )
-        }
+        context.itemWithDecorations(stack, pos.x, pos.y)
+        if (pageIndex == activePage) context.outline(selectorSlotBounds(pos), StorageColors.SELECTED)
     }
-    if (activePage == null || !isRiftStoragePage(activePage)) {
+    val showsToolkits = activePage == null || !isRiftStoragePage(activePage)
+    if (showsToolkits) {
         for (type in ToolkitType.entries) {
             val pos = selectorToolkitPosition(measurements, type)
-            drawMiniItem(context, toolkitShortcutStack(type), pos.x, pos.y)
-            if (type.pageIndex == activePage) {
-                context.outline(
-                    pos.x - 1,
-                    pos.y - 1,
-                    StorageSelector.SLOT_SIZE,
-                    StorageSelector.SLOT_SIZE,
-                    StorageColors.SELECTED,
-                )
-            }
+            context.itemWithDecorations(toolkitShortcutStack(type), pos.x, pos.y)
+            if (type.pageIndex == activePage) context.outline(selectorSlotBounds(pos), StorageColors.SELECTED)
         }
     }
     selectorSlotAt(measurements, mouseX, mouseY)?.let { hoveredSlot ->
@@ -404,12 +342,11 @@ internal fun drawStorageSelectorPanel(
             hoveredSlot in selectorPageIndices(activePage) ->
                 selectorIconStack(hoveredSlot, storageEntry(hoveredSlot))
 
-            hoveredToolkit != null && (activePage == null || !isRiftStoragePage(activePage)) ->
-                toolkitShortcutStack(hoveredToolkit)
+            hoveredToolkit != null && showsToolkits -> toolkitShortcutStack(hoveredToolkit)
 
             else -> ItemStack.EMPTY
         }
-        if (hoveredToolkit != null && (activePage == null || !isRiftStoragePage(activePage))) {
+        if (hoveredToolkit != null && showsToolkits) {
             SkysoftNativeTooltip.setForNextFrame(context, hoveredToolkit.shortcutTooltip(), mouseX, mouseY)
         } else if (!stack.isEmpty) {
             context.setTooltipForNextFrame(Minecraft.getInstance().font, stack, mouseX, mouseY)
@@ -423,21 +360,16 @@ private fun toolkitShortcutStack(type: ToolkitType): ItemStack {
         val stack = StorageItemStacks.stackFor(ProfileStorage.SkyBlockStorageItemData(storage.skyBlockToolkitIcon))
         if (!stack.isEmpty) return stack
     }
-    return ItemStack(if (isAvailable) Items.CHEST else Items.BARRIER).apply {
-        set(
-            DataComponents.CUSTOM_NAME,
-            Component.literal(type.shortcutTitle(isAvailable))
-                .withStyle { it.withItalic(false) },
-        )
-    }
+    return namedShortcutStack(if (isAvailable) Items.CHEST else Items.BARRIER, type.shortcutTitle(isAvailable))
 }
 
 private fun drawSlotHover(context: GuiGraphicsExtractor, x: Int, y: Int) {
     context.fill(x, y, x + StorageSlots.INNER_SIZE, y + StorageSlots.INNER_SIZE, StorageColors.SLOT_HOVER)
 }
 
-private fun drawMiniItem(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
-    context.itemWithDecorations(stack, x, y)
+private fun drawPanel(context: GuiGraphicsExtractor, bounds: Rect, fillColor: Int, outlineColor: Int) {
+    context.fill(bounds, fillColor)
+    context.outline(bounds, outlineColor)
 }
 
 private const val PLAYER_INVENTORY_ROWS = 3

@@ -18,7 +18,7 @@ private val modernFocusTransition = SmoothFloatTransition(
     EasingUtilities::easeOutCubic,
 )
 
-internal data class ModernFocusPresentation(
+private data class ModernFocusPresentation(
     val pageIndex: Int?,
     val progress: Float,
     val isExpanded: Boolean,
@@ -86,9 +86,8 @@ internal fun modernMeasurements(width: Int, height: Int): Measurements {
     )
 }
 
-internal fun modernStoragePageX(measurements: Measurements, column: Int): Int {
-    return measurements.scrollPanel.x + column * (ModernStoragePanel.PAGE_WIDTH + measurements.pageSpacing)
-}
+internal fun modernStoragePageX(measurements: Measurements, column: Int): Int =
+    measurements.scrollPanel.x + column * (ModernStoragePanel.PAGE_WIDTH + measurements.pageSpacing)
 
 internal fun modernFocusedPageLayout(measurements: Measurements, layout: PageLayout): PageLayout = PageLayout(
     pageIndex = layout.pageIndex,
@@ -168,10 +167,8 @@ internal fun collapseModernPage() {
     finishTitleEdit()
 }
 
-internal fun isModernPageExpanded(pageIndex: Int? = null): Boolean =
-    isModernStorageOverlay &&
-        isModernFocusExpanded &&
-        (pageIndex == null || modernTransitionPageIndex == pageIndex)
+internal fun isModernPageExpanded(pageIndex: Int): Boolean =
+    isModernStorageOverlay && isModernFocusExpanded && modernTransitionPageIndex == pageIndex
 
 internal fun resetModernScreenState() {
     modernScreenId = null

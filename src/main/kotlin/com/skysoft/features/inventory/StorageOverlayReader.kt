@@ -2,7 +2,6 @@ package com.skysoft.features.inventory
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorage
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryCell
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
@@ -13,15 +12,9 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
 
 internal fun onClientTick() {
-    val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: run {
-        resetScreenState()
-        return
-    }
-    if (!HypixelLocationState.inSkyBlock || !isStorageOverlayEnabled) {
-        resetScreenState()
-        return
-    }
-    val handle = handleFor(screen) ?: run {
+    val screen = MinecraftClient.screen() as? AbstractContainerScreen<*>
+    val handle = handleFor(screen)
+    if (screen == null || handle == null) {
         resetScreenState()
         return
     }
@@ -31,7 +24,7 @@ internal fun onClientTick() {
 }
 
 private fun resetScreenState() {
-    restoreStorageOverlaySlots()
+    storageSlotLayout.restore()
     freezeStorageScroll()
     scrollbarDragOffset = null
     StorageCache.invalidateSnapshot()
@@ -74,7 +67,7 @@ internal fun readSnapshot(inventory: SkyBlockOpenInventorySnapshot, handle: Stor
                 is StorageHandle.Rift -> {
                     repeat(ProfileStorage.SKYBLOCK_RIFT_STORAGE_PAGE_COUNT) { pageNumber ->
                         skyBlockRiftStoragePages.getOrPut(pageNumber) {
-                            ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(riftStoragePageIndex(pageNumber)), 0)
+                            unloadedStoragePage(riftStoragePageIndex(pageNumber))
                         }
                     }
                     readStoragePage(
@@ -119,14 +112,9 @@ private fun ProfileStorage.ProfileSpecific.readOverviewCell(cell: SkyBlockOpenIn
 private fun ProfileStorage.ProfileSpecific.readToolkitOverviewCell(cell: SkyBlockOpenInventoryCell) {
     val stack = cell.item
     if (stack.isEmpty || stack.formattedHoverName().cleanSkyBlockText() != "Toolkits") return
-    val overviewIcon = encodeItem(stack).encodedStack
-    if (skyBlockToolkitIcon != overviewIcon) {
-        skyBlockToolkitIcon = overviewIcon
-    }
+    skyBlockToolkitIcon = encodeItem(stack).encodedStack
     ToolkitType.entries.forEach { type ->
-        skyBlockToolkits.getOrPut(type.storageKey) {
-            ProfileStorage.SkyBlockStoragePageData(type.title, 0)
-        }
+        skyBlockToolkits.getOrPut(type.storageKey) { unloadedStoragePage(type.pageIndex) }
     }
 }
 
@@ -146,14 +134,9 @@ private fun ProfileStorage.ProfileSpecific.readUnavailableOverviewSlot(pageIndex
 
 private fun ProfileStorage.ProfileSpecific.readStorageOverviewSlot(pageIndex: Int, stack: ItemStack) {
     if (isStorageOverlayEnabled) StorageItemStacks.removeOverviewPlaceholder(pageIndex)
-    val page = skyBlockStoragePages.getOrPut(pageIndex) {
-        ProfileStorage.SkyBlockStoragePageData(defaultPageTitle(pageIndex), 0)
-    }
+    val page = skyBlockStoragePages.getOrPut(pageIndex) { unloadedStoragePage(pageIndex) }
     ensurePageTitle(page, pageIndex)
-    val overviewIcon = encodeItem(stack).encodedStack
-    if (page.overviewIcon != overviewIcon) {
-        page.overviewIcon = overviewIcon
-    }
+    page.overviewIcon = encodeItem(stack).encodedStack
 }
 
 private fun readStoragePage(
@@ -189,16 +172,11 @@ private fun ProfileStorage.SkyBlockStoragePageData.readItems(
     rows: Int,
     slotOffset: Int,
 ) {
-    if (this.rows != rows) {
-        this.rows = rows
-    }
+    this.rows = rows
     repairLoadedValues()
     for (cell in cells) {
         val pageSlot = cell.index - slotOffset
         if (pageSlot !in 0 until rows * StoragePages.COLUMNS) continue
-        val itemData = encodeItem(cell.item)
-        if (items[pageSlot].encodedStack != itemData.encodedStack) {
-            items[pageSlot] = itemData
-        }
+        items[pageSlot] = encodeItem(cell.item)
     }
 }

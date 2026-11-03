@@ -8,8 +8,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.inventory.Slot
 
-internal fun isSlotHovered(mouseX: Int, mouseY: Int, x: Int, y: Int): Boolean =
-    mouseX in x until x + StorageSlots.INNER_SIZE && mouseY in y until y + StorageSlots.INNER_SIZE
+internal fun isSlotHovered(mouseX: Int, mouseY: Int, x: Int, y: Int): Boolean = storageSlotBounds(x, y).contains(mouseX, mouseY)
 
 internal fun isActivePageSlotClick(
     screen: AbstractContainerScreen<*>,
@@ -71,22 +70,15 @@ internal fun scrollbarKnobHeight(measurements: Measurements, contentHeight: Int)
         .coerceIn(StorageScrollbar.MIN_KNOB_HEIGHT, bar.height)
 }
 
-internal fun slotIntersects(rect: Rect, x: Int, y: Int): Boolean =
-    x < rect.x + rect.width &&
-        x + StorageSlots.INNER_SIZE > rect.x &&
-        y < rect.y + rect.height &&
-        y + StorageSlots.INNER_SIZE > rect.y
+internal fun slotIntersects(rect: Rect, x: Int, y: Int): Boolean = storageSlotBounds(x, y).intersects(rect)
+
+private fun storageSlotBounds(x: Int, y: Int): Rect = Rect(x, y, StorageSlots.INNER_SIZE, StorageSlots.INNER_SIZE)
 
 internal fun slotInside(rect: Rect, x: Int, y: Int): Boolean =
     x >= rect.x &&
         x + StorageSlots.INNER_SIZE <= rect.x + rect.width &&
         y >= rect.y &&
         y + StorageSlots.INNER_SIZE <= rect.y + rect.height
-
-internal fun setSlotPosition(slot: Slot, x: Int, y: Int) {
-    slot.x = x
-    slot.y = y
-}
 
 internal fun pageHeight(page: ProfileStorageView.SkyBlockStoragePageData): Int =
     if (page.rows <= 0) {
@@ -97,8 +89,6 @@ internal fun pageHeight(page: ProfileStorageView.SkyBlockStoragePageData): Int =
             page.rows * StorageSlots.SIZE +
             StorageSearch.GAP
     }
-
-internal fun pointInSearch(measurements: Measurements, x: Int, y: Int): Boolean = measurements.search.contains(x, y)
 
 internal fun updateSearchFocusFromClick(measurements: Measurements, mouseX: Int, mouseY: Int) {
     storageSearchField.focused = storageSearchField.focused && measurements.search.contains(mouseX, mouseY)

@@ -37,11 +37,7 @@ private fun classicMeasurements(
     val storageX = (width - storageWidth) / 2
     val playerX = width / 2 - StoragePlayerInventory.WIDTH / 2
     val sideSelectorX = StorageSelectorLayout.sideX(playerX)
-    val stackedSelectorHeight = if (isSelectorVisible && sideSelectorX == null) {
-        StorageSelector.HEIGHT + StorageSelector.STACKED_GAP
-    } else {
-        0
-    }
+    val stackedSelectorHeight = StorageSelectorLayout.stackedHeight(isSelectorVisible, sideSelectorX)
     val storageHeight = config.details.height.coerceIn(
         StorageOverlayConfigBounds.MIN_HEIGHT,
         maximumStorageHeight(height, stackedSelectorHeight),
@@ -104,6 +100,9 @@ internal object StorageSelectorLayout {
         (playerX - StorageSelector.SIDE_GAP - StorageSelector.WIDTH)
             .takeIf { it >= StoragePanel.EDGE_MARGIN }
 
+    fun stackedHeight(isSelectorVisible: Boolean, sideX: Int?): Int =
+        if (isSelectorVisible && sideX == null) StorageSelector.HEIGHT + StorageSelector.STACKED_GAP else 0
+
     fun bounds(screenWidth: Int, sideX: Int?, playerY: Int): Rect {
         val x = sideX ?: ((screenWidth - StorageSelector.WIDTH) / 2).coerceAtLeast(StoragePanel.EDGE_MARGIN)
         val y = if (sideX == null) {
@@ -122,13 +121,6 @@ internal fun pageLayouts(measurements: Measurements, activePage: Int?): PageLayo
     var rowHeight = 0
     var completedRowHeight = 0
     for ((pageIndex, page) in displayStorageEntries(activePage)) {
-        if (
-            ToolkitType.fromPageIndex(pageIndex) == null &&
-            !isRiftStoragePage(pageIndex) &&
-            pageIndex !in 0 until ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT
-        ) {
-            continue
-        }
         if (pageIndex != activePage && !StorageSearchIndex.matches(page)) continue
         val pageHeight = pageHeight(page)
         val pageWidth = if (measurements.isModern) ModernStoragePanel.PAGE_WIDTH else StoragePages.WIDTH
@@ -188,7 +180,7 @@ internal fun selectorPageAt(
 ): Int? {
     if (!measurements.selectorBounds.contains(mouseX, mouseY)) return null
     for (pageIndex in selectorPageIndices(activePage)) {
-        val pos = selectorPagePosition(measurements, pageIndex)
+        val pos = selectorSlotPosition(measurements, pageIndex)
         if (selectorSlotBounds(pos).contains(mouseX, mouseY)) {
             return pageIndex.takeIf {
                 storageEntryExists(it) ||
@@ -207,9 +199,6 @@ internal fun selectorPageAt(
     return null
 }
 
-internal fun selectorPagePosition(measurements: Measurements, pageIndex: Int): Point =
-    selectorSlotPosition(measurements, pageIndex)
-
 internal fun selectorToolkitPosition(measurements: Measurements, type: ToolkitType): Point =
     selectorSlotPosition(measurements, type.selectorSlot)
 
@@ -223,7 +212,7 @@ internal fun selectorSlotPosition(measurements: Measurements, slot: Int): Point 
             (slot / StorageSelector.COLUMNS) * StorageSelector.SLOT_SIZE,
     )
 
-private fun selectorSlotBounds(pos: Point): Rect =
+internal fun selectorSlotBounds(pos: Point): Rect =
     Rect(pos.x - 1, pos.y - 1, StorageSelector.SLOT_SIZE, StorageSelector.SLOT_SIZE)
 
 internal fun selectorIconStack(pageIndex: Int, page: ProfileStorageView.SkyBlockStoragePageData?): ItemStack {
