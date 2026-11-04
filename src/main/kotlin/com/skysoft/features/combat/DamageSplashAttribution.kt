@@ -11,18 +11,6 @@ internal data class DamageSplash(
     val cleanName: String,
 )
 
-internal data class DamageSplashAttributionConfig(
-    val maxAttackAgeMillis: Long = 900L,
-    val highConfidenceAttackAgeMillis: Long = 400L,
-    val maxSplashDistance: Double = 5.0,
-    val highConfidenceSplashDistance: Double = 2.5,
-    val healthChangeWindowMillis: Long = 500L,
-) {
-    companion object {
-        val DEFAULT = DamageSplashAttributionConfig()
-    }
-}
-
 internal data class DamageSplashAttackContext(
     val atMillis: Long,
     val entityUuid: UUID,
@@ -39,73 +27,51 @@ internal data class DamageSplashTargetView(
     val lastHealthChangeAtMillis: Long? = null,
 )
 
-internal data class AttributedDamage<T>(
-    val target: T,
-    val splash: DamageSplash,
-    val confidence: DamageSplashAttributionConfidence,
-    val score: Double,
-)
-
-internal enum class DamageSplashAttributionConfidence {
-    LOCAL_DIRECT_HIGH,
-    LOCAL_DIRECT_MEDIUM,
-}
-
 internal object DamageSplashAttribution {
     fun <T> attribute(
         splash: DamageSplash,
         targets: Iterable<T>,
         now: Long,
-        config: DamageSplashAttributionConfig = DamageSplashAttributionConfig.DEFAULT,
         view: (T) -> DamageSplashTargetView,
-    ): AttributedDamage<T>? {
+    ): T? {
         val candidates = targets
             .asSequence()
             .mapNotNull { target ->
                 val targetView = view(target)
-                val score = targetView.score(splash, now, config) ?: return@mapNotNull null
+                val score = targetView.score(splash, now) ?: return@mapNotNull null
                 ScoredAttributionCandidate(target, targetView, score)
             }
             .toList()
         val attribution = candidates
             .minWithOrNull(
-                compareBy<ScoredAttributionCandidate<T>> { candidate -> candidate.score.rank }
+                compareBy<ScoredAttributionCandidate<T>> { candidate -> candidate.score.confidence }
                     .thenBy { candidate -> candidate.score.value },
             )
             ?: return null
 
         candidates.forEach { candidate -> candidate.targetView.processedSplashIds += splash.entityId }
-        return AttributedDamage(
-            target = attribution.target,
-            splash = splash,
-            confidence = attribution.score.confidence,
-            score = attribution.score.value,
-        )
+        return attribution.target
     }
 
     private fun DamageSplashTargetView.score(
         splash: DamageSplash,
         now: Long,
-        config: DamageSplashAttributionConfig,
     ): AttributionScore? {
         if (!active) return null
         if (splash.entityId in processedSplashIds) return null
         val attack = lastAttack ?: return null
         val attackAge = now - attack.atMillis
-        if (attackAge !in 0..config.maxAttackAgeMillis) return null
+        if (attackAge !in 0..MAX_ATTACK_AGE_MILLIS) return null
 
-        val targetDistance = attributionLocations
-            .map { location -> splash.location.distance(location) }
-            .minOrNull()
+        val targetDistance = attributionLocations.minOfOrNull { location -> splash.location.distance(location) }
             ?: Double.MAX_VALUE
         val attackDistance = splash.location.distance(attack.targetLocation)
         val bestDistance = minOf(targetDistance, attackDistance)
-        if (bestDistance > config.maxSplashDistance) return null
+        if (bestDistance > MAX_SPLASH_DISTANCE) return null
 
         val exactEntity = attack.entityUuid in targetEntityUuids
         val healthConfirmed = lastHealthChangeAtMillis
-            ?.let { changedAt -> abs(now - changedAt) <= config.healthChangeWindowMillis }
-            ?: false
+            ?.let { changedAt -> abs(now - changedAt) <= HEALTH_CHANGE_WINDOW_MILLIS } == true
         val confidence = confidence(
             attackAge = attackAge,
             exactEntity = exactEntity,
@@ -113,7 +79,6 @@ internal object DamageSplashAttribution {
             bestDistance = bestDistance,
             attackDistance = attackDistance,
             targetDistance = targetDistance,
-            config = config,
         )
         return AttributionScore(
             confidence = confidence,
@@ -128,17 +93,16 @@ internal object DamageSplashAttribution {
         bestDistance: Double,
         attackDistance: Double,
         targetDistance: Double,
-        config: DamageSplashAttributionConfig,
-    ): DamageSplashAttributionConfidence =
+    ): AttributionConfidence =
         if (
-            attackAge <= config.highConfidenceAttackAgeMillis &&
-            bestDistance <= config.highConfidenceSplashDistance &&
-            (exactEntity || attackDistance <= config.highConfidenceSplashDistance) &&
-            (healthConfirmed || targetDistance <= config.highConfidenceSplashDistance)
+            attackAge <= HIGH_CONFIDENCE_ATTACK_AGE_MILLIS &&
+            bestDistance <= HIGH_CONFIDENCE_SPLASH_DISTANCE &&
+            (exactEntity || attackDistance <= HIGH_CONFIDENCE_SPLASH_DISTANCE) &&
+            (healthConfirmed || targetDistance <= HIGH_CONFIDENCE_SPLASH_DISTANCE)
         ) {
-            DamageSplashAttributionConfidence.LOCAL_DIRECT_HIGH
+            AttributionConfidence.LOCAL_DIRECT_HIGH
         } else {
-            DamageSplashAttributionConfidence.LOCAL_DIRECT_MEDIUM
+            AttributionConfidence.LOCAL_DIRECT_MEDIUM
         }
 
     private fun scoreValue(
@@ -160,16 +124,20 @@ internal object DamageSplashAttribution {
     )
 
     private data class AttributionScore(
-        val confidence: DamageSplashAttributionConfidence,
+        val confidence: AttributionConfidence,
         val value: Double,
-    ) {
-        val rank: Int =
-            when (confidence) {
-                DamageSplashAttributionConfidence.LOCAL_DIRECT_HIGH -> 0
-                DamageSplashAttributionConfidence.LOCAL_DIRECT_MEDIUM -> 1
-            }
+    )
+
+    private enum class AttributionConfidence {
+        LOCAL_DIRECT_HIGH,
+        LOCAL_DIRECT_MEDIUM,
     }
 
+    private const val MAX_ATTACK_AGE_MILLIS = 900L
+    private const val HIGH_CONFIDENCE_ATTACK_AGE_MILLIS = 400L
+    private const val MAX_SPLASH_DISTANCE = 5.0
+    private const val HIGH_CONFIDENCE_SPLASH_DISTANCE = 2.5
+    private const val HEALTH_CHANGE_WINDOW_MILLIS = 500L
     private const val EXACT_ENTITY_BONUS = -8.0
     private const val HEALTH_CONFIRMED_BONUS = -2.0
     private const val MILLIS_PER_SECOND = 1_000.0

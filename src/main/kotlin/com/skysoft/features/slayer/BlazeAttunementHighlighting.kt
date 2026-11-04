@@ -78,14 +78,14 @@ object BlazeAttunementHighlighting {
     private const val ATTUNEMENT_PRIORITY = 1
 }
 
-internal enum class BlazeAttunement(val color: Color) {
+private enum class BlazeAttunement(val color: Color) {
     ASHEN(Color(0x555555)),
     SPIRIT(Color(0xFFFFFF)),
     AURIC(Color(0xFFFF55)),
     CRYSTAL(Color(0x55FFFF)),
 }
 
-internal fun parseBlazeAttunement(nameplate: String): BlazeAttunement? {
+private fun parseBlazeAttunement(nameplate: String): BlazeAttunement? {
     val label = nameplate.substringBefore(' ')
     return BlazeAttunement.entries.firstOrNull { attunement -> attunement.name == label }
 }

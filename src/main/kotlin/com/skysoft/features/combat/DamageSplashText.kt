@@ -14,7 +14,7 @@ import java.util.Optional
 internal object DamageSplashText {
     private val damagePattern = Regex("""^[✧✯]?(?<damage>[0-9,.]+[KMBkmb]?)[⚔+✧❤♞☄✷ﬗ✯]*$""")
 
-    fun parseDamage(name: String): Long? =
+    private fun parseDamage(name: String): Long? =
         damagePattern.matchEntire(name.replace(",", ""))
             ?.groups
             ?.get("damage")
@@ -25,8 +25,7 @@ internal object DamageSplashText {
 
     fun fromEntity(entity: Entity): DamageSplash? {
         val armorStand = entity as? ArmorStand ?: return null
-        val cleanName = armorStand.cleanName()
-        return fromName(armorStand.id, cleanName, armorStand.location)
+        return fromName(armorStand.id, armorStand.cleanName(), armorStand.location)
     }
 
     fun fromMetadata(
@@ -38,15 +37,8 @@ internal object DamageSplashText {
             .mapNotNull { value -> value.componentText() }
             .mapNotNull { name -> fromName(entityId, name, location) }
 
-    private fun fromName(entityId: Int, cleanName: String, location: WorldVec): DamageSplash? {
-        val damage = parseDamage(cleanName) ?: return null
-        return DamageSplash(
-            entityId = entityId,
-            damage = damage,
-            location = location,
-            cleanName = cleanName,
-        )
-    }
+    private fun fromName(entityId: Int, cleanName: String, location: WorldVec): DamageSplash? =
+        parseDamage(cleanName)?.let { damage -> DamageSplash(entityId, damage, location, cleanName) }
 
     private fun SynchedEntityData.DataValue<*>.componentText(): String? {
         val value = value()

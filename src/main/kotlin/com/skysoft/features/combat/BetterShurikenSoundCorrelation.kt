@@ -14,8 +14,8 @@ import kotlin.math.abs
 internal object BetterShurikenSoundCorrelation {
     private var lastThrowAtMillis = 0L
     private var confirmationAtMillis = 0L
-    private var recentTarget: TimedTarget? = null
-    private var recentProjection: TimedProjection? = null
+    private var recentTarget: TimedMob? = null
+    private var recentProjection: TimedMob? = null
     private var targetConsumer: ((SoundTargetResolution) -> Unit)? = null
 
     fun register(isActive: () -> Boolean, consumer: (SoundTargetResolution) -> Unit) {
@@ -33,13 +33,10 @@ internal object BetterShurikenSoundCorrelation {
     }
 
     fun noteProjectedImpact(mob: LivingEntity) {
-        recentProjection = TimedProjection(mob, System.currentTimeMillis())
+        recentProjection = TimedMob(mob, System.currentTimeMillis())
     }
 
-    fun recentTarget(): LivingEntity? {
-        val target = recentTarget ?: return null
-        return target.mob.takeIf { System.currentTimeMillis() - target.atMillis <= SOUND_OVERRIDE_WINDOW_MILLIS }
-    }
+    fun recentTarget(): LivingEntity? = recentTarget?.takeIf { it.isRecent(System.currentTimeMillis()) }?.mob
 
     fun hasRecentConfirmation(): Boolean =
         System.currentTimeMillis() - confirmationAtMillis <= SOUND_OVERRIDE_WINDOW_MILLIS
@@ -56,11 +53,9 @@ internal object BetterShurikenSoundCorrelation {
         if (now - lastThrowAtMillis > THROW_SOUND_WINDOW_MILLIS) return
         if (event.isShurikenConfirmation) {
             confirmationAtMillis = now
-            val projectedTarget = recentProjection
-                ?.takeIf { projection -> now - projection.atMillis <= SOUND_OVERRIDE_WINDOW_MILLIS }
-                ?.mob
+            val projectedTarget = recentProjection?.takeIf { it.isRecent(now) }?.mob
             if (projectedTarget != null) {
-                recentTarget = TimedTarget(projectedTarget, now)
+                recentTarget = TimedMob(projectedTarget, now)
                 targetConsumer?.invoke(SoundTargetResolution(projectedTarget, null))
             }
             return
@@ -69,12 +64,10 @@ internal object BetterShurikenSoundCorrelation {
         val location = event.location ?: return
         val target = closestTarget(Vec3(location.x, location.y, location.z)) ?: return
         val replacedMobUuid = recentProjection
-            ?.takeIf { projection ->
-                projection.mob.uuid != target.uuid && now - projection.atMillis <= SOUND_OVERRIDE_WINDOW_MILLIS
-            }
+            ?.takeIf { projection -> projection.mob.uuid != target.uuid && projection.isRecent(now) }
             ?.mob
             ?.uuid
-        recentTarget = TimedTarget(target, now)
+        recentTarget = TimedMob(target, now)
         targetConsumer?.invoke(SoundTargetResolution(target, replacedMobUuid))
     }
 
@@ -101,9 +94,9 @@ internal object BetterShurikenSoundCorrelation {
         val replacedMobUuid: UUID?,
     )
 
-    private data class TimedTarget(val mob: LivingEntity, val atMillis: Long)
-
-    private data class TimedProjection(val mob: LivingEntity, val atMillis: Long)
+    private data class TimedMob(val mob: LivingEntity, val atMillis: Long) {
+        fun isRecent(now: Long): Boolean = now - atMillis <= SOUND_OVERRIDE_WINDOW_MILLIS
+    }
 
     private const val SHURIKEN_CONFIRMATION_SOUND = "minecraft:entity.experience_orb.pickup"
     private const val SHURIKEN_CONFIRMATION_VOLUME = 1.0f

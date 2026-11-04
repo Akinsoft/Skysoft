@@ -65,7 +65,7 @@ internal object DianaRareMobLootshare {
         localPlayerName: String?,
         now: Long,
     ): Boolean {
-        val attribution = DamageSplashAttribution.attribute(splash, targets, now) { target ->
+        val attributedTarget = DamageSplashAttribution.attribute(splash, targets, now) { target ->
             DamageSplashTargetView(
                 active = target.shouldShowLootshare(localPlayerName),
                 lastAttack = target.lastLocalAttack,
@@ -75,8 +75,7 @@ internal object DianaRareMobLootshare {
                 lastHealthChangeAtMillis = target.lastHealthChangeAtMillis,
             )
         } ?: return true
-        val target = attribution.target
-        if (target.addAttributedLocalDamage(attribution.splash.damage) == LootshareEligibilityResult.BECAME_ELIGIBLE) {
+        if (attributedTarget.addAttributedLocalDamage(splash.damage) == LootshareEligibilityResult.BECAME_ELIGIBLE) {
             DianaLootshareReadyMessage.broadcast()
         }
         return true

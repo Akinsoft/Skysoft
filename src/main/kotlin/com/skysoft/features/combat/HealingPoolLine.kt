@@ -62,13 +62,10 @@ object HealingPoolLine {
     private const val POOL_SIGNAL_TIMEOUT_MILLIS = 750L
 }
 
-internal class HealingPoolDetector {
+private class HealingPoolDetector {
     private val samples = mutableListOf<TimedPoolParticle>()
 
-    fun detect(
-        event: ClientParticleEvent,
-        now: Long = System.currentTimeMillis(),
-    ): WorldVec? {
+    fun detect(event: ClientParticleEvent, now: Long): WorldVec? {
         if (!event.isHealingPoolRingParticle()) return null
         samples.removeIf { sample -> now - sample.receivedAtMillis !in 0..RING_WINDOW_MILLIS }
         samples += TimedPoolParticle(event.location, now)
