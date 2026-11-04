@@ -114,7 +114,7 @@ object SlayerTargetHighlighting {
     private const val TARGET_SCAN_INTERVAL_TICKS = 4
 }
 
-internal data class SlayerHighlightTarget(
+private data class SlayerHighlightTarget(
     val kind: SlayerTargetKind,
     val location: WorldVec,
     val entity: LivingEntity?,
@@ -124,12 +124,12 @@ internal data class SlayerHighlightTarget(
     } ?: location
 }
 
-internal enum class SlayerTargetKind {
+private enum class SlayerTargetKind {
     BOSS,
     MINIBOSS,
 }
 
-internal fun selectSlayerLineTarget(
+private fun selectSlayerLineTarget(
     targets: List<SlayerHighlightTarget>,
     playerLocation: WorldVec,
 ): SlayerHighlightTarget? {

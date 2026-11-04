@@ -9,6 +9,7 @@ import com.skysoft.events.entity.EntityLifecycleEvents
 import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldRenderDispatcher
 import com.skysoft.utils.SkysoftClientEvents
+import com.skysoft.utils.chat.styledSubstring
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.entity.state.EntityRenderState
@@ -23,7 +24,6 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.phys.Vec3
 import java.util.UUID
-import kotlin.math.min
 
 object BetterShurikens {
     fun register() {
@@ -49,7 +49,6 @@ object BetterShurikens {
     }
 
     private fun renderWorld(context: SkysoftRenderContext) {
-        if (!isEnabled()) return
         val stack = shurikenStack() ?: return
         BetterShurikenReminderMarkers.render(context, stack, taggedMobs.keys)
         taggedMobs.values.asSequence()
@@ -122,11 +121,7 @@ object BetterShurikens {
             .filter { recent -> recent.display.uuid !in trackedShurikens }
             .sortedBy { recent -> recent.display.distanceToSqr(player) }
             .take(pendingThrows)
-            .forEach { recent ->
-                val display = recent.display
-                trackedShurikens[display.uuid] = TrackedShuriken(display, display.position())
-                pendingThrows--
-            }
+            .forEach { recent -> track(recent.display) }
         if (pendingThrows == 0) return
         entities.asSequence()
             .filterIsInstance<Display.ItemDisplay>()
@@ -135,15 +130,17 @@ object BetterShurikens {
             .filter { display -> display.distanceToSqr(player) <= Detection.MAX_DISCOVERY_DISTANCE_SQUARED }
             .sortedBy { display -> display.distanceToSqr(player) }
             .take(pendingThrows)
-            .forEach { display ->
-                trackedShurikens[display.uuid] = TrackedShuriken(display, display.position())
-                pendingThrows--
-            }
+            .forEach(::track)
+    }
+
+    private fun track(display: Display.ItemDisplay) {
+        trackedShurikens[display.uuid] = TrackedShuriken(display, display.position())
+        pendingThrows--
     }
 
     private fun updateTrackedShurikens(entities: List<Entity>) {
         if (trackedShurikens.isEmpty()) return
-        val candidates = entities.filterIsInstance<LivingEntity>().filter { entity -> entity.isShurikenTarget }
+        val candidates = shurikenTargets(entities)
         val iterator = trackedShurikens.values.iterator()
         while (iterator.hasNext()) {
             val tracked = iterator.next()
@@ -162,22 +159,21 @@ object BetterShurikens {
     }
 
     private fun updateTaggedMobs(level: ClientLevel, entities: List<Entity>) {
-        val livingEntities = entities.filterIsInstance<LivingEntity>()
-        val currentMobs = livingEntities.filter { entity -> entity.isShurikenTarget }.associateBy { entity -> entity.uuid }
+        val targets = shurikenTargets(entities)
+        val currentMobs = targets.associateBy { entity -> entity.uuid }
         taggedMobs.keys.retainAll(currentMobs.keys)
         taggedMobs.replaceAll { uuid, _ -> currentMobs.getValue(uuid) }
 
         entities.asSequence()
             .filterIsInstance<ArmorStand>()
             .filter { nameplate -> nameplate.hasShurikenMarker() }
-            .mapNotNull { nameplate -> nameplate.supportingMob(level, livingEntities) }
+            .mapNotNull { nameplate -> nameplate.supportingMob(level, targets) }
             .forEach { mob ->
                 taggedMobs[mob.uuid] = mob
             }
     }
 
     private fun onEntityLoad(entity: Entity) {
-        if (!isEnabled()) return
         val display = entity as? Display.ItemDisplay ?: return
         val player = Minecraft.getInstance().player ?: return
         if (display.distanceToSqr(player) <= Detection.RECENT_DISPLAY_DISTANCE_SQUARED) {
@@ -186,19 +182,15 @@ object BetterShurikens {
         if (detectionTicksRemaining == 0 || pendingThrows == 0) return
         if (!display.itemStack.isShuriken()) return
         if (display.distanceToSqr(player) > Detection.MAX_DISCOVERY_DISTANCE_SQUARED) return
-        trackedShurikens[display.uuid] = TrackedShuriken(display, display.position())
-        pendingThrows--
+        track(display)
     }
 
     private fun onEntityUnload(entity: Entity) {
         taggedMobs.remove(entity.uuid)
         BetterShurikenReminderMarkers.remove(entity.uuid)
         val tracked = trackedShurikens.remove(entity.uuid) ?: return
-        val candidates = ClientEntitySnapshot.entities()
-            .filterIsInstance<LivingEntity>()
-            .filter { candidate -> candidate.isShurikenTarget }
         tracked.updateVelocity()
-        resolveAndTag(tracked, entity.position(), candidates)
+        resolveAndTag(tracked, entity.position(), shurikenTargets(ClientEntitySnapshot.entities()))
     }
 
     private fun resolveAndTag(
@@ -209,8 +201,7 @@ object BetterShurikens {
         val resolution = HitResolver.resolve(tracked, currentPosition, candidates)
         resolution.mob?.let(BetterShurikenSoundCorrelation::noteProjectedImpact)
         val soundTarget = BetterShurikenSoundCorrelation.recentTarget()
-        val hasSoundConfirmation = BetterShurikenSoundCorrelation.hasRecentConfirmation()
-        val isConfirmed = hasSoundConfirmation || resolution.isDirectOverlap
+        val isConfirmed = BetterShurikenSoundCorrelation.hasRecentConfirmation() || resolution.isDirectOverlap
         val hitMob = soundTarget ?: resolution.mob?.takeIf { isConfirmed }
         if (hitMob != null && hitMob.isAlive) {
             taggedMobs[hitMob.uuid] = hitMob
@@ -225,11 +216,10 @@ object BetterShurikens {
 
     private fun ArmorStand.hasShurikenMarker(): Boolean = customName?.string?.endsWith(SHURIKEN_MARKER_SUFFIX) == true
 
-    private fun ArmorStand.supportingMob(level: ClientLevel, livingEntities: List<LivingEntity>): LivingEntity? {
+    private fun ArmorStand.supportingMob(level: ClientLevel, targets: List<LivingEntity>): LivingEntity? {
         val direct = level.getEntity(id - 1)
         if (direct is LivingEntity && direct.isShurikenTarget) return direct
-        return livingEntities
-            .filter { entity -> entity.isShurikenTarget }
+        return targets
             .filter { entity -> isSupportedBy(entity) }
             .minByOrNull { entity -> distanceToSqr(entity) }
     }
@@ -258,18 +248,7 @@ object BetterShurikens {
     private fun Component.withoutShurikenMarker(): Component {
         val fullText = string
         if (!fullText.endsWith(SHURIKEN_MARKER_SUFFIX)) return this
-        var remainingCharacters = fullText.length - SHURIKEN_MARKER_SUFFIX.length
-        val result = Component.empty()
-        for (part in toFlatList()) {
-            if (remainingCharacters <= 0) break
-            val partText = part.string
-            val length = min(remainingCharacters, partText.length)
-            if (length > 0) {
-                result.append(Component.literal(partText.take(length)).withStyle(part.style))
-                remainingCharacters -= length
-            }
-        }
-        return result
+        return styledSubstring(0, fullText.length - SHURIKEN_MARKER_SUFFIX.length)
     }
 
     private fun isEnabled(): Boolean =
@@ -382,3 +361,6 @@ object BetterShurikens {
     private const val MIN_VERTICAL_OFFSET = 1.5
     private const val MAX_VERTICAL_OFFSET = 3.2
 }
+
+private fun shurikenTargets(entities: List<Entity>): List<LivingEntity> =
+    entities.filterIsInstance<LivingEntity>().filter { entity -> entity.isShurikenTarget }

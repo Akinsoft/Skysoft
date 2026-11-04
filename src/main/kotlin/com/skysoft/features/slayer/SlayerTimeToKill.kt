@@ -10,6 +10,7 @@ import com.skysoft.data.skyblock.SkyBlockSlayerType
 import com.skysoft.data.skyblock.SlayerQuestSnapshot
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.features.profit.ProfitTrackingPeriod
+import com.skysoft.utils.NANOS_PER_MILLISECOND
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
@@ -54,7 +55,7 @@ object SlayerTimeToKill {
             when (period) {
                 ProfitTrackingPeriod.SESSION -> sessionStats
                 ProfitTrackingPeriod.TODAY -> data.today.takeIf { data.todayEpochDay == LocalDate.now().toEpochDay() }.orEmpty()
-                ProfitTrackingPeriod.MAYOR -> error("Slayer trackers do not support the Mayor period")
+                ProfitTrackingPeriod.MAYOR -> error(UNSUPPORTED_MAYOR_PERIOD)
                 ProfitTrackingPeriod.TOTAL -> data.totals
             }[slayerType]?.get(it)
         }
@@ -66,7 +67,7 @@ object SlayerTimeToKill {
         when (period) {
             ProfitTrackingPeriod.SESSION -> sessionStats.remove(slayerType)
             ProfitTrackingPeriod.TODAY -> ProfileStorageApi.updateProfile { todayStats(it.slayerTimeToKill).remove(slayerType) }
-            ProfitTrackingPeriod.MAYOR -> error("Slayer trackers do not support the Mayor period")
+            ProfitTrackingPeriod.MAYOR -> error(UNSUPPORTED_MAYOR_PERIOD)
             ProfitTrackingPeriod.TOTAL -> ProfileStorageApi.updateProfile { it.slayerTimeToKill.totals.remove(slayerType) }
         }
     }
@@ -92,13 +93,13 @@ object SlayerTimeToKill {
         val boss = activeBoss.also { activeBoss = null } ?: return
         if (!config.enabled || boss.slayerType != quest.slayerType || boss.tier != quest.tier) return
         val completedAtNanos = System.nanoTime()
-        val durationMillis = (completedAtNanos - boss.spawnedAtNanos) / NANOS_PER_MILLISECOND
+        val durationMillis = elapsedMillis(boss.spawnedAtNanos, completedAtNanos)
         if (durationMillis <= 0L) return
         val spawnDurationMillis = boss.questStartedAtNanos
-            ?.let { (boss.spawnedAtNanos - it) / NANOS_PER_MILLISECOND }
+            ?.let { elapsedMillis(it, boss.spawnedAtNanos) }
             ?.takeIf { it > 0L }
         val totalDurationMillis = boss.questStartedAtNanos
-            ?.let { (completedAtNanos - it) / NANOS_PER_MILLISECOND }
+            ?.let { elapsedMillis(it, completedAtNanos) }
             ?.takeIf { it > 0L }
         val previousBestMillis = record(boss.slayerType, boss.tier, durationMillis)
         val isPersonalBest = previousBestMillis == 0L || durationMillis < previousBestMillis
@@ -164,21 +165,23 @@ private fun MutableMap<SkyBlockSlayerType, MutableMap<Int, ProfileStorage.Slayer
 ): ProfileStorage.SlayerKillTimeStats =
     getOrPut(slayerType, ::mutableMapOf).getOrPut(tier) { ProfileStorage.SlayerKillTimeStats() }
 
-internal fun formatSlayerKillTime(milliseconds: Number): String =
+private fun elapsedMillis(fromNanos: Long, toNanos: Long): Long = (toNanos - fromNanos) / NANOS_PER_MILLISECOND
+
+private fun formatSlayerKillTime(milliseconds: Number): String =
     String.format(Locale.ROOT, "%.2fs", milliseconds.toDouble() / MILLIS_PER_SECOND)
 
 internal fun formatSlayerKillTimeForHud(milliseconds: Number?): String =
     milliseconds?.let { "§b${formatSlayerKillTime(it)}" } ?: "§8--"
 
-internal fun slayerKillPartyMessage(bossName: String, durationMillis: Long): String =
+private fun slayerKillPartyMessage(bossName: String, durationMillis: Long): String =
     "$bossName defeated in ${formatSlayerKillTime(durationMillis)}! NEW PERSONAL BEST!"
 
-internal fun slayerKillMessage(
+private fun slayerKillMessage(
     bossName: String,
     durationMillis: Long,
     isPersonalBest: Boolean,
-    spawnDurationMillis: Long? = null,
-    totalDurationMillis: Long? = null,
+    spawnDurationMillis: Long?,
+    totalDurationMillis: Long?,
 ): Component = Component.empty()
     .append(Component.literal(bossName).withStyle(ChatFormatting.RED))
     .append(Component.literal(" defeated in "))
@@ -197,5 +200,5 @@ internal fun slayerKillMessage(
         }
     }
 
-private const val NANOS_PER_MILLISECOND = 1_000_000L
+private const val UNSUPPORTED_MAYOR_PERIOD = "Slayer trackers do not support the Mayor period"
 private const val MILLIS_PER_SECOND = 1_000.0

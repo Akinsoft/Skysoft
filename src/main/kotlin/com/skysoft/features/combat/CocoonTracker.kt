@@ -104,7 +104,9 @@ object CocoonTracker {
             .asSequence()
             .filter { isWithinMessageLinkWindow(it.detectedAtMillis, now) }
             .filter { tracked -> !tracked.isLocal }
-            .minWithOrNull(cocoonComparator(message))
+            .map { tracked -> CocoonLink(message, tracked) }
+            .minWithOrNull(linkComparator)
+            ?.cocoon
         if (cocoon != null) {
             claimCocoon(cocoon, message)
         } else {
@@ -132,7 +134,9 @@ object CocoonTracker {
         val pending = pendingMessages
             .asSequence()
             .filter { message -> isWithinMessageLinkWindow(now, message.receivedAtMillis) }
-            .minWithOrNull(messageComparator(cocoon))
+            .map { message -> CocoonLink(message, cocoon) }
+            .minWithOrNull(linkComparator)
+            ?.message
         if (pending != null) {
             pendingMessages.remove(pending)
             claimCocoon(cocoon, pending)
@@ -221,36 +225,23 @@ object CocoonTracker {
     }
 
     private fun shouldRender(cocoon: TrackedCocoon): Boolean {
-        if (
-            !shouldShowCocoonForOwnership(
-                isLocal = cocoon.isLocal,
-                isSlayerCocoon = cocoon.isSlayerCocoon,
-                isSlayerQuestActive = SlayerQuestState.isActive,
-                hasMobName = cocoon.mobName != null,
-            )
-        ) {
-            return false
-        }
+        val isOwnershipShown = cocoon.isLocal ||
+            (!cocoon.isSlayerCocoon && (!SlayerQuestState.isActive || cocoon.mobName != null))
+        if (!isOwnershipShown) return false
         if (!config.settings.onlySlayerTargets || !SlayerQuestState.isActive) return true
         if (cocoon.matchedTargetFilter) return true
         val mobName = cocoon.mobName ?: return false
-        return shouldShowFilteredCocoon(
-            wasPreviouslyMatched = false,
-            isSlayerTarget = SlayerQuestState.isSlayerTarget(mobName),
-            isDianaRareMob = DianaRareMobOption.fromMobName(mobName) != null,
-        ).also { cocoon.matchedTargetFilter = it }
+        return isTargetMob(mobName).also { cocoon.matchedTargetFilter = it }
     }
 
     private fun updateMobName(cocoon: TrackedCocoon, mobName: String) {
         cocoon.mobName = mobName
-        val isSlayerTarget = SlayerQuestState.isSlayerTarget(mobName)
-        cocoon.isSlayerCocoon = cocoon.isSlayerCocoon || isSlayerTarget
-        cocoon.matchedTargetFilter = shouldShowFilteredCocoon(
-            wasPreviouslyMatched = cocoon.matchedTargetFilter,
-            isSlayerTarget = isSlayerTarget,
-            isDianaRareMob = DianaRareMobOption.fromMobName(mobName) != null,
-        )
+        cocoon.isSlayerCocoon = cocoon.isSlayerCocoon || SlayerQuestState.isSlayerTarget(mobName)
+        cocoon.matchedTargetFilter = cocoon.matchedTargetFilter || isTargetMob(mobName)
     }
+
+    private fun isTargetMob(mobName: String): Boolean =
+        SlayerQuestState.isSlayerTarget(mobName) || DianaRareMobOption.fromMobName(mobName) != null
 
     private fun claimCocoon(cocoon: TrackedCocoon, message: PendingCocoonMessage) {
         cocoon.isLocal = true
@@ -320,6 +311,8 @@ object CocoonTracker {
         val attackedAtMillis: Long,
     )
 
+    private data class CocoonLink(val message: PendingCocoonMessage, val cocoon: TrackedCocoon)
+
     private data class CocoonNameMatch(
         val mobName: String,
         val distanceSq: Double,
@@ -341,20 +334,14 @@ object CocoonTracker {
             "InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNGNlYjBlZDhmYzIyNzJiM2QzZDgyMDY3NmQ1MmEz" +
             "OGU3YjJlOGRhOGM2ODdhMjMzZTBkYWJhYTE2YzBlOTZkZiJ9fX0="
 
-    private fun cocoonComparator(message: PendingCocoonMessage): Comparator<TrackedCocoon> =
-        compareBy<TrackedCocoon> { cocoon -> mobNameMatchRank(message.mobName, cocoon.mobName) }
-            .thenBy { cocoon -> message.killedEntityLocation?.distanceSq(cocoon.location) ?: 0.0 }
-            .thenBy { cocoon -> abs(message.receivedAtMillis - cocoon.detectedAtMillis) }
-            .thenBy { cocoon -> message.playerLocation?.distanceSq(cocoon.location) ?: 0.0 }
-
-    private fun messageComparator(cocoon: TrackedCocoon): Comparator<PendingCocoonMessage> =
-        compareBy<PendingCocoonMessage> { message -> mobNameMatchRank(message.mobName, cocoon.mobName) }
-            .thenBy { message -> message.killedEntityLocation?.distanceSq(cocoon.location) ?: 0.0 }
-            .thenBy { message -> abs(message.receivedAtMillis - cocoon.detectedAtMillis) }
-            .thenBy { message -> message.playerLocation?.distanceSq(cocoon.location) ?: 0.0 }
+    private val linkComparator =
+        compareBy<CocoonLink> { (message, cocoon) -> mobNameMatchRank(message.mobName, cocoon.mobName) }
+            .thenBy { (message, cocoon) -> message.killedEntityLocation?.distanceSq(cocoon.location) ?: 0.0 }
+            .thenBy { (message, cocoon) -> abs(message.receivedAtMillis - cocoon.detectedAtMillis) }
+            .thenBy { (message, cocoon) -> message.playerLocation?.distanceSq(cocoon.location) ?: 0.0 }
 }
 
-internal fun isWithinMessageLinkWindow(firstMillis: Long, secondMillis: Long): Boolean =
+private fun isWithinMessageLinkWindow(firstMillis: Long, secondMillis: Long): Boolean =
     abs(firstMillis - secondMillis) <= MESSAGE_LINK_WINDOW_MILLIS
 
 private fun mobNameMatchRank(messageMobName: String?, cocoonMobName: String?): Int = when {
@@ -363,35 +350,15 @@ private fun mobNameMatchRank(messageMobName: String?, cocoonMobName: String?): I
     else -> 2
 }
 
-internal fun shouldShowCocoonForOwnership(
-    isLocal: Boolean,
-    isSlayerCocoon: Boolean,
-    isSlayerQuestActive: Boolean,
-    hasMobName: Boolean,
-): Boolean =
-    isLocal || (!isSlayerCocoon && (!isSlayerQuestActive || hasMobName))
+private fun areSameCocoon(first: WorldVec, second: WorldVec): Boolean =
+    first.horizontalDistanceSq(second) <= COCOON_GROUP_HORIZONTAL_DISTANCE_SQ
 
-internal fun areSameCocoon(first: WorldVec, second: WorldVec): Boolean {
-    val dx = first.x - second.x
-    val dz = first.z - second.z
-    return dx * dx + dz * dz <= COCOON_GROUP_HORIZONTAL_DISTANCE_SQ
-}
-
-private fun isPossibleMobNameplate(cocoon: WorldVec, nameplate: WorldVec): Boolean {
-    val dx = cocoon.x - nameplate.x
-    val dz = cocoon.z - nameplate.z
-    return dx * dx + dz * dz <= NAMEPLATE_HORIZONTAL_DISTANCE_SQ &&
-        kotlin.math.abs(cocoon.y - nameplate.y) <= NAMEPLATE_VERTICAL_DISTANCE
-}
+private fun isPossibleMobNameplate(cocoon: WorldVec, nameplate: WorldVec): Boolean =
+    cocoon.horizontalDistanceSq(nameplate) <= NAMEPLATE_HORIZONTAL_DISTANCE_SQ &&
+        abs(cocoon.y - nameplate.y) <= NAMEPLATE_VERTICAL_DISTANCE
 
 private fun formatCocoonTime(remainingMillis: Long): String =
     String.format(Locale.ROOT, "%.1fs", remainingMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND)
-
-internal fun shouldShowFilteredCocoon(
-    wasPreviouslyMatched: Boolean,
-    isSlayerTarget: Boolean,
-    isDianaRareMob: Boolean,
-): Boolean = wasPreviouslyMatched || isSlayerTarget || isDianaRareMob
 
 private const val COCOON_GROUP_HORIZONTAL_DISTANCE_SQ = 1.0
 private const val NAMEPLATE_HORIZONTAL_DISTANCE_SQ = 1.0
