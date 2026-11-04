@@ -8,12 +8,6 @@ import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvents
 
-internal fun shouldShowFishingHotspotClosedTitle(
-    nearestHotspotId: FishingHotspotId?,
-    closedHotspots: Collection<TrackedFishingHotspot>,
-): Boolean =
-    nearestHotspotId != null && closedHotspots.any { hotspot -> hotspot.id == nearestHotspotId }
-
 internal object FishingHotspotClosedTitle {
     fun show() {
         ScreenAlertRenderer.show(
@@ -31,7 +25,6 @@ internal object FishingHotspotClosedTitle {
                     pitch = ALERT_SOUND_PITCH,
                     volume = ALERT_SOUND_VOLUME,
                 ),
-                preferredYOffset = TITLE_Y_OFFSET,
                 priority = ALERT_PRIORITY,
             ),
         )
@@ -47,5 +40,4 @@ internal object FishingHotspotClosedTitle {
     private const val ALERT_SOUND_VOLUME = 0.8f
     private const val ALERT_PRIORITY = 5
     private const val TITLE_SCALE = 2.65f
-    private const val TITLE_Y_OFFSET = -82f
 }

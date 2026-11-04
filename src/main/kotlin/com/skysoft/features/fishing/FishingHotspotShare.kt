@@ -1,6 +1,10 @@
 package com.skysoft.features.fishing
 
+import com.skysoft.utils.RegexUtilities.group
+import com.skysoft.utils.RegexUtilities.whitespacePattern
+import com.skysoft.utils.RegexUtilities.worldVecOrNull
 import com.skysoft.utils.WorldVec
+import kotlin.math.abs
 
 internal data class FishingHotspotShare(
     val stat: String,
@@ -12,16 +16,10 @@ internal data class FishingHotspotShare(
     fun matches(other: FishingHotspotShare): Boolean =
         cleanStat.equals(other.cleanStat, ignoreCase = true) &&
             verticalDistance(other) <= MATCH_VERTICAL_RANGE &&
-            horizontalDistanceSq(other) <= MATCH_HORIZONTAL_RANGE_SQ
+            location.horizontalDistanceSq(other.location) <= MATCH_HORIZONTAL_RANGE_SQ
 
     private fun verticalDistance(other: FishingHotspotShare): Double =
-        kotlin.math.abs(location.y - other.location.y)
-
-    private fun horizontalDistanceSq(other: FishingHotspotShare): Double {
-        val dx = location.x - other.location.x
-        val dz = location.z - other.location.z
-        return dx * dx + dz * dz
-    }
+        abs(location.y - other.location.y)
 
     private companion object {
         const val MATCH_HORIZONTAL_RANGE_SQ = 36.0
@@ -47,20 +45,15 @@ internal object FishingHotspotShareParser {
     fun parse(message: String): FishingHotspotShare? {
         val match = sharePattern.find(message) ?: return null
         return FishingHotspotShare(
-            stat = match.groups["stat"]?.value?.trim().orEmpty(),
-            location = WorldVec(
-                match.groups["x"]?.value?.toDoubleOrNull() ?: return null,
-                match.groups["y"]?.value?.toDoubleOrNull() ?: return null,
-                match.groups["z"]?.value?.toDoubleOrNull() ?: return null,
-            ),
+            stat = match.group("stat").trim(),
+            location = match.worldVecOrNull() ?: return null,
         )
     }
 
     fun cleanStat(stat: String): String =
         stat.replace(nonStatTextPattern, " ")
-            .replace(spacePattern, " ")
+            .replace(whitespacePattern, " ")
             .trim()
 
     private val nonStatTextPattern = Regex("""[^A-Za-z0-9+.% -]""")
-    private val spacePattern = Regex("""\s+""")
 }

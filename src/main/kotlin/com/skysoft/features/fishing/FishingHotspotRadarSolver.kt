@@ -5,36 +5,27 @@ import com.skysoft.utils.particle.ParticleEstimateStabilizer
 import com.skysoft.utils.particle.ParticlePathEstimator
 import com.skysoft.utils.particle.ParticlePathPointResult
 
-internal data class FishingHotspotRadarGuess(
-    val location: WorldVec,
-    val updatedAtMillis: Long,
-)
+internal class FishingHotspotRadarSolver {
+    private val estimator = ParticlePathEstimator(minPoints = MIN_RADAR_PARTICLES)
+    private val stabilizer = ParticleEstimateStabilizer()
 
-internal class FishingHotspotRadarSolver(
-    private val estimator: ParticlePathEstimator = ParticlePathEstimator(minPoints = MIN_RADAR_PARTICLES),
-    private val stabilizer: ParticleEstimateStabilizer = ParticleEstimateStabilizer(),
-    private val particleWindowMillis: Long = RADAR_PARTICLE_WINDOW_MILLIS,
-) {
-    var guess: FishingHotspotRadarGuess? = null
+    var guess: WorldVec? = null
         private set
 
     private var lastRadarUseMillis: Long? = null
 
     fun begin(now: Long) {
-        estimator.reset()
-        stabilizer.reset()
-        guess = null
+        clear()
         lastRadarUseMillis = now
     }
 
-    fun addParticle(location: WorldVec, now: Long): FishingHotspotRadarGuess? {
-        val radarUse = lastRadarUseMillis ?: return null
-        if (now < radarUse || now - radarUse > particleWindowMillis) return null
-        if (estimator.addIfUsable(location) != ParticlePathPointResult.ADDED) return null
+    fun addParticle(location: WorldVec, now: Long) {
+        val radarUse = lastRadarUseMillis ?: return
+        if (now < radarUse || now - radarUse > RADAR_PARTICLE_WINDOW_MILLIS) return
+        if (estimator.addIfUsable(location) != ParticlePathPointResult.ADDED) return
         if (estimator.count() == 1) stabilizer.reset()
-        val estimate = estimator.estimate() ?: return null
-        val stableLocation = stabilizer.accept(estimate) ?: return null
-        return FishingHotspotRadarGuess(stableLocation, now).also { guess = it }
+        val estimate = estimator.estimate() ?: return
+        guess = stabilizer.accept(estimate) ?: return
     }
 
     fun clear() {
