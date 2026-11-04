@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.render.ALERT_TITLE_SCALE
 import com.skysoft.utils.render.ChromaTextRendering
 import com.skysoft.utils.render.ScreenAlert
 import com.skysoft.utils.render.ScreenAlertRenderer
@@ -65,7 +66,7 @@ object SlayerBossAlerts {
         ScreenAlertRenderer.show(
             ScreenAlert(
                 id = ALERT_ID,
-                lines = listOf(ScreenTitleLine(Component.literal(title).withStyle(style), TITLE_SCALE)),
+                lines = listOf(ScreenTitleLine(Component.literal(title).withStyle(style), ALERT_TITLE_SCALE)),
                 durationMillis = ALERT_DURATION_MILLIS,
                 sound = sound,
                 visible = visible,
@@ -104,7 +105,6 @@ object SlayerBossAlerts {
     private const val ALERT_DURATION_MILLIS = 2_500L
     private const val ALERT_SOUND_PLAYS = 4
     private const val ALERT_SOUND_REPEAT_INTERVAL_MILLIS = 450L
-    private const val TITLE_SCALE = 2.7f
     private const val BOSS_SPAWNED_TITLE = "Boss Spawned!"
     private const val BOSS_COCOONED_TITLE = "Boss Cocooned!"
     private const val BOSS_SPAWN_SOUND_ID = "minecraft:block.note_block.pling"
