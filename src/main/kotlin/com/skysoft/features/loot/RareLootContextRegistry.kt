@@ -1,15 +1,11 @@
 package com.skysoft.features.loot
 
 internal interface RareLootContextContributor {
-    fun isActive(): Boolean = false
+    fun isActive(): Boolean
 
-    fun hasLootShareEvidence(now: Long): Boolean = false
+    fun hasLootShareEvidence(now: Long): Boolean
 
-    fun recordDrop(
-        drop: RareLootChatDrop,
-        lootshare: Boolean,
-        now: Long,
-    ): RareLootDropCount? = null
+    fun recordDrop(drop: RareLootChatDrop, lootshare: Boolean, now: Long): RareLootDropCount?
 }
 
 internal object RareLootContextRegistry {

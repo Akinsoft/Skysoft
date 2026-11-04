@@ -48,7 +48,7 @@ internal object RareLootChatFeatures {
         if (sharingEnabled && message.isSystemLike && RareLootShareReceipt.isReceipt(cleanText)) {
             lastLootShareAtMillis = now
         }
-        if (!shouldConsiderRareLootMessage(message.type, cleanText)) return
+        if (message.type != ChatMessageType.SYSTEM && message.type != ChatMessageType.UNKNOWN) return
 
         val chatDrop = RareLootChatParser.parse(cleanText) ?: return
         val lootshare = isLootShareDrop(now)
@@ -64,13 +64,13 @@ internal object RareLootChatFeatures {
 
     private fun shareIfEligible(
         drop: RareLootDrop,
-        value: RareLootValue?,
+        value: Double?,
         lootshare: Boolean,
         dropCount: RareLootDropCount?,
     ) {
         val threshold = sharingThreshold.read(sharingConfig.settings.rareLootValue) ?: return
-        if (!RareLootEligibility.shouldShare(threshold, value)) return
-        val message = RareLootPartyMessageFormatter.format(drop, value, lootshare, dropCount = dropCount)
+        if (threshold != 0.0 && (value == null || value < threshold)) return
+        val message = RareLootPartyMessageFormatter.format(drop, value, lootshare, dropCount)
         sharingConfig.settings.channels.get().forEach { channel ->
             when (channel) {
                 RareLootShareChannel.PARTY -> SkysoftPartyShare.sendParty(message)
@@ -89,12 +89,3 @@ internal object RareLootChatFeatures {
         RareLootContextRegistry.hasLootShareEvidence(now) ||
             RareLootShareReceipt.isWithinWindow(lastLootShareAtMillis, now)
 }
-
-internal fun shouldConsiderRareLootMessage(
-    messageType: ChatMessageType,
-    cleanText: String,
-): Boolean =
-    (messageType == ChatMessageType.SYSTEM || messageType == ChatMessageType.UNKNOWN) &&
-        !cleanText.startsWith(PARTY_PREFIX)
-
-private const val PARTY_PREFIX = "Party >"
