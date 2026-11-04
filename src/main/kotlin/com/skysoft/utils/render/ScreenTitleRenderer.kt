@@ -53,9 +53,9 @@ object ScreenTitleRenderer {
         )
     }
 
-    fun beginPositionEditing(nowNanos: Long = System.nanoTime()) {
+    fun beginPositionEditing() {
         editorTitle = lastRenderedTitle
-            ?.takeIf { nowNanos - it.renderedAtNanos <= TITLE_VISIBILITY_GRACE_NANOS }
+            ?.takeIf { System.nanoTime() - it.renderedAtNanos <= TITLE_VISIBILITY_GRACE_NANOS }
             ?.lines
     }
 
@@ -79,50 +79,33 @@ object ScreenTitleRenderer {
         })
     }
 
-    fun draw(
-        context: GuiGraphicsExtractor,
-        title: Component,
-        scale: Float,
-        yOffset: Float,
-        color: Int = 0xFFFFFFFF.toInt(),
-        shadow: Boolean = true,
-    ) {
-        recordRenderedTitle(listOf(ScreenTitleLine(title, scale, color)))
+    fun draw(context: GuiGraphicsExtractor, title: Component, scale: Float, yOffset: Float) {
+        val line = ScreenTitleLine(title, scale)
+        recordRenderedTitle(listOf(line))
         val font = Minecraft.getInstance().font
         withTitlePosition(context) {
             context.pose().translate(0f, yOffset - DEFAULT_TITLE_Y_OFFSET)
             context.pose().scale(scale, scale)
-            context.text(font, title, -font.width(title) / 2, 0, color, shadow)
+            context.text(font, title, -font.width(title) / 2, 0, line.color, true)
         }
     }
 
-    fun drawLines(
-        context: GuiGraphicsExtractor,
-        lines: List<ScreenTitleLine>,
-        yOffset: Float,
-        shadow: Boolean = true,
-    ) {
+    fun drawLines(context: GuiGraphicsExtractor, lines: List<ScreenTitleLine>, yOffset: Float) {
         if (lines.isEmpty()) return
         recordRenderedTitle(lines)
         withTitlePosition(context) {
-            drawLinesAt(context, lines, 0f, yOffset - DEFAULT_TITLE_Y_OFFSET, shadow)
+            drawLinesAt(context, lines, 0f, yOffset - DEFAULT_TITLE_Y_OFFSET)
         }
     }
 
-    private fun drawLinesAt(
-        context: GuiGraphicsExtractor,
-        lines: List<ScreenTitleLine>,
-        centerX: Float,
-        centerY: Float,
-        shadow: Boolean = true,
-    ) {
+    private fun drawLinesAt(context: GuiGraphicsExtractor, lines: List<ScreenTitleLine>, centerX: Float, centerY: Float) {
         val font = Minecraft.getInstance().font
         var currentY = centerY - lines.totalHeight() / 2f
         lines.forEach { line ->
             context.withIsolatedPose {
                 context.pose().translate(centerX, currentY)
                 context.pose().scale(line.scale, line.scale)
-                context.text(font, line.component, -font.width(line.component) / 2, 0, line.color, shadow)
+                context.text(font, line.component, -font.width(line.component) / 2, 0, line.color, true)
             }
             currentY += line.height
         }
@@ -169,4 +152,6 @@ data class ScreenTitleLine(
 internal fun List<ScreenTitleLine>.totalHeight(): Int = sumOf { line -> line.height }
 
 internal const val DEFAULT_TITLE_Y_OFFSET = -82f
+internal const val ALERT_TITLE_SCALE = 2.7f
+internal const val ALERT_SUBTITLE_SCALE = 1.55f
 private const val TITLE_VISIBILITY_GRACE_NANOS = 250_000_000L

@@ -5,6 +5,8 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SlayerMessageParser
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.render.ALERT_SUBTITLE_SCALE
+import com.skysoft.utils.render.ALERT_TITLE_SCALE
 import com.skysoft.utils.render.ScreenAlert
 import com.skysoft.utils.render.ScreenAlertRenderer
 import com.skysoft.utils.render.ScreenAlertSound
@@ -33,11 +35,11 @@ object SlayerMinibossAlert {
                 lines = listOf(
                     ScreenTitleLine(
                         Component.literal(minibossName).withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-                        TITLE_SCALE,
+                        ALERT_TITLE_SCALE,
                     ),
                     ScreenTitleLine(
                         Component.literal("Miniboss Spawned!").withStyle(ChatFormatting.GRAY),
-                        SUBTITLE_SCALE,
+                        ALERT_SUBTITLE_SCALE,
                     ),
                 ),
                 durationMillis = ALERT_DURATION_MILLIS,
@@ -58,6 +60,4 @@ object SlayerMinibossAlert {
     private const val ALERT_SOUND_REPEAT_INTERVAL_MILLIS = 450L
     private const val ALERT_SOUND_PITCH = 1.0f
     private const val ALERT_SOUND_VOLUME = 0.8f
-    private const val TITLE_SCALE = 2.7f
-    private const val SUBTITLE_SCALE = 1.55f
 }
