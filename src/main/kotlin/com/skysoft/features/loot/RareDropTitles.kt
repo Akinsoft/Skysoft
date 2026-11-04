@@ -4,8 +4,8 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockEnchantments
 import com.skysoft.data.skyblock.SkyBlockItemRarity
 import com.skysoft.data.skyblock.SkyBlockRarity
-import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.NumberUtilities.coinFormat
+import com.skysoft.utils.render.ALERT_TITLE_SCALE
 import com.skysoft.utils.render.ScreenAlert
 import com.skysoft.utils.render.ScreenAlertRenderer
 import com.skysoft.utils.render.ScreenTitleLine
@@ -16,20 +16,14 @@ internal object RareDropTitles {
     private val config get() = SkysoftConfigGui.config().loot.rareDropTitles
     private val minimumValue = RareLootThresholdReader("rare drop title minimum value")
 
-    fun show(drop: RareLootDrop, value: RareLootValue?) {
+    fun show(drop: RareLootDrop, value: Double?) {
         val threshold = minimumValue.read(config.settings.minimumValue) ?: return
-        val resolvedValue = value ?: return
-        if (!RareLootEligibility.hasMinimumValue(threshold, resolvedValue)) return
+        if (value == null || value < threshold) return
         val rarity = SkyBlockItemRarity.fromInternalName(drop.itemId) ?: return
         ScreenAlertRenderer.show(
             ScreenAlert(
                 id = ALERT_ID,
-                lines = listOf(
-                    ScreenTitleLine(
-                        RareDropTitleFormatter.format(drop, resolvedValue, rarity),
-                        TITLE_SCALE,
-                    ),
-                ),
+                lines = listOf(ScreenTitleLine(title(drop, value, rarity), ALERT_TITLE_SCALE)),
                 durationMillis = TITLE_DURATION_MILLIS,
             ),
         )
@@ -40,13 +34,7 @@ internal object RareDropTitles {
         ScreenAlertRenderer.clear(ALERT_ID)
     }
 
-    private const val ALERT_ID = "rare_drop_title"
-    private const val TITLE_DURATION_MILLIS = 2_500L
-    private const val TITLE_SCALE = 2.7f
-}
-
-internal object RareDropTitleFormatter {
-    fun format(drop: RareLootDrop, value: RareLootValue, rarity: SkyBlockRarity): Component =
+    private fun title(drop: RareLootDrop, value: Double, rarity: SkyBlockRarity): Component =
         Component.empty()
             .append(Component.literal(drop.prefix()).withStyle(ChatFormatting.WHITE))
             .append(
@@ -54,12 +42,15 @@ internal object RareDropTitleFormatter {
                     if (SkyBlockEnchantments.isUltimate(drop.itemId)) {
                         style.withColor(ChatFormatting.LIGHT_PURPLE)
                     } else {
-                        style.withColor(rarity.color.rgb and RGB_MASK)
+                        style.withColor(rarity.rgb)
                     }
                 },
             )
-            .append(Component.literal(" (${value.coins.coinFormat()})").withStyle(ChatFormatting.GOLD))
+            .append(Component.literal(" (${value.coinFormat()})").withStyle(ChatFormatting.GOLD))
 
     private fun RareLootDrop.prefix(): String =
         if (amount > 1) "+ ${amount}x " else "+ "
+
+    private const val ALERT_ID = "rare_drop_title"
+    private const val TITLE_DURATION_MILLIS = 2_500L
 }

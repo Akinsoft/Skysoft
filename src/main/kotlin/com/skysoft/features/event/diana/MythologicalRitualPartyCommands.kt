@@ -218,7 +218,7 @@ internal object MythologicalRitualPartyCommands {
                 amount.toDouble()
             } else {
                 val itemId = MythologicalRitualDropMapping.priceItemId(itemKey) ?: return@sumOf 0.0
-                RareLootValueResolver.resolve(itemId, amount.toInt())?.coins ?: 0.0
+                RareLootValueResolver.resolve(itemId, amount.toInt()) ?: 0.0
             }
         }
         return itemProfit.coerceAtLeast(0.0)

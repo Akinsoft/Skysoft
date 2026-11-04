@@ -1,5 +1,6 @@
 package com.skysoft.features.loot
 
+import com.skysoft.utils.NumberUtilities.parseCompactNumberOrNull
 import com.skysoft.utils.SkysoftChat
 
 internal class RareLootThresholdReader(
@@ -7,25 +8,28 @@ internal class RareLootThresholdReader(
 ) {
     private var lastInvalidValue: String? = null
 
-    fun read(raw: String): RareLootThreshold? =
-        when (val result = RareLootThreshold.parse(raw)) {
-            is RareLootThresholdParseResult.Valid -> {
-                lastInvalidValue = null
-                result.threshold
-            }
-            is RareLootThresholdParseResult.Invalid -> {
-                warn(result)
-                null
-            }
+    fun read(raw: String): Double? {
+        val trimmed = raw.trim()
+        val coins = trimmed.parseCompactNumberOrNull()?.value
+        val problem = when {
+            trimmed.isEmpty() -> "Enter a coin value."
+            coins == null -> "Use a number like 1m or 1,000,000."
+            coins.isNaN() || coins.isInfinite() -> "Use a finite coin value."
+            coins < 0.0 -> "Use zero or more coins."
+            else -> null
         }
+        if (problem == null) {
+            lastInvalidValue = null
+            return coins
+        }
+        if (lastInvalidValue != raw) {
+            lastInvalidValue = raw
+            SkysoftChat.error("Invalid $settingName: $raw ($problem)")
+        }
+        return null
+    }
 
     fun clear() {
         lastInvalidValue = null
-    }
-
-    private fun warn(result: RareLootThresholdParseResult.Invalid) {
-        if (lastInvalidValue == result.raw) return
-        lastInvalidValue = result.raw
-        SkysoftChat.error("Invalid $settingName: ${result.raw} (${result.reason})")
     }
 }

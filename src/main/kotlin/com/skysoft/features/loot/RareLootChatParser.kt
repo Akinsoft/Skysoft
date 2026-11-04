@@ -3,48 +3,23 @@ package com.skysoft.features.loot
 import com.skysoft.data.skyblock.SkyBlockStatGlyph
 import com.skysoft.utils.NumberUtilities.romanNumeral
 import com.skysoft.utils.NumberUtilities.romanToDecimal
+import com.skysoft.utils.RegexUtilities.group
 import java.util.Locale
 
 internal object RareLootChatParser {
     fun parse(message: String): RareLootChatDrop? {
         val clean = message.trim()
         if (clean.startsWith(PARTY_PREFIX)) return null
-        dugOutPattern.matchEntire(clean)?.let { return parseDugOut(it) }
+        dugOutPattern.matchEntire(clean)?.let { return chatDrop(it.group("drop"), context = null) }
         val directDrop = directRareDropPattern.matchEntire(clean) ?: return null
-        return parseDirectRareDrop(directDrop.groups["drop"]?.value.orEmpty().trim())
+        val body = directDrop.group("drop").trim()
+        val contextMatch = contextPattern.matchEntire(body) ?: return chatDrop(body, context = null)
+        return chatDrop(contextMatch.group("drop").trim(), contextMatch.group("context").normalizeContext())
     }
 
-    private fun parseDugOut(match: MatchResult): RareLootChatDrop? {
-        val name = cleanDropName(match.groups["drop"]?.value.orEmpty()) ?: return null
-        val amountDrop = parseDrop(name)
-        return RareLootChatDrop(
-            displayName = amountDrop.displayName,
-            amount = amountDrop.amount,
-            context = null,
-            itemIdCandidates = amountDrop.itemIdCandidates,
-        )
-    }
-
-    private fun parseDirectRareDrop(body: String): RareLootChatDrop? {
-        val (dropText, context) = splitContext(body)
-        val name = cleanDropName(dropText) ?: return null
-        val amountDrop = parseDrop(name)
-        return RareLootChatDrop(
-            displayName = amountDrop.displayName,
-            amount = amountDrop.amount,
-            context = context,
-            itemIdCandidates = amountDrop.itemIdCandidates,
-        )
-    }
-
-    private fun splitContext(body: String): Pair<String, String?> {
-        val match = contextPattern.matchEntire(body)
-        val rawContext = match?.groups?.get("context")?.value
-        return if (match == null || rawContext == null) {
-            body to null
-        } else {
-            match.groups["drop"]?.value.orEmpty().trim() to rawContext.normalizeContext()
-        }
+    private fun chatDrop(dropText: String, context: String?): RareLootChatDrop? {
+        val drop = parseDrop(cleanDropName(dropText) ?: return null)
+        return RareLootChatDrop(drop.displayName, drop.amount, context, drop.itemIdCandidates)
     }
 
     private fun cleanDropName(text: String): String? {
@@ -68,17 +43,17 @@ internal object RareLootChatParser {
     }
 
     private fun parseAmount(name: String): ParsedChatDrop {
-        val match = amountPattern.matchEntire(name) ?: return ParsedChatDrop(name, 1)
-        val amount = match.groups["amount"]?.value?.toIntOrNull()?.coerceAtLeast(1) ?: return ParsedChatDrop(name, 1)
-        val displayName = match.groups["drop"]?.value?.trim()?.takeIf { it.isNotEmpty() } ?: return ParsedChatDrop(name, 1)
-        return ParsedChatDrop(displayName, amount)
+        val match = amountPattern.matchEntire(name)
+        val amount = match?.group("amount")?.toIntOrNull()?.coerceAtLeast(1)
+        val displayName = match?.group("drop")?.trim()?.takeIf { it.isNotEmpty() }
+        return if (amount != null && displayName != null) ParsedChatDrop(displayName, amount) else ParsedChatDrop(name, 1)
     }
 
     private fun parseEnchantedBook(name: String): ParsedChatDrop? {
         val match = enchantedBookPattern.matchEntire(name) ?: return null
         val enchantName = match.groups["enchant"]?.value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val level = match.groups["level"]?.value?.parseEnchantLevel() ?: return null
-        val enchantKey = enchantName.enchantmentKey()
+        val enchantKey = enchantName.toItemIdKey()
         return ParsedChatDrop(
             displayName = "${enchantName.titleCaseWords()} ${level.romanNumeral()}",
             amount = 1,
@@ -90,26 +65,12 @@ internal object RareLootChatParser {
     }
 
     private fun String.normalizeContext(): String =
-        trim()
-            .removePrefix("(")
-            .removeSuffix(")")
-            .trim()
+        trimParentheses()
             .let(SkyBlockStatGlyph::normalizeForRendering)
-            .replace(Regex("""Magic Find""", RegexOption.IGNORE_CASE), "MF")
+            .replace(magicFindPattern, "MF")
 
     private fun String.parseEnchantLevel(): Int? =
         toIntOrNull() ?: uppercase(Locale.US).romanToDecimal().takeIf { it > 0 }
-
-    private fun String.enchantmentKey(): String =
-        uppercase(Locale.US)
-            .replace(Regex("""[^A-Z0-9]+"""), "_")
-            .trim('_')
-
-    private fun String.titleCaseWords(): String =
-        lowercase(Locale.US)
-            .split(Regex("""\s+"""))
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase(Locale.US) } }
 
     private const val PARTY_PREFIX = "Party >"
     private val dugOutPattern = Regex(
@@ -124,6 +85,7 @@ internal object RareLootChatParser {
         """^(?<drop>.+?)\s+(?<context>\([^)]*(?:Magic Find|MF)[^)]*\))(?:\s+.*)?$""",
         RegexOption.IGNORE_CASE,
     )
+    private val magicFindPattern = Regex("""Magic Find""", RegexOption.IGNORE_CASE)
     private val amountPattern = Regex("""^(?<amount>\d+)\s*x\s+(?<drop>.+)$""", RegexOption.IGNORE_CASE)
     private val enchantedBookPattern = Regex("""^Enchanted Book \((?<enchant>.+?) (?<level>\d+|[IVXLCDM]+)\)$""", RegexOption.IGNORE_CASE)
 }
