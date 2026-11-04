@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.skysoft.config.DoubleHookMessagePosition
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.BundledResources
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
@@ -85,9 +86,9 @@ object SeaCreatureCatchMessages {
     }
 
     private fun loadCreatures(): Map<String, SeaCreatureCatch> {
-        val catalog = requireNotNull(javaClass.getResourceAsStream(CATCHES_RESOURCE)) {
-            "Missing Sea Creature catch data"
-        }.bufferedReader().use { reader -> Gson().fromJson(reader, SeaCreatureCatchCatalog::class.java) }
+        val catalog = BundledResources.read(CATCHES_RESOURCE, "Sea Creature catch data") { reader ->
+            Gson().fromJson(reader, SeaCreatureCatchCatalog::class.java)
+        }
         require(catalog.schemaVersion == CATCHES_SCHEMA_VERSION) { "Unsupported Sea Creature catch data" }
         require(catalog.creatures.map(SeaCreatureCatch::message).distinct().size == catalog.creatures.size) {
             "Sea Creature catch data contains duplicate messages"

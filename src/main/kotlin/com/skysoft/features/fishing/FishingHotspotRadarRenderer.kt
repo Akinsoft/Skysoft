@@ -13,21 +13,21 @@ import java.awt.Color
 internal object FishingHotspotRadarRenderer {
     fun renderWorld(
         context: SkysoftRenderContext,
-        guess: FishingHotspotRadarGuess,
+        guess: WorldVec,
         drawCrosshairLine: Boolean,
     ) {
-        val blockCenter = guess.location.blockCenter()
+        val blockCenter = guess.blockCenter()
         BlockHighlightRenderer.drawBlock(
             context,
-            guess.location,
+            guess,
             GUESS_OUTLINE_COLOR,
             GUESS_FILL_COLOR,
             GUESS_LINE_WIDTH,
         )
         WorldLabelRenderer.draw(
             context,
-            guess.location + LABEL_OFFSET,
-            labelLines(context, guess.location),
+            guess + LABEL_OFFSET,
+            labelLines(context, guess),
             LABEL_STYLE,
         )
         if (drawCrosshairLine) {

@@ -2,7 +2,6 @@ package com.skysoft.features.fishing
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.FishingHotspotType
-import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.PlayerUtilities.localPlayerName
@@ -50,19 +49,11 @@ object FishingHotspotSharing {
     }
 
     private fun onTick() {
-        if (!isConfigured) {
-            clear()
-            return
-        }
-        if (!HypixelLocationState.inSkyBlock) {
+        if (!isConfigured || !isOnFishingHotspotIsland()) {
             clear()
             return
         }
         prune()
-        if (!isAllowedIsland()) {
-            clear()
-            return
-        }
         if (!config.shareHotspots) {
             clearLocalTracking()
             return
@@ -75,16 +66,16 @@ object FishingHotspotSharing {
         val now = System.currentTimeMillis()
         val playerLocation = localPlayerLocation()
         val nearestHotspotId = playerLocation?.let(hotspotTracker::nearestHotspotId)
-        val change = hotspotTracker.reconcile(
+        val closed = hotspotTracker.reconcile(
             observations = FishingHotspotDetector.detect(),
             isLocationLoaded = FishingHotspotDetector::isLocationLoaded,
             now = now,
         )
-        change.closed.forEach { hotspot ->
+        closed.forEach { hotspot ->
             pendingShares.remove(hotspot.id)
             sharedHotspots.entries.removeIf { (_, recent) -> recent.share.matches(hotspot.share) }
         }
-        if (shouldShowFishingHotspotClosedTitle(nearestHotspotId, change.closed)) {
+        if (nearestHotspotId != null && closed.any { hotspot -> hotspot.id == nearestHotspotId }) {
             FishingHotspotClosedTitle.show()
         }
         hotspotTracker.activeHotspots()
@@ -93,27 +84,21 @@ object FishingHotspotSharing {
     }
 
     internal fun receivePartyMessage(message: ChatMessage): FishingHotspotShare? {
-        if (!isAllowedIsland()) return null
+        if (!isOnFishingHotspotIsland()) return null
         val share = FishingHotspotShareParser.parse(message.body) ?: return null
         val now = System.currentTimeMillis()
         val sharedBy = ChatSenderParser.senderBefore(message, FishingHotspotShareParser.SHARE_MARKER)
             ?: return null
         rememberRecentSharedHotspot(share, now)
         if (config.shareHotspots) {
-            val result = hotspotTracker.recordPartyShare(
+            hotspotTracker.recordPartyShare(
                 share = share,
                 playerLocation = localPlayerLocation(),
                 now = now,
-            )
-            result.announcedHotspotId?.let(pendingShares::remove)
+            )?.let(pendingShares::remove)
         }
-        val hotspotType = FishingHotspotType.fromStat(share.cleanStat)
-        if (hotspotType == null) {
-            return null
-        }
-        if (hotspotType !in config.settings.receivedHotspots.get()) {
-            return null
-        }
+        val hotspotType = FishingHotspotType.fromStat(share.cleanStat) ?: return null
+        if (hotspotType !in config.settings.receivedHotspots.get()) return null
         rememberSharedHotspotWaypoint(share, sharedBy, now)
         SkysoftPartyShare.showFoundReplacement(
             sender = sharedBy,
@@ -128,7 +113,7 @@ object FishingHotspotSharing {
         waypointHotspots.values.toList()
 
     private fun onRenderWorld(context: SkysoftRenderContext) {
-        if (!config.settings.showSharedWaypoints || !isAllowedIsland()) return
+        if (!config.settings.showSharedWaypoints || !isOnFishingHotspotIsland()) return
         prune()
         FishingHotspotWaypointRenderer.renderWorld(
             context = context,
@@ -176,21 +161,18 @@ object FishingHotspotSharing {
                 hotspotTracker.markAnnounced(hotspot.id)
                 return@forEach
             }
-            if (shareHotspot(hotspot) == HotspotShareResult.SHARED) pendingShares.remove(pending.hotspotId)
+            val playerName = localPlayerName() ?: return@forEach
+            shareHotspot(hotspot, ChatMessageSender(playerName, null))
+            pendingShares.remove(pending.hotspotId)
         }
     }
 
-    private fun shareHotspot(hotspot: TrackedFishingHotspot): HotspotShareResult {
-        val playerName = localPlayerName()
-            ?: return HotspotShareResult.PLAYER_UNAVAILABLE
+    private fun shareHotspot(hotspot: TrackedFishingHotspot, sharedBy: ChatMessageSender) {
         hotspotTracker.markAnnounced(hotspot.id)
         val now = System.currentTimeMillis()
-        val sharedBy = ChatMessageSender(playerName, null)
         rememberRecentSharedHotspot(hotspot.share, now)
         rememberSharedHotspotWaypoint(hotspot.share, sharedBy, now)
-        val message = FishingHotspotShareParser.format(hotspot.share)
-        SkysoftPartyShare.sendParty(message)
-        return HotspotShareResult.SHARED
+        SkysoftPartyShare.sendParty(FishingHotspotShareParser.format(hotspot.share))
     }
 
     private fun rememberRecentSharedHotspot(share: FishingHotspotShare, now: Long) {
@@ -206,7 +188,7 @@ object FishingHotspotSharing {
         waypointHotspots[share.key] = FishingHotspotWaypoint(
             share = share,
             sharedBy = sharedBy,
-            expiresAtMillis = now + FISHING_HOTSPOT_WAYPOINT_LIFETIME_MILLIS,
+            expiresAtMillis = now + WAYPOINT_LIFETIME_MILLIS,
         )
     }
 
@@ -232,9 +214,7 @@ object FishingHotspotSharing {
         sharedHotspots.entries.removeIf { it.value.expiresAtMillis <= now }
         pendingShares.entries.removeIf { it.value.expiresAtMillis <= now }
         val playerLocation = localPlayerLocation()
-        waypointHotspots.entries.removeIf { (_, waypoint) ->
-            shouldRemoveFishingHotspotWaypoint(waypoint, playerLocation, now)
-        }
+        waypointHotspots.entries.removeIf { (_, waypoint) -> waypoint.shouldRemove(playerLocation, now) }
     }
 
     private fun clear() {
@@ -249,10 +229,6 @@ object FishingHotspotSharing {
         FishingHotspotClosedTitle.clear()
         ticks = 0
     }
-
-    private fun isAllowedIsland(): Boolean =
-        HypixelLocationState.inSkyBlock &&
-            HypixelLocationState.currentIsland in FISHING_HOTSPOT_ISLANDS
 
     private val isConfigured: Boolean
         get() = config.shareHotspots || config.settings.receivedHotspots.get().isNotEmpty()
@@ -271,13 +247,9 @@ object FishingHotspotSharing {
         val expiresAtMillis: Long,
     )
 
-    private enum class HotspotShareResult {
-        SHARED,
-        PLAYER_UNAVAILABLE,
-    }
-
     private const val SCAN_INTERVAL_TICKS = 20
     private const val SHARE_SUPPRESS_MILLIS = 10 * 60 * 1000L
     private const val PENDING_SHARE_DELAY_MILLIS = 2_000L
     private const val PENDING_SHARE_EXPIRE_MILLIS = 60_000L
+    private const val WAYPOINT_LIFETIME_MILLIS = 20_000L
 }

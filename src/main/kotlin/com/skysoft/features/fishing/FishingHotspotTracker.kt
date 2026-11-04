@@ -13,21 +13,9 @@ internal data class FishingHotspotObservation(
 
 internal data class TrackedFishingHotspot(
     val id: FishingHotspotId,
-    val entityUuid: UUID,
     val share: FishingHotspotShare,
-    val lastSeenAtMillis: Long,
     val isVisible: Boolean,
     val isAnnounced: Boolean,
-)
-
-internal data class FishingHotspotLifecycleChange(
-    val appeared: List<TrackedFishingHotspot>,
-    val closed: List<TrackedFishingHotspot>,
-)
-
-internal data class FishingHotspotPartyShareResult(
-    val announcedHotspotId: FishingHotspotId?,
-    val hasStoredNearbyClaim: Boolean,
 )
 
 private data class NearbyFishingHotspotPartyClaim(
@@ -35,11 +23,7 @@ private data class NearbyFishingHotspotPartyClaim(
     val expiresAtMillis: Long,
 )
 
-internal class FishingHotspotTracker(
-    private val missingGraceMillis: Long = MISSING_GRACE_MILLIS,
-    private val nearbyClaimMillis: Long = NEARBY_CLAIM_MILLIS,
-    private val nearbyShareRadiusSq: Double = NEARBY_SHARE_RADIUS_SQ,
-) {
+internal class FishingHotspotTracker {
     private val activeHotspots = linkedMapOf<FishingHotspotId, ActiveFishingHotspot>()
     private val nearbyPartyClaims = mutableListOf<NearbyFishingHotspotPartyClaim>()
     private var nextHotspotId = 1L
@@ -48,7 +32,7 @@ internal class FishingHotspotTracker(
         observations: Collection<FishingHotspotObservation>,
         isLocationLoaded: (WorldVec) -> Boolean,
         now: Long,
-    ): FishingHotspotLifecycleChange {
+    ): List<TrackedFishingHotspot> {
         pruneClaims(now)
         val unmatchedIds = activeHotspots.keys.toMutableSet()
         val appearedIds = mutableListOf<FishingHotspotId>()
@@ -60,54 +44,50 @@ internal class FishingHotspotTracker(
                     id = FishingHotspotId(nextHotspotId++),
                     entityUuid = observation.entityUuid,
                     share = observation.share,
-                    lastSeenAtMillis = now,
                 )
                 activeHotspots[hotspot.id] = hotspot
                 appearedIds += hotspot.id
             } else {
-                activeHotspots.getValue(matchingId).observe(observation, now)
+                activeHotspots.getValue(matchingId).observe(observation)
                 unmatchedIds -= matchingId
             }
         }
 
         applyNearbyClaims(appearedIds)
-        val closed = closeMissingHotspots(unmatchedIds, isLocationLoaded, now)
-        return FishingHotspotLifecycleChange(
-            appeared = appearedIds.mapNotNull { id -> activeHotspots[id]?.snapshot() },
-            closed = closed,
-        )
+        return closeMissingHotspots(unmatchedIds, isLocationLoaded, now)
     }
 
     fun recordPartyShare(
         share: FishingHotspotShare,
         playerLocation: WorldVec?,
         now: Long,
-    ): FishingHotspotPartyShareResult {
+    ): FishingHotspotId? {
         pruneClaims(now)
         val exactMatch = activeHotspots.values
+            .asSequence()
             .filter { hotspot -> hotspot.share.matches(share) }
-            .minByOrNull { hotspot -> hotspot.share.location.distanceSq(share.location) }
+            .nearestTo(share.location)
         if (exactMatch != null) {
             exactMatch.isAnnounced = true
-            return FishingHotspotPartyShareResult(exactMatch.id, hasStoredNearbyClaim = false)
+            return exactMatch.id
         }
 
-        val isPlayerNearby = playerLocation?.distanceSq(share.location)?.let { it <= nearbyShareRadiusSq } == true
-        if (!isPlayerNearby) return FishingHotspotPartyShareResult(null, hasStoredNearbyClaim = false)
+        val isPlayerNearby = playerLocation?.distanceSq(share.location)?.let { it <= NEARBY_SHARE_RADIUS_SQ } == true
+        if (!isPlayerNearby) return null
 
         val spatialMatch = activeHotspots.values
             .asSequence()
             .filterNot { hotspot -> hotspot.isAnnounced }
-            .filter { hotspot -> hotspot.share.location.distanceSq(share.location) <= nearbyShareRadiusSq }
-            .minByOrNull { hotspot -> hotspot.share.location.distanceSq(share.location) }
+            .filter { hotspot -> hotspot.share.location.distanceSq(share.location) <= NEARBY_SHARE_RADIUS_SQ }
+            .nearestTo(share.location)
         if (spatialMatch != null) {
             spatialMatch.isAnnounced = true
-            return FishingHotspotPartyShareResult(spatialMatch.id, hasStoredNearbyClaim = false)
+            return spatialMatch.id
         }
 
         nearbyPartyClaims.removeIf { claim -> claim.share.matches(share) }
-        nearbyPartyClaims += NearbyFishingHotspotPartyClaim(share, now + nearbyClaimMillis)
-        return FishingHotspotPartyShareResult(null, hasStoredNearbyClaim = true)
+        nearbyPartyClaims += NearbyFishingHotspotPartyClaim(share, now + NEARBY_CLAIM_MILLIS)
+        return null
     }
 
     fun markAnnounced(id: FishingHotspotId) {
@@ -121,7 +101,7 @@ internal class FishingHotspotTracker(
         activeHotspots.values.map(ActiveFishingHotspot::snapshot)
 
     fun nearestHotspotId(location: WorldVec): FishingHotspotId? =
-        activeHotspots.values.minByOrNull { hotspot -> hotspot.share.location.distanceSq(location) }?.id
+        activeHotspots.values.asSequence().nearestTo(location)?.id
 
     fun reset() {
         activeHotspots.clear()
@@ -139,7 +119,7 @@ internal class FishingHotspotTracker(
             .asSequence()
             .mapNotNull(activeHotspots::get)
             .filter { hotspot -> hotspot.share.matches(observation.share) }
-            .minByOrNull { hotspot -> hotspot.share.location.distanceSq(observation.share.location) }
+            .nearestTo(observation.share.location)
             ?.id
     }
 
@@ -150,8 +130,8 @@ internal class FishingHotspotTracker(
             val match = availableIds
                 .asSequence()
                 .mapNotNull(activeHotspots::get)
-                .filter { hotspot -> hotspot.share.location.distanceSq(claim.share.location) <= nearbyShareRadiusSq }
-                .minByOrNull { hotspot -> hotspot.share.location.distanceSq(claim.share.location) }
+                .filter { hotspot -> hotspot.share.location.distanceSq(claim.share.location) <= NEARBY_SHARE_RADIUS_SQ }
+                .nearestTo(claim.share.location)
                 ?: return@forEach
             match.isAnnounced = true
             availableIds -= match.id
@@ -174,7 +154,7 @@ internal class FishingHotspotTracker(
                 return@forEach
             }
             val missingSince = hotspot.missingSinceMillis ?: now.also { hotspot.missingSinceMillis = it }
-            if (now - missingSince < missingGraceMillis) return@forEach
+            if (now - missingSince < MISSING_GRACE_MILLIS) return@forEach
             closed += hotspot.snapshot()
             activeHotspots.remove(id)
         }
@@ -185,28 +165,27 @@ internal class FishingHotspotTracker(
         nearbyPartyClaims.removeIf { claim -> claim.expiresAtMillis <= now }
     }
 
+    private fun Sequence<ActiveFishingHotspot>.nearestTo(location: WorldVec): ActiveFishingHotspot? =
+        minByOrNull { hotspot -> hotspot.share.location.distanceSq(location) }
+
     private data class ActiveFishingHotspot(
         val id: FishingHotspotId,
         var entityUuid: UUID,
         var share: FishingHotspotShare,
-        var lastSeenAtMillis: Long,
         var isVisible: Boolean = true,
         var isAnnounced: Boolean = false,
         var missingSinceMillis: Long? = null,
     ) {
-        fun observe(observation: FishingHotspotObservation, now: Long) {
+        fun observe(observation: FishingHotspotObservation) {
             entityUuid = observation.entityUuid
             share = observation.share
-            lastSeenAtMillis = now
             isVisible = true
             missingSinceMillis = null
         }
 
         fun snapshot(): TrackedFishingHotspot = TrackedFishingHotspot(
             id = id,
-            entityUuid = entityUuid,
             share = share,
-            lastSeenAtMillis = lastSeenAtMillis,
             isVisible = isVisible,
             isAnnounced = isAnnounced,
         )
