@@ -1,7 +1,10 @@
 package com.skysoft.features.misc.bettertab
 
 import com.skysoft.data.hypixel.TabListEntry
+import com.skysoft.features.misc.vanillaTabGrid
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.chat.styleAt
+import com.skysoft.utils.chat.styledSubstring
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
@@ -24,7 +27,6 @@ internal data class BetterTabLayout(
 )
 
 internal object BetterTabLayoutBuilder {
-    private const val SOURCE_COLUMN_ROWS = 20
     private const val MAXIMUM_PROFILE_NAME_LENGTH = 14
     private const val HYPIXEL_SERVER_LINE_PREFIX = "You are playing on"
     private const val HYPIXEL_ADVERTISING_TEXT = "HYPIXEL.NET"
@@ -56,7 +58,7 @@ internal object BetterTabLayoutBuilder {
     private fun parseEntryBlocks(entries: List<TabListEntry>, isSecondPlayerColumnHidden: Boolean): List<ContentBlock> {
         if (entries.isEmpty()) return emptyList()
         val groups = linkedMapOf<String, SourceGroup>()
-        val rowsPerColumn = sourceColumnRows(entries.size)
+        val rowsPerColumn = vanillaTabGrid(entries.size).rows.coerceAtLeast(1)
         for (start in entries.indices step rowsPerColumn) {
             val sourceEntries = entries.subList(start, minOf(start + rowsPerColumn, entries.size))
             val title = sourceEntries.first().displayName.trimmedCopy()
@@ -101,16 +103,6 @@ internal object BetterTabLayoutBuilder {
         }
     }
 
-    private fun sourceColumnRows(entryCount: Int): Int {
-        var columns = 1
-        var rows = entryCount
-        while (rows > SOURCE_COLUMN_ROWS) {
-            columns++
-            rows = Math.ceilDiv(entryCount, columns)
-        }
-        return rows.coerceAtLeast(1)
-    }
-
     private fun parseFooter(footer: Component?, isStoreBannerHidden: Boolean): FooterContent {
         val lines = footer?.splitStyledLines().orEmpty()
         val bannerLines = if (isStoreBannerHidden) emptyList() else lines.filter { it.isHypixelAdvertisingLine() }
@@ -152,12 +144,9 @@ internal object BetterTabLayoutBuilder {
                 val prefixSize = hasTitle.toInt() + hasSpacer.toInt()
                 val availableRows = maximumRows - column.rows.size
                 val completeBlockSize = prefixSize + remainingRows.size
-                if (column.rows.isNotEmpty() && completeBlockSize > availableRows && block.minimumSize() <= maximumRows) {
-                    columns += column.build()
-                    column = ColumnBuilder()
-                    continue
-                }
-                if (prefixSize >= availableRows) {
+                val startsNewColumn =
+                    column.rows.isNotEmpty() && completeBlockSize > availableRows && block.minimumSize() <= maximumRows
+                if (startsNewColumn || prefixSize >= availableRows) {
                     columns += column.build()
                     column = ColumnBuilder()
                     continue
@@ -204,39 +193,11 @@ internal object BetterTabLayoutBuilder {
         if (start < 0) return Component.empty()
         val end = text.indexOfLast { !it.isWhitespace() } + 1
         if (start == 0 && end == text.length) return copy()
-        return styledSlice(start, end)
+        return styledSubstring(start, end)
     }
 
-    private fun Component.styledPrefixWithEllipsis(end: Int): Component {
-        val result = Component.empty()
-        var offset = 0
-        var ellipsisStyle = Style.EMPTY
-        visit({ style: Style, segment: String ->
-            val segmentStart = offset
-            offset += segment.length
-            val to = minOf(end - segmentStart, segment.length)
-            if (to > 0) {
-                result.append(Component.literal(segment.substring(0, to)).withStyle(style))
-                ellipsisStyle = style
-            }
-            Optional.empty<Unit>()
-        }, Style.EMPTY)
-        return result.append(Component.literal("...").withStyle(ellipsisStyle))
-    }
-
-    private fun Component.styledSlice(start: Int, end: Int): Component {
-        val result = Component.empty()
-        var offset = 0
-        visit({ style: Style, segment: String ->
-            val segmentStart = offset
-            offset += segment.length
-            val from = maxOf(start - segmentStart, 0)
-            val to = minOf(end - segmentStart, segment.length)
-            if (from < to) result.append(Component.literal(segment.substring(from, to)).withStyle(style))
-            Optional.empty<Unit>()
-        }, Style.EMPTY)
-        return result
-    }
+    private fun Component.styledPrefixWithEllipsis(end: Int): Component =
+        styledSubstring(0, end).append(Component.literal("...").withStyle(styleAt(end - 1)))
 
     private fun Component.splitStyledLines(): List<Component> {
         val lines = mutableListOf<MutableComponent>(Component.empty())

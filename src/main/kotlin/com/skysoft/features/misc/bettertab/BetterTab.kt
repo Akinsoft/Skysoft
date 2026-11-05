@@ -78,9 +78,10 @@ object BetterTab {
             override fun renderEditor(context: GuiGraphicsExtractor) {
                 val minecraft = Minecraft.getInstance()
                 val layout = currentLayout(minecraft) ?: return
+                val scale = defaultScale(layout)
                 context.withIsolatedPose {
-                    context.pose().scale(defaultScale(layout), defaultScale(layout))
-                    drawLayout(context, minecraft, layout, 0, 0)
+                    context.pose().scale(scale, scale)
+                    drawLayout(context, minecraft, layout)
                 }
             }
 
@@ -104,7 +105,7 @@ object BetterTab {
         val transform = config.position.transform(layout.panelWidth, layout.panelHeight, scale)
         context.nextStratum()
         transform.render(context) {
-            drawLayout(context, minecraft, layout, 0, 0)
+            drawLayout(context, minecraft, layout)
         }
     }
 
@@ -209,22 +210,16 @@ object BetterTab {
 
     private fun editorHeight(layout: MeasuredLayout): Int = (layout.panelHeight * defaultScale(layout)).roundToInt()
 
-    private fun drawLayout(
-        context: GuiGraphicsExtractor,
-        minecraft: Minecraft,
-        layout: MeasuredLayout,
-        panelX: Int,
-        panelY: Int,
-    ) {
+    private fun drawLayout(context: GuiGraphicsExtractor, minecraft: Minecraft, layout: MeasuredLayout) {
         drawTooltipPanel(
             context,
-            panelX,
-            panelY,
+            0,
+            0,
             layout.panelWidth,
             layout.panelHeight,
             config.details.backgroundColor.get().toColor().rgb,
         )
-        drawContent(context, minecraft, layout, panelX, panelY)
+        drawContent(context, minecraft, layout)
     }
 
     private fun drawTooltipPanel(
@@ -248,15 +243,9 @@ object BetterTab {
         )
     }
 
-    private fun drawContent(
-        context: GuiGraphicsExtractor,
-        minecraft: Minecraft,
-        layout: MeasuredLayout,
-        panelX: Int,
-        panelY: Int,
-    ) {
-        val contentX = panelX + OverlayPanelStyle.PADDING
-        var y = panelY + OverlayPanelStyle.PADDING
+    private fun drawContent(context: GuiGraphicsExtractor, minecraft: Minecraft, layout: MeasuredLayout) {
+        val contentX = OverlayPanelStyle.PADDING
+        var y = OverlayPanelStyle.PADDING
         y = drawCenteredLines(context, minecraft, layout.layout.headerLines, contentX, y, layout.contentWidth)
         if (layout.layout.headerLines.isNotEmpty()) y += CONTENT_GAP
         drawColumns(
@@ -284,10 +273,21 @@ object BetterTab {
     ): Int {
         var y = startY
         for (line in lines) {
-            context.text(minecraft.font, line, x + (width - minecraft.font.width(line)) / 2, y, TEXT_COLOR, false)
+            drawCenteredText(context, minecraft, line, x, y, width)
             y += LINE_HEIGHT
         }
         return y
+    }
+
+    private fun drawCenteredText(
+        context: GuiGraphicsExtractor,
+        minecraft: Minecraft,
+        text: Component,
+        x: Int,
+        y: Int,
+        width: Int,
+    ) {
+        context.text(minecraft.font, text, x + (width - minecraft.font.width(text)) / 2, y, TEXT_COLOR, false)
     }
 
     private fun drawColumns(
@@ -332,27 +332,27 @@ object BetterTab {
     ) {
         if (row.component.string.isEmpty()) return
         if (row.isTitle) {
-            context.text(minecraft.font, row.component, x + (width - minecraft.font.width(row.component)) / 2, y, TEXT_COLOR, false)
+            drawCenteredText(context, minecraft, row.component, x, y, width)
             return
         }
         var textX = x
         if (
             arePlayerHeadsShown &&
             row.playerName != null &&
-            drawPlayerHead(context, row.playerName, x, y) == PlayerHeadRenderResult.DRAWN
+            didDrawPlayerHead(context, row.playerName, x, y)
         ) {
             textX += HEAD_SIZE + HEAD_GAP
         }
         context.text(minecraft.font, row.component, textX, y, TEXT_COLOR, false)
     }
 
-    private fun drawPlayerHead(
+    private fun didDrawPlayerHead(
         context: GuiGraphicsExtractor,
         playerName: String,
         x: Int,
         y: Int,
-    ): PlayerHeadRenderResult {
-        val playerProfile = TabListApi.playerProfile(playerName) ?: return PlayerHeadRenderResult.UNAVAILABLE
+    ): Boolean {
+        val playerProfile = TabListApi.playerProfile(playerName) ?: return false
         PlayerFaceExtractor.extractRenderState(
             context,
             playerProfile.skin().body().texturePath(),
@@ -363,12 +363,7 @@ object BetterTab {
             false,
             TEXT_COLOR,
         )
-        return PlayerHeadRenderResult.DRAWN
-    }
-
-    private enum class PlayerHeadRenderResult {
-        DRAWN,
-        UNAVAILABLE,
+        return true
     }
 
     private data class CachedLayout(val key: LayoutCacheKey, val layout: MeasuredLayout?)
