@@ -23,10 +23,7 @@ internal object DianaSpadeGuess {
         lastSpadeUseMillis = System.currentTimeMillis()
     }
 
-    fun handleParticle(
-        event: ClientParticleEvent,
-        now: Long = System.currentTimeMillis(),
-    ) {
+    fun handleParticle(event: ClientParticleEvent, now: Long) {
         if (!DianaParticleClassifier.isSpadeTrail(event)) return
         if (now - lastSpadeUseMillis > SPADE_TRAIL_WINDOW_MILLIS) return
         if (estimator.addIfUsable(event.location) != ParticlePathPointResult.ADDED) return
@@ -42,7 +39,7 @@ internal object DianaSpadeGuess {
         activeGuess = tracked?.takeIf { it.source == DianaBurrowSource.GUESS }
     }
 
-    fun onDetectedBurrow(location: WorldVec, now: Long = System.currentTimeMillis()) {
+    fun onDetectedBurrow(location: WorldVec, now: Long) {
         val guess = activeGuess ?: return
         val removed = DianaBurrowTargetTracker.removeGuessIfCurrentNear(
             target = guess,

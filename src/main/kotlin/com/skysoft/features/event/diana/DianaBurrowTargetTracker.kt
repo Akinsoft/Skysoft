@@ -1,6 +1,5 @@
 package com.skysoft.features.event.diana
 
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.WorldVec
 
 internal object DianaBurrowTargetTracker {
@@ -32,25 +31,23 @@ internal object DianaBurrowTargetTracker {
         put(block, type, DianaBurrowSource.DETECTED, now)
     }
 
-    fun refreshDetected(location: WorldVec, type: DianaBurrowType, now: Long = System.currentTimeMillis()): ChangeResult {
-        val block = location.roundToBlock()
-        val key = block.blockKey()
-        val current = targets[key] ?: return ChangeResult.UNCHANGED
-        if (current.source != DianaBurrowSource.DETECTED || current.type != type) return ChangeResult.UNCHANGED
-        if (now - current.updatedAtMillis < DETECTED_REFRESH_MILLIS) return ChangeResult.UNCHANGED
+    fun refreshDetected(location: WorldVec, type: DianaBurrowType, now: Long) {
+        val key = location.roundToBlock().blockKey()
+        val current = targets[key] ?: return
+        if (current.source != DianaBurrowSource.DETECTED || current.type != type) return
+        if (now - current.updatedAtMillis < DETECTED_REFRESH_MILLIS) return
         targets[key] = current.copy(updatedAtMillis = now)
-        return ChangeResult.CHANGED
     }
 
     fun trackGuess(
         location: WorldVec,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
         replacing: DianaBurrowTarget? = null,
         candidates: List<WorldVec> = emptyList(),
     ): DianaBurrowTarget? {
         DianaRemovedBurrows.prune(now)
         val block = location.roundToBlock()
-        if (!DianaRemovedBurrows.isAllowed(block, now)) return null
+        if (DianaRemovedBurrows.isSuppressed(block, now)) return null
         val replacementCreatedAtMillis = removeReplacementGuess(replacing, block, now)
         val existingAtBlock = targets[block.blockKey()]
         if (existingAtBlock != null && existingAtBlock.source != DianaBurrowSource.GUESS) {
@@ -70,7 +67,7 @@ internal object DianaBurrowTargetTracker {
     fun updateGuessCandidates(
         target: DianaBurrowTarget,
         candidates: List<WorldVec>,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
     ) {
         val current = targetAt(target.location) ?: return
         if (current.targetId != target.targetId || current.source != DianaBurrowSource.GUESS) return
@@ -84,26 +81,15 @@ internal object DianaBurrowTargetTracker {
         notifyChanged(now)
     }
 
-    fun currentTarget(playerLocation: WorldVec?): DianaBurrowTarget? {
-        val values = targets.values
-        if (playerLocation == null) return values.firstOrNull()
-        return values.minByOrNull { it.location.blockCenter().distanceSq(playerLocation) }
-    }
+    fun currentTarget(playerLocation: WorldVec?): DianaBurrowTarget? =
+        if (playerLocation == null) targets.values.firstOrNull() else targets.values.nearestTo(playerLocation)
 
     fun targetAt(location: WorldVec): DianaBurrowTarget? =
         targets[location.roundToBlock().blockKey()]
 
-    fun removeAt(
-        location: WorldVec,
-        now: Long = System.currentTimeMillis(),
-    ): DianaBurrowTarget? {
-        val target = targetAt(location) ?: return null
-        return removeTarget(target, now)
-    }
-
     fun removeIfCurrent(
         target: DianaBurrowTarget,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
         suppress: Boolean = true,
     ): DianaBurrowTarget? {
         val current = targetAt(target.location) ?: return null
@@ -115,16 +101,12 @@ internal object DianaBurrowTargetTracker {
         target: DianaBurrowTarget,
         location: WorldVec,
         maxDistance: Double,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
     ): DianaBurrowTarget? {
         val current = targetAt(target.location) ?: return null
         if (current.targetId != target.targetId || current.source != DianaBurrowSource.GUESS) return null
         if (current.location.distance(location.roundToBlock()) > maxDistance) return null
         return removeTarget(current, now, suppress = false)
-    }
-
-    fun prune(now: Long = System.currentTimeMillis()) {
-        DianaRemovedBurrows.prune(now)
     }
 
     fun clear(persist: Boolean = false, now: Long = System.currentTimeMillis()) {
@@ -174,7 +156,7 @@ internal object DianaBurrowTargetTracker {
     private fun removeTarget(
         target: DianaBurrowTarget,
         now: Long,
-        suppress: Boolean = true,
+        suppress: Boolean,
     ): DianaBurrowTarget {
         targets.remove(target.key())
         if (suppress) DianaRemovedBurrows.suppress(target, now)
@@ -195,11 +177,6 @@ internal object DianaBurrowTargetTracker {
     private fun notifyChanged(now: Long) {
         changeListener?.invoke(snapshot(), now)
     }
-
-    private fun normalizeGuessCandidates(current: WorldVec, candidates: List<WorldVec>): List<WorldVec> =
-        (listOf(current) + candidates)
-            .map { candidate -> candidate.roundToBlock() }
-            .distinctBy { candidate -> candidate.blockKey() }
 
     private const val DETECTED_REFRESH_MILLIS = 1_000L
 }

@@ -35,7 +35,7 @@ internal object DianaBurrowStorage {
 
     private fun saveTargets(
         targets: List<DianaBurrowTarget>,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
         refreshTimestamp: Boolean = false,
     ) {
         val storageKey = loadedStorageKey ?: SkyBlockProfileApi.currentProfileId ?: return
@@ -66,20 +66,20 @@ internal object DianaBurrowStorage {
     private fun persistentTargets(now: Long): List<DianaBurrowTarget> {
         val cache = persistentStorage.dianaBurrowCache
         if (cache.targets.isEmpty()) {
-            if (cache.savedAtMillis != 0L) {
-                ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
-            }
+            if (cache.savedAtMillis != 0L) clearCache()
             return emptyList()
         }
         if (now - cache.savedAtMillis > RESTORE_WINDOW_MILLIS) {
-            ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
+            clearCache()
             return emptyList()
         }
         val targets = cache.targets.mapNotNull { target -> target.toDianaTarget() }
-        if (targets.isEmpty()) {
-            ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
-        }
+        if (targets.isEmpty()) clearCache()
         return targets
+    }
+
+    private fun clearCache() {
+        ProfileStorageApi.updateProfile { it.dianaBurrowCache.clear() }
     }
 
     private const val RESTORE_WINDOW_MILLIS = 30 * 60 * 1_000L
@@ -115,9 +115,7 @@ private fun ProfileStorageView.DianaBurrowTargetData.toDianaTarget(): DianaBurro
         createdAtMillis = createdAtMillis,
         updatedAtMillis = updatedAtMillis,
         guessCandidates = if (source == DianaBurrowSource.GUESS) {
-            (listOf(location) + guessCandidates.map { candidate -> WorldVec(candidate.x, candidate.y, candidate.z) })
-                .map { candidate -> candidate.roundToBlock() }
-                .distinctBy { candidate -> candidate.blockKey() }
+            normalizeGuessCandidates(location, guessCandidates.map { candidate -> WorldVec(candidate.x, candidate.y, candidate.z) })
         } else {
             emptyList()
         },

@@ -37,7 +37,7 @@ internal data class DianaArrowCandidate(
 internal class DianaArrowShapeDetector {
     private val points = mutableListOf<TimedArrowPoint>()
 
-    fun add(location: WorldVec, distanceHint: DianaArrowDistance, now: Long = System.currentTimeMillis()): DianaArrowRay? {
+    fun add(location: WorldVec, distanceHint: DianaArrowDistance, now: Long): DianaArrowRay? {
         prune(now)
         if (points.none { it.location.distanceSq(location) <= DUPLICATE_POINT_DISTANCE_SQ }) {
             points += TimedArrowPoint(location, now)
@@ -47,7 +47,7 @@ internal class DianaArrowShapeDetector {
         return ray
     }
 
-    fun prune(now: Long = System.currentTimeMillis()) {
+    fun prune(now: Long) {
         points.removeAll { point -> now - point.seenAtMillis > POINT_MEMORY_MILLIS }
     }
 
@@ -144,47 +144,29 @@ internal object DianaArrowProjector {
         if (!bounds.contains(ray.origin)) return emptyList()
         val exitPoint = ray.intersect(bounds) ?: return emptyList()
         val axis = ray.bestProjectionAxis(exitPoint) ?: return emptyList()
-        val candidates = linkedMapOf<String, DianaArrowCandidate>()
         val originAxis = ray.origin.axis(axis)
-        val endAxis = exitPoint.axis(axis)
         val directionAxis = sign(ray.direction.axis(axis))
-        val iterations = abs(endAxis - originAxis).toInt()
-
-        for (step in 1..iterations) {
-            val axisValue = originAxis + step * directionAxis
-            val rayPoint = ray.pointAtAxis(axis, axisValue) ?: continue
-            val block = rayPoint.roundToBlock()
-            val candidate = block.toProjectedArrowCandidate(ray, rayPoint) ?: continue
-            val key = block.blockKey()
-            val previous = candidates[key]
-            if (previous == null || candidate.scaledDistanceToRay < previous.scaledDistanceToRay) {
-                candidates[key] = candidate
+        val iterations = abs(exitPoint.axis(axis) - originAxis).toInt()
+        return (1..iterations).asSequence()
+            .mapNotNull { step ->
+                val rayPoint = ray.pointAtAxis(axis, originAxis + step * directionAxis) ?: return@mapNotNull null
+                rayPoint.roundToBlock().toProjectedArrowCandidate(ray, rayPoint)
             }
-        }
-
-        if (candidates.isEmpty()) return emptyList()
-        val inRange = candidates.values
-            .asSequence()
+            .bestPerBlock(DianaArrowCandidate::block, DianaArrowCandidate::scaledDistanceToRay)
             .filter { candidate -> ray.distanceHint.includes(candidate.distanceFromOrigin) }
-            .toList()
-        if (inRange.isEmpty()) return emptyList()
-
-        return inRange.sortedWith(
-            compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
-                .thenBy { candidate -> candidate.distanceFromOrigin },
-        )
+            .sortedWith(
+                compareBy<DianaArrowCandidate> { candidate -> candidate.scaledDistanceToRay }
+                    .thenBy { candidate -> candidate.distanceFromOrigin },
+            )
     }
 
-    fun scoreBlock(ray: DianaArrowRay, block: WorldVec): DianaArrowCandidate? =
-        block.toArrowCandidate(ray)
-
-    private fun WorldVec.toArrowCandidate(ray: DianaArrowRay): DianaArrowCandidate? {
-        val alongRay = (blockCenter() - ray.origin).dot(ray.direction)
+    fun scoreBlock(ray: DianaArrowRay, block: WorldVec): DianaArrowCandidate? {
+        val alongRay = (block.blockCenter() - ray.origin).dot(ray.direction)
         if (!ray.distanceHint.includes(alongRay)) return null
-        val distanceToRay = blockCenter().distanceToRay(ray)
+        val distanceToRay = block.blockCenter().distanceToRay(ray)
         if (distanceToRay > EXISTING_TARGET_RAY_TOLERANCE) return null
         return DianaArrowCandidate(
-            block = this,
+            block = block,
             scaledDistanceToRay = scaleRayDistance(distanceToRay, alongRay),
             distanceFromOrigin = alongRay,
         )
@@ -196,6 +178,16 @@ private const val SCALED_DISTANCE_FACTOR = 500_000.0
 private const val ROUNDING_SCALE = 100.0
 private const val RAY_EPSILON = 1e-12
 private const val MIN_AXIS_DELTA = 0.9
+
+internal fun <T> Sequence<T>.bestPerBlock(location: (T) -> WorldVec, score: (T) -> Double): Collection<T> {
+    val bestByBlock = linkedMapOf<String, T>()
+    forEach { candidate ->
+        val key = location(candidate).blockKey()
+        val current = bestByBlock[key]
+        if (current == null || score(candidate) < score(current)) bestByBlock[key] = candidate
+    }
+    return bestByBlock.values
+}
 
 private fun WorldVec.distanceToInfiniteLine(start: WorldVec, directionPoint: WorldVec): Double {
     val direction = directionPoint - start

@@ -1,9 +1,7 @@
 package com.skysoft.features.event.diana
 
-import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.input.InputUtilities
@@ -49,9 +47,7 @@ internal object DianaQuickWarps {
     }
 
     private fun handleWarpKey(now: Long) {
-        val key = quickWarpSettings.warpKey
-        val keyDown = key != MinecraftInput.NO_BINDING && key != InputConstants.KEY_RETURN && InputUtilities.isActionBindingDown(key)
-        if (!keyDown) {
+        if (!InputUtilities.isFeatureKeyDown(quickWarpSettings.warpKey)) {
             warpKeyWasDown = false
             return
         }
@@ -65,8 +61,8 @@ internal object DianaQuickWarps {
         if (!quickWarps.enabled || MinecraftClient.screen() != null) return null
         val playerLocation = localPlayerLocation() ?: return null
         if (config.rareMobSharing.enabled) {
-            DianaRareMobSharing.remotePriorityTarget?.let { target ->
-                return currentWarpSuggestion(target.sharedLocation, playerLocation)
+            DianaRareMobSharing.remotePriorityLocation?.let { location ->
+                return currentWarpSuggestion(location, playerLocation)
             }
         }
         if (!DianaEventState.canUseHelper()) return null

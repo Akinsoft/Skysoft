@@ -6,27 +6,11 @@ import com.skysoft.features.combat.DamageSplash
 import com.skysoft.features.combat.DamageSplashAttribution
 import com.skysoft.features.combat.DamageSplashTargetView
 import com.skysoft.features.combat.DamageSplashText
-import com.skysoft.utils.PlayerUtilities.localPlayerName
-import com.skysoft.utils.chat.ChatMessageSender
-import com.skysoft.utils.chat.ChatSenderParser
-import com.skysoft.utils.chat.ChatMessage
-import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.location
 import com.skysoft.utils.render.EntityHighlightRenderer
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.decoration.ArmorStand
 import java.awt.Color
-
-internal object DianaRareMobRuntime {
-    fun shareKey(serverName: String, sender: String, share: DianaRareMobShare): String =
-        "$serverName:${sender.lowercase()}:${share.mob.name}:${share.location.blockKey()}"
-
-    fun senderFor(message: ChatMessage, share: DianaRareMobShare): ChatMessageSender? =
-        senderFor(message, share.marker)
-
-    fun senderFor(message: ChatMessage, marker: String): ChatMessageSender? =
-        ChatSenderParser.senderBefore(message, marker)
-}
 
 internal object DianaRareMobLootshare {
     fun handleMetadata(
@@ -37,9 +21,7 @@ internal object DianaRareMobLootshare {
     ) {
         val entity = Minecraft.getInstance().level?.getEntity(event.entityId) as? ArmorStand ?: return
         DamageSplashText.fromMetadata(event.entityId, entity.location, event.packedItems)
-            .forEach { splash ->
-                tryHandleDamageSplash(splash, targets, localPlayerName, now)
-            }
+            .forEach { splash -> handleDamageSplash(splash, targets, localPlayerName, now) }
     }
 
     fun scan(targets: Collection<DianaRareMobTarget>, localPlayerName: String?, now: Long) {
@@ -56,15 +38,16 @@ internal object DianaRareMobLootshare {
         now: Long,
     ): Boolean {
         val splash = DamageSplashText.fromEntity(armorStand) ?: return false
-        return tryHandleDamageSplash(splash, targets, localPlayerName, now)
+        handleDamageSplash(splash, targets, localPlayerName, now)
+        return true
     }
 
-    fun tryHandleDamageSplash(
+    private fun handleDamageSplash(
         splash: DamageSplash,
         targets: Collection<DianaRareMobTarget>,
         localPlayerName: String?,
         now: Long,
-    ): Boolean {
+    ) {
         val attributedTarget = DamageSplashAttribution.attribute(splash, targets, now) { target ->
             DamageSplashTargetView(
                 active = target.shouldShowLootshare(localPlayerName),
@@ -74,11 +57,10 @@ internal object DianaRareMobLootshare {
                 targetEntityUuids = target.targetEntityUuids(),
                 lastHealthChangeAtMillis = target.lastHealthChangeAtMillis,
             )
-        } ?: return true
+        } ?: return
         if (attributedTarget.addAttributedLocalDamage(splash.damage) == LootshareEligibilityResult.BECAME_ELIGIBLE) {
             DianaLootshareReadyMessage.broadcast()
         }
-        return true
     }
 }
 
@@ -111,16 +93,4 @@ internal object DianaRareMobGlow {
         }
 
     private val RARE_MOB_GLOW_COLOR = Color(255, 85, 255, 230)
-}
-
-internal object DianaRareMobPartyEcho {
-    fun shouldHideRecentlySent(
-        message: ChatMessage,
-        sender: ChatMessageSender,
-        localPlayerName: String?,
-        now: Long,
-    ): Boolean {
-        if (!sender.isLocalPlayer(localPlayerName)) return false
-        return SkysoftPartyShare.consumeRecentSentMessage(message.body, now)
-    }
 }

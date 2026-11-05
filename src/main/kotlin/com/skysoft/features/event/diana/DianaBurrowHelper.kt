@@ -5,12 +5,10 @@ import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.MayorPerkApi
-import com.skysoft.events.input.ItemUseEvent
 import com.skysoft.events.input.ItemUseEvents
 import com.skysoft.events.particle.ClientParticleEvent
 import com.skysoft.events.particle.ClientParticleEvents
 import com.skysoft.utils.PlayerUtilities.localPlayerLocation
-import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.render.SkysoftRenderContext
@@ -25,7 +23,7 @@ object DianaBurrowHelper {
     private var wasOnHub = false
 
     fun register() {
-        ProfileStorageApi.registerConsumer("Diana Burrow Helper") { burrowHelper.enabled }
+        ProfileStorageApi.registerConsumer("Diana Burrow Helper", ::isEnabled)
         MayorPerkApi.registerConsumer("Diana helpers") { config.isAnyFeatureEnabled() }
         HypixelPartyApi.registerConsumer("Diana helpers") { config.isAnyFeatureEnabled() }
         SkysoftClientEvents.onEndTick(
@@ -36,11 +34,9 @@ object DianaBurrowHelper {
         SkysoftClientEvents.onClientStopping("Diana Hub Surface Cache save") {
             DianaHubSurfaceCache.flush()
         }
-        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", { burrowHelper.enabled }) { profile ->
+        SkyBlockProfileApi.onProfileChange("Diana Burrow Helper profile change", ::isEnabled) { profile ->
             DianaBurrowStorage.saveCurrentTargets()
-            clearTargets(persistTargets = false)
-            DianaBurrowStorage.resetLoadedProfile()
-            DianaBurrowChainState.resetLoadedProfile()
+            unloadTargets()
             if (profile != null) {
                 DianaBurrowStorage.restoreCurrentProfile()
                 DianaBurrowChainState.restoreCurrentProfile()
@@ -52,7 +48,7 @@ object DianaBurrowHelper {
             shouldHideArrowParticle(event)
         }
         ItemUseEvents.register("Diana Burrow item use", DianaEventState::canUseHelper) { event ->
-            onItemUse(event)
+            DianaSpadeGuess.handleItemUse(event)
             false
         }
         ChatEvents.onVisibleMessage("Diana Burrow chat", { isEnabled() || DianaQuickWarps.enabled }) { message ->
@@ -64,7 +60,7 @@ object DianaBurrowHelper {
         }
         WorldRenderDispatcher.registerHandler(
             "Diana Burrow world rendering",
-            isActive = { burrowHelper.enabled && DianaEventState.isOnHub() },
+            isActive = { isEnabled() && DianaEventState.isOnHub() },
             handler = ::onRenderWorld,
         )
         DianaQuickWarps.register()
@@ -88,7 +84,7 @@ object DianaBurrowHelper {
     private fun onTick() {
         val now = System.currentTimeMillis()
         val onHub = DianaEventState.isOnHub()
-        if (burrowHelper.enabled) {
+        if (isEnabled()) {
             if (onHub) {
                 wasOnHub = true
                 DianaBurrowStorage.restoreCurrentProfile(now)
@@ -96,15 +92,13 @@ object DianaBurrowHelper {
                 DianaHubSurfaceCache.onTick()
                 DianaBurrowParticleDetector.prune(now)
                 DianaArrowGuess.prune(now)
-                DianaBurrowTargetTracker.prune(now)
+                DianaRemovedBurrows.prune(now)
                 DianaBurrowInteractions.onTick(now)
             } else {
                 suspendTargets(now)
             }
         } else if (wasOnHub || DianaBurrowTargetTracker.hasTargets()) {
-            clearTargets(persistTargets = false)
-            DianaBurrowStorage.resetLoadedProfile()
-            DianaBurrowChainState.resetLoadedProfile()
+            unloadTargets()
             wasOnHub = false
         }
 
@@ -112,7 +106,6 @@ object DianaBurrowHelper {
     }
 
     private fun handleParticle(event: ClientParticleEvent) {
-        if (!DianaEventState.canUseHelper()) return
         val now = System.currentTimeMillis()
         DianaBurrowParticleDetector.handle(event, now)
         DianaSpadeGuess.handleParticle(event, now)
@@ -120,24 +113,16 @@ object DianaBurrowHelper {
     }
 
     private fun shouldHideArrowParticle(event: ClientParticleEvent): Boolean =
-        DianaEventState.canUseHelper() && details.hideGuessArrows && DianaParticleClassifier.isArrowParticle(event)
-
-    private fun onItemUse(event: ItemUseEvent) {
-        if (DianaEventState.canUseHelper()) {
-            DianaSpadeGuess.handleItemUse(event)
-        }
-    }
+        details.hideGuessArrows && DianaParticleClassifier.isArrowParticle(event)
 
     private fun onRenderWorld(context: SkysoftRenderContext) {
-        if (!burrowHelper.enabled || !DianaEventState.isOnHub()) return
         if (!DianaEventState.canUseHelper()) return
-        val targets = DianaBurrowTargetTracker.snapshot()
-        renderTargets(context, targets)
+        renderTargets(context, DianaBurrowTargetTracker.snapshot())
     }
 
     internal fun renderTargets(context: SkysoftRenderContext, targets: Collection<DianaBurrowTarget>) {
         val playerLocation = localPlayerLocation() ?: return
-        val target = targets.currentTarget(playerLocation) ?: return
+        val target = targets.nearestTo(playerLocation) ?: return
         val labelColors = details.burrowLabelColors()
         DianaBurrowRenderer.renderWorld(
             context = context,
@@ -156,7 +141,7 @@ object DianaBurrowHelper {
                 showClickCounter = settings.clickCounter,
                 clickCounterPosition = settings.clickCounterPosition,
                 visualAlphaScale = if (
-                    config.rareMobSharing.enabled && DianaRareMobSharing.remotePriorityTarget != null
+                    config.rareMobSharing.enabled && DianaRareMobSharing.remotePriorityLocation != null
                 ) {
                     RARE_MOB_PRIORITY_BURROW_ALPHA
                 } else {
@@ -167,29 +152,33 @@ object DianaBurrowHelper {
     }
 
     private fun clearSession() {
-        DianaBurrowStorage.saveCurrentTargets()
-        DianaHubSurfaceCache.saveInBackground()
-        clearTargets(persistTargets = false)
-        DianaBurrowStorage.resetLoadedProfile()
-        DianaBurrowChainState.resetLoadedProfile()
+        saveAndUnloadTargets(System.currentTimeMillis())
         DianaQuickWarps.clear()
         wasOnHub = false
     }
 
     private fun suspendTargets(now: Long) {
-        if (wasOnHub || DianaBurrowTargetTracker.snapshot().isNotEmpty()) {
-            DianaBurrowStorage.saveCurrentTargets(now)
-            DianaHubSurfaceCache.saveInBackground()
-            clearTargets(persistTargets = false)
-            DianaBurrowStorage.resetLoadedProfile()
-            DianaBurrowChainState.resetLoadedProfile()
+        if (wasOnHub || DianaBurrowTargetTracker.hasTargets()) {
+            saveAndUnloadTargets(now)
         } else {
             clearTransientTracking()
         }
         wasOnHub = false
     }
 
-    private fun clearTargets(persistTargets: Boolean = false) {
+    private fun saveAndUnloadTargets(now: Long) {
+        DianaBurrowStorage.saveCurrentTargets(now)
+        DianaHubSurfaceCache.saveInBackground()
+        unloadTargets()
+    }
+
+    private fun unloadTargets() {
+        clearTargets(persistTargets = false)
+        DianaBurrowStorage.resetLoadedProfile()
+        DianaBurrowChainState.resetLoadedProfile()
+    }
+
+    private fun clearTargets(persistTargets: Boolean) {
         DianaBurrowTargetTracker.clear(persist = persistTargets)
         clearTransientTracking()
     }
@@ -202,9 +191,4 @@ object DianaBurrowHelper {
     }
 
     private const val RARE_MOB_PRIORITY_BURROW_ALPHA = 0.5
-}
-
-private fun Collection<DianaBurrowTarget>.currentTarget(playerLocation: WorldVec?): DianaBurrowTarget? {
-    if (playerLocation == null) return firstOrNull()
-    return minByOrNull { target -> target.location.blockCenter().distanceSq(playerLocation) }
 }

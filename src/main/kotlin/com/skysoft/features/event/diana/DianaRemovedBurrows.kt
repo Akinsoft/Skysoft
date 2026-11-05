@@ -8,9 +8,6 @@ internal object DianaRemovedBurrows {
     fun isSuppressed(location: WorldVec, now: Long): Boolean =
         (suppressedTargets[location.blockKey()] ?: Long.MIN_VALUE) > now
 
-    fun isAllowed(location: WorldVec, now: Long): Boolean =
-        !isSuppressed(location, now)
-
     fun suppress(target: DianaBurrowTarget, now: Long) {
         suppressedTargets[target.location.blockKey()] = now + REMOVED_TARGET_SUPPRESSION_MILLIS
     }

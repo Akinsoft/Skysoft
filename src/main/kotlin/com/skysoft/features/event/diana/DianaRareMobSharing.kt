@@ -33,9 +33,6 @@ internal object DianaRareMobSharing {
     private val lootshareFeature get() = config.lootshare
     private val lootshareSettings get() = lootshareFeature.settings
     private val lootshareDetails get() = lootshareFeature.details
-    private val targets get() = DianaRareMobSharingState.targets
-    private val pendingLocalSpawns get() = DianaRareMobSharingState.pendingLocalSpawns
-    private val recentLocalDeaths get() = DianaRareMobSharingState.recentLocalDeaths
     private var nextTargetId = 0L
     private var ticks = 0
 
@@ -87,23 +84,20 @@ internal object DianaRareMobSharing {
 
     fun remoteMobSharedBy(playerName: String): DianaRareMobOption? =
         currentTargets()
-            .asSequence()
-            .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
-            .filter { target -> target.sharedBy.name.equals(playerName, ignoreCase = true) }
-            .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
+            .filter { target -> target.isRemote && target.sharedBy.name.equals(playerName, ignoreCase = true) }
+            .maxWithOrNull(TARGET_AGE_ORDER)
             ?.mob
 
     val likelyRemoteRareLoot: Boolean
-        get() = currentTargets().any { target -> target.source == DianaRareMobTargetSource.REMOTE } &&
-            currentTargets().none { target -> target.source == DianaRareMobTargetSource.LOCAL } &&
-            currentRecentLocalDeaths().isEmpty()
+        get() = currentTargets().any { target -> target.isRemote } &&
+            currentTargets().none { target -> target.isLocal } &&
+            recentLocalDeaths.onCurrentServer { death -> death.serverName }.isEmpty()
 
-    val remotePriorityTarget: DianaRareMobPriorityTarget?
+    val remotePriorityLocation: WorldVec?
         get() = currentTargets()
-            .asSequence()
-            .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
-            .minWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
-            ?.let { target -> DianaRareMobPriorityTarget(target.sharedLocation) }
+            .filter { target -> target.isRemote }
+            .minWithOrNull(TARGET_AGE_ORDER)
+            ?.sharedLocation
 
     private fun onTick() {
         val now = System.currentTimeMillis()
@@ -119,8 +113,7 @@ internal object DianaRareMobSharing {
             recentLocalDeaths.clear()
             DianaRareMobTitleRenderer.clear()
             targets.values
-                .filter { target -> target.source == DianaRareMobTargetSource.LOCAL }
-                .toList()
+                .filter { target -> target.isLocal }
                 .forEach { target -> clearTarget(target, "sharing disabled", broadcast = false) }
         }
         if (!DianaEventState.isOnHub()) {
@@ -130,7 +123,7 @@ internal object DianaRareMobSharing {
         }
         val signals = if (
             ++ticks % LINK_INTERVAL_TICKS == 0 &&
-            (currentPendingLocalSpawns().isNotEmpty() || currentTargets().isNotEmpty())
+            (pendingLocalSpawns.onCurrentServer { it.serverName }.isNotEmpty() || currentTargets().isNotEmpty())
         ) {
             DianaRareMobEntityMatcher.visibleSignals()
         } else {
@@ -171,40 +164,21 @@ internal object DianaRareMobSharing {
                 showMessage = config.showPartyMessages,
             )
         }
-        if (!isEnabledOnHub) return ChatMessageVisibility.SHOW
         if (message.isSystemLike) {
             val localCocoon = DianaRareMobShareParser.parseLocalCocoon(message.cleanText)
             if (localCocoon != null && feature.enabled) {
                 handleLocalCocoon(localCocoon, now)
                 return ChatMessageVisibility.SHOW
             }
-            HypixelLocationState.currentServerName?.let { serverName ->
-                recordLocalSpawn(
-                    message = message.cleanText,
-                    serverName = serverName,
-                    rareMobSharing = feature.enabled && settings.shareMobs,
-                    sharedRareMobs = settings.sharedRareMobs.get(),
-                    pendingLocalSpawns = pendingLocalSpawns,
-                    now = now,
-                )
+            val serverName = HypixelLocationState.currentServerName
+            if (serverName != null && feature.enabled && settings.shareMobs) {
+                recordLocalSpawn(message.cleanText, serverName, settings.sharedRareMobs.get(), now)
             }
-            if (message.cleanText.isLocalBurrowProgressMessage()) {
-                currentTargets()
-                    .filter { target -> target.source == DianaRareMobTargetSource.LOCAL }
-                    .toList()
-                    .forEach { target -> clearTarget(target, "burrow progressed") }
-            }
-            if (SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText)) {
-                currentTargets()
-                    .filter { target -> target.source == DianaRareMobTargetSource.LOCAL }
-                    .toList()
-                    .forEach { target -> clearTarget(target, "player died") }
-            }
-            DianaRareMobShareParser.parsePlayerDeath(message.cleanText)?.let { death ->
-                clearRemoteTargetForPlayerDeath(currentTargets(), death) { target ->
-                    clearTarget(target, SHARED_PLAYER_DIED_REASON, broadcast = false)
-                }
-            }
+            if (message.cleanText.isLocalBurrowProgressMessage()) clearLocalTargets("burrow progressed")
+            if (SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText)) clearLocalTargets("player died")
+            DianaRareMobShareParser.parsePlayerDeath(message.cleanText)
+                ?.let(::remoteTargetKilledBy)
+                ?.let { target -> clearTarget(target, "shared player died", broadcast = false) }
         }
         return if (message.type == ChatMessageType.PARTY) {
             handlePartyMessage(message, now)
@@ -247,18 +221,13 @@ internal object DianaRareMobSharing {
         if (!settings.shareMobs || cocoon.mob !in settings.sharedRareMobs.get()) return
         val localPlayerName = localPlayerName() ?: return
         val serverName = HypixelLocationState.currentServerName ?: return
-        val currentTargets = currentTargets()
-        val location = localCocoonLocation(cocoon.mob, currentTargets, currentRecentLocalDeaths())
-            ?: localPlayerLocation()?.down()?.roundToBlock()
+        val location = localCocoonLocation(cocoon.mob) ?: localPlayerLocation()?.down()?.roundToBlock()
         pendingLocalSpawns.removeIf { pending -> pending.serverName == serverName && pending.mob == cocoon.mob }
         recentLocalDeaths.removeIf { death -> death.serverName == serverName && death.mob == cocoon.mob }
-        val localTargets = currentTargets
-            .filter { target -> target.source == DianaRareMobTargetSource.LOCAL && target.mob == cocoon.mob }
-        val cocoonedTarget = localTargets.maxWithOrNull(
-            compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId },
-        )
+        val localTargets = currentTargets().filter { target -> target.isLocal && target.mob == cocoon.mob }
+        val cocoonedTarget = localTargets.maxWithOrNull(TARGET_AGE_ORDER)
         localTargets.forEach { target ->
-            clearTarget(target, if (target === cocoonedTarget) "mob died" else "cocooned")
+            clearTarget(target, if (target === cocoonedTarget) MOB_DIED_REASON else "cocooned")
         }
 
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatCocoon(cocoon.mob))
@@ -272,7 +241,6 @@ internal object DianaRareMobSharing {
     }
 
     private fun onEntityLoad(entity: Entity) {
-        if (!isEnabledOnHub) return
         if (pendingLocalSpawns.isEmpty() && targets.isEmpty()) return
         val now = System.currentTimeMillis()
         if (
@@ -291,16 +259,14 @@ internal object DianaRareMobSharing {
     }
 
     private fun onEntityUnload(entity: Entity) {
-        if (!isEnabledOnHub) return
         currentTargets()
             .filter { target -> target.entityUuid == entity.uuid || target.nameplateUuid == entity.uuid }
-            .toList()
             .forEach { target ->
                 val trackedMobUnloaded = target.entityUuid == entity.uuid
                 val clearReason = when {
                     target.currentHealth == 0L -> HEALTH_REACHED_ZERO_REASON
-                    target.deathConfirmed -> "mob died"
-                    trackedMobUnloaded && entity is LivingEntity && entity.isDeadOrDying -> "mob died"
+                    target.deathConfirmed -> MOB_DIED_REASON
+                    trackedMobUnloaded && entity is LivingEntity && entity.isDeadOrDying -> MOB_DIED_REASON
                     else -> null
                 }
                 if (clearReason != null) {
@@ -327,32 +293,27 @@ internal object DianaRareMobSharing {
 
     private fun trySharePending(signals: List<DianaRareMobSignal>, now: Long) {
         val playerLocation = localPlayerLocation() ?: return
+        val sender = ChatMessageSender(localPlayerName() ?: return, null)
         val serverName = HypixelLocationState.currentServerName ?: return
-        val iterator = pendingLocalSpawns.iterator()
-        while (iterator.hasNext()) {
-            val pending = iterator.next()
-            if (pending.serverName != serverName) continue
+        pendingLocalSpawns.removeIf { pending ->
+            if (pending.serverName != serverName) return@removeIf false
             val signal = closestPendingRareMobSignal(signals, pending.mob, playerLocation)
-            if (signal != null) {
-                if (sharePending(pending, signal, now) == LocalRareMobShareResult.SHARED) iterator.remove()
-            } else if (now >= pending.expiresAtMillis) {
-                iterator.remove()
-            }
+                ?: return@removeIf now >= pending.expiresAtMillis
+            sharePending(pending, signal, sender, now)
+            true
         }
     }
 
     private fun sharePending(
         pending: PendingRareMobSpawn,
         signal: DianaRareMobSignal,
+        sender: ChatMessageSender,
         now: Long,
-    ): LocalRareMobShareResult {
-        val localPlayerName = localPlayerName() ?: return LocalRareMobShareResult.PLAYER_UNAVAILABLE
-        val sender = ChatMessageSender(localPlayerName, null)
+    ) {
         val share = DianaRareMobShare(pending.mob, signal.location.roundToBlock())
         rememberShare(share, sender, DianaRareMobTargetSource.LOCAL, signal, pending.serverName, now)
         if (settings.ownMobAlerts) DianaRareMobTitleRenderer.showOwn(pending.mob)
         SkysoftPartyShare.sendParty(DianaRareMobShareParser.format(share))
-        return LocalRareMobShareResult.SHARED
     }
 
     private fun rememberShare(
@@ -363,7 +324,7 @@ internal object DianaRareMobSharing {
         serverName: String,
         now: Long,
     ): DianaRareMobTarget {
-        val key = DianaRareMobRuntime.shareKey(serverName, sender.name, share)
+        val key = "$serverName:${sender.name.lowercase()}:${share.mob.name}:${share.location.blockKey()}"
         val target = targets.getOrPut(key) {
             DianaRareMobTarget(
                 ++nextTargetId,
@@ -406,7 +367,7 @@ internal object DianaRareMobSharing {
         val health = signal.health?.current
         if (health != null && health <= 0L) {
             if (target.isAwaitingCocoonHatch(now)) return
-            clearTarget(target, "health reached zero")
+            clearTarget(target, HEALTH_REACHED_ZERO_REASON)
             return
         }
         target.updateFromSignal(signal)
@@ -418,7 +379,7 @@ internal object DianaRareMobSharing {
                 now >= target.expiresAtMillis -> clearTarget(target, "expired")
                 target.isAwaitingCocoonHatch(now) -> Unit
                 target.currentHealth == 0L -> clearTarget(target, HEALTH_REACHED_ZERO_REASON)
-                target.deathConfirmed -> clearTarget(target, "mob died")
+                target.deathConfirmed -> clearTarget(target, MOB_DIED_REASON)
             }
         }
     }
@@ -431,12 +392,10 @@ internal object DianaRareMobSharing {
         if (playerLocation == null) return
         activeTargets
             .mapNotNull { target -> staleRemoteClearReason(target, playerLocation, now)?.let { target to it } }
-            .toList()
             .forEach { (target, reason) -> clearTarget(target, reason, broadcast = false) }
     }
 
     private fun onRenderWorld(context: SkysoftRenderContext) {
-        if (!isEnabledOnHub) return
         DianaRareMobRenderer.renderWorld(
             context = context,
             targets = currentTargets(),
@@ -462,12 +421,12 @@ internal object DianaRareMobSharing {
         target: DianaRareMobTarget,
         reason: String,
         broadcast: Boolean = target.serverName == HypixelLocationState.currentServerName &&
-            target.source == DianaRareMobTargetSource.LOCAL &&
+            target.isLocal &&
             reason in BROADCAST_CLEAR_REASONS,
     ) {
         targets.remove(target.key)
-        target.entity?.let { entity -> EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow) }
-        if (shouldRememberLocalRareMobDeath(target, reason, broadcast)) {
+        target.removeGlow()
+        if (broadcast && target.isLocal && reason in LOCAL_DEATH_REASONS) {
             recentLocalDeaths += RecentLocalRareMobDeath(
                 target.serverName,
                 target.mob,
@@ -478,10 +437,12 @@ internal object DianaRareMobSharing {
         if (broadcast) SkysoftPartyShare.sendParty(DianaRareMobShareParser.formatClear(target.mob))
     }
 
+    private fun clearLocalTargets(reason: String) {
+        currentTargets().filter { target -> target.isLocal }.forEach { target -> clearTarget(target, reason) }
+    }
+
     private fun clear() {
-        targets.values.forEach { target ->
-            target.entity?.let { entity -> EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow) }
-        }
+        targets.values.forEach { target -> target.removeGlow() }
         targets.clear()
         pendingLocalSpawns.clear()
         recentLocalDeaths.clear()
@@ -493,35 +454,26 @@ internal object DianaRareMobSharing {
 
     private const val REMOTE_LINK_DISTANCE = 40.0
     private const val LINK_INTERVAL_TICKS = 2
-    private const val SHARED_PLAYER_DIED_REASON = "shared player died"
     private val BROADCAST_CLEAR_REASONS = setOf(
         HEALTH_REACHED_ZERO_REASON,
-        "mob died",
+        MOB_DIED_REASON,
         "player died",
         "burrow progressed",
     )
 }
 
-private object DianaRareMobSharingState {
-    val targets = mutableMapOf<String, DianaRareMobTarget>()
-    val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
-    val recentLocalDeaths = mutableListOf<RecentLocalRareMobDeath>()
+private val targets = mutableMapOf<String, DianaRareMobTarget>()
+private val pendingLocalSpawns = mutableListOf<PendingRareMobSpawn>()
+private val recentLocalDeaths = mutableListOf<RecentLocalRareMobDeath>()
+private val TARGET_AGE_ORDER = compareBy<DianaRareMobTarget>({ it.createdAtMillis }, { it.targetId })
+
+private inline fun <T> Collection<T>.onCurrentServer(serverName: (T) -> String): List<T> {
+    val currentServerName = HypixelLocationState.currentServerName ?: return emptyList()
+    return filter { entry -> serverName(entry) == currentServerName }
 }
 
-private fun currentTargets(): List<DianaRareMobTarget> {
-    val serverName = HypixelLocationState.currentServerName ?: return emptyList()
-    return DianaRareMobSharingState.targets.values.filter { target -> target.serverName == serverName }
-}
-
-private fun currentPendingLocalSpawns(): List<PendingRareMobSpawn> {
-    val serverName = HypixelLocationState.currentServerName ?: return emptyList()
-    return DianaRareMobSharingState.pendingLocalSpawns.filter { pending -> pending.serverName == serverName }
-}
-
-private fun currentRecentLocalDeaths(): List<RecentLocalRareMobDeath> {
-    val serverName = HypixelLocationState.currentServerName ?: return emptyList()
-    return DianaRareMobSharingState.recentLocalDeaths.filter { death -> death.serverName == serverName }
-}
+private fun currentTargets(): List<DianaRareMobTarget> =
+    targets.values.onCurrentServer { target -> target.serverName }
 
 private fun currentTarget(): DianaRareMobTarget? {
     val playerLocation = localPlayerLocation() ?: return null
@@ -531,30 +483,21 @@ private fun currentTarget(): DianaRareMobTarget? {
 private fun recordLocalSpawn(
     message: String,
     serverName: String,
-    rareMobSharing: Boolean,
     sharedRareMobs: Collection<DianaRareMobOption>,
-    pendingLocalSpawns: MutableList<PendingRareMobSpawn>,
     now: Long,
 ) {
-    val label = DianaDugMobParser.parse(message) ?: return
-    if (!rareMobSharing) return
-    val mob = DianaRareMobOption.fromLabel(label) ?: return
-    if (mob !in sharedRareMobs) return
-    pendingLocalSpawns += PendingRareMobSpawn(serverName, mob, now + LOCAL_SPAWN_LINK_MILLIS)
+    val mob = DianaDugMobParser.parse(message)?.let(DianaRareMobOption::fromLabel) ?: return
+    if (mob in sharedRareMobs) pendingLocalSpawns += PendingRareMobSpawn(serverName, mob, now + LOCAL_SPAWN_LINK_MILLIS)
 }
 
-private fun localCocoonLocation(
-    mob: DianaRareMobOption,
-    targets: Collection<DianaRareMobTarget>,
-    recentDeaths: Collection<RecentLocalRareMobDeath>,
-): WorldVec? =
-    targets
-        .asSequence()
-        .filter { target -> target.source == DianaRareMobTargetSource.LOCAL && target.mob == mob }
-        .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
+private fun localCocoonLocation(mob: DianaRareMobOption): WorldVec? =
+    currentTargets()
+        .filter { target -> target.isLocal && target.mob == mob }
+        .maxWithOrNull(TARGET_AGE_ORDER)
         ?.lineLocation()
         ?.roundToBlock()
-        ?: recentDeaths
+        ?: recentLocalDeaths
+            .onCurrentServer { death -> death.serverName }
             .filter { death -> death.mob == mob }
             .maxByOrNull { death -> death.expiresAtMillis }
             ?.location
@@ -566,47 +509,30 @@ internal fun refreshRemoteCocoonTargets(
     now: Long,
 ) {
     targets
-        .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
-        .filter { target -> target.mob == mob && target.sharedBy.name.equals(sender.name, ignoreCase = true) }
+        .filter { target ->
+            target.isRemote && target.mob == mob && target.sharedBy.name.equals(sender.name, ignoreCase = true)
+        }
         .forEach { target ->
-            target.entity?.let { entity -> EntityHighlightRenderer.removeEntityColor(entity, DianaRareMobGlow) }
+            target.removeGlow()
             target.extendExpiry(now + TARGET_LIFETIME_MILLIS)
             target.prepareForCocoonHatch(now + COCOON_HATCH_ATTACH_MILLIS)
         }
 }
 
-private fun shouldRememberLocalRareMobDeath(
-    target: DianaRareMobTarget,
-    reason: String,
-    broadcast: Boolean,
-): Boolean = broadcast && target.source == DianaRareMobTargetSource.LOCAL && reason in LOCAL_DEATH_REASONS
-
-private fun clearRemoteTargetForPlayerDeath(
-    targets: Collection<DianaRareMobTarget>,
-    death: DianaRareMobPlayerDeath,
-    clearTarget: (DianaRareMobTarget) -> Unit,
-) {
-    val target = targets
-        .asSequence()
-        .filter { target -> target.source == DianaRareMobTargetSource.REMOTE }
-        .filter { target -> target.sharedBy.name.equals(death.player, ignoreCase = true) }
-        .filter { target -> target.mob == death.mob }
-        .maxWithOrNull(compareBy<DianaRareMobTarget> { it.createdAtMillis }.thenBy { it.targetId })
-        ?: return
-    clearTarget(target)
-}
+private fun remoteTargetKilledBy(death: DianaRareMobPlayerDeath): DianaRareMobTarget? =
+    currentTargets()
+        .filter { target ->
+            target.isRemote && target.mob == death.mob && target.sharedBy.name.equals(death.player, ignoreCase = true)
+        }
+        .maxWithOrNull(TARGET_AGE_ORDER)
 
 private fun staleRemoteClearReason(target: DianaRareMobTarget, playerLocation: WorldVec, now: Long): String? {
-    if (target.source != DianaRareMobTargetSource.REMOTE) return null
-    if (target.isAwaitingCocoonHatch(now)) {
-        target.nearbyWithoutSignalSinceMillis = null
-        return null
-    }
-    if (target.entity != null || target.nameplate != null) {
-        target.nearbyWithoutSignalSinceMillis = null
-        return null
-    }
-    if (target.lineLocation().distance(playerLocation) > REMOTE_MISSING_CLEAR_DISTANCE) {
+    if (!target.isRemote) return null
+    if (
+        target.isAwaitingCocoonHatch(now) ||
+        target.hasVisibleSignal() ||
+        target.lineLocation().distance(playerLocation) > REMOTE_MISSING_CLEAR_DISTANCE
+    ) {
         target.nearbyWithoutSignalSinceMillis = null
         return null
     }
@@ -626,14 +552,15 @@ private fun DianaRareMobTarget.remoteMissingGraceMillis(): Long =
         REMOTE_LOST_GRACE_MILLIS
     }
 
-private fun String.isLocalBurrowProgressMessage(): Boolean =
-    startsWith("You dug out a Griffin Burrow!") ||
-        startsWith("You finished the Griffin burrow chain!")
+private fun DianaRareMobTarget.removeGlow() {
+    entity?.let { glowingEntity -> EntityHighlightRenderer.removeEntityColor(glowingEntity, DianaRareMobGlow) }
+}
 
-internal fun ChatMessageSender.isLocalPlayer(localPlayerName: String?): Boolean =
-    localPlayerName != null && name.equals(localPlayerName, ignoreCase = true)
+private fun String.isLocalBurrowProgressMessage(): Boolean =
+    startsWith(BURROW_DUG_MESSAGE) || startsWith(BURROW_CHAIN_FINISHED_MESSAGE)
 
 private const val HEALTH_REACHED_ZERO_REASON = "health reached zero"
+private const val MOB_DIED_REASON = "mob died"
 private const val TARGET_LIFETIME_MILLIS = 75_000L
 private const val LOCAL_SPAWN_LINK_MILLIS = 30_000L
 private const val LOCAL_DEATH_LOCATION_MILLIS = 2_000L
@@ -642,7 +569,7 @@ private const val REMOTE_MISSING_CLEAR_DISTANCE = 50.0
 private const val REMOTE_MISSING_GRACE_MILLIS = 10_000L
 private const val REMOTE_LOST_GRACE_MILLIS = 3_000L
 private const val REMOTE_KING_MINOS_LOST_GRACE_MILLIS = 30_000L
-private val LOCAL_DEATH_REASONS = setOf(HEALTH_REACHED_ZERO_REASON, "mob died")
+private val LOCAL_DEATH_REASONS = setOf(HEALTH_REACHED_ZERO_REASON, MOB_DIED_REASON)
 
 private data class PendingRareMobSpawn(
     val serverName: String,
@@ -650,18 +577,9 @@ private data class PendingRareMobSpawn(
     val expiresAtMillis: Long,
 )
 
-private enum class LocalRareMobShareResult {
-    SHARED,
-    PLAYER_UNAVAILABLE,
-}
-
 private data class RecentLocalRareMobDeath(
     val serverName: String,
     val mob: DianaRareMobOption,
     val location: WorldVec,
     val expiresAtMillis: Long,
-)
-
-internal data class DianaRareMobPriorityTarget(
-    val sharedLocation: WorldVec,
 )

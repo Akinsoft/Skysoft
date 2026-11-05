@@ -5,6 +5,7 @@ import com.skysoft.features.loot.RareLootValueResolver
 import com.skysoft.utils.DurationParts
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
+import com.skysoft.utils.RegexUtilities.whitespacePattern
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -66,7 +67,7 @@ internal object MythologicalRitualPartyCommands {
         state: MythologicalRitualTrackerState,
         enabledCommands: Collection<DianaPartyCommand> = DianaPartyCommand.entries,
     ): String? {
-        val parts = body.trim().split(Regex("""\s+""")).filter { it.isNotBlank() }
+        val parts = body.trim().split(whitespacePattern).filter { it.isNotBlank() }
         val command = parts.firstOrNull()?.lowercase(Locale.US) ?: return null
         val secondArg = parts.getOrNull(1)
         if (parts.size > 1 && command !in commandsWithArgs) return null
@@ -154,7 +155,7 @@ internal object MythologicalRitualPartyCommands {
         val count = if (denominatorMob == null) event.mob(key) else event.item(key)
         val denominator = denominatorMob?.let(event::mob) ?: event.mob(MythologicalRitualMobKey.TOTAL_MOBS)
         val percent = if (denominator <= 0L) 0.0 else count.toDouble() / denominator.toDouble() * PERCENT_MULTIPLIER
-        return "$label: $count (${percent.percentFormat()}%)"
+        return "$label: $count (${percent.twoDecimalFormat()}%)"
     }
 
     private fun statsResponse(
@@ -228,20 +229,17 @@ internal object MythologicalRitualPartyCommands {
         item(MythologicalRitualItemKey.TOTAL_BURROWS)
 
     private fun MythologicalRitualStats.burrowsPerHour(): String =
-        perHour(burrows().toDouble()).rateFormat()
+        perHour(burrows().toDouble()).twoDecimalFormat()
 
     private fun MythologicalRitualStats.mobsPerHour(): String =
-        perHour(mob(MythologicalRitualMobKey.TOTAL_MOBS).toDouble()).rateFormat()
+        perHour(mob(MythologicalRitualMobKey.TOTAL_MOBS).toDouble()).twoDecimalFormat()
 
     private fun MythologicalRitualStats.perHour(value: Double): Double {
         val hours = activeMillis.toDouble() / TimeUnit.HOURS.toMillis(1).toDouble()
         return if (hours <= 0.0) 0.0 else value / hours
     }
 
-    private fun Double.percentFormat(): String =
-        String.format(Locale.US, "%.2f", this)
-
-    private fun Double.rateFormat(): String =
+    private fun Double.twoDecimalFormat(): String =
         String.format(Locale.US, "%.2f", this)
 
     private fun Long.formatTime(): String {

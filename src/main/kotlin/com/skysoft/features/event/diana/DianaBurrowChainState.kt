@@ -22,7 +22,7 @@ internal object DianaBurrowChainState {
     fun onProgress(
         progress: DianaBurrowProgress?,
         completedTarget: DianaBurrowTarget?,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
     ) {
         progress ?: return
         val removed = removeStateForTarget(completedTarget) == ChangeResult.CHANGED
@@ -33,14 +33,12 @@ internal object DianaBurrowChainState {
     fun onNextTargetAssigned(
         target: DianaBurrowTarget,
         progress: DianaBurrowProgress?,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
     ) {
         progress ?: return
         if (progress.isComplete) return
         pruneExpiredStates(now)
-        states.removeAll { chain ->
-            chain.nextTargetId == target.targetId || chain.sameBlockStartTargetId == target.targetId
-        }
+        states.removeAll { chain -> chain.involves(target.targetId) }
         states += ActiveDianaBurrowChain(
             completed = progress.completed,
             total = progress.total,
@@ -53,7 +51,7 @@ internal object DianaBurrowChainState {
     fun onTargetReplaced(
         previous: DianaBurrowTarget?,
         replacement: DianaBurrowTarget?,
-        now: Long = System.currentTimeMillis(),
+        now: Long,
     ) {
         previous ?: return
         replacement ?: return
@@ -76,7 +74,7 @@ internal object DianaBurrowChainState {
         if (changed) savePersistentStates(now)
     }
 
-    fun onTreasureCompleted(target: DianaBurrowTarget?, now: Long = System.currentTimeMillis()): DianaBurrowTarget? {
+    fun onTreasureCompleted(target: DianaBurrowTarget?, now: Long): DianaBurrowTarget? {
         target ?: return null
         pruneExpiredStates(now)
         val state = stateForTarget(target) ?: return null
@@ -124,17 +122,11 @@ internal object DianaBurrowChainState {
     }
 
     private fun stateForTarget(target: DianaBurrowTarget): ActiveDianaBurrowChain? =
-        states.firstOrNull { chain ->
-            chain.nextTargetId == target.targetId || chain.sameBlockStartTargetId == target.targetId
-        }
+        states.firstOrNull { chain -> chain.involves(target.targetId) }
 
     private fun removeStateForTarget(target: DianaBurrowTarget?): ChangeResult {
         target ?: return ChangeResult.UNCHANGED
-        return ChangeResult.from(
-            states.removeAll { chain ->
-                chain.nextTargetId == target.targetId || chain.sameBlockStartTargetId == target.targetId
-            },
-        )
+        return ChangeResult.from(states.removeAll { chain -> chain.involves(target.targetId) })
     }
 
     private fun replaceState(previous: ActiveDianaBurrowChain, replacement: ActiveDianaBurrowChain) {
@@ -236,6 +228,9 @@ private data class ActiveDianaBurrowChain(
     val savedAtMillis: Long,
 ) {
     val isNextStepComplete: Boolean = completed + 1 >= total
+
+    fun involves(targetId: Long): Boolean =
+        nextTargetId == targetId || sameBlockStartTargetId == targetId
 
     fun hasRestorableTarget(targetIds: Set<Long>): Boolean =
         nextTargetId in targetIds || sameBlockStartTargetId in targetIds

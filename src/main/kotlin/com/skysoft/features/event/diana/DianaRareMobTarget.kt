@@ -45,8 +45,7 @@ internal class DianaRareMobTarget(
         get() = trackedMob?.health?.max ?: observedMaxHealth
     val deathConfirmed: Boolean
         get() = trackedMob?.deathConfirmed == true
-    var localDamage: Long = 0
-        private set
+    private var localDamage: Long = 0
     var lootshareEligible = false
         private set
     var lastLocalAttack: DamageSplashAttackContext? = null
@@ -60,6 +59,11 @@ internal class DianaRareMobTarget(
     private var pendingCocoonHatchUntilMillis: Long? = null
     var glowColor: Color? = null
     val processedDamageSplashIds = mutableSetOf<Int>()
+
+    val isLocal: Boolean
+        get() = source == DianaRareMobTargetSource.LOCAL
+    val isRemote: Boolean
+        get() = source == DianaRareMobTargetSource.REMOTE
 
     fun hasVisibleSignal(): Boolean =
         entity != null || nameplate != null
@@ -108,12 +112,7 @@ internal class DianaRareMobTarget(
         !isSpawner(localName) && hasVisibleSignal()
 
     fun addAttributedLocalDamage(damage: Long): LootshareEligibilityResult {
-        if (!lastLocalAttackCanDamage) return LootshareEligibilityResult.UNCHANGED
-        return addLocalDamage(damage)
-    }
-
-    private fun addLocalDamage(damage: Long): LootshareEligibilityResult {
-        if (damage <= 0) return LootshareEligibilityResult.UNCHANGED
+        if (!lastLocalAttackCanDamage || damage <= 0) return LootshareEligibilityResult.UNCHANGED
         localDamage += damage
         val threshold = lootshareThreshold() ?: return LootshareEligibilityResult.UNCHANGED
         val wasEligible = lootshareEligible
@@ -125,30 +124,14 @@ internal class DianaRareMobTarget(
         }
     }
 
-    fun lootshareThreshold(): Long? =
+    private fun lootshareThreshold(): Long? =
         maxHealth?.let { (it * LOOTSHARE_DAMAGE_FRACTION).toLong().coerceAtLeast(1L) }
 
     fun recordLocalAttack(entity: Entity, playerLocation: WorldVec?, now: Long, canDamage: Boolean) {
-        recordLocalAttack(
-            entityUuid = entity.uuid,
-            targetLocation = entity.location,
-            playerLocation = playerLocation,
-            now = now,
-            canDamage = canDamage,
-        )
-    }
-
-    fun recordLocalAttack(
-        entityUuid: UUID,
-        targetLocation: WorldVec,
-        playerLocation: WorldVec?,
-        now: Long,
-        canDamage: Boolean,
-    ) {
         lastLocalAttack = DamageSplashAttackContext(
             atMillis = now,
-            entityUuid = entityUuid,
-            targetLocation = targetLocation,
+            entityUuid = entity.uuid,
+            targetLocation = entity.location,
             playerLocation = playerLocation,
         )
         lastLocalAttackCanDamage = canDamage

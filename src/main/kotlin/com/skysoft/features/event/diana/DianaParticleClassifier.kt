@@ -14,23 +14,13 @@ internal enum class DianaBurrowParticleKind {
 }
 
 internal object DianaParticleClassifier {
-    fun classify(event: ClientParticleEvent): DianaBurrowParticleKind? =
-        classify(event.type, event.count, event.speed, event.offset)
-
-    fun classify(
-        type: ParticleType<*>,
-        count: Int,
-        speed: Float,
-        offset: WorldVec,
-    ): DianaBurrowParticleKind? = when {
-        matches(type, ParticleTypes.ENCHANTED_HIT, count, START_PARTICLE_COUNT, speed, FOOTSTEP_SPEED, offset, FOOTSTEP_OFFSET) ->
+    fun classify(event: ClientParticleEvent): DianaBurrowParticleKind? = when {
+        event.matches(ParticleTypes.ENCHANTED_HIT, START_PARTICLE_COUNT, FOOTSTEP_SPEED, FOOTSTEP_OFFSET) ->
             DianaBurrowParticleKind.START
-        matches(type, ParticleTypes.CRIT, count, MOB_PARTICLE_COUNT, speed, FOOTSTEP_SPEED, offset, FOOTSTEP_OFFSET) ->
-            DianaBurrowParticleKind.MOB
-        matches(type, ParticleTypes.DRIPPING_LAVA, count, TREASURE_PARTICLE_COUNT, speed, FOOTSTEP_SPEED, offset, TREASURE_OFFSET) ->
+        event.matches(ParticleTypes.CRIT, MOB_PARTICLE_COUNT, FOOTSTEP_SPEED, FOOTSTEP_OFFSET) -> DianaBurrowParticleKind.MOB
+        event.matches(ParticleTypes.DRIPPING_LAVA, TREASURE_PARTICLE_COUNT, FOOTSTEP_SPEED, TREASURE_OFFSET) ->
             DianaBurrowParticleKind.TREASURE
-        matches(type, ParticleTypes.ENCHANT, count, ENCHANT_PARTICLE_COUNT, speed, ENCHANT_SPEED, offset, ENCHANT_OFFSET) ->
-            DianaBurrowParticleKind.ENCHANT
+        event.matches(ParticleTypes.ENCHANT, ENCHANT_PARTICLE_COUNT, ENCHANT_SPEED, ENCHANT_OFFSET) -> DianaBurrowParticleKind.ENCHANT
         else -> null
     }
 
@@ -39,38 +29,26 @@ internal object DianaParticleClassifier {
             event.count == TREASURE_PARTICLE_COUNT &&
             speedMatches(event.speed, SPADE_TRAIL_SPEED)
 
-    fun arrowDistance(event: ClientParticleEvent): DianaArrowDistance? =
-        arrowDistance(event.type, event.count, event.speed, event.offset)
-
     fun isArrowParticle(event: ClientParticleEvent): Boolean =
         arrowDistance(event) != null
 
-    fun arrowDistance(
-        type: ParticleType<*>,
-        count: Int,
-        speed: Float,
-        offset: WorldVec,
-    ): DianaArrowDistance? {
-        if (type != ParticleTypes.DUST || count != ARROW_PARTICLE_COUNT || !speedMatches(speed, ARROW_PARTICLE_SPEED)) {
+    fun arrowDistance(event: ClientParticleEvent): DianaArrowDistance? {
+        if (event.type != ParticleTypes.DUST || event.count != ARROW_PARTICLE_COUNT || !speedMatches(event.speed, ARROW_PARTICLE_SPEED)) {
             return null
         }
-        return DianaArrowDistance.entries.firstOrNull { distance -> offset.closeTo(distance.particleOffset) }
+        return DianaArrowDistance.entries.firstOrNull { distance -> event.offset.closeTo(distance.particleOffset) }
     }
 
-    private fun matches(
-        actualType: ParticleType<*>,
+    private fun ClientParticleEvent.matches(
         expectedType: ParticleType<*>,
-        actualCount: Int,
         expectedCount: Int,
-        actualSpeed: Float,
         expectedSpeed: Float,
-        actualOffset: WorldVec,
         expectedOffset: WorldVec,
     ): Boolean =
-        actualType == expectedType &&
-            actualCount == expectedCount &&
-            speedMatches(actualSpeed, expectedSpeed) &&
-            actualOffset.closeTo(expectedOffset)
+        type == expectedType &&
+            count == expectedCount &&
+            speedMatches(speed, expectedSpeed) &&
+            offset.closeTo(expectedOffset)
 
     private fun speedMatches(actual: Float, expected: Float): Boolean = abs(actual - expected) <= FLOAT_TOLERANCE
 

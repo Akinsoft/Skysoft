@@ -5,7 +5,6 @@ import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
 import com.skysoft.utils.PlayerUtilities.localPlayerLocation
-import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.render.BlockHighlightRenderer
 import com.skysoft.utils.render.EntityLabelRenderer
@@ -117,14 +116,9 @@ internal object DianaRareMobRenderer {
     }
 
     private fun DianaRareMobTarget.lootshareComponent(lootshareColors: DianaLootshareColors): Component =
-        if (lootshareEligible) {
-            Component.literal("Lootsharing").withStyle { style ->
-                style.withColor(TextColor.fromRgb(lootshareColors.ready.rgb and RGB_MASK)).withBold(true)
-            }
-        } else {
-            Component.literal("Lootsharing").withStyle { style ->
-                style.withColor(TextColor.fromRgb(lootshareColors.missing.rgb and RGB_MASK)).withStrikethrough(true)
-            }
+        Component.literal("Lootsharing").withStyle { style ->
+            val colored = style.withColor(TextColor.fromRgb(lootshareColor(this, lootshareColors).rgb and RGB_MASK))
+            if (lootshareEligible) colored.withBold(true) else colored.withStrikethrough(true)
         }
 
     internal fun lootshareColor(target: DianaRareMobTarget, lootshareColors: DianaLootshareColors): Color =

@@ -53,7 +53,7 @@ internal object MythologicalRitualTracker {
     }
 
     private fun handleVisibleMessage(message: ChatMessage) {
-        if (!isEnabled() || !message.isSystemLike || !DianaEventState.isOnHub()) return
+        if (!message.isSystemLike || !DianaEventState.isOnHub()) return
         if (RareLootChatParser.parse(message.cleanText) != null) return
         val now = System.currentTimeMillis()
         val lootShareMob = RareLootShareReceipt.assistedPlayer(message.cleanText)
@@ -64,7 +64,7 @@ internal object MythologicalRitualTracker {
     }
 
     private fun handlePartyMessage(message: ChatMessage) {
-        if (!isEnabled() || !config.partyCommands.enabled) return
+        if (!config.partyCommands.enabled) return
         SkysoftPartyShare.markPartyChatObserved()
         val state = MythologicalRitualTrackerRepository.displayStateOrNull() ?: return
         val response = MythologicalRitualPartyCommands.response(
@@ -97,7 +97,6 @@ internal object MythologicalRitualTracker {
             DianaRareMobSharing.likelyRemoteRareLoot
 
         override fun recordDrop(drop: RareLootChatDrop, lootshare: Boolean, now: Long): RareLootDropCount? {
-            if (!isEnabled() || !DianaEventState.isOnHub()) return null
             val isLootShareDrop = lootshare || lootShareWindow.isActive(now)
             var dropCount: RareLootDropCount? = null
             MythologicalRitualTrackerRepository.update { state ->
