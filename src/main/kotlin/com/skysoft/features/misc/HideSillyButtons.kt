@@ -10,7 +10,6 @@ import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.screens.PauseScreen
 import net.minecraft.client.gui.screens.TitleScreen
-import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
 
 internal object HideSillyButtons {
@@ -46,17 +45,17 @@ internal object HideSillyButtons {
     fun realmsButton(screen: TitleScreen): AbstractWidget? {
         if (!config.enabled) return null
         return Screens.getWidgets(screen).firstOrNull {
-            it.visible && (it.message.contents as? TranslatableContents)?.key == HiddenMenuButton.MINECRAFT_REALMS.translationKey
+            it.visible && it.translationKey() == HiddenMenuButton.MINECRAFT_REALMS.translationKey
         }
     }
 
     private fun shouldHide(button: AbstractWidget): Boolean {
-        val contents = button.message.contents as? TranslatableContents ?: return false
+        val key = button.translationKey() ?: return false
         val buttons = config.settings.buttons.get()
-        if (contents.key == "menu.feedback") {
+        if (key == "menu.feedback") {
             return HiddenMenuButton.GIVE_FEEDBACK in buttons && HiddenMenuButton.REPORT_BUGS in buttons
         }
-        val selected = buttons.firstOrNull { it.translationKey == contents.key } ?: return false
+        val selected = buttons.firstOrNull { it.translationKey == key } ?: return false
         return when (selected) {
             HiddenMenuButton.ACCESSIBILITY_SETTINGS, HiddenMenuButton.CHANGE_LANGUAGE -> button.width == button.height
             else -> true

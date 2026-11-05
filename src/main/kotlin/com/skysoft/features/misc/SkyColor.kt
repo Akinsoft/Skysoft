@@ -33,7 +33,7 @@ object SkyColor {
         val config = config
         if (!config.enabled) return original
         val rgb = config.details.voidColor.get().getEffectiveColourRGB()
-        return ARGB.vector4fFromARGB32(rgb or OPAQUE_ALPHA)
+        return ARGB.vector4fFromARGB32(ARGB.opaque(rgb))
     }
 
     @JvmStatic
@@ -41,8 +41,6 @@ object SkyColor {
         val config = config
         if (!config.enabled || camera.fluidInCamera != FogType.NONE) return
         val rgb = config.details.horizonColor.get().getEffectiveColourRGB()
-        destination.set(ARGB.vector4fFromARGB32(rgb or OPAQUE_ALPHA))
+        destination.set(ARGB.vector4fFromARGB32(ARGB.opaque(rgb)))
     }
-
-    private const val OPAQUE_ALPHA = 0xFF000000.toInt()
 }

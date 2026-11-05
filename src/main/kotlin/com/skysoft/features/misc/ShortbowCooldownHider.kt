@@ -13,8 +13,7 @@ object ShortbowCooldownHider {
         if (!HypixelLocationState.inSkyBlock || stack.item != Items.BOW) return false
         return stack.get(DataComponents.LORE)
             ?.lines()
-            ?.any { line -> line.string.contains(SHORTBOW_LORE_MARKER) }
-            ?: false
+            ?.any { line -> line.string.contains(SHORTBOW_LORE_MARKER) } == true
     }
 
     private const val SHORTBOW_LORE_MARKER = "Shortbow: Instantly shoots!"

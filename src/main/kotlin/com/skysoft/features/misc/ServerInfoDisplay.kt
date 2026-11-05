@@ -28,7 +28,6 @@ import net.minecraft.util.Util
 
 object ServerInfoDisplay {
     private val pingTracker = ServerPingTracker()
-    private var isPingTrackingActive = false
     private var hasActiveMetrics = false
     private val config get() = SkysoftConfigGui.config().gui.information.serverInfoDisplay
 
@@ -83,13 +82,12 @@ object ServerInfoDisplay {
         }
     }
 
-    internal fun recordPong(requestId: Long, timestampNanos: Long): PingSampleResult {
-        if (!isPingTrackingActive) return PingSampleResult.IGNORED_INACTIVE
-        return pingTracker.recordPong(requestId, timestampNanos)
+    internal fun recordPong(requestId: Long, timestampNanos: Long) {
+        if (isPingMeasurementActive) pingTracker.recordPong(requestId, timestampNanos)
     }
 
-    internal val isPingMeasurementActive: Boolean
-        get() = isPingTrackingActive
+    internal var isPingMeasurementActive = false
+        private set
 
     private fun renderHud(context: GuiGraphicsExtractor) {
         if (!canRenderLive()) return
@@ -126,16 +124,16 @@ object ServerInfoDisplay {
 
     private fun updatePing(minecraft: Minecraft, canMeasurePing: Boolean) {
         if (!canMeasurePing) {
-            if (isPingTrackingActive) {
+            if (isPingMeasurementActive) {
                 pingTracker.reset()
-                isPingTrackingActive = false
+                isPingMeasurementActive = false
             }
             return
         }
 
-        if (!isPingTrackingActive) {
+        if (!isPingMeasurementActive) {
             pingTracker.reset()
-            isPingTrackingActive = true
+            isPingMeasurementActive = true
         }
         val requestId = pingTracker.requestForTick(System.nanoTime(), Util.getMillis()) ?: return
         minecraft.connection?.send(ServerboundPingRequestPacket(requestId))
@@ -144,7 +142,7 @@ object ServerInfoDisplay {
     private fun resetMeasurements() {
         ServerTpsProvider.updateConsumerState(TPS_CONSUMER_ID, false)
         pingTracker.reset()
-        isPingTrackingActive = false
+        isPingMeasurementActive = false
         hasActiveMetrics = false
     }
 
@@ -210,13 +208,13 @@ private class SignalBarsRenderable(private val color: Int) : GuiRenderable {
     }
 }
 
-internal data class ServerInfoValues(
+private data class ServerInfoValues(
     val fps: Int,
     val tps: Double?,
     val ping: Int?,
 )
 
-internal fun serverInfoText(
+private fun serverInfoText(
     metric: ServerInfoMetric,
     values: ServerInfoValues,
     labelStyle: DisplayLabelStyle,

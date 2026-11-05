@@ -25,7 +25,7 @@ object WarpAliases {
         }
 }
 
-internal fun rewriteWarpAlias(command: String, island: SkyBlockIsland?): String? {
+private fun rewriteWarpAlias(command: String, island: SkyBlockIsland?): String? {
     val normalized = command.trim().lowercase()
     if (island == SkyBlockIsland.GARDEN) {
         if (normalized == "home") return "warp garden"

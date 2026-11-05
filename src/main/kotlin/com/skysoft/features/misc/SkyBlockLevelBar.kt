@@ -2,10 +2,12 @@ package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.utils.chat.styleAt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.util.ARGB
 
 object SkyBlockLevelBar {
     private val isEnabled get() = SkysoftConfigGui.config().gui.playerHud.isSkyBlockLevelBarEnabled
@@ -76,7 +78,7 @@ internal data class SkyBlockLevelProgress(
     val experienceColor: Int,
 )
 
-internal fun parseSkyBlockLevelProgress(lines: Iterable<Component>): SkyBlockLevelProgress? =
+private fun parseSkyBlockLevelProgress(lines: Iterable<Component>): SkyBlockLevelProgress? =
     lines.firstNotNullOfOrNull { line ->
         val match = skyBlockLevelPattern.matchEntire(line.string) ?: return@firstNotNullOfOrNull null
         val levelGroup = match.groups["level"] ?: return@firstNotNullOfOrNull null
@@ -93,15 +95,7 @@ internal fun parseSkyBlockLevelProgress(lines: Iterable<Component>): SkyBlockLev
         ).takeIf { requiredExperience > 0 && experience <= requiredExperience }
     }
 
-private fun Component.opaqueColorAt(index: Int): Int? {
-    var offset = 0
-    for (part in toFlatList()) {
-        val end = offset + part.string.length
-        if (index in offset until end) return part.style.color?.value?.or(OPAQUE_ALPHA)
-        offset = end
-    }
-    return null
-}
+private fun Component.opaqueColorAt(index: Int): Int? = styleAt(index).color?.value?.let(ARGB::opaque)
 
 private fun drawVanillaExperienceProgress(
     context: GuiGraphicsExtractor,
@@ -126,7 +120,6 @@ private fun drawVanillaExperienceProgress(
 
 private val skyBlockLevelPattern =
     Regex("""^\s*SB Level: \[(?<level>\d+)] (?<experience>\d+)/(?<requiredExperience>\d+) XP\s*$""")
-private const val OPAQUE_ALPHA = 0xFF000000.toInt()
 private const val VANILLA_EXPERIENCE_WIDTH = 182
 private const val VANILLA_EXPERIENCE_BAR_HEIGHT = 5
 private const val VANILLA_EXPERIENCE_MARGIN_BOTTOM = 24

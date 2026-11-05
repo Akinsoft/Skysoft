@@ -3,7 +3,8 @@ package com.skysoft.features.misc
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
 
-internal class ServerTpsService(private val estimator: ServerTpsEstimator = ServerTpsEstimator()) {
+internal object ServerTpsProvider {
+    private val estimator = ServerTpsEstimator()
     private val registeredConsumers = linkedSetOf<String>()
     private val activeConsumers = linkedSetOf<String>()
 
@@ -12,6 +13,11 @@ internal class ServerTpsService(private val estimator: ServerTpsEstimator = Serv
 
     val tps: Double?
         get() = estimator.tps
+
+    fun register() {
+        SkysoftClientEvents.onJoin("Server TPS join reset", estimator::reset)
+        SkysoftClientEvents.onDisconnect("Server TPS disconnect reset", estimator::reset)
+    }
 
     fun registerConsumer(id: String) {
         check(registeredConsumers.add(id)) { "TPS consumer is already registered: $id" }
@@ -24,42 +30,9 @@ internal class ServerTpsService(private val estimator: ServerTpsEstimator = Serv
         if (hadActiveConsumers != hasActiveConsumers) estimator.reset()
     }
 
-    fun recordTimeUpdate(gameTime: Long, timestampNanos: Long, targetTps: Double): TpsSampleResult? {
-        if (!hasActiveConsumers) return null
-        return estimator.recordTimeUpdate(gameTime, timestampNanos, targetTps)
-    }
-
-    fun resetMeasurements() {
-        estimator.reset()
-    }
-}
-
-internal object ServerTpsProvider {
-    private val service = ServerTpsService()
-
-    val hasActiveConsumers: Boolean
-        get() = service.hasActiveConsumers
-
-    val tps: Double?
-        get() = service.tps
-
-    fun register() {
-        SkysoftClientEvents.onJoin("Server TPS join reset", service::resetMeasurements)
-        SkysoftClientEvents.onDisconnect("Server TPS disconnect reset", service::resetMeasurements)
-    }
-
-    fun registerConsumer(id: String) {
-        service.registerConsumer(id)
-    }
-
-    fun updateConsumerState(id: String, isActive: Boolean) {
-        service.updateConsumerState(id, isActive)
-    }
-
-    fun recordServerTime(gameTime: Long, timestampNanos: Long): TpsSampleResult? {
-        if (!service.hasActiveConsumers) return null
+    fun recordServerTime(gameTime: Long, timestampNanos: Long) {
+        if (!hasActiveConsumers) return
         val targetTps = Minecraft.getInstance().level?.tickRateManager()?.tickrate()?.toDouble() ?: Double.NaN
-        return service.recordTimeUpdate(gameTime, timestampNanos, targetTps)
+        estimator.recordTimeUpdate(gameTime, timestampNanos, targetTps)
     }
-
 }

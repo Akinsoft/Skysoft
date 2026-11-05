@@ -34,37 +34,26 @@ object BlockOverlay {
     @JvmStatic
     fun selectBlockOutline(vanillaEligible: Boolean): BlockOutlineSelection {
         pendingTarget = null
+        if (!vanillaEligible) return BlockOutlineSelection.NONE
         val minecraft = Minecraft.getInstance()
-        val rawTarget = minecraft.hitResult as? BlockHitResult
-        val target = rawTarget?.takeIf {
-            val blockState = minecraft.level?.getBlockState(it.blockPos)
-            it.type == HitResult.Type.BLOCK && blockState != null && !blockState.isAir
-        }
-        val heldItemId = if (config.enabled && target != null) minecraft.player?.mainHandItem?.skyBlockId() else null
-        val isActivationAllowed = config.enabled && target != null && isFeatureActivationAllowed(heldItemId)
-        if (!vanillaEligible || !config.enabled || target == null || !isActivationAllowed) {
-            return if (vanillaEligible) BlockOutlineSelection.VANILLA else BlockOutlineSelection.NONE
-        }
-
         val level = minecraft.level
         val cameraEntity = minecraft.cameraEntity
-        val shape = if (level != null && cameraEntity != null) {
-            level.getBlockState(target.blockPos)
-                .getShape(level, target.blockPos, CollisionContext.of(cameraEntity))
-        } else {
-            null
-        }
-        if (shape == null || shape.isEmpty) {
+        val target = minecraft.hitResult as? BlockHitResult
+        if (!config.enabled || level == null || cameraEntity == null || target == null || target.type != HitResult.Type.BLOCK) {
             return BlockOutlineSelection.VANILLA
         }
-
+        val blockState = level.getBlockState(target.blockPos)
+        if (blockState.isAir || !isFeatureActivationAllowed(minecraft.player?.mainHandItem?.skyBlockId())) {
+            return BlockOutlineSelection.VANILLA
+        }
+        val shape = blockState.getShape(level, target.blockPos, CollisionContext.of(cameraEntity))
+        if (shape.isEmpty) return BlockOutlineSelection.VANILLA
         pendingTarget = BlockOverlayTarget(target.blockPos, shape)
         return BlockOutlineSelection.CUSTOM
     }
 
-    fun addHeldItem(source: FabricClientCommandSource): Int {
-        return conditions.addHeldItem(source, "Block Overlay", config.settings.combinations)
-    }
+    fun addHeldItem(source: FabricClientCommandSource): Int =
+        conditions.addHeldItem(source, "Block Overlay", config.settings.combinations)
 
     private fun isFeatureActivationAllowed(heldItemId: String?): Boolean {
         val settings = config.settings

@@ -4,12 +4,12 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.features.misc.bettertab.BetterTab
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.HudTransform
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.transform
 import com.skysoft.mixin.PlayerTabOverlayAccessor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.TabListOverlay
-import com.skysoft.utils.renderables.withIsolatedPose
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.numbers.StyledFormat
@@ -65,14 +65,10 @@ object TabListPositionEditor {
     fun render(context: GuiGraphicsExtractor, drawVanilla: () -> Unit) {
         if (MinecraftClient.screen() is SkysoftHudEditor.EditorScreen && !isRenderingEditor) return
         val layout = currentLayout() ?: return
-        val drawAtOrigin = {
-            context.pose().translate(-layout.left.toFloat(), -TOP.toFloat())
+        val transform = if (isRenderingEditor) EDITOR_PREVIEW_TRANSFORM else position.transform(layout.width, layout.height)
+        transform.render(context) {
+            pose().translate(-layout.left.toFloat(), -TOP.toFloat())
             drawVanilla()
-        }
-        if (isRenderingEditor) {
-            context.withIsolatedPose { drawAtOrigin() }
-        } else {
-            position.transform(layout.width, layout.height).render(context) { drawAtOrigin() }
         }
     }
 
@@ -96,12 +92,7 @@ object TabListPositionEditor {
                 if (width > 0) font.width(" ") + width else 0
             } ?: 0
         }
-        var columns = 1
-        var rows = players.size
-        while (rows > MAX_ROWS) {
-            columns++
-            rows = (players.size + columns - 1) / columns
-        }
+        val (columns, rows) = vanillaTabGrid(players.size)
         val screenWidth = minecraft.window.guiScaledWidth
         val headWidth = if (TabListOverlay.areHeadsVisible(minecraft)) HEAD_WIDTH else 0
         val slotWidth = minOf(columns * (headWidth + nameWidth + scoreWidth + PING_WIDTH), screenWidth - WIDTH_MARGIN) / columns
@@ -123,6 +114,20 @@ object TabListPositionEditor {
 }
 
 private data class TabLayout(val left: Int, val width: Int, val height: Int)
+
+internal data class VanillaTabGrid(val columns: Int, val rows: Int)
+
+internal fun vanillaTabGrid(entryCount: Int): VanillaTabGrid {
+    var columns = 1
+    var rows = entryCount
+    while (rows > MAX_ROWS) {
+        columns++
+        rows = Math.ceilDiv(entryCount, columns)
+    }
+    return VanillaTabGrid(columns, rows)
+}
+
+internal val EDITOR_PREVIEW_TRANSFORM = HudTransform(0, 0, 1f)
 
 private const val TOP = 9
 private const val MAX_ROWS = 20

@@ -6,12 +6,10 @@ import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.HudEditorSnapshot
 import com.skysoft.gui.SkysoftHudEditor
-import com.skysoft.gui.hudEditorSnapshot
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SidebarScoreboard
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.input.InputHandlingResult
-import com.skysoft.utils.renderables.withIsolatedPose
 import java.util.Locale
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -86,7 +84,7 @@ object ScoreboardPositionEditor {
             override fun captureEditorState(): HudEditorSnapshot {
                 val positionSnapshot = position.snapshot()
                 val isCustomized = config.isScoreboardPositionCustomized
-                return hudEditorSnapshot(positionSnapshot to isCustomized) {
+                return HudEditorSnapshot(positionSnapshot to isCustomized) {
                     position.restore(positionSnapshot)
                     config.isScoreboardPositionCustomized = isCustomized
                 }
@@ -117,17 +115,16 @@ object ScoreboardPositionEditor {
             return
         }
 
-        val layout = layout(context, objective)
-        val drawAtOrigin = {
-            context.pose().translate(-layout.left.toFloat(), -layout.top.toFloat())
-            drawVanillaScoreboard()
-        }
-        if (isRenderingEditorPreview) {
-            context.withIsolatedPose { drawAtOrigin() }
+        val layout = layout(context.guiWidth(), context.guiHeight(), objective, SidebarScoreboardState.current.entries)
+        val position = config.scoreboardPosition
+        val transform = if (isRenderingEditorPreview) {
+            EDITOR_PREVIEW_TRANSFORM
         } else {
-            config.scoreboardPosition.transform(layout.width, layout.height, positionScale()).render(context) {
-                drawAtOrigin()
-            }
+            position.transform(layout.width, layout.height, position.scale)
+        }
+        transform.render(context) {
+            pose().translate(-layout.left.toFloat(), -layout.top.toFloat())
+            drawVanillaScoreboard()
         }
     }
 
@@ -154,9 +151,6 @@ object ScoreboardPositionEditor {
         )
     }
 
-    private fun layout(context: GuiGraphicsExtractor, objective: Objective): ScoreboardLayout =
-        layout(context.guiWidth(), context.guiHeight(), objective, SidebarScoreboardState.current.entries)
-
     private fun layout(
         screenWidth: Int,
         screenHeight: Int,
@@ -182,8 +176,6 @@ object ScoreboardPositionEditor {
             height = entriesHeight + HEADER_HEIGHT,
         )
     }
-
-    private fun positionScale(): Float = config.scoreboardPosition.scale
 }
 
 private data class ScoreboardLayout(
