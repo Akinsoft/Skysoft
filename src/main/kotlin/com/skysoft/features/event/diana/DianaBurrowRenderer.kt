@@ -149,15 +149,10 @@ internal object DianaBurrowRenderer {
         labelColor: Color,
         visualAlphaScale: Double,
     ): Component {
-        val textAlpha = textAlpha(visualAlphaScale)
-        val rgb = labelColor.rgb and RGB_MASK
-        val color = if (textAlpha == FULL_TEXT_ALPHA) rgb else rgb.withAlpha(textAlpha)
+        val color = textColor(labelColor, visualAlphaScale)
         val key = LabelKey(boldLabels, labelFormat, color)
         LABEL_CACHE[this]?.takeIf { it.first == key }?.second?.let { return it }
-        return Component.literal(labelFormat.format(label)).withStyle { style ->
-            val colored = style.withColor(TextColor.fromRgb(color))
-            if (boldLabels) colored.withBold(true) else colored
-        }.also { LABEL_CACHE[this] = key to it }
+        return styledLiteral(labelFormat.format(label), color, boldLabels).also { LABEL_CACHE[this] = key to it }
     }
 
     private fun distanceComponent(
@@ -166,14 +161,21 @@ internal object DianaBurrowRenderer {
         visualAlphaScale: Double,
     ): Component? {
         if (distanceStyle.hideWithin?.let { distance <= it } == true) return null
-        val textAlpha = textAlpha(visualAlphaScale)
-        val rgb = distanceStyle.color.rgb and RGB_MASK
-        val color = if (textAlpha == FULL_TEXT_ALPHA) rgb else rgb.withAlpha(textAlpha)
-        return Component.literal("(${distanceStyle.format.format(distance)})").withStyle { style ->
-            val colored = style.withColor(TextColor.fromRgb(color))
-            if (distanceStyle.bold) colored.withBold(true) else colored
-        }
+        val color = textColor(distanceStyle.color, visualAlphaScale)
+        return styledLiteral("(${distanceStyle.format.format(distance)})", color, distanceStyle.bold)
     }
+
+    private fun textColor(color: Color, visualAlphaScale: Double): Int {
+        val textAlpha = textAlpha(visualAlphaScale)
+        val rgb = color.rgb and RGB_MASK
+        return if (textAlpha == FULL_TEXT_ALPHA) rgb else rgb.withAlpha(textAlpha)
+    }
+
+    private fun styledLiteral(text: String, color: Int, bold: Boolean): Component =
+        Component.literal(text).withStyle { style ->
+            val colored = style.withColor(TextColor.fromRgb(color))
+            if (bold) colored.withBold(true) else colored
+        }
 
     private fun progressComponent(clickProgress: DianaBurrowClickProgress, visualAlphaScale: Double): Component {
         val textAlpha = textAlpha(visualAlphaScale)

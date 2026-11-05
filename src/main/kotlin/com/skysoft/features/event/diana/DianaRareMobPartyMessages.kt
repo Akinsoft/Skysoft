@@ -4,7 +4,9 @@ import com.skysoft.config.DianaRareMobOption
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageSender
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.SkysoftPartyShare
+import com.skysoft.utils.chat.isLocalPlayer
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 
@@ -22,29 +24,18 @@ internal object DianaRareMobPartyMessages {
         cocoon: DianaRareMobCocoon,
         context: Context,
         targets: Collection<DianaRareMobTarget>,
-    ): ChatMessageVisibility {
-        val sender = DianaRareMobRuntime.senderFor(message, cocoon.marker)
-            ?: return ChatMessageVisibility.SHOW
-        if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, context.localPlayerName, context.now)) {
-            return context.messageVisibility
+    ): ChatMessageVisibility = handleFromSender(message, cocoon.marker, context) { sender ->
+        if (sender.isLocalPlayer(context.localPlayerName) || cocoon.mob !in context.receivedRareMobs) {
+            return@handleFromSender ChatMessageVisibility.SHOW
         }
-        return when {
-            sender.isLocalPlayer(context.localPlayerName) -> ChatMessageVisibility.SHOW
-            cocoon.mob !in context.receivedRareMobs -> ChatMessageVisibility.SHOW
-            else -> {
-                refreshRemoteCocoonTargets(targets, cocoon.mob, sender, context.now)
-                if (context.showRareMobSharing) {
-                    if (!context.showPartyMessages) {
-                        SkysoftPartyShare.showCocoonReplacement(
-                            sender = sender,
-                            label = Component.literal(cocoon.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
-                        )
-                    }
-                    DianaRareMobTitleRenderer.showCocoon(cocoon.mob, sender)
-                }
-                context.messageVisibility
+        refreshRemoteCocoonTargets(targets, cocoon.mob, sender, context.now)
+        if (context.showRareMobSharing) {
+            if (!context.showPartyMessages) {
+                SkysoftPartyShare.showCocoonReplacement(sender, cocoon.mob.partyLabel())
             }
+            DianaRareMobTitleRenderer.showCocoon(cocoon.mob, sender)
         }
+        partyMessageVisibility(context.showPartyMessages)
     }
 
     fun handleClear(
@@ -53,24 +44,16 @@ internal object DianaRareMobPartyMessages {
         context: Context,
         targets: Collection<DianaRareMobTarget>,
         clearTarget: (DianaRareMobTarget) -> Unit,
-    ): ChatMessageVisibility {
-        val sender = DianaRareMobRuntime.senderFor(message, clear.marker)
-            ?: return ChatMessageVisibility.SHOW
-        if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, context.localPlayerName, context.now)) {
-            return context.messageVisibility
-        }
-        val clearedTargets = targets
-            .filter { target ->
-                (clear.mob == null || target.mob == clear.mob) &&
-                    target.sharedBy.name.equals(sender.name, ignoreCase = true)
-            }
-            .toList()
+    ): ChatMessageVisibility = handleFromSender(message, clear.marker, context) { sender ->
         if (!sender.isLocalPlayer(context.localPlayerName)) {
-            clearedTargets.forEach { target ->
-                clearTarget(target)
-            }
+            targets
+                .filter { target ->
+                    (clear.mob == null || target.mob == clear.mob) &&
+                        target.sharedBy.name.equals(sender.name, ignoreCase = true)
+                }
+                .forEach(clearTarget)
         }
-        return context.messageVisibility
+        partyMessageVisibility(context.showPartyMessages)
     }
 
     fun handleShare(
@@ -78,32 +61,43 @@ internal object DianaRareMobPartyMessages {
         share: DianaRareMobShare,
         context: Context,
         rememberShare: (DianaRareMobShare, ChatMessageSender) -> Unit,
-    ): ChatMessageVisibility {
-        val sender = DianaRareMobRuntime.senderFor(message, share)
-            ?: return ChatMessageVisibility.SHOW
-        if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, context.localPlayerName, context.now)) {
-            return context.messageVisibility
+    ): ChatMessageVisibility = handleFromSender(message, share.marker, context) { sender ->
+        if (share.mob !in context.receivedRareMobs || sender.isLocalPlayer(context.localPlayerName)) {
+            return@handleFromSender ChatMessageVisibility.SHOW
         }
-        return when {
-            share.mob !in context.receivedRareMobs -> ChatMessageVisibility.SHOW
-            sender.isLocalPlayer(context.localPlayerName) -> ChatMessageVisibility.SHOW
-            else -> {
-                rememberShare(share, sender)
-                if (context.showRareMobSharing) {
-                    if (!context.showPartyMessages) {
-                        SkysoftPartyShare.showFoundReplacement(
-                            sender = sender,
-                            label = Component.literal(share.mob.label).withStyle(ChatFormatting.LIGHT_PURPLE),
-                            location = share.location,
-                        )
-                    }
-                    DianaRareMobTitleRenderer.show(share.mob, sender)
-                }
-                context.messageVisibility
+        rememberShare(share, sender)
+        if (context.showRareMobSharing) {
+            if (!context.showPartyMessages) {
+                SkysoftPartyShare.showFoundReplacement(sender, share.mob.partyLabel(), share.location)
             }
+            DianaRareMobTitleRenderer.show(share.mob, sender)
         }
+        partyMessageVisibility(context.showPartyMessages)
     }
 
-    private val Context.messageVisibility: ChatMessageVisibility
-        get() = if (showPartyMessages) ChatMessageVisibility.SHOW else ChatMessageVisibility.HIDE
+    private inline fun handleFromSender(
+        message: ChatMessage,
+        marker: String,
+        context: Context,
+        handle: (ChatMessageSender) -> ChatMessageVisibility,
+    ): ChatMessageVisibility {
+        val sender = ChatSenderParser.senderBefore(message, marker) ?: return ChatMessageVisibility.SHOW
+        if (isOwnPartyEcho(message, sender, context.localPlayerName, context.now)) {
+            return partyMessageVisibility(context.showPartyMessages)
+        }
+        return handle(sender)
+    }
+
+    private fun DianaRareMobOption.partyLabel(): Component =
+        Component.literal(label).withStyle(ChatFormatting.LIGHT_PURPLE)
 }
+
+internal fun isOwnPartyEcho(
+    message: ChatMessage,
+    sender: ChatMessageSender,
+    localPlayerName: String?,
+    now: Long,
+): Boolean = sender.isLocalPlayer(localPlayerName) && SkysoftPartyShare.consumeRecentSentMessage(message.body, now)
+
+internal fun partyMessageVisibility(showPartyMessages: Boolean): ChatMessageVisibility =
+    if (showPartyMessages) ChatMessageVisibility.SHOW else ChatMessageVisibility.HIDE

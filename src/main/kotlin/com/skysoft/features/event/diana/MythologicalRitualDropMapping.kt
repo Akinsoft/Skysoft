@@ -2,6 +2,7 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.features.loot.RareLootChatDrop
 import com.skysoft.features.loot.bestItemId
+import com.skysoft.features.loot.toItemIdKey
 import java.util.Locale
 
 internal data class MythologicalRitualTrackedDrop(
@@ -14,11 +15,11 @@ internal data class MythologicalRitualTrackedDrop(
 internal object MythologicalRitualDropMapping {
     fun fromChatDrop(drop: RareLootChatDrop, lootshare: Boolean): MythologicalRitualTrackedDrop? {
         val baseKey = baseItemKey(drop) ?: return null
-        val itemKey = if (lootshare) lootshareItemKey(baseKey) ?: baseKey else baseKey
+        val itemKey = if (lootshare) lootshareItemIds[baseKey] ?: baseKey else baseKey
         return MythologicalRitualTrackedDrop(
             itemKey = itemKey,
             amount = drop.amount.coerceAtLeast(1).toLong(),
-            magicFindKey = magicFindKey(baseKey),
+            magicFindKey = magicFindItemIds[baseKey],
             magicFind = drop.context.magicFind(),
         )
     }
@@ -38,19 +39,8 @@ internal object MythologicalRitualDropMapping {
             else -> directItemIds[itemId]
         }
 
-    private fun nameKey(displayName: String): String? {
-        val key = displayName
-            .uppercase(Locale.US)
-            .replace(Regex("""[^A-Z0-9]+"""), "_")
-            .trim('_')
-        return directItemIds[key]
-    }
-
-    private fun lootshareItemKey(itemKey: String): String? =
-        lootshareItemIds[itemKey]
-
-    private fun magicFindKey(itemKey: String): String? =
-        magicFindItemIds[itemKey]
+    private fun nameKey(displayName: String): String? =
+        directItemIds[displayName.toItemIdKey()]
 
     private fun String?.magicFind(): Int {
         val context = this ?: return 0

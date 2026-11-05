@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.toBlockPos
 import com.skysoft.utils.toWorldVec
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
@@ -14,27 +15,18 @@ internal object DianaArrowCandidateResolver {
     fun resolve(ray: DianaArrowRay, bounds: DianaArrowBounds): List<ResolvedArrowCandidate> =
         resolve(ray, DianaArrowProjector.project(ray, bounds))
 
-    fun resolve(ray: DianaArrowRay, candidates: List<DianaArrowCandidate>): List<ResolvedArrowCandidate> =
-        rank(candidates.flatMap { candidate -> candidate.resolveLoadedSurfaceCandidates(ray) })
-
-    fun rank(candidates: List<ResolvedArrowCandidate>): List<ResolvedArrowCandidate> {
-        val bestByBlock = linkedMapOf<String, ResolvedArrowCandidate>()
-        for (candidate in candidates) {
-            val key = candidate.location.blockKey()
-            val current = bestByBlock[key]
-            if (current == null || candidate.scaledDistanceToRay < current.scaledDistanceToRay) {
-                bestByBlock[key] = candidate
-            }
-        }
-        val bestScore = bestByBlock.values.minOfOrNull { candidate -> candidate.scaledDistanceToRay }
-            ?: return emptyList()
-        return bestByBlock.values.filter { candidate -> candidate.scaledDistanceToRay == bestScore }
+    private fun resolve(ray: DianaArrowRay, candidates: List<DianaArrowCandidate>): List<ResolvedArrowCandidate> {
+        val bestByBlock = candidates.asSequence()
+            .flatMap { candidate -> candidate.resolveLoadedSurfaceCandidates(ray) }
+            .bestPerBlock(ResolvedArrowCandidate::location, ResolvedArrowCandidate::scaledDistanceToRay)
+        val bestScore = bestByBlock.minOfOrNull { candidate -> candidate.scaledDistanceToRay } ?: return emptyList()
+        return bestByBlock.filter { candidate -> candidate.scaledDistanceToRay == bestScore }
     }
 
     private fun DianaArrowCandidate.resolveLoadedSurfaceCandidates(ray: DianaArrowRay): List<ResolvedArrowCandidate> {
         val level = Minecraft.getInstance().level
             ?: return resolveCachedSurface(ray)
-        val blockPos = BlockPos(block.x.toInt(), block.y.toInt(), block.z.toInt())
+        val blockPos = block.toBlockPos()
         if (!level.isLoaded(blockPos)) return resolveCachedSurface(ray)
         return VERTICAL_SURFACE_SCAN_OFFSETS
             .asSequence()
@@ -53,8 +45,7 @@ internal object DianaArrowCandidateResolver {
                     ?.let { location -> DianaArrowProjector.scoreBlock(ray, location) }
                     ?.let { candidate -> listOf(candidate.toResolved()) }
                     .orEmpty()
-            DianaCachedSurfaceStatus.INVALID -> emptyList()
-            DianaCachedSurfaceStatus.UNKNOWN -> emptyList()
+            DianaCachedSurfaceStatus.INVALID, DianaCachedSurfaceStatus.UNKNOWN -> emptyList()
         }
     }
 

@@ -3,6 +3,8 @@ package com.skysoft.features.event.diana
 import com.skysoft.config.DianaRareMobOption
 import com.skysoft.data.skyblock.withoutSkyBlockMobModifierPrefix
 import com.skysoft.features.combat.CocoonMessageParser
+import com.skysoft.utils.RegexUtilities.group
+import com.skysoft.utils.RegexUtilities.worldVecOrNull
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.WorldVec
 import java.util.regex.Pattern
@@ -10,7 +12,7 @@ import java.util.regex.Pattern
 internal data class DianaRareMobShare(
     val mob: DianaRareMobOption,
     val location: WorldVec,
-    val marker: String = DianaRareMobShareParser.marker(mob),
+    val marker: String = mob.shareMarker,
 )
 
 internal data class DianaRareMobClear(
@@ -63,10 +65,6 @@ internal object DianaRareMobShareParser {
     )
     private val partyBodyPattern = Regex("""^Party > .+?: (?<body>.+)$""")
 
-    fun marker(mob: DianaRareMobOption): String = mob.shareMarker
-    fun clearMarker(mob: DianaRareMobOption): String = mob.shareMarker.replaceFirst("Found", "Defeated")
-    fun cocoonMarker(mob: DianaRareMobOption): String = "Cocooned a ${mob.label}!"
-
     fun format(share: DianaRareMobShare): String {
         val x = share.location.x.toInt()
         val y = share.location.y.toInt()
@@ -75,10 +73,10 @@ internal object DianaRareMobShareParser {
     }
 
     fun formatClear(mob: DianaRareMobOption): String =
-        clearMarker(mob)
+        mob.shareMarker.replaceFirst("Found", "Defeated")
 
     fun formatCocoon(mob: DianaRareMobOption): String =
-        cocoonMarker(mob)
+        "Cocooned a ${mob.label}!"
 
     fun parse(message: String): DianaRareMobShare? {
         val body = message.partyBodyOrSelf()
@@ -91,27 +89,16 @@ internal object DianaRareMobShareParser {
     fun parseClear(message: String): DianaRareMobClear? {
         val body = message.partyBodyOrSelf()
         explicitClearPattern.matchEntire(body)?.let { match ->
-            return DianaRareMobClear(
-                mob = DianaRareMobOption.fromLabel(match.groups["mob"]?.value.orEmpty()) ?: return null,
-                marker = match.groups["marker"]?.value.orEmpty(),
-            )
+            val mob = DianaRareMobOption.fromLabel(match.group("mob")) ?: return null
+            return DianaRareMobClear(mob, match.group("marker"))
         }
-        genericClearPattern.matchEntire(body)?.let { match ->
-            return DianaRareMobClear(
-                mob = null,
-                marker = match.groups["marker"]?.value.orEmpty(),
-            )
-        }
-        return null
+        return genericClearPattern.matchEntire(body)?.let { match -> DianaRareMobClear(null, match.group("marker")) }
     }
 
     fun parsePlayerDeath(message: String): DianaRareMobPlayerDeath? {
         val match = playerDeathPattern.matchEntire(message) ?: return null
-        val mob = mobFromDeathKiller(match.groups["killer"]?.value.orEmpty()) ?: return null
-        return DianaRareMobPlayerDeath(
-            player = match.groups["player"]?.value.orEmpty(),
-            mob = mob,
-        )
+        val mob = mobFromDeathKiller(match.group("killer")) ?: return null
+        return DianaRareMobPlayerDeath(match.group("player"), mob)
     }
 
     fun parseLocalCocoon(message: String): DianaRareMobCocoon? {
@@ -122,48 +109,30 @@ internal object DianaRareMobShareParser {
 
     fun parseCocoon(message: String): DianaRareMobCocoon? {
         val match = partyCocoonPattern.matchEntire(message.partyBodyOrSelf()) ?: return null
-        val mob = mobFromShareText(match.groups["mob"]?.value.orEmpty()) ?: return null
-        return DianaRareMobCocoon(mob, match.groups["marker"]?.value.orEmpty())
+        val mob = mobFromShareText(match.group("mob")) ?: return null
+        return DianaRareMobCocoon(mob, match.group("marker"))
     }
 
     private fun String.partyBodyOrSelf(): String {
         val clean = cleanSkyBlockText()
-        return partyBodyPattern.matchEntire(clean)
-            ?.groups
-            ?.get("body")
-            ?.value
-            ?.trim()
-            ?: clean.trim()
+        return (partyBodyPattern.matchEntire(clean)?.group("body") ?: clean).trim()
     }
 
     private fun parseLegacyFoundMessage(match: MatchResult): DianaRareMobShare? {
-        val mob = DianaRareMobOption.fromLabel(match.groups["mob"]?.value.orEmpty()) ?: return null
-        return shareFromGroups(match, mob, match.groups["marker"]?.value ?: marker(mob))
+        val mob = DianaRareMobOption.fromLabel(match.group("mob")) ?: return null
+        return shareFromGroups(match, mob)
     }
 
     private fun parseCoordinateShare(match: MatchResult): DianaRareMobShare? {
-        val mob = mobFromShareText(match.groups["mob"]?.value.orEmpty()) ?: return null
-        return shareFromGroups(match, mob, match.groups["marker"]?.value ?: "x:")
+        val mob = mobFromShareText(match.group("mob")) ?: return null
+        return shareFromGroups(match, mob)
     }
 
     private fun parseInquisitorSpawnShare(match: MatchResult): DianaRareMobShare? =
-        shareFromGroups(
-            match,
-            DianaRareMobOption.MINOS_INQUISITOR,
-            match.groups["marker"]?.value ?: "A MINOS INQUISITOR",
-        )
+        shareFromGroups(match, DianaRareMobOption.MINOS_INQUISITOR)
 
-    private fun shareFromGroups(match: MatchResult, mob: DianaRareMobOption, marker: String): DianaRareMobShare? {
-        return DianaRareMobShare(
-            mob = mob,
-            location = WorldVec(
-                match.groups["x"]?.value?.toDoubleOrNull() ?: return null,
-                match.groups["y"]?.value?.toDoubleOrNull() ?: return null,
-                match.groups["z"]?.value?.toDoubleOrNull() ?: return null,
-            ),
-            marker = marker,
-        )
-    }
+    private fun shareFromGroups(match: MatchResult, mob: DianaRareMobOption): DianaRareMobShare? =
+        DianaRareMobShare(mob, match.worldVecOrNull() ?: return null, match.group("marker"))
 
     private fun mobFromShareText(text: String): DianaRareMobOption? {
         val cleaned = text.trim().removePrefix("|").trim().removeSuffix("!").trim()

@@ -1,14 +1,13 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.events.particle.ClientParticleEvent
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.WorldVec
 
 internal object DianaBurrowParticleDetector {
     private val partialBurrows = mutableMapOf<String, PartialBurrow>()
 
-    fun handle(event: ClientParticleEvent, now: Long = System.currentTimeMillis()): DianaBurrowDetectionChange? {
-        val kind = DianaParticleClassifier.classify(event) ?: return null
+    fun handle(event: ClientParticleEvent, now: Long) {
+        val kind = DianaParticleClassifier.classify(event) ?: return
         val location = event.location.down().roundToBlock()
         val partial = partialBurrows.getOrPut(location.blockKey()) { PartialBurrow() }
 
@@ -20,14 +19,11 @@ internal object DianaBurrowParticleDetector {
         }
 
         partial.lastSeenMillis = now
-        val type = partial.type ?: return null
-        if (partial.typeSamples < REQUIRED_TYPE_SAMPLES || partial.enchantSamples < REQUIRED_ENCHANT_SAMPLES) return null
+        val type = partial.type ?: return
+        if (partial.typeSamples < REQUIRED_TYPE_SAMPLES || partial.enchantSamples < REQUIRED_ENCHANT_SAMPLES) return
         if (partial.confirmedType == type) {
-            return if (DianaBurrowTargetTracker.refreshDetected(location, type, now) == ChangeResult.CHANGED) {
-                DianaBurrowDetectionChange.REFRESHED
-            } else {
-                null
-            }
+            DianaBurrowTargetTracker.refreshDetected(location, type, now)
+            return
         }
 
         val matchedGuess = DianaArrowGuess.onDetectedBurrow(location, now)
@@ -39,18 +35,14 @@ internal object DianaBurrowParticleDetector {
         }
         DianaSpadeGuess.onDetectedBurrow(location, now)
         partial.confirmedType = type
-        return DianaBurrowDetectionChange.CONFIRMED
     }
 
-    fun hasRecentBurrowAt(
-        location: WorldVec,
-        now: Long = System.currentTimeMillis(),
-    ): Boolean {
+    fun hasRecentBurrowAt(location: WorldVec, now: Long): Boolean {
         val partial = partialBurrows[location.roundToBlock().blockKey()] ?: return false
         return now - partial.lastSeenMillis <= PARTICLE_MEMORY_MILLIS && partial.hasSignal()
     }
 
-    fun prune(now: Long = System.currentTimeMillis()) {
+    fun prune(now: Long) {
         partialBurrows.entries.removeIf { (_, burrow) -> now - burrow.lastSeenMillis > PARTICLE_MEMORY_MILLIS }
     }
 
@@ -81,8 +73,3 @@ internal object DianaBurrowParticleDetector {
 
 private fun DianaBurrowTarget?.isNewLogicalTarget(type: DianaBurrowType): Boolean =
     this == null || this.type != type || this.source != DianaBurrowSource.DETECTED
-
-internal enum class DianaBurrowDetectionChange {
-    CONFIRMED,
-    REFRESHED,
-}

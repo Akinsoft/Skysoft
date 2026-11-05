@@ -10,6 +10,7 @@ import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
@@ -22,7 +23,7 @@ internal object DianaLobbyCompromisedWatcher {
     private val config get() = SkysoftConfigGui.config().events.diana
     private val feature get() = config.lobbyCompromised
     private val settings get() = feature.settings
-    private val alertState = DianaLobbyCompromisedState(REQUIRED_COMPROMISED_STABLE_MILLIS)
+    private val alertState = DianaLobbyCompromisedState()
     private val friendlyPresenceTracker = DianaLobbyFriendlyPresenceTracker()
     private var tabState = DianaLobbyTabState.EMPTY
     private var lastTabSessionId = Long.MIN_VALUE
@@ -38,7 +39,7 @@ internal object DianaLobbyCompromisedWatcher {
             isActive = { isConfigured() || lastTabSessionId != Long.MIN_VALUE },
         ) { onTick() }
         SkysoftClientEvents.onDisconnect("Diana Lobby Compromised disconnect reset", ::clear)
-        ChatEvents.onPartyMessage("Diana compromised-lobby chat", ::isConfigured) { message -> handlePartyMessage(message) }
+        ChatEvents.onPartyMessage("Diana compromised-lobby chat", ::isConfigured, ::handlePartyMessage)
     }
 
     private fun onTick() {
@@ -113,15 +114,9 @@ internal object DianaLobbyCompromisedWatcher {
 
     private fun handlePartyMessage(message: ChatMessage): ChatMessageVisibility {
         if (!message.body.equals(MESSAGE, ignoreCase = true)) return ChatMessageVisibility.SHOW
-        val sender = DianaRareMobRuntime.senderFor(message, MESSAGE) ?: return ChatMessageVisibility.SHOW
-        val isOwnEcho = DianaRareMobPartyEcho.shouldHideRecentlySent(
-            message,
-            sender,
-            localPlayerName(),
-            System.currentTimeMillis(),
-        )
-        return if (isOwnEcho && !config.showPartyMessages) {
-            ChatMessageVisibility.HIDE
+        val sender = ChatSenderParser.senderBefore(message, MESSAGE) ?: return ChatMessageVisibility.SHOW
+        return if (isOwnPartyEcho(message, sender, localPlayerName(), System.currentTimeMillis())) {
+            partyMessageVisibility(config.showPartyMessages)
         } else {
             ChatMessageVisibility.SHOW
         }
@@ -135,24 +130,16 @@ internal object DianaLobbyCompromisedWatcher {
     }
 
     private val TAB_BASELINE_DELAY = 2.seconds
-    private const val REQUIRED_COMPROMISED_STABLE_MILLIS = 2_000L
 }
 
-internal class DianaLobbyCompromisedState(
-    private val requiredStableMillis: Long = 0L,
-) {
-    var hasBaseline = false
-        private set
+private class DianaLobbyCompromisedState {
+    private var hasBaseline = false
     private var wasCompromised = false
     private var lastThreshold: Int? = null
     private var acknowledgedStrangerCount = 0
     private var compromisedCandidateSinceMillis: Long? = null
 
-    fun update(
-        strangerCount: Int,
-        threshold: Int,
-        now: Long = System.currentTimeMillis(),
-    ): DianaLobbyCompromisedUpdate {
+    fun update(strangerCount: Int, threshold: Int, now: Long): DianaLobbyCompromisedUpdate {
         val isCompromised = strangerCount >= threshold
         if (!hasBaseline || lastThreshold != threshold) {
             hasBaseline = true
@@ -178,7 +165,7 @@ internal class DianaLobbyCompromisedState(
         val compromisedSince = compromisedCandidateSinceMillis ?: now.also {
             compromisedCandidateSinceMillis = it
         }
-        if (now - compromisedSince < requiredStableMillis) return DianaLobbyCompromisedUpdate.NO_ALERT
+        if (now - compromisedSince < REQUIRED_COMPROMISED_STABLE_MILLIS) return DianaLobbyCompromisedUpdate.NO_ALERT
 
         wasCompromised = true
         acknowledgedStrangerCount = strangerCount
@@ -195,14 +182,12 @@ internal class DianaLobbyCompromisedState(
     }
 }
 
-internal enum class DianaLobbyCompromisedUpdate {
+private enum class DianaLobbyCompromisedUpdate {
     NO_ALERT,
     BECAME_COMPROMISED,
 }
 
-internal class DianaLobbyFriendlyPresenceTracker(
-    private val graceMillis: Long = FRIENDLY_PRESENCE_GRACE_MILLIS,
-) {
+private class DianaLobbyFriendlyPresenceTracker {
     private val lastSeenFriendlyUuids = mutableMapOf<UUID, Long>()
     private var tabSessionId = Long.MIN_VALUE
 
@@ -232,7 +217,7 @@ internal class DianaLobbyFriendlyPresenceTracker(
 
         return lastSeenFriendlyUuids
             .asSequence()
-            .filter { (_, lastSeenAt) -> now - lastSeenAt <= graceMillis }
+            .filter { (_, lastSeenAt) -> now - lastSeenAt <= FRIENDLY_PRESENCE_GRACE_MILLIS }
             .map { (uuid, _) -> uuid }
             .take(reportedPlayerCount)
             .toSet()
@@ -263,3 +248,4 @@ private data class DianaLobbyTabState(
 
 private val playerCountPattern = Regex("""Players \((?<count>\d+)\)""")
 private const val FRIENDLY_PRESENCE_GRACE_MILLIS = 15_000L
+private const val REQUIRED_COMPROMISED_STABLE_MILLIS = 2_000L

@@ -28,7 +28,6 @@ internal object DianaLobbyCompromisedTitleRenderer {
                     plays = ALERT_SOUND_PLAYS,
                     repeatIntervalMillis = ALERT_SOUND_REPEAT_INTERVAL_MILLIS,
                 ),
-                preferredYOffset = TITLE_Y_OFFSET,
                 priority = ALERT_PRIORITY,
             ),
         )
@@ -49,5 +48,4 @@ internal object DianaLobbyCompromisedTitleRenderer {
     private const val ALERT_SOUND_VOLUME = 0.9f
     private const val ALERT_PRIORITY = 10
     private const val TITLE_SCALE = 2.65f
-    private const val TITLE_Y_OFFSET = -82f
 }

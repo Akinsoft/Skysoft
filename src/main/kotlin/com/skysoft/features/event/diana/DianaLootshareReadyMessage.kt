@@ -4,7 +4,9 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.chat.ChatSenderParser
 import com.skysoft.utils.chat.SkysoftPartyShare
+import com.skysoft.utils.chat.isLocalPlayer
 
 internal object DianaLootshareReadyMessage {
     fun broadcast() {
@@ -28,19 +30,13 @@ internal object DianaLootshareReadyMessage {
         showMarker: Boolean,
         showMessage: Boolean,
     ): ChatMessageVisibility {
-        val sender = DianaRareMobRuntime.senderFor(message, MESSAGE)
-            ?: return ChatMessageVisibility.SHOW
-        if (DianaRareMobPartyEcho.shouldHideRecentlySent(message, sender, localPlayerName, now)) {
-            return visibility(showMessage)
-        }
-        if (showMarker && !sender.isLocalPlayer(localPlayerName)) {
+        val sender = ChatSenderParser.senderBefore(message, MESSAGE) ?: return ChatMessageVisibility.SHOW
+        val isOwnEcho = isOwnPartyEcho(message, sender, localPlayerName, now)
+        if (!isOwnEcho && showMarker && !sender.isLocalPlayer(localPlayerName)) {
             DianaLootshareReadyMarkers.mark(sender.name, now)
         }
-        return visibility(showMessage)
+        return partyMessageVisibility(showMessage)
     }
-
-    private fun visibility(showMessage: Boolean): ChatMessageVisibility =
-        if (showMessage) ChatMessageVisibility.SHOW else ChatMessageVisibility.HIDE
 
     const val MESSAGE = "Loot share secured!"
 }

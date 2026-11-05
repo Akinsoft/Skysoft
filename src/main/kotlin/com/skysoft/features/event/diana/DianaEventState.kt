@@ -21,29 +21,19 @@ object DianaEventState {
 
     fun hasSpadeInHotbar(): Boolean {
         val minecraft = Minecraft.getInstance()
-        val tick = minecraft.level?.gameTime ?: run {
-            updateHotbarSpadeCache(Long.MIN_VALUE, false)
-            return false
-        }
-        if (tick == cachedHotbarSpadeTick) return cachedHasSpadeInHotbar
-        val inventory = minecraft.player?.inventory ?: run {
-            updateHotbarSpadeCache(tick, false)
-            return false
-        }
-        val hasSpade = (0 until HOTBAR_SIZE).any { slot -> inventory.getItem(slot).isDianaSpade() }
-        updateHotbarSpadeCache(tick, hasSpade)
-        return hasSpade
+        val tick = minecraft.level?.gameTime
+        if (tick != null && tick == cachedHotbarSpadeTick) return cachedHasSpadeInHotbar
+        val inventory = minecraft.player?.inventory
+        cachedHotbarSpadeTick = tick ?: Long.MIN_VALUE
+        cachedHasSpadeInHotbar = tick != null && inventory != null &&
+            (0 until HOTBAR_SIZE).any { slot -> inventory.getItem(slot).isDianaSpade() }
+        return cachedHasSpadeInHotbar
     }
 
     fun isHoldingSpade(): Boolean =
         Minecraft.getInstance().player?.mainHandItem.isDianaSpade()
 
     fun ItemStack?.isDianaSpade(): Boolean = this?.skyBlockId() in DIANA_SPADE_IDS
-
-    private fun updateHotbarSpadeCache(tick: Long, hasSpade: Boolean) {
-        cachedHotbarSpadeTick = tick
-        cachedHasSpadeInHotbar = hasSpade
-    }
 
     private const val HOTBAR_SIZE = 9
     private val DIANA_SPADE_IDS = setOf("ANCESTRAL_SPADE", "ARCHAIC_SPADE", "DEIFIC_SPADE")

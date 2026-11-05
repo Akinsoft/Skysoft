@@ -25,16 +25,14 @@ internal object DianaBurrowInteractions {
 
     fun onMessage(message: ChatMessage) {
         if (!DianaEventState.isOnHub()) return
-
+        val text = message.cleanText
         when {
-            message.cleanText.startsWith("You finished the Griffin burrow chain!") -> {
-                finishInteractedChain()
-            }
-            message.cleanText.startsWith("You dug out a Griffin Burrow!") -> {
+            text.startsWith(BURROW_CHAIN_FINISHED_MESSAGE) -> finishInteractedChain()
+            text.startsWith(BURROW_DUG_MESSAGE) -> {
                 val now = System.currentTimeMillis()
                 val playerLocation = localPlayerLocation()
                 val completed = completeProgressBurrow(now, playerLocation)
-                val progress = parseDianaBurrowProgress(message.cleanText)
+                val progress = parseDianaBurrowProgress(text)
                 DianaBurrowChainState.onProgress(progress, completed, now)
                 DianaArrowGuess.markBurrowRelatedMessage(
                     anchor = completed?.location,
@@ -43,20 +41,16 @@ internal object DianaBurrowInteractions {
                     clearCurrentRadius = NEW_BURROW_STEP_CLEAR_RADIUS,
                 )
             }
-            message.cleanText == "Couldn't find an appropriate burrow, try again!" ->
-                pendingClicks.removeLastOrNull()
-            message.cleanText == "Question" || message.cleanText == "Click your response to answer!" ->
-                extendPendingClicksForQuestion()
-            message.cleanText == "Defeat all the burrow defenders in order to dig it!" ->
+            text == "Couldn't find an appropriate burrow, try again!" -> pendingClicks.removeLastOrNull()
+            text == "Question" || text == "Click your response to answer!" -> extendPendingClicksForQuestion()
+            text == "Defeat all the burrow defenders in order to dig it!" || MOB_SPAWN_PATTERN.matches(text) ->
                 markInteractedMobBurrow(System.currentTimeMillis(), localPlayerLocation())
-            MOB_SPAWN_PATTERN.matches(message.cleanText) ->
-                markInteractedMobBurrow(System.currentTimeMillis(), localPlayerLocation())
-            TREASURE_PATTERN.matches(message.cleanText) -> {
+            TREASURE_PATTERN.matches(text) -> {
                 val now = System.currentTimeMillis()
                 val completed = completeTreasureBurrow(now, localPlayerLocation())
                 DianaBurrowChainState.onTreasureCompleted(completed, now)
             }
-            SkyBlockPlayerDeathParser.isLocalDeath(message.cleanText) ->
+            SkyBlockPlayerDeathParser.isLocalDeath(text) ->
                 removeActiveMobBurrow(System.currentTimeMillis(), localPlayerLocation())
         }
     }
@@ -72,13 +66,7 @@ internal object DianaBurrowInteractions {
                     val current = click.target.currentExactTarget() ?: return@forEach
                     if (current.type != DianaBurrowType.MOB) return@forEach
                     if (current.targetId in activeMobIds) return@forEach
-                    if (DianaBurrowParticleDetector.hasRecentBurrowAt(
-                            current.location,
-                            now,
-                        )
-                    ) {
-                        return@forEach
-                    }
+                    if (DianaBurrowParticleDetector.hasRecentBurrowAt(current.location, now)) return@forEach
                     removeActiveMobBurrow(now, target = current)
                 }
                 click.target.type != DianaBurrowType.MOB || click.target.targetId !in activeMobIds -> {
@@ -88,10 +76,11 @@ internal object DianaBurrowInteractions {
         }
     }
 
-    fun hasPendingClick(target: DianaBurrowTarget, clear: Boolean = false): Boolean {
-        val pending = pendingClicks.any { click -> click.target.targetId == target.targetId }
-        if (clear) pendingClicks.removeAll { click -> click.target.targetId == target.targetId }
-        return pending
+    fun hasPendingClick(target: DianaBurrowTarget): Boolean =
+        pendingClicks.any { click -> click.target.targetId == target.targetId }
+
+    fun clearPendingClicks(target: DianaBurrowTarget) {
+        pendingClicks.removeAll { click -> click.target.targetId == target.targetId }
     }
 
     fun clickProgress(target: DianaBurrowTarget): DianaBurrowClickProgress? {
@@ -109,17 +98,14 @@ internal object DianaBurrowInteractions {
     }
 
     private fun onBlockClick(event: BlockInteractionEvent): DianaBlockClickResult {
-        if (!DianaEventState.isOnHub() || !config.burrowHelper.enabled) return DianaBlockClickResult.ALLOW
         val block = event.position.roundToBlock()
         val target = DianaBurrowTargetTracker.targetAt(block) ?: return DianaBlockClickResult.ALLOW
         val now = System.currentTimeMillis()
         if (!event.itemInHand.isDianaSpade()) {
             return DianaNonSpadeGuessBreaks.onBlockClick(event, target, now)
         }
+        if (hasPendingClick(target)) return DianaBlockClickResult.ALLOW
         val kind = PendingBurrowClickKind.forTarget(target)
-        if (pendingClicks.any { click -> click.target.targetId == target.targetId }) {
-            return DianaBlockClickResult.ALLOW
-        }
         pendingClicks += PendingBurrowClick(target, now + kind.timeoutMillis, kind)
         return DianaBlockClickResult.ALLOW
     }
@@ -181,7 +167,7 @@ internal object DianaBurrowInteractions {
     }
 
     private fun removeActiveMobBurrow(
-        now: Long = System.currentTimeMillis(),
+        now: Long,
         playerLocation: WorldVec? = null,
         target: DianaBurrowTarget? = null,
     ): DianaBurrowTarget? {
@@ -271,14 +257,13 @@ private fun nearestTargetNear(
     maxDistance: Double,
 ): DianaBurrowTarget? {
     location ?: return null
-    val target = DianaBurrowTargetTracker.snapshot()
-        .asSequence()
+    return DianaBurrowTargetTracker.snapshot()
         .filter { candidate -> candidate.type in types }
-        .minByOrNull { candidate -> candidate.location.blockCenter().distanceSq(location) }
-        ?: return null
-    if (target.location.blockCenter().distance(location) > maxDistance) return null
-    return target
+        .nearestWithin(location, maxDistance)
 }
+
+private fun Collection<DianaBurrowTarget>.nearestWithin(location: WorldVec, maxDistance: Double): DianaBurrowTarget? =
+    nearestTo(location)?.takeIf { target -> target.location.blockCenter().distance(location) <= maxDistance }
 
 private fun DianaBurrowTarget.currentClickTarget(types: Set<DianaBurrowType>): DianaBurrowTarget? =
     DianaBurrowTargetTracker.targetAt(location)
@@ -290,9 +275,7 @@ private fun DianaBurrowTarget.currentExactTarget(): DianaBurrowTarget? =
 
 private fun activeMobTargetNear(activeMobBurrowIds: MutableSet<Long>, playerLocation: WorldVec?): DianaBurrowTarget? {
     playerLocation ?: return null
-    return activeMobTargets(activeMobBurrowIds)
-        .minByOrNull { target -> target.location.blockCenter().distanceSq(playerLocation) }
-        ?.takeIf { target -> target.location.blockCenter().distance(playerLocation) <= UNMATCHED_CHAT_TARGET_DISTANCE }
+    return activeMobTargets(activeMobBurrowIds).nearestWithin(playerLocation, UNMATCHED_CHAT_TARGET_DISTANCE)
 }
 
 private fun activeMobTargets(activeMobBurrowIds: MutableSet<Long>): List<DianaBurrowTarget> {

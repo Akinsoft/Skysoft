@@ -16,14 +16,8 @@ internal object DianaDugMobParser {
         return label
     }
 
-    fun matchLabels(label: String): Set<String> =
-        setOf(label) + labelAliases[label].orEmpty()
-
     private const val RARE_DROP_PREFIX = "RARE DROP!"
     private val ignoredLabels = setOf("Griffin Burrow")
     private val ignoredWords = setOf("coin")
-    private val labelAliases = mapOf(
-        "Siamese Lynxes" to setOf("Siamese Lynx", "Bagheera", "Azrael"),
-    )
     private val dugOutPattern = Regex("""You dug out (?:a |an )?(?<mob>[^!§(]+)!""", RegexOption.IGNORE_CASE)
 }

@@ -9,12 +9,11 @@ internal data class ArrowCandidateSequence(
     val current: ResolvedArrowCandidate,
     val currentIndex: Int,
     val currentTrackedAtMillis: Long,
-    val invalidatedBlockKeys: Set<String>,
-    val missingParticlesFirstCheckAtMillis: Long?,
+    val invalidatedBlockKeys: Set<String> = emptySet(),
+    val missingParticlesFirstCheckAtMillis: Long? = null,
 )
 
 internal data class ArrowSequenceMatch(
-    val targetId: Long,
     val sequence: ArrowCandidateSequence,
     val currentGuess: DianaBurrowTarget,
     val matchIndex: Int,
@@ -22,12 +21,11 @@ internal data class ArrowSequenceMatch(
 )
 
 internal fun MutableMap<Long, ArrowCandidateSequence>.currentGuessForSequence(
-    targetId: Long,
     sequence: ArrowCandidateSequence,
 ): DianaBurrowTarget? {
     val currentGuess = DianaBurrowTargetTracker.targetAt(sequence.current.location)
-    if (currentGuess == null || currentGuess.targetId != targetId || currentGuess.source != DianaBurrowSource.GUESS) {
-        remove(targetId)
+    if (currentGuess == null || currentGuess.targetId != sequence.targetId || currentGuess.source != DianaBurrowSource.GUESS) {
+        remove(sequence.targetId)
         return null
     }
     return currentGuess
@@ -42,7 +40,6 @@ internal fun ArrowCandidateSequence.matchDetectedBurrow(
         .firstOrNull { (_, candidate) -> candidate.location == detected }
         ?: return null
     return ArrowSequenceMatch(
-        targetId = targetId,
         sequence = this,
         currentGuess = currentGuess,
         matchIndex = match.index,
@@ -62,7 +59,7 @@ internal fun MutableMap<Long, ArrowCandidateSequence>.confirmMatch(
     match: ArrowSequenceMatch,
     now: Long,
 ) {
-    remove(match.targetId)
+    remove(match.sequence.targetId)
     if (match.currentGuess.location != match.matchCandidate.location) {
         DianaBurrowTargetTracker.removeIfCurrent(
             target = match.currentGuess,
@@ -78,13 +75,13 @@ internal fun MutableMap<Long, ArrowCandidateSequence>.invalidateAmbiguousNonWinn
     now: Long,
 ) {
     matches
-        .filter { match -> match.targetId != bestMatch.targetId }
+        .filter { match -> match.sequence.targetId != bestMatch.sequence.targetId }
         .forEach { match ->
             val updated = match.sequence.copy(
                 invalidatedBlockKeys = match.sequence.invalidatedBlockKeys + match.matchCandidate.location.blockKey(),
                 missingParticlesFirstCheckAtMillis = null,
             )
-            this[match.targetId] = updated
+            this[match.sequence.targetId] = updated
             DianaBurrowTargetTracker.updateGuessCandidates(match.currentGuess, updated.remainingCandidates(), now)
         }
 }

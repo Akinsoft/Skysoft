@@ -1,6 +1,7 @@
 package com.skysoft.features.event.diana
 
 import com.skysoft.utils.WorldVec
+import com.skysoft.utils.toBlockPos
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
@@ -16,8 +17,7 @@ internal enum class DianaBurrowSurfaceStatus {
 internal object DianaBurrowSurfaceValidator {
     fun check(location: WorldVec): DianaBurrowSurfaceStatus {
         val level = Minecraft.getInstance().level ?: return DianaBurrowSurfaceStatus.UNLOADED
-        val blockPos = BlockPos(location.x.toInt(), location.y.toInt(), location.z.toInt())
-        return check(level, blockPos)
+        return check(level, location.toBlockPos())
     }
 
     fun check(level: ClientLevel, blockPos: BlockPos): DianaBurrowSurfaceStatus {
@@ -45,7 +45,6 @@ internal object DianaBurrowSurfaceValidator {
 
     private fun BlockState.isGrassSurface(): Boolean =
         `is`(Blocks.GRASS_BLOCK) && fluidState.isEmpty
-
 }
 
 private const val SECOND_BLOCK_ABOVE_OFFSET = 2
