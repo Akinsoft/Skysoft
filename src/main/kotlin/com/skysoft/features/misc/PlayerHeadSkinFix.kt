@@ -37,35 +37,20 @@ object PlayerHeadSkinFix {
     }
 
     @JvmStatic
-    fun inventoryStack(slot: Slot?, stack: ItemStack): ItemStack? {
-        if (!enabled || slot == null) return stack
+    fun inventoryStack(slot: Slot?, stack: ItemStack): ItemStack =
+        if (!enabled || slot == null) stack else slotStacks.rememberLoadedHead(slot, stack) ?: stack
+
+    fun stableHeadStack(key: Any, stack: ItemStack): ItemStack? =
+        if (!enabled) stack else stableHeadStacks.rememberLoadedHead(key, stack)
+
+    private fun <K> MutableMap<K, ItemStack>.rememberLoadedHead(key: K, stack: ItemStack): ItemStack? {
         if (stack.item != Items.PLAYER_HEAD) {
-            slotStacks.remove(slot)
+            remove(key)
             return stack
         }
-
-        val profile = stack.get(DataComponents.PROFILE)
-        return if (isProfileLoaded(profile)) {
-            slotStacks[slot] = stack.copy()
-            stack
-        } else {
-            slotStacks[slot]?.copy() ?: stack
-        }
-    }
-
-    fun stableHeadStack(key: Any, stack: ItemStack): ItemStack? {
-        if (!enabled) return stack
-        if (stack.item != Items.PLAYER_HEAD) {
-            stableHeadStacks.remove(key)
-            return stack
-        }
-
-        return if (isProfileLoaded(stack.get(DataComponents.PROFILE))) {
-            stableHeadStacks[key] = stack.copy()
-            stack
-        } else {
-            stableHeadStacks[key]?.copy()
-        }
+        if (!isProfileLoaded(stack.get(DataComponents.PROFILE))) return get(key)?.copy()
+        put(key, stack.copy())
+        return stack
     }
 
     @JvmStatic

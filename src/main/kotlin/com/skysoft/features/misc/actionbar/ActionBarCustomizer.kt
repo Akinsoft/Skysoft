@@ -9,13 +9,11 @@ import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
-import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.OverlayMessages
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.fillOverlayBackground
-import kotlin.math.min
 import kotlin.math.roundToInt
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
@@ -125,8 +123,7 @@ object ActionBarCustomizer {
         height: Int,
         alpha: Int,
     ) {
-        val maxAlpha = config.details.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX
-        val color = OverlayPanelStyle.hudBackgroundColor.withAlpha(min(maxAlpha, alpha))
+        val color = OverlayPanelStyle.fadedHudBackgroundColor(alpha, config.details.backgroundOpacity)
         context.fillOverlayBackground(
             x,
             y,
@@ -147,7 +144,7 @@ object ActionBarCustomizer {
     private fun editorLayout(): ActionBarLayout? {
         if (!config.settings.customPosition || MinecraftClient.isGuiHidden(Minecraft.getInstance())) return null
         val message = currentMessage() ?: return null
-        return layout(message, scale = 1f, x = 0, y = 0)
+        return layout(message, scale = 1f)
     }
 
     private fun layout(
@@ -155,8 +152,8 @@ object ActionBarCustomizer {
         message: Component,
         useCustomPosition: Boolean,
     ): ActionBarLayout {
-        val scale = if (useCustomPosition) config.position.effectiveScale else 1f
-        val measured = layout(message, scale = scale, x = 0, y = 0)
+        val scale = if (useCustomPosition) config.position.scale else 1f
+        val measured = layout(message, scale)
         if (!useCustomPosition) {
             return measured.copy(
                 x = (context.guiWidth() - measured.textWidth) / 2 - X_PADDING,
@@ -168,7 +165,7 @@ object ActionBarCustomizer {
         return measured.copy(x = transform.x, y = transform.y)
     }
 
-    private fun layout(message: Component, scale: Float, x: Int, y: Int): ActionBarLayout {
+    private fun layout(message: Component, scale: Float): ActionBarLayout {
         val textWidth = Minecraft.getInstance().font.width(message)
         val width = textWidth + X_PADDING * 2
         val height = FONT_HEIGHT + Y_PADDING * 2
@@ -180,8 +177,6 @@ object ActionBarCustomizer {
             (width * scale).roundToInt(),
             (height * scale).roundToInt(),
             scale,
-            x,
-            y,
         )
     }
 }
@@ -194,13 +189,12 @@ private data class ActionBarLayout(
     val scaledWidth: Int,
     val scaledHeight: Int,
     val scale: Float,
-    val x: Int,
-    val y: Int,
+    val x: Int = 0,
+    val y: Int = 0,
 )
 
 private const val X_PADDING = 4
 private const val Y_PADDING = 3
-private const val PERCENT_MAX = 100
 private const val FADE_TICKS = 20.0f
 private const val VANILLA_TEXT_Y_FROM_BOTTOM = 72
 private const val FONT_HEIGHT = 9

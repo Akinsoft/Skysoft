@@ -2,6 +2,7 @@ package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.SkysoftErrorBoundary
+import kotlin.math.ceil
 import net.minecraft.world.entity.player.Player
 
 object AbsorptionHeartLayout {
@@ -17,7 +18,7 @@ object AbsorptionHeartLayout {
 
     private fun absorptionSlotPoints(player: Player?): Int {
         if (!SkysoftConfigGui.config().gui.vanillaUi.areAbsorptionHeartsMerged || player == null) return 0
-        val absorptionPoints = kotlin.math.ceil(player.absorptionAmount).toInt()
+        val absorptionPoints = ceil(player.absorptionAmount).toInt()
         return ((absorptionPoints + 1) / 2) * 2
     }
 }

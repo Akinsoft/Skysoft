@@ -62,8 +62,8 @@ internal object KeepTerrainLoaded {
     @JvmStatic
     fun didRetain(level: ClientLevel, position: ChunkPos): Boolean {
         val session = currentSession() ?: return false
-        if (activeTerrain?.level !== level || activeTerrain?.session != session) return false
-        val chunk = level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false) ?: return false
+        if (activeTerrainFor(level, session) == null) return false
+        val chunk = level.loadedChunk(position) ?: return false
         chunk.clearAllBlockEntities()
         retainedChunks += position
         return true
@@ -71,20 +71,14 @@ internal object KeepTerrainLoaded {
 
     @JvmStatic
     fun onServerChunk(level: ClientLevel, packet: ClientboundLevelChunkWithLightPacket) {
-        if (applyingCachedPacket || activeTerrain?.level !== level) return
+        if (applyingCachedPacket) return
         val session = currentSession() ?: return
-        val storage = activeTerrain?.storage ?: return
-        if (activeTerrain?.session != session) return
+        val storage = activeTerrainFor(level, session)?.storage ?: return
         val position = ChunkPos(packet.x, packet.z)
         retainedChunks.remove(position)
         val key = LoadingChunk(storage, position.pack())
         pendingSaves[key] = PendingSave(storage, level.registryAccess(), level.sectionsCount, packet)
-        while (pendingSaves.size > MAX_PENDING_SAVES) {
-            pendingSaves.entries.iterator().also { iterator ->
-                iterator.next()
-                iterator.remove()
-            }
-        }
+        while (pendingSaves.size > MAX_PENDING_SAVES) pendingSaves.pollFirstEntry()
     }
 
     private fun onTick(minecraft: Minecraft) {
@@ -95,8 +89,8 @@ internal object KeepTerrainLoaded {
             deactivate(minecraft)
             return
         }
-        if (activeTerrain?.level !== level || activeTerrain?.session != session) activate(minecraft, level, session)
-        if (activeTerrain?.level !== level || activeTerrain?.session != session) return
+        if (activeTerrainFor(level, session) == null) activate(minecraft, level, session)
+        if (activeTerrainFor(level, session) == null) return
 
         val serverDistance = serverViewDistance(minecraft) ?: return
         val distance = terrainCacheDistance(minecraft)
@@ -122,10 +116,7 @@ internal object KeepTerrainLoaded {
 
     private fun processPendingSaves() {
         repeat(MAX_SAVES_PER_TICK) {
-            val iterator = pendingSaves.entries.iterator()
-            if (!iterator.hasNext()) return
-            val save = iterator.next().value
-            iterator.remove()
+            val save = pendingSaves.pollFirstEntry()?.value ?: return
             runCatching {
                 save.storage.save(
                     ChunkPos(save.packet.x, save.packet.z),
@@ -149,7 +140,7 @@ internal object KeepTerrainLoaded {
             val offset = scanOffsets[scanIndex++]
             val center = scanCenter ?: return
             val position = ChunkPos(center.x + offset.x, center.z + offset.z)
-            if (level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false) != null) continue
+            if (level.loadedChunk(position) != null) continue
             val key = LoadingChunk(storage, position.pack())
             if (!loadingChunks.add(key)) continue
             storage.load(position, level.sectionsCount).whenComplete { packetBytes, error ->
@@ -172,8 +163,8 @@ internal object KeepTerrainLoaded {
         position: ChunkPos,
         packetBytes: ByteArray,
     ) {
-        if (activeTerrain?.level !== level || activeTerrain?.session != session || !isWithinScanDistance(position)) return
-        if (level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false) != null) return
+        if (activeTerrainFor(level, session) == null || !isWithinScanDistance(position)) return
+        if (level.loadedChunk(position) != null) return
         val connection = minecraft.connection ?: return
         runCatching {
             val packet = decodePacket(packetBytes, level.registryAccess())
@@ -184,7 +175,7 @@ internal object KeepTerrainLoaded {
             } finally {
                 applyingCachedPacket = false
             }
-            level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false)?.clearAllBlockEntities()
+            level.loadedChunk(position)?.clearAllBlockEntities()
             retainedChunks += position
         }.onFailure { error ->
             applyingCachedPacket = false
@@ -213,11 +204,18 @@ internal object KeepTerrainLoaded {
             resizeToServerDistance(minecraft, level)
         }
         activeTerrain = null
+        clearScan()
+    }
+
+    private fun clearScan() {
         scanCenter = null
         scanDistance = -1
         scanOffsets = emptyList()
         scanIndex = 0
     }
+
+    private fun activeTerrainFor(level: ClientLevel, session: TerrainSession): ActiveTerrain? =
+        activeTerrain?.takeIf { it.level === level && it.session == session }
 
     private fun releaseRetained(level: ClientLevel) {
         retainedChunks.forEach { position ->
@@ -225,24 +223,6 @@ internal object KeepTerrainLoaded {
             removeLight(level, position)
         }
         retainedChunks.clear()
-    }
-
-    private fun removeLight(level: ClientLevel, position: ChunkPos) {
-        level.queueLightUpdate {
-            if (level.chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false) != null) {
-                return@queueLightUpdate
-            }
-            val lightEngine = level.lightEngine
-            lightEngine.setLightEnabled(position, false)
-            for (sectionY in lightEngine.minLightSection until lightEngine.maxLightSection) {
-                val section = SectionPos.of(position, sectionY)
-                lightEngine.queueSectionData(LightLayer.BLOCK, section, null)
-                lightEngine.queueSectionData(LightLayer.SKY, section, null)
-            }
-            for (sectionY in level.minSectionY..level.maxSectionY) {
-                lightEngine.updateSectionStatus(SectionPos.of(position, sectionY), true)
-            }
-        }
     }
 
     private fun resizeToServerDistance(minecraft: Minecraft, level: ClientLevel) {
@@ -260,9 +240,6 @@ internal object KeepTerrainLoaded {
             .resolve(session.island.name.lowercase(Locale.US))
         return storages.getOrPut(directory) { TerrainStorage(directory) }
     }
-
-    private fun serverViewDistance(minecraft: Minecraft): Int? =
-        (minecraft.connection as? ClientPacketListenerAccessor)?.skysoftServerChunkRadius()
 
     private fun currentSession(): TerrainSession? {
         if (!isConfigured()) return null
@@ -287,10 +264,7 @@ internal object KeepTerrainLoaded {
         activeTerrain = null
         restoringServerDistance = false
         applyingCachedPacket = false
-        scanCenter = null
-        scanDistance = -1
-        scanOffsets = emptyList()
-        scanIndex = 0
+        clearScan()
     }
 
     private data class ActiveTerrain(
@@ -373,6 +347,9 @@ private fun decodePacket(packet: ByteArray, registryAccess: RegistryAccess): Cli
     }
 }
 
+private fun ClientLevel.loadedChunk(position: ChunkPos) =
+    chunkSource.getChunk(position.x, position.z, ChunkStatus.FULL, false)
+
 private fun terrainCacheDistance(minecraft: Minecraft): Int =
     minecraft.options.renderDistance().get().coerceAtMost(MAX_TERRAIN_CACHE_DISTANCE)
 
@@ -394,3 +371,22 @@ private fun chunkOffsets(distance: Int): List<TerrainChunkOffset> = buildList {
 
 private const val MAX_TERRAIN_CACHE_DISTANCE = 32
 private const val MAX_TERRAIN_PACKET_BYTES = 4 * 1024 * 1024
+
+private fun removeLight(level: ClientLevel, position: ChunkPos) {
+    level.queueLightUpdate {
+        if (level.loadedChunk(position) != null) return@queueLightUpdate
+        val lightEngine = level.lightEngine
+        lightEngine.setLightEnabled(position, false)
+        for (sectionY in lightEngine.minLightSection until lightEngine.maxLightSection) {
+            val section = SectionPos.of(position, sectionY)
+            lightEngine.queueSectionData(LightLayer.BLOCK, section, null)
+            lightEngine.queueSectionData(LightLayer.SKY, section, null)
+        }
+        for (sectionY in level.minSectionY..level.maxSectionY) {
+            lightEngine.updateSectionStatus(SectionPos.of(position, sectionY), true)
+        }
+    }
+}
+
+private fun serverViewDistance(minecraft: Minecraft): Int? =
+    (minecraft.connection as? ClientPacketListenerAccessor)?.skysoftServerChunkRadius()

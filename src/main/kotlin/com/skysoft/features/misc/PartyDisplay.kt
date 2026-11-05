@@ -6,11 +6,13 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.data.hypixel.HypixelPartyState
 import com.skysoft.data.hypixel.TabListApi
+import com.skysoft.utils.MILLIS_PER_SECOND
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageVisibility
-import java.util.Optional
+import com.skysoft.utils.chat.HYPIXEL_CHAT_SEPARATOR
+import com.skysoft.utils.chat.styleAt
 import java.util.UUID
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -97,9 +99,9 @@ object PartyDisplay {
     }
 
     private fun onChatMessage(message: ChatMessage): ChatMessageVisibility {
-        val rawText = message.plainText
-        val text = rawText.trim()
-        updateFromPartyMessage(message.component, rawText, text)
+        val partyText = PartyMessageText(message.component, message.plainText)
+        val text = partyText.text
+        updateFromPartyMessage(partyText)
         val pending = pendingPartyList ?: return ChatMessageVisibility.SHOW
         if (System.currentTimeMillis() > pending.expiresAtMillis) {
             pendingPartyList = null
@@ -111,7 +113,7 @@ object PartyDisplay {
                 pendingPartyList = null
                 ChatMessageVisibility.HIDE
             }
-            text == PARTY_LIST_SEPARATOR -> {
+            text == HYPIXEL_CHAT_SEPARATOR -> {
                 if (pending.started) {
                     if (!pending.discard) roster.applyPartyList(pending.members)
                     pendingPartyList = null
@@ -123,12 +125,13 @@ object PartyDisplay {
                 pending.members.clear()
                 ChatMessageVisibility.HIDE
             }
-            pending.started -> parsePartyListSection(message.component, rawText, text, pending)
+            pending.started -> parsePartyListSection(partyText, pending)
             else -> ChatMessageVisibility.SHOW
         }
     }
 
-    private fun updateFromPartyMessage(component: Component, rawText: String, text: String) {
+    private fun updateFromPartyMessage(partyText: PartyMessageText) {
+        val text = partyText.text
         val partyEnded = text == YOU_LEFT_PARTY_MESSAGE ||
             SELF_REMOVED_PATTERN.matches(text) ||
             PARTY_DISBANDED_PATTERN.matches(text) ||
@@ -148,10 +151,9 @@ object PartyDisplay {
                 if (partyEnded) HypixelPartyApi.requestPartyInfo()
             }
             outgoingInvite != null -> {
-                lastApiInParty = true
-                optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMember(component, rawText, text, outgoingInvite.groups["inviter"])?.let(roster::addPartyMember)
-                partyMember(component, rawText, text, outgoingInvite.groups["invitee"])?.let { member ->
+                markOptimisticParty()
+                partyText.member(outgoingInvite.groups["inviter"])?.let(roster::addPartyMember)
+                partyText.member(outgoingInvite.groups["invitee"])?.let { member ->
                     if (!roster.hasMember(member.name)) {
                         val seconds = outgoingInvite.groups["seconds"]?.value?.toLongOrNull() ?: INVITE_SECONDS
                         roster.invite(
@@ -166,105 +168,52 @@ object PartyDisplay {
                 ?.let(roster::removeInvite)
             youJoined != null -> {
                 clearPartyState()
-                lastApiInParty = true
-                optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMember(component, rawText, text, youJoined.groups["leader"])?.let(roster::addPartyMember)
+                markOptimisticParty()
+                partyText.member(youJoined.groups["leader"])?.let(roster::addPartyMember)
                 currentPlayerMember()?.let(roster::addPartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
             partyingWith != null -> {
-                lastApiInParty = true
-                optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMembers(component, rawText, text, partyingWith.groups["members"]).forEach(roster::addPartyMember)
+                markOptimisticParty()
+                partyText.members(partyingWith.groups["members"]).forEach(roster::addPartyMember)
                 currentPlayerMember()?.let(roster::addPartyMember)
             }
             memberJoined != null -> {
-                lastApiInParty = true
-                optimisticPartyAtMillis = System.currentTimeMillis()
-                partyMember(component, rawText, text, memberJoined.groups["member"])?.let(roster::addPartyMember)
+                markOptimisticParty()
+                partyText.member(memberJoined.groups["member"])?.let(roster::addPartyMember)
                 currentPlayerMember()?.let(roster::addPartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
-            memberDisconnected != null -> partyMember(
-                component,
-                rawText,
-                text,
-                memberDisconnected.groups["member"],
-            )?.let { member -> roster.setPartyMemberDisconnected(member, true) }
-            memberRejoined != null -> partyMember(
-                component,
-                rawText,
-                text,
-                memberRejoined.groups["member"],
-            )?.let { member -> roster.setPartyMemberDisconnected(member, false) }
+            memberDisconnected != null -> partyText.member(memberDisconnected.groups["member"])
+                ?.let { member -> roster.setPartyMemberDisconnected(member, true) }
+            memberRejoined != null -> partyText.member(memberRejoined.groups["member"])
+                ?.let { member -> roster.setPartyMemberDisconnected(member, false) }
             memberRemoved != null -> {
                 playerName(memberRemoved.groups["member"])?.let(roster::removePartyMember)
                 HypixelPartyApi.requestPartyInfo()
             }
             transfer != null -> {
                 playerName(transfer.groups["member"])?.let(roster::removePartyMember)
-                partyMember(component, rawText, text, transfer.groups["leader"])
+                partyText.member(transfer.groups["leader"])
                     ?.let { roster.addPartyMember(it, first = true) }
                 HypixelPartyApi.requestPartyInfo()
             }
         }
     }
 
-    private fun parsePartyListSection(
-        component: Component,
-        rawText: String,
-        text: String,
-        pending: PendingPartyList,
-    ): ChatMessageVisibility {
-        val section = PARTY_LIST_SECTION_PATTERN.matchEntire(text) ?: return ChatMessageVisibility.SHOW
+    private fun parsePartyListSection(partyText: PartyMessageText, pending: PendingPartyList): ChatMessageVisibility {
+        val section = PARTY_LIST_SECTION_PATTERN.matchEntire(partyText.text) ?: return ChatMessageVisibility.SHOW
         val names = section.groups["names"] ?: return ChatMessageVisibility.HIDE
-        val textOffset = rawText.indexOf(text).coerceAtLeast(0)
         for (match in PARTY_LIST_MEMBER_PATTERN.findAll(names.value)) {
             val name = match.groups["name"] ?: continue
-            val index = textOffset + names.range.first + name.range.first
-            pending.members += PartyDisplayMember(
-                name = name.value,
-                component = Component.literal(name.value).withStyle(component.styleAt(index)),
-            )
+            pending.members += partyText.styledMember(name.value, names.range.first + name.range.first)
         }
         return ChatMessageVisibility.HIDE
     }
 
-    private fun partyMember(
-        component: Component,
-        rawText: String,
-        text: String,
-        group: MatchGroup?,
-    ): PartyDisplayMember? {
-        group ?: return null
-        return partyMember(component, rawText, text, group.value, group.range.first)
-    }
-
-    private fun partyMembers(
-        component: Component,
-        rawText: String,
-        text: String,
-        group: MatchGroup?,
-    ): List<PartyDisplayMember> {
-        group ?: return emptyList()
-        return PARTY_PLAYER_PATTERN.findAll(group.value).mapNotNull { match ->
-            partyMember(component, rawText, text, match.value, group.range.first + match.range.first)
-        }.toList()
-    }
-
-    private fun partyMember(
-        component: Component,
-        rawText: String,
-        text: String,
-        value: String,
-        rangeStart: Int,
-    ): PartyDisplayMember? {
-        val name = PLAYER_NAME_PATTERN.findAll(value).lastOrNull() ?: return null
-        val index = rawText.indexOf(text).coerceAtLeast(0) + rangeStart + name.range.first
-        return PartyDisplayMember(
-            name = name.value,
-            component = Component.literal(name.value).withStyle(component.styleAt(index)),
-        )
+    private fun markOptimisticParty() {
+        lastApiInParty = true
+        optimisticPartyAtMillis = System.currentTimeMillis()
     }
 
     private fun currentPlayerMember(): PartyDisplayMember? {
@@ -275,8 +224,7 @@ object PartyDisplay {
 
     private fun apiPartyMember(uuid: UUID, name: String): PartyDisplayMember {
         val displayName = TabListApi.playerProfile(uuid)?.displayName
-        val index = displayName?.string?.lastIndexOf(name) ?: -1
-        val style = if (displayName != null && index >= 0) displayName.styleAt(index) else Style.EMPTY
+        val style = displayName?.styleAt(displayName.string.lastIndexOf(name)) ?: Style.EMPTY
         return PartyDisplayMember(name, Component.literal(name).withStyle(style), uuid = uuid)
     }
 
@@ -323,6 +271,28 @@ object PartyDisplay {
         wasEnabled = false
     }
 
+    private class PartyMessageText(private val component: Component, rawText: String) {
+        val text = rawText.trim()
+        private val textOffset = rawText.indexOf(text).coerceAtLeast(0)
+
+        fun member(group: MatchGroup?): PartyDisplayMember? = group?.let { member(it.value, it.range.first) }
+
+        fun members(group: MatchGroup?): List<PartyDisplayMember> {
+            group ?: return emptyList()
+            return PARTY_PLAYER_PATTERN.findAll(group.value).mapNotNull { match ->
+                member(match.value, group.range.first + match.range.first)
+            }.toList()
+        }
+
+        fun styledMember(name: String, textIndex: Int): PartyDisplayMember =
+            PartyDisplayMember(name, Component.literal(name).withStyle(component.styleAt(textOffset + textIndex)))
+
+        private fun member(value: String, rangeStart: Int): PartyDisplayMember? {
+            val name = PLAYER_NAME_PATTERN.findAll(value).lastOrNull() ?: return null
+            return styledMember(name.value, rangeStart + name.range.first)
+        }
+    }
+
     private data class PendingPartyList(
         val members: MutableList<PartyDisplayMember> = mutableListOf(),
         val expiresAtMillis: Long,
@@ -333,8 +303,6 @@ object PartyDisplay {
     private const val PARTY_PLAYER = """(?:\[[^]]+] )?[A-Za-z0-9_]{1,16}"""
     private const val PARTY_LIST_TIMEOUT_MILLIS = 3_000L
     private const val INVITE_SECONDS = 60L
-    private const val MILLIS_PER_SECOND = 1_000L
-    private const val PARTY_LIST_SEPARATOR = "-----------------------------------------------------"
     private const val YOU_LEFT_PARTY_MESSAGE = "You left the party."
     private val PARTY_PLAYER_PATTERN = Regex(PARTY_PLAYER)
     private val PARTY_LIST_HEADER_PATTERN = Regex("""Party Members \(\d+\)""")
@@ -390,27 +358,13 @@ internal data class PartyDisplayMember(
     val uuid: UUID? = null,
     val disconnected: Boolean = false,
     val leavingAtMillis: Long? = null,
-)
+) {
+    val isActive: Boolean get() = !invited && leavingAtMillis == null
+}
 
 internal data class PartyDisplayFace(val texture: Identifier, val showHat: Boolean)
 
 internal const val MEMBER_LEAVE_FADE_MILLIS = 750L
-
-private fun Component.styleAt(index: Int): Style {
-    var offset = 0
-    var result = Style.EMPTY
-    visit({ style: Style, segment: String ->
-        val end = offset + segment.length
-        if (index in offset until end) {
-            result = style
-            Optional.of(Unit)
-        } else {
-            offset = end
-            Optional.empty()
-        }
-    }, Style.EMPTY)
-    return result
-}
 
 private val PLAYER_NAME_PATTERN = Regex("""[A-Za-z0-9_]{1,16}""")
 

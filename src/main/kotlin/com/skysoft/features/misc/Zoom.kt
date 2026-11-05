@@ -7,6 +7,7 @@ import com.skysoft.config.ZoomActivation
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftInput
+import com.skysoft.utils.NANOS_PER_MILLISECOND
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.input.InputUtilities
 import kotlin.math.pow
@@ -53,9 +54,9 @@ object Zoom {
         return true
     }
 
-    internal fun zoomedFov(fov: Double, amount: Double): Double = fov / amount.coerceAtLeast(1.0)
+    private fun zoomedFov(fov: Double, amount: Double): Double = fov / amount.coerceAtLeast(1.0)
 
-    internal fun scrollAmount(current: Double, verticalAmount: Double): Double =
+    private fun scrollAmount(current: Double, verticalAmount: Double): Double =
         (current * SCROLL_ZOOM_STEP.pow(verticalAmount.sign))
             .coerceIn(MIN_ZOOM_AMOUNT.toDouble(), MAX_ZOOM_AMOUNT.toDouble())
 
@@ -79,7 +80,8 @@ object Zoom {
         if (wasActive && !active && !settings.rememberAdjustment) adjustedAmount = null
     }
 
-    private fun currentAmount(nowNanos: Long = System.nanoTime()): Double {
+    private fun currentAmount(): Double {
+        val nowNanos = System.nanoTime()
         val target = if (active && config.enabled) adjustedAmount ?: config.settings.zoomAmount.toDouble() else 1.0
         val details = config.details
         if (!details.smoothTransition) {
@@ -99,7 +101,7 @@ object Zoom {
 
     private fun transitionValue(nowNanos: Long, durationMillis: Int): Double {
         if (transitionStart == transitionTarget || transitionStartedAt == 0L) return transitionTarget
-        val progress = ((nowNanos - transitionStartedAt) / (durationMillis * NANOS_PER_MILLI).toDouble()).coerceIn(0.0, 1.0)
+        val progress = ((nowNanos - transitionStartedAt) / (durationMillis * NANOS_PER_MILLISECOND).toDouble()).coerceIn(0.0, 1.0)
         val eased = EasingUtilities.smoothStep(progress).coerceIn(0.0, 1.0)
         return transitionStart + (transitionTarget - transitionStart) * eased
     }
@@ -115,5 +117,4 @@ object Zoom {
     }
 
     private const val SCROLL_ZOOM_STEP = 1.25
-    private const val NANOS_PER_MILLI = 1_000_000L
 }

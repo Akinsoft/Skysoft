@@ -23,7 +23,7 @@ internal object HiddenMenuLayout {
         val mods = if (screen is PauseScreen && fullWidthModsButton) replaceModsButton(screen, widgets, remaining) else null
         val rows = remaining.groupBy { it.y }.toSortedMap().values.map { it.sortedBy(AbstractWidget::getX) }.toMutableList()
         if (mods != null) {
-            val optionsRow = rows.indexOfFirst { row -> row.any { translationKey(it) == "menu.options" } }
+            val optionsRow = rows.indexOfFirst { row -> row.any { it.translationKey() == "menu.options" } }
             if (optionsRow >= 0) rows.add(optionsRow, listOf(mods))
         }
         val totalHeight = rows.sumOf { row -> row.maxOf { it.height } } + (rows.size - 1).coerceAtLeast(0) * BUTTON_GAP
@@ -46,8 +46,8 @@ internal object HiddenMenuLayout {
         remaining: MutableList<AbstractWidget>,
     ): AbstractWidget? {
         if (!FabricLoader.getInstance().isModLoaded("modmenu")) return null
-        if (remaining.none { translationKey(it) == "menu.options" }) return null
-        val original = remaining.firstOrNull { translationKey(it) == "modmenu.title" } ?: return null
+        if (remaining.none { it.translationKey() == "menu.options" }) return null
+        val original = remaining.firstOrNull { it.translationKey() == "modmenu.title" } ?: return null
         val replacement = ModMenuButtonWidget(
             0, 0, PAUSE_MENU_WIDTH, Button.DEFAULT_HEIGHT, Component.translatable("modmenu.title"), screen,
         )
@@ -56,7 +56,6 @@ internal object HiddenMenuLayout {
         remaining.remove(original)
         return replacement
     }
-
-    private fun translationKey(widget: AbstractWidget): String? =
-        (widget.message.contents as? TranslatableContents)?.key
 }
+
+internal fun AbstractWidget.translationKey(): String? = (message.contents as? TranslatableContents)?.key

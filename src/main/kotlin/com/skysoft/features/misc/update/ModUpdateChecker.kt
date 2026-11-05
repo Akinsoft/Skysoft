@@ -1,5 +1,6 @@
 package com.skysoft.features.misc.update
 
+import com.skysoft.utils.net.urlEncode
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.skysoft.SkysoftMod
@@ -12,8 +13,6 @@ import com.skysoft.utils.net.SkysoftHttp
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.Version
 import net.fabricmc.loader.api.metadata.CustomValue
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.time.Duration
 import net.minecraft.client.Minecraft
 
@@ -98,8 +97,8 @@ object ModUpdateChecker {
             UpdateStatus.Failed -> "Retry"
         }
 
-    fun statusText(currentStatus: UpdateStatus = status): String =
-        when (currentStatus) {
+    fun statusText(): String =
+        when (val currentStatus = status) {
             UpdateStatus.NotChecked -> "Not checked"
             UpdateStatus.Checking -> "Checking..."
             UpdateStatus.Current -> "Up to date"
@@ -107,11 +106,7 @@ object ModUpdateChecker {
             UpdateStatus.Failed -> "Check failed"
         }
 
-    internal fun latestUpdate(
-        response: String,
-        project: String,
-        currentVersion: String = SkysoftMod.VERSION,
-    ): SkysoftUpdate? {
+    private fun latestUpdate(response: String, project: String): SkysoftUpdate? {
         val versions = requireNotNull(gson.fromJson<List<ModrinthVersionInfo>>(response, versionListType)) {
             "Modrinth returned an empty version response"
         }
@@ -122,7 +117,7 @@ object ModUpdateChecker {
         }
         return versions.asSequence()
             .filter { it.versionType == RELEASE }
-            .filter { compareVersions(currentVersion, it.versionNumber) < 0 }
+            .filter { compareVersions(SkysoftMod.VERSION, it.versionNumber) < 0 }
             .maxWithOrNull { a, b -> compareVersions(a.versionNumber, b.versionNumber) }
             ?.let { SkysoftUpdate(it.versionNumber, "https://modrinth.com/mod/$project/version/${it.id}") }
     }
@@ -157,16 +152,13 @@ object ModUpdateChecker {
     }
 
     private fun UpdateMetadata.url(): String {
-        val loader = encode(gson.toJson(listOf(FABRIC)))
-        val gameVersion = encode(gson.toJson(listOf(minecraftVersion)))
+        val loader = urlEncode(gson.toJson(listOf(FABRIC)))
+        val gameVersion = urlEncode(gson.toJson(listOf(minecraftVersion)))
         return "$API/$project/version?loaders=$loader&game_versions=$gameVersion"
     }
 
-    internal fun compareVersions(first: String, second: String): Int =
+    private fun compareVersions(first: String, second: String): Int =
         Version.parse(first).compareTo(Version.parse(second))
-
-    private fun encode(value: String): String =
-        URLEncoder.encode(value, StandardCharsets.UTF_8)
 
     private fun metadataString(data: CustomValue.CvObject?, key: String, label: String): String {
         val value = data?.get(key)?.getAsString()

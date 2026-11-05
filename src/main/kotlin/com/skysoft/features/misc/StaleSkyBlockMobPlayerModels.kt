@@ -5,6 +5,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.combat.SkyBlockMobEntityMatcher
 import com.skysoft.features.combat.SkyBlockMobTextParser
+import com.skysoft.features.combat.isRealPlayer
 import com.skysoft.utils.EntityUtilities.cleanName
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.Entity
@@ -18,7 +19,7 @@ internal object StaleSkyBlockMobPlayerModels {
         return player.isStaleSkyBlockMobPlayerModel()
     }
 
-    fun hasStaleMobHealthProfile(health: Float, maxHealth: Float): Boolean =
+    private fun hasStaleMobHealthProfile(health: Float, maxHealth: Float): Boolean =
         maxHealth > 0f &&
             maxHealth <= PLAYER_MODEL_MAX_HEALTH_LIMIT &&
             health >= MOB_HEALTH_MINIMUM &&
@@ -41,10 +42,6 @@ internal object StaleSkyBlockMobPlayerModels {
         }
     }
 
-    private fun Player.isRealPlayer(): Boolean =
-        uuid.version() == REAL_PLAYER_UUID_VERSION
-
-    private const val REAL_PLAYER_UUID_VERSION = 4
     private const val STALE_MOB_MIN_AGE_TICKS = 20
     private const val PLAYER_MODEL_MAX_HEALTH_LIMIT = 40f
     private const val MOB_HEALTH_MINIMUM = 1_000f
