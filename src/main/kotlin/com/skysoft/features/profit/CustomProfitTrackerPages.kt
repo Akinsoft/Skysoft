@@ -101,17 +101,13 @@ internal class CustomProfitTrackerPage(
     @field:ConfigOption(name = "Enabled", desc = "Track profit at the configured locations.")
     @field:ConfigEditorBoolean
     @field:ConfigOrder(10)
-    val enabled: Property<Boolean> = Property.of(tracker.config.enabled).also { property ->
-        property.addObserver { _, value -> tracker.config.enabled = value }
-    }
+    val enabled: Property<Boolean> = boundProperty(tracker.config.enabled) { tracker.config.enabled = it }
 
     @JvmField
     @field:ConfigOption(name = "Name", desc = "Set the tracker name.")
     @field:ConfigEditorText
     @field:ConfigOrder(20)
-    val name: Property<String> = Property.of(tracker.name).also { property ->
-        property.addObserver { _, value -> tracker.name = value }
-    }
+    val name: Property<String> = boundProperty(tracker.name) { tracker.name = it }
 
     @JvmField
     @field:ConfigOption(
@@ -181,42 +177,36 @@ internal class CustomProfitTrackerSettingsPage(tracker: CustomProfitTrackerConfi
     @field:ConfigOption(name = "Track Coins", desc = "Include purse coin gains while this tracker is active.")
     @field:ConfigEditorBoolean
     @field:ConfigOrder(10)
-    val trackCoins: Property<Boolean> = Property.of(tracker.trackCoins).also { property ->
-        property.addObserver { _, value -> tracker.trackCoins = value }
-    }
+    val trackCoins: Property<Boolean> = boundProperty(tracker.trackCoins) { tracker.trackCoins = it }
 
     @JvmField
     @field:ConfigOption(name = "Price Source", desc = "Choose how tracked items are valued.")
     @field:ConfigEditorDropdown
     @field:ConfigOrder(20)
-    val priceSource: Property<ProfitTrackerPriceSource> = Property.of(tracker.config.settings.priceSource).also { property ->
-        property.addObserver { _, value -> tracker.config.settings.priceSource = value }
-    }
+    val priceSource: Property<ProfitTrackerPriceSource> =
+        boundProperty(tracker.config.settings.priceSource) { tracker.config.settings.priceSource = it }
 
     @JvmField
     @field:ConfigOption(name = "Pause After", desc = "Pause time tracking after a period without tracked activity.")
     @field:ConfigEditorBoolean
     @field:ConfigOrder(30)
-    val pauseAfter: Property<Boolean> = Property.of(tracker.config.settings.pauseAfter).also { property ->
-        property.addObserver { _, value -> tracker.config.settings.pauseAfter = value }
-    }
+    val pauseAfter: Property<Boolean> =
+        boundProperty(tracker.config.settings.pauseAfter) { tracker.config.settings.pauseAfter = it }
 
     @JvmField
     @field:ConfigOption(name = "Inactivity Time", desc = "Seconds without tracked activity before time tracking pauses.")
     @field:ConfigVisibleIf("pauseAfter")
     @field:ConfigEditorSlider(minValue = 15f, maxValue = 900f, minStep = 15f)
     @field:ConfigOrder(40)
-    val pauseAfterSeconds: Property<Int> = Property.of(tracker.config.settings.pauseAfterSeconds).also { property ->
-        property.addObserver { _, value -> tracker.config.settings.pauseAfterSeconds = value }
-    }
+    val pauseAfterSeconds: Property<Int> =
+        boundProperty(tracker.config.settings.pauseAfterSeconds) { tracker.config.settings.pauseAfterSeconds = it }
 
     @JvmField
     @field:ConfigOption(name = "Maximum Items", desc = "Maximum tracked item rows shown at once.")
     @field:ConfigEditorSlider(minValue = 1f, maxValue = 15f, minStep = 1f)
     @field:ConfigOrder(50)
-    val maximumItems: Property<Int> = Property.of(tracker.config.settings.maximumItems).also { property ->
-        property.addObserver { _, value -> tracker.config.settings.maximumItems = value }
-    }
+    val maximumItems: Property<Int> =
+        boundProperty(tracker.config.settings.maximumItems) { tracker.config.settings.maximumItems = it }
 }
 
 internal class CustomProfitTrackerLocationsPage(tracker: CustomProfitTrackerConfig) {
@@ -224,9 +214,7 @@ internal class CustomProfitTrackerLocationsPage(tracker: CustomProfitTrackerConf
     @field:ConfigOption(name = "Any Island", desc = "Use this tracker on every SkyBlock island.")
     @field:ConfigEditorBoolean
     @field:ConfigOrder(10)
-    val anyIsland: Property<Boolean> = Property.of(tracker.locations.anyIsland).also { property ->
-        property.addObserver { _, value -> tracker.locations.anyIsland = value }
-    }
+    val anyIsland: Property<Boolean> = boundProperty(tracker.locations.anyIsland) { tracker.locations.anyIsland = it }
 
     @JvmField
     @field:ConfigOption(name = "Island Locations", desc = "Choose the islands or sub-locations where this tracker is active.")
@@ -267,3 +255,6 @@ internal class CustomProfitTrackerLocationsPage(tracker: CustomProfitTrackerConf
         }
     }
 }
+
+private fun <T> boundProperty(initial: T, onChange: (T) -> Unit): Property<T> =
+    Property.of(initial).also { property -> property.addObserver { _, value -> onChange(value) } }

@@ -4,14 +4,13 @@ import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.TrackedItemSelectionAction
 import com.skysoft.features.inventory.TrackedItemSelectionMode
+import com.skysoft.features.inventory.hoveredPlayerInventoryItemId
+import com.skysoft.features.inventory.wasLeftClickHandled
 import com.skysoft.gui.OverlayControlCycle
-import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -75,9 +74,7 @@ internal class ProfitTrackerHudControls(
         button: Int,
     ): Boolean {
         if (!itemPanel.isSelectingFromInventory() || button != InputConstants.MOUSE_BUTTON_LEFT) return false
-        val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
-        val player = Minecraft.getInstance().player ?: return false
-        val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
+        val itemId = hoveredPlayerInventoryItemId(screen) ?: return false
         if (itemPanel.isAddingItems()) {
             if (itemId in ProfitTracker.trackedItemIds(target)) return true
             ProfitTrackerItemCustomizations.addCustomItem(target, itemId)
@@ -175,7 +172,7 @@ internal class ProfitTrackerHudControls(
     private fun wasTrackerPriceSourceCycled(target: ProfitTrackerTarget, button: Int): Boolean =
         OverlayControlCycle.wasClickHandled(button) { backwards ->
             val settings = target.config.settings
-            settings.priceSource = nextProfitTrackerPriceSource(settings.priceSource, backwards)
+            settings.priceSource = OverlayControlCycle.next(ProfitTrackerPriceSource.entries, settings.priceSource, backwards)
             SkysoftConfigGui.config().saveNow()
         }
 
@@ -211,21 +208,8 @@ internal class ProfitTrackerHudControls(
             )
         }
 
-    private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
-        if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
-        action()
-        return true
-    }
-
     private data class ResetTarget(
         val target: ProfitTrackerTarget,
         val period: ProfitTrackingPeriod,
     )
-}
-
-internal fun nextProfitTrackerPriceSource(
-    current: ProfitTrackerPriceSource,
-    backwards: Boolean,
-): ProfitTrackerPriceSource {
-    return OverlayControlCycle.next(ProfitTrackerPriceSource.entries, current, backwards)
 }

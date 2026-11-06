@@ -7,7 +7,6 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.isSackContentsMenu
-import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.features.inventory.InventoryOverlayInput
 import com.skysoft.features.inventory.InventoryTrackerFrame
 import com.skysoft.features.profit.profitTrackerSourcePrice
@@ -430,11 +429,7 @@ private fun SackDisplayItem.displayValue(
 private fun SackDisplayItem.totalValue(priceSource: ProfitTrackerPriceSource): Double? = if (amount == 0L) {
     0.0
 } else {
-    profitTrackerSourcePrice(
-        SkyBlockPriceData.getBazaarPrice(itemId),
-        SkyBlockPriceData.getNpcSellPrices(itemId).coins,
-        priceSource,
-    )
+    profitTrackerSourcePrice(itemId, priceSource)
         ?.takeIf { it.isFinite() && it > 0.0 }
         ?.times(amount)
         ?.takeIf(Double::isFinite)

@@ -7,6 +7,7 @@ import com.skysoft.config.ProfitTrackerSummaryLine
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.MayorPerkApi
+import com.skysoft.data.skyblock.SKYBLOCK_COINS
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.slayer.SlayerTimeToKill
 import com.skysoft.features.slayer.formatSlayerKillTimeForHud
@@ -40,13 +41,13 @@ internal class ProfitTrackerRenderable(
     scrollOffset: Int,
     private val inventoryOpen: Boolean,
     private val config: ProfitTrackerConfig,
-    private val background: Boolean,
     private val hudControls: ProfitTrackerHudControls,
     widthState: ProfitTrackerWidthState,
 ) : GuiRenderable {
     private val displayedItems = items.drop(scrollOffset).take(maximumItems)
     private val remainingItems = (items.size - scrollOffset - displayedItems.size).coerceAtLeast(0)
     private val hiddenItemsAbove = scrollOffset
+    private val background = config.details.showBackground
     private val kernelProfit = if (target.preset == ProfitTrackerPreset.FARMING) {
         farmingKernelProfit(
             stats.kernels,
@@ -60,11 +61,11 @@ internal class ProfitTrackerRenderable(
     private val revenue = items.sumOf { it.value ?: 0.0 } + stats.coins + (kernelProfit ?: 0.0)
     private val hasUnknownPrices = items.any { it.value == null } || kernelProfit == null
     private val profitLabel = when {
-        stats.costs.keys.any { it != COIN_CURRENCY } -> "Coin Profit"
+        stats.costs.keys.any { it != SKYBLOCK_COINS } -> "Coin Profit"
         hasUnknownPrices -> "Known Profit"
         else -> "Total Profit"
     }
-    private val coinCosts = stats.costs[COIN_CURRENCY]?.toDouble() ?: 0.0
+    private val coinCosts = stats.costs[SKYBLOCK_COINS]?.toDouble() ?: 0.0
     private val profit = revenue - coinCosts
     private val period = ProfitTracker.displayPeriod(target)
     private val killTimeDisplay = target.slayerType?.let { SlayerTimeToKill.displayStats(it, period) }
@@ -118,7 +119,7 @@ internal class ProfitTrackerRenderable(
     }
 
     fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): OverlayControlArea<ProfitTrackerControl>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+        if (background) OverlayPanelStyle.drawHudBackground(context, width, height)
         var y = padding
         var hovered: OverlayControlArea<ProfitTrackerControl>? = null
         lines.forEach { line ->
@@ -174,12 +175,10 @@ internal class ProfitTrackerRenderable(
         val secondaryArea = line.secondaryControl?.let { action ->
             OverlayControlArea(action, Rect(secondaryX, y, rightWidth, line.height), emptyList())
         }
-        primaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }?.let { area ->
-            OverlayTextStyle.drawControlHover(context, area.bounds, opacity)
-        }
-        secondaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }?.let { area ->
-            OverlayTextStyle.drawControlHover(context, area.bounds, opacity)
-        }
+        val hoveredPrimary = primaryArea?.takeIf { it.contains(mouseX, mouseY) }
+        val hoveredSecondary = secondaryArea?.takeIf { it.contains(mouseX, mouseY) }
+        hoveredPrimary?.let { OverlayTextStyle.drawControlHover(context, it.bounds, opacity) }
+        hoveredSecondary?.let { OverlayTextStyle.drawControlHover(context, it.bounds, opacity) }
         val textColor = TEXT_COLOR.withScaledAlpha(opacity)
         line.leading?.let {
             LegacyTextRenderer.draw(context, it, padding, y + line.textYOffset, defaultColor = textColor)
@@ -211,8 +210,7 @@ internal class ProfitTrackerRenderable(
                 defaultColor = textColor,
             )
         }
-        val hoveredArea = secondaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }
-            ?: primaryArea?.takeIf { it.containsPointer(mouseX, mouseY) }
+        val hoveredArea = hoveredSecondary ?: hoveredPrimary
         return hoveredArea?.copy(tooltipLines = controlTooltip(hoveredArea.action))
     }
 
@@ -255,7 +253,7 @@ internal class ProfitTrackerRenderable(
                 }
                 ProfitTrackerSummaryLine.KERNEL_PROFIT -> kernelProfitLine?.let(::add)
                 ProfitTrackerSummaryLine.QUEST_COSTS -> stats.costs.forEach { (currency, amount) ->
-                    val value = if (currency == COIN_CURRENCY) amount.toDouble().coinFormat() else amount.addSeparators()
+                    val value = if (currency == SKYBLOCK_COINS) amount.toDouble().coinFormat() else amount.addSeparators()
                     add(ProfitLine("§7Quest Costs", "§c-$value"))
                 }
                 ProfitTrackerSummaryLine.TOTAL_PROFIT -> {
@@ -344,7 +342,6 @@ internal class ProfitTrackerRenderable(
         ProfitTrackerControl.More -> listOf("§7Manage tracked items.")
         ProfitTrackerControl.ManageKernels -> listOf("§7Manage Kernel profit.")
         is ProfitTrackerControl.PestBreakdown -> listOf("§ePests Vacuumed", "§7No pests vacuumed yet.")
-        is ProfitTrackerControl.ManageItem -> emptyList()
         else -> emptyList()
     }
 }
@@ -399,12 +396,8 @@ internal data class ProfitDisplayItem(
     val value: Double?,
 )
 
-private fun OverlayControlArea<ProfitTrackerControl>.containsPointer(mouseX: Int?, mouseY: Int?): Boolean =
-    mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
-
 private fun profitColor(value: Double): String = if (value >= 0.0) "§a" else "§c"
 
-private const val COIN_CURRENCY = "Coins"
 private const val MILLIS_PER_HOUR = 3_600_000.0
 private const val PERCENT_SCALE = 100.0
 private const val MAXIMUM_ITEM_NAME_LENGTH = 20

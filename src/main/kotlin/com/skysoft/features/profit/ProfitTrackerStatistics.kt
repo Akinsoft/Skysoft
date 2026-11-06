@@ -33,7 +33,7 @@ internal class ProfitTrackerStatistics {
         when (period) {
             ProfitTrackingPeriod.SESSION -> sessionStats[target.storageKey]?.clear()
             ProfitTrackingPeriod.TODAY -> ProfileStorageApi.updateProfile { profile ->
-                didRollProfitTrackerToday(profile.profitTracker, LocalDate.now().toEpochDay())
+                rollProfitTrackerToday(profile.profitTracker, LocalDate.now().toEpochDay())
                 profile.profitTracker.today[target.storageKey]?.clear()
             }
             ProfitTrackingPeriod.MAYOR -> ProfileStorageApi.updateProfile { profile ->
@@ -66,7 +66,7 @@ internal class ProfitTrackerStatistics {
         action(sessionStats.getOrPut(target.storageKey, ::newProfitTrackerStats))
         ProfileStorageApi.updateProfile { profile ->
             val tracker = profile.profitTracker
-            didRollProfitTrackerToday(tracker, LocalDate.now().toEpochDay())
+            rollProfitTrackerToday(tracker, LocalDate.now().toEpochDay())
             action(tracker.today.getOrPut(target.storageKey, ::newProfitTrackerStats))
             mutableMythologicalRitualMayorStats(tracker, target)?.let(action)
             action(tracker.totals.getOrPut(target.storageKey, ::newProfitTrackerStats))
@@ -82,7 +82,7 @@ internal class ProfitTrackerStatistics {
             tracker.mythologicalRitualMayorKey != tracker.currentMythologicalRitualEventKey
         if (tracker.todayEpochDay == today && !updateMayor) return
         ProfileStorageApi.updateProfile { profile ->
-            didRollProfitTrackerToday(profile.profitTracker, today)
+            rollProfitTrackerToday(profile.profitTracker, today)
             if (updateMayor) {
                 mutableMythologicalRitualMayorStats(
                     profile.profitTracker,
@@ -124,11 +124,10 @@ private val emptyProfitTrackerStats: ProfileStorageView.ProfitTrackerStats = Pro
 
 private fun newProfitTrackerStats() = ProfileStorage.ProfitTrackerStats()
 
-internal fun didRollProfitTrackerToday(tracker: ProfileStorage.ProfitTrackerData, epochDay: Long): Boolean {
-    if (tracker.todayEpochDay == epochDay) return false
+private fun rollProfitTrackerToday(tracker: ProfileStorage.ProfitTrackerData, epochDay: Long) {
+    if (tracker.todayEpochDay == epochDay) return
     tracker.todayEpochDay = epochDay
     tracker.today.clear()
-    return true
 }
 
 enum class ProfitTrackingPeriod(val displayName: String) {

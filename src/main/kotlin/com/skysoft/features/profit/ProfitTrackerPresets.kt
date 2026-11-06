@@ -14,7 +14,7 @@ internal object ProfitTrackerPresets {
     fun forLocation(
         island: String?,
         area: String?,
-        preferred: ProfitTrackerPreset? = null,
+        preferred: ProfitTrackerPreset?,
     ): ProfitTrackerPreset? {
         if (island == null) return null
         val matches = presets.filter { (type, preset) ->

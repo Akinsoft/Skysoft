@@ -106,7 +106,3 @@ private const val SHARE_PREFIX = "SSCT1:"
 private const val MAXIMUM_SHARE_CODE_LENGTH = 1_000_000
 private const val MAXIMUM_SHARED_ITEMS = 1_000
 private const val MAXIMUM_SHARED_LOCATIONS = 64
-private const val MINIMUM_PAUSE_AFTER_SECONDS = 15
-private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
-private const val MINIMUM_ITEMS = 1
-private const val MAXIMUM_ITEMS = 15

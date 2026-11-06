@@ -92,7 +92,7 @@ internal fun visibleProfitTrackerTargets(): List<ProfitTrackerTarget> = buildLis
     addAll(matchingCustomTrackerTargets())
 }
 
-private fun customTrackers(): List<CustomProfitTrackerConfig> =
+internal fun customTrackers(): MutableList<CustomProfitTrackerConfig> =
     SkysoftConfigGui.config().loot.profitTrackers.custom.trackers
 
 private fun shouldTrackCoinGain(

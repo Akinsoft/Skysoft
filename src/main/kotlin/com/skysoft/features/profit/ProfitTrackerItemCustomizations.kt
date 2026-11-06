@@ -1,18 +1,16 @@
 package com.skysoft.features.profit
 
+import com.skysoft.config.CustomProfitTrackerConfig
 import com.skysoft.config.ProfitTrackerPriceSource
+import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.ProfileStorageView
 
 internal object ProfitTrackerItemCustomizations {
     fun data(target: ProfitTrackerTarget): ProfileStorageView.ProfitTrackerItemCustomizations? =
-        target.custom?.let { custom ->
-            ProfileStorage.ProfitTrackerItemCustomizations(
-                customItems = custom.items,
-                priceSources = custom.priceSources,
-            )
-        } ?: ProfileStorageApi.storage.profitTracker.itemCustomizations[target.storageKey]
+        target.custom?.let(::customTrackerCustomizations)
+            ?: ProfileStorageApi.storage.profitTracker.itemCustomizations[target.storageKey]
 
     fun isExcluded(target: ProfitTrackerTarget, itemId: String): Boolean =
         itemId in data(target)?.excludedItems.orEmpty()
@@ -64,8 +62,8 @@ internal object ProfitTrackerItemCustomizations {
     ) {
         val custom = target.custom
         if (custom != null) {
-            action(ProfileStorage.ProfitTrackerItemCustomizations(customItems = custom.items, priceSources = custom.priceSources))
-            com.skysoft.config.SkysoftConfigGui.config().saveNow()
+            action(customTrackerCustomizations(custom))
+            SkysoftConfigGui.config().saveNow()
         } else {
             ProfileStorageApi.updateProfile { profile ->
                 val customizations = profile.profitTracker.itemCustomizations.getOrPut(target.storageKey) {
@@ -75,4 +73,7 @@ internal object ProfitTrackerItemCustomizations {
             }
         }
     }
+
+    private fun customTrackerCustomizations(custom: CustomProfitTrackerConfig) =
+        ProfileStorage.ProfitTrackerItemCustomizations(customItems = custom.items, priceSources = custom.priceSources)
 }

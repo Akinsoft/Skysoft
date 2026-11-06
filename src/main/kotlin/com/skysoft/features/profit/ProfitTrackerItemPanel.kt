@@ -1,6 +1,16 @@
 package com.skysoft.features.profit
 
 import com.skysoft.config.ProfitTrackerPriceSource
+import com.skysoft.features.inventory.TrackedItemPanelStyle
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ACTION_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.DANGER_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ICON_SCALE
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ICON_TEXT_OFFSET
+import com.skysoft.features.inventory.TrackedItemPanelStyle.MUTED_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.ROW_HEIGHT
+import com.skysoft.features.inventory.TrackedItemPanelStyle.TEXT_HEIGHT
+import com.skysoft.features.inventory.TrackedItemPanelStyle.TITLE_COLOR
+import com.skysoft.features.inventory.TrackedItemPanelStyle.styledText
 import com.skysoft.features.inventory.TrackedItemQuantityAction
 import com.skysoft.features.inventory.TrackedItemQuantityModifier
 import com.skysoft.features.inventory.TrackedItemSelectionAction
@@ -10,7 +20,6 @@ import com.skysoft.features.inventory.trackedItemPresentation
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlTooltips
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
-import com.skysoft.utils.ColorUtilities.RGB_MASK
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.animation.PanelFadeTransition
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -18,11 +27,11 @@ import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.item.ItemStack
 
 internal sealed interface ProfitTrackerControl {
@@ -55,11 +64,9 @@ internal sealed interface ProfitTrackerControl {
     data object ResetCustomizations : ProfitTrackerControl
 }
 
-internal class ProfitTrackerItemPanel(
-    nanoTime: () -> Long = System::nanoTime,
-) {
+internal class ProfitTrackerItemPanel {
     private var content: Content? = null
-    private val transition = PanelFadeTransition(nanoTime)
+    private val transition = PanelFadeTransition()
     private val addItemPanel = TrackedItemSelectionPanel()
     val itemModifier = TrackedItemQuantityModifier()
     var isHovered = false
@@ -73,13 +80,9 @@ internal class ProfitTrackerItemPanel(
 
     fun openItem(itemId: String) = open(Content.Item(itemId))
 
-    fun toggleItem(itemId: String) {
-        if (content == Content.Item(itemId) && !transition.isClosing) close() else openItem(itemId)
-    }
+    fun toggleItem(itemId: String) = toggle(Content.Item(itemId))
 
-    fun toggleKernels() {
-        if (content == Content.Kernels && !transition.isClosing) close() else open(Content.Kernels)
-    }
+    fun toggleKernels() = toggle(Content.Kernels)
 
     fun beginAddingItem() {
         addItemPanel.reset()
@@ -94,8 +97,7 @@ internal class ProfitTrackerItemPanel(
     fun isAddingItems(): Boolean = content == Content.AddItem && !transition.isClosing
 
     fun isSelectingFromInventory(): Boolean =
-        (content == Content.AddItem || content == Content.ManageItem) &&
-            addItemPanel.mode == TrackedItemSelectionMode.INVENTORY && !transition.isClosing
+        isSelectingItem && addItemPanel.mode == TrackedItemSelectionMode.INVENTORY && !transition.isClosing
 
     fun selectAddItemMode(mode: TrackedItemSelectionMode) = addItemPanel.selectMode(mode)
 
@@ -109,21 +111,16 @@ internal class ProfitTrackerItemPanel(
     ): Boolean {
         val item = content as? Content.Item
         if (item != null && itemModifier.wasKeyPressHandled(event) { amount -> modify(item.itemId, amount) }) return true
-        val selecting = content == Content.AddItem || content == Content.ManageItem
-        if (!selecting) return false
-        val excludedItemIds = ProfitTracker.trackedItemIds(target).takeIf { isAddingItems() }.orEmpty()
-        return addItemPanel.wasKeyPressHandled(event, { it !in excludedItemIds }, select)
+        if (!isSelectingItem) return false
+        return addItemPanel.wasKeyPressHandled(event, selectableItemFilter(target, isAddingItems()), select)
     }
 
     fun wasCharTypedHandled(event: CharacterEvent): Boolean =
-        itemModifier.wasCharTypedHandled(event) ||
-            (content == Content.AddItem || content == Content.ManageItem) &&
-            addItemPanel.wasCharTypedHandled(event)
+        itemModifier.wasCharTypedHandled(event) || isSelectingItem && addItemPanel.wasCharTypedHandled(event)
 
     fun wasSearchScrollHandled(target: ProfitTrackerTarget, verticalAmount: Double): Boolean {
-        if (content != Content.AddItem && content != Content.ManageItem) return false
-        val excludedItemIds = ProfitTracker.trackedItemIds(target).takeIf { isAddingItems() }.orEmpty()
-        return addItemPanel.wasScrollHandled(verticalAmount) { it !in excludedItemIds }
+        if (!isSelectingItem) return false
+        return addItemPanel.wasScrollHandled(verticalAmount, selectableItemFilter(target, isAddingItems()))
     }
 
     fun close() {
@@ -155,8 +152,7 @@ internal class ProfitTrackerItemPanel(
             clear()
             return null
         }
-        if (current == Content.AddItem || current == Content.ManageItem) {
-            val excludedItemIds = ProfitTracker.trackedItemIds(target).takeIf { current == Content.AddItem }.orEmpty()
+        if (isSelectingItem) {
             val control = addItemPanel.render(
                 context = context,
                 title = if (current == Content.AddItem) "Add Item" else "Manage Item",
@@ -166,7 +162,7 @@ internal class ProfitTrackerItemPanel(
                 mouseY = mouseY,
                 opacity = opacity,
                 interactive = transition.isInteractive,
-                isSelectable = { it !in excludedItemIds },
+                isSelectable = selectableItemFilter(target, current == Content.AddItem),
             )
             isHovered = addItemPanel.isHovered
             return control?.let {
@@ -201,55 +197,18 @@ internal class ProfitTrackerItemPanel(
         transition.show()
     }
 
+    private fun toggle(next: Content) {
+        if (content == next && !transition.isClosing) close() else open(next)
+    }
+
+    private val isSelectingItem: Boolean
+        get() = content == Content.AddItem || content == Content.ManageItem
+
     private fun rows(content: Content, target: ProfitTrackerTarget): List<PanelRow> = when (content) {
         Content.Overview -> overviewRows(target)
         Content.AddItem, Content.ManageItem -> emptyList()
         Content.Kernels -> kernelProfitRows()
         is Content.Item -> itemRows(target, content.itemId, itemModifier)
-    }
-
-    private fun overviewRows(target: ProfitTrackerTarget): List<PanelRow> {
-        val customizations = ProfitTrackerItemCustomizations.data(target)
-        return buildList {
-            add(PanelRow(styledText("Item Settings", TITLE_COLOR, bold = true)))
-            add(PanelRow(styledText("Add Item", ACTION_COLOR), ProfitTrackerControl.AddItem))
-            add(PanelRow(styledText("Manage Item", PRICE_COLOR), ProfitTrackerControl.ManageItems))
-            customizations?.excludedItems?.takeIf { it.isNotEmpty() }?.let { excluded ->
-                add(PanelRow(Component.empty(), heightOverride = PANEL_SECTION_GAP))
-                add(PanelRow(styledText("Excluded", MUTED_COLOR)))
-                excluded.forEach { itemId ->
-                    val item = trackedItemPresentation(itemId)
-                    add(
-                        PanelRow(
-                            item.component,
-                            ProfitTrackerControl.RestoreItem(itemId),
-                            listOf("§7Restore"),
-                            item.stack,
-                        ),
-                    )
-                }
-            }
-            customizations?.customItems?.takeIf { it.isNotEmpty() }?.let { customItems ->
-                add(PanelRow(styledText("Added Items", MUTED_COLOR)))
-                customItems.forEach { itemId ->
-                    val item = trackedItemPresentation(itemId)
-                    add(
-                        PanelRow(
-                            item.component,
-                            ProfitTrackerControl.RemoveCustomItem(itemId),
-                            listOf("§7Remove"),
-                            item.stack,
-                        ),
-                    )
-                }
-            }
-            add(
-                PanelRow(
-                    styledText("Reset Customizations", DANGER_COLOR),
-                    ProfitTrackerControl.ResetCustomizations,
-                ),
-            )
-        }
     }
 
     private sealed interface Content {
@@ -285,6 +244,44 @@ private fun itemRows(
             PanelRow(styledText("Remove", DANGER_COLOR), ProfitTrackerControl.RemoveCustomItem(itemId))
         },
     )
+}
+
+private fun selectableItemFilter(target: ProfitTrackerTarget, excludeTracked: Boolean): (String) -> Boolean {
+    val excludedItemIds = ProfitTracker.trackedItemIds(target).takeIf { excludeTracked }.orEmpty()
+    return { it !in excludedItemIds }
+}
+
+private fun overviewRows(target: ProfitTrackerTarget): List<PanelRow> {
+    val customizations = ProfitTrackerItemCustomizations.data(target)
+    return buildList {
+        add(PanelRow(styledText("Item Settings", TITLE_COLOR, bold = true)))
+        add(PanelRow(styledText("Add Item", ACTION_COLOR), ProfitTrackerControl.AddItem))
+        add(PanelRow(styledText("Manage Item", PRICE_COLOR), ProfitTrackerControl.ManageItems))
+        customizations?.excludedItems?.takeIf { it.isNotEmpty() }?.let { excluded ->
+            add(PanelRow(Component.empty(), heightOverride = PANEL_SECTION_GAP))
+            add(PanelRow(styledText("Excluded", MUTED_COLOR)))
+            excluded.forEach { itemId ->
+                add(customizedItemRow(itemId, ProfitTrackerControl.RestoreItem(itemId), "§7Restore"))
+            }
+        }
+        customizations?.customItems?.takeIf { it.isNotEmpty() }?.let { customItems ->
+            add(PanelRow(styledText("Added Items", MUTED_COLOR)))
+            customItems.forEach { itemId ->
+                add(customizedItemRow(itemId, ProfitTrackerControl.RemoveCustomItem(itemId), "§7Remove"))
+            }
+        }
+        add(
+            PanelRow(
+                styledText("Reset Customizations", DANGER_COLOR),
+                ProfitTrackerControl.ResetCustomizations,
+            ),
+        )
+    }
+}
+
+private fun customizedItemRow(itemId: String, action: ProfitTrackerControl, tooltip: String): PanelRow {
+    val item = trackedItemPresentation(itemId)
+    return PanelRow(item.component, action, listOf(tooltip), item.stack)
 }
 
 private fun kernelProfitRows(): List<PanelRow> {
@@ -336,13 +333,13 @@ internal data class PanelRow(
     val quantityModifier: TrackedItemQuantityModifier? = null,
 ) {
     val height: Int
-        get() = quantityModifier?.height ?: heightOverride ?: if (icon == null) PANEL_ROW_HEIGHT else PANEL_ICON_ROW_HEIGHT
-    val iconOffset: Int = if (icon == null) 0 else PANEL_ICON_TEXT_OFFSET
+        get() = quantityModifier?.height ?: heightOverride ?: if (icon == null) ROW_HEIGHT else PANEL_ICON_ROW_HEIGHT
+    val iconOffset: Int = if (icon == null) 0 else ICON_TEXT_OFFSET
 }
 
 private fun PanelRow.render(
     context: GuiGraphicsExtractor,
-    font: net.minecraft.client.gui.Font,
+    font: Font,
     panelX: Int,
     panelWidth: Int,
     y: Int,
@@ -371,44 +368,24 @@ private fun PanelRow.render(
     val hovered = action?.takeIf { rowHovered }?.let {
         OverlayControlArea(it, Rect(panelX, y, panelWidth, height), tooltipLines)
     }
-    hovered?.bounds?.let { bounds ->
-        context.fill(
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            PANEL_HOVER.withScaledAlpha(opacity),
-        )
-    }
+    hovered?.bounds?.let { bounds -> TrackedItemPanelStyle.drawHover(context, bounds, opacity) }
     if (opacity > ICON_VISIBILITY_THRESHOLD) {
-        icon?.let { ItemIconRenderable(it, PANEL_ICON_SCALE).renderAt(context, panelX + OverlayPanelStyle.PADDING, y) }
+        icon?.let { ItemIconRenderable(it, ICON_SCALE).renderAt(context, panelX + OverlayPanelStyle.PADDING, y) }
     }
     context.text(
         font,
         text,
         textX,
-        y + (height - PANEL_TEXT_HEIGHT) / 2,
+        y + (height - TEXT_HEIGHT) / 2,
         TEXT_BASE_COLOR.withScaledAlpha(opacity),
         false,
     )
     return hovered
 }
 
-private fun styledText(text: String, color: Int, bold: Boolean = false): MutableComponent =
-    Component.literal(text).withStyle { style -> style.withColor(color and RGB_MASK).withBold(bold) }
-
 private const val PANEL_MINIMUM_WIDTH = 130
-private const val PANEL_ROW_HEIGHT = 11
 private const val PANEL_SECTION_GAP = 6
 private const val PANEL_ICON_ROW_HEIGHT = 16
-private const val PANEL_TEXT_HEIGHT = 9
-private const val PANEL_ICON_TEXT_OFFSET = 16
-private const val PANEL_ICON_SCALE = 0.75
 private const val ICON_VISIBILITY_THRESHOLD = 0.35
 private const val TEXT_BASE_COLOR = 0xFFFFFFFF.toInt()
-private const val TITLE_COLOR = 0xFFFFFF55.toInt()
-private const val MUTED_COLOR = 0xFFAAAAAA.toInt()
-private const val ACTION_COLOR = 0xFF55FF55.toInt()
 private const val PRICE_COLOR = 0xFFFFFF55.toInt()
-private const val DANGER_COLOR = 0xFFFF5555.toInt()
-private const val PANEL_HOVER = 0x28FFFFFF

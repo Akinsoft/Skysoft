@@ -35,11 +35,7 @@ internal fun farmingKernelProfit(
 ): Double? {
     if (kernels == 0L) return 0.0
     val price = if (item.isBazaar) {
-        profitTrackerSourcePrice(
-            SkyBlockPriceData.getBazaarPrice(item.itemId),
-            SkyBlockPriceData.getNpcSellPrices(item.itemId).coins,
-            priceSource,
-        )
+        profitTrackerSourcePrice(item.itemId, priceSource)
     } else {
         SkyBlockPriceData.getLowestBin(item.itemId)?.toDouble()
     }

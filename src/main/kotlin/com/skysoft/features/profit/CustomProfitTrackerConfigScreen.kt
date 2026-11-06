@@ -28,11 +28,7 @@ object CustomProfitTrackerConfigScreen {
         }
     }
 
-    fun open() = openEditor(null)
-
-    fun open(trackerId: String) = openEditor(trackerId)
-
-    private fun openEditor(selectedTrackerId: String?) {
+    fun open(selectedTrackerId: String? = null) {
         SkyBlockDataRepository.ensureLoaded()
         val parent = MinecraftClient.screen()
         MinecraftClient.setScreen(CustomProfitTrackerEditor(selectedTrackerId).createScreen(parent))
@@ -63,19 +59,17 @@ private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
         ::repairAndSave,
     )
 
-    private fun createTracker(name: String) {
-        val tracker = CustomProfitTrackerConfig(name = name)
-        customTrackers() += tracker
-        repairAndSave()
-        addTrackerCategory(tracker)
-    }
+    private fun createTracker(name: String) = addTracker(CustomProfitTrackerConfig(name = name))
 
     private fun importTracker(code: String) {
-        val tracker = CustomProfitTrackerSharing.decode(code)
-        if (tracker == null) {
+        val tracker = CustomProfitTrackerSharing.decode(code) ?: run {
             SkysoftChat.chat("The custom tracker code is not valid.")
             return
         }
+        addTracker(tracker)
+    }
+
+    private fun addTracker(tracker: CustomProfitTrackerConfig) {
         customTrackers() += tracker
         repairAndSave()
         addTrackerCategory(tracker)
@@ -122,9 +116,6 @@ private class CustomProfitTrackerEditor(selectedTrackerId: String?) {
         SkysoftConfigGui.config().loot.profitTrackers.custom.repairLoadedValues()
         SkysoftConfigGui.config().saveNow()
     }
-
-    private fun customTrackers(): MutableList<CustomProfitTrackerConfig> =
-        SkysoftConfigGui.config().loot.profitTrackers.custom.trackers
 }
 
 private class CustomProfitTrackerScreen(
