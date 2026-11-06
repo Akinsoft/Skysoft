@@ -11,11 +11,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.resources.Identifier
 
-internal class HeldItemDisabledOverlay(
-    nanoTime: () -> Long = System::nanoTime,
-) {
+internal class HeldItemDisabledOverlay {
     private var phase = DisabledOverlayPhase.HIDDEN
-    private val fadeClock = AnimationClock(nanoTime)
+    private val fadeClock = AnimationClock()
     private var isInitialized = false
 
     fun initialize(isFeatureEnabled: Boolean) {
@@ -110,20 +108,7 @@ internal object HeldItemDisabledOverlayRenderer {
         val opacity = visuals.opacity.toDouble()
         val card = cardBounds(screenWidth, screenHeight)
         context.fill(0, 0, screenWidth, screenHeight, DisabledOverlayColors.SCREEN_SHADE.withScaledAlpha(opacity))
-        context.fill(
-            card.x,
-            card.y,
-            card.x + card.width,
-            card.y + card.height,
-            OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity),
-        )
-        context.outline(
-            card.x,
-            card.y,
-            card.width,
-            card.height,
-            OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity),
-        )
+        OverlayPanelStyle.draw(context, card, opacity)
         context.text(
             font,
             DisabledOverlayText.TITLE,
@@ -199,7 +184,6 @@ private enum class DisabledOverlayPhase {
     SHOWN,
     FADING,
 }
-
 
 private object DisabledOverlayAnimation {
     const val FADE_DURATION_NANOS = 300_000_000L

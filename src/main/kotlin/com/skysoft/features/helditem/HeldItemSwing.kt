@@ -27,7 +27,7 @@ object HeldItemSwing {
         )
     }
 
-    internal fun adjustedDuration(
+    private fun adjustedDuration(
         vanillaDuration: Int,
         baseDuration: Int,
         speed: Float,

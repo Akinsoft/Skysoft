@@ -20,6 +20,8 @@ import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.animation.AnimationClock
 import com.skysoft.utils.gui.elide
+import com.skysoft.utils.gui.enableScissor
+import com.skysoft.utils.input.InputHandlingResult
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -200,8 +202,7 @@ object HeldItemEditorScreen {
             }
             if (click.button() in EDITOR_MOUSE_BUTTONS && dragKind != null) {
                 historyController.commitGesture()
-                dragKind = null
-                draggedField = null
+                cancelDrag()
                 saveChanges()
                 return true
             }
@@ -239,8 +240,7 @@ object HeldItemEditorScreen {
             if (disabledOverlay.isEditingBlocked(config.enabled)) return super.keyPressed(event)
             if (event.key() in InputConstants.KEY_1..InputConstants.KEY_9) {
                 historyController.flushPending()
-                dragKind = null
-                draggedField = null
+                cancelDrag()
                 Minecraft.getInstance().player?.inventory?.setSelectedSlot(event.key() - InputConstants.KEY_1)
                 return true
             }
@@ -263,7 +263,7 @@ object HeldItemEditorScreen {
 
         private fun processClick(mouseX: Int, mouseY: Int, button: Int) {
             val isLeftClick = button == InputConstants.MOUSE_BUTTON_LEFT
-            val headerAction = headerActionAt(layout, isLeftClick, mouseX, mouseY, ::onClose)
+            val headerAction = if (isLeftClick) headerActionAt(layout, mouseX, mouseY, ::onClose) else null
             val historyAction = if (isLeftClick) historyActionAt(layout, historyController, mouseX, mouseY) else null
             when {
                 headerAction != null -> activateEditorButton(headerAction)
@@ -273,9 +273,9 @@ object HeldItemEditorScreen {
                         markChanged(historyController.mutate { editorState.toggleTexture() })
                     }
                 }
-                isLeftClick && controlActions.activateTargetAt(mouseX, mouseY) == EditorInputHandlingResult.HANDLED -> Unit
+                isLeftClick && controlActions.activateTargetAt(mouseX, mouseY) == InputHandlingResult.CONSUMED -> Unit
                 isLeftClick &&
-                    controlActions.activateAdvancedControlAt(mouseX, mouseY) == EditorInputHandlingResult.HANDLED -> Unit
+                    controlActions.activateAdvancedControlAt(mouseX, mouseY) == InputHandlingResult.CONSUMED -> Unit
                 isLeftClick && layout.sliderFieldAt(mouseX, mouseY) != null -> startSliderDrag(mouseX, mouseY)
                 isLeftClick && layout.resetBounds().contains(mouseX, mouseY) && editorState.canResetCurrentTarget() -> {
                     activateEditorButton {
@@ -338,22 +338,22 @@ private class HeldItemEditorControlActions(
     private val historyController: HeldItemHistoryController,
     private val markChanged: (ChangeResult) -> Unit,
 ) {
-    fun activateTargetAt(mouseX: Int, mouseY: Int): EditorInputHandlingResult {
+    fun activateTargetAt(mouseX: Int, mouseY: Int): InputHandlingResult {
         val target = when {
             layout.targetBounds(EditTarget.GLOBAL).contains(mouseX, mouseY) -> EditTarget.GLOBAL
             layout.targetBounds(EditTarget.ITEM).contains(mouseX, mouseY) && state.currentItemId() != null -> {
                 EditTarget.ITEM
             }
-            else -> return EditorInputHandlingResult.UNHANDLED
+            else -> return InputHandlingResult.IGNORED
         }
         activateEditorButton {
             historyController.flushPending()
             state.selectTarget(target)
         }
-        return EditorInputHandlingResult.HANDLED
+        return InputHandlingResult.CONSUMED
     }
 
-    fun activateAdvancedControlAt(mouseX: Int, mouseY: Int): EditorInputHandlingResult {
+    fun activateAdvancedControlAt(mouseX: Int, mouseY: Int): InputHandlingResult {
         if (layout.advancedToggleBounds().contains(mouseX, mouseY)) {
             activateEditorButton {
                 val previousX = layout.panelX
@@ -365,13 +365,13 @@ private class HeldItemEditorControlActions(
                     markChanged(ChangeResult.CHANGED)
                 }
             }
-            return EditorInputHandlingResult.HANDLED
+            return InputHandlingResult.CONSUMED
         }
-        val style = layout.swingStyleAt(mouseX, mouseY) ?: return EditorInputHandlingResult.UNHANDLED
+        val style = layout.swingStyleAt(mouseX, mouseY) ?: return InputHandlingResult.IGNORED
         activateEditorButton {
             markChanged(historyController.mutate { state.selectSwingStyle(style) })
         }
-        return EditorInputHandlingResult.HANDLED
+        return InputHandlingResult.CONSUMED
     }
 }
 
@@ -380,19 +380,20 @@ private fun activateEditorButton(action: () -> Unit) {
     action()
 }
 
+private fun playSwingPreview() {
+    val player = Minecraft.getInstance().player ?: return
+    MinecraftClient.swingMainHand(player)
+}
+
 private fun headerActionAt(
     layout: HeldItemEditorLayout,
-    isLeftClick: Boolean,
     mouseX: Int,
     mouseY: Int,
     close: () -> Unit,
-): (() -> Unit)? {
-    if (!isLeftClick) return null
-    return when {
-        previewButtonBounds(layout).contains(mouseX, mouseY) -> HeldItemSwingPreview::play
-        layout.closeBounds().contains(mouseX, mouseY) -> close
-        else -> null
-    }
+): (() -> Unit)? = when {
+    previewButtonBounds(layout).contains(mouseX, mouseY) -> ::playSwingPreview
+    layout.closeBounds().contains(mouseX, mouseY) -> close
+    else -> null
 }
 
 private fun historyActionAt(
@@ -432,7 +433,7 @@ private class HeldItemEditorOpeningAnimation {
         )
         val visibleHeight = (bounds.height * unfoldProgress).roundToInt().coerceAtLeast(1)
         val visibleTop = bounds.y + (bounds.height - visibleHeight) / 2
-        context.enableScissor(bounds.x, visibleTop, bounds.x + bounds.width, visibleTop + visibleHeight)
+        context.enableScissor(Rect(bounds.x, visibleTop, bounds.width, visibleHeight))
         try {
             drawPanel(false)
         } finally {
@@ -459,7 +460,6 @@ private class HeldItemEditorOpeningAnimation {
         val color = EditorAnimation.LINE_RGB.withAlpha(alpha)
         context.fill(lineX, lineY, lineX + lineWidth, lineY + EditorAnimation.LINE_HEIGHT, color)
     }
-
 }
 
 private fun HeldItemEditorState.textureTooltip(): String = when {
@@ -694,38 +694,31 @@ private object HeldItemEditorRenderer {
         val item = state.previewItem()
         val itemName = if (item.isEmpty) Component.literal("Empty hand") else item.hoverName
         val hasItem = !item.isEmpty
-        val itemTextWidth = EditorHeader.contentWidth(bounds.width) - if (hasItem) {
-            EditorHeader.ITEM_SIZE + EditorHeader.ITEM_TEXT_GAP
-        } else {
-            0
-        }
-        val itemText = font.elide(itemName, itemTextWidth)
-        val itemGroupWidth = font.width(itemText) + if (hasItem) {
-            EditorHeader.ITEM_SIZE + EditorHeader.ITEM_TEXT_GAP
-        } else {
-            0
-        }
-        val itemGroupX = bounds.x + (bounds.width - itemGroupWidth) / 2
-        val itemTextX = itemGroupX + if (hasItem) EditorHeader.ITEM_SIZE + EditorHeader.ITEM_TEXT_GAP else 0
+        val itemIconWidth = if (hasItem) EditorHeader.ITEM_SIZE + EditorHeader.ITEM_TEXT_GAP else 0
+        val itemText = font.elide(itemName, EditorHeader.contentWidth(bounds.width) - itemIconWidth)
+        val itemGroupX = bounds.x + (bounds.width - font.width(itemText) - itemIconWidth) / 2
+        val itemTextX = itemGroupX + itemIconWidth
         if (hasItem) context.item(item, itemGroupX, bounds.y + EditorHeader.ITEM_Y)
         context.text(
             font,
             itemText,
             itemTextX,
             bounds.y + EditorHeader.TEXT_Y,
-            EditorColors.WHITE_TEXT,
+            PixelControlColors.TEXT,
             false,
         )
         if (state.isTextureToggleVisible()) {
             val usesVanillaTexture = state.usesVanillaTexture()
-            drawTextureToggle(
+            drawIconButton(
                 context,
                 font,
                 layout.textureToggleBounds(),
-                usesVanillaTexture,
-                state.canToggleTexture(),
+                if (usesVanillaTexture) TEXTURE_RESTORE_ICON else TEXTURE_REMOVE_ICON,
+                EditorActions.TEXTURE_ICON_SCALE,
                 mouseX,
                 mouseY,
+                enabled = state.canToggleTexture(),
+                tone = if (usesVanillaTexture) PixelButtonTone.CONFIRM else PixelButtonTone.DANGER,
             )
             if (layout.textureToggleBounds().contains(mouseX, mouseY)) {
                 SkysoftNativeTooltip.setForNextFrame(context, listOf(state.textureTooltip()), mouseX, mouseY)
@@ -787,8 +780,7 @@ private object HeldItemEditorRenderer {
         mouseX: Int,
         mouseY: Int,
     ) {
-        PixelButtonRenderer.draw(context, font, bounds, "", false, bounds.contains(mouseX, mouseY), true)
-        PixelButtonRenderer.drawIcon(context, bounds, PREVIEW_ICON, EditorHeader.PREVIEW_ICON_SCALE, true)
+        drawIconButton(context, font, bounds, PREVIEW_ICON, EditorHeader.PREVIEW_ICON_SCALE, mouseX, mouseY)
         if (bounds.contains(mouseX, mouseY)) {
             SkysoftNativeTooltip.setForNextFrame(context, listOf("Preview swing"), mouseX, mouseY)
         }
@@ -802,21 +794,15 @@ private object HeldItemEditorRenderer {
         mouseY: Int,
     ) {
         val bounds = layout.advancedToggleBounds()
-        PixelButtonRenderer.draw(
+        drawIconButton(
             context,
             font,
             bounds,
-            "",
-            layout.isAdvancedExpanded,
-            bounds.contains(mouseX, mouseY),
-            true,
-        )
-        PixelButtonRenderer.drawIcon(
-            context,
-            bounds,
             if (layout.isAdvancedExpanded) COLLAPSE_ICON else EXPAND_ICON,
             EditorAdvanced.TOGGLE_ICON_SCALE,
-            true,
+            mouseX,
+            mouseY,
+            selected = layout.isAdvancedExpanded,
         )
         if (bounds.contains(mouseX, mouseY)) {
             val tooltip = if (layout.isAdvancedExpanded) "Fewer options" else "More options"
@@ -838,7 +824,7 @@ private object HeldItemEditorRenderer {
             "Swing Style",
             labelBounds.x,
             layout.swingStyleBounds(HeldItemSwingStyle.VANILLA).y + EditorAdvanced.STYLE_TEXT_Y,
-            EditorColors.MUTED_TEXT,
+            PixelControlColors.MUTED_TEXT,
             false,
         )
         HeldItemSwingStyle.entries.forEach { style ->
@@ -854,30 +840,6 @@ private object HeldItemEditorRenderer {
         }
     }
 
-    private fun drawTextureToggle(
-        context: GuiGraphicsExtractor,
-        font: Font,
-        bounds: Rect,
-        usesVanillaTexture: Boolean,
-        enabled: Boolean,
-        mouseX: Int,
-        mouseY: Int,
-    ) {
-        val hovered = enabled && bounds.contains(mouseX, mouseY)
-        PixelButtonRenderer.draw(
-            context,
-            font,
-            bounds,
-            "",
-            false,
-            hovered,
-            enabled,
-            if (usesVanillaTexture) PixelButtonTone.CONFIRM else PixelButtonTone.DANGER,
-        )
-        val icon = if (usesVanillaTexture) TEXTURE_RESTORE_ICON else TEXTURE_REMOVE_ICON
-        PixelButtonRenderer.drawIcon(context, bounds, icon, EditorActions.TEXTURE_ICON_SCALE, enabled)
-    }
-
     private fun drawHistoryButton(
         context: GuiGraphicsExtractor,
         font: Font,
@@ -887,16 +849,23 @@ private object HeldItemEditorRenderer {
         mouseX: Int,
         mouseY: Int,
     ) {
-        PixelButtonRenderer.draw(
-            context,
-            font,
-            bounds,
-            "",
-            false,
-            enabled && bounds.contains(mouseX, mouseY),
-            enabled,
-        )
-        PixelButtonRenderer.drawIcon(context, bounds, icon, EditorActions.HISTORY_ICON_SCALE, enabled)
+        drawIconButton(context, font, bounds, icon, EditorActions.HISTORY_ICON_SCALE, mouseX, mouseY, enabled = enabled)
+    }
+
+    private fun drawIconButton(
+        context: GuiGraphicsExtractor,
+        font: Font,
+        bounds: Rect,
+        icon: List<String>,
+        iconScale: Int,
+        mouseX: Int,
+        mouseY: Int,
+        selected: Boolean = false,
+        enabled: Boolean = true,
+        tone: PixelButtonTone = PixelButtonTone.NORMAL,
+    ) {
+        drawButton(context, font, bounds, "", selected, mouseX, mouseY, enabled, tone)
+        PixelButtonRenderer.drawIcon(context, bounds, icon, iconScale, enabled)
     }
 
     private val TEXTURE_REMOVE_ICON = listOf("X...X", ".X.X.", "..X..", ".X.X.", "X...X")
@@ -954,7 +923,7 @@ private object HeldItemEditorRenderer {
         val track = layout.sliderTrackBounds(field)
         val value = field.value(state.displayTransform())
         val progress = ((value - field.min) / (field.max - field.min)).coerceIn(0f, 1f)
-        context.text(font, field.label, row.x, row.y + EditorSliders.TEXT_Y, EditorColors.MUTED_TEXT, false)
+        context.text(font, field.label, row.x, row.y + EditorSliders.TEXT_Y, PixelControlColors.MUTED_TEXT, false)
         PixelSliderRenderer.draw(context, track, progress, row.contains(mouseX, mouseY))
         val valueText = field.formattedValue(value)
         context.text(
@@ -962,7 +931,7 @@ private object HeldItemEditorRenderer {
             valueText,
             row.x + row.width - font.width(valueText),
             row.y + EditorSliders.TEXT_Y,
-            EditorColors.WHITE_TEXT,
+            PixelControlColors.TEXT,
             false,
         )
     }
@@ -981,7 +950,6 @@ private object HeldItemEditorRenderer {
         val hovered = enabled && bounds.contains(mouseX, mouseY)
         PixelButtonRenderer.draw(context, font, bounds, label, selected, hovered, enabled, tone)
     }
-
 }
 
 private enum class DragKind {
@@ -989,11 +957,6 @@ private enum class DragKind {
     MOVE_ITEM,
     MOVE_DEPTH,
     SLIDER,
-}
-
-private enum class EditorInputHandlingResult {
-    HANDLED,
-    UNHANDLED,
 }
 
 private val EDITOR_MOUSE_BUTTONS = setOf(InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOUSE_BUTTON_RIGHT)
@@ -1100,9 +1063,4 @@ private object EditorAnimation {
     const val LINE_RGB = 0x005D6872
     const val MAX_ALPHA = 255
     const val HIDDEN_MOUSE_COORDINATE = Int.MIN_VALUE
-}
-
-private object EditorColors {
-    val WHITE_TEXT = PixelControlColors.TEXT
-    val MUTED_TEXT = PixelControlColors.MUTED_TEXT
 }

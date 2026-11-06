@@ -38,7 +38,7 @@ object HeldItemTextureOverrides {
 
     fun isPaper(itemStack: ItemStack): Boolean = itemStack.item == Items.PAPER
 
-    internal fun isHypixelPackModel(model: Identifier, vanillaModel: Identifier?): Boolean =
+    private fun isHypixelPackModel(model: Identifier, vanillaModel: Identifier?): Boolean =
         model != vanillaModel && model.namespace == HYPIXEL_MODEL_NAMESPACE
 
     private fun vanillaStackIfConfigured(itemStack: ItemStack): ItemStack {

@@ -27,17 +27,10 @@ object HeldItemSwingVisuals {
     }
 
     private fun begin(itemStack: ItemStack, attack: Float, arm: HumanoidArm, isWhackSwing: Boolean) {
-        if (!HeldItemCustomization.isEligible(itemStack)) {
-            itemOnlySwing = null
-            return
-        }
-        val config = SkysoftConfigGui.config().world.heldItem
-        val transform = HeldItemTransforms.effectiveTransform(itemStack)
-        itemOnlySwing = ItemOnlySwing(itemStack, attack, arm).takeIf {
-            config.enabled &&
-                transform.swingStyle == HeldItemSwingStyle.ITEM_ONLY &&
-                isWhackSwing
-        }
+        if (!isWhackSwing || !HeldItemCustomization.isEligible(itemStack)) return
+        if (!SkysoftConfigGui.config().world.heldItem.enabled) return
+        if (HeldItemTransforms.effectiveTransform(itemStack).swingStyle != HeldItemSwingStyle.ITEM_ONLY) return
+        itemOnlySwing = ItemOnlySwing(itemStack, attack, arm)
     }
 
     @JvmStatic
@@ -55,7 +48,7 @@ object HeldItemSwingVisuals {
         applyItemOnlySwing(poseStack, swing.attack, swing.arm)
     }
 
-    internal fun applyItemOnlySwing(poseStack: PoseStack, attack: Float, arm: HumanoidArm) {
+    private fun applyItemOnlySwing(poseStack: PoseStack, attack: Float, arm: HumanoidArm) {
         if (attack <= 0f) return
         val direction = if (arm == HumanoidArm.RIGHT) 1f else -1f
         val arc = sin(sqrt(attack.toDouble()) * Math.PI).toFloat()
