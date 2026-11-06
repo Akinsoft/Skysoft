@@ -52,16 +52,13 @@ object HeldItemTransforms {
         return itemId
     }
 
-    fun effectiveTransform(itemId: String?): HeldItemTransformConfig =
-        SkysoftConfigGui.config().world.heldItem.transformFor(itemId)
-
     fun effectiveTransform(itemStack: ItemStack): HeldItemTransformConfig {
         HeldItemEditorScreen.previewTransform(itemStack)?.let { return it }
         val config = SkysoftConfigGui.config().world.heldItem
         return if (config.itemTransforms.isEmpty()) config.global else config.transformFor(itemId(itemStack))
     }
 
-    internal fun applyPosition(
+    private fun applyPosition(
         poseStack: PoseStack,
         transform: HeldItemTransformConfig,
         viewTransform: Matrix4fc,
@@ -78,7 +75,7 @@ object HeldItemTransforms {
         poseStack.last().pose().mulLocal(cameraSpaceTransform)
     }
 
-    internal fun applyRotation(poseStack: PoseStack, transform: HeldItemTransformConfig) {
+    private fun applyRotation(poseStack: PoseStack, transform: HeldItemTransformConfig) {
         if (transform.rotationX != 0f) MinecraftRenderer.rotate(poseStack, Axis.XP.rotationDegrees(transform.rotationX))
         if (transform.rotationY != 0f) MinecraftRenderer.rotate(poseStack, Axis.YP.rotationDegrees(transform.rotationY))
         if (transform.rotationZ != 0f) MinecraftRenderer.rotate(poseStack, Axis.ZP.rotationDegrees(transform.rotationZ))

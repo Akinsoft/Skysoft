@@ -9,11 +9,8 @@ import net.minecraft.world.item.ItemStack
 
 internal class HeldItemEditorState(
     private val config: HeldItemConfig,
-    initialTarget: EditTarget = EditTarget.GLOBAL,
-    private val targetSelection: (EditTarget) -> Unit = {},
-    private val currentItemIdProvider: () -> String? = {
-        HeldItemTransforms.itemId(HeldItemTransforms.currentItem())
-    },
+    initialTarget: EditTarget,
+    private val targetSelection: (EditTarget) -> Unit,
 ) {
     private var preferredTarget = initialTarget
     var target = initialTarget
@@ -36,7 +33,7 @@ internal class HeldItemEditorState(
 
     fun currentItem(): ItemStack = HeldItemTransforms.currentItem()
 
-    fun currentItemId(): String? = currentItemIdProvider()
+    fun currentItemId(): String? = HeldItemTransforms.itemId(currentItem())
 
     fun displayTransform(): HeldItemTransformConfig =
         if (target == EditTarget.ITEM) config.transformFor(currentItemId()) else config.global
