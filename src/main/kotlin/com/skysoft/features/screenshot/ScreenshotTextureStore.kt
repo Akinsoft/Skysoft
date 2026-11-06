@@ -48,21 +48,18 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
     fun isSelectedPreviewFailed(path: Path): Boolean = previewPath == path && previews.isFailed(path)
 
     fun clearSelectedPreview() {
-        clearPreview()
+        previewPath?.let(previews::invalidate)
+        previewPath = null
     }
 
     fun discard(path: Path) {
         discardedPaths.add(path)
-        thumbnails.invalidate(path)
-        previews.invalidate(path)
-        if (previewPath == path) previewPath = null
+        invalidate(path)
     }
 
     fun refresh(path: Path) {
         discardedPaths.remove(path)
-        thumbnails.invalidate(path)
-        previews.invalidate(path)
-        if (previewPath == path) previewPath = null
+        invalidate(path)
     }
 
     override fun close() {
@@ -81,7 +78,7 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
     }
 
     private fun selectPreview(path: Path) {
-        clearPreview()
+        clearSelectedPreview()
         previewPath = path
     }
 
@@ -92,9 +89,10 @@ internal class ScreenshotTextureStore(private val minecraft: Minecraft) : AutoCl
         }
     }
 
-    private fun clearPreview() {
-        previewPath?.let(previews::invalidate)
-        previewPath = null
+    private fun invalidate(path: Path) {
+        thumbnails.invalidate(path)
+        previews.invalidate(path)
+        if (previewPath == path) previewPath = null
     }
 
     private fun createTextureId(kind: String) = SkysoftMod.id("screenshot_manager/${kind}_${nextTextureId++}")

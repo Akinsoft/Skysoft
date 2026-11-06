@@ -46,8 +46,14 @@ internal data class ScreenshotEditorGeometry(
     val effectivePanX: Double,
     val effectivePanY: Double,
 ) {
-    val displayScale: Double
+    private val displayScale: Double
         get() = imageBounds.width / (imageWidth * sourceCrop.width)
+
+    fun screenStrokeWidth(normalizedWidth: Double): Double =
+        normalizedWidth * min(imageWidth, imageHeight) * displayScale
+
+    fun recreate(session: ScreenshotEditSession): ScreenshotEditorGeometry =
+        create(viewport, imageWidth, imageHeight, session)
 
     fun screenToImage(mouseX: Double, mouseY: Double, clamp: Boolean = false): ScreenshotEditPoint? {
         if (!clamp && !imageBounds.contains(mouseX, mouseY)) return null
@@ -92,7 +98,7 @@ internal data class ScreenshotEditorGeometry(
     }
 
     fun cropHandleAt(crop: ScreenshotCrop, mouseX: Int, mouseY: Int): ScreenshotCropHandle? {
-        val handle = cropHandleBounds(crop).entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
+        val handle = cropHandleBounds(crop).keyAt(mouseX, mouseY)
         if (handle != null) return handle
         return ScreenshotCropHandle.MOVE.takeIf { cropSelection(crop).contains(mouseX.toDouble(), mouseY.toDouble()) }
     }
@@ -199,3 +205,6 @@ private val BOTTOM_CROP_HANDLES = setOf(
     ScreenshotCropHandle.BOTTOM,
     ScreenshotCropHandle.BOTTOM_RIGHT,
 )
+
+internal fun <K> Map<K, Rect>.keyAt(mouseX: Int, mouseY: Int): K? =
+    entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key

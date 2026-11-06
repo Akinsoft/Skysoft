@@ -1,11 +1,10 @@
 package com.skysoft.features.screenshot
 
-import com.mojang.blaze3d.systems.RenderSystem
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
-import com.skysoft.utils.render.gpu.FilterMode
+import com.skysoft.utils.image.drawLinearTexture
 import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.Font
@@ -49,14 +48,7 @@ internal object ScreenshotRenderStyle {
         text: String,
         color: Int,
     ) {
-        context.text(
-            font,
-            text,
-            bounds.x + (bounds.width - font.width(text)) / 2,
-            bounds.y + (bounds.height - font.lineHeight) / 2,
-            color,
-            false,
-        )
+        drawCenteredAtY(context, font, bounds, bounds.y + (bounds.height - font.lineHeight) / 2, text, color)
     }
 
     fun drawCenteredAtY(
@@ -70,42 +62,29 @@ internal object ScreenshotRenderStyle {
         context.text(font, text, bounds.x + (bounds.width - font.width(text)) / 2, y, color, false)
     }
 
+    fun drawLoadState(context: GuiGraphicsExtractor, font: Font, bounds: Rect, didLoadFail: Boolean) {
+        if (didLoadFail) {
+            drawCentered(context, font, bounds, "Couldn't load screenshot.", ERROR_TEXT)
+        } else {
+            drawCentered(context, font, bounds, "Loading...", MUTED_TEXT)
+        }
+    }
+
     fun drawTextureCover(context: GuiGraphicsExtractor, texture: RegisteredImageTexture, bounds: Rect) {
         val sourceAspect = texture.width.toFloat() / texture.height
         val boundsAspect = bounds.width.toFloat() / bounds.height
         val uInset = if (sourceAspect > boundsAspect) (1f - boundsAspect / sourceAspect) / 2f else 0f
         val vInset = if (sourceAspect < boundsAspect) (1f - sourceAspect / boundsAspect) / 2f else 0f
-        context.blit(
-            texture.texture.textureView,
-            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            uInset,
-            1f - uInset,
-            vInset,
-            1f - vInset,
-        )
+        context.drawLinearTexture(texture.texture, bounds, uInset, 1f - uInset, vInset, 1f - vInset)
     }
 
     fun drawTextureContained(context: GuiGraphicsExtractor, texture: RegisteredImageTexture, bounds: Rect) {
         val scale = min(bounds.width.toDouble() / texture.width, bounds.height.toDouble() / texture.height)
         val width = (texture.width * scale).roundToInt().coerceAtLeast(1)
         val height = (texture.height * scale).roundToInt().coerceAtLeast(1)
-        val x = bounds.x + (bounds.width - width) / 2
-        val y = bounds.y + (bounds.height - height) / 2
-        context.blit(
-            texture.texture.textureView,
-            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            x,
-            y,
-            x + width,
-            y + height,
-            0f,
-            1f,
-            0f,
-            1f,
+        context.drawLinearTexture(
+            texture.texture,
+            Rect(bounds.x + (bounds.width - width) / 2, bounds.y + (bounds.height - height) / 2, width, height),
         )
     }
 }

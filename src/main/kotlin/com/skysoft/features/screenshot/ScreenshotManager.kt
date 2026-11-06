@@ -9,6 +9,7 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.input.InputUtilities
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
 import java.util.function.Consumer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.Screenshot
@@ -25,15 +26,7 @@ object ScreenshotManager {
         }
     }
 
-    fun open() {
-        show(null)
-    }
-
-    internal fun open(selectedPath: Path) {
-        show(selectedPath)
-    }
-
-    private fun show(selectedPath: Path?) {
+    fun open(selectedPath: Path? = null) {
         val currentScreen = MinecraftClient.screen()
         if (currentScreen is ScreenshotManagerScreen) return
         MinecraftClient.setScreen(ScreenshotManagerScreen(currentScreen, selectedPath))
@@ -51,12 +44,7 @@ object ScreenshotManager {
     private fun processCapturedScreenshot(path: Path) {
         ScreenshotCapturePreview.present(path)
         if (!config().settings.isClipboardCopyEnabled) return
-        ScreenshotClipboard.copyAsync(path).whenComplete { _, failure ->
-            if (failure == null) return@whenComplete
-            Minecraft.getInstance().execute {
-                SkysoftChat.error("Couldn't copy screenshot to clipboard.")
-            }
-        }
+        ScreenshotClipboard.copyAsync(path).reportScreenshotFailure("Couldn't copy screenshot to clipboard.")
     }
 
     private fun hasManagerKeyWork(): Boolean {
@@ -66,10 +54,7 @@ object ScreenshotManager {
 
     private fun processManagerKey() {
         val key = config().settings.managerKey
-        val isKeyDown = key != MinecraftInput.NO_BINDING &&
-            key != InputConstants.KEY_RETURN &&
-            InputUtilities.isActionBindingDown(key)
-        if (!isKeyDown) {
+        if (!InputUtilities.isFeatureKeyDown(key)) {
             managerKeyWasDown = false
             return
         }
@@ -99,4 +84,10 @@ object ScreenshotManager {
     internal fun screenshotsDirectory() = Minecraft.getInstance().gameDirectory.toPath().resolve(Screenshot.SCREENSHOT_DIR)
 
     private const val SCREENSHOT_SUCCESS_KEY = "screenshot.success"
+}
+
+internal fun <T> CompletableFuture<T>.reportScreenshotFailure(message: String) {
+    whenComplete { _, failure ->
+        if (failure != null) Minecraft.getInstance().execute { SkysoftChat.error(message) }
+    }
 }

@@ -16,7 +16,6 @@ import com.skysoft.features.chat.CopyChatResult;
 import com.skysoft.gui.GuiOverlayRegistry;
 import com.skysoft.utils.SoundUtilities;
 import com.skysoft.utils.animation.AnimationClock;
-import com.skysoft.utils.gui.PixelButtonTone;
 import com.skysoft.utils.gui.PixelButtonWidget;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,7 +39,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin extends Screen {
+    @Unique
     private static final int TAB_HORIZONTAL_PADDING = 12;
+    @Unique
     private static final int MIN_TAB_WIDTH = 36;
     @Unique private final AnimationClock skysoftOpeningMotion = new AnimationClock();
     @Unique private int skysoftMouseX;
@@ -145,7 +146,7 @@ public abstract class ChatScreenMixin extends Screen {
                 skysoftDidSelectTab = true;
                 if (switching) SoundUtilities.INSTANCE.playRandomNavigationSound();
                 return kotlin.Unit.INSTANCE;
-            }, false, PixelButtonTone.NORMAL, false);
+            });
             skysoftTabButtons.put(channel, addRenderableWidget(button));
         }
         skysoftUpdateTabButtons();

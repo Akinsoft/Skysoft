@@ -1,6 +1,5 @@
 package com.skysoft.utils.gui
 
-import com.skysoft.utils.SoundUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.ComponentPath
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -16,9 +15,6 @@ class PixelButtonWidget(
     height: Int,
     message: Component,
     onPress: () -> Unit,
-    private val isClickSoundEnabled: Boolean = true,
-    private val tone: PixelButtonTone = PixelButtonTone.NORMAL,
-    private val canReceiveArrowFocus: Boolean = true,
 ) : Button(
     x,
     y,
@@ -30,12 +26,10 @@ class PixelButtonWidget(
 ) {
     var isSelected = false
 
-    override fun playDownSound(soundManager: SoundManager) {
-        if (isClickSoundEnabled) SoundUtilities.playRandomNavigationSound()
-    }
+    override fun playDownSound(soundManager: SoundManager) = Unit
 
     override fun nextFocusPath(navigationEvent: FocusNavigationEvent): ComponentPath? {
-        if (!canReceiveArrowFocus && navigationEvent is FocusNavigationEvent.ArrowNavigation) return null
+        if (navigationEvent is FocusNavigationEvent.ArrowNavigation) return null
         return super.nextFocusPath(navigationEvent)
     }
 
@@ -48,8 +42,7 @@ class PixelButtonWidget(
             isSelected,
             isHovered,
             active,
-            tone,
-            alpha.toDouble(),
+            alpha = alpha.toDouble(),
         )
     }
 }

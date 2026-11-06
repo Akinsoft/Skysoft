@@ -9,7 +9,10 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.elide
+import com.skysoft.utils.gui.enableScissor
+import com.skysoft.utils.gui.fill
 import com.skysoft.utils.image.RegisteredImageTexture
+import java.nio.file.Path
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -27,7 +30,11 @@ internal data class ScreenshotNotice(
     val text: String,
     val isError: Boolean,
     val expiresAtMillis: Long,
-)
+) {
+    companion object {
+        fun persistent(text: String): ScreenshotNotice = ScreenshotNotice(text, false, Long.MAX_VALUE)
+    }
+}
 
 internal object ScreenshotManagerRenderer {
     fun renderGallery(
@@ -134,212 +141,81 @@ internal object ScreenshotManagerRenderer {
         } else {
             drawAnimatedFocusedScreenshot(context, font, layout, visuals, texture, didLoadFail)
         }
-        drawButton(
-            context,
-            font,
-            layout.previous,
-            "<",
-            areActionsEnabled && canNavigatePrevious,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
-        )
-        drawButton(
-            context,
-            font,
-            layout.next,
-            ">",
-            areActionsEnabled && canNavigateNext,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
-        )
-        drawFocusActions(
-            context,
-            font,
-            layout,
-            visuals,
-            notice,
-            confirmation,
-            areActionsEnabled,
-            entry.path,
-            editSession.hasEdits,
-            isEditing,
-            mouseX,
-            mouseY,
-        )
+        val buttons = FocusButtons(context, font, mouseX, mouseY, visuals.chromeAlpha, areActionsEnabled)
+        buttons.draw(layout.previous, "<", areActionsEnabled && canNavigatePrevious)
+        buttons.draw(layout.next, ">", areActionsEnabled && canNavigateNext)
+        drawNotice(context, font, layout, visuals, confirmation?.notice?.let(ScreenshotNotice::persistent) ?: notice)
+        when (confirmation) {
+            ScreenshotConfirmation.SAVE -> {
+                buttons.draw(layout.saveButtons.saveNew, "Save New")
+                buttons.draw(layout.saveButtons.replace, "Replace", tone = PixelButtonTone.DANGER)
+                buttons.draw(layout.saveButtons.cancel, "Cancel")
+            }
+            null -> drawFocusActions(buttons, layout, entry.path, editSession.hasEdits, isEditing)
+            else -> {
+                val cancelLabel = if (confirmation == ScreenshotConfirmation.DISCARD) "Keep Editing" else "Cancel"
+                val confirmTone =
+                    if (confirmation == ScreenshotConfirmation.SHARE) PixelButtonTone.NORMAL else PixelButtonTone.DANGER
+                buttons.draw(layout.confirmationButtons.cancel, cancelLabel)
+                buttons.draw(layout.confirmationButtons.confirm, confirmation.confirmLabel, tone = confirmTone)
+            }
+        }
     }
 
-    private fun drawFocusActions(
+    private fun drawNotice(
         context: GuiGraphicsExtractor,
         font: Font,
         layout: ScreenshotFocusLayout,
         visuals: ScreenshotFocusVisuals,
         notice: ScreenshotNotice?,
-        confirmation: ScreenshotConfirmation?,
-        areActionsEnabled: Boolean,
-        screenshotPath: java.nio.file.Path,
+    ) {
+        notice ?: return
+        drawCenteredAtY(
+            context,
+            font,
+            layout.panel,
+            layout.noticeY,
+            notice.text,
+            (if (notice.isError) ScreenshotRenderStyle.ERROR_TEXT else ScreenshotRenderStyle.MUTED_TEXT)
+                .withScaledAlpha(visuals.chromeAlpha),
+        )
+    }
+
+    private fun drawFocusActions(
+        buttons: FocusButtons,
+        layout: ScreenshotFocusLayout,
+        screenshotPath: Path,
         hasEdits: Boolean,
         isEditing: Boolean,
-        mouseX: Int,
-        mouseY: Int,
     ) {
-        val confirmationNotice = when (confirmation) {
-            ScreenshotConfirmation.SHARE -> "Upload publicly for 30 days?"
-            ScreenshotConfirmation.DELETE -> "Delete this screenshot?"
-            ScreenshotConfirmation.SAVE -> "How would you like to save your changes?"
-            ScreenshotConfirmation.DISCARD -> "Discard unsaved screenshot edits?"
-            null -> null
-        }
-        val visibleNotice = confirmationNotice?.let { ScreenshotNotice(it, false, Long.MAX_VALUE) } ?: notice
-        visibleNotice?.let {
-            drawCenteredAtY(
-                context,
-                font,
-                layout.panel,
-                layout.noticeY,
-                it.text,
-                (if (it.isError) ScreenshotRenderStyle.ERROR_TEXT else ScreenshotRenderStyle.MUTED_TEXT)
-                    .withScaledAlpha(visuals.chromeAlpha),
-            )
-        }
-        if (confirmation == ScreenshotConfirmation.SAVE) {
-            drawSaveChoices(context, font, layout, visuals, areActionsEnabled, mouseX, mouseY)
-            return
-        }
-        if (confirmation != null) {
-            drawConfirmationButtons(context, font, layout, visuals, confirmation, areActionsEnabled, mouseX, mouseY)
-            return
-        }
-        drawButton(
-            context,
-            font,
+        buttons.draw(
             layout.share,
             ScreenshotSharing.buttonLabel(screenshotPath),
-            areActionsEnabled && ScreenshotSharing.status(screenshotPath) != ScreenshotShareStatus.Uploading,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
+            buttons.isEnabled && ScreenshotSharing.status(screenshotPath) != ScreenshotShareStatus.Uploading,
         )
-        drawButton(
-            context,
-            font,
-            layout.copy,
-            "Copy",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
-        )
-        drawButton(
-            context,
-            font,
-            layout.edit,
-            "Edit",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            isSelected = isEditing,
-            alpha = visuals.chromeAlpha,
-        )
-        if (isEditing) {
-            drawButton(
-                context,
-                font,
-                layout.save,
-                "Save",
-                areActionsEnabled && hasEdits,
-                mouseX,
-                mouseY,
-                alpha = visuals.chromeAlpha,
-            )
+        buttons.draw(layout.copy, "Copy")
+        buttons.draw(layout.edit, "Edit", isSelected = isEditing)
+        if (isEditing) buttons.draw(layout.save, "Save", buttons.isEnabled && hasEdits)
+        buttons.draw(layout.delete, "Delete", tone = PixelButtonTone.DANGER)
+    }
+
+    private class FocusButtons(
+        private val context: GuiGraphicsExtractor,
+        private val font: Font,
+        private val mouseX: Int,
+        private val mouseY: Int,
+        private val alpha: Double,
+        val isEnabled: Boolean,
+    ) {
+        fun draw(
+            bounds: Rect,
+            label: String,
+            isButtonEnabled: Boolean = isEnabled,
+            tone: PixelButtonTone = PixelButtonTone.NORMAL,
+            isSelected: Boolean = false,
+        ) {
+            drawButton(context, font, bounds, label, isButtonEnabled, mouseX, mouseY, tone, alpha, isSelected)
         }
-        drawButton(
-            context,
-            font,
-            layout.delete,
-            "Delete",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            PixelButtonTone.DANGER,
-            visuals.chromeAlpha,
-        )
-    }
-
-    private fun drawConfirmationButtons(
-        context: GuiGraphicsExtractor,
-        font: Font,
-        layout: ScreenshotFocusLayout,
-        visuals: ScreenshotFocusVisuals,
-        confirmation: ScreenshotConfirmation,
-        areActionsEnabled: Boolean,
-        mouseX: Int,
-        mouseY: Int,
-    ) {
-        drawButton(
-            context,
-            font,
-            layout.confirmationButtons.cancel,
-            if (confirmation == ScreenshotConfirmation.DISCARD) "Keep Editing" else "Cancel",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
-        )
-        drawButton(
-            context,
-            font,
-            layout.confirmationButtons.confirm,
-            confirmation.confirmLabel,
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            if (confirmation == ScreenshotConfirmation.SHARE) PixelButtonTone.NORMAL else PixelButtonTone.DANGER,
-            visuals.chromeAlpha,
-        )
-    }
-
-    private fun drawSaveChoices(
-        context: GuiGraphicsExtractor,
-        font: Font,
-        layout: ScreenshotFocusLayout,
-        visuals: ScreenshotFocusVisuals,
-        areActionsEnabled: Boolean,
-        mouseX: Int,
-        mouseY: Int,
-    ) {
-        drawButton(
-            context,
-            font,
-            layout.saveButtons.saveNew,
-            "Save New",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
-        )
-        drawButton(
-            context,
-            font,
-            layout.saveButtons.replace,
-            "Replace",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            PixelButtonTone.DANGER,
-            visuals.chromeAlpha,
-        )
-        drawButton(
-            context,
-            font,
-            layout.saveButtons.cancel,
-            "Cancel",
-            areActionsEnabled,
-            mouseX,
-            mouseY,
-            alpha = visuals.chromeAlpha,
-        )
     }
 
     private fun drawAnimatedFocusedScreenshot(
@@ -350,20 +226,11 @@ internal object ScreenshotManagerRenderer {
         texture: RegisteredImageTexture?,
         didLoadFail: Boolean,
     ) {
-        if (!visuals.shouldClipImage) {
-            drawFocusedScreenshot(context, font, visuals.imageBounds, texture, didLoadFail)
-            return
-        }
-        context.enableScissor(
-            layout.preview.x,
-            layout.preview.y,
-            layout.preview.x + layout.preview.width,
-            layout.preview.y + layout.preview.height,
-        )
+        if (visuals.shouldClipImage) context.enableScissor(layout.preview)
         try {
             drawFocusedScreenshot(context, font, visuals.imageBounds, texture, didLoadFail)
         } finally {
-            context.disableScissor()
+            if (visuals.shouldClipImage) context.disableScissor()
         }
     }
 
@@ -376,12 +243,7 @@ internal object ScreenshotManagerRenderer {
         mouseX: Int,
         mouseY: Int,
     ) {
-        context.enableScissor(
-            layout.content.x,
-            layout.content.y,
-            layout.content.x + layout.content.width,
-            layout.content.y + layout.content.height,
-        )
+        context.enableScissor(layout.content)
         try {
             layout.tiles.forEach { tile ->
                 val entry = entries[tile.index]
@@ -401,20 +263,8 @@ internal object ScreenshotManagerRenderer {
         textures: ScreenshotTextureStore,
         isHovered: Boolean,
     ) {
-        context.fill(
-            tile.bounds.x,
-            tile.bounds.y,
-            tile.bounds.x + tile.bounds.width,
-            tile.bounds.y + tile.bounds.height,
-            if (isHovered) TILE_HOVER_BORDER else ScreenshotRenderStyle.BORDER,
-        )
-        context.fill(
-            tile.image.x,
-            tile.image.y,
-            tile.image.x + tile.image.width,
-            tile.image.y + tile.image.height,
-            ScreenshotRenderStyle.IMAGE_BACKGROUND,
-        )
+        context.fill(tile.bounds, if (isHovered) TILE_HOVER_BORDER else ScreenshotRenderStyle.BORDER)
+        context.fill(tile.image, ScreenshotRenderStyle.IMAGE_BACKGROUND)
         val texture = textures.thumbnail(entry.path)
         when {
             texture != null -> drawTextureCover(context, texture, tile.image)
@@ -426,13 +276,7 @@ internal object ScreenshotManagerRenderer {
                 ScreenshotRenderStyle.ERROR_TEXT,
             )
         }
-        context.fill(
-            tile.footer.x,
-            tile.footer.y,
-            tile.footer.x + tile.footer.width,
-            tile.footer.y + tile.footer.height,
-            if (isHovered) TILE_HOVER_FOOTER else TILE_FOOTER,
-        )
+        context.fill(tile.footer, if (isHovered) TILE_HOVER_FOOTER else TILE_FOOTER)
         val label = font.elide(entry.fileName.substringBeforeLast('.'), tile.footer.width - TILE_TEXT_INSET * 2)
         context.text(
             font,
@@ -451,43 +295,19 @@ internal object ScreenshotManagerRenderer {
         texture: RegisteredImageTexture?,
         didLoadFail: Boolean,
     ) {
-        context.fill(
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            ScreenshotRenderStyle.BORDER,
-        )
-        val inner = Rect(bounds.x + 1, bounds.y + 1, bounds.width - 2, bounds.height - 2)
-        context.fill(
-            inner.x,
-            inner.y,
-            inner.x + inner.width,
-            inner.y + inner.height,
-            ScreenshotRenderStyle.IMAGE_BACKGROUND,
-        )
-        when {
-            texture != null -> drawTextureContained(context, texture, inner)
-            didLoadFail -> ScreenshotRenderStyle.drawCentered(
-                context,
-                font,
-                inner,
-                "Couldn't load screenshot.",
-                ScreenshotRenderStyle.ERROR_TEXT,
-            )
-            else -> ScreenshotRenderStyle.drawCentered(
-                context,
-                font,
-                inner,
-                "Loading...",
-                ScreenshotRenderStyle.MUTED_TEXT,
-            )
+        context.fill(bounds, ScreenshotRenderStyle.BORDER)
+        val inner = bounds.inset(1)
+        context.fill(inner, ScreenshotRenderStyle.IMAGE_BACKGROUND)
+        if (texture != null) {
+            drawTextureContained(context, texture, inner)
+        } else {
+            ScreenshotRenderStyle.drawLoadState(context, font, inner, didLoadFail)
         }
     }
 
     private fun drawScreenAndPanel(context: GuiGraphicsExtractor, panel: Rect) {
         context.fill(0, 0, panel.x * 2 + panel.width + 1, panel.y * 2 + panel.height + 1, SCREEN_OVERLAY)
-        OverlayPanelStyle.draw(context, panel.x, panel.y, panel.width, panel.height)
+        OverlayPanelStyle.draw(context, panel)
         context.fill(
             panel.x + 1,
             panel.y + 1,
@@ -553,14 +373,8 @@ internal object ScreenshotManagerRenderer {
 
     private fun drawScrollbar(context: GuiGraphicsExtractor, layout: ScreenshotGalleryLayout) {
         val thumb = layout.scrollThumb ?: return
-        context.fill(
-            layout.scrollTrack.x,
-            layout.scrollTrack.y,
-            layout.scrollTrack.x + layout.scrollTrack.width,
-            layout.scrollTrack.y + layout.scrollTrack.height,
-            SCROLL_TRACK,
-        )
-        context.fill(thumb.x, thumb.y, thumb.x + thumb.width, thumb.y + thumb.height, SCROLL_THUMB)
+        context.fill(layout.scrollTrack, SCROLL_TRACK)
+        context.fill(thumb, SCROLL_THUMB)
     }
 
     private fun gallerySubtitle(entryCount: Int, loadStatus: ScreenshotLoadStatus): String = when (loadStatus) {

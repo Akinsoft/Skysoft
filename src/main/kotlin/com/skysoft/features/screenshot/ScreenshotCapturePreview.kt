@@ -2,9 +2,9 @@ package com.skysoft.features.screenshot
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.NativeImage
-import com.mojang.blaze3d.systems.RenderSystem
 import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.features.screenshot.ScreenshotRenderStyle.drawButton
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContext
 import com.skysoft.gui.GuiOverlayContextType
@@ -12,22 +12,20 @@ import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
-import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
+import com.skysoft.utils.image.drawLinearTexture
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.net.AsyncRequestSlot
-import com.skysoft.utils.render.gpu.FilterMode
 import java.nio.file.Path
-import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.util.Util
 
 internal object ScreenshotCapturePreview {
     private val contexts = GuiOverlayContextType.entries.toSet()
@@ -75,9 +73,7 @@ internal object ScreenshotCapturePreview {
         val minecraft = Minecraft.getInstance()
         val screen = MinecraftClient.screen(minecraft)?.takeUnless { it is ScreenshotManagerScreen }
             ?: return InputHandlingResult.IGNORED
-        val window = minecraft.window
-        val mouseX = (minecraft.mouseHandler.xpos() * window.guiScaledWidth / window.screenWidth).toInt()
-        val mouseY = (minecraft.mouseHandler.ypos() * window.guiScaledHeight / window.screenHeight).toInt()
+        val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
         return when {
             closeBounds?.contains(mouseX, mouseY) == true -> {
                 clear()
@@ -86,12 +82,7 @@ internal object ScreenshotCapturePreview {
             deleteBounds?.contains(mouseX, mouseY) == true -> {
                 val path = current.path
                 clear()
-                CompletableFuture.runAsync({ ScreenshotRepository.delete(path) }, Util.ioPool()).whenComplete { _, failure ->
-                    if (failure == null) return@whenComplete
-                    minecraft.execute {
-                        SkysoftChat.error("Couldn't delete screenshot.")
-                    }
-                }
+                ScreenshotRepository.deleteAsync(path).reportScreenshotFailure("Couldn't delete screenshot.")
                 InputHandlingResult.CONSUMED
             }
             shareBounds?.contains(mouseX, mouseY) == true -> {
@@ -126,7 +117,7 @@ internal object ScreenshotCapturePreview {
         )
         val isSettled = animationElapsedMillis >= TRAVEL_END_MILLIS
         if (!isSettled) {
-            drawTexture(context, current, bounds)
+            context.drawLinearTexture(current.image.texture, bounds)
             return
         }
         val layout = CapturePreviewLayout.create(bounds)
@@ -137,7 +128,7 @@ internal object ScreenshotCapturePreview {
             layout.panel.width,
             layout.panel.height,
         )
-        drawTexture(context, current, bounds)
+        context.drawLinearTexture(current.image.texture, bounds)
         drawSettledControls(context, layout, current.path, overlayContext)
     }
 
@@ -152,66 +143,28 @@ internal object ScreenshotCapturePreview {
         deleteBounds = layout.delete
         shareBounds = layout.share
         val minecraft = Minecraft.getInstance()
-        val window = minecraft.window
-        val mouseX = (minecraft.mouseHandler.xpos() * window.guiScaledWidth / window.screenWidth).toInt()
-        val mouseY = (minecraft.mouseHandler.ypos() * window.guiScaledHeight / window.screenHeight).toInt()
+        val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
         val canInteract = overlayContext.screen != null && overlayContext.screen !is ScreenshotManagerScreen
-        PixelButtonRenderer.draw(
-            context,
-            minecraft.font,
-            layout.share,
-            ScreenshotSharing.buttonLabel(path),
-            selected = false,
-            hovered = canInteract && layout.share.contains(mouseX, mouseY),
-            enabled = canInteract && ScreenshotSharing.status(path) != ScreenshotShareStatus.Uploading,
-        )
-        PixelButtonRenderer.draw(
-            context,
-            minecraft.font,
-            layout.delete,
-            "",
-            selected = false,
-            hovered = canInteract && layout.delete.contains(mouseX, mouseY),
-            enabled = canInteract,
-            tone = PixelButtonTone.DANGER,
-        )
+        val font = minecraft.font
+        val canShare = canInteract && ScreenshotSharing.status(path) != ScreenshotShareStatus.Uploading
+        drawButton(context, font, layout.share, ScreenshotSharing.buttonLabel(path), canShare, mouseX, mouseY)
+        drawButton(context, font, layout.delete, "", canInteract, mouseX, mouseY, PixelButtonTone.DANGER)
         PixelButtonRenderer.drawIcon(context, layout.delete, TRASH_ICON, TRASH_ICON_SCALE, canInteract)
-        PixelButtonRenderer.draw(
-            context,
-            minecraft.font,
-            layout.close,
-            "x",
-            selected = false,
-            hovered = canInteract && layout.close.contains(mouseX, mouseY),
-            enabled = canInteract,
-        )
-    }
-
-    private fun drawTexture(context: GuiGraphicsExtractor, presentation: CapturePresentation, bounds: Rect) {
-        context.blit(
-            presentation.image.texture.textureView,
-            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            bounds.x,
-            bounds.y,
-            bounds.x + bounds.width,
-            bounds.y + bounds.height,
-            0f,
-            1f,
-            0f,
-            1f,
-        )
+        drawButton(context, font, layout.close, "x", canInteract, mouseX, mouseY)
     }
 
     private fun imageBounds(screenWidth: Int, screenHeight: Int, imageAspect: Double, elapsedMillis: Long): Rect {
-        val centerWidthLimit = min(CENTER_MAXIMUM_WIDTH, (screenWidth * CENTER_SCREEN_RATIO).roundToInt())
-        val centerHeightLimit = min(CENTER_MAXIMUM_HEIGHT, (screenHeight * CENTER_HEIGHT_RATIO).roundToInt())
-        val centerWidth = min(centerWidthLimit, (centerHeightLimit * imageAspect).roundToInt()).coerceAtLeast(1)
-        val centerHeight = (centerWidth / imageAspect).roundToInt().coerceAtLeast(1)
+        val (centerWidth, centerHeight) = fittedImageSize(
+            min(CENTER_MAXIMUM_WIDTH, (screenWidth * CENTER_SCREEN_RATIO).roundToInt()),
+            min(CENTER_MAXIMUM_HEIGHT, (screenHeight * CENTER_HEIGHT_RATIO).roundToInt()),
+            imageAspect,
+        )
         val center = Rect((screenWidth - centerWidth) / 2, (screenHeight - centerHeight) / 2, centerWidth, centerHeight)
-        val finalWidthLimit = min(FINAL_MAXIMUM_WIDTH, (screenWidth * FINAL_SCREEN_RATIO).roundToInt())
-        val finalHeightLimit = min(FINAL_MAXIMUM_HEIGHT, (screenHeight * FINAL_HEIGHT_RATIO).roundToInt())
-        val finalWidth = min(finalWidthLimit, (finalHeightLimit * imageAspect).roundToInt()).coerceAtLeast(1)
-        val finalHeight = (finalWidth / imageAspect).roundToInt().coerceAtLeast(1)
+        val (finalWidth, finalHeight) = fittedImageSize(
+            min(FINAL_MAXIMUM_WIDTH, (screenWidth * FINAL_SCREEN_RATIO).roundToInt()),
+            min(FINAL_MAXIMUM_HEIGHT, (screenHeight * FINAL_HEIGHT_RATIO).roundToInt()),
+            imageAspect,
+        )
         val settled = Rect(
             screenWidth - finalWidth - SCREEN_INSET - PANEL_PADDING,
             SCREEN_INSET + PANEL_PADDING,
@@ -235,6 +188,11 @@ internal object ScreenshotCapturePreview {
             )
             else -> settled
         }
+    }
+
+    private fun fittedImageSize(maximumWidth: Int, maximumHeight: Int, imageAspect: Double): Pair<Int, Int> {
+        val width = min(maximumWidth, (maximumHeight * imageAspect).roundToInt()).coerceAtLeast(1)
+        return width to (width / imageAspect).roundToInt().coerceAtLeast(1)
     }
 
     private fun replacePresentation(path: Path, image: NativeImage) {

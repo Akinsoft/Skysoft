@@ -70,7 +70,6 @@ internal class ScreenshotFocusTransition {
     }
 
     private fun progress(): Double {
-        if (kind == ScreenshotFocusTransitionKind.NONE) return 1.0
         val duration = when (kind) {
             ScreenshotFocusTransitionKind.EXPANSION -> EXPANSION_DURATION_NANOS
             ScreenshotFocusTransitionKind.NAVIGATION -> NAVIGATION_DURATION_NANOS

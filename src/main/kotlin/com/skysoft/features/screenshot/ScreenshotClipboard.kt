@@ -1,5 +1,8 @@
 package com.skysoft.features.screenshot
 
+import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MASK
+import com.skysoft.utils.ColorUtilities.GREEN_SHIFT
+import com.skysoft.utils.ColorUtilities.RED_SHIFT
 import com.sun.jna.FunctionMapper
 import com.sun.jna.Library
 import com.sun.jna.Native
@@ -18,22 +21,16 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
-import javax.imageio.ImageIO
 import net.minecraft.util.Util
 
 internal object ScreenshotClipboard {
     private var retainedAwtContents: Transferable? = null
 
     fun copyAsync(path: Path): CompletableFuture<Void> =
-        CompletableFuture.runAsync({ copy(path) }, Util.ioPool())
+        CompletableFuture.runAsync({ copy(readScreenshotImage(path)) }, Util.ioPool())
 
     fun copyAsync(image: BufferedImage): CompletableFuture<Void> =
         CompletableFuture.runAsync({ copy(image) }, Util.ioPool())
-
-    private fun copy(path: Path) {
-        val image = requireNotNull(ImageIO.read(path.toFile())) { "Unsupported screenshot image: $path" }
-        copy(image)
-    }
 
     private fun copy(image: BufferedImage) {
         if (Platform.isWindows()) {
@@ -119,9 +116,6 @@ private object WindowsImageClipboard {
     private const val BITMAP_REMAINING_INTEGER_FIELDS = 4
     private const val BYTES_PER_PIXEL = 3
     private const val ROW_ALIGNMENT = 4
-    private const val RED_SHIFT = 16
-    private const val GREEN_SHIFT = 8
-    private const val COLOR_CHANNEL_MASK = 0xFF
     private val WINDOWS_API_OPTIONS = HashMap(W32APIOptions.DEFAULT_OPTIONS).apply {
         put(
             Library.OPTION_FUNCTION_MAPPER,
