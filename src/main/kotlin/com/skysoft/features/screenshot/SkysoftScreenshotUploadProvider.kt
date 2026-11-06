@@ -1,5 +1,6 @@
 package com.skysoft.features.screenshot
 
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.skysoft.utils.net.CancellableRequestGroup
 import com.skysoft.utils.net.SkysoftHttp
@@ -33,7 +34,7 @@ internal object SkysoftScreenshotUploadProvider {
         )
         return HttpRequest.newBuilder(URI.create(UPLOAD_URL))
             .timeout(Duration.ofSeconds(UPLOAD_TIMEOUT_SECONDS))
-            .header("User-Agent", "Skysoft")
+            .header("User-Agent", SkysoftHttp.USER_AGENT)
             .header("Content-Type", "multipart/form-data; boundary=$boundary")
             .POST(body)
             .build()
@@ -65,15 +66,15 @@ internal object SkysoftScreenshotUploadProvider {
         )
     }
 
-    private fun responseData(statusCode: Int, responseBody: String): com.google.gson.JsonObject {
+    private fun responseData(statusCode: Int, responseBody: String): JsonObject {
         require(statusCode in 200..299) { "ImgBB returned HTTP $statusCode" }
         val response = JsonParser.parseString(responseBody).asJsonObject
         require(response.get("success").asBoolean) { "ImgBB rejected the upload" }
         return requireNotNull(response.getAsJsonObject("data")) { "ImgBB omitted upload data" }
     }
 
-    private fun com.google.gson.JsonObject.requiredHttpsUrl(field: String, expectedHost: String): String {
-        val value = get(field)?.asString ?: throw IllegalStateException("ImgBB omitted $field")
+    private fun JsonObject.requiredHttpsUrl(field: String, expectedHost: String): String {
+        val value = checkNotNull(get(field)?.asString) { "ImgBB omitted $field" }
         val uri = URI.create(value)
         require(uri.scheme == "https" && uri.host.equals(expectedHost, ignoreCase = true)) {
             "ImgBB returned an invalid $field"

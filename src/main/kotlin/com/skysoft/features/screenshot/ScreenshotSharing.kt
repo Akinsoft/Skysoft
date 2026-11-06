@@ -33,12 +33,7 @@ internal object ScreenshotSharing {
     }
 
     fun request(path: Path, parent: Screen?) {
-        val current = status(path)
-        if (current is ScreenshotShareStatus.Uploaded) {
-            copyLink(current.upload)
-            return
-        }
-        if (current == ScreenshotShareStatus.Uploading) return
+        if (didReuseExistingShare(path)) return
 
         MinecraftClient.setScreen(
             ConfirmScreen(
@@ -59,12 +54,7 @@ internal object ScreenshotSharing {
     fun share(path: Path) {
         val key = path.normalizedScreenshotPath()
         synchronized(statuses) {
-            val current = status(path)
-            if (current is ScreenshotShareStatus.Uploaded) {
-                copyLink(current.upload)
-                return
-            }
-            if (current == ScreenshotShareStatus.Uploading) return
+            if (didReuseExistingShare(path)) return
 
             statuses[key] = ScreenshotShareStatus.Uploading
             uploadRequests.startIfIdle(
@@ -89,6 +79,15 @@ internal object ScreenshotSharing {
             statuses.remove(key)
             ScreenshotUploadMetadataStore.forget(path)
         }
+    }
+
+    private fun didReuseExistingShare(path: Path): Boolean = when (val current = status(path)) {
+        is ScreenshotShareStatus.Uploaded -> {
+            copyLink(current.upload)
+            true
+        }
+        ScreenshotShareStatus.Uploading -> true
+        ScreenshotShareStatus.Ready, ScreenshotShareStatus.Failed -> false
     }
 
     private fun completeUpload(path: Path, key: String, upload: ScreenshotUpload?, failure: Throwable?) {

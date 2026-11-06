@@ -38,6 +38,8 @@ internal class ScreenshotManagerScreen(
     private var shouldCloseAfterDiscard = false
     private var hasStartedLoading = false
     private var isDisposed = false
+    private val currentEntry: ScreenshotEntry?
+        get() = selectedPath?.let { path -> entries.firstOrNull { it.path == path } }
 
     override fun init() {
         if (!hasStartedLoading) {
@@ -47,7 +49,7 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun extractRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
-        val selectedEntry = selectedPath?.let { path -> entries.firstOrNull { it.path == path } }
+        val selectedEntry = currentEntry
         if (selectedEntry == null) {
             selectedPath = null
             confirmation = null
@@ -150,21 +152,15 @@ internal class ScreenshotManagerScreen(
     }
 
     override fun mouseDragged(click: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
-        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseDragged(click, dragX, dragY)
-        if (!isEditing) return super.mouseDragged(click, dragX, dragY)
-        if (selectedPath == null) return super.mouseDragged(click, dragX, dragY)
-        return if (editor.processDrag(click.x(), click.y()) == InputHandlingResult.CONSUMED) {
-            true
-        } else {
-            super.mouseDragged(click, dragX, dragY)
-        }
+        val handled = click.button() == InputConstants.MOUSE_BUTTON_LEFT && isEditing && selectedPath != null &&
+            editor.processDrag(click.x(), click.y()) == InputHandlingResult.CONSUMED
+        return handled || super.mouseDragged(click, dragX, dragY)
     }
 
     override fun mouseReleased(click: MouseButtonEvent): Boolean {
-        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseReleased(click)
-        if (!isEditing) return super.mouseReleased(click)
-        if (selectedPath == null) return super.mouseReleased(click)
-        return if (editor.processRelease() == InputHandlingResult.CONSUMED) true else super.mouseReleased(click)
+        val handled = click.button() == InputConstants.MOUSE_BUTTON_LEFT && isEditing && selectedPath != null &&
+            editor.processRelease() == InputHandlingResult.CONSUMED
+        return handled || super.mouseReleased(click)
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
@@ -291,7 +287,6 @@ internal class ScreenshotManagerScreen(
             layout.previous.contains(mouseX, mouseY) -> navigateSelection(-1)
             layout.next.contains(mouseX, mouseY) -> navigateSelection(1)
             layout.share.contains(mouseX, mouseY) -> {
-                val path = selectedPath ?: return InputHandlingResult.IGNORED
                 if (ScreenshotSharing.status(path) is ScreenshotShareStatus.Uploaded) {
                     ScreenshotSharing.share(path)
                 } else {
@@ -372,8 +367,7 @@ internal class ScreenshotManagerScreen(
     }
 
     private fun startAction(action: ScreenshotAction): InputHandlingResult {
-        val entry = selectedPath?.let { path -> entries.firstOrNull { it.path == path } }
-            ?: return InputHandlingResult.IGNORED
+        val entry = currentEntry ?: return InputHandlingResult.IGNORED
         val snapshot = if (isEditing) editor.session(entry.path).snapshot else ScreenshotEditSnapshot()
         confirmation = null
         pendingAction = action
@@ -390,7 +384,7 @@ internal class ScreenshotManagerScreen(
                     notice = screenshotTimedNotice(request.validationError, true)
                 }
                 else -> {
-                    notice = ScreenshotNotice(action.progressMessage, false, Long.MAX_VALUE)
+                    notice = ScreenshotNotice.persistent(action.progressMessage)
                     request.execute().whenComplete { _, executeFailure -> finishAction(request, executeFailure) }
                 }
             }
@@ -468,11 +462,11 @@ internal class ScreenshotManagerScreen(
 
 }
 
-internal enum class ScreenshotConfirmation(val confirmLabel: String) {
-    SHARE("Upload"),
-    DELETE("Delete"),
-    SAVE("Save"),
-    DISCARD("Discard"),
+internal enum class ScreenshotConfirmation(val confirmLabel: String, val notice: String) {
+    SHARE("Upload", "Upload publicly for 30 days?"),
+    DELETE("Delete", "Delete this screenshot?"),
+    SAVE("Save", "How would you like to save your changes?"),
+    DISCARD("Discard", "Discard unsaved screenshot edits?"),
 }
 
 private fun screenshotTimedNotice(text: String, isError: Boolean): ScreenshotNotice = ScreenshotNotice(

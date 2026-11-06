@@ -31,8 +31,7 @@ internal data class ScreenshotActionRequest(
                 { ScreenshotEditedImage.write(source, snapshot, requireNotNull(destination)) },
                 Util.ioPool(),
             )
-        ScreenshotAction.DELETE ->
-            CompletableFuture.runAsync({ ScreenshotRepository.delete(source) }, Util.ioPool())
+        ScreenshotAction.DELETE -> ScreenshotRepository.deleteAsync(source)
     }
 }
 

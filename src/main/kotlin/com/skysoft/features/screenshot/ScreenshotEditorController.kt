@@ -1,5 +1,6 @@
 package com.skysoft.features.screenshot
 
+import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.image.RegisteredImageTexture
 import com.skysoft.utils.input.InputHandlingResult
 import java.nio.file.Path
@@ -17,14 +18,10 @@ internal class ScreenshotEditorController {
     fun session(path: Path): ScreenshotEditSession =
         sessions.getOrPut(path) { ScreenshotEditSession() }
 
-    fun prepare(
-        path: Path,
-        viewport: com.skysoft.utils.gui.Rect,
-        texture: RegisteredImageTexture?,
-    ): ScreenshotEditorPresentation {
+    fun prepare(path: Path, viewport: Rect, texture: RegisteredImageTexture?): ScreenshotEditorPresentation {
         val session = session(path)
-        val activeDrag = drag
-        if (activeDrag != null && activeDrag.session !== session) processRelease()
+        val draggedSession = drag?.session
+        if (draggedSession != null && draggedSession !== session) processRelease()
         val geometry = texture?.let {
             ScreenshotEditorGeometry.create(viewport, it.width, it.height, session)
         }
@@ -113,24 +110,14 @@ internal class ScreenshotEditorController {
         val anchorX = ((mouseX - current.imageBounds.x) / current.imageBounds.width).coerceIn(0.0, 1.0)
         val anchorY = ((mouseY - current.imageBounds.y) / current.imageBounds.height).coerceIn(0.0, 1.0)
         session.zoomBy(steps)
-        val resized = ScreenshotEditorGeometry.create(
-            current.viewport,
-            current.imageWidth,
-            current.imageHeight,
-            session,
-        )
+        val resized = current.recreate(session)
         val centeredX = current.viewport.x + (current.viewport.width - resized.imageBounds.width) / 2.0
         val centeredY = current.viewport.y + (current.viewport.height - resized.imageBounds.height) / 2.0
         session.setPan(
             mouseX - anchorX * resized.imageBounds.width - centeredX,
             mouseY - anchorY * resized.imageBounds.height - centeredY,
         )
-        val clamped = ScreenshotEditorGeometry.create(
-            current.viewport,
-            current.imageWidth,
-            current.imageHeight,
-            session,
-        )
+        val clamped = current.recreate(session)
         session.setPan(clamped.effectivePanX, clamped.effectivePanY)
         geometry = clamped
         return InputHandlingResult.CONSUMED
@@ -143,7 +130,7 @@ internal class ScreenshotEditorController {
         mouseY: Int,
     ): Boolean {
         val session = session(path)
-        val selectedTool = layout.toolButtons.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
+        val selectedTool = layout.toolButtons.keyAt(mouseX, mouseY)
         return when {
             selectedTool != null -> {
                 processRelease()
@@ -195,8 +182,8 @@ internal class ScreenshotEditorController {
                 }
             }
             ScreenshotEditorTool.DRAW -> {
-                val color = layout.colorSwatches.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
-                val brush = layout.brushSizes.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
+                val color = layout.colorSwatches.keyAt(mouseX, mouseY)
+                val brush = layout.brushSizes.keyAt(mouseX, mouseY)
                 when {
                     color != null -> {
                         session.selectColor(color)

@@ -5,6 +5,7 @@ import com.skysoft.utils.MinecraftFileDialogs
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
+import net.minecraft.util.Util
 
 internal data class ScreenshotEntry(
     val path: Path,
@@ -45,10 +46,13 @@ internal object ScreenshotRepository {
         }
     }
 
-    fun delete(path: Path) {
-        Files.delete(path)
-        ScreenshotSharing.invalidate(path)
-    }
+    fun deleteAsync(path: Path): CompletableFuture<Void> = CompletableFuture.runAsync(
+        {
+            Files.delete(path)
+            ScreenshotSharing.invalidate(path)
+        },
+        Util.ioPool(),
+    )
 
     private fun isScreenshot(path: Path): Boolean =
         Files.isRegularFile(path) && path.fileName.toString().endsWith(PNG_EXTENSION, ignoreCase = true)

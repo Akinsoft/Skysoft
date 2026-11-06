@@ -14,7 +14,7 @@ import kotlin.math.roundToInt
 
 internal object ScreenshotEditedImage {
     fun render(sourcePath: Path, snapshot: ScreenshotEditSnapshot): BufferedImage {
-        val source = requireNotNull(ImageIO.read(sourcePath.toFile())) { "Unsupported screenshot image: $sourcePath" }
+        val source = readScreenshotImage(sourcePath)
         val bounds = cropBounds(source, snapshot.crop)
         val output = BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB)
         val graphics = output.createGraphics()
@@ -102,3 +102,6 @@ internal object ScreenshotEditedImage {
         val height: Int get() = bottom - top
     }
 }
+
+internal fun readScreenshotImage(path: Path): BufferedImage =
+    requireNotNull(ImageIO.read(path.toFile())) { "Unsupported screenshot image: $path" }
