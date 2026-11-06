@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
 import com.skysoft.utils.ActiveConsumerRegistry
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.world.entity.player.Player
 
 internal object ActivePetEntityTracker {
@@ -39,9 +40,7 @@ internal object ActivePetEntityTracker {
             return
         }
         val matcher = PetEntityMatcher(context.currentPet, context.expectedTextures, context.player)
-        val identity = matcher.identity
-        val previous = observation
-        if (previous != null && previous.identity != identity) clear()
+        if (observation?.identity != matcher.identity) clear()
         val entities = ClientEntitySnapshot.entities()
 
         val trackedEntity = observation?.entity?.id?.let(context.level::getEntity)
@@ -74,7 +73,7 @@ internal object ActivePetEntityTracker {
     }
 
     private data class TrackingContext(
-        val level: net.minecraft.client.multiplayer.ClientLevel,
+        val level: ClientLevel,
         val player: Player,
         val currentPet: StoredPetData,
         val expectedTextures: Set<String>,

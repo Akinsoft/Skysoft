@@ -23,12 +23,6 @@ object PetStorageService {
 
     internal var lastExactPetMenuClick = ElapsedTimeMark.farPast()
 
-    internal val petDisplayDataSource: PetDisplayDataSource
-        get() = PetWidgetStateTracker.displayDataSource
-
-    val petWidgetDisplayMessage: List<String>?
-        get() = PetWidgetStateTracker.displayMessage
-
     fun register() {
         AccessoryBagData.register(PetFeatureDemand::isActive)
         AttributeShardCatalog.registerConsumer("Pet Storage", PetFeatureDemand::isActive)
@@ -58,9 +52,11 @@ object PetStorageService {
         }
     }
 
+    internal fun storedPet(uuid: UUID): StoredPetData? = petStorage.pets.firstOrNull { it.uuid == uuid }
+
     internal fun storePet(petData: StoredPetData) {
         val uuid = petData.uuid ?: return
-        val existing = petStorage.pets.firstOrNull { it.uuid == uuid }
+        val existing = storedPet(uuid)
         if (existing?.hasSamePersistedDataAs(petData) == true) {
             existing.exactItemStack = petData.exactItemStack
             return
@@ -81,16 +77,6 @@ object PetStorageService {
     fun onUseItem() {
         if (PetFeatureDemand.isActive()) PetStorageHeldPetAdd.recordUseItem()
     }
-
-    fun getActiveExpSharePets(): List<StoredPetData> = PetStorageExpSharing.activePets()
-
-    fun getActiveExpSharePetUuids(): Set<UUID> = PetStorageExpSharing.activeUuids()
-
-    fun getDisabledExpSharePetUuids(): Set<UUID> = PetStorageExpSharing.disabledUuids()
-
-    fun isExpShareSlotDisabled(slot: Int): Boolean = PetStorageExpSharing.isSlotDisabled(slot)
-
-    fun isExpSharingInventory(inventoryName: String?): Boolean = PetStorageExpSharing.isInventory(inventoryName)
 
     @JvmStatic
     fun shouldHighlightActivePetSlot(inventoryName: String?, slot: Slot): Boolean {
@@ -115,7 +101,6 @@ object PetStorageService {
         skinTagKnown: Boolean = false,
         level: Int? = null,
         exp: Double? = null,
-        expErrorFactor: Double = 0.01,
     ): StoredPetData? = petStorage.pets
         .filter { it.uuid != null }
         .filter { it.matchesDisplayName(name) }
@@ -131,8 +116,10 @@ object PetStorageService {
         }
         .filter { PetStoragePetItems.matchesSkinTag(it, skinTag, skinTagKnown) }
         .filter { level == null || it.level == level }
-        .singleOrNull { PetStoragePetItems.hasMatchingExp(it, exp, expErrorFactor) }
+        .singleOrNull { PetStoragePetItems.hasMatchingExp(it, exp, RESOLVED_PET_EXP_ERROR_FACTOR) }
 }
+
+private const val RESOLVED_PET_EXP_ERROR_FACTOR = 0.01
 
 private fun StoredPetData.hasSamePersistedDataAs(other: StoredPetData): Boolean =
     petInternalName == other.petInternalName &&

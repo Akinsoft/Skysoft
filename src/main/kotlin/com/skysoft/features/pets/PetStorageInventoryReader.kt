@@ -10,7 +10,6 @@ import com.skysoft.data.skyblock.StatsEquipmentMenu
 import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
 import com.skysoft.features.pets.PetItemUtilities.toExactPetDataOrNull
-import com.skysoft.utils.NumberUtilities.formatDoubleOrNull
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.RegexUtilities.groupOrNull
@@ -77,66 +76,50 @@ internal object PetStorageInventoryReader {
         }
         val currentPetItem = inventoryItems[petItemSlot] ?: return
         if (PetStoragePetItems.readExactSelectedPetData(currentPetItem) == PetStoragePetItems.PetDataReadResult.READ) return
-        val currentPetItemLore = currentPetItem.loreLines().takeIf { it.isNotEmpty() } ?: return
-
-        currentPetItemLore.firstNotNullOfOrNull { line ->
-            petMenuSelectedPetNamePattern.find(line)?.let { match ->
-                val petName = match.group("pet")
-                val rarity = PetStoragePetItems.rarityOrNull(match) ?: return@let null
-                val petInternalName = PetRepository.petWithRarityToInternalName(petName, rarity)
-                val petSkin = PetStoragePetItems.petSkinInternalNameOrNull(match, petInternalName)
-                val skinTag = match.groupOrNull("skin")?.replace(" ", "")
-                val level = currentPetItemLore.firstNotNullOfOrNull { progressLine ->
-                    petMenuSelectedPetProgressPattern.find(progressLine)?.let { progressMatch ->
-                        progressMatch.groupOrNull("next")?.formatInt()?.minus(1)
-                            ?: PetRepository.getMaxLevel(petInternalName)
-                    }
-                } ?: return@let null
-                val petExp = currentPetItemLore.firstNotNullOfOrNull { xpLine ->
-                    petMenuSelectedPetXpPattern.find(xpLine)?.let { xpMatch ->
-                        val current = xpMatch.group("current")
-                        val currentValue = current.formatDoubleOrNull() ?: return@let null
-                        val exact = PetStoragePetItems.isExactPetExpText(current)
-                        when (xpMatch.groupOrNull("next")) {
-                            null -> PetExpRead(currentValue, exact)
-                            else -> {
-                                val currentLevelXp = PetRepository.levelToXp(level, petInternalName) ?: 0.0
-                                PetExpRead(currentLevelXp + currentValue, exact)
-                            }
-                        }
-                    }
-                }
-                val resolvedPet = PetStorageService.resolvePetDataOrNull(
-                    name = petName,
-                    skinTag = skinTag,
-                    skinTagKnown = true,
-                    rarity = rarity,
-                    level = level,
-                    exp = petExp?.value,
-                )
-                val matchingCurrentPet = ActivePetTracker.currentPet?.takeIf {
-                    PetStoragePetItems.matchesSelectedPet(it, petName, rarity, level, skinTag)
-                }
-                val currentPetData = resolvedPet ?: matchingCurrentPet ?: StoredPetData(
-                    petInternalName = petInternalName,
-                    skinInternalName = petSkin,
-                    exp = petExp?.value ?: PetRepository.levelToXp(level, petInternalName) ?: 0.0,
-                )
-                val hasExactPetMenuRead = currentPetData.uuid?.let { it in exactPetMenuUuids } == true
-                val previousExp = currentPetData.exp
-                val exactPetExp = petExp.exactValue.takeUnless { hasExactPetMenuRead }
-                    ?.let { PetStoragePetItems.reconcileDisplayedExp(currentPetData, it) }
-                val updatedPet = PetStoragePetItems.withKnownData(currentPetData, exp = exactPetExp, skinInternalName = petSkin)
-                PetXpEstimator.resyncFromPetDataRead(
-                    updatedPet,
-                    exact = exactPetExp != null,
-                    previousExp = previousExp,
-                    appliedExp = exactPetExp,
-                )
-                ActivePetTracker.assertFoundCurrentData(updatedPet, PetDataAssertionSource.MENU)
-                true
-            }
+        val lore = currentPetItem.loreLines().takeIf { it.isNotEmpty() } ?: return
+        lore.any { line ->
+            petMenuSelectedPetNamePattern.find(line)?.let { didReadSelectedPetLore(it, lore, exactPetMenuUuids) } == true
         }
     }
 
+    private fun didReadSelectedPetLore(match: MatchResult, lore: List<String>, exactPetMenuUuids: Set<UUID>): Boolean {
+        val petName = match.group("pet")
+        val rarity = PetStoragePetItems.rarityOrNull(match) ?: return false
+        val petInternalName = PetRepository.petWithRarityToInternalName(petName, rarity)
+        val petSkin = PetStoragePetItems.petSkinInternalNameOrNull(match, petInternalName)
+        val skinTag = PetStoragePetItems.skinTagOrNull(match)
+        val level = lore.firstNotNullOfOrNull { line ->
+            petMenuSelectedPetProgressPattern.find(line)?.let { progressMatch ->
+                progressMatch.groupOrNull("next")?.formatInt()?.minus(1) ?: PetRepository.getMaxLevel(petInternalName)
+            }
+        } ?: return false
+        val petExp = PetStoragePetItems.readMenuPetExp(lore, level, petInternalName)
+        val resolvedPet = PetStorageService.resolvePetDataOrNull(
+            name = petName,
+            skinTag = skinTag,
+            skinTagKnown = true,
+            rarity = rarity,
+            level = level,
+            exp = petExp?.value,
+        )
+        val matchingCurrentPet = ActivePetTracker.currentPet?.takeIf {
+            PetStoragePetItems.matchesSelectedPet(it, petName, rarity, level, skinTag)
+        }
+        val currentPetData = resolvedPet ?: matchingCurrentPet ?: StoredPetData(
+            petInternalName = petInternalName,
+            skinInternalName = petSkin,
+            exp = petExp?.value ?: PetRepository.levelToXp(level, petInternalName) ?: 0.0,
+        )
+        val hasExactPetMenuRead = currentPetData.uuid?.let { it in exactPetMenuUuids } == true
+        val exactPetExp = petExp.exactValue.takeUnless { hasExactPetMenuRead }
+            ?.let { PetStoragePetItems.reconcileDisplayedExp(currentPetData, it) }
+        saveDisplayedPetRead(
+            currentPetData,
+            exactExp = exactPetExp,
+            skinInternalName = petSkin,
+            heldItemInternalName = null,
+            source = PetDataAssertionSource.MENU,
+        )
+        return true
+    }
 }

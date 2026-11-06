@@ -18,7 +18,7 @@ object PetDisplayTextFormatter {
         petData: StoredPetData,
         textElement: TextElement,
         textConfig: PetTextDisplaySettings,
-        showOverflowXp: Boolean = true,
+        showOverflowXp: Boolean,
     ): String? = with(petData) {
         val xpFormat = textConfig.xpFormat.get()
         when (textElement) {

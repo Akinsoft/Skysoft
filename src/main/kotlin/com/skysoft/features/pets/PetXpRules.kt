@@ -101,7 +101,6 @@ internal object PetXpRules {
         } ?: ProfileStorageApi.storage.beastmasterPetXpMultiplier ?: 1.0
 }
 
-
 private const val PERCENT_DENOMINATOR = 100.0
 
 private const val DIANA_PET_XP_MULTIPLIER = 1.35

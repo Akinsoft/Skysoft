@@ -12,7 +12,7 @@ import java.util.UUID
 
 internal object PetStorageExpSharing {
     fun readExpSharePets(inventoryName: String?, inventoryItems: Map<Int, ItemStack>) {
-        if (inventoryName != EXP_SHARING_INVENTORY_NAME) return
+        if (!isInventory(inventoryName)) return
         val expSharePets = EXP_SHARE_SLOTS.map { expShareSlot ->
             val slotItem = inventoryItems[expShareSlot]?.takeIf {
                 it.hoverName.string != "No pet in slot"
@@ -28,7 +28,7 @@ internal object PetStorageExpSharing {
 
     fun activePets(): List<StoredPetData> =
         PetStorageService.petStorage.expSharePets.take(activeSlotCount()).mapNotNull { uuid ->
-            uuid?.let { petUuid -> PetStorageService.petStorage.pets.firstOrNull { it.uuid == petUuid } }
+            uuid?.let(PetStorageService::storedPet)
         }
 
     fun activeUuids(): Set<UUID> =

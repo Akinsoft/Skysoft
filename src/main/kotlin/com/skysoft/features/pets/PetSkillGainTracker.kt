@@ -3,7 +3,6 @@ package com.skysoft.features.pets
 import com.skysoft.data.skyblock.SkillExpGainApi
 import com.skysoft.data.skyblock.SkyBlockSkill
 import com.skysoft.data.StoredPetData
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ElapsedTimeMark
 import java.util.UUID
 import kotlin.math.abs
@@ -11,9 +10,7 @@ import kotlin.math.roundToLong
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-internal class PetSkillGainTracker(
-    private val estimatePetXp: (StoredPetData, SkyBlockSkill, Double) -> Double?,
-) {
+internal class PetSkillGainTracker {
     private val skillSamples = mutableMapOf<SkyBlockSkill, SkillProgressSample>()
     private val recentSkillEstimates = mutableMapOf<SkyBlockSkill, RecentSkillEstimate>()
     private val recentGainQuanta = mutableMapOf<SkyBlockSkill, MutableMap<Double, ElapsedTimeMark>>()
@@ -49,35 +46,27 @@ internal class PetSkillGainTracker(
         }
     }
 
-    fun rememberRecentSkillEstimate(
-        event: SkillExpGainApi.SkillExpGain,
-        targetPet: StoredPetData,
-        skillRead: SkillGainRead,
-    ) {
-        if (skillRead.gain <= 0.0 || targetPet.uuid == null || skillRead.petUuid != targetPet.uuid) return
-        estimatePetXp(targetPet, event.skill, skillRead.gain) ?: return
-        recentSkillEstimates[event.skill] = RecentSkillEstimate(targetPet.uuid)
+    fun rememberRecentSkillEstimate(skill: SkyBlockSkill, targetPet: StoredPetData, skillRead: SkillGainRead) {
+        if (targetPet.uuid == null || skillRead.petUuid != targetPet.uuid) return
+        recentSkillEstimates[skill] = RecentSkillEstimate(targetPet.uuid)
     }
 
-    fun resyncSkillFractionFromExactRead(petData: StoredPetData, appliedDelta: Double?): ChangeResult {
-        val petUuid = petData.uuid ?: return ChangeResult.UNCHANGED
+    fun resyncSkillFractionFromExactRead(petData: StoredPetData, appliedDelta: Double) {
+        if (appliedDelta == 0.0) return
+        val petUuid = petData.uuid ?: return
         val skill = recentSkillEstimates.asSequence()
             .filter { it.value.petUuid == petUuid && it.value.createdAt.passedSince() <= 10.minutes }
             .minByOrNull { it.value.createdAt.passedSince() }
-            ?.key ?: return ChangeResult.UNCHANGED
-        val sample = skillSamples[skill] ?: return ChangeResult.UNCHANGED
-        val totalXp = sample.totalXp ?: return ChangeResult.UNCHANGED
-        val precise = sample.preciseTotalXp ?: return ChangeResult.UNCHANGED
-        val multiplier = estimatePetXp(petData, skill, 1.0)
-            ?.takeIf { it > 0.0 }
-            ?: return ChangeResult.UNCHANGED
-        val skillDelta = appliedDelta?.takeIf { it != 0.0 }?.let { it / multiplier } ?: return ChangeResult.UNCHANGED
-        if (abs(skillDelta) >= 1.0) return ChangeResult.UNCHANGED
+            ?.key ?: return
+        val sample = skillSamples[skill] ?: return
+        val totalXp = sample.totalXp ?: return
+        val precise = sample.preciseTotalXp ?: return
+        val multiplier = PetXpRules.estimatePetXp(petData, skill, 1.0)?.takeIf { it > 0.0 } ?: return
+        val skillDelta = appliedDelta / multiplier
+        if (abs(skillDelta) >= 1.0) return
 
         val resynced = (precise + skillDelta).coerceIn(totalXp, totalXp + MAX_ESTIMATED_TOTAL_FRACTION)
-        if (resynced == precise) return ChangeResult.UNCHANGED
         skillSamples[skill] = SkillProgressSample(totalXp, resynced, sample.petUuid)
-        return ChangeResult.CHANGED
     }
 
     fun resetWorldState() {
@@ -333,7 +322,6 @@ private data class SpawnAutopetContext(
     val previousPetUuid: UUID?,
     val createdAt: ElapsedTimeMark = ElapsedTimeMark.now(),
 )
-
 
 private const val ACTION_BAR_EXP_SOURCE = "actionbar"
 

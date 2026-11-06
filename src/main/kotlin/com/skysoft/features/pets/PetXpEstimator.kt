@@ -4,7 +4,6 @@ import com.skysoft.data.skyblock.SkillExpGainApi
 import com.skysoft.data.skyblock.SkyBlockSkill
 import com.skysoft.data.skyblock.pets.PetRepository
 import com.skysoft.data.StoredPetData
-import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.RegexUtilities.group
@@ -14,8 +13,7 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
 object PetXpEstimator {
-    private val storage get() = ProfileStorageApi.storage
-    private val skillTracker = PetSkillGainTracker(PetXpRules::estimatePetXp)
+    private val skillTracker = PetSkillGainTracker()
     private val recentEstimatePetUuids = mutableMapOf<UUID, ElapsedTimeMark>()
     private var pendingLevelUp: PendingPetLevelUp? = null
     private val recentEstimatedPetExp = mutableMapOf<UUID, ElapsedTimeMark>()
@@ -52,14 +50,9 @@ object PetXpEstimator {
         ActivePetTracker.updateCurrentPetExp(levelExp)
     }
 
-    fun resyncFromPetDataRead(
-        petData: StoredPetData,
-        exact: Boolean,
-        previousExp: Double? = null,
-        appliedExp: Double? = null,
-    ) {
-        val appliedDelta = appliedExp?.let { applied -> previousExp?.let { applied - it } }
-        if (exact) skillTracker.resyncSkillFractionFromExactRead(petData, appliedDelta)
+    fun resyncFromPetDataRead(petData: StoredPetData, previousExp: Double?, appliedExp: Double?) {
+        if (appliedExp == null || previousExp == null) return
+        skillTracker.resyncSkillFractionFromExactRead(petData, appliedExp - previousExp)
     }
 
     fun shouldRecordPetMenuRead(uuid: UUID?): Boolean {
@@ -96,7 +89,7 @@ object PetXpEstimator {
         val petXp = PetXpRules.estimatePetXp(targetPet, event.skill, skillGain) ?: return
 
         targetPet.uuid?.let { recentEstimatePetUuids[it] = ElapsedTimeMark.now() }
-        skillTracker.rememberRecentSkillEstimate(event, targetPet, skillRead)
+        skillTracker.rememberRecentSkillEstimate(event.skill, targetPet, skillRead)
         val targetExp = targetPet.targetExpAfterGain(targetPetExp, petXp)
         updateTargetPetExp(targetPet, targetExp)
         targetPet.uuid?.let { uuid -> recentEstimatedPetExp[uuid] = ElapsedTimeMark.now() }
@@ -104,21 +97,17 @@ object PetXpEstimator {
     }
 
     private fun resolveGainTarget(skillRead: SkillGainRead, currentPet: StoredPetData?): StoredPetData? =
-        if (skillRead.petUuid == null) currentPet else getPetByUuid(skillRead.petUuid)
+        if (skillRead.petUuid == null) currentPet else PetStorageService.storedPet(skillRead.petUuid)
 
     private fun updateExpSharePets(skill: SkyBlockSkill, sourcePetXp: Double, currentPetUuid: UUID?) {
         val baseRate = PetXpRules.expShareBaseRate()
         val whyNotMoreRate = PetXpRules.whyNotMoreExpShareRate()
-        PetStorageService.getActiveExpSharePets().forEach { petData ->
+        PetStorageExpSharing.activePets().forEach { petData ->
             val currentExp = petData.exp ?: return@forEach
-            if (petData.uuid == currentPetUuid) {
-                return@forEach
-            }
-            val itemRate = if (petData.heldItemInternalName == EXP_SHARE) EXP_SHARE_ITEM_RATE else 0.0
+            if (petData.uuid == currentPetUuid) return@forEach
+            val itemRate = if (petData.heldItemInternalName == EXP_SHARE_ITEM) EXP_SHARE_ITEM_RATE else 0.0
             val rate = baseRate + whyNotMoreRate + itemRate
-            if (rate <= 0.0) {
-                return@forEach
-            }
+            if (rate <= 0.0) return@forEach
 
             val petType = PetRepository.getPetType(petData.fauxInternalName) ?: return@forEach
             val sharedPetBaseMultiplier = PetXpRules.skillBaseMultiplier(petType, skill) ?: return@forEach
@@ -128,16 +117,13 @@ object PetXpEstimator {
         }
     }
 
-    private fun getPetByUuid(uuid: UUID): StoredPetData? =
-        storage.pets.firstOrNull { it.uuid == uuid }
-
-    private fun updateTargetPetExp(petData: StoredPetData, exp: Double): StoredPetData? {
+    private fun updateTargetPetExp(petData: StoredPetData, exp: Double) {
         if (petData.uuid == ActivePetTracker.currentPet?.uuid) {
-            return ActivePetTracker.updateCurrentPetExp(exp)
+            ActivePetTracker.updateCurrentPetExp(exp)
+            return
         }
-        val currentExp = petData.exp ?: 0.0
-        if (exp <= currentExp) return null
-        return petData.copy(exp = exp).also(PetStorageService::storePet)
+        if (exp <= (petData.exp ?: 0.0)) return
+        PetStorageService.storePet(petData.copy(exp = exp))
     }
 
     private fun StoredPetData.targetExpAfterGain(currentExp: Double, petXp: Double): Double {
@@ -173,14 +159,11 @@ object PetXpEstimator {
             if (currentExp > levelExp) return currentExp + gainedExp
             return maxOf(previousExp + gainedExp, levelExp)
         }
-
     }
+
     private val WIDGET_STALE_READ_GRACE = 3.seconds
 
     private val petLevelUpPattern = Regex("""Your (?<pet>.+) leveled up to level (?<level>\d+)!""")
 }
 
-
 private const val EXP_SHARE_ITEM_RATE = 0.15
-
-private const val EXP_SHARE = "PET_ITEM_EXP_SHARE"

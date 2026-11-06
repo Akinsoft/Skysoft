@@ -59,17 +59,7 @@ object PetOverlayConfigScreen {
         val renderable = preview.renderable
         val minecraft = Minecraft.getInstance()
         val pane = previewPane(preview)
-        val position = updatePreviewPosition(
-            pane.defaultLeft,
-            pane.defaultTop,
-            pane.width,
-            pane.height,
-            pane.screenWidth,
-            pane.screenHeight,
-            mouseX,
-            mouseY,
-        )
-        val bounds = pane.boundsAt(position)
+        val bounds = pane.boundsAt(updatePreviewPosition(pane, mouseX, mouseY))
 
         context.fill(
             bounds.left - PREVIEW_SHADOW,
@@ -155,26 +145,18 @@ object PetOverlayConfigScreen {
         )
     }
 
-    private fun updatePreviewPosition(
-        defaultLeft: Int,
-        defaultTop: Int,
-        paneWidth: Int,
-        paneHeight: Int,
-        screenWidth: Int,
-        screenHeight: Int,
-        mouseX: Int,
-        mouseY: Int,
-    ): PreviewPosition {
-        var position = initialPreviewPosition(defaultLeft, defaultTop, paneWidth, paneHeight, screenWidth, screenHeight)
-        val mouseDown = isLeftMouseButtonDown()
+    private fun updatePreviewPosition(pane: PreviewPane, mouseX: Int, mouseY: Int): PreviewPosition {
+        var position = (previewPosition ?: PreviewPosition(pane.defaultLeft, pane.defaultTop)).clampedTo(pane)
+        val mouseDown = InputUtilities.isMouseButtonDown(InputConstants.MOUSE_BUTTON_LEFT)
         if (!mouseDown) {
             draggingPreview = false
-        } else if (!wasMouseDown && position.headerContains(mouseX, mouseY, paneWidth)) {
-            startPreviewDrag(position, mouseX, mouseY)
+        } else if (!wasMouseDown && position.headerContains(mouseX, mouseY, pane.width)) {
+            draggingPreview = true
+            dragOffsetX = mouseX - position.left
+            dragOffsetY = mouseY - position.top
         }
         if (draggingPreview) {
-            position = PreviewPosition(mouseX - dragOffsetX, mouseY - dragOffsetY)
-                .clamped(paneWidth, paneHeight, screenWidth, screenHeight)
+            position = PreviewPosition(mouseX - dragOffsetX, mouseY - dragOffsetY).clampedTo(pane)
         }
 
         wasMouseDown = mouseDown
@@ -182,42 +164,14 @@ object PetOverlayConfigScreen {
         return position
     }
 
-    private fun initialPreviewPosition(
-        defaultLeft: Int,
-        defaultTop: Int,
-        paneWidth: Int,
-        paneHeight: Int,
-        screenWidth: Int,
-        screenHeight: Int,
-    ): PreviewPosition =
-        (previewPosition ?: PreviewPosition(defaultLeft, defaultTop))
-            .clamped(paneWidth, paneHeight, screenWidth, screenHeight)
-
-    private fun isLeftMouseButtonDown(): Boolean = InputUtilities.isMouseButtonDown(InputConstants.MOUSE_BUTTON_LEFT)
-
     private fun PreviewPosition.headerContains(mouseX: Int, mouseY: Int, paneWidth: Int): Boolean =
         mouseX in left..(left + paneWidth) &&
             mouseY in top..(top + PREVIEW_PADDING + PREVIEW_LABEL_HEIGHT)
 
-    private fun startPreviewDrag(position: PreviewPosition, mouseX: Int, mouseY: Int) {
-        draggingPreview = true
-        dragOffsetX = mouseX - position.left
-        dragOffsetY = mouseY - position.top
-    }
-
-    private fun PreviewPosition.clamped(
-        paneWidth: Int,
-        paneHeight: Int,
-        screenWidth: Int,
-        screenHeight: Int,
-    ): PreviewPosition {
-        val maxLeft = screenWidth - paneWidth - PREVIEW_SHADOW
-        val maxTop = screenHeight - paneHeight - PREVIEW_SHADOW
-        return PreviewPosition(
-            clampPreviewCoordinate(left, maxLeft),
-            clampPreviewCoordinate(top, maxTop),
-        )
-    }
+    private fun PreviewPosition.clampedTo(pane: PreviewPane): PreviewPosition = PreviewPosition(
+        clampPreviewCoordinate(left, pane.screenWidth - pane.width - PREVIEW_SHADOW),
+        clampPreviewCoordinate(top, pane.screenHeight - pane.height - PREVIEW_SHADOW),
+    )
 
     private fun clampPreviewCoordinate(value: Int, maximumValue: Int): Int =
         value.coerceIn(PREVIEW_SHADOW, maxOf(PREVIEW_SHADOW, maximumValue))

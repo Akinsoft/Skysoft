@@ -18,11 +18,10 @@ internal object PetStorageClickHandler {
         if (!PetStoragePetItems.isPetStackLocation(slotId)) return
         val clickedItem = slot?.item?.takeUnless { it.isEmpty } ?: return
         val clickedPetData = PetStoragePetItems.toClickedPetDataOrNull(clickedItem) ?: return
-        val clickedPetUuid = clickedPetData.uuid
         val currentPetUuid = PetStorageService.petStorage.currentPetUuid
         when (clickedButton) {
-            1 -> removeClickedPet(clickedPetUuid, currentPetUuid)
-            0 -> selectClickedPet(clickedItem, clickedPetData, clickedPetUuid, currentPetUuid)
+            1 -> removeClickedPet(clickedPetData.uuid, currentPetUuid)
+            0 -> selectClickedPet(clickedItem, clickedPetData, currentPetUuid)
             else -> Unit
         }
     }
@@ -36,15 +35,10 @@ internal object PetStorageClickHandler {
         if (currentPetUuid == clickedPetUuid) ActivePetTracker.clearCurrentPet()
     }
 
-    private fun selectClickedPet(
-        clickedItem: ItemStack,
-        clickedPetData: StoredPetData,
-        clickedPetUuid: UUID?,
-        currentPetUuid: UUID?,
-    ) {
+    private fun selectClickedPet(clickedItem: ItemStack, clickedPetData: StoredPetData, currentPetUuid: UUID?) {
         if (InputUtilities.isShiftDown()) return
         PetStorageService.lastExactPetMenuClick = ElapsedTimeMark.now()
-        if (PetStoragePetItems.isCurrentPetStack(clickedItem) || currentPetUuid == clickedPetUuid) {
+        if (PetStoragePetItems.isCurrentPetStack(clickedItem) || currentPetUuid == clickedPetData.uuid) {
             ActivePetTracker.clearCurrentPet()
         } else {
             ActivePetTracker.assertFoundCurrentData(clickedPetData, PetDataAssertionSource.MENU)
