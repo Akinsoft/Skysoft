@@ -34,20 +34,17 @@ internal class ProfitTrackerHudContent(private val hudControls: ProfitTrackerHud
             val config = target.config
             val stats = ProfitTracker.stats(target)
             val items = profitDisplayItems(target, stats)
-            val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
             val scrollKey = ItemScrollKey(target, ProfitTracker.displayPeriod(target))
-            val maximumOffset = (items.size - maximumItems).coerceAtLeast(0)
-            val scrollOffset = itemScrollOffsets.getOrDefault(scrollKey, 0).coerceIn(0, maximumOffset)
+            val scrollOffset = itemScrollOffsets.getOrDefault(scrollKey, 0).coerceIn(0, maximumScrollOffset(target, items.size))
             if (scrollOffset == 0) itemScrollOffsets.remove(scrollKey) else itemScrollOffsets[scrollKey] = scrollOffset
             ProfitTrackerRenderable(
                 target = target,
                 stats = stats,
                 items = items,
-                maximumItems = maximumItems,
+                maximumItems = maximumItems(target),
                 scrollOffset = scrollOffset,
                 inventoryOpen = inventoryOpen,
                 config = config,
-                background = config.details.showBackground,
                 hudControls = hudControls,
                 widthState = profitWidths.getOrPut(ProfitTrackerWidthKey(target, inventoryOpen), ::ProfitTrackerWidthState),
             )
@@ -56,16 +53,20 @@ internal class ProfitTrackerHudContent(private val hudControls: ProfitTrackerHud
 
     fun wasScrollHandled(target: ProfitTrackerTarget, verticalAmount: Double): Boolean {
         if (verticalAmount == 0.0) return false
-        val period = ProfitTracker.displayPeriod(target)
-        val maximumItems = target.config.settings.maximumItems.coerceIn(1, MAXIMUM_ITEMS)
-        val maximumOffset = (profitDisplayItems(target, ProfitTracker.stats(target)).size - maximumItems).coerceAtLeast(0)
+        val maximumOffset = maximumScrollOffset(target, profitDisplayItems(target, ProfitTracker.stats(target)).size)
         if (maximumOffset == 0) return false
-        val key = ItemScrollKey(target, period)
+        val key = ItemScrollKey(target, ProfitTracker.displayPeriod(target))
         val current = itemScrollOffsets.getOrDefault(key, 0)
         itemScrollOffsets[key] = OverlayListScroll.nextOffset(current, verticalAmount, maximumOffset)
         return true
     }
 }
+
+private fun maximumItems(target: ProfitTrackerTarget): Int =
+    target.config.settings.maximumItems.coerceIn(MINIMUM_ITEMS, MAXIMUM_ITEMS)
+
+private fun maximumScrollOffset(target: ProfitTrackerTarget, itemCount: Int): Int =
+    (itemCount - maximumItems(target)).coerceAtLeast(0)
 
 private data class ItemScrollKey(
     val target: ProfitTrackerTarget,
@@ -114,5 +115,4 @@ private fun profitDisplayItems(
     }.sortedWith(compareByDescending<ProfitDisplayItem> { it.value ?: Double.NEGATIVE_INFINITY }.thenBy { it.name })
 }
 
-private const val MAXIMUM_ITEMS = 15
 private const val WIDTH_SHRINK_DELAY_NANOS = 2_000_000_000L

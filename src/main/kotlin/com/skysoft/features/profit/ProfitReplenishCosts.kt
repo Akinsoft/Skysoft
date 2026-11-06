@@ -25,12 +25,11 @@ internal class ProfitReplenishCosts {
             costs.forEach { (crop, amount) -> merge(crop.costItemId, -amount, Int::plus) }
         }.filterValues { it != 0 }
     }
-
 }
 
-internal data class ReplenishCrop(val harvestItemId: String, val costItemId: String)
+private data class ReplenishCrop(val harvestItemId: String, val costItemId: String)
 
-internal fun replenishCrop(block: Block, dayTime: Long = 0L): ReplenishCrop? = when (block) {
+private fun replenishCrop(block: Block, dayTime: Long): ReplenishCrop? = when (block) {
     Blocks.WHEAT -> ReplenishCrop("WHEAT", "SEEDS")
     Blocks.CARROTS -> ReplenishCrop("CARROT_ITEM", "CARROT_ITEM")
     Blocks.POTATOES -> ReplenishCrop("POTATO_ITEM", "POTATO_ITEM")

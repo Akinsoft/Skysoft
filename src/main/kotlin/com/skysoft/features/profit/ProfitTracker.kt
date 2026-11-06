@@ -47,7 +47,7 @@ object ProfitTracker {
     private var durationPreset: ProfitTrackerPreset? = null
     private var previousPreset: ProfitTrackerPreset? = null
     private var previousPresetLeftAtMillis = 0L
-    private val uptime = ProfitUptimeTracker<ProfitTrackerTarget>(
+    private val uptime = ProfitUptimeTracker(
         pauseAfterMillis = { target -> target.config.pauseAfterMillis },
         onUptimeChanged = { target, change ->
             update(target) { stats ->
@@ -56,7 +56,7 @@ object ProfitTracker {
         },
     )
     private val itemTracking = ProfitTrackerItemTracking()
-    private val craftingReconciliation = ProfitCraftingReconciliation<ProfitTrackerTarget>()
+    private val craftingReconciliation = ProfitCraftingReconciliation()
     private val dropCatalog = ProfitDropCatalog()
     private val replenishCosts = ProfitReplenishCosts()
     private val foragingTreeGiftParser = ForagingTreeGiftParser()
@@ -73,11 +73,10 @@ object ProfitTracker {
             if (change.currency != SKYBLOCK_COINS) return@onChange
             val preset = currentAttributionPreset
             coinTrackingTargets(change.amount, preset, uptime::lastActivityAt).forEach { target ->
-                uptime.markActivity(target)
-                update(target) { stats -> stats.coins += change.amount }
+                recordActivity(target) { stats -> stats.coins += change.amount }
             }
         }
-        IMMEDIATE_DROP_PRESETS.forEach { preset ->
+        ProfitTrackerPreset.entries.forEach { preset ->
             ChatEvents.onVisibleMessage(
                 "${preset.displayName} Profit Tracker chat drops",
                 { isInPresetArea(preset) },
@@ -104,17 +103,9 @@ object ProfitTracker {
         SlayerQuestState.onQuestComplete("Profit Tracker quest completion") { quest ->
             questCostCapture.clear()
             if (!configs.isAnyEnabled()) return@onQuestComplete
-            val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf { presetConfig(it).enabled }
+            val preset = quest.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::canTrackPreset)
                 ?: return@onQuestComplete
-            val locationPreset = ProfitTrackerPresets.forLocation(
-                HypixelLocationState.currentIsland?.displayName,
-                SkyBlockAreaState.currentArea,
-                preset,
-            )
-            if (locationPreset != preset) return@onQuestComplete
-            val target = ProfitTrackerTarget.preset(preset)
-            uptime.markActivity(target)
-            update(target) { stats -> stats.actions++ }
+            recordActivity(ProfitTrackerTarget.preset(preset)) { stats -> stats.actions++ }
         }
         SkysoftClientEvents.onEndTick(
             "Profit Tracker activity state",
@@ -135,8 +126,8 @@ object ProfitTracker {
                 uptime.resetTickProgress()
             }
             uptime.tick(activeProfitTrackerTargets(locationPreset), minecraft.isWindowActive)
-            val questPreset = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
-            val activePreset = questPreset ?: locationPreset?.takeIf {
+            val activeQuestPreset = questPreset
+            val activePreset = activeQuestPreset ?: locationPreset?.takeIf {
                 it == ProfitTrackerPreset.FARMING ||
                     it == ProfitTrackerPreset.FISHING ||
                     it == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL
@@ -149,11 +140,9 @@ object ProfitTracker {
                 inactiveAttributionTicks = 0
             }
             questCostCapture.clearExpired()
-            val preset = questPreset ?: return@onEndTick
+            val preset = activeQuestPreset ?: return@onEndTick
             val cost = questCostCapture.take() ?: return@onEndTick
-            val target = ProfitTrackerTarget.preset(preset)
-            uptime.markActivity(target)
-            update(target) { stats ->
+            recordActivity(ProfitTrackerTarget.preset(preset)) { stats ->
                 stats.costs[cost.currency] = stats.costs.getOrDefault(cost.currency, 0L) + cost.amount
             }
         }
@@ -172,16 +161,13 @@ object ProfitTracker {
         get() = currentPreset ?: attributionPreset?.takeIf(::canTrackPreset)
 
     private fun canTrackPreset(preset: ProfitTrackerPreset): Boolean =
-        presetConfig(preset).enabled && ProfitTrackerPresets.forLocation(
-            HypixelLocationState.currentIsland?.displayName,
-            SkyBlockAreaState.currentArea,
-            preset,
-        ) == preset
+        presetConfig(preset).enabled && presetAtLocation(preset) == preset
+
+    private val questPreset: ProfitTrackerPreset?
+        get() = SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
 
     private val locationPreset: ProfitTrackerPreset?
-        get() = ProfitTrackerPresets.forLocation(
-            HypixelLocationState.currentIsland?.displayName,
-            SkyBlockAreaState.currentArea,
+        get() = presetAtLocation(
             ProfitTrackerPreset.MYTHOLOGICAL_RITUAL.takeIf {
                 presetConfig(it).enabled &&
                     DianaEventState.isOnHub() &&
@@ -215,8 +201,7 @@ object ProfitTracker {
         }
 
     internal fun selectedPreset(): ProfitTrackerPreset? =
-        SlayerQuestState.slayerType?.let(ProfitTrackerPreset::fromSlayer)?.takeIf(::isInPresetArea)
-            ?: currentPreset
+        questPreset ?: currentPreset
             ?: ProfileStorageApi.storage.profitTracker.lastPreset
                 .let { stored -> ProfitTrackerPreset.entries.firstOrNull { it.name == stored } }
                 ?.takeIf(::isInPresetArea)
@@ -264,9 +249,7 @@ object ProfitTracker {
     }
 
     private fun recordFarmingBlock(block: Block) {
-        if (!presetConfig(ProfitTrackerPreset.FARMING).enabled ||
-            currentPreset != ProfitTrackerPreset.FARMING || !isFarmingCropBlock(block)
-        ) return
+        if (currentPreset != ProfitTrackerPreset.FARMING || !isFarmingCropBlock(block)) return
         uptime.markActivity(ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING))
         val minecraft = Minecraft.getInstance()
         if (minecraft.player?.mainHandItem?.extraAttributes()?.skyBlockEnchantments()?.containsKey("replenish") != true) {
@@ -277,9 +260,7 @@ object ProfitTracker {
 
     private fun recordImmediateMessage(preset: ProfitTrackerPreset, message: String) {
         if (preset == ProfitTrackerPreset.FARMING && message == KERNEL_DONATION_MESSAGE) {
-            val target = ProfitTrackerTarget.preset(preset)
-            uptime.markActivity(target)
-            update(target) { stats -> stats.kernels++ }
+            recordActivity(ProfitTrackerTarget.preset(preset)) { stats -> stats.kernels++ }
             return
         }
         val activityDrop = when (preset) {
@@ -288,9 +269,7 @@ object ProfitTracker {
             ProfitTrackerPreset.MINING -> parseMiningChatDrop(message)
             else -> null
         }
-        val playerName = localPlayerName()
-        val dyeDrop = playerName?.let { parseDyeChatDrop(message, it) }
-        val drop = activityDrop ?: dyeDrop
+        val drop = activityDrop ?: localPlayerName()?.let { parseDyeChatDrop(message, it) }
         drop?.let {
             val itemId = SkyBlockItemNames.itemId(it.displayName) ?: return@let
             val presetTarget = ProfitTrackerTarget.preset(preset)
@@ -301,35 +280,26 @@ object ProfitTracker {
             if (targets.isEmpty()) return@let
             itemTracking.suppressGain(itemId, it.amount)
             targets.forEach { target ->
-                uptime.markActivity(target)
-                update(target, listOf(itemId)) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
+                recordActivity(target, listOf(itemId)) { stats -> applyTrackedItemChanges(stats, mapOf(itemId to it.amount)) }
             }
         }
         if (
             preset == ProfitTrackerPreset.MYTHOLOGICAL_RITUAL &&
             MythologicalRitualMessageTracker.isBurrowMessage(message)
         ) {
-            val target = ProfitTrackerTarget.preset(preset)
-            uptime.markActivity(target)
-            update(target) { stats -> stats.actions++ }
+            recordActivity(ProfitTrackerTarget.preset(preset)) { stats -> stats.actions++ }
         }
     }
 
     private fun recordPestKill(pest: String) {
-        val target = ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING)
-        uptime.markActivity(target)
-        update(target) { stats ->
+        recordActivity(ProfitTrackerTarget.preset(ProfitTrackerPreset.FARMING)) { stats ->
             stats.actions++
             stats.pestKills.merge(pest, 1L, Long::plus)
         }
     }
 
     internal fun unitValue(target: ProfitTrackerTarget, itemId: String): Double? {
-        val sourcePrice = profitTrackerSourcePrice(
-            SkyBlockPriceData.getBazaarPrice(itemId),
-            SkyBlockPriceData.getNpcSellPrices(itemId).coins,
-            ProfitTrackerItemCustomizations.priceSource(target, itemId),
-        )
+        val sourcePrice = profitTrackerSourcePrice(itemId, ProfitTrackerItemCustomizations.priceSource(target, itemId))
         return sourcePrice?.takeIf { it > 0.0 }
             ?: SkyBlockPriceData.getLowestBin(itemId)?.toDouble()?.takeIf { it > 0.0 }
     }
@@ -356,9 +326,17 @@ object ProfitTracker {
                     if (target.preset == ProfitTrackerPreset.FARMING) replenishCosts.applyTo(changes) else changes
                 }
             if (changes.isEmpty()) return@forEach
-            uptime.markActivity(target)
-            update(target, changes.keys) { stats -> applyTrackedItemChanges(stats, changes) }
+            recordActivity(target, changes.keys) { stats -> applyTrackedItemChanges(stats, changes) }
         }
+    }
+
+    private fun recordActivity(
+        target: ProfitTrackerTarget,
+        changedItemIds: Iterable<String> = emptyList(),
+        action: (ProfileStorage.ProfitTrackerStats) -> Unit,
+    ) {
+        uptime.markActivity(target)
+        update(target, changedItemIds, action)
     }
 
     private fun update(
@@ -399,7 +377,7 @@ object ProfitTracker {
     }
 }
 
-internal fun profitTrackerSourcePrice(
+private fun profitTrackerSourcePrice(
     bazaarPrice: BazaarPriceData?,
     npcSellPrice: Double?,
     source: ProfitTrackerPriceSource,
@@ -409,6 +387,13 @@ internal fun profitTrackerSourcePrice(
     ProfitTrackerPriceSource.BUY_ORDER -> bazaarPrice?.buyOrderPrice
     ProfitTrackerPriceSource.NPC_SELL -> npcSellPrice
 }
+
+internal fun profitTrackerSourcePrice(itemId: String, source: ProfitTrackerPriceSource): Double? =
+    profitTrackerSourcePrice(
+        SkyBlockPriceData.getBazaarPrice(itemId),
+        SkyBlockPriceData.getNpcSellPrices(itemId).coins,
+        source,
+    )
 
 internal fun presetConfig(preset: ProfitTrackerPreset): ProfitTrackerConfig =
     with(SkysoftConfigGui.config().loot.profitTrackers) {
@@ -432,14 +417,6 @@ private val ProfitTrackerConfig.pauseAfterMillis: Int?
         .times(MILLIS_PER_SECOND)
         .takeIf { settings.pauseAfter }
 
-internal fun trackedItemChanges(
-    changes: Map<String, Int>,
-    allowedItems: Set<String>,
-    transformationInputs: Set<String> = emptySet(),
-): Map<String, Int> = changes.filter { (itemId, amount) ->
-    itemId in allowedItems && (amount > 0 || itemId in transformationInputs)
-}
-
 internal fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, changes: Map<String, Int>) {
     changes.forEach { (itemId, amount) ->
         val updated = (stats.itemCounts.getOrDefault(itemId, 0L) + amount).coerceAtLeast(0L)
@@ -449,8 +426,10 @@ internal fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, c
 
 private const val ATTRIBUTION_GRACE_TICKS = 2
 private const val MILLIS_PER_SECOND = 1_000
-private const val MINIMUM_PAUSE_AFTER_SECONDS = 15
-private const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
+internal const val MINIMUM_PAUSE_AFTER_SECONDS = 15
+internal const val MAXIMUM_PAUSE_AFTER_SECONDS = 900
+internal const val MINIMUM_ITEMS = 1
+internal const val MAXIMUM_ITEMS = 15
 private const val KERNEL_DONATION_MESSAGE =
     "[NPC] Feast Chef Ted: Thanks for the donation! I've added a Kernel to your purse."
 
@@ -476,4 +455,5 @@ private fun isFarmingCropBlock(block: Block): Boolean = when (block) {
     else -> false
 }
 
-private val IMMEDIATE_DROP_PRESETS = ProfitTrackerPreset.entries
+private fun presetAtLocation(preferred: ProfitTrackerPreset?): ProfitTrackerPreset? =
+    ProfitTrackerPresets.forLocation(HypixelLocationState.currentIsland?.displayName, SkyBlockAreaState.currentArea, preferred)

@@ -1,58 +1,50 @@
 package com.skysoft.features.profit
 
-internal class ProfitUptimeTracker<T : Any>(
-    private val pauseAfterMillis: (T) -> Int?,
-    private val onUptimeChanged: (T, Long) -> Unit,
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
+internal class ProfitUptimeTracker(
+    private val pauseAfterMillis: (ProfitTrackerTarget) -> Int?,
+    private val onUptimeChanged: (ProfitTrackerTarget, Long) -> Unit,
 ) {
-    private val lastActivityAtMillis = mutableMapOf<T, Long>()
-    private val unconfirmedUptimeMillis = mutableMapOf<T, Long>()
-    private val durationTicks = mutableMapOf<T, Int>()
+    private val lastActivityAtMillis = mutableMapOf<ProfitTrackerTarget, Long>()
+    private val unconfirmedUptimeMillis = mutableMapOf<ProfitTrackerTarget, Long>()
+    private val durationTicks = mutableMapOf<ProfitTrackerTarget, Int>()
 
     val hasUnconfirmedUptime: Boolean
         get() = unconfirmedUptimeMillis.isNotEmpty()
 
-    fun lastActivityAt(target: T): Long? = lastActivityAtMillis[target]
+    fun lastActivityAt(target: ProfitTrackerTarget): Long? = lastActivityAtMillis[target]
 
-    fun isPaused(preset: T, isWindowActive: Boolean): Boolean =
-        !isWindowActive ||
-            !isProfitTimerActive(lastActivityAtMillis[preset], currentTimeMillis(), pauseAfterMillis(preset))
+    fun isPaused(target: ProfitTrackerTarget, isWindowActive: Boolean): Boolean =
+        !isWindowActive || !isActive(target, System.currentTimeMillis())
 
-    fun markActivity(preset: T) {
-        val now = currentTimeMillis()
-        if (isProfitTimerActive(lastActivityAtMillis[preset], now, pauseAfterMillis(preset))) {
-            unconfirmedUptimeMillis.remove(preset)
+    fun markActivity(target: ProfitTrackerTarget) {
+        val now = System.currentTimeMillis()
+        if (isActive(target, now)) {
+            unconfirmedUptimeMillis.remove(target)
         } else {
-            rewind(preset)
+            rewind(target)
         }
-        lastActivityAtMillis[preset] = now
+        lastActivityAtMillis[target] = now
     }
 
-    fun refreshActivity(preset: T) {
-        val now = currentTimeMillis()
-        if (!isProfitTimerActive(lastActivityAtMillis[preset], now, pauseAfterMillis(preset))) return
-        unconfirmedUptimeMillis.remove(preset)
-        lastActivityAtMillis[preset] = now
+    fun refreshActivity(target: ProfitTrackerTarget) {
+        val now = System.currentTimeMillis()
+        if (!isActive(target, now)) return
+        unconfirmedUptimeMillis.remove(target)
+        lastActivityAtMillis[target] = now
     }
 
-    fun tick(preset: T?, isWindowActive: Boolean) {
-        tick(listOfNotNull(preset), isWindowActive)
-    }
-
-    fun tick(activeTargets: Collection<T>, isWindowActive: Boolean) {
-        val now = currentTimeMillis()
-        unconfirmedUptimeMillis.keys.toList().forEach { trackedPreset ->
-            val pauseAfter = pauseAfterMillis(trackedPreset)
-            if (pauseAfter == null) {
-                unconfirmedUptimeMillis.remove(trackedPreset)
-            } else if (!isProfitTimerActive(lastActivityAtMillis[trackedPreset], now, pauseAfter)) {
-                rewind(trackedPreset)
+    fun tick(activeTargets: Collection<ProfitTrackerTarget>, isWindowActive: Boolean) {
+        val now = System.currentTimeMillis()
+        unconfirmedUptimeMillis.keys.toList().forEach { trackedTarget ->
+            if (pauseAfterMillis(trackedTarget) == null) {
+                unconfirmedUptimeMillis.remove(trackedTarget)
+            } else if (!isActive(trackedTarget, now)) {
+                rewind(trackedTarget)
             }
         }
         durationTicks.keys.retainAll(activeTargets.toSet())
         activeTargets.forEach { target ->
-            val pauseAfter = pauseAfterMillis(target)
-            if (!isProfitTimerActive(lastActivityAtMillis[target], now, pauseAfter)) {
+            if (!isActive(target, now)) {
                 durationTicks.remove(target)
                 return@forEach
             }
@@ -63,7 +55,7 @@ internal class ProfitUptimeTracker<T : Any>(
                 return@forEach
             }
             durationTicks.remove(target)
-            if (pauseAfter != null) {
+            if (pauseAfterMillis(target) != null) {
                 unconfirmedUptimeMillis.merge(target, DURATION_UPDATE_MILLIS, Long::plus)
             }
             onUptimeChanged(target, DURATION_UPDATE_MILLIS)
@@ -80,15 +72,18 @@ internal class ProfitUptimeTracker<T : Any>(
         durationTicks.clear()
     }
 
-    fun clear(target: T) {
+    fun clear(target: ProfitTrackerTarget) {
         lastActivityAtMillis.remove(target)
         unconfirmedUptimeMillis.remove(target)
         durationTicks.remove(target)
     }
 
-    private fun rewind(preset: T) {
-        val uptimeMillis = unconfirmedUptimeMillis.remove(preset) ?: return
-        onUptimeChanged(preset, -uptimeMillis)
+    private fun isActive(target: ProfitTrackerTarget, now: Long): Boolean =
+        isProfitTimerActive(lastActivityAtMillis[target], now, pauseAfterMillis(target))
+
+    private fun rewind(target: ProfitTrackerTarget) {
+        val uptimeMillis = unconfirmedUptimeMillis.remove(target) ?: return
+        onUptimeChanged(target, -uptimeMillis)
     }
 }
 

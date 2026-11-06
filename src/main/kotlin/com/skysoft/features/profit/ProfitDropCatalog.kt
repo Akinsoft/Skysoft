@@ -41,14 +41,13 @@ internal class ProfitDropCatalog {
                 .filter { entry ->
                     SkyBlockDataRepository.recipesFor(entry.key)
                         .filterIsInstance<SkyBlockRecipe.Crafting>()
-                        .any { recipe -> recipe.ingredients.map { it.id }.distinct().singleOrNull() in presetItems }
+                        .any { recipe -> recipe.singleIngredientId() in presetItems }
                 }
                 .map { entry -> entry.key.id }
             presetItems + compactedDrops
         }
         dropCatalogVersion = SkyBlockDataRepository.snapshotVersion
     }
-
 }
 
 private const val SEA_CREATURE_ENTITY_TYPE = "Sea Creature"

@@ -14,12 +14,7 @@ import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import kotlin.math.min
 
-internal data class ParsedItemAmount(
-    val displayName: String,
-    val amount: Int,
-)
-
-internal fun parseNpcSale(message: String): ParsedItemAmount? {
+private fun parseNpcSale(message: String): ParsedItemAmount? {
     val match = NPC_SALE_PATTERN.matchEntire(message) ?: return null
     val displayName = match.groups["item"]?.value?.trim().orEmpty()
     val amount = match.groups["amount"]?.value?.replace(",", "")?.toIntOrNull() ?: return null
@@ -27,8 +22,8 @@ internal fun parseNpcSale(message: String): ParsedItemAmount? {
 }
 
 internal class ProfitTrackerItemTracking {
-    private val suppressions = ProfitItemSuppressions()
-    private val removalSuppressions = ProfitItemRemovalSuppressions()
+    private val suppressions = ProfitItemSuppressions(keepLatestExpiry = true)
+    private val removalSuppressions = ProfitItemSuppressions(keepLatestExpiry = false)
 
     fun register(isActive: () -> Boolean, listener: (SkyBlockItemChangeBatch) -> Unit) {
         SkyBlockDroppedItems.onDrop("Profit Tracker dropped items", isActive) { drop ->
@@ -73,8 +68,12 @@ internal class ProfitTrackerItemTracking {
         val grossRemovals = (batch.changes.keys + batch.grossGains.keys).associateWith { itemId ->
             (batch.grossGains.getOrDefault(itemId, 0) - batch.changes.getOrDefault(itemId, 0)).coerceAtLeast(0)
         }
-        val withoutRemovals = removalSuppressions.consume(batch.changes, grossRemovals)
-        return suppressions.consume(withoutRemovals, batch.grossGains)
+        val withoutRemovals = removalSuppressions.consume(batch.changes, grossRemovals) { amount, _, suppressed ->
+            amount + suppressed
+        }
+        return suppressions.consume(withoutRemovals, batch.grossGains) { amount, grossGain, suppressed ->
+            amount - (suppressed - (grossGain - amount).coerceAtLeast(0)).coerceAtLeast(0)
+        }
     }
 
     fun suppressGain(itemId: String, amount: Int) = suppressions.add(itemId, amount)
@@ -85,94 +84,46 @@ internal class ProfitTrackerItemTracking {
     }
 }
 
-internal class ProfitItemRemovalSuppressions(
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
-) {
-    private val suppressions = mutableMapOf<String, RemovalSuppression>()
-
-    fun add(itemId: String, amount: Int, lifetimeMillis: Long = SUPERCRAFT_SUPPRESSION_MILLIS) {
-        if (amount <= 0) return
-        val now = currentTimeMillis()
-        val current = suppressions[itemId]?.takeIf { it.expiresAtMillis > now }
-        suppressions[itemId] = RemovalSuppression(
-            amount = (current?.amount ?: 0) + amount,
-            expiresAtMillis = now + lifetimeMillis,
-        )
-    }
-
-    fun consume(
-        changes: Map<String, Int>,
-        grossRemovals: Map<String, Int> = changes.filterValues { it < 0 }.mapValues { -it.value },
-    ): Map<String, Int> = buildMap {
-        val now = currentTimeMillis()
-        suppressions.entries.removeIf { (_, suppression) -> suppression.expiresAtMillis <= now }
-        (changes.keys + grossRemovals.keys).forEach { itemId ->
-            val amount = changes[itemId] ?: 0
-            val suppression = suppressions[itemId]
-            val suppressed = minOf(grossRemovals[itemId] ?: 0, suppression?.amount ?: 0)
-            val remaining = amount + suppressed
-            if (remaining != 0) put(itemId, remaining)
-            if (suppression != null && suppressed > 0) {
-                val pending = suppression.amount - suppressed
-                if (pending == 0) suppressions.remove(itemId) else {
-                    suppressions[itemId] = suppression.copy(amount = pending)
-                }
-            }
-        }
-    }
-
-    fun clear() = suppressions.clear()
-
-    private data class RemovalSuppression(val amount: Int, val expiresAtMillis: Long)
-}
-
-internal class ProfitItemSuppressions(
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
-) {
+private class ProfitItemSuppressions(private val keepLatestExpiry: Boolean) {
     private val suppressions = mutableMapOf<String, Suppression>()
 
     fun add(itemId: String, amount: Int, lifetimeMillis: Long = SUPERCRAFT_SUPPRESSION_MILLIS) {
         if (amount <= 0) return
-        val current = suppressions[itemId]?.takeIf { it.expiresAtMillis > currentTimeMillis() }
+        val now = System.currentTimeMillis()
+        val current = suppressions[itemId]?.takeIf { it.expiresAtMillis > now }
+        val expiresAtMillis = now + lifetimeMillis
         suppressions[itemId] = Suppression(
             amount = (current?.amount ?: 0) + amount,
-            expiresAtMillis = maxOf(current?.expiresAtMillis ?: 0L, currentTimeMillis() + lifetimeMillis),
+            expiresAtMillis = if (keepLatestExpiry) maxOf(current?.expiresAtMillis ?: 0L, expiresAtMillis) else expiresAtMillis,
         )
     }
 
     fun consume(
         changes: Map<String, Int>,
-        grossGains: Map<String, Int> = changes.filterValues { it > 0 },
+        grossAmounts: Map<String, Int>,
+        remainingAmount: (amount: Int, grossAmount: Int, suppressed: Int) -> Int,
     ): Map<String, Int> = buildMap {
-        val now = currentTimeMillis()
+        val now = System.currentTimeMillis()
         suppressions.entries.removeIf { (_, suppression) -> suppression.expiresAtMillis <= now }
-        (changes.keys + grossGains.keys).forEach { itemId ->
-            val amount = changes[itemId] ?: 0
-            val grossGain = grossGains[itemId] ?: 0
-            val suppression = suppressions[itemId]
-            if (grossGain <= 0 || suppression == null) {
-                if (amount != 0) put(itemId, amount)
-                return@forEach
-            }
-            val consumed = min(grossGain, suppression.amount)
-            val remainingSuppression = suppression.amount - consumed
-            if (remainingSuppression == 0) {
-                suppressions.remove(itemId)
-            } else {
-                suppressions[itemId] = suppression.copy(amount = remainingSuppression)
-            }
-            val grossRemoval = (grossGain - amount).coerceAtLeast(0)
-            val remainingAmount = amount - (consumed - grossRemoval).coerceAtLeast(0)
-            if (remainingAmount != 0) put(itemId, remainingAmount)
+        (changes.keys + grossAmounts.keys).forEach { itemId ->
+            val grossAmount = grossAmounts[itemId] ?: 0
+            val remaining = remainingAmount(changes[itemId] ?: 0, grossAmount, take(itemId, grossAmount))
+            if (remaining != 0) put(itemId, remaining)
         }
     }
 
     fun clear() = suppressions.clear()
 
-    private data class Suppression(
-        val amount: Int,
-        val expiresAtMillis: Long,
-    )
+    private fun take(itemId: String, limit: Int): Int {
+        val suppression = suppressions[itemId] ?: return 0
+        val taken = min(limit, suppression.amount)
+        if (taken <= 0) return 0
+        val pending = suppression.amount - taken
+        if (pending == 0) suppressions.remove(itemId) else suppressions[itemId] = suppression.copy(amount = pending)
+        return taken
+    }
+
+    private data class Suppression(val amount: Int, val expiresAtMillis: Long)
 }
 
 private val NPC_SALE_PATTERN = Regex("^You sold (?<item>.+) x(?<amount>[\\d,]+) for [\\d,]+ Coins!$")
