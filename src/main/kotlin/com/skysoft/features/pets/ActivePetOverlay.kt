@@ -25,7 +25,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
 private fun anchorPetPositionToTop(renderable: GuiRenderable) {
     val position = SkysoftConfigGui.config().pets.display.general.position
-    position.anchorToTop((renderable.height * position.effectiveScale).roundToInt())
+    position.anchorToTop((renderable.height * position.scale).roundToInt())
 }
 
 private fun anchorPetContentsHorizontally(renderable: GuiRenderable) {
@@ -36,7 +36,7 @@ private fun anchorPetContentsHorizontally(renderable: GuiRenderable) {
         HorizontalAnchor.CENTER -> HudAnchor.CENTER
         HorizontalAnchor.RIGHT -> HudAnchor.END
     }
-    position.anchorContentsHorizontally(horizontalAnchor, (renderable.width * position.effectiveScale).roundToInt())
+    position.anchorContentsHorizontally(horizontalAnchor, (renderable.width * position.scale).roundToInt())
 }
 
 object ActivePetOverlay {
@@ -53,7 +53,7 @@ object ActivePetOverlay {
         StoredPetData(
             petInternalName = "BEE;4",
             skinInternalName = "PET_SKIN_BEE_RGBEE",
-            heldItemInternalName = EXP_SHARE,
+            heldItemInternalName = EXP_SHARE_ITEM,
             exp = 25_353_230.0,
         )
     }
@@ -97,7 +97,7 @@ object ActivePetOverlay {
             val petKey = petData?.uuid ?: petData?.fauxInternalName
             if (petKey != animatedPetKey) {
                 animatedPetKey = petKey
-                invalidateAnimations()
+                xpAnimations.clear()
             }
         }
         PetExpShareTooltip.register()
@@ -172,11 +172,11 @@ object ActivePetOverlay {
     private val displayState: PetDisplayState?
         get() {
             val trackedPet = ActivePetTracker.currentPet
-            val dataSource = PetStorageService.petDisplayDataSource
+            val dataSource = PetWidgetStateTracker.displayDataSource
             if (!TabDataOverlays.hasStableData && dataSource.requiresStableTabData) {
                 return lastDisplayState
             }
-            PetStorageService.petWidgetDisplayMessage?.let { lines ->
+            PetWidgetStateTracker.displayMessage?.let { lines ->
                 return PetDisplayState(messageLines = lines)
             }
             if (!dataSource.canRefreshDisplay) {
@@ -195,8 +195,8 @@ object ActivePetOverlay {
         }
 
     private fun getVisibleExpSharePetStates(currentPetUuid: UUID?): List<ExpSharePetState> {
-        val activeExpSharePets = PetStorageService.getActiveExpSharePetUuids()
-        val disabledExpSharePets = PetStorageService.getDisabledExpSharePetUuids()
+        val activeExpSharePets = PetStorageExpSharing.activeUuids()
+        val disabledExpSharePets = PetStorageExpSharing.disabledUuids()
         return ProfileStorageApi.storage.pets.mapNotNull {
             it.visibleExpShareStateOrNull(currentPetUuid, activeExpSharePets, disabledExpSharePets)
         }
@@ -219,17 +219,12 @@ object ActivePetOverlay {
         return zip(animatedPets) { state, petData -> state.copy(petData = petData) }
     }
 
-    private fun invalidateAnimations() {
-        xpAnimations.clear()
-    }
-
     private data class PetDisplayState(
         val currentPet: StoredPetData? = null,
         val expSharePets: List<ExpSharePetState> = emptyList(),
         val messageLines: List<String>? = null,
     )
 
-    private const val EXP_SHARE = "PET_ITEM_EXP_SHARE"
     private const val ANCHOR_PREVIEW_INTERVAL_MILLIS = 2_000L
     private const val PREVIEW_WIDTH = 120
     private const val PREVIEW_HEIGHT = 40

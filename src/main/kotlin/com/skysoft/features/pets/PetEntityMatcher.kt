@@ -2,8 +2,10 @@ package com.skysoft.features.pets
 
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.playerHeadTexture
+import com.skysoft.utils.TextUtilities.removeColor
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import net.minecraft.world.entity.Display
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
@@ -17,67 +19,51 @@ internal class PetEntityMatcher(
     private val expectedTextures: Set<String>,
     private val player: Player,
 ) {
-    val identity: ActivePetObservationIdentity = currentPet.observationIdentity()
+    val identity: PetVisualIdentity = currentPet.visualIdentity()
+    private val candidateOrder = compareByDescending<PetCandidate> { it.score }.thenBy { it.distanceSq }
 
     fun observe(entity: Entity, entities: List<Entity>): ActivePetEntityObservation? =
-        entity.petCandidate(expectedTextures, player)?.select(entities, currentPet)?.observation(identity)
+        entity.petCandidate()?.select(entities)?.observation()
 
-    fun find(entities: List<Entity>): ActivePetEntityObservation? =
-        entities.asSequence()
-            .mapNotNull { it.petCandidate(expectedTextures, player) }
-            .toList()
-            .selectPetCandidate(entities, currentPet)
-            ?.observation(identity)
-
-    private fun List<PetCandidate>.selectPetCandidate(
-        entities: List<Entity>,
-        currentPet: StoredPetData,
-    ): SelectedPetCandidate? {
-        val exactCandidates = filter { it.exactTextureMatch }
-        if (exactCandidates.isNotEmpty()) {
-            return exactCandidates.best()?.select(entities, currentPet)
+    fun find(entities: List<Entity>): ActivePetEntityObservation? {
+        val candidates = entities.mapNotNull { it.petCandidate() }
+        val exactCandidates = candidates.filter { it.exactTextureMatch }
+        val selected = if (exactCandidates.isNotEmpty()) {
+            exactCandidates.minWithOrNull(candidateOrder)?.select(entities)
+        } else {
+            candidates.filter { it.isFallbackAcceptable }
+                .mapNotNull { it.select(entities) }
+                .minWithOrNull(compareBy(candidateOrder) { it.candidate })
         }
-        return filter { it.isFallbackAcceptable }
-            .mapNotNull { it.select(entities, currentPet) }
-            .minWithOrNull(
-                compareByDescending<SelectedPetCandidate> { it.candidate.score }
-                    .thenBy { it.candidate.distanceSq },
-            )
+        return selected?.observation()
     }
 
-    private fun List<PetCandidate>.best(): PetCandidate? =
-        minWithOrNull(compareByDescending<PetCandidate> { it.score }.thenBy { it.distanceSq })
-
-    private fun PetCandidate.select(
-        entities: List<Entity>,
-        currentPet: StoredPetData,
-    ): SelectedPetCandidate? {
+    private fun PetCandidate.select(entities: List<Entity>): SelectedPetCandidate? {
         val name = entities.findPetNameCandidate(currentPet, entity)
         if (!exactTextureMatch && (!isFallbackAcceptable || name == null)) return null
         return SelectedPetCandidate(this, name)
     }
 
-    private fun Entity.petCandidate(expectedTextures: Set<String>, player: Player): PetCandidate? =
+    private fun Entity.petCandidate(): PetCandidate? =
         when (this) {
-            is ArmorStand -> petCandidate(expectedTextures, player)
-            is Display.ItemDisplay -> petCandidate(expectedTextures, player)
+            is ArmorStand -> petCandidate()
+            is Display.ItemDisplay -> petCandidate()
             else -> null
         }
 
-    private fun ArmorStand.petCandidate(expectedTextures: Set<String>, player: Player): PetCandidate? {
-        val distanceSq = petCandidateDistanceSq(player) ?: return null
-        val petEquipment = petEquipment(expectedTextures) ?: return null
+    private fun ArmorStand.petCandidate(): PetCandidate? {
+        val distanceSq = petCandidateDistanceSq() ?: return null
+        val petEquipment = petEquipment() ?: return null
         val texture = petEquipment.stack.playerHeadTexture() ?: return null
         val exactTextureMatch = texture in expectedTextures
         val otherEquipmentCount = EquipmentSlot.VALUES.count { slot ->
             slot != petEquipment.slot && !getItemBySlot(slot).isEmpty
         }
-        val onlyPetEquipment = otherEquipmentCount == 0
-        val score = scoreCandidate(exactTextureMatch, onlyPetEquipment, otherEquipmentCount, distanceSq)
+        val score = scoreCandidate(exactTextureMatch, otherEquipmentCount, distanceSq)
         return PetCandidate(this, texture, exactTextureMatch, otherEquipmentCount, score, distanceSq)
     }
 
-    private fun ArmorStand.petEquipment(expectedTextures: Set<String>): PetEquipment? {
+    private fun ArmorStand.petEquipment(): PetEquipment? {
         val playerHeadEquipment = EquipmentSlot.VALUES.mapNotNull { slot ->
             val stack = getItemBySlot(slot)
             if (stack.isEmpty || stack.item != Items.PLAYER_HEAD) null else PetEquipment(slot, stack)
@@ -87,8 +73,8 @@ internal class PetEntityMatcher(
         } ?: playerHeadEquipment.firstOrNull()
     }
 
-    private fun Display.ItemDisplay.petCandidate(expectedTextures: Set<String>, player: Player): PetCandidate? {
-        val distanceSq = petCandidateDistanceSq(player) ?: return null
+    private fun Display.ItemDisplay.petCandidate(): PetCandidate? {
+        val distanceSq = petCandidateDistanceSq() ?: return null
         val stack = itemStack
         if (stack.isEmpty || stack.item != Items.PLAYER_HEAD) return null
         val texture = stack.playerHeadTexture() ?: return null
@@ -97,7 +83,7 @@ internal class PetEntityMatcher(
         return PetCandidate(this, texture, exactTextureMatch, 0, score, distanceSq)
     }
 
-    private fun Entity.petCandidateDistanceSq(player: Player): Double? {
+    private fun Entity.petCandidateDistanceSq(): Double? {
         val distanceSq = distanceToSqr(player)
         if (!isAlive || !isValidPetPositionDistanceSq(distanceSq)) return null
         if (distanceSq > PetCandidateBounds.MAX_DISTANCE_TO_PLAYER_SQ) return null
@@ -111,18 +97,13 @@ internal class PetEntityMatcher(
         return distanceSq
     }
 
-    private fun ArmorStand.scoreCandidate(
-        exactTextureMatch: Boolean,
-        onlyHead: Boolean,
-        otherEquipmentCount: Int,
-        distanceSq: Double,
-    ): Int {
+    private fun ArmorStand.scoreCandidate(exactTextureMatch: Boolean, otherEquipmentCount: Int, distanceSq: Double): Int {
         var score = 0
         if (exactTextureMatch) score += PetCandidateScores.EXACT_TEXTURE
         if (isInvisible) score += PetCandidateScores.INVISIBLE_ARMOR_STAND
         if (isMarker) score += PetCandidateScores.MARKER_ARMOR_STAND
         if (isSmall) score += PetCandidateScores.SMALL_ARMOR_STAND
-        if (onlyHead) {
+        if (otherEquipmentCount == 0) {
             score += PetCandidateScores.HEAD_ONLY_ARMOR_STAND
         } else {
             score -= PetCandidateScores.EXTRA_EQUIPMENT_PENALTY * otherEquipmentCount
@@ -141,11 +122,11 @@ internal class PetEntityMatcher(
     }
 
     private fun proximityScore(distanceSq: Double): Int =
-        ((PetCandidateBounds.MAX_DISTANCE_TO_PLAYER - kotlin.math.sqrt(distanceSq)) * PetCandidateScores.PROXIMITY_SCALE)
+        ((PetCandidateBounds.MAX_DISTANCE_TO_PLAYER - sqrt(distanceSq)) * PetCandidateScores.PROXIMITY_SCALE)
             .roundToInt()
             .coerceAtLeast(0)
 
-    private fun SelectedPetCandidate.observation(identity: ActivePetObservationIdentity): ActivePetEntityObservation =
+    private fun SelectedPetCandidate.observation(): ActivePetEntityObservation =
         ActivePetEntityObservation(
             entity = candidate.entity,
             texture = candidate.texture,
@@ -204,7 +185,6 @@ internal class PetEntityMatcher(
         const val MIN_RELATIVE_Y = -1.0
         const val MAX_RELATIVE_Y = 4.0
     }
-
 }
 
 private fun Iterable<Entity>.findPetNameCandidate(
@@ -220,7 +200,7 @@ private fun ArmorStand.petNameCandidate(currentPet: StoredPetData, petEntity: En
     if (!isAlive || id == petEntity.id || !hasCustomName()) return null
     if (EquipmentSlot.VALUES.any { !getItemBySlot(it).isEmpty }) return null
 
-    val name = getCustomName()?.string?.replace(Regex("§."), "") ?: return null
+    val name = getCustomName()?.string?.removeColor() ?: return null
     if (!name.contains(currentPet.cleanName, ignoreCase = true)) return null
 
     val relativeY = y - petEntity.y
@@ -233,13 +213,10 @@ private fun ArmorStand.petNameCandidate(currentPet: StoredPetData, petEntity: En
     val distanceSq = distanceToSqr(petEntity)
     if (!isValidPetPositionDistanceSq(distanceSq)) return null
     val score = PetNameScores.BASE -
-        (kotlin.math.sqrt(distanceSq) * PetNameScores.DISTANCE_SCALE).roundToInt() -
+        (sqrt(distanceSq) * PetNameScores.DISTANCE_SCALE).roundToInt() -
         (abs(relativeY - PetNameBounds.DEFAULT_OFFSET_Y) * PetNameScores.HEIGHT_SCALE).roundToInt()
     return PetNameCandidate(this, relativeY, score, distanceSq)
 }
-
-private fun StoredPetData.observationIdentity(): ActivePetObservationIdentity =
-    ActivePetObservationIdentity(uuid, petInternalName, skinInternalName, displayIconTexture)
 
 private data class PetNameCandidate(
     val entity: ArmorStand,

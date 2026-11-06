@@ -3,7 +3,7 @@ package com.skysoft.features.pets
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.ElapsedTimeMark
 import com.skysoft.utils.SkysoftClientEvents
@@ -21,9 +21,7 @@ object ActivePetTracker {
 
     val currentPet: StoredPetData?
         get() {
-            val storedPet = storage.currentPetUuid?.let { uuid ->
-                storage.pets.firstOrNull { it.uuid == uuid }
-            }
+            val storedPet = storage.currentPetUuid?.let(PetStorageService::storedPet)
             val snapshot = currentPetSnapshot
             return when {
                 snapshot?.uuid == null -> snapshot ?: storedPet
@@ -76,16 +74,14 @@ object ActivePetTracker {
         notifyChange(mergedPetData)
     }
 
-    fun updateCurrentPetExp(exp: Double): StoredPetData? {
-        val currentPet = currentPet ?: return null
-        val currentExp = currentPet.exp ?: 0.0
-        if (exp <= currentExp) return null
+    fun updateCurrentPetExp(exp: Double) {
+        val currentPet = currentPet ?: return
+        if (exp <= (currentPet.exp ?: 0.0)) return
 
         val updatedPet = currentPet.copy(exp = exp)
         currentPetSnapshot = updatedPet
         PetStorageService.storePet(updatedPet)
         notifyChange(updatedPet)
-        return updatedPet
     }
 
     fun clearCurrentPet() {
@@ -111,21 +107,13 @@ object ActivePetTracker {
 
     fun handleChat(message: String) {
         val match = chatSummonPattern.matchEntire(message) ?: return
-        val resolvedPet = petFromSummonMessage(match) ?: return
-        assertFoundCurrentData(resolvedPet, PetDataAssertionSource.CHAT)
-    }
-
-    private fun petFromSummonMessage(match: MatchResult): StoredPetData? {
-        val petName = match.groups["pet"]?.value ?: return null
-        val rarityCode = match.groups["rarity"]?.value?.firstOrNull() ?: return null
-        val rarity = SkyBlockRarity.getByColorCode(rarityCode) ?: return null
-        val skinTag = match.groups["skin"]?.value?.replace(" ", "")
-        return PetStorageService.resolvePetDataOrNull(
-            name = petName,
-            rarity = rarity,
-            skinTag = skinTag,
+        val resolvedPet = PetStorageService.resolvePetDataOrNull(
+            name = match.group("pet"),
+            rarity = PetStoragePetItems.rarityOrNull(match) ?: return,
+            skinTag = PetStoragePetItems.skinTagOrNull(match),
             skinTagKnown = true,
-        )
+        ) ?: return
+        assertFoundCurrentData(resolvedPet, PetDataAssertionSource.CHAT)
     }
 
     private fun shouldDelayTabAssertion(): Boolean =
@@ -138,7 +126,7 @@ object ActivePetTracker {
 
     private fun StoredPetData.withStoredDataWhenMissing(source: PetDataAssertionSource): StoredPetData {
         if (source != PetDataAssertionSource.TAB) return this
-        val storedPet = uuid?.let { petUuid -> storage.pets.firstOrNull { it.uuid == petUuid } } ?: return this
+        val storedPet = uuid?.let(PetStorageService::storedPet) ?: return this
         return copy(
             skinInternalName = skinInternalName ?: storedPet.skinInternalName,
             heldItemInternalName = heldItemInternalName ?: storedPet.heldItemInternalName,
@@ -147,10 +135,9 @@ object ActivePetTracker {
         )
     }
 
-    private fun StoredPetData.trackedPet(): StoredPetData? = if (uuid != null) {
-        storage.pets.firstOrNull { it.uuid == uuid }
-    } else {
-        currentPet?.takeIf { it.uuid == null && it.petInternalName == petInternalName }
+    private fun StoredPetData.trackedPet(): StoredPetData? {
+        val petUuid = uuid ?: return currentPet?.takeIf { it.uuid == null && it.petInternalName == petInternalName }
+        return PetStorageService.storedPet(petUuid)
     }
 
     private data class PendingTabPetData(val petData: StoredPetData, val trackedExp: Double?)

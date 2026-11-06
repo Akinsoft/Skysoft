@@ -11,13 +11,13 @@ internal object PetExpShareTooltip {
     fun register() {
         ItemTooltipEvents.register("Active Pet Tooltip rendering", isActive = { true }) tooltip@{ stack, _, _, tooltip ->
             val screen = MinecraftClient.screen() as? AbstractContainerScreen<*> ?: return@tooltip
-            if (!PetStorageService.isExpSharingInventory(screen.title.cleanSkyBlockText())) return@tooltip
+            if (!PetStorageExpSharing.isInventory(screen.title.cleanSkyBlockText())) return@tooltip
             val slot = screen.menu.slots.firstOrNull { it.item === stack }
                 ?: screen.menu.slots.firstOrNull {
-                    it.item == stack && PetStorageService.isExpShareSlotDisabled(it.containerSlot)
+                    it.item == stack && PetStorageExpSharing.isSlotDisabled(it.containerSlot)
                 }
                 ?: return@tooltip
-            if (!PetStorageService.isExpShareSlotDisabled(slot.containerSlot)) return@tooltip
+            if (!PetStorageExpSharing.isSlotDisabled(slot.containerSlot)) return@tooltip
 
             tooltip.add(Component.literal(""))
             tooltip.add(Component.literal("This Exp Share slot is disabled.").withStyle(ChatFormatting.RED))

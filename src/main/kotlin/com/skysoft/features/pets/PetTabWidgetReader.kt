@@ -32,8 +32,7 @@ internal object PetTabWidgetReader {
         }
         val petInternalName = PetRepository.petWithRarityToInternalName(petName, rarity)
         val petSkin = PetStoragePetItems.petSkinInternalNameOrNull(match, petInternalName)
-        val petSkinTag = (match.groupOrNull("skin") ?: match.groupOrNull("altskin"))?.replace(" ", "")
-        val skinTagAbsenceKnown = petSkinTag == null
+        val petSkinTag = PetStoragePetItems.skinTagOrNull(match)
         val petHeldItem = widget.heldItem?.formattedText()
             ?.trim()
             ?.removeResets()
@@ -58,7 +57,7 @@ internal object PetTabWidgetReader {
             level = level,
             heldItem = petHeldItem,
             skinTag = petSkinTag,
-            skinTagKnown = skinTagAbsenceKnown,
+            skinTagKnown = petSkinTag == null,
             exp = petExp?.value,
         )
         val matchingCurrentPet = ActivePetTracker.currentPet?.takeIf { currentPet ->
@@ -73,28 +72,17 @@ internal object PetTabWidgetReader {
             heldItemInternalName = petHeldItem,
             exp = petExp?.value ?: PetRepository.levelToXp(level, petInternalName) ?: 0.0,
         )
-        val previousExp = currentPetData.exp
         val exactPetExp = petExp.exactValue?.let { PetStoragePetItems.reconcileDisplayedExp(currentPetData, it) }
         val appliedExactPetExp = exactPetExp?.takeUnless {
-            PetXpEstimator.shouldIgnoreStalePetWidgetRead(
-                currentPetData,
-                readExp = it,
-                previousExp = previousExp,
-            )
+            PetXpEstimator.shouldIgnoreStalePetWidgetRead(currentPetData, readExp = it, previousExp = currentPetData.exp)
         }
-        val updatedPet = PetStoragePetItems.withKnownData(
+        saveDisplayedPetRead(
             currentPetData,
-            exp = appliedExactPetExp,
+            exactExp = appliedExactPetExp,
             skinInternalName = petSkin,
             heldItemInternalName = petHeldItem,
+            source = PetDataAssertionSource.TAB,
         )
-        PetXpEstimator.resyncFromPetDataRead(
-            updatedPet,
-            exact = appliedExactPetExp != null,
-            previousExp = previousExp,
-            appliedExp = appliedExactPetExp,
-        )
-        ActivePetTracker.assertFoundCurrentData(updatedPet, PetDataAssertionSource.TAB)
         when {
             isMaxedWithoutOverflowXp -> PetWidgetStateTracker.setMaxedWithoutOverflowXp()
             exactPetExp != null -> PetWidgetStateTracker.setReady()
@@ -115,16 +103,15 @@ internal object PetTabWidgetReader {
             null
         }
     }
-
 }
 
-internal data class PetTabWidgetLines(
+private data class PetTabWidgetLines(
     val pet: Component,
     val heldItem: Component?,
     val xp: Component,
 )
 
-internal fun parsePetTabWidget(lines: List<Component>): PetTabWidgetLines? {
+private fun parsePetTabWidget(lines: List<Component>): PetTabWidgetLines? {
     val headerIndex = findPetTabWidgetHeaderIndex(lines)
     if (headerIndex < 0) return null
     val pet = lines.getOrNull(headerIndex + PET_TAB_WIDGET_PET_OFFSET) ?: return null
@@ -139,7 +126,7 @@ internal fun parsePetTabWidget(lines: List<Component>): PetTabWidgetLines? {
     }
 }
 
-internal fun isPetTabWidgetEmpty(lines: List<Component>): Boolean {
+private fun isPetTabWidgetEmpty(lines: List<Component>): Boolean {
     val headerIndex = findPetTabWidgetHeaderIndex(lines)
     return headerIndex >= 0 && lines.getOrNull(headerIndex + PET_TAB_WIDGET_PET_OFFSET)
         ?.cleanSkyBlockText() == "No pet selected"

@@ -11,6 +11,7 @@ import com.skysoft.config.features.pets.display.visual.RingStyleConfig
 import com.skysoft.config.features.pets.display.visual.SharedPetLayoutConfig
 import com.skysoft.data.StoredPetData
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
@@ -30,7 +31,6 @@ import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderAt
 import io.github.notenoughupdates.moulconfig.ChromaColour
-import java.util.UUID
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -59,8 +59,8 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
         return combineVisualAndTextRenderables(
             itemRenderable,
             textRenderable,
-            config.text.equippedPet.textLocation.get(),
-            config.text.equippedPet.centerTarget.get(),
+            mainTextConfig.textLocation.get(),
+            mainTextConfig.centerTarget.get(),
         )
     }
 
@@ -144,7 +144,7 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
             textConfig.enabled.get() &&
             textConfig.textMode.get() == ExpShareTextMode.ATTACHED_TO_ICONS
         ) {
-            petData.buildTextRenderableOrNull(textConfig, opacity = opacity, textScale = textConfig.textScale.get().toDouble())
+            petData.buildTextRenderableOrNull(textConfig, opacity = opacity)
         } else null
         return combineVisualAndTextRenderables(
             itemRenderable?.anchorToSelf(),
@@ -167,10 +167,14 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
         rarityBackground: PetVisualConfig.BackgroundColorConfig,
         opacity: Float = 1.0f,
     ): GuiRenderable? {
-        val iconLayer = buildVisualIconLayerOrNull(icon, petItem, rarityBackground, opacity) ?: return null
+        if (!icon.enabled.get()) return null
+        val backgroundEnabled = rarityBackground.enabled.get()
+        val iconRenderable = (buildBaseItemRenderable(icon, opacity) ?: return null)
+            .wrapInPetItemOrSelf(this, petItem, opacity)
+            .wrapInBackgroundColorOrSelf(backgroundEnabled, rarityBackground.customization, rarity, opacity)
         val borderRingConfig = rarityBackground.borderRing
-        val xpRingEnabled = iconLayer.backgroundEnabled && borderRingConfig.enabled.get()
-        val separatorWrappedRenderable = iconLayer.renderable.wrapInRingOrSelf(
+        val xpRingEnabled = backgroundEnabled && borderRingConfig.enabled.get()
+        val separatorWrappedRenderable = iconRenderable.wrapInRingOrSelf(
             enabled = xpRingEnabled && borderRingConfig.divider.enabled.get(),
             ringConfig = borderRingConfig.divider,
             opacity = opacity,
@@ -182,25 +186,6 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
             filledPercentage = levelProgressionPercentage,
             padding = borderRingConfig.progress.padding.get().roundToInt(),
         )
-    }
-
-    private fun StoredPetData.buildVisualIconLayerOrNull(
-        icon: PetIconConfig,
-        petItem: PetItemLayerConfig,
-        rarityBackground: PetVisualConfig.BackgroundColorConfig,
-        opacity: Float = 1.0f,
-    ): VisualIconLayer? {
-        if (!icon.enabled.get()) return null
-        val baseItemRenderable = buildBaseItemRenderable(icon, opacity) ?: return null
-        val petItemWrappedRenderable = baseItemRenderable.withPetItemLayer(this, petItem, opacity)
-        val backgroundEnabled = rarityBackground.enabled.get()
-        val backgroundWrappedRenderable = petItemWrappedRenderable.wrapInBackgroundColorOrSelf(
-            enabled = backgroundEnabled,
-            backgroundConfig = rarityBackground.customization,
-            rarity = rarity,
-            opacity = opacity,
-        )
-        return VisualIconLayer(backgroundWrappedRenderable, backgroundEnabled)
     }
 
     private fun StoredPetData.buildBaseItemRenderable(icon: PetIconConfig, opacity: Float): GuiRenderable? {
@@ -216,10 +201,7 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
             cursor += it.ticks
             tick < cursor
         } ?: frames.first()
-        val stableStack = PlayerHeadSkinFix.stableHeadStack(
-            PetHeadRenderKey(uuid, petInternalName, skinInternalName, displayIconTexture),
-            frame.stack,
-        ) ?: return null
+        val stableStack = PlayerHeadSkinFix.stableHeadStack(visualIdentity(), frame.stack) ?: return null
         return ItemIconRenderable(
             stableStack,
             scale = icon.scale.get().toDouble(),
@@ -237,9 +219,9 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
     private fun StoredPetData.buildTextRenderableOrNull(
         textConfig: PetTextDisplaySettings,
         opacity: Float = 1.0f,
-        textScale: Double = textConfig.textScale.get().toDouble(),
         showOverflowXp: Boolean = true,
     ): GuiRenderable? {
+        val textScale = textConfig.textScale.get().toDouble()
         val textAlpha = (COLOR_CHANNEL_MAX * opacity).roundToInt()
             .coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
         val textColor = RGB_MASK.withAlpha(textAlpha)
@@ -286,7 +268,6 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
                 expShareTextRenderables.take(aboveCount) + listOfNotNull(mainTextRenderable) + expShareTextRenderables.drop(aboveCount)
             }
         }
-        if (renderables.isEmpty()) return null
         return verticalLayout(
             renderables,
             spacing = config.text.expSharePets.bundledSpacing.get(),
@@ -310,30 +291,16 @@ internal class PetDisplayRenderer(private val orbitStartedAtNanos: Long) {
         )
     }
 
-    private data class VisualIconLayer(val renderable: GuiRenderable, val backgroundEnabled: Boolean)
-
     companion object {
         const val ANIMATION_TICK_MILLIS = 50L
         private const val ICON_GROUP_SPACING = 2
     }
 }
 
-private fun GuiRenderable.withPetItemLayer(
-    petData: StoredPetData,
-    config: PetItemLayerConfig,
-    opacity: Float,
-): GuiRenderable =
-    wrapInPetItemOrSelf(
-        enabled = config.enabled.get(),
-        petData = petData,
-        petItemConfig = config,
-        opacity = opacity,
-    )
-
 private fun GuiRenderable.wrapInBackgroundColorOrSelf(
     enabled: Boolean,
     backgroundConfig: PetRarityBackgroundConfig,
-    rarity: com.skysoft.data.skyblock.SkyBlockRarity,
+    rarity: SkyBlockRarity,
     opacity: Float,
 ): GuiRenderable = if (!enabled) this else buildCircularContainer(
     this,
@@ -344,7 +311,7 @@ private fun GuiRenderable.wrapInBackgroundColorOrSelf(
 private fun GuiRenderable.wrapInRingOrSelf(
     enabled: Boolean,
     ringConfig: RingStyleConfig,
-    opacity: Float = 1.0f,
+    opacity: Float,
 ): GuiRenderable = if (!enabled) this else buildCircularContainer(
     this,
     ringConfig.color.get().withOpacity(opacity),
@@ -366,12 +333,11 @@ private fun buildCircularContainer(
 )
 
 private fun GuiRenderable.wrapInPetItemOrSelf(
-    enabled: Boolean,
     petData: StoredPetData,
     petItemConfig: PetItemLayerConfig,
-    opacity: Float = 1.0f,
+    opacity: Float,
 ): GuiRenderable {
-    if (!enabled) return this
+    if (!petItemConfig.enabled.get()) return this
     val itemId = petData.heldItemInternalName ?: return this
     val item = SkyBlockDataRepository.stack(SkyBlockDataRepository.itemKey(itemId)) ?: return this
     val placement = petItemConfig.placement.get()
@@ -450,12 +416,5 @@ private fun combineAnchoredVisualAndTextRenderables(
 }
 
 private fun ChromaColour.toArgb(): Int = toColor().rgb
-
-private data class PetHeadRenderKey(
-    val uuid: UUID?,
-    val petInternalName: String,
-    val skinInternalName: String?,
-    val displayIconTexture: String?,
-)
 
 private const val TEXT_VISUAL_SPACING = 2

@@ -21,7 +21,20 @@ import kotlin.math.abs
 import net.minecraft.world.item.ItemStack
 
 internal object PetStoragePetItems {
-    fun toVisiblePetDataOrNull(item: ItemStack, petInfo: PetItemUtilities.PetInfo? = item.getPetInfo()): StoredPetData? {
+    fun toClickedPetDataOrNull(item: ItemStack): StoredPetData? {
+        val petInfo = item.getPetInfo() ?: return toVisiblePetDataOrNull(item)
+        return StoredPetData(
+            petInternalName = "${petInfo.type};${petInfo.tier.id}",
+            skinInternalName = petInfo.properSkinItem,
+            heldItemInternalName = petInfo.heldItem,
+            exp = petInfo.exp,
+            uuid = petInfo.ownedUuid,
+            displayIconTexture = item.playerHeadTexture(),
+            exactItemStack = item.copy(),
+        )
+    }
+
+    private fun toVisiblePetDataOrNull(item: ItemStack): StoredPetData? {
         val match = petMenuPetStackNamePattern.matchEntire(item.formattedHoverName()) ?: return null
         val level = match.group("level").formatInt()
         val petName = match.group("pet").trim()
@@ -30,44 +43,16 @@ internal object PetStoragePetItems {
             val rarity = rarityOrNull(match) ?: return null
             PetRepository.petWithRarityToInternalName(petName, rarity)
         }
-        val petSkin = petSkinInternalNameOrNull(match, petInternalName)
-        val lore = item.loreLines()
-        val petExp = lore.firstNotNullOfOrNull { line ->
-            petMenuSelectedPetXpPattern.find(line)?.let { xpMatch ->
-                val currentValue = xpMatch.group("current").formatDoubleOrNull() ?: return@let null
-                when (xpMatch.groupOrNull("next")) {
-                    null -> currentValue
-                    else -> {
-                        val currentLevelXp = PetRepository.levelToXp(level, petInternalName) ?: 0.0
-                        currentLevelXp + currentValue
-                    }
-                }
-            }
-        }
-        val petInfoExp = petInfo?.exp?.takeIf { it > 0.0 || level <= 1 }
         return StoredPetData(
             petInternalName = petInternalName,
-            skinInternalName = petInfo?.properSkinItem ?: petSkin,
-            heldItemInternalName = petInfo?.heldItem,
-            exp = petInfoExp ?: petExp ?: PetRepository.levelToXp(level, petInternalName) ?: 0.0,
-            uuid = petInfo?.ownedUuid,
+            skinInternalName = petSkinInternalNameOrNull(match, petInternalName),
+            exp = readMenuPetExp(item.loreLines(), level, petInternalName)?.value
+                ?: PetRepository.levelToXp(level, petInternalName)
+                ?: 0.0,
             displayIconTexture = item.playerHeadTexture(),
             exactItemStack = item.copy(),
         )
     }
-
-    fun toClickedPetDataOrNull(item: ItemStack, petInfo: PetItemUtilities.PetInfo? = item.getPetInfo()): StoredPetData? =
-        petInfo?.let {
-            StoredPetData(
-                petInternalName = "${it.type};${it.tier.id}",
-                skinInternalName = it.properSkinItem,
-                heldItemInternalName = it.heldItem,
-                exp = it.exp,
-                uuid = it.ownedUuid,
-                displayIconTexture = item.playerHeadTexture(),
-                exactItemStack = item.copy(),
-            )
-        } ?: toVisiblePetDataOrNull(item, null)
 
     fun readExactSelectedPetData(item: ItemStack): PetDataReadResult {
         val currentPetData = item.toExactPetDataOrNull() ?: return PetDataReadResult.UNAVAILABLE
@@ -78,16 +63,18 @@ internal object PetStoragePetItems {
     fun isCurrentPetStack(item: ItemStack): Boolean =
         item.loreLines().any { it.contains("Click to despawn") }
 
-    fun withKnownData(
-        petData: StoredPetData,
-        exp: Double? = null,
-        skinInternalName: String? = null,
-        heldItemInternalName: String? = null,
-    ): StoredPetData = petData.copy(
-        exp = exp ?: petData.exp,
-        skinInternalName = skinInternalName ?: petData.skinInternalName,
-        heldItemInternalName = heldItemInternalName ?: petData.heldItemInternalName,
-    )
+    fun readMenuPetExp(lore: List<String>, level: Int, petInternalName: String): PetExpRead? =
+        lore.firstNotNullOfOrNull { line ->
+            val xpMatch = petMenuSelectedPetXpPattern.find(line) ?: return@firstNotNullOfOrNull null
+            val current = xpMatch.group("current")
+            val currentValue = current.formatDoubleOrNull() ?: return@firstNotNullOfOrNull null
+            val levelStartXp = if (xpMatch.groupOrNull("next") == null) {
+                0.0
+            } else {
+                PetRepository.levelToXp(level, petInternalName) ?: 0.0
+            }
+            PetExpRead(levelStartXp + currentValue, isExactPetExpText(current))
+        }
 
     fun reconcileDisplayedExp(petData: StoredPetData, readExp: Double): Double {
         val storedExp = petData.exp ?: return readExp
@@ -135,10 +122,12 @@ internal object PetStoragePetItems {
     } ?: true
 
     fun petSkinInternalNameOrNull(match: MatchResult, petInternalName: String): String? =
-        PetSkinCatalog.findInternalName(
-            petInternalName,
-            match.groupOrNull("skin") ?: match.groupOrNull("altskin"),
-        )
+        PetSkinCatalog.findInternalName(petInternalName, rawSkinTagOrNull(match))
+
+    fun skinTagOrNull(match: MatchResult): String? = rawSkinTagOrNull(match)?.replace(" ", "")
+
+    private fun rawSkinTagOrNull(match: MatchResult): String? =
+        match.groupOrNull("skin") ?: match.groupOrNull("altskin")
 
     fun rarityOrNull(match: MatchResult): SkyBlockRarity? =
         SkyBlockRarity.getByColorCode(match.group("rarity").firstOrNull() ?: return null)

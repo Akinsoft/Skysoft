@@ -82,7 +82,6 @@ object VisiblePetPosition {
     fun adjustParticleY(x: Double, y: Double, z: Double): Double {
         if (!enabled || abs(headVisualYOffset) < PetParticleBounds.MIN_OFFSET) return y
 
-        // TODO: Find a way to identify pet particles by source or stable particle types instead of only proximity.
         val headX = rawHeadX ?: return y
         val headY = rawHeadY ?: return y
         val headZ = rawHeadZ ?: return y
@@ -153,8 +152,7 @@ object VisiblePetPosition {
         val isIdle = dx * dx + dz * dz <= PetHeadSmoothing.IDLE_HORIZONTAL_DISTANCE_SQ &&
             rawRelativeY in PetHeadSmoothing.IDLE_RELATIVE_Y_MIN..PetHeadSmoothing.IDLE_RELATIVE_Y_MAX
         isHeadIdle = isIdle
-        val targetY = if (isIdle) player.y + PetHeadSmoothing.IDLE_HEAD_RELATIVE_Y else state.y
-        return targetY
+        return if (isIdle) player.y + PetHeadSmoothing.IDLE_HEAD_RELATIVE_Y else state.y
     }
 
     private fun smoothVisualHeadY(rawY: Double, ageInTicks: Float): Double {

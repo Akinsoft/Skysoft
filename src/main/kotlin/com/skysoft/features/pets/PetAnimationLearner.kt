@@ -46,28 +46,16 @@ internal object PetAnimationLearner {
             recorder = PetAnimationLoopRecorder()
         }
 
-        val activeRecorder = recorder ?: return
-        val confirmed = activeRecorder.observe(observation.texture)
-        if (confirmed != null) {
-            saveConfirmedAnimation(skin, confirmed)
-        }
+        val confirmed = recorder?.observe(observation.texture) ?: return
+        saveConfirmedAnimation(skin, confirmed)
     }
 
-    private fun saveConfirmedAnimation(
-        skin: String,
-        loop: ConfirmedPetAnimationLoop,
-    ) {
-        val identityTexture = loop.textures.first()
-        val animation = AnimatedSkinJson(
-            ticksPerTexture = loop.ticksPerTexture,
-            textures = loop.textures,
-        )
-        PetSkins.storeLearned(skin, identityTexture, animation)
-            .onSuccess { discardCapture() }
-            .onFailure { error ->
-                discardCapture()
-                SkysoftMod.LOGGER.error("Failed to save learned pet animation for $skin", error)
-            }
+    private fun saveConfirmedAnimation(skin: String, loop: ConfirmedPetAnimationLoop) {
+        discardCapture()
+        val animation = AnimatedSkinJson(ticksPerTexture = loop.ticksPerTexture, textures = loop.textures)
+        PetSkins.storeLearned(skin, loop.textures.first(), animation).onFailure { error ->
+            SkysoftMod.LOGGER.error("Failed to save learned pet animation for $skin", error)
+        }
     }
 
     private fun discardCapture() {

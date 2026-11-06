@@ -5,7 +5,6 @@ import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.features.pets.ActivePetTracker.PetDataAssertionSource
 import com.skysoft.utils.NumberUtilities.formatInt
 import com.skysoft.utils.RegexUtilities.group
-import com.skysoft.utils.RegexUtilities.groupOrNull
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.formattedText
 import com.skysoft.utils.TextUtilities.removeColor
@@ -48,7 +47,7 @@ internal object PetStorageChat {
         val rarity = PetStoragePetItems.rarityOrNull(match) ?: return true
         val petInternalName = PetRepository.petWithRarityToInternalName(petName, rarity)
         val petSkin = PetStoragePetItems.petSkinInternalNameOrNull(match, petInternalName)
-        val skinTag = (match.groupOrNull("skin") ?: match.groupOrNull("altskin"))?.replace(" ", "")
+        val skinTag = PetStoragePetItems.skinTagOrNull(match)
         val hoverInfo = hoverTextLines(component)
         val petHeldItemName = hoverInfo.firstNotNullOfOrNull { line ->
             autoPetHoverHeldItemPattern.matchEntire(line.removeResets())?.group("item")
