@@ -46,7 +46,7 @@ object LotumHelper {
             "Lotum Helper tick",
             isActive = { isActive() || trackedLotums.isNotEmpty() || highlightedLotums.isNotEmpty() },
         ) tick@{
-            if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
+            if (!isActive()) {
                 clear()
                 return@tick
             }
@@ -57,21 +57,16 @@ object LotumHelper {
             if (++ticks % LOTUM_SCAN_INTERVAL_TICKS != 0) return@tick
 
             removeInvalidLotums()
-            val entities = allEntities()
+            val entities = ClientEntitySnapshot.entities()
             val frogs = entities.filterIsInstance<Frog>()
-            val nameTags = entities.filterIsInstance<ArmorStand>().filter { armorStand -> armorStand.isLotumName() }
-            val liveNameTags = nameTags.filter { armorStand -> armorStand.isAlive }
+            val nameTags = entities.filterIsInstance<ArmorStand>().filter { armorStand -> armorStand.isAlive && armorStand.isLotumName() }
             val confirmedLotums = frogs
-                .filterTo(mutableSetOf()) { frog -> frog.isConfirmedLotum(liveNameTags, frogs) }
+                .filterTo(mutableSetOf()) { frog -> frog.isConfirmedLotum(nameTags, frogs) }
             highlightedLotums.replaceWith(confirmedLotums).forEach(::highlightLotum)
         }
     }
 
     private fun onRenderWorld(context: SkysoftRenderContext) {
-        if (!config.enabled || !SkyBlockIsland.LOTUS_ATOLL.isInIsland()) {
-            trackedLotums.clear()
-            return
-        }
         removeInvalidLotums()
 
         val player = Minecraft.getInstance().player ?: return
@@ -93,9 +88,8 @@ object LotumHelper {
             LOTUM_COLOR.addAlpha(LOTUM_HIGHLIGHT_ALPHA),
             source = this,
         ) {
-            config.enabled &&
+            isActive() &&
                 config.settings.highlightLotums &&
-                SkyBlockIsland.LOTUS_ATOLL.isInIsland() &&
                 lotum.isAlive &&
                 lotum in highlightedLotums
         }
@@ -107,7 +101,7 @@ object LotumHelper {
 
     private fun Entity.findLotumNameTag(): ArmorStand? =
         (this as? ArmorStand)?.takeIf { it.isLotumName() }
-            ?: nearbyLotumNameTag(allEntities().filterIsInstance<ArmorStand>())
+            ?: nearbyLotumNameTag(ClientEntitySnapshot.entities().filterIsInstance<ArmorStand>())
 
     private fun Frog.isConfirmedLotum(nameTags: List<ArmorStand>, frogs: List<Frog>): Boolean =
         isAlive && nearbyLotumNameTag(nameTags)?.findLotumFrog(frogs) == this
@@ -130,8 +124,6 @@ object LotumHelper {
     }
 
     private fun Entity.isLotumName(): Boolean = cleanName().contains(LOTUM_NAME)
-
-    private fun allEntities(): List<Entity> = ClientEntitySnapshot.entities()
 
     private fun clear() {
         trackedLotums.clear()

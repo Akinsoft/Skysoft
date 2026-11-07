@@ -1,6 +1,7 @@
 package com.skysoft.features.foraging
 
 import com.skysoft.data.SkyBlockIsland
+import kotlin.math.abs
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
 import net.minecraft.tags.BlockTags
@@ -32,31 +33,29 @@ internal object ThrowingAxeTrees {
     }
 
     private fun BlockPos.isInsideCapture(origin: BlockPos): Boolean =
-        kotlin.math.abs(x - origin.x) <= CAPTURE_RADIUS &&
-            kotlin.math.abs(y - origin.y) <= CAPTURE_RADIUS &&
-            kotlin.math.abs(z - origin.z) <= CAPTURE_RADIUS
+        abs(x - origin.x) <= CAPTURE_RADIUS &&
+            abs(y - origin.y) <= CAPTURE_RADIUS &&
+            abs(z - origin.z) <= CAPTURE_RADIUS
 
-    fun section(kind: TreeKind, target: BlockPos, positions: Set<BlockPos>): TreeSection {
-        if (kind == TreeKind.HELIX_BEIGE) return TreeSection.BEIGE
-        if (kind == TreeKind.HELIX_RED) return TreeSection.RED
-        if (kind == TreeKind.PARK) return TreeSection.TRUNK
+    fun section(kind: TreeKind, target: BlockPos, positions: Set<BlockPos>): TreeSection = when (kind) {
+        TreeKind.HELIX_BEIGE -> TreeSection.BEIGE
+        TreeKind.HELIX_RED -> TreeSection.RED
+        TreeKind.PARK -> TreeSection.TRUNK
+        TreeKind.FIG -> if (isBranch(target, positions, FIG_BRANCH_HEIGHT)) TreeSection.BRANCH else TreeSection.TRUNK
+        TreeKind.MANGROVE -> when {
+            normalizedHeight(target, positions) <= MANGROVE_ROOT_HEIGHT -> TreeSection.ROOT
+            isBranch(target, positions, MANGROVE_BRANCH_HEIGHT) -> TreeSection.BRANCH
+            else -> TreeSection.TRUNK
+        }
+    }
+
+    private fun isBranch(target: BlockPos, positions: Set<BlockPos>, branchHeight: Double): Boolean =
+        normalizedHeight(target, positions) >= branchHeight && verticalRun(target, positions) <= BRANCH_VERTICAL_RUN
+
+    private fun normalizedHeight(target: BlockPos, positions: Set<BlockPos>): Double {
         val minimumY = positions.minOf(BlockPos::getY)
         val height = positions.maxOf(BlockPos::getY) - minimumY
-        val normalizedHeight = if (height == 0) 0.0 else (target.y - minimumY).toDouble() / height
-        val verticalRun = verticalRun(target, positions)
-        return when (kind) {
-            TreeKind.FIG -> if (normalizedHeight >= FIG_BRANCH_HEIGHT && verticalRun <= BRANCH_VERTICAL_RUN) {
-                TreeSection.BRANCH
-            } else {
-                TreeSection.TRUNK
-            }
-            TreeKind.MANGROVE -> when {
-                normalizedHeight <= MANGROVE_ROOT_HEIGHT -> TreeSection.ROOT
-                normalizedHeight >= MANGROVE_BRANCH_HEIGHT && verticalRun <= BRANCH_VERTICAL_RUN -> TreeSection.BRANCH
-                else -> TreeSection.TRUNK
-            }
-            TreeKind.PARK, TreeKind.HELIX_BEIGE, TreeKind.HELIX_RED -> error("Handled above")
-        }
+        return if (height == 0) 0.0 else (target.y - minimumY).toDouble() / height
     }
 
     private fun verticalRun(position: BlockPos, positions: Set<BlockPos>): Int {
@@ -79,7 +78,6 @@ internal object ThrowingAxeTrees {
                 connected.any { section(kind, it, positions) == TreeSection.TRUNK }
         TreeKind.MANGROVE ->
             when (targetSection) {
-                TreeSection.BRANCH -> false
                 TreeSection.TRUNK -> connected.any { section(kind, it, positions) == TreeSection.BRANCH }
                 TreeSection.ROOT -> connected.any { section(kind, it, positions) != TreeSection.ROOT }
                 else -> false

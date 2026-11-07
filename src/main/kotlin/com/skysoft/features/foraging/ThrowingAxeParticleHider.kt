@@ -33,6 +33,6 @@ object ThrowingAxeParticleHider {
     private const val AXE_PARTICLE_DISTANCE_SQUARED = 16.0
 }
 
-internal fun isThrowingAxeTrailPacket(event: ClientParticleEvent): Boolean =
+private fun isThrowingAxeTrailPacket(event: ClientParticleEvent): Boolean =
     event.type == ParticleTypes.WAX_ON && event.count == 2 && event.speed == 1.0F &&
         event.offset.lengthSq() == 0.0 && !event.longDistance

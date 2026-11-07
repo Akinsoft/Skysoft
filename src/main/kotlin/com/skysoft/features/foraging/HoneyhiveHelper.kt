@@ -1,5 +1,6 @@
 package com.skysoft.features.foraging
 
+import com.skysoft.utils.MILLIS_PER_SECOND
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ClientEntitySnapshot
 import com.skysoft.data.ProfileStorage
@@ -58,9 +59,7 @@ object HoneyhiveHelper {
             return
         }
         if (!HypixelLocationState.inSkyBlock || profile == null) {
-            soundsRemaining = 0
-            soundDelayTicks = 0
-            ticks = 0
+            pauseTracking()
             return
         }
         val data = ProfileStorageApi.storage.honeyhiveTracker
@@ -70,9 +69,7 @@ object HoneyhiveHelper {
             activeData = data
         }
         if (!SkyBlockIsland.TORRHUS_CANYON.isInIsland()) {
-            soundsRemaining = 0
-            soundDelayTicks = 0
-            ticks = 0
+            pauseTracking()
             return
         }
 
@@ -131,8 +128,7 @@ object HoneyhiveHelper {
     }
 
     private fun alertForNewlyReadyHives(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
-        val ready = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
-            .mapTo(mutableSetOf()) { it.locationKey() }
+        val ready = readyHiveKeys(data, now)
         alertedReadyHives.retainAll(ready)
         val newlyReady = ready - alertedReadyHives
         alertedReadyHives += ready
@@ -191,12 +187,10 @@ object HoneyhiveHelper {
 
     internal fun hasWaypoint(hive: ProfileStorageView.HoneyhiveData, now: Long = System.currentTimeMillis()): Boolean =
         hive.locationKey() in selectedHives || config.settings.readyWaypoints &&
-            hive.hasKnownStatus() && hive.readyAtMillis <= now && hive.locationKey() !in dismissedReadyHives
+            hive.isReady(now) && hive.locationKey() !in dismissedReadyHives
 
     private fun clearReachedWaypoints(data: ProfileStorageView.HoneyhiveTrackerData, now: Long) {
-        val readyKeys = data.hives.filter { it.hasKnownStatus() && it.readyAtMillis <= now }
-            .mapTo(mutableSetOf()) { it.locationKey() }
-        dismissedReadyHives.retainAll(readyKeys)
+        dismissedReadyHives.retainAll(readyHiveKeys(data, now))
         val playerPosition = localPlayerLocation() ?: return
         data.hives.filter { it.locationKey() in selectedHives && playerPosition.distanceSq(it.location()) <= ARRIVAL_RANGE_SQ }
             .forEach { dismissWaypoint(it, now) }
@@ -205,10 +199,21 @@ object HoneyhiveHelper {
     private fun dismissWaypoint(hive: ProfileStorageView.HoneyhiveData, now: Long) {
         val key = hive.locationKey()
         selectedHives.remove(key)
-        if (hive.hasKnownStatus() && hive.readyAtMillis <= now) dismissedReadyHives.add(key)
+        if (hive.isReady(now)) dismissedReadyHives.add(key)
     }
 
+    private fun readyHiveKeys(data: ProfileStorageView.HoneyhiveTrackerData, now: Long): Set<String> =
+        data.hives.filter { it.isReady(now) }.mapTo(mutableSetOf()) { it.locationKey() }
+
+    private fun ProfileStorageView.HoneyhiveData.isReady(now: Long): Boolean = hasKnownStatus() && readyAtMillis <= now
+
     private fun isEnabled(): Boolean = config.enabled && SkyBlockIsland.TORRHUS_CANYON.isInIsland()
+
+    private fun pauseTracking() {
+        soundsRemaining = 0
+        soundDelayTicks = 0
+        ticks = 0
+    }
 
     private fun clear() {
         activeData = null
@@ -216,9 +221,7 @@ object HoneyhiveHelper {
         selectedHives.clear()
         dismissedReadyHives.clear()
         alertedReadyHives.clear()
-        soundsRemaining = 0
-        soundDelayTicks = 0
-        ticks = 0
+        pauseTracking()
         HoneyhiveDisplay.clear()
     }
 
@@ -274,8 +277,8 @@ internal fun honeyhiveStatusComponent(hive: ProfileStorageView.HoneyhiveData, no
     return Component.literal(text).withStyle(ChatFormatting.YELLOW)
 }
 
-internal fun parseHoneyhiveRefillMillis(text: String): Long? {
-    val duration = text.removePrefix("Refill in: ").takeIf { it != text && it.isNotBlank() } ?: return null
+private fun parseHoneyhiveRefillMillis(text: String): Long? {
+    val duration = text.removePrefix(REFILL_PREFIX).takeIf { it != text && it.isNotBlank() } ?: return null
     var totalSeconds = 0L
     duration.split(' ').forEach { part ->
         val match = HONEYHIVE_DURATION_PART.matchEntire(part) ?: return null
@@ -289,20 +292,19 @@ internal fun parseHoneyhiveRefillMillis(text: String): Long? {
     return totalSeconds * MILLIS_PER_SECOND
 }
 
-private fun String.isHoneyhiveStatus(): Boolean = this == "Click to loot!" || startsWith("Refill in: ")
+private fun String.isHoneyhiveStatus(): Boolean = this == READY_STATUS || startsWith(REFILL_PREFIX)
 
-private fun String.readyAtMillis(now: Long): Long? = when (this) {
-    "Click to loot!" -> 0L
-    else -> parseHoneyhiveRefillMillis(this)?.let { now + it }
-}
+private fun String.readyAtMillis(now: Long): Long? =
+    if (this == READY_STATUS) 0L else parseHoneyhiveRefillMillis(this)?.let { now + it }
 
 private fun shouldUpdateReadyTime(current: Long, observed: Long, now: Long): Boolean =
     (current <= now) != (observed <= now) ||
         observed > now && abs(current - observed) > READY_TIME_TOLERANCE_MILLIS
 
+private const val READY_STATUS = "Click to loot!"
+private const val REFILL_PREFIX = "Refill in: "
 private const val SECONDS_PER_MINUTE = 60L
 private const val SECONDS_PER_HOUR = 60L * SECONDS_PER_MINUTE
-private const val MILLIS_PER_SECOND = 1_000L
 private const val READY_TIME_TOLERANCE_MILLIS = 2_000L
 private val HONEYHIVE_DURATION_PART = Regex("""(\d+)([hms])""")
 
