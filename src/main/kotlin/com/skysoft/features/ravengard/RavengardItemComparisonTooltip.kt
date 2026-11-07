@@ -14,6 +14,7 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.Identifier
@@ -66,7 +67,7 @@ object RavengardItemComparisonTooltip {
     }
 }
 
-internal fun addRavengardStatDeltas(
+private fun addRavengardStatDeltas(
     candidateLines: MutableList<Component>,
     equippedLines: Iterable<Component>,
 ) {
@@ -133,18 +134,14 @@ private fun Component.withDeltaBeforeName(stat: RavengardStat, delta: BigDecimal
 }
 
 private fun deltaComponent(delta: BigDecimal, percent: Boolean): Component =
-    Component.literal("(${formattedDelta(delta, percent)}) ").withStyle { style ->
-        style.withColor(TextColor.fromRgb(deltaColor(delta))).withItalic(false)
-    }
+    nonItalicText("(${formattedDelta(delta, percent)}) ", deltaColor(delta))
 
 private fun missingStatLine(stat: RavengardStat, delta: BigDecimal): Component =
-    Component.literal("${stat.icon}${formattedDelta(delta, stat.key.percent)}").withStyle { style ->
-        style.withColor(TextColor.fromRgb(deltaColor(delta))).withItalic(false)
-    }.append(
-        Component.literal(" ${stat.key.name}").withStyle { style ->
-            style.withColor(TextColor.fromRgb(STAT_NAME_COLOR)).withItalic(false)
-        },
-    )
+    nonItalicText("${stat.icon}${formattedDelta(delta, stat.key.percent)}", deltaColor(delta))
+        .append(nonItalicText(" ${stat.key.name}", STAT_NAME_COLOR))
+
+private fun nonItalicText(text: String, color: Int): MutableComponent =
+    Component.literal(text).withStyle { style -> style.withColor(TextColor.fromRgb(color)).withItalic(false) }
 
 private fun formattedDelta(delta: BigDecimal, percent: Boolean): String {
     val value = delta.stripTrailingZeros().toPlainString()
@@ -160,7 +157,7 @@ private fun fallbackStatInsertionIndex(lines: List<Component>): Int {
     return preceding.takeIf { it >= 0 && lines[it].string.isBlank() } ?: crownIndex
 }
 
-internal fun ravengardComparisonGroup(itemModel: Identifier?): String? {
+private fun ravengardComparisonGroup(itemModel: Identifier?): String? {
     if (itemModel?.namespace != RAVENGARD_NAMESPACE) return null
     val path = itemModel.path
     if (path.endsWith(GREYED_SUFFIX)) return null
@@ -170,9 +167,7 @@ internal fun ravengardComparisonGroup(itemModel: Identifier?): String? {
     return category.takeIf(String::isNotBlank)?.let { "$ACCESSORY_PREFIX$it" }
 }
 
-private val EQUIPPED_HEADER = Component.literal("Equipped").withStyle { style ->
-    style.withColor(TextColor.fromRgb(EQUIPPED_COLOR)).withBold(true).withItalic(false)
-}
+private val EQUIPPED_HEADER = nonItalicText("Equipped", EQUIPPED_COLOR).withStyle { style -> style.withBold(true) }
 private val ACCESSORY_EQUIPMENT_SLOTS = 9..12
 private val RAVENGARD_STAT_PATTERN = Regex(
     """^(?<icon>\p{Co})(?<value>[+-]?\d[\d,]*(?:\.\d+)?)(?<percent>%?) (?<name>.+)$""",
@@ -190,7 +185,6 @@ private const val ARMOR_PREFIX = "item/armor/"
 private const val ARMOR_GROUP = "item/armor"
 private const val ACCESSORY_PREFIX = "item/accessories/"
 private const val GREYED_SUFFIX = "_greyed"
-private const val CROWN = "\uD83D\uDC51"
 private const val EQUIPPED_COLOR = 0xFFCE47
 private const val GAIN_COLOR = 0x5FEC7B
 private const val LOSS_COLOR = 0xFF5555

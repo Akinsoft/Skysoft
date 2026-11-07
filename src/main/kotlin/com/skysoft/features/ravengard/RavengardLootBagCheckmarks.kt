@@ -114,10 +114,10 @@ object RavengardLootBagCheckmarks {
     )
 }
 
-internal fun isRavengardLootBag(model: Identifier?): Boolean =
+private fun isRavengardLootBag(model: Identifier?): Boolean =
     model?.namespace == RAVENGARD_NAMESPACE && model.path.startsWith(LOOT_BAG_MODEL_PREFIX)
 
-internal fun isOpenedRavengardLootBag(model: Identifier?): Boolean =
+private fun isOpenedRavengardLootBag(model: Identifier?): Boolean =
     isRavengardLootBag(model) && model?.path?.endsWith(OPEN_MODEL_SUFFIX) == true
 
 private const val LOOT_BAG_MODEL_PREFIX = "item/gameplay/lootbags/lootbag_"

@@ -6,7 +6,6 @@ import com.skysoft.utils.renderables.withIsolatedPose
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.core.component.DataComponents
-import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
@@ -30,15 +29,12 @@ object CrownValueOverlay {
 }
 
 private fun ItemStack.crownValue(): String? =
-    get(DataComponents.LORE)?.lines()?.let(::crownValueFromLore)
-
-internal fun crownValueFromLore(lines: Iterable<Component>): String? =
-    lines.firstNotNullOfOrNull { line ->
+    get(DataComponents.LORE)?.lines()?.firstNotNullOfOrNull { line ->
         CROWN_VALUE_PATTERN.matchEntire(line.string.trim())?.groups?.get("value")?.value
     }
 
-private val CROWN_VALUE_PATTERN = Regex("""^👑(?<value>\d[\d,]*) Crowns?$""")
-private const val CROWN = "👑"
+internal const val CROWN = "👑"
+private val CROWN_VALUE_PATTERN = Regex("""^$CROWN(?<value>\d[\d,]*) Crowns?$""")
 private const val TEXT_SCALE = 0.5f
 private const val MAX_TEXT_WIDTH = 15f
 private const val CROWN_COLOR = 0xFFFFFFFF.toInt()
