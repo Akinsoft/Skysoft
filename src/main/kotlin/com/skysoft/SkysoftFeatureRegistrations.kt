@@ -141,7 +141,7 @@ import com.skysoft.utils.chat.SkysoftPartyShare
 import com.skysoft.utils.render.EntityHighlightRenderer
 import com.skysoft.utils.render.ScreenAlertRenderer
 import com.skysoft.utils.render.WorldRenderDispatcher
-import com.skysoft.utils.render.item.SkysoftItemRenderSupport
+import com.skysoft.utils.render.item.SkysoftPipItemRenderers
 
 internal object SkysoftFeatureRegistrations {
     fun registerAll() {
@@ -179,7 +179,7 @@ internal object SkysoftFeatureRegistrations {
         register("SkyBlock Data Repository", SkyBlockDataRepository::register)
         register("Entity Highlight Renderer", EntityHighlightRenderer::register)
         register("World Render Dispatcher", WorldRenderDispatcher::register)
-        register("Item Render Support", SkysoftItemRenderSupport::register)
+        register("Item Render Support", SkysoftPipItemRenderers::register)
         register("GUI Overlay Registry", GuiOverlayRegistry::register)
         register("Deferred Screen Requests", DeferredScreenRequests::register)
         register("Screen Alert Renderer", ScreenAlertRenderer::register)

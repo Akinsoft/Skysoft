@@ -11,10 +11,6 @@ import net.minecraft.world.phys.Vec3
 import org.joml.Matrix3x2f
 
 object SkysoftItemRenderSupport {
-    fun register() {
-        SkysoftPipItemRenderers.register()
-    }
-
     fun submit(
         context: GuiGraphicsExtractor,
         stack: ItemStack,
@@ -48,10 +44,6 @@ object SkysoftItemRenderSupport {
             requestedScale = scale.toFloat(),
             opacity = alpha,
         )
-        submit(context, state)
-    }
-
-    private fun submit(context: GuiGraphicsExtractor, state: RotatingItemPicture) {
         GuiRenderStateAccess.get(context).addPicturesInPictureState(state)
     }
 }
