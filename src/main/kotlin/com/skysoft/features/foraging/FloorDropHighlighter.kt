@@ -37,12 +37,13 @@ object FloorDropHighlighter {
             return
         }
         floorDropLevel = level
-        val stringDisplayBlocks = ClientEntitySnapshot.entities().asSequence()
+        floorDropBlocks = ClientEntitySnapshot.entities().asSequence()
             .filterIsInstance<Display.ItemDisplay>()
             .filter { display -> display.isAlive && display.itemStack.item == Items.STRING }
-            .map { display -> display.blockPosition() }
-            .asIterable()
-        floorDropBlocks = findFloorDropBlocks(stringDisplayBlocks)
+            .groupingBy { display -> display.blockPosition() }
+            .eachCount()
+            .filterValues { count -> count == FLOOR_DROP_DISPLAY_COUNT }
+            .keys
     }
 
     private fun clearFloorDrops() {
@@ -68,11 +69,6 @@ object FloorDropHighlighter {
             HypixelLocationState.inSkyBlock &&
             HypixelLocationState.currentIsland in FLOOR_DROP_ISLANDS
 }
-
-internal fun findFloorDropBlocks(stringDisplayBlocks: Iterable<BlockPos>): Set<BlockPos> =
-    stringDisplayBlocks.groupingBy { block -> block }.eachCount()
-        .filterValues { count -> count == FLOOR_DROP_DISPLAY_COUNT }
-        .keys
 
 private val FLOOR_DROP_ISLANDS = setOf(
     SkyBlockIsland.GALATEA,

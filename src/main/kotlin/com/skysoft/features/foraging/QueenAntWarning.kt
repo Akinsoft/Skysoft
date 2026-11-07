@@ -10,6 +10,7 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
+import com.skysoft.utils.render.ALERT_TITLE_SCALE
 import com.skysoft.utils.render.ScreenAlert
 import com.skysoft.utils.render.ScreenAlertRenderer
 import com.skysoft.utils.render.ScreenAlertSound
@@ -101,7 +102,7 @@ object QueenAntWarning {
                 lines = listOf(
                     ScreenTitleLine(
                         Component.literal(TITLE).withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-                        TITLE_SCALE,
+                        ALERT_TITLE_SCALE,
                     ),
                 ),
                 durationMillis = TITLE_DURATION_MILLIS,
@@ -141,11 +142,10 @@ object QueenAntWarning {
     private const val ALERT_SOUND_REPEAT_INTERVAL_MILLIS = 450L
     private const val ALERT_SOUND_PITCH = 1.0f
     private const val ALERT_SOUND_VOLUME = 1.0f
-    private const val TITLE_SCALE = 2.7f
     private val QUEEN_ANT_COLOR = Color(255, 85, 85, 230)
 }
 
-internal fun selectNewQueenAntId(
+private fun selectNewQueenAntId(
     queens: Map<UUID, WorldVec>,
     existingQueenIds: Set<UUID>,
     playerLocation: WorldVec,

@@ -1,6 +1,5 @@
 package com.skysoft.features.farming
 
-import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -56,9 +55,9 @@ object PestHelper {
         updatePendingWarp()
         if (!settings.sharedKeybind) sharedPositionSaved = false
 
-        val sharedKeyDown = isKeyDown(settings.sharedKey)
-        val warpKeyDown = isKeyDown(settings.warpKey)
-        val returnKeyDown = isKeyDown(settings.returnKey)
+        val sharedKeyDown = InputUtilities.isFeatureKeyDown(settings.sharedKey)
+        val warpKeyDown = InputUtilities.isFeatureKeyDown(settings.warpKey)
+        val returnKeyDown = InputUtilities.isFeatureKeyDown(settings.returnKey)
         val sharedPressed = sharedKeyDown && !sharedKeyWasDown
         val warpPressed = warpKeyDown && !warpKeyWasDown
         val returnPressed = returnKeyDown && !returnKeyWasDown
@@ -147,9 +146,6 @@ object PestHelper {
     }
 
     private fun String.commandName(): String = if (this == "The Barn") "barn" else this
-
-    private fun isKeyDown(key: Int): Boolean =
-        key != MinecraftInput.NO_BINDING && key != InputConstants.KEY_RETURN && InputUtilities.isActionBindingDown(key)
 
     private fun reset() {
         sharedKeyWasDown = false

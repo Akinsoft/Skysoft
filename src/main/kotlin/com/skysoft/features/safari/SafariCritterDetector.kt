@@ -19,29 +19,23 @@ internal data class SafariCritter(
 )
 
 internal object SafariCritterDetector {
-    fun detectedCritters(
-        entities: List<Entity> = ClientEntitySnapshot.entities(),
-    ): List<SafariCritter> {
+    fun detectedCritters(entities: List<Entity>): List<SafariCritter> {
         val nameplates = critterNameplates(entities)
         return nameplates.map { named -> named.toCritter(entities, nameplates) }
     }
 
-    fun critterFor(entity: LivingEntity): SafariCritter? {
-        val entities = ClientEntitySnapshot.entities()
-        val nameplates = critterNameplates(entities)
-        return nameplates
-            .asSequence()
-            .filter { named -> SkyBlockMobEntityMatcher.canPairWithNameplate(entity, named.nameplate) }
-            .minByOrNull { named -> entity.distanceToSqr(named.nameplate) }
-            ?.toCritter(entities, nameplates)
-    }
+    fun critterFor(entity: LivingEntity): SafariCritter? =
+        nearestCritter(entity) { nameplate -> SkyBlockMobEntityMatcher.canPairWithNameplate(entity, nameplate) }
 
-    fun critterNear(entity: Entity): SafariCritter? {
+    fun critterNear(entity: Entity): SafariCritter? =
+        nearestCritter(entity) { nameplate -> entity.distanceToSqr(nameplate) <= CAPSULE_TARGET_DISTANCE_SQ }
+
+    private fun nearestCritter(entity: Entity, canPair: (ArmorStand) -> Boolean): SafariCritter? {
         val entities = ClientEntitySnapshot.entities()
         val nameplates = critterNameplates(entities)
         return nameplates
             .asSequence()
-            .filter { named -> entity.distanceToSqr(named.nameplate) <= CAPSULE_TARGET_DISTANCE_SQ }
+            .filter { named -> canPair(named.nameplate) }
             .minByOrNull { named -> entity.distanceToSqr(named.nameplate) }
             ?.toCritter(entities, nameplates)
     }

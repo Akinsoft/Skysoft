@@ -29,6 +29,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Block
@@ -87,27 +88,17 @@ object ThrowingAxeHelper {
             return
         }
         throwTracker.update(level, config.settings.highlightThrownLogs)
-        val axe = player.mainHandItem
-        if (!axe.isThrowingAxe() || player.cooldowns.isOnCooldown(axe)) {
-            highlights = HighlightSnapshot()
-            return
-        }
+        highlights = predictHighlights(level, island, player) ?: HighlightSnapshot()
+    }
 
-        val baseSweep = sweep ?: run {
-            highlights = HighlightSnapshot()
-            return
-        }
+    private fun predictHighlights(level: ClientLevel, island: SkyBlockIsland, player: LocalPlayer): HighlightSnapshot? {
+        val axe = player.mainHandItem
+        if (!axe.isThrowingAxe() || player.cooldowns.isOnCooldown(axe)) return null
+        val baseSweep = sweep ?: return null
         val target = aimedLog(level, island, player.eyePosition, player.lookAngle)
         val kind = target?.let { ThrowingAxeTrees.treeKind(island, level.getBlockState(it)) }
-        if (target == null || kind == null) {
-            highlights = HighlightSnapshot()
-            return
-        }
-        val connected = ThrowingAxeTrees.connectedLogs(level, target)
-        if (connected.isEmpty()) {
-            highlights = HighlightSnapshot()
-            return
-        }
+        if (target == null || kind == null) return null
+        val connected = ThrowingAxeTrees.connectedLogs(level, target).ifEmpty { return null }
 
         val positions = connected.toSet()
         val section = ThrowingAxeTrees.section(kind, target, positions)
@@ -131,7 +122,7 @@ object ThrowingAxeHelper {
             if (chopLevel in 1 until MAX_ATTRIBUTE_LEVEL) 1 else 0,
             if (kind == TreeKind.FIG || kind == TreeKind.MANGROVE) TREE_SECTION_UNCERTAINTY else 0,
         )
-        highlights = HighlightSnapshot(
+        return HighlightSnapshot(
             primary = connected.take(primaryCount),
             possible = connected.drop(primaryCount).take(possibleCount),
             expectedBlock = level.getBlockState(target).block,
@@ -173,16 +164,12 @@ object ThrowingAxeHelper {
         if (pet?.petInternalName?.substringBefore(';') == SLOTH) stronkArmSweep(pet.rarity, pet.level) else 0.0
 
     private fun sharpenedSweep(baseSweep: Double, kind: TreeKind): Double {
-        val sharpeningLevel = when (kind) {
-            TreeKind.FIG -> AttributeShardCatalog.getActiveLevelByAbilityName(FIG_SHARPENING)
-            TreeKind.MANGROVE -> AttributeShardCatalog.getActiveLevelByAbilityName(MANGROVE_SHARPENING)
-            else -> 0
+        val (sharpening, sweepPerLevel) = when (kind) {
+            TreeKind.FIG -> FIG_SHARPENING to FIG_SHARPENING_PER_LEVEL
+            TreeKind.MANGROVE -> MANGROVE_SHARPENING to MANGROVE_SHARPENING_PER_LEVEL
+            else -> return baseSweep
         }
-        val sweepPerLevel = when (kind) {
-            TreeKind.FIG -> FIG_SHARPENING_PER_LEVEL
-            TreeKind.MANGROVE -> MANGROVE_SHARPENING_PER_LEVEL
-            else -> 0.0
-        }
+        val sharpeningLevel = AttributeShardCatalog.getActiveLevelByAbilityName(sharpening)
         val echoLevel = AttributeShardCatalog.getActiveLevelByAbilityName(ECHO_OF_SHARPENING)
         return baseSweep + sharpeningLevel * sweepPerLevel * (1.0 + echoLevel * ECHO_BONUS_PER_LEVEL)
     }
@@ -260,7 +247,7 @@ private const val THROWING_AXE_ABILITY = "Ability: Throwing Axe"
 internal fun ItemStack.isThrowingAxe(): Boolean =
     skyBlockId() in THROWING_AXES || loreLines().any { it.cleanSkyBlockText().contains(THROWING_AXE_ABILITY) }
 
-internal fun stronkArmSweep(rarity: SkyBlockRarity, level: Int): Double {
+private fun stronkArmSweep(rarity: SkyBlockRarity, level: Int): Double {
     val sweepPerLevel = when (rarity) {
         SkyBlockRarity.RARE -> RARE_STRONK_ARM_SWEEP_PER_LEVEL
         SkyBlockRarity.EPIC, SkyBlockRarity.LEGENDARY -> EPIC_STRONK_ARM_SWEEP_PER_LEVEL
@@ -269,10 +256,10 @@ internal fun stronkArmSweep(rarity: SkyBlockRarity, level: Int): Double {
     return level * sweepPerLevel
 }
 
-internal fun isThrowingAxePassable(level: ClientLevel, position: BlockPos, state: BlockState): Boolean =
+private fun isThrowingAxePassable(level: ClientLevel, position: BlockPos, state: BlockState): Boolean =
     state.block is LeavesBlock || state.getCollisionShape(level, position).isEmpty
 
-internal fun throwingAxePosition(origin: Vec3, look: Vec3, tick: Int): Vec3 {
+private fun throwingAxePosition(origin: Vec3, look: Vec3, tick: Int): Vec3 {
     val elapsed = tick.toDouble()
     return origin.add(
         look.x * AXE_SPEED * elapsed,
@@ -281,7 +268,7 @@ internal fun throwingAxePosition(origin: Vec3, look: Vec3, tick: Int): Vec3 {
     )
 }
 
-internal fun sweepExtraLogs(sweep: Double, toughness: Double): Double {
+private fun sweepExtraLogs(sweep: Double, toughness: Double): Double {
     if (sweep <= 0.0) return 0.0
     if (toughness <= 0.0) return sweep.coerceAtMost(MAX_EXTRA_LOGS)
     val scaledSweep = (sweep + sqrt(sweep) - toughness) / toughness.pow(TOUGHNESS_EXPONENT)
@@ -289,10 +276,10 @@ internal fun sweepExtraLogs(sweep: Double, toughness: Double): Double {
     return (SWEEP_LOG_MULTIPLIER * log10(1.0 + scaledSweep.pow(SWEEP_EXPONENT))).coerceAtMost(MAX_EXTRA_LOGS)
 }
 
-internal fun predictedPrimaryLogCount(extraLogs: Double, chopLevel: Int): Int =
+private fun predictedPrimaryLogCount(extraLogs: Double, chopLevel: Int): Int =
     floor(extraLogs.coerceIn(0.0, MAX_EXTRA_LOGS)).toInt() + 1 + if (chopLevel >= MAX_CHOP_LEVEL) 1 else 0
 
-internal fun throwMultiplier(missileLevel: Int, precursorDrone: Boolean): Double =
+private fun throwMultiplier(missileLevel: Int, precursorDrone: Boolean): Double =
     if (precursorDrone) 1.0 else (BASE_THROW_MULTIPLIER + missileLevel * MISSILE_BONUS_PER_LEVEL).coerceAtMost(1.0)
 
 private const val RARE_STRONK_ARM_SWEEP_PER_LEVEL = 0.2

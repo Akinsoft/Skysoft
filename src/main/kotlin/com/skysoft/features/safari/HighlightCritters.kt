@@ -18,14 +18,8 @@ object HighlightCritters {
     private var ticks = 0L
 
     fun register() {
-        HypixelLocationState.onChange(
-            "Highlight Critters location",
-            isActive = { isEnabled() || trackedCritters.isNotEmpty() || highlightedEntities.isNotEmpty() },
-        ) { clear() }
-        SkysoftClientEvents.onEndTick(
-            "Highlight Critters tick",
-            isActive = { isEnabled() || trackedCritters.isNotEmpty() || highlightedEntities.isNotEmpty() },
-        ) { tick() }
+        HypixelLocationState.onChange("Highlight Critters location", isActive = ::isActive) { clear() }
+        SkysoftClientEvents.onEndTick("Highlight Critters tick", isActive = ::isActive) { tick() }
         SkysoftClientEvents.onDisconnect("Highlight Critters disconnect reset", ::clear)
     }
 
@@ -104,6 +98,8 @@ object HighlightCritters {
     }
 
     private fun isEnabled(): Boolean = config.highlightCritters && SkyBlockIsland.SAFARI.isInIsland()
+
+    private fun isActive(): Boolean = isEnabled() || trackedCritters.isNotEmpty() || highlightedEntities.isNotEmpty()
 
     private data class TrackedCritter(
         var nameplateUuid: UUID,

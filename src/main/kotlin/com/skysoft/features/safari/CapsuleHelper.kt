@@ -5,6 +5,7 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.data.skyblock.SkyBlockRarity
 import com.skysoft.events.entity.ClientEntityMetadataEvents
+import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.chat.ChatEvents
@@ -69,31 +70,24 @@ object CapsuleHelper {
     private fun handleMessage(text: String, component: Component) {
         val throwMatch = THROW_MESSAGE.matchEntire(text)
         if (throwMatch != null) {
-            val critter = throwMatch.groups[CRITTER_GROUP]?.value ?: return
+            val critter = throwMatch.group(CRITTER_GROUP)
             val rarity = SkyBlockRarity.getByComponent(component, critter) ?: return
-            val impactIndex = pendingImpacts.indexOfFirst { impact -> impact.critter == critter }
-            val impact = if (impactIndex >= 0) {
-                pendingCapsuleImpacts.indexOfFirst { candidate -> candidate.critter == critter }
-                    .takeIf { index -> index >= 0 }
-                    ?.let(pendingCapsuleImpacts::removeAt)
-                pendingImpacts.removeAt(impactIndex)
-            } else {
-                val capsuleImpactIndex = pendingCapsuleImpacts.indexOfFirst { candidate -> candidate.critter == critter }
-                if (capsuleImpactIndex < 0) return
-                pendingCapsuleImpacts.removeAt(capsuleImpactIndex)
-            }
+            val entityImpact = pendingImpacts.removeFirstFor(critter) { impact -> impact.critter }
+            val capsuleImpact = pendingCapsuleImpacts.removeFirstFor(critter) { impact -> impact.critter }
+            val impact = entityImpact ?: capsuleImpact ?: return
             if (rarity != SkyBlockRarity.COMMON) {
                 activeCaptures += ActiveCapture(critter, impact.location, critterLabel(critter, rarity))
             }
             return
         }
 
-        val completedCritter = ESCAPE_MESSAGE.matchEntire(text)?.groups?.get(CRITTER_GROUP)?.value
-            ?: CAPTURE_MESSAGE.matchEntire(text)?.groups?.get(CRITTER_GROUP)?.value
-            ?: return
-        activeCaptures.indexOfFirst { capture -> capture.critter == completedCritter }
-            .takeIf { index -> index >= 0 }
-            ?.let(activeCaptures::removeAt)
+        val completedMatch = ESCAPE_MESSAGE.matchEntire(text) ?: CAPTURE_MESSAGE.matchEntire(text) ?: return
+        activeCaptures.removeFirstFor(completedMatch.group(CRITTER_GROUP)) { capture -> capture.critter }
+    }
+
+    private inline fun <T> MutableList<T>.removeFirstFor(critter: String, critterOf: (T) -> String): T? {
+        val index = indexOfFirst { entry -> critterOf(entry) == critter }
+        return if (index >= 0) removeAt(index) else null
     }
 
     private fun tick() {
