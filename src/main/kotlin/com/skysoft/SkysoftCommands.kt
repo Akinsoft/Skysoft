@@ -30,17 +30,14 @@ internal object SkysoftCommands {
     fun register(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
         SkysoftCommandRegistry(dispatcher).apply {
             root { openMenu() }
-            child("edit") { name -> literal(name).executes { openEditor() } }
+            child("edit") { name -> literal(name).executes { openScreen("HUD editor", SkysoftHudEditor::open) } }
             child { InventoryButtonImportCommand.command(::openButtonEditor) }
             child("invbuttons") { name -> literal(name).executes { openButtonEditor() } }
-            child("helditem") { name -> literal(name).executes { openHeldItemEditor() } }
-            child("waypoints") { name ->
-                literal(name).executes {
-                    DeferredScreenRequests.request("Waypoints Display", WaypointPanel::open)
-                    Command.SINGLE_SUCCESS
-                }
+            child("helditem") { name -> literal(name).executes { openScreen("Held item editor", HeldItemEditorScreen::open) } }
+            child("waypoints") { name -> literal(name).executes { openScreen("Waypoints Display", WaypointPanel::open) } }
+            child("customtrackers") { name ->
+                literal(name).executes { openScreen("Custom Profit Tracker editor") { CustomProfitTrackerConfigScreen.open() } }
             }
-            child("customtrackers") { name -> literal(name).executes { openCustomTrackers() } }
             child("clearburrows") { name -> literal(name).executes { clearBurrows(it.source) } }
             child("mouselock", "ssmouselock") { name -> literal(name).executes { MouseLock.toggle(it.source) } }
             child("new") { name -> literal(name).executes { openNewSettings(it.source) } }
@@ -64,32 +61,14 @@ internal object SkysoftCommands {
         WarpAliases.registerSuggestions(dispatcher)
     }
 
-    private fun openMenu(search: String? = null): Int {
-        DeferredScreenRequests.request("Config") { SkysoftConfigGui.open(search) }
+    private fun openScreen(name: String, open: () -> Unit): Int {
+        DeferredScreenRequests.request(name, open)
         return Command.SINGLE_SUCCESS
     }
 
-    private fun openEditor(): Int {
-        DeferredScreenRequests.request("HUD editor", SkysoftHudEditor::open)
-        return Command.SINGLE_SUCCESS
-    }
+    private fun openMenu(search: String? = null): Int = openScreen("Config") { SkysoftConfigGui.open(search) }
 
-    private fun openButtonEditor(): Int {
-        DeferredScreenRequests.request("Inventory button editor", InventoryButtonEditorScreen::open)
-        return Command.SINGLE_SUCCESS
-    }
-
-    private fun openHeldItemEditor(): Int {
-        DeferredScreenRequests.request("Held item editor", HeldItemEditorScreen::open)
-        return Command.SINGLE_SUCCESS
-    }
-
-    private fun openCustomTrackers(): Int {
-        DeferredScreenRequests.request("Custom Profit Tracker editor") {
-            CustomProfitTrackerConfigScreen.open()
-        }
-        return Command.SINGLE_SUCCESS
-    }
+    private fun openButtonEditor(): Int = openScreen("Inventory button editor", InventoryButtonEditorScreen::open)
 
     private fun clearBurrows(source: FabricClientCommandSource): Int {
         SkysoftChat.feedback(
@@ -105,15 +84,12 @@ internal object SkysoftCommands {
 
     private fun openNewSettings(source: FabricClientCommandSource): Int {
         if (!NewSettingsDiscovery.hasPresentedSettings()) {
-            SkysoftChat.feedback(source, "No new Skysoft settings have been discovered yet.")
+            SkysoftChat.feedback(source, NO_NEW_SETTINGS_MESSAGE)
             return Command.SINGLE_SUCCESS
         }
-        DeferredScreenRequests.request("New settings") {
-            if (!NewSettingsDiscovery.didOpenPresentedSettings()) {
-                SkysoftChat.chat("No new Skysoft settings have been discovered yet.")
-            }
+        return openScreen("New settings") {
+            if (!NewSettingsDiscovery.didOpenPresentedSettings()) SkysoftChat.chat(NO_NEW_SETTINGS_MESSAGE)
         }
-        return Command.SINGLE_SUCCESS
     }
 
     private fun checkUpdate(): Int {
@@ -128,4 +104,6 @@ internal object SkysoftCommands {
         }
         return Command.SINGLE_SUCCESS
     }
+
+    private const val NO_NEW_SETTINGS_MESSAGE = "No new Skysoft settings have been discovered yet."
 }
