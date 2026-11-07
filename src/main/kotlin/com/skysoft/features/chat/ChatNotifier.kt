@@ -9,6 +9,7 @@ import com.skysoft.utils.chat.ChatMessage
 import com.skysoft.utils.chat.ChatMessageClassifier
 import com.skysoft.utils.chat.ChatMessageType
 import com.skysoft.utils.chat.PrivateMessageDirection
+import com.skysoft.utils.chat.isLocalPlayer
 import com.skysoft.utils.render.ChromaTextRendering
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.gui.editors.TextListEntry
@@ -21,29 +22,11 @@ import net.minecraft.network.chat.Style
 object ChatNotifier {
     fun decorate(content: Component): Component {
         val config = SkysoftConfigGui.config().chat.notify
-        return decorate(
-            content = content,
-            entries = config.settings.words.get(),
-            isEnabled = config.enabled,
-            isOwnMessagesIgnored = config.settings.isOwnMessagesIgnored,
-            ownPlayerName = localPlayerName(),
-            playPing = ::playPing,
-        )
-    }
-
-    internal fun decorate(
-        content: Component,
-        entries: List<TextListEntry>,
-        isEnabled: Boolean,
-        isOwnMessagesIgnored: Boolean = false,
-        ownPlayerName: String? = null,
-        playPing: (String, Float) -> Unit,
-    ): Component {
-        if (!isEnabled) return content
-        if (entries.isEmpty()) return content
-        if (isOwnMessagesIgnored) {
+        val entries = config.settings.words.get()
+        if (!config.enabled || entries.isEmpty()) return content
+        if (config.settings.isOwnMessagesIgnored) {
             val message = ChatMessageClassifier.classify(SkysoftMessage(content, SkysoftMessageSource.GAME))
-            if (isOwnMessage(message, ownPlayerName)) return content
+            if (isOwnMessage(message, localPlayerName())) return content
         }
         val plainText = content.string
         val matchingEntries = entries.mapIndexedNotNull { index, entry ->
@@ -59,7 +42,11 @@ object ChatNotifier {
             .filter { it.isSoundEnabled && it.notificationVolumePercent > 0f }
             .maxByOrNull { it.notificationVolumePercent }
         if (ping != null && ping.playbackVolume > 0f) {
-            playPing(ping.sound.ifBlank { SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID }, ping.playbackVolume)
+            SoundUtilities.playUiSound(
+                ping.sound.ifBlank { SoundUtilities.CHAT_NOTIFY_DEFAULT_SOUND_ID },
+                PING_PITCH,
+                ping.playbackVolume,
+            )
         }
         return if (matchingEntries.isEmpty()) content else highlight(content, matchingEntries)
     }
@@ -70,7 +57,7 @@ object ChatNotifier {
             ChatMessageType.PARTY,
             ChatMessageType.GUILD,
             ChatMessageType.COOP,
-            -> ownPlayerName != null && message.sender?.name.equals(ownPlayerName, ignoreCase = true)
+            -> message.sender?.isLocalPlayer(ownPlayerName) == true
             ChatMessageType.PRIVATE_MESSAGE -> message.privateMessageDirection == PrivateMessageDirection.TO
             else -> false
         }
@@ -161,10 +148,6 @@ object ChatNotifier {
 
     private val TextListEntry.notificationVolumePercent: Float
         get() = soundVolumePercent.coerceIn(TextListEntry.MIN_SOUND_VOLUME_PERCENT, TextListEntry.MAX_SOUND_VOLUME_PERCENT)
-
-    private fun playPing(sound: String, volume: Float) {
-        SoundUtilities.playUiSound(sound, PING_PITCH, volume)
-    }
 
     private const val PING_PITCH = 1.0f
 }

@@ -6,6 +6,7 @@ import com.skysoft.utils.SkysoftMessage
 import com.skysoft.utils.SkysoftMessageSource
 import com.skysoft.utils.chat.ChatMessageClassifier
 import com.skysoft.utils.chat.PrivateMessageDirection
+import com.skysoft.utils.chat.styledSubstring
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.util.StringDecomposer
@@ -67,22 +68,8 @@ object PlayerBadges {
         }
     }
 
-    private fun Component.insert(index: Int, insertion: Component): Component = Component.empty().also { result ->
-        var offset = 0
-        var inserted = false
-        for (part in toFlatList()) {
-            val localIndex = (index - offset).takeIf { !inserted && it <= part.string.length }
-            if (localIndex == null) {
-                result.append(part)
-            } else {
-                result.append(Component.literal(part.string.take(localIndex)).withStyle(part.style))
-                result.append(insertion)
-                result.append(Component.literal(part.string.drop(localIndex)).withStyle(part.style))
-                inserted = true
-            }
-            offset += part.string.length
-        }
-    }
+    private fun Component.insert(index: Int, insertion: Component): Component =
+        styledSubstring(0, index).append(insertion).append(styledSubstring(index, string.length))
 
     private val badgeCodePoints = setOf('♲'.code, '☀'.code, 'Ⓑ'.code, '⚒'.code, 'ቾ'.code)
 }

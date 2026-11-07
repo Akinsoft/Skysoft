@@ -2,6 +2,7 @@ package com.skysoft.features.chat
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.VANILLA_CHAT_HISTORY_LIMIT
+import com.skysoft.utils.MILLIS_PER_SECOND
 
 object ChatFeatureSettings {
     private val config
@@ -22,4 +23,3 @@ object ChatFeatureSettings {
     fun areBlankLinesHidden(): Boolean = config.compacting.enabled && config.compacting.settings.noBlankLines
 }
 
-private const val MILLIS_PER_SECOND = 1_000L

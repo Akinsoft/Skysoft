@@ -2,8 +2,10 @@ package com.skysoft.features.chat
 
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.mojang.serialization.JsonOps
 import com.skysoft.SkysoftMod
 import com.skysoft.config.MAX_CHAT_HISTORY_LIMIT
 import com.skysoft.config.SkysoftConfigFiles
@@ -25,12 +27,10 @@ object ChatHistoryPersistence {
             if (ChatFeatureSettings.isHistoryRetained()) restore(MinecraftClient.chat(it))
         }
         SkysoftClientEvents.onClientStopping("Chat History save") {
-            if (ChatFeatureSettings.isHistoryRetained()) save(MinecraftClient.chat(it))
+            if (ChatFeatureSettings.isHistoryRetained()) {
+                save((MinecraftClient.chat(it) as ChatComponentAccessor).skysoftAllMessages())
+            }
         }
-    }
-
-    fun save(chat: ChatComponent) {
-        save((chat as ChatComponentAccessor).skysoftAllMessages())
     }
 
     fun save(messages: List<GuiMessage>) {
@@ -64,7 +64,7 @@ object ChatHistoryPersistence {
         }
     }
 
-    internal fun encode(messages: List<GuiMessage>): String {
+    private fun encode(messages: List<GuiMessage>): String {
         val root = JsonObject()
         root.addProperty("version", HISTORY_VERSION)
         root.add(
@@ -76,7 +76,7 @@ object ChatHistoryPersistence {
         return GSON.toJson(root)
     }
 
-    internal fun decode(root: JsonObject, limit: Int): List<GuiMessage> {
+    private fun decode(root: JsonObject, limit: Int): List<GuiMessage> {
         require(root.get("version")?.asInt == HISTORY_VERSION) { "Unsupported retained chat history version" }
         return root.getAsJsonArray("messages")
             ?.take(limit.coerceIn(0, MAX_CHAT_HISTORY_LIMIT))
@@ -117,10 +117,10 @@ object ChatHistoryPersistence {
     )
 
     private fun encodeComponent(component: Component) =
-        ComponentSerialization.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, component).getOrThrow()
+        ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, component).getOrThrow()
 
-    private fun decodeComponent(element: com.google.gson.JsonElement): Component? =
-        ComponentSerialization.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, element).result().orElse(null)
+    private fun decodeComponent(element: JsonElement): Component? =
+        ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, element).result().orElse(null)
 
     private val GSON = GsonBuilder().setPrettyPrinting().create()
     private const val HISTORY_VERSION = 1

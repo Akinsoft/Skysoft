@@ -1,6 +1,5 @@
 package com.skysoft.features.chat
 
-import com.skysoft.config.ChatTimestampFormat
 import com.skysoft.config.SkysoftConfigGui
 import java.time.LocalTime
 import net.minecraft.ChatFormatting
@@ -9,17 +8,8 @@ import net.minecraft.network.chat.Component
 object ChatTimestamps {
     fun decorate(content: Component): Component {
         val config = SkysoftConfigGui.config().chat.timestamps
-        return decorate(content, LocalTime.now(), config.enabled, config.settings.format)
-    }
-
-    internal fun decorate(
-        content: Component,
-        time: LocalTime,
-        isEnabled: Boolean,
-        format: ChatTimestampFormat,
-    ): Component {
-        if (!isEnabled) return content
-        val timestamp = Component.literal("[${format.format(time)}] ")
+        if (!config.enabled) return content
+        val timestamp = Component.literal("[${config.settings.format.format(LocalTime.now())}] ")
             .withStyle(ChatFormatting.DARK_GRAY)
         return Component.empty().append(timestamp).append(content)
     }

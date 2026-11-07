@@ -1,8 +1,8 @@
 package com.skysoft.features.chat
 
 import com.skysoft.config.ChatTabChannel
-import java.util.Collections
-import java.util.IdentityHashMap
+import com.skysoft.utils.chat.HYPIXEL_CHAT_SEPARATOR
+import com.skysoft.utils.identitySet
 import net.minecraft.client.multiplayer.chat.GuiMessage
 
 internal class ChatTabFeedbackTracker {
@@ -10,12 +10,11 @@ internal class ChatTabFeedbackTracker {
     private val messagesBeforeAttempt = identitySet<GuiMessage>()
     private var state = FeedbackState.NONE
 
-    fun recordOutgoingAttempt(channel: ChatTabChannel, existingMessages: Collection<GuiMessage>) {
-        val retainedFeedback = identitySet<GuiMessage>().apply { addAll(existingMessages) }
-        visibleFeedback.removeIf { it !in retainedFeedback }
-        state = if (channel == ChatTabChannel.PARTY) FeedbackState.PARTY_LEADING_SEPARATOR else FeedbackState.NONE
+    fun recordPartyAttempt(existingMessages: Collection<GuiMessage>) {
         messagesBeforeAttempt.clear()
         messagesBeforeAttempt.addAll(existingMessages)
+        visibleFeedback.removeIf { it !in messagesBeforeAttempt }
+        state = FeedbackState.PARTY_LEADING_SEPARATOR
     }
 
     fun isVisible(channel: ChatTabChannel, message: GuiMessage, text: String): Boolean {
@@ -29,15 +28,11 @@ internal class ChatTabFeedbackTracker {
         return when (state) {
             FeedbackState.NONE -> false
             FeedbackState.PARTY_LEADING_SEPARATOR ->
-                recordExpectedLine(message, text, PARTY_FEEDBACK_SEPARATOR) {
-                    state = FeedbackState.PARTY_ERROR
-                }.isVisible
+                didRecordExpectedLine(message, text, HYPIXEL_CHAT_SEPARATOR, FeedbackState.PARTY_ERROR)
             FeedbackState.PARTY_ERROR ->
-                recordExpectedLine(message, text, PARTY_NOT_AVAILABLE_MESSAGE) {
-                    state = FeedbackState.PARTY_TRAILING_SEPARATOR
-                }.isVisible
+                didRecordExpectedLine(message, text, PARTY_NOT_AVAILABLE_MESSAGE, FeedbackState.PARTY_TRAILING_SEPARATOR)
             FeedbackState.PARTY_TRAILING_SEPARATOR -> {
-                val isSeparator = text == PARTY_FEEDBACK_SEPARATOR
+                val isSeparator = text == HYPIXEL_CHAT_SEPARATOR
                 if (isSeparator) visibleFeedback.add(message)
                 clearPendingResponse()
                 isSeparator
@@ -50,24 +45,19 @@ internal class ChatTabFeedbackTracker {
         messagesBeforeAttempt.clear()
     }
 
-    private fun recordExpectedLine(
+    private fun didRecordExpectedLine(
         message: GuiMessage,
         text: String,
         expected: String,
-        onMatch: () -> Unit,
-    ): FeedbackLineResult {
+        nextState: FeedbackState,
+    ): Boolean {
         if (text != expected) {
             clearPendingResponse()
-            return FeedbackLineResult.REJECTED
+            return false
         }
         visibleFeedback.add(message)
-        onMatch()
-        return FeedbackLineResult.ACCEPTED
-    }
-
-    private enum class FeedbackLineResult(val isVisible: Boolean) {
-        ACCEPTED(true),
-        REJECTED(false),
+        state = nextState
+        return true
     }
 
     private enum class FeedbackState {
@@ -77,10 +67,7 @@ internal class ChatTabFeedbackTracker {
         PARTY_TRAILING_SEPARATOR,
     }
 
-    companion object {
-        internal const val PARTY_FEEDBACK_SEPARATOR = "-----------------------------------------------------"
-        internal const val PARTY_NOT_AVAILABLE_MESSAGE = "You are not in a party right now."
-
-        private fun <T> identitySet(): MutableSet<T> = Collections.newSetFromMap(IdentityHashMap())
+    private companion object {
+        const val PARTY_NOT_AVAILABLE_MESSAGE = "You are not in a party right now."
     }
 }

@@ -20,8 +20,8 @@ object ChatTabs {
         SkysoftClientEvents.onDisconnect("Chat Tabs pending response reset", ::clearPendingResponses)
         SkysoftClientEvents.onEndTick(
             "Chat Tabs filter update",
-            isActive = { isEnabled() || appliedState?.isEnabled == true },
-            action = ::updateFilter,
+            isActive = { isEnabled() || isFilterApplied() },
+            action = { updateFilter(it, isForced = false) },
         )
     }
 
@@ -49,26 +49,24 @@ object ChatTabs {
         if (!isEnabled()) return null
         val channel = activeChannel()
         val command = outgoingCommand(channel, message) ?: return null
-        if (channel != ChatTabChannel.PARTY) return command
-        val minecraft = Minecraft.getInstance()
-        val existingMessages = (MinecraftClient.chat(minecraft) as ChatComponentAccessor).skysoftAllMessages()
-        feedbackTracker.recordOutgoingAttempt(channel, existingMessages)
+        if (channel == ChatTabChannel.PARTY) feedbackTracker.recordPartyAttempt(allChatMessages())
         return command
     }
 
     internal fun recordOutgoingCommand(command: String) {
         if (!isEnabled()) return
-        val minecraft = Minecraft.getInstance()
-        val existingMessages = (MinecraftClient.chat(minecraft) as ChatComponentAccessor).skysoftAllMessages()
-        commandResponseTracker.record(command, activeChannel(), existingMessages)
+        commandResponseTracker.record(command, activeChannel(), allChatMessages())
     }
+
+    private fun allChatMessages(): List<GuiMessage> =
+        (MinecraftClient.chat(Minecraft.getInstance()) as ChatComponentAccessor).skysoftAllMessages()
 
     internal fun outgoingCommand(message: String): String? {
         if (!isEnabled()) return null
         return outgoingCommand(activeChannel(), message)
     }
 
-    internal fun outgoingCommand(channel: ChatTabChannel, message: String): String? {
+    private fun outgoingCommand(channel: ChatTabChannel, message: String): String? {
         val command = when (channel) {
             ChatTabChannel.ALL -> return null
             ChatTabChannel.GUILD -> "gc"
@@ -98,18 +96,15 @@ object ChatTabs {
     ): List<ChatTabBounds> {
         val chatBottom = guiHeight - CHAT_BOTTOM_MARGIN
         return when (position) {
-            ChatTabPosition.ABOVE -> {
-                var x = CHAT_LEFT
-                buttonWidths.map { width ->
-                    ChatTabBounds(x, (chatBottom - chatHeight - TAB_HEIGHT - TAB_GAP).coerceAtLeast(0), width, TAB_HEIGHT)
-                        .also { x += width + TAB_GAP }
+            ChatTabPosition.ABOVE, ChatTabPosition.UNDER -> {
+                val y = if (position == ChatTabPosition.ABOVE) {
+                    (chatBottom - chatHeight - TAB_HEIGHT - TAB_GAP).coerceAtLeast(0)
+                } else {
+                    chatBottom + TAB_GAP
                 }
-            }
-            ChatTabPosition.UNDER -> {
                 var x = CHAT_LEFT
                 buttonWidths.map { width ->
-                    ChatTabBounds(x, chatBottom + TAB_GAP, width, TAB_HEIGHT)
-                        .also { x += width + TAB_GAP }
+                    ChatTabBounds(x, y, width, TAB_HEIGHT).also { x += width + TAB_GAP }
                 }
             }
             ChatTabPosition.RIGHT -> {
@@ -123,10 +118,6 @@ object ChatTabs {
         }
     }
 
-    private fun updateFilter(minecraft: Minecraft) {
-        updateFilter(minecraft, isForced = false)
-    }
-
     private fun updateFilter(minecraft: Minecraft, isForced: Boolean) {
         val state = FilterState(isEnabled(), activeChannel())
         if (!isForced && state == appliedState) return
@@ -134,7 +125,7 @@ object ChatTabs {
         if (state.isEnabled) {
             chat.setVisibleMessageFilter { message -> isVisible(state.channel, message) }
             chat.resetChatScroll()
-        } else if (appliedState?.isEnabled == true) {
+        } else if (isFilterApplied()) {
             clearPendingResponses()
             chat.setVisibleMessageFilter { true }
             chat.resetChatScroll()
@@ -150,10 +141,11 @@ object ChatTabs {
     private data class FilterState(val isEnabled: Boolean, val channel: ChatTabChannel)
 
     private const val SKYSOFT_PREFIX = "[Skysoft] "
-    private const val CHAT_LEFT = 4
-    private const val CHAT_BOTTOM_MARGIN = 40
     private const val TAB_HEIGHT = 18
     private const val TAB_GAP = 2
 }
+
+internal const val CHAT_LEFT = 4
+internal const val CHAT_BOTTOM_MARGIN = 40
 
 data class ChatTabBounds(val x: Int, val y: Int, val width: Int, val height: Int)

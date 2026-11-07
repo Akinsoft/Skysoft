@@ -1,5 +1,6 @@
 package com.skysoft.features.chat
 
+import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.ChatFormatting
 import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.network.chat.Component
@@ -13,28 +14,13 @@ object ChatCompactor {
         content: Component,
         messages: MutableList<GuiMessage>,
         trimmedMessages: MutableList<GuiMessage.Line>,
-        nowMillis: Long = System.currentTimeMillis(),
-    ): PreparedChatMessage = prepare(
-        content,
-        messages,
-        trimmedMessages,
-        nowMillis,
-        ChatFeatureSettings.isCompactingEnabled(),
-        ChatFeatureSettings.compactDurationMillis(),
-    )
-
-    internal fun prepare(
-        content: Component,
-        messages: MutableList<GuiMessage>,
-        trimmedMessages: MutableList<GuiMessage.Line>,
-        nowMillis: Long,
-        isEnabled: Boolean,
-        durationMillis: Long,
     ): PreparedChatMessage {
-        if (!isEnabled) {
+        if (!ChatFeatureSettings.isCompactingEnabled()) {
             clear()
             return PreparedChatMessage(content)
         }
+        val nowMillis = System.currentTimeMillis()
+        val durationMillis = ChatFeatureSettings.compactDurationMillis()
 
         if (++messagesSincePrune >= PRUNE_INTERVAL_MESSAGES) {
             entries.values.removeIf { nowMillis - it.lastSeenMillis >= durationMillis }
@@ -70,8 +56,7 @@ object ChatCompactor {
         messagesSincePrune = 0
     }
 
-    internal fun isBlank(content: Component): Boolean =
-        ChatFormatting.stripFormatting(content.string).orEmpty().isBlank()
+    internal fun isBlank(content: Component): Boolean = content.string.removeColor().isBlank()
 
     private fun trackDividerBlock(entry: Entry, nowMillis: Long) {
         dividerBlock
@@ -128,7 +113,7 @@ object ChatCompactor {
     }
 
     private fun isDivider(content: Component): Boolean {
-        val text = ChatFormatting.stripFormatting(content.string).orEmpty()
+        val text = content.string.removeColor()
         return text.length > MIN_DIVIDER_LENGTH && text.all { it == '-' || it == '=' || it == '▬' }
     }
 

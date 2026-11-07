@@ -4,9 +4,9 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.mixin.ChatComponentAccessor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
+import com.skysoft.utils.TextUtilities.removeColor
 import kotlin.math.ceil
 import kotlin.math.floor
-import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.ChatComponent
 import net.minecraft.client.multiplayer.chat.GuiMessage
@@ -31,13 +31,13 @@ object ChatCopy {
             scrollPosition = accessor.skysoftChatScrollbarPos(),
         ) ?: return CopyChatResult.NO_MESSAGE
 
-        val text = ChatFormatting.stripFormatting(ChatTimestamps.originalContent(message.content()).string).orEmpty()
+        val text = ChatTimestamps.originalContent(message.content()).string.removeColor()
         MinecraftClient.setClipboard(text)
         SkysoftChat.chat("Copied chat message to clipboard.")
         return CopyChatResult.COPIED
     }
 
-    internal fun hoveredMessage(
+    private fun hoveredMessage(
         lines: List<GuiMessage.Line>,
         mouseX: Int,
         mouseY: Int,
@@ -61,8 +61,6 @@ object ChatCopy {
         return lines.getOrNull(scrollPosition + visibleLine)?.parent()
     }
 
-    private const val CHAT_LEFT = 4
-    private const val CHAT_BOTTOM_MARGIN = 40
     private const val CHAT_BACKGROUND_MARGIN = 4
 }
 
