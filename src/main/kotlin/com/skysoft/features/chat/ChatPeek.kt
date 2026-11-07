@@ -6,7 +6,6 @@ import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.ChatComponent
-import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
 
@@ -36,7 +35,7 @@ internal object ChatPeek {
     }
 }
 
-internal fun isChatPeekBlocked(screen: Screen? = MinecraftClient.screen()): Boolean = when (screen) {
+internal fun isChatPeekBlocked(): Boolean = when (MinecraftClient.screen()) {
     is AbstractContainerScreen<*>, is AbstractSignEditScreen -> true
     else -> false
 }

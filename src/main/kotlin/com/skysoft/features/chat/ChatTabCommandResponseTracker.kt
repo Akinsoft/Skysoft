@@ -1,8 +1,9 @@
 package com.skysoft.features.chat
 
 import com.skysoft.config.ChatTabChannel
-import java.util.Collections
-import java.util.IdentityHashMap
+import com.skysoft.utils.RegexUtilities.whitespacePattern
+import com.skysoft.utils.chat.HYPIXEL_CHAT_SEPARATOR
+import com.skysoft.utils.identitySet
 import net.minecraft.client.multiplayer.chat.GuiMessage
 
 internal class ChatTabCommandResponseTracker {
@@ -33,8 +34,7 @@ internal class ChatTabCommandResponseTracker {
         }
 
         when (pending.phase) {
-            ResponsePhase.LEADING -> observeLeadingLine(pending, message, text)
-            ResponsePhase.HEADER -> observeHeaderLine(pending, message, text)
+            ResponsePhase.LEADING, ResponsePhase.HEADER -> observeOpeningLine(pending, message, text)
             ResponsePhase.CONTENT -> observeContentLine(pending, message, text)
         }
     }
@@ -46,9 +46,9 @@ internal class ChatTabCommandResponseTracker {
         messagesBeforeCommand.clear()
     }
 
-    private fun observeLeadingLine(pending: PendingResponse, message: GuiMessage, text: String) {
+    private fun observeOpeningLine(pending: PendingResponse, message: GuiMessage, text: String) {
         when {
-            text == RESPONSE_SEPARATOR -> {
+            text == HYPIXEL_CHAT_SEPARATOR -> {
                 route(pending, message)
                 pending.phase = ResponsePhase.HEADER
             }
@@ -60,28 +60,14 @@ internal class ChatTabCommandResponseTracker {
                 route(pending, message)
                 clearPendingResponse()
             }
-        }
-    }
-
-    private fun observeHeaderLine(pending: PendingResponse, message: GuiMessage, text: String) {
-        when {
-            text == RESPONSE_SEPARATOR -> route(pending, message)
-            pending.response.header.matches(text) -> {
-                route(pending, message)
-                pending.phase = ResponsePhase.CONTENT
-            }
-            pending.response.completeResponse.matches(text) -> {
-                route(pending, message)
-                clearPendingResponse()
-            }
-            else -> clearPendingResponse()
+            pending.phase == ResponsePhase.HEADER -> clearPendingResponse()
         }
     }
 
     private fun observeContentLine(pending: PendingResponse, message: GuiMessage, text: String) {
         route(pending, message)
         pending.lineCount++
-        if (text == RESPONSE_SEPARATOR || pending.lineCount >= MAX_RESPONSE_LINES) {
+        if (text == HYPIXEL_CHAT_SEPARATOR || pending.lineCount >= MAX_RESPONSE_LINES) {
             clearPendingResponse()
         } else {
             pending.expiresAtMillis = System.currentTimeMillis() + RESPONSE_TIMEOUT_MILLIS
@@ -114,10 +100,8 @@ internal class ChatTabCommandResponseTracker {
     }
 
     companion object {
-        private const val RESPONSE_SEPARATOR = "-----------------------------------------------------"
         private const val RESPONSE_TIMEOUT_MILLIS = 3_000L
         private const val MAX_RESPONSE_LINES = 100
-        private val whitespacePattern = Regex("\\s+")
         private val friendListResponse = CommandResponse(
             ChatTabChannel.DM,
             Regex("^Friends(?: List)?(?: .*)?$"),
@@ -144,7 +128,5 @@ internal class ChatTabCommandResponseTracker {
                 else -> null
             }
         }
-
-        private fun <T> identitySet(): MutableSet<T> = Collections.newSetFromMap(IdentityHashMap())
     }
 }
