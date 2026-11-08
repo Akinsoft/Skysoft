@@ -100,6 +100,7 @@ import com.skysoft.features.misc.ScoreboardPositionEditor
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.ServerTpsProvider
 import com.skysoft.features.misc.SkyBlockLevelBar
+import com.skysoft.features.misc.VanillaStatusEffects
 import com.skysoft.features.misc.WarpAliases
 import com.skysoft.features.misc.Zoom
 import com.skysoft.features.waypoints.Waypoints
@@ -303,6 +304,7 @@ internal object SkysoftFeatureRegistrations {
         register("Rare Loot Features", RareLootChatFeatures::register)
         register("Keep Terrain Loaded", KeepTerrainLoaded::register)
         register("Hide Silly Buttons", HideSillyButtons::register)
+        register("Hide Vanilla Status Effects", VanillaStatusEffects::register)
         register("Short Warp Commands", WarpAliases::register)
         register("Diana Burrow Storage", DianaBurrowStorage::register)
         register("Diana Particle Quality", DianaParticleQuality::register)
