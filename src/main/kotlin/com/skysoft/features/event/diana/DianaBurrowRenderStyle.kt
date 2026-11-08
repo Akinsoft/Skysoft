@@ -6,11 +6,10 @@ import com.skysoft.config.DianaBurrowDistanceFormat
 import com.skysoft.config.DianaBurrowDistancePosition
 import com.skysoft.config.DianaClickCounterPosition
 import com.skysoft.config.WaypointLabelFormat
-import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
-import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MIN
+import com.skysoft.utils.ColorUtilities.addAlpha
 import com.skysoft.utils.ColorUtilities.toColor
+import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import java.awt.Color
-import kotlin.math.roundToInt
 
 internal data class DianaBurrowRenderStyle(
     val drawCrosshairLine: Boolean,
@@ -38,13 +37,10 @@ internal class DianaBurrowBoxStyle(
         }
         val color = labelColors.getValue(type)
         return DianaBurrowBoxColors(
-            Color(color.red, color.green, color.blue, type.outlineColor.alpha).withScaledAlpha(visualAlphaScale),
-            Color(color.red, color.green, color.blue, type.fillColor.alpha).withScaledAlpha(visualAlphaScale),
+            color.addAlpha(type.outlineColor.alpha).withScaledAlpha(visualAlphaScale),
+            color.addAlpha(type.fillColor.alpha).withScaledAlpha(visualAlphaScale),
         )
     }
-
-    private fun Color.withScaledAlpha(scale: Double): Color =
-        Color(red, green, blue, (alpha * scale).roundToInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX))
 
     private companion object {
         const val CUSTOM_FILL_ALPHA_SCALE = 0.25

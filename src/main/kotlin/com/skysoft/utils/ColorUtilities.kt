@@ -18,20 +18,12 @@ object ColorUtilities {
     fun Color.addAlpha(alpha: Int): Color = Color(red, green, blue, alpha)
     fun Color.toChromaColor(alpha: Int = this.alpha): ChromaColour = ChromaColour.fromRGB(red, green, blue, 0, alpha)
     fun ChromaColour.toColor(): Color = getEffectiveColour()
-    fun ChromaColour.withOpacity(opacity: Float): ChromaColour {
-        val color = toColor()
-        return Color(
-            color.red,
-            color.green,
-            color.blue,
-            (color.alpha * opacity).roundToInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX),
-        ).toChromaColor()
-    }
+    fun ChromaColour.withOpacity(opacity: Float): ChromaColour = toColor().withScaledAlpha(opacity.toDouble()).toChromaColor()
 
-    fun Color.toPackedArgb(alphaScale: Double): Int {
-        val scaledAlpha = (alpha * alphaScale).roundToInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX)
-        return rgb.withAlpha(scaledAlpha)
-    }
+    fun Color.withScaledAlpha(alphaScale: Double): Color =
+        addAlpha((alpha * alphaScale).roundToInt().coerceIn(COLOR_CHANNEL_MIN, COLOR_CHANNEL_MAX))
+
+    fun Color.toPackedArgb(alphaScale: Double): Int = withScaledAlpha(alphaScale).rgb
 
     fun Int.hasVisibleAlpha(): Boolean =
         (this ushr ARGB_ALPHA_SHIFT) != COLOR_CHANNEL_MIN
