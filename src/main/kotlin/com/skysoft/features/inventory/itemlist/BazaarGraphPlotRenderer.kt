@@ -12,13 +12,13 @@ import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinAmountFormat
 import com.skysoft.utils.IdentityRefreshCache
 import com.skysoft.utils.NumberUtilities.coinFormat
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.render.GuiLineRenderer
 import com.skysoft.utils.render.LegacyTextRenderer
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -451,7 +451,7 @@ private fun renderSpread(
         listOf(
             "§fBid-ask spread",
             "§7Difference: §6${spread.coinAmountFormat()} coins",
-            "§7Spread: §f${String.format(Locale.US, "%.2f", percent)}%",
+            "§7Spread: §f${percent.fixedDecimals(2)}%",
         ),
         mouseX,
         mouseY,

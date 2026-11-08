@@ -11,6 +11,7 @@ import com.skysoft.events.entity.EntityInteractionEvent
 import com.skysoft.events.entity.EntityInteractionEvents
 import com.skysoft.utils.EntityUtilities.cleanName
 import com.skysoft.utils.EntityUtilities.isVisibleToPlayer
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.PlayerUtilities.localPlayerLocation
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.WorldVec
@@ -21,7 +22,6 @@ import com.skysoft.utils.render.SkysoftRenderContext
 import com.skysoft.utils.render.WorldLabelRenderer
 import com.skysoft.utils.render.WorldLabelStyle
 import com.skysoft.utils.render.WorldRenderDispatcher
-import java.util.Locale
 import kotlin.math.abs
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -358,7 +358,7 @@ private fun isPossibleMobNameplate(cocoon: WorldVec, nameplate: WorldVec): Boole
         abs(cocoon.y - nameplate.y) <= NAMEPLATE_VERTICAL_DISTANCE
 
 private fun formatCocoonTime(remainingMillis: Long): String =
-    String.format(Locale.ROOT, "%.1fs", remainingMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND)
+    "${(remainingMillis.coerceAtLeast(0L) / MILLIS_PER_SECOND).fixedDecimals(1)}s"
 
 private const val COCOON_GROUP_HORIZONTAL_DISTANCE_SQ = 1.0
 private const val NAMEPLATE_HORIZONTAL_DISTANCE_SQ = 1.0

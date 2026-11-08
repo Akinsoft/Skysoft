@@ -11,13 +11,13 @@ import com.skysoft.data.skyblock.SlayerQuestSnapshot
 import com.skysoft.data.skyblock.SlayerQuestState
 import com.skysoft.features.profit.ProfitTrackingPeriod
 import com.skysoft.utils.NANOS_PER_MILLISECOND
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import com.skysoft.utils.chat.SkysoftPartyShare
 import java.time.LocalDate
-import java.util.Locale
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 
@@ -168,7 +168,7 @@ private fun MutableMap<SkyBlockSlayerType, MutableMap<Int, ProfileStorage.Slayer
 private fun elapsedMillis(fromNanos: Long, toNanos: Long): Long = (toNanos - fromNanos) / NANOS_PER_MILLISECOND
 
 private fun formatSlayerKillTime(milliseconds: Number): String =
-    String.format(Locale.ROOT, "%.2fs", milliseconds.toDouble() / MILLIS_PER_SECOND)
+    "${(milliseconds.toDouble() / MILLIS_PER_SECOND).fixedDecimals(2)}s"
 
 internal fun formatSlayerKillTimeForHud(milliseconds: Number?): String =
     milliseconds?.let { "§b${formatSlayerKillTime(it)}" } ?: "§8--"

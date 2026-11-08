@@ -13,6 +13,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.container.horizontalLayout
@@ -221,7 +222,7 @@ private fun serverInfoText(
 ): String {
     val value = when (metric) {
         ServerInfoMetric.FPS -> values.fps.toString()
-        ServerInfoMetric.TPS -> values.tps?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "--"
+        ServerInfoMetric.TPS -> values.tps?.fixedDecimals(1) ?: "--"
         ServerInfoMetric.PING -> values.ping?.let { "$it ms" } ?: "--"
     }
     val suffix = if (labelStyle == DisplayLabelStyle.TEXT) {

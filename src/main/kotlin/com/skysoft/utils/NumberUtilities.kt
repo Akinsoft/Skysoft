@@ -77,6 +77,8 @@ object NumberUtilities {
 
     fun Double.signedCoinFormat(): String = (if (this >= 0.0) "+" else "-") + abs(this).coinFormat()
 
+    fun Number.fixedDecimals(places: Int): String = String.format(Locale.US, "%.${places}f", toDouble())
+
     fun Double.roundTo(decimals: Int): Double {
         val factor = 10.0.pow(decimals)
         return round(this * factor) / factor
