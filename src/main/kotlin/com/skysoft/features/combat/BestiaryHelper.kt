@@ -293,7 +293,7 @@ private class BestiaryRenderable(
 ) : GuiRenderable {
     private val selectedNames = selected.mapTo(mutableSetOf(), ::familyKey)
     private val rows = families.map { family -> BestiaryRow(family, familyKey(family.name) in selectedNames) }
-    private val indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, ", ")
+    private val indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow)
     private val title = OverlayTextStyle.title("Bestiary Helper")
     private val emptyText = "§7Select a Bestiary mob list."
     private val resetText = if (selected.isEmpty()) "§8[Reset]" else "§c[Reset]"

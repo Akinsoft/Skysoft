@@ -204,7 +204,7 @@ internal class CraftingHelperRenderable(
     private val layout = InventoryTrackerLayout(
         title = "Crafting Helper",
         emptyText = emptyText,
-        indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, ", "),
+        indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow),
         rowWidths = rows.map(CraftingHelperRow::width),
         minimumWidth = MINIMUM_WIDTH,
         showTitle = showTitle,
