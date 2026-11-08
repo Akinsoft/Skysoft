@@ -24,7 +24,6 @@
     "ClientCommandMixin",
     "ClientPacketListenerAccessor",
     "ClientTextTooltipAccessor",
-    "ClientTooltipComponentMixin",
     "ParticlePacketMixin",
     "ContainerScreenMixin",
     "CocoonEquipmentPacketMixin",

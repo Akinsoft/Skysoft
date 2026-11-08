@@ -135,6 +135,7 @@ import com.skysoft.features.spotify.SpotifyAuthentication
 import com.skysoft.features.spotify.SpotifyDisplay
 import com.skysoft.gui.DeferredScreenRequests
 import com.skysoft.gui.GuiOverlayRegistry
+import com.skysoft.gui.tooltip.SkysoftTooltipComponents
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.chat.SkysoftPartyShare
@@ -181,6 +182,7 @@ internal object SkysoftFeatureRegistrations {
         register("World Render Dispatcher", WorldRenderDispatcher::register)
         register("Item Render Support", SkysoftPipItemRenderers::register)
         register("GUI Overlay Registry", GuiOverlayRegistry::register)
+        register("Skysoft Tooltip Components", SkysoftTooltipComponents::register)
         register("Deferred Screen Requests", DeferredScreenRequests::register)
         register("Screen Alert Renderer", ScreenAlertRenderer::register)
         register("Lotum Helper", LotumHelper::register)
