@@ -26,8 +26,6 @@ object PetItemUtilities {
         @Expose val skin: String? = null,
         @Expose val uuid: String? = null,
         @Expose val uniqueId: String? = null,
-        @Expose val hideRightClick: Boolean? = null,
-        @Expose val noMove: Boolean? = null,
     ) {
         val ownedUuid: UUID? get() = uniqueId?.parseUUIDOrNull() ?: uuid?.parseUUIDOrNull()
         val properSkinItem: String? get() = skin?.let { "PET_SKIN_$skin" }
