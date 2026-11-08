@@ -9,10 +9,11 @@ internal object VanillaStatusEffects {
     fun register() {
         HudElementRegistry.replaceElement(VanillaHudElements.MOB_EFFECTS) { vanilla ->
             HudElement { context, tick ->
-                if (!SkysoftConfigGui.config().gui.vanillaUi.areVanillaStatusEffectsHidden) {
-                    vanilla.extractRenderState(context, tick)
-                }
+                if (!areHidden()) vanilla.extractRenderState(context, tick)
             }
         }
     }
+
+    @JvmStatic
+    fun areHidden(): Boolean = SkysoftConfigGui.config().gui.vanillaUi.areVanillaStatusEffectsHidden
 }
