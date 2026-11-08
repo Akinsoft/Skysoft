@@ -30,10 +30,10 @@ internal object WaypointPanelInput {
             isScreenPointCovered(x.toInt(), y.toInt())
         }
         InventoryOverlayInput.registerClickHandler("Waypoint panel click", WaypointPanel::isVisible) { _, click ->
-            if (didClick(click)) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
+            InputHandlingResult.from(didClick(click))
         }
         InventoryOverlayInput.registerScrollHandler("Waypoint panel scroll", WaypointPanel::isVisible) { _, x, y, amount ->
-            if (didScroll(x, y, amount)) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
+            InputHandlingResult.from(didScroll(x, y, amount))
         }
         SkysoftScreenEvents.onBeforeInit("Waypoint panel input") { _, screen ->
             if (screen is ChatScreen) {

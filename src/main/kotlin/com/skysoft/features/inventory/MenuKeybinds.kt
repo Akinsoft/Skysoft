@@ -55,11 +55,7 @@ object MenuKeybinds {
     }
 
     fun handleMouseRelease(screen: AbstractContainerScreen<*>, button: Int): InputHandlingResult =
-        if (activeBindings(screen)?.keys?.contains(button) == true) {
-            InputHandlingResult.CONSUMED
-        } else {
-            InputHandlingResult.IGNORED
-        }
+        InputHandlingResult.from(activeBindings(screen)?.keys?.contains(button) == true)
 
     fun keybindLabel(screen: AbstractContainerScreen<*>, slot: Slot): String? {
         if (!slot.hasItem() || slot.index !in setSlots && slot.index !in loadoutSlots) return null

@@ -297,11 +297,7 @@ private fun handlePageAreaClick(
         layouts.values.firstOrNull { it.contains(mouseX, mouseY) }
     } else {
         null
-    } ?: return if (measurements.totalBounds.contains(mouseX, mouseY)) {
-        InputHandlingResult.CONSUMED
-    } else {
-        InputHandlingResult.IGNORED
-    }
+    } ?: return InputHandlingResult.from(measurements.totalBounds.contains(mouseX, mouseY))
 
     return if (clickedPage.pageIndex != activePage && click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
         storageSearchField.focused = false
