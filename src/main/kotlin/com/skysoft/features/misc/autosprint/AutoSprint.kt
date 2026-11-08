@@ -11,7 +11,7 @@ import net.minecraft.client.ToggleKeyMapping
 import net.minecraft.client.player.LocalPlayer
 
 object AutoSprint {
-    private val conditions = FeatureConditionState()
+    internal val conditions = FeatureConditionState()
     private var wasActive = false
 
     fun register() {
@@ -43,10 +43,6 @@ object AutoSprint {
 
     fun addHeldItem(source: FabricClientCommandSource): Int =
         conditions.addHeldItem(source, "Auto Sprint", config.settings.combinations)
-
-    internal fun itemConditions() = conditions.itemConditions()
-
-    internal fun markConditionsChanged() = conditions.markChanged()
 
     private val config
         get() = SkysoftConfigGui.config().utilities.autoSprint

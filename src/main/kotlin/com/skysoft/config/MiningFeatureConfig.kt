@@ -4,7 +4,6 @@ import com.google.gson.annotations.Expose
 import com.skysoft.config.core.HudPosition
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.features.mining.MiningAbilityCooldownDisplay
-import com.skysoft.features.misc.conditions.FeatureConditions
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -81,11 +80,8 @@ class MiningAbilityCooldownDetailsConfig {
     val emptyColor: Property<ChromaColour> = Property.of(configColor(MINING_ABILITY_EMPTY_COLOR))
 }
 
-object MiningAbilityCooldownCombinationsProvider : FeatureCombinationsProvider() {
-    override fun getChoices(): List<FeatureCondition> = FeatureConditions.builtInConditions()
-
-    override fun onChanged() = MiningAbilityCooldownDisplay.markConditionsChanged()
-}
+object MiningAbilityCooldownCombinationsProvider :
+    FeatureCombinationsProvider({ MiningAbilityCooldownDisplay.conditions }, offersItemConditions = false)
 
 enum class MiningAbilityBarOrientation(private val displayName: String) {
     VERTICAL("Vertical"),

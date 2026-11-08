@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
+import com.skysoft.features.misc.blockoverlay.BlockOverlay
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -65,3 +66,6 @@ class BlockOverlayDetailsConfig {
     @field:ConfigEditorColour
     val color: Property<ChromaColour> = Property.of(ChromaColour.fromRGB(43, 177, 251, 0, 204))
 }
+
+object BlockOverlayCombinationsProvider :
+    FeatureCombinationsProvider({ BlockOverlay.conditions }, offersItemConditions = true)
