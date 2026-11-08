@@ -18,7 +18,6 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.OverlayControlArea
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -32,7 +31,6 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
-import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.renderRenderable
 import kotlin.math.abs
@@ -126,14 +124,10 @@ private fun renderInteractive(
 ) {
     val minecraft = Minecraft.getInstance()
     val window = minecraft.window
-    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
-    val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-    val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
-    val interactive = !InventoryOverlayInput.isPointCovered(
-        screen,
-        screenMouseX.toDouble(),
-        screenMouseY.toDouble(),
-    )
+    val pointer = InventoryOverlayInput.pointer(screen)
+    val (normalMouseX, normalMouseY) = pointer.normal
+    val (screenMouseX, screenMouseY) = pointer.screen
+    val interactive = pointer.isInteractive
     val transform = partyDisplayConfig.position.transform(renderable.width, renderable.anchorHeight)
     val localMouseX = transform.localX(normalMouseX).takeIf { interactive }
     val localMouseY = transform.localY(normalMouseY).takeIf { interactive }

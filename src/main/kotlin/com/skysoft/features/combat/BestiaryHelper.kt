@@ -16,7 +16,6 @@ import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.OverlayControlArea
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.gui.TopLeftHudEditorElement
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -33,7 +32,6 @@ import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
-import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
@@ -177,14 +175,10 @@ object BestiaryHelper {
         val renderable = buildRenderable(bestiary)
         val minecraft = Minecraft.getInstance()
         val screen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*> ?: return
-        val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
-        val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-        val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
-        val interactive = !InventoryOverlayInput.isPointCovered(
-            screen,
-            screenMouseX.toDouble(),
-            screenMouseY.toDouble(),
-        )
+        val pointer = InventoryOverlayInput.pointer(screen)
+        val (normalMouseX, normalMouseY) = pointer.normal
+        val (screenMouseX, screenMouseY) = pointer.screen
+        val interactive = pointer.isInteractive
         val transform = config.position.transform(0, 0)
         val localMouseX = transform.localX(normalMouseX)
         val localMouseY = transform.localY(normalMouseY)

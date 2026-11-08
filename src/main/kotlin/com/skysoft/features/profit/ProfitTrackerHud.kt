@@ -11,10 +11,8 @@ import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.OverlayControlArea
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
 import com.skysoft.utils.input.InputHandlingResult
-import com.skysoft.utils.input.InputUtilities
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import net.minecraft.client.Minecraft
@@ -105,11 +103,10 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
     hoveredControl = null
     hoveredTracker = null
     isTrackerHovered = false
-    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
-    val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-    val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
-    val interactive = inventoryScreen != null &&
-        !InventoryOverlayInput.isPointCovered(inventoryScreen, screenMouseX.toDouble(), screenMouseY.toDouble())
+    val pointer = InventoryOverlayInput.pointer(inventoryScreen)
+    val (normalMouseX, normalMouseY) = pointer.normal
+    val (screenMouseX, screenMouseY) = pointer.screen
+    val interactive = pointer.isInteractive
     targets.forEach { target ->
         context.nextStratum()
         renderPositioned(

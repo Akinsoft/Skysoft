@@ -2,14 +2,12 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.core.HudPosition
 import com.skysoft.gui.OverlayControlArea
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
-import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -17,17 +15,13 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
 internal class InventoryTrackerFrame(position: HudPosition, private val width: Int, height: Int) {
     private val minecraft = Minecraft.getInstance()
-    private val mouse = InputUtilities.scaledMousePosition(minecraft)
-    private val normalMouse = OverlayControlMouse.normalPoint(mouse.x, mouse.y)
-    private val screenMouse = OverlayControlMouse.screenPoint(mouse.x, mouse.y)
-    val screenMouseX = screenMouse.first
-    val screenMouseY = screenMouse.second
-    private val screen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
-    val interactive = screen != null &&
-        !InventoryOverlayInput.isPointCovered(screen, screenMouseX.toDouble(), screenMouseY.toDouble())
+    private val pointer = InventoryOverlayInput.pointer(MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>)
+    val screenMouseX = pointer.screen.x
+    val screenMouseY = pointer.screen.y
+    val interactive = pointer.isInteractive
     private val transform = position.transform(0, 0)
-    private val localMouseX = transform.localX(normalMouse.first)
-    private val localMouseY = transform.localY(normalMouse.second)
+    private val localMouseX = transform.localX(pointer.normal.x)
+    private val localMouseY = transform.localY(pointer.normal.y)
     private val placePanelRight = transform.fitsRight(width, SIDE_PANEL_ESTIMATED_WIDTH, minecraft.window.guiScaledWidth)
     val isHovered = interactive && localMouseX in 0 until width && localMouseY in 0 until height
 
