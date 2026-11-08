@@ -56,17 +56,6 @@ object SkyBlockLevelBar {
         drawVanillaExperienceProgress(context, x, y, width, level.experienceColor)
     }
 
-    internal fun renderVanillaExperienceProgress(
-        context: GuiGraphicsExtractor,
-        x: Int,
-        y: Int,
-        width: Int,
-        render: () -> Unit,
-    ) {
-        val color = currentLevel()?.experienceColor ?: return render()
-        drawVanillaExperienceProgress(context, x, y, width, color)
-    }
-
     private fun currentLevel(): SkyBlockLevelProgress? =
         cachedLevel.takeIf { isEnabled && TabListApi.isSkyBlockDataLoaded }
 }
