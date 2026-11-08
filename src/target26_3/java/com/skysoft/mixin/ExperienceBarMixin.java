@@ -9,7 +9,7 @@ import net.minecraft.client.gui.contextualbar.ExperienceBar;
 import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(ExperienceBar.class)
-public class ExperienceBarMixin {
+public abstract class ExperienceBarMixin {
     @WrapMethod(method = "extractBackground")
     private void skysoftPositionVanillaExperienceBar(
         GuiGraphicsExtractor graphics,

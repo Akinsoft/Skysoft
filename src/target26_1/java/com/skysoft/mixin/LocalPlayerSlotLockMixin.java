@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LocalPlayer.class)
-public class LocalPlayerSlotLockMixin {
+public abstract class LocalPlayerSlotLockMixin {
     @Inject(method = "drop", at = @At("HEAD"), cancellable = true)
     private void skysoftProtectLockedSelectedSlot(boolean all, CallbackInfoReturnable<Boolean> cir) {
         LocalPlayer player = (LocalPlayer) (Object) this;

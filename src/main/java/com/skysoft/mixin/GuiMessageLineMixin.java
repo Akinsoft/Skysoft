@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(GuiMessage.Line.class)
-public class GuiMessageLineMixin {
+public abstract class GuiMessageLineMixin {
     @ModifyReturnValue(method = "tag", at = @At("RETURN"))
     private GuiMessageTag skysoftHideMessageIndicator(GuiMessageTag original) {
         return ChatMotionSettings.isMessageIndicatorHidden() ? null : original;

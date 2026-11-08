@@ -1,9 +1,9 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.features.inventory.RarityHighlightRenderer;
 import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.utils.MinecraftClient;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -29,14 +29,14 @@ public abstract class GuiRendererMixin {
     @Unique private boolean skysoftIsChangingCachedItemAtlasScale;
 
     @Inject(method = "getGuiScaleInvalidatingItemAtlasIfChanged", at = @At("HEAD"))
-    protected void skysoftBeginItemAtlasScaleResolution(CallbackInfoReturnable<Integer> cir) {
+    private void skysoftBeginItemAtlasScaleResolution(CallbackInfoReturnable<Integer> cir) {
         Minecraft minecraft = Minecraft.getInstance();
         skysoftIsChangingCachedItemAtlasScale = GuiScaleController.hasDistinctInventoryScale(MinecraftClient.INSTANCE.screen(minecraft), minecraft.getWindow());
         if (!skysoftIsChangingCachedItemAtlasScale) skysoftCloseInactiveItemAtlases();
     }
 
     @Inject(method = "invalidateItemAtlas", at = @At("HEAD"), cancellable = true)
-    protected void skysoftPreserveItemAtlasForScale(CallbackInfo ci) {
+    private void skysoftPreserveItemAtlasForScale(CallbackInfo ci) {
         if (!skysoftIsChangingCachedItemAtlasScale || itemAtlas == null) return;
         if (skysoftItemAtlasesByScale.containsKey(cachedGuiScale)) throw new IllegalStateException("An item atlas is already cached for GUI scale " + cachedGuiScale);
         skysoftItemAtlasesByScale.put(cachedGuiScale, itemAtlas);
@@ -45,13 +45,13 @@ public abstract class GuiRendererMixin {
     }
 
     @Inject(method = "getGuiScaleInvalidatingItemAtlasIfChanged", at = @At("RETURN"))
-    protected void skysoftRestoreItemAtlasForScale(CallbackInfoReturnable<Integer> cir) {
+    private void skysoftRestoreItemAtlasForScale(CallbackInfoReturnable<Integer> cir) {
         if (skysoftIsChangingCachedItemAtlasScale && itemAtlas == null) itemAtlas = skysoftItemAtlasesByScale.remove(cir.getReturnValue());
         skysoftIsChangingCachedItemAtlasScale = false;
     }
 
     @Inject(method = "endFrame", at = @At("TAIL"))
-    protected void skysoftEndInactiveItemAtlasFrames(CallbackInfo ci) {
+    private void skysoftEndInactiveItemAtlasFrames(CallbackInfo ci) {
         if (skysoftItemAtlasesByScale.isEmpty()) return;
         Minecraft minecraft = Minecraft.getInstance();
         if (!GuiScaleController.hasDistinctInventoryScale(MinecraftClient.INSTANCE.screen(minecraft), minecraft.getWindow())) {
@@ -62,7 +62,9 @@ public abstract class GuiRendererMixin {
     }
 
     @Inject(method = "close", at = @At("HEAD"))
-    protected void skysoftCloseInactiveItemAtlases(CallbackInfo ci) { skysoftCloseInactiveItemAtlases(); }
+    private void skysoftCloseInactiveItemAtlases(CallbackInfo ci) {
+        skysoftCloseInactiveItemAtlases();
+    }
 
     @Unique
     private void skysoftCloseInactiveItemAtlases() {
@@ -71,7 +73,7 @@ public abstract class GuiRendererMixin {
     }
 
     @Inject(method = "submitBlitFromItemAtlas", at = @At("TAIL"))
-    protected void skysoftSubmitRarityContour(GuiItemRenderState itemState, GuiItemAtlas.SlotView slotView, CallbackInfo ci) {
+    private void skysoftSubmitRarityContour(GuiItemRenderState itemState, GuiItemAtlas.SlotView slotView, CallbackInfo ci) {
         MixinErrorBoundary.run("Rarity Highlight contour rendering", () -> RarityHighlightRenderer.renderContour(renderState, itemState, slotView));
     }
 }

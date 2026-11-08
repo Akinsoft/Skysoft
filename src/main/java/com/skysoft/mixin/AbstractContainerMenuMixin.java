@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AbstractContainerMenu.class)
-public class AbstractContainerMenuMixin {
+public abstract class AbstractContainerMenuMixin {
     @Inject(method = "setItem", at = @At("TAIL"))
     private void skysoftTrackExperimentationSlotUpdate(int slotId, int stateId, ItemStack stack, CallbackInfo ci) {
         AbstractContainerMenu menu = (AbstractContainerMenu) (Object) this;

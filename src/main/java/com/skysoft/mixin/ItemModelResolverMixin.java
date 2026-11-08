@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(ItemModelResolver.class)
-public class ItemModelResolverMixin {
+public abstract class ItemModelResolverMixin {
     @ModifyVariable(method = "updateForTopItem", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private ItemStack skysoftReplaceItemTexture(ItemStack itemStack) {
         return HeldItemTextureOverrides.renderStack(itemStack);

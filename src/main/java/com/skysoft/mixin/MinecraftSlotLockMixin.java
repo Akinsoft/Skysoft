@@ -1,11 +1,11 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.data.skyblock.SkyBlockDroppedItems;
 import com.skysoft.features.inventory.SlotLockManager;
 import com.skysoft.utils.input.InputHandlingResult;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.Packet;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(Minecraft.class)
-public class MinecraftSlotLockMixin {
+public abstract class MinecraftSlotLockMixin {
     @WrapOperation(
         method = "handleKeybinds",
         at = @At(

@@ -2,8 +2,8 @@ package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.features.misc.VanillaRecipeBookHider;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AbstractRecipeBookScreen.class)
-public class AbstractRecipeBookScreenMixin {
+public abstract class AbstractRecipeBookScreenMixin {
     @Shadow
     @Final
     private RecipeBookComponent<?> recipeBookComponent;

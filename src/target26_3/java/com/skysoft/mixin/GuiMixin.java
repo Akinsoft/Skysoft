@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(Gui.class)
-public class GuiMixin {
+public abstract class GuiMixin {
     @Shadow
     @Final
     private Minecraft minecraft;

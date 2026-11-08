@@ -1,9 +1,9 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.misc.DroppedItemScaleRenderState;
 import com.skysoft.features.misc.DroppedItemScaling;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.ItemEntityRenderer;
 import net.minecraft.client.renderer.entity.state.ItemEntityRenderState;
@@ -21,7 +21,7 @@ public abstract class ItemEntityRendererMixin {
     private static final float DEFAULT_DROPPED_ITEM_SCALE = 1.0F;
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
-    protected void skysoftExtractDroppedItemScale(ItemEntity entity, ItemEntityRenderState state, float partialTick, CallbackInfo ci) {
+    private void skysoftExtractDroppedItemScale(ItemEntity entity, ItemEntityRenderState state, float partialTick, CallbackInfo ci) {
         DroppedItemScaleRenderState scaleState = (DroppedItemScaleRenderState) state;
         scaleState.skysoftSetDroppedItemScale(DEFAULT_DROPPED_ITEM_SCALE);
         if (!DroppedItemScaling.INSTANCE.isActive()) return;
@@ -31,7 +31,7 @@ public abstract class ItemEntityRendererMixin {
     }
 
     @Inject(method = "submit", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/ItemEntityRenderer;submitMultipleFromCount(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/client/renderer/entity/state/ItemClusterRenderState;Lnet/minecraft/util/RandomSource;Lnet/minecraft/world/phys/AABB;)V"))
-    protected void skysoftScaleDroppedItem(ItemEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState cameraRenderState, CallbackInfo ci) {
+    private void skysoftScaleDroppedItem(ItemEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState cameraRenderState, CallbackInfo ci) {
         float scale = ((DroppedItemScaleRenderState) state).skysoftGetDroppedItemScale();
         if (scale == DEFAULT_DROPPED_ITEM_SCALE) return;
         MixinErrorBoundary.run("Dropped Item Scaling rendering", () -> DroppedItemScaling.INSTANCE.applyRenderScale(poseStack, scale, (float) state.item.getModelBoundingBox().minY));

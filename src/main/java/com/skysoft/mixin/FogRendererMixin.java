@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(FogRenderer.class)
-public class FogRendererMixin {
+public abstract class FogRendererMixin {
     @Inject(method = "computeFogColor", at = @At("TAIL"))
     private void skysoftUseCustomHorizonColor(
         Camera camera,

@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(EntityRenderDispatcher.class)
-public class EntityRenderDispatcherMixin {
+public abstract class EntityRenderDispatcherMixin {
     @ModifyReturnValue(method = "shouldRender", at = @At("RETURN"))
-    protected boolean skysoftHideEntity(
+    private boolean skysoftHideEntity(
         boolean original,
         Entity entity,
         Frustum frustum,

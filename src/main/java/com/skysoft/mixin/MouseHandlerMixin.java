@@ -19,17 +19,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MouseHandler.class)
-public class MouseHandlerMixin {
+public abstract class MouseHandlerMixin {
     @Shadow private double xpos;
     @Shadow private double ypos;
 
     @Inject(method = "grabMouse", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MouseHandler;mouseGrabbed:Z", opcode = Opcodes.PUTFIELD))
-    protected void skysoftRememberInventoryCursorGrab(CallbackInfo ci) {
+    private void skysoftRememberInventoryCursorGrab(CallbackInfo ci) {
         MouseInputHooks.beginMouseGrab();
     }
 
     @Inject(method = "handleAccumulatedMovement", at = @At("TAIL"))
-    protected void skysoftRestoreInventoryCursorAfterInput(CallbackInfo ci) {
+    private void skysoftRestoreInventoryCursorAfterInput(CallbackInfo ci) {
         var cursor = MouseInputHooks.cursorAfterInput();
         if (cursor == null) return;
         xpos = cursor.x();
@@ -38,23 +38,23 @@ public class MouseHandlerMixin {
     }
 
     @WrapOperation(method = "turnPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;turn(DD)V"))
-    protected void skysoftApplyMouseMovement(LocalPlayer player, double x, double y, Operation<Void> original) {
+    private void skysoftApplyMouseMovement(LocalPlayer player, double x, double y, Operation<Void> original) {
         original.call(player, MouseInputHooks.applyMovement(x), MouseInputHooks.applyMovement(y));
     }
 
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
-    protected void skysoftProcessGlobalScroll(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
+    private void skysoftProcessGlobalScroll(long window, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
         if (MouseInputHooks.tryHandleScroll(verticalAmount)) ci.cancel();
     }
 
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
-    protected void skysoftProcessGlobalMouseButton(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
+    private void skysoftProcessGlobalMouseButton(long window, MouseButtonInfo buttonInfo, int action, CallbackInfo ci) {
         InputUtilities.recordMouseInput(window, buttonInfo.button(), action);
         if (MouseInputHooks.tryHandleButton(buttonInfo.button(), action)) ci.cancel();
     }
 
     @WrapOperation(method = "onScroll", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;mouseScrolled(DDDD)Z"))
-    protected boolean doesSkysoftHandleTooltipScroll(
+    private boolean doesSkysoftHandleTooltipScroll(
         Screen screen,
         double mouseX,
         double mouseY,

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(ItemStack.class)
 public abstract class ItemStackTooltipMixin {
     @ModifyReturnValue(method = "getTooltipImage", at = @At("RETURN"))
-    protected Optional<TooltipComponent> skysoftAddStoragePreview(Optional<TooltipComponent> original) {
+    private Optional<TooltipComponent> skysoftAddStoragePreview(Optional<TooltipComponent> original) {
         TooltipComponent preview = MixinErrorBoundary.value("Storage Preview tooltip", null,
             () -> MixinFeatureAdapters.storagePreviewTooltip((ItemStack) (Object) this));
         return preview != null ? Optional.of(preview) : original;

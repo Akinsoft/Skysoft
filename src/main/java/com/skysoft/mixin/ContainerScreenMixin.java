@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ContainerScreen.class)
-public class ContainerScreenMixin {
+public abstract class ContainerScreenMixin {
     @Mutable
     @Shadow
     @Final

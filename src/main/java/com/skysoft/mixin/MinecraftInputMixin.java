@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Minecraft.class)
-public class MinecraftInputMixin {
+public abstract class MinecraftInputMixin {
     @Shadow
     public HitResult hitResult;
 

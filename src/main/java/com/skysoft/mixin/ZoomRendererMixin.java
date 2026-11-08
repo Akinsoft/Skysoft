@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(Camera.class)
-public class ZoomRendererMixin {
+public abstract class ZoomRendererMixin {
     @ModifyReturnValue(method = "calculateFov", at = @At("RETURN"))
     private float skysoftApplyZoom(float fov) {
         return (float) Zoom.applyFov(fov);

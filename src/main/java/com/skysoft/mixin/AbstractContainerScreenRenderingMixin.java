@@ -19,42 +19,42 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenRenderingMixin {
     @Inject(method = "extractContents", at = @At("HEAD"))
-    protected void skysoftBeginContainerFrame(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void skysoftBeginContainerFrame(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         ContainerRenderHooks.beginContents(skysoftScreen(), context);
     }
 
     @Inject(method = "extractSlots", at = @At("HEAD"), cancellable = true)
-    protected void skysoftSuppressContainerSlots(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
+    private void skysoftSuppressContainerSlots(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
         if (ContainerRenderHooks.shouldSuppressSlots(skysoftScreen())) ci.cancel();
     }
 
     @Inject(method = "extractContents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;extractLabels(Lnet/minecraft/client/gui/GuiGraphicsExtractor;II)V", shift = At.Shift.AFTER))
-    protected void skysoftRenderAfterContainerLabels(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void skysoftRenderAfterContainerLabels(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         ContainerRenderHooks.renderAfterLabels(skysoftScreen(), context);
     }
 
     @Inject(method = "extractContents", at = @At("TAIL"))
-    protected void skysoftRenderContainerTail(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void skysoftRenderContainerTail(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         ContainerRenderHooks.renderContentsTail(skysoftScreen(), context, mouseX, mouseY);
     }
 
     @Inject(method = "extractContents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;extractSlotHighlightFront(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V"))
-    protected void skysoftRenderEquipmentSlots(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void skysoftRenderEquipmentSlots(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         ContainerRenderHooks.renderEquipment(skysoftScreen(), context, mouseX, mouseY);
     }
 
     @Inject(method = "extractSlot", at = @At("HEAD"))
-    protected void skysoftRenderSlotBackgrounds(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+    private void skysoftRenderSlotBackgrounds(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         ContainerRenderHooks.renderSlotBackgrounds(skysoftScreen(), context, slot);
     }
 
     @Inject(method = "extractSlot", at = @At("TAIL"))
-    protected void skysoftRenderSlotOverlays(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+    private void skysoftRenderSlotOverlays(GuiGraphicsExtractor context, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         ContainerRenderHooks.renderSlotOverlays(skysoftScreen(), context, slot);
     }
 
     @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;item(Lnet/minecraft/world/item/ItemStack;III)V"))
-    protected void skysoftRenderContainerItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
+    private void skysoftRenderContainerItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
         ContainerItemRenderHooks.renderSlotItem(
             "Smooth Swapping item suppression",
             "Rarity Highlight item rendering",
@@ -67,7 +67,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
     }
 
     @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;III)V"))
-    protected void skysoftRenderContainerFakeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
+    private void skysoftRenderContainerFakeItem(GuiGraphicsExtractor context, ItemStack stack, int x, int y, int seed, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
         ContainerItemRenderHooks.renderSlotItem(
             "Smooth Swapping fake item suppression",
             "Rarity Highlight fake item rendering",
@@ -80,7 +80,7 @@ public abstract class AbstractContainerScreenRenderingMixin {
     }
 
     @WrapOperation(method = "extractSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"))
-    protected void skysoftRenderContainerItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
+    private void skysoftRenderContainerItemDecorations(GuiGraphicsExtractor context, Font font, ItemStack stack, int x, int y, String text, Operation<Void> original, @Local(argsOnly = true) Slot slot) {
         ContainerItemRenderHooks.renderSlotItemDecorations(
             skysoftScreen(),
             context,

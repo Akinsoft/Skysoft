@@ -1,9 +1,9 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.utils.render.WorldItemBadgeRenderer;
 import com.skysoft.utils.render.WorldItemRenderLayers;
 import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(ItemFeatureRenderer.class)
-public class ItemFeatureRendererMixin {
+public abstract class ItemFeatureRendererMixin {
     @WrapOperation(
         method = "prepareMainSubmit",
         at = @At(

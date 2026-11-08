@@ -15,7 +15,7 @@ public abstract class FontPreparedTextBuilderMixin {
     @Shadow private float x;
     @Shadow private float y;
     @WrapOperation(method = "getTextColor", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/chat/TextColor;getValue()I"))
-    protected int skysoftResolveSpatialChroma(TextColor textColor, Operation<Integer> original) {
+    private int skysoftResolveSpatialChroma(TextColor textColor, Operation<Integer> original) {
         ChromaTextColor marked = (Object) textColor instanceof ChromaTextColor color ? color : null;
         return ChromaTextRendering.INSTANCE.resolveGlyph(original.call(textColor), marked == null ? null : marked.skysoftChromaColour(), x, y, Minecraft.getInstance().getWindow().getGuiScaledWidth());
     }

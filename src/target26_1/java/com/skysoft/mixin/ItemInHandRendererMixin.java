@@ -2,12 +2,12 @@ package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.helditem.HeldItemSwingVisuals;
 import com.skysoft.features.helditem.HeldItemTransforms;
 import com.skysoft.features.helditem.SwingReplacementResult;
 import com.skysoft.features.misc.Zoom;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemInHandRenderer.class)
-public class ItemInHandRendererMixin {
+public abstract class ItemInHandRendererMixin {
     @Inject(method = "renderHandsWithItems", at = @At("HEAD"), cancellable = true)
     private void skysoftHideHandsWhileZooming(CallbackInfo ci) {
         if (Zoom.shouldHideHand()) ci.cancel();

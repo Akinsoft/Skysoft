@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(Hud.class)
-public class ExperienceLevelMixin {
+public abstract class ExperienceLevelMixin {
     @ModifyExpressionValue(
         method = "extractHotbarAndDecorations",
         at = @At(

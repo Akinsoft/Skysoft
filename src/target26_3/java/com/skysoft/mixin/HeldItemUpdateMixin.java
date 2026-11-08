@@ -10,9 +10,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(FirstPersonHandsAndItems.class)
-public class HeldItemUpdateMixin {
+public abstract class HeldItemUpdateMixin {
     @ModifyReturnValue(method = "shouldInstantlyReplaceVisibleItem", at = @At("RETURN"))
-    protected boolean skysoftKeepSameUpdatedItemVisible(boolean original, ItemStack currentlyVisibleItem, ItemStack expectedItem, LocalPlayer player) {
+    private boolean skysoftKeepSameUpdatedItemVisible(boolean original, ItemStack currentlyVisibleItem, ItemStack expectedItem, LocalPlayer player) {
         return MixinErrorBoundary.value("Held Item visible item update", original, () -> HeldItemUpdateFix.shouldKeepVisible(original, currentlyVisibleItem, expectedItem));
     }
 }

@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(TitleScreen.class)
-public class TitleScreenMixin {
+public abstract class TitleScreenMixin {
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lcom/mojang/realmsclient/gui/screens/RealmsNotificationsScreen;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"))
     private void skysoftPositionRealmsNotifications(RealmsNotificationsScreen notifications, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, Operation<Void> original) {
         AbstractWidget button = HideSillyButtons.realmsButton((TitleScreen) (Object) this);

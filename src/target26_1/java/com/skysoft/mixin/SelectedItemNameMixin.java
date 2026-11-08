@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Gui.class)
-public class SelectedItemNameMixin implements SelectedItemNameState {
+public abstract class SelectedItemNameMixin implements SelectedItemNameState {
     @Shadow
     private int toolHighlightTimer;
 

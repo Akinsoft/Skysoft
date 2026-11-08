@@ -1,10 +1,10 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.skysoft.config.SkysoftConfigGui;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.TooltipRenderUtil;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(TooltipRenderUtil.class)
-public class TooltipRenderUtilMixin {
+public abstract class TooltipRenderUtilMixin {
     @WrapOperation(
         method = "extractTooltipBackground",
         at = @At(

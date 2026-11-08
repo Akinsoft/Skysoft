@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(ArmorStandRenderer.class)
-public class ArmorStandRendererMixin {
+public abstract class ArmorStandRendererMixin {
     @ModifyReturnValue(
         method = "getRenderType(Lnet/minecraft/client/renderer/entity/state/ArmorStandRenderState;ZZZ)Lnet/minecraft/client/renderer/rendertype/RenderType;",
         at = @At("RETURN")

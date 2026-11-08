@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArgs;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
 @Mixin(ParticleEngine.class)
-public class ParticleEngineMixin {
+public abstract class ParticleEngineMixin {
     @ModifyArgs(
         method = "createParticle",
         at = @At(
