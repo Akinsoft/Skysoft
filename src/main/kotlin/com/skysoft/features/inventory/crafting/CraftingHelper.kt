@@ -5,10 +5,18 @@ import com.skysoft.config.CRAFTING_HELPER_MAXIMUM_TARGET_AMOUNT
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.features.inventory.TrackedItemManagerPanel
 import com.skysoft.gui.OverlayControlArea
 
 internal val craftingHelperConfig get() = SkysoftConfigGui.config().items.craftingHelper
-internal val craftingHelperItemPanel = CraftingHelperItemPanel()
+internal val craftingHelperItemPanel = TrackedItemManagerPanel(
+    overviewTitle = "Manage Crafting Targets",
+    addTitle = "Add Item",
+    removeTitle = "Decrease Amount",
+    removeInstruction = "Click a target to manage it",
+    isSelectable = { itemId -> isCraftingHelperTarget(itemId) && itemId !in craftingHelperConfig.targets },
+    selectItem = ::addCraftingHelperTarget,
+)
 internal var craftingHelperScrollOffset = 0
 internal var craftingHelperHovered = false
 internal var craftingHelperHoveredControl: OverlayControlArea<CraftingHelperControl>? = null
@@ -51,9 +59,10 @@ internal fun modifyCraftingHelperTarget(itemId: String, amount: Long) {
     SkysoftConfigGui.config().saveNow()
 }
 
-internal fun craftingHelperMaximumScrollOffset(lineCount: Int): Int =
-    (lineCount - craftingHelperConfig.settings.maximumLines.coerceIn(1, CRAFTING_HELPER_MAXIMUM_LINES))
-        .coerceAtLeast(0)
+internal fun craftingHelperMaximumLines(): Int =
+    craftingHelperConfig.settings.maximumLines.coerceIn(1, CRAFTING_HELPER_MAXIMUM_LINES)
+
+internal fun craftingHelperMaximumScrollOffset(lineCount: Int): Int = (lineCount - craftingHelperMaximumLines()).coerceAtLeast(0)
 
 internal fun clearCraftingHelperInteraction() {
     craftingHelperHovered = false

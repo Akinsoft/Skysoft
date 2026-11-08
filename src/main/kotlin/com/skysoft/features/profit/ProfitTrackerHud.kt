@@ -1,5 +1,6 @@
 package com.skysoft.features.profit
 
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.features.inventory.InventoryOverlayInput
@@ -29,10 +30,11 @@ private var isTrackerHovered = false
 private val itemPanel = ProfitTrackerItemPanel()
 private val hudControls = ProfitTrackerHudControls(itemPanel)
 private val hudContent = ProfitTrackerHudContent(hudControls)
+
 object ProfitTrackerHudInput {
     @JvmStatic
     fun handleKeyPress(event: KeyEvent): InputHandlingResult {
-        val target = itemPanelTarget?.takeIf { it.isVisible() } ?: return InputHandlingResult.IGNORED
+        val target = visibleItemPanelTarget() ?: return InputHandlingResult.IGNORED
         return if (hudControls.wasKeyPressHandled(target, event)) {
             InputHandlingResult.CONSUMED
         } else {
@@ -42,12 +44,14 @@ object ProfitTrackerHudInput {
 
     @JvmStatic
     fun handleCharTyped(event: CharacterEvent): InputHandlingResult =
-        if (itemPanelTarget?.takeIf { it.isVisible() } != null && hudControls.wasCharTypedHandled(event)) {
+        if (visibleItemPanelTarget() != null && hudControls.wasCharTypedHandled(event)) {
             InputHandlingResult.CONSUMED
         } else {
             InputHandlingResult.IGNORED
         }
 }
+
+private fun visibleItemPanelTarget(): ProfitTrackerTarget? = itemPanelTarget?.takeIf { it.isVisible() }
 
 internal fun registerProfitTrackerHud() {
     registerMouseCapture()
@@ -70,17 +74,13 @@ internal fun registerProfitTrackerHud() {
 
 private fun profitTrackerHudEditorElement(target: ProfitTrackerTarget): HudEditorElement {
     val config = target.config
-    return object : HudEditorElement {
+    return object : RenderableHudEditorElement {
         override val id: String = "profit_tracker_${target.storageKey.lowercase()}"
         override val label: String get() = "${target.displayName} Profit Tracker"
         override val position get() = config.position
         override val hasEditorBackground: Boolean get() = !config.details.showBackground
-        override fun width(): Int = currentEditorRenderable()?.width ?: 0
-        override fun height(): Int = currentEditorRenderable()?.height ?: 0
+        override fun hudRenderable() = currentEditorRenderable()
         override fun isVisible(): Boolean = isProfitTrackerHudVisible() && target.isVisible()
-        override fun renderEditor(context: GuiGraphicsExtractor) {
-            currentEditorRenderable()?.render(context)
-        }
         override fun openConfig() = target.customId?.let(CustomProfitTrackerConfigScreen::open)
             ?: SkysoftConfigGui.open(target.displayName)
 
@@ -106,7 +106,7 @@ private fun renderProfitTracker(context: GuiGraphicsExtractor) {
     val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
     val inventoryOpen = inventoryScreen != null
     if (!inventoryOpen) clearProfitTrackerInteraction()
-    if (itemPanelTarget?.takeIf { it.isVisible() } == null) {
+    if (visibleItemPanelTarget() == null) {
         itemPanelTarget = null
         itemPanel.clear()
     }
@@ -249,7 +249,7 @@ private fun registerMouseCapture() {
         when {
             InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ->
                 InputHandlingResult.IGNORED
-            itemPanelTarget?.takeIf { it.isVisible() } == null && hoveredTracker == null ->
+            visibleItemPanelTarget() == null && hoveredTracker == null ->
                 InputHandlingResult.IGNORED
             itemPanelTarget?.let { itemPanel.wasSearchScrollHandled(it, verticalAmount) } == true ->
                 InputHandlingResult.CONSUMED

@@ -5,7 +5,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
@@ -28,17 +28,13 @@ object DayDisplay {
                 visible = TabDataOverlays::canRender,
                 render = { context, _ -> renderHud(context) },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id: String = "day_display"
                 override val label: String = "Day Display"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun width(): Int = currentRenderable()?.width ?: 0
-                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun hudRenderable() = currentRenderable()
                 override fun isVisible(): Boolean = isDisplayVisible()
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    currentRenderable()?.render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Day Display")
             },
         )

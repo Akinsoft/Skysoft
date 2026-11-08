@@ -1,7 +1,7 @@
 package com.skysoft.gui
 
 import com.skysoft.utils.gui.Rect
-import kotlin.math.roundToInt
+import kotlin.math.abs
 
 internal class HudEditorSnapper(
     private val elements: () -> List<HudEditorElement>,
@@ -56,12 +56,7 @@ internal class HudEditorSnapper(
             hudGridCoordinate(y, HUD_EDITOR_GRID_SPACING, gridEnabled),
         ),
     ) { axis ->
-        targets.flatMap { target ->
-            targetPoints(
-                HudSnapBounds(target.x, target.y, target.x + target.width, target.y + target.height),
-                axis,
-            )
-        }
+        targets.flatMap { target -> targetPoints(target.toSnapBounds(), axis) }
     }
 
     private fun snapPosition(
@@ -136,30 +131,11 @@ internal class HudEditorSnapper(
     }
 
     fun confirmPosition(element: HudEditorElement, width: Int, height: Int) {
-        val left = element.absoluteX(width)
-        val top = element.absoluteY(height)
-        confirmPosition(
-            HudSnapBounds(
-                left = left,
-                top = top,
-                right = left + width,
-                bottom = top + height,
-            ),
-        )
+        confirmPosition(Rect(element.absoluteX(width), element.absoluteY(height), width, height))
     }
 
     fun confirmPosition(bounds: Rect) {
-        confirmPosition(
-            HudSnapBounds(
-                left = bounds.x,
-                top = bounds.y,
-                right = bounds.x + bounds.width,
-                bottom = bounds.y + bounds.height,
-            ),
-        )
-    }
-
-    private fun confirmPosition(confirmedBounds: HudSnapBounds) {
+        val confirmedBounds = bounds.toSnapBounds()
         movingBounds = confirmedBounds
         confirmAxis(
             HudSnapAxis.HORIZONTAL,
@@ -193,7 +169,7 @@ internal class HudEditorSnapper(
             val movingPoint = movingPoints.firstOrNull { it.anchor == currentLock.movingAnchor }
             if (movingPoint != null) {
                 val offset = currentLock.targetCoordinate - movingPoint.coordinate
-                if (kotlin.math.abs(offset) <= SNAP_RELEASE_DISTANCE) return offset
+                if (abs(offset) <= SNAP_RELEASE_DISTANCE) return offset
             }
             setLock(axis, null)
         }
@@ -225,17 +201,13 @@ internal class HudEditorSnapper(
     }
 
     private fun targets(element: HudEditorElement, axis: HudSnapAxis): List<HudSnapTargetPoint> {
-        val values = mutableListOf<HudSnapTargetPoint>()
-        elements()
+        return elements()
             .filter {
                 it !== element &&
                     !it.isInSnapGroupWith(element) &&
                     usesInventoryCoordinates(it) == usesInventoryCoordinates(element)
             }
-            .forEach { target ->
-                values += targetPoints(bounds(target), axis)
-            }
-        return values
+            .flatMap { target -> targetPoints(bounds(target), axis) }
     }
 
     private fun candidate(
@@ -258,7 +230,7 @@ internal class HudEditorSnapper(
             movingAnchor = moving.anchor,
             movingCoordinate = moving.coordinate,
             targetCoordinate = target.coordinate,
-            distance = kotlin.math.abs(target.coordinate - moving.coordinate),
+            distance = abs(target.coordinate - moving.coordinate),
             priority = priority,
             perpendicularDistance = movingBounds.perpendicularDistance(target.bounds, axis),
             targetBounds = target.bounds,
@@ -285,14 +257,7 @@ internal class HudEditorSnapper(
         )
     }
 
-    private fun bounds(element: HudEditorElement): HudSnapBounds {
-        val scale = element.position.effectiveScale
-        val width = (element.width() * scale).roundToInt()
-        val height = (element.height() * scale).roundToInt()
-        val left = element.absoluteX(width)
-        val top = element.absoluteY(height)
-        return HudSnapBounds(left, top, left + width, top + height)
-    }
+    private fun bounds(element: HudEditorElement): HudSnapBounds = element.editorBounds().toSnapBounds()
 
     private fun guide(axis: HudSnapAxis, lock: HudSnapLock, moving: HudSnapBounds): HudSnapGuide {
         val movingCenter = moving.perpendicularCenter(axis)
@@ -420,6 +385,8 @@ internal data class HudSnapBounds(
 }
 
 private fun snapCenter(start: Int, length: Int): Int = start + length / 2
+
+private fun Rect.toSnapBounds(): HudSnapBounds = HudSnapBounds(x, y, x + width, y + height)
 
 private const val SNAP_ACQUIRE_DISTANCE = 8
 private const val SNAP_RELEASE_DISTANCE = 12

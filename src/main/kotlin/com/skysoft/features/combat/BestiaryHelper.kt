@@ -1,5 +1,7 @@
 package com.skysoft.features.combat
 
+import com.skysoft.gui.RenderableHudEditorElement
+import com.skysoft.utils.gui.OverlayListScroll
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -13,12 +15,12 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
-import com.skysoft.gui.transform
 import com.skysoft.gui.SkysoftHudEditor
+import com.skysoft.gui.TopLeftHudEditorElement
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.gui.transform
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
@@ -73,31 +75,13 @@ object BestiaryHelper {
                 screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
                 render = { context, _ -> render(context) },
             ),
-            object : HudEditorElement {
+            object : TopLeftHudEditorElement, RenderableHudEditorElement {
                 override val id: String = "bestiary_helper"
                 override val label: String = "Bestiary Helper"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean = false
-                override fun width(): Int = openBestiary?.let(::buildRenderable)?.width ?: 0
-                override fun height(): Int = openBestiary?.let(::buildRenderable)?.height ?: 0
+                override fun hudRenderable() = openBestiary?.let(::buildRenderable)
                 override fun isVisible(): Boolean = BestiaryHelper.isVisible()
-                override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
-                override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
-                override fun renderEditor(context: GuiGraphicsExtractor) =
-                    openBestiary?.let(::buildRenderable)?.render(context) ?: Unit
-                override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-                    position.moveToAbsoluteAllowingOverflow(
-                        position.getAbsX0AllowingOverflow(0) + deltaX,
-                        position.getAbsY0AllowingOverflow(0) + deltaY,
-                        0,
-                        0,
-                    )
-                    return InputHandlingResult.CONSUMED
-                }
-                override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                    position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
-                    return InputHandlingResult.CONSUMED
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Bestiary Helper")
             },
         )
@@ -143,7 +127,7 @@ object BestiaryHelper {
         if (!isVisible() || !displayHovered || verticalAmount == 0.0) return false
         val maximumOffset = maximumScrollOffset(openBestiary?.let(::familiesForDisplay)?.size ?: 0)
         if (maximumOffset == 0) return false
-        scrollOffset = (scrollOffset + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
+        scrollOffset = OverlayListScroll.nextOffset(scrollOffset, verticalAmount, maximumOffset)
         return true
     }
 
@@ -214,13 +198,7 @@ object BestiaryHelper {
             )
         }
         displayHovered = interactive && localMouseX in 0 until renderable.width && localMouseY in 0 until renderable.height
-        hoveredControl = localControl?.let { control ->
-            OverlayControlArea(
-                action = control.action,
-                bounds = transform.screenBounds(control.bounds),
-                tooltipLines = control.tooltipLines,
-            )
-        }
+        hoveredControl = localControl?.let { control -> control.copy(bounds = transform.screenBounds(control.bounds)) }
         if (interactive) hoveredControl?.let { control ->
             context.nextStratum()
             val family = (control.action as? BestiaryControl.Family)?.family
@@ -315,10 +293,7 @@ private class BestiaryRenderable(
 ) : GuiRenderable {
     private val selectedNames = selected.mapTo(mutableSetOf(), ::familyKey)
     private val rows = families.map { family -> BestiaryRow(family, familyKey(family.name) in selectedNames) }
-    private val indicatorText = buildList {
-        if (hiddenAbove > 0) add("$hiddenAbove above")
-        if (hiddenBelow > 0) add("$hiddenBelow more")
-    }.joinToString(", ", prefix = "§7", postfix = if (hiddenAbove > 0 || hiddenBelow > 0) "..." else "")
+    private val indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, ", ")
     private val title = OverlayTextStyle.title("Bestiary Helper")
     private val emptyText = "§7Select a Bestiary mob list."
     private val resetText = if (selected.isEmpty()) "§8[Reset]" else "§c[Reset]"
@@ -341,12 +316,12 @@ private class BestiaryRenderable(
         renderInteractive(context, null, null)
     }
 
-    fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): LocalBestiaryControl? {
-        OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+    fun renderInteractive(context: GuiGraphicsExtractor, mouseX: Int?, mouseY: Int?): OverlayControlArea<BestiaryControl>? {
+        OverlayPanelStyle.drawHudBackground(context, width, height)
         var y = OverlayPanelStyle.PADDING
         LegacyTextRenderer.draw(context, title, OverlayPanelStyle.PADDING, y)
         y += OverlayTextStyle.TITLE_HEIGHT
-        var hovered: LocalBestiaryControl? = null
+        var hovered: OverlayControlArea<BestiaryControl>? = null
         if (rows.isEmpty()) {
             LegacyTextRenderer.draw(context, emptyText, OverlayPanelStyle.PADDING, y)
             y += OverlayTextStyle.ROW_HEIGHT
@@ -375,10 +350,9 @@ private class BestiaryRenderable(
         y: Int,
         mouseX: Int?,
         mouseY: Int?,
-    ): LocalBestiaryControl? {
+    ): OverlayControlArea<BestiaryControl>? {
         val resetBounds = Rect(OverlayPanelStyle.PADDING, y, LegacyTextRenderer.width(resetText), CONTROL_ROW_HEIGHT)
-        val resetHovered = !resetPending && selectedNames.isNotEmpty() && mouseX != null && mouseY != null &&
-            resetBounds.contains(mouseX, mouseY)
+        val resetHovered = !resetPending && selectedNames.isNotEmpty() && resetBounds.contains(mouseX, mouseY)
         if (resetHovered) OverlayTextStyle.drawControlHover(context, resetBounds, 1.0 - resetOpacity)
         LegacyTextRenderer.draw(
             context,
@@ -396,8 +370,8 @@ private class BestiaryRenderable(
         )
         val confirmWidth = LegacyTextRenderer.width(confirmationRight)
         val confirmBounds = Rect(width - OverlayPanelStyle.PADDING - confirmWidth, y, confirmWidth, CONTROL_ROW_HEIGHT)
-        val cancelHovered = resetInteractive && mouseX != null && mouseY != null && cancelBounds.contains(mouseX, mouseY)
-        val confirmHovered = resetInteractive && mouseX != null && mouseY != null && confirmBounds.contains(mouseX, mouseY)
+        val cancelHovered = resetInteractive && cancelBounds.contains(mouseX, mouseY)
+        val confirmHovered = resetInteractive && confirmBounds.contains(mouseX, mouseY)
         if (cancelHovered) OverlayTextStyle.drawControlHover(context, cancelBounds, resetOpacity)
         if (confirmHovered) OverlayTextStyle.drawControlHover(context, confirmBounds, resetOpacity)
         val confirmationColor = TEXT_COLOR.withScaledAlpha(resetOpacity)
@@ -417,17 +391,9 @@ private class BestiaryRenderable(
         )
 
         return when {
-            confirmHovered -> LocalBestiaryControl(
-                BestiaryControl.ConfirmReset,
-                confirmBounds,
-                listOf("§7Clear every selected Bestiary mob."),
-            )
-            cancelHovered -> LocalBestiaryControl(BestiaryControl.CancelReset, cancelBounds, emptyList())
-            resetHovered -> LocalBestiaryControl(
-                BestiaryControl.Reset,
-                resetBounds,
-                listOf("§7Clear every selected Bestiary mob."),
-            )
+            confirmHovered -> OverlayControlArea(BestiaryControl.ConfirmReset, confirmBounds, RESET_TOOLTIP)
+            cancelHovered -> OverlayControlArea(BestiaryControl.CancelReset, cancelBounds)
+            resetHovered -> OverlayControlArea(BestiaryControl.Reset, resetBounds, RESET_TOOLTIP)
             else -> null
         }
     }
@@ -449,9 +415,9 @@ private data class BestiaryRow(
         y: Int,
         mouseX: Int?,
         mouseY: Int?,
-    ): LocalBestiaryControl? {
+    ): OverlayControlArea<BestiaryControl>? {
         val bounds = Rect(left, y, right - left, OverlayItemRowStyle.HEIGHT)
-        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
+        val hovered = bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         SkyBlockBestiaryFamilies.icon(family.name)?.let { stack ->
             ItemIconRenderable(stack, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y)
@@ -468,7 +434,7 @@ private data class BestiaryRow(
             right - LegacyTextRenderer.width(status),
             y + OverlayItemRowStyle.TEXT_Y_OFFSET,
         )
-        return LocalBestiaryControl(
+        return OverlayControlArea<BestiaryControl>(
             BestiaryControl.Family(family),
             bounds,
             listOf("§f${family.name}", if (selected) "§cStop highlighting" else "§eHighlight"),
@@ -494,12 +460,6 @@ private sealed interface BestiaryControl {
     data object ConfirmReset : BestiaryControl
 }
 
-private data class LocalBestiaryControl(
-    val action: BestiaryControl,
-    val bounds: Rect,
-    val tooltipLines: List<String>,
-)
-
 private const val BESTIARY_TITLE = "Bestiary"
 private const val ARROW = "➜"
 private const val FAMILIES_FOUND_PREFIX = "Families Found:"
@@ -512,7 +472,7 @@ private const val MINIMUM_WIDTH = 165
 private const val CONTROL_ROW_HEIGHT = 13
 private const val CONTROL_TEXT_Y_OFFSET = 1
 private const val CONTROL_GAP = 8
-private const val HUD_SCALE_STEP = 0.1f
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
+private val RESET_TOOLTIP = listOf("§7Clear every selected Bestiary mob.")
 
 private fun familyKey(name: String): String = name.lowercase(Locale.ROOT)

@@ -55,8 +55,6 @@ class HudPosition @JvmOverloads constructor(
     @Transient
     private var referenceObjectHeight = 0
 
-    val effectiveScale: Float get() = scale
-
     fun rememberDefault(default: HudPosition? = null): HudPosition {
         if (default != null) defaultCopy = copyPosition(default)
         else if (defaultCopy == null) defaultCopy = copyPosition(this)
@@ -76,9 +74,8 @@ class HudPosition @JvmOverloads constructor(
             effectiveAnchor(y, centerY, verticalAnchor) == effectiveAnchor(it.y, it.centerY, it.verticalAnchor)
     } ?: true
 
-    fun anchorToTop(objHeight: Int) = anchorToTop(Minecraft.getInstance().window.guiScaledHeight, objHeight)
-
-    internal fun anchorToTop(screenHeight: Int, objHeight: Int) {
+    fun anchorToTop(objHeight: Int) {
+        val screenHeight = Minecraft.getInstance().window.guiScaledHeight
         if (effectiveAnchor(y, centerY, verticalAnchor) != HudAnchor.CENTER) return
         val absoluteY = calcAbs0(y, screenHeight, objHeight, HudAnchor.CENTER, clampEnd = false)
         setAxis(horizontal = false, absoluteY, screenHeight, objHeight, HudAnchor.START)
@@ -116,6 +113,10 @@ class HudPosition @JvmOverloads constructor(
         y += deltaY
     }
 
+    fun scaleByScroll(scrollY: Double) {
+        scale += if (scrollY > 0.0) SCROLL_SCALE_STEP else -SCROLL_SCALE_STEP
+    }
+
     private fun moveToAbsolute(
         absX: Int,
         absY: Int,
@@ -133,45 +134,27 @@ class HudPosition @JvmOverloads constructor(
         return this
     }
 
-    fun getAbsX0(objWidth: Int): Int = getAbsX0(Minecraft.getInstance().window.guiScaledWidth, objWidth)
-    fun getAbsY0(objHeight: Int): Int = getAbsY0(Minecraft.getInstance().window.guiScaledHeight, objHeight)
+    fun getAbsX0(objWidth: Int, screenWidth: Int = Minecraft.getInstance().window.guiScaledWidth): Int =
+        absoluteX(screenWidth, objWidth, clampEnd = true)
 
-    fun getAbsX0(screenWidth: Int, objWidth: Int): Int {
+    fun getAbsY0(objHeight: Int, screenHeight: Int = Minecraft.getInstance().window.guiScaledHeight): Int =
+        absoluteY(screenHeight, objHeight, clampEnd = true)
+
+    fun getAbsX0AllowingOverflow(objWidth: Int): Int =
+        absoluteX(Minecraft.getInstance().window.guiScaledWidth, objWidth, clampEnd = false)
+
+    fun getAbsY0AllowingOverflow(objHeight: Int): Int =
+        absoluteY(Minecraft.getInstance().window.guiScaledHeight, objHeight, clampEnd = false)
+
+    private fun absoluteX(screenWidth: Int, objWidth: Int, clampEnd: Boolean): Int {
         prepareAxis(horizontal = true, screenWidth, objWidth)
         val screenAnchor = effectiveAnchor(x, centerX, horizontalAnchor)
-        return calcAbs0(
-            x,
-            screenWidth,
-            objWidth,
-            screenAnchor,
-            horizontalObjectAnchor ?: screenAnchor,
-            clampEnd = true,
-        )
+        return calcAbs0(x, screenWidth, objWidth, screenAnchor, horizontalObjectAnchor ?: screenAnchor, clampEnd)
     }
 
-    fun getAbsY0(screenHeight: Int, objHeight: Int): Int {
+    private fun absoluteY(screenHeight: Int, objHeight: Int, clampEnd: Boolean): Int {
         prepareAxis(horizontal = false, screenHeight, objHeight)
-        return calcAbs0(y, screenHeight, objHeight, effectiveAnchor(y, centerY, verticalAnchor), clampEnd = true)
-    }
-
-    fun getAbsX0AllowingOverflow(objWidth: Int): Int {
-        val screenWidth = Minecraft.getInstance().window.guiScaledWidth
-        prepareAxis(horizontal = true, screenWidth, objWidth)
-        val screenAnchor = effectiveAnchor(x, centerX, horizontalAnchor)
-        return calcAbs0(
-            x,
-            screenWidth,
-            objWidth,
-            screenAnchor,
-            horizontalObjectAnchor ?: screenAnchor,
-            clampEnd = false,
-        )
-    }
-
-    fun getAbsY0AllowingOverflow(objHeight: Int): Int {
-        val screenHeight = Minecraft.getInstance().window.guiScaledHeight
-        prepareAxis(horizontal = false, screenHeight, objHeight)
-        return calcAbs0(y, screenHeight, objHeight, effectiveAnchor(y, centerY, verticalAnchor), clampEnd = false)
+        return calcAbs0(y, screenHeight, objHeight, effectiveAnchor(y, centerY, verticalAnchor), clampEnd)
     }
 
     internal fun snapshot(): Snapshot = Snapshot(
@@ -270,6 +253,7 @@ class HudPosition @JvmOverloads constructor(
         const val DEFAULT_SCALE = 1f
         const val MIN_SCALE = 0.1f
         const val MAX_SCALE = 10f
+        private const val SCROLL_SCALE_STEP = 0.1f
         private const val UNKNOWN_DIMENSION = -1
     }
 
@@ -303,11 +287,8 @@ private fun HudAnchor.coordinate(availableLength: Int): Int = when (this) {
     HudAnchor.END -> availableLength
 }
 
-private fun encode(absolute: Int, length: Int, objectLength: Int, anchor: HudAnchor): Int = when (anchor) {
-    HudAnchor.START -> absolute
-    HudAnchor.CENTER -> absolute - (length - objectLength) / 2
-    HudAnchor.END -> absolute - (length - objectLength)
-}
+private fun encode(absolute: Int, length: Int, objectLength: Int, anchor: HudAnchor): Int =
+    absolute - anchor.coordinate(length - objectLength)
 
 private fun encode(
     absolute: Int,
@@ -327,18 +308,7 @@ private fun calcAbs0(
     objectLength: Int,
     anchor: HudAnchor,
     clampEnd: Boolean,
-): Int {
-    val result = when (anchor) {
-        HudAnchor.START -> axis
-        HudAnchor.CENTER -> axis + (length - objectLength) / 2
-        HudAnchor.END -> length + axis - objectLength
-    }
-    return if (clampEnd) {
-        result.coerceIn(0, (length - objectLength).coerceAtLeast(0))
-    } else {
-        result.coerceAtLeast(0)
-    }
-}
+): Int = clampAbsolute(axis + anchor.coordinate(length - objectLength), length, objectLength, clampEnd)
 
 private fun calcAbs0(
     axis: Int,
@@ -350,9 +320,5 @@ private fun calcAbs0(
 ): Int {
     val result = calcAbs0(axis, length, objectLength, screenAnchor, clampEnd = false) +
         screenAnchor.coordinate(objectLength) - objectAnchor.coordinate(objectLength)
-    return if (clampEnd) {
-        result.coerceIn(0, (length - objectLength).coerceAtLeast(0))
-    } else {
-        result.coerceAtLeast(0)
-    }
+    return clampAbsolute(result, length, objectLength, clampEnd)
 }

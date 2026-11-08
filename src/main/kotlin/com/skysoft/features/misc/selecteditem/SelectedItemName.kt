@@ -2,16 +2,14 @@ package com.skysoft.features.misc.selecteditem
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.BottomHudLayout
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MAX
-import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.fillOverlayBackground
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.renderRenderable
-import kotlin.math.min
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -25,18 +23,14 @@ object SelectedItemName {
     private val config get() = SkysoftConfigGui.config().gui.playerHud.selectedItemName
 
     fun register() {
-        HudEditorRegistry.register(object : HudEditorElement {
+        HudEditorRegistry.register(object : RenderableHudEditorElement {
             override val id: String = "selected_item_name"
             override val label: String = "Selected Item Name"
             override val position get() = config.position
             override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
             override val hasEditorBackground: Boolean get() = !config.details.background
-            override fun width(): Int = currentRenderable()?.width ?: 0
-            override fun height(): Int = currentRenderable()?.height ?: 0
+            override fun hudRenderable() = currentRenderable()
             override fun isVisible(): Boolean = currentRenderable() != null
-            override fun renderEditor(context: GuiGraphicsExtractor) {
-                currentRenderable()?.render(context)
-            }
             override fun openConfig() = SkysoftConfigGui.open("Selected Item Name")
         })
     }
@@ -60,10 +54,8 @@ object SelectedItemName {
         val stack = highlight.skysoftSelectedItemNameStack()
         val alpha = selectedItemNameAlpha(highlight.skysoftSelectedItemNameTimer(), config.settings.alwaysVisible)
         if (stack.isEmpty || alpha <= 0) return null
-        return renderable(itemName(stack), alpha)
+        return SelectedItemNameRenderable(itemName(stack), alpha)
     }
-
-    private fun renderable(name: Component, alpha: Int) = SelectedItemNameRenderable(name, alpha)
 
     private class SelectedItemNameRenderable(
         private val name: Component,
@@ -75,16 +67,12 @@ object SelectedItemName {
 
         override fun render(context: GuiGraphicsExtractor) {
             if (config.details.background) {
-                val backgroundAlpha = min(
-                    alpha,
-                    config.details.backgroundOpacity * COLOR_CHANNEL_MAX / PERCENT_MAX,
-                )
                 context.fillOverlayBackground(
                     0,
                     0,
                     width,
                     height,
-                    OverlayPanelStyle.hudBackgroundColor.withAlpha(backgroundAlpha),
+                    OverlayPanelStyle.fadedHudBackgroundColor(alpha, config.details.backgroundOpacity),
                     config.details.roundedCorners,
                 )
                 context.nextStratum()
@@ -99,12 +87,11 @@ interface SelectedItemNameState {
     fun skysoftSelectedItemNameTimer(): Int
 }
 
-internal fun selectedItemNameAlpha(timer: Int, alwaysVisible: Boolean): Int =
+private fun selectedItemNameAlpha(timer: Int, alwaysVisible: Boolean): Int =
     if (alwaysVisible) COLOR_CHANNEL_MAX else
         (timer * FADE_ALPHA_SCALE / FADE_TICKS).coerceIn(0, COLOR_CHANNEL_MAX)
 
 private const val HORIZONTAL_PADDING = 4
 private const val VERTICAL_PADDING = 3
-private const val PERCENT_MAX = 100
 private const val FADE_TICKS = 10
 private const val FADE_ALPHA_SCALE = 256

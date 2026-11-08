@@ -29,7 +29,7 @@ class HudTransform(val x: Int, val y: Int, val scale: Float) {
         }
 }
 
-fun HudPosition.transform(width: Int, height: Int, scale: Float = effectiveScale): HudTransform = HudTransform(
+fun HudPosition.transform(width: Int, height: Int, scale: Float = this.scale): HudTransform = HudTransform(
     getAbsX0AllowingOverflow((width * scale).roundToInt()),
     getAbsY0AllowingOverflow((height * scale).roundToInt()),
     scale,

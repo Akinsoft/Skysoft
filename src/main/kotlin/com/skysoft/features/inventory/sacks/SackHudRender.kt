@@ -17,7 +17,6 @@ import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.renderAt
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.item.ItemStack
@@ -28,15 +27,9 @@ internal fun renderSackHud(context: GuiGraphicsExtractor) {
         clearSackHudInteraction()
         return
     }
-    val minecraft = Minecraft.getInstance()
-    val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
-    val inventoryOpen = inventoryScreen != null
+    val inventoryOpen = MinecraftClient.screen() is AbstractContainerScreen<*>
     if (!inventoryOpen) sackHudItemPanel.clear()
     val renderable = buildSackHudRenderable(inventoryOpen)
-    if (renderable.width <= 0 || renderable.height <= 0) {
-        clearSackHudInteraction()
-        return
-    }
     val frame = InventoryTrackerFrame(sackHudConfig.position, renderable.width, renderable.height)
     sackHudHoveredControl = frame.render(context) { mouseX, mouseY, placePanelRight ->
         val trackerControl = renderable.renderInteractive(context, mouseX, mouseY)
@@ -85,13 +78,11 @@ internal fun renderSackHud(context: GuiGraphicsExtractor) {
 }
 
 internal fun buildSackHudRenderable(inventoryOpen: Boolean): SackHudRenderable {
-    val maximumItems = sackHudConfig.settings.maximumItems.coerceIn(1, SACK_HUD_MAXIMUM_DISPLAY_ITEMS)
-    val maximumOffset = (sackHudConfig.trackedItems.size - maximumItems).coerceAtLeast(0)
-    sackHudScrollOffset = sackHudScrollOffset.coerceIn(0, maximumOffset)
+    sackHudScrollOffset = sackHudScrollOffset.coerceIn(0, sackHudMaximumScrollOffset(sackHudConfig.trackedItems.size))
     val displayed = sackHudConfig.trackedItems
         .asSequence()
         .drop(sackHudScrollOffset)
-        .take(maximumItems)
+        .take(sackHudMaximumDisplayedItems())
         .map(::trackedSackHudItem)
         .toList()
     return SackHudRenderable(
@@ -119,18 +110,15 @@ internal fun trackedSackHudItem(itemId: String): SackHudItem {
         amount = sackData?.amount ?: 0L,
         exact = sackData?.exact == true,
         known = sackData != null,
-        highlighted = isSackHudAmountHighlighted(itemId),
+        highlighted = sackHudChangeHighlights.isHighlighted(itemId),
         stack = SkyBlockDataRepository.displayStack(key),
     )
 }
 
-private fun isSackHudAmountHighlighted(itemId: String): Boolean =
-    sackHudChangeHighlights.isHighlighted(itemId)
-
 internal class SackHudRenderable(
     items: List<SackHudItem>,
-    private val hiddenAbove: Int,
-    private val hiddenBelow: Int,
+    hiddenAbove: Int,
+    hiddenBelow: Int,
     showTitle: Boolean,
     private val showItemNames: Boolean,
     private val showIcons: Boolean,
@@ -148,7 +136,6 @@ internal class SackHudRenderable(
             name = name,
             nameColumnWidth = itemNameColumnWidth,
             value = item.displayAmount(),
-            stack = item.stack,
             reserveIcon = showIcons,
             compact = compactRows,
         )
@@ -158,17 +145,10 @@ internal class SackHudRenderable(
     } else {
         "§7Loading item data..."
     }
-    private val indicatorText = when {
-        hiddenAbove <= 0 && hiddenBelow <= 0 -> ""
-        else -> buildList {
-            if (hiddenAbove > 0) add("$hiddenAbove above")
-            if (hiddenBelow > 0) add("$hiddenBelow more")
-        }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
-    }
     private val layout = InventoryTrackerLayout(
         title = "Sacks Tracker",
         emptyText = emptyText,
-        indicatorText = indicatorText,
+        indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, " §8• §7"),
         rowWidths = rows.map(SackHudRow::width),
         minimumWidth = if (compactRows) COMPACT_MINIMUM_WIDTH else MINIMUM_WIDTH,
         showTitle = showTitle,
@@ -198,7 +178,6 @@ private data class SackHudRow(
     val name: String,
     val nameColumnWidth: Int,
     val value: String,
-    val stack: ItemStack?,
     val reserveIcon: Boolean,
     val compact: Boolean,
 ) {
@@ -225,10 +204,10 @@ private data class SackHudRow(
         mouseY: Int?,
     ): OverlayControlArea<SackHudControl>? {
         val bounds = Rect(left, y, (right - left).coerceAtLeast(1), OverlayItemRowStyle.HEIGHT)
-        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
+        val hovered = bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         if (reserveIcon) {
-            stack?.let { ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y) }
+            item.stack?.let { ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y) }
         }
         if (name.isNotEmpty()) {
             LegacyTextRenderer.draw(context, name, left + iconWidth, y + OverlayItemRowStyle.TEXT_Y_OFFSET)

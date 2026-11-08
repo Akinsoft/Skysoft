@@ -10,6 +10,7 @@ import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.shortFormat
 import com.skysoft.utils.input.InputHandlingResult
+import java.util.Locale
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -28,22 +29,18 @@ internal class CustomBarTextElement(private val part: CustomBarPart) : HudEditor
     override fun isVisible(): Boolean = CustomBars.isHudVisible() && part.isNumberVisible()
 
     override fun absoluteX(width: Int): Int {
-        val barScale = part.position().effectiveScale
+        val barScale = part.position().scale
         val barWidth = (part.width * barScale).roundToInt()
         val barX = part.layoutOffsetX() + part.position().getAbsX0AllowingOverflow(barWidth)
         val trackCenter = ((part.trackX + part.trackWidth / 2f) * barScale).roundToInt()
         return barX + trackCenter - width / 2 + position.x
     }
 
-    override fun absoluteY(height: Int): Int =
-        barY(includeBottomLayout = true) + (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() + position.y
+    override fun absoluteY(height: Int): Int = textY(includeBottomLayout = true)
 
     override fun renderEditor(context: GuiGraphicsExtractor) {
-        val color = if (part == CustomBarPart.EXPERIENCE) {
-            SkyBlockLevelBar.displayedExperienceLevelColor(part.visualDetails.textColor.get().toColor().rgb)
-        } else {
-            part.visualDetails.textColor.get().toColor().rgb
-        }
+        val configured = part.visualDetails.textColor.get().toColor().rgb
+        val color = if (part == CustomBarPart.EXPERIENCE) SkyBlockLevelBar.displayedExperienceLevelColor(configured) else configured
         drawCustomBarText(context, text(), 0, 0, color)
     }
 
@@ -53,13 +50,13 @@ internal class CustomBarTextElement(private val part: CustomBarPart) : HudEditor
     }
 
     override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-        position.scale += if (scrollY > 0.0) TEXT_SCALE_STEP else -TEXT_SCALE_STEP
+        position.scaleByScroll(scrollY)
         return InputHandlingResult.CONSUMED
     }
 
     override fun editorDetailsLines(): List<String> = listOf(
         "§7Offset x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
-            "%.2f".format(java.util.Locale.US, position.scale)
+            "%.2f".format(Locale.US, position.scale)
         }",
     )
 
@@ -74,35 +71,34 @@ internal class CustomBarTextElement(private val part: CustomBarPart) : HudEditor
     override fun openConfig() = SkysoftConfigGui.open("Custom Bars")
 
     fun renderLive(context: GuiGraphicsExtractor) {
-        val scaledWidth = (width() * position.effectiveScale).roundToInt()
-        val x = absoluteX(scaledWidth)
-        val y = barY(includeBottomLayout = false) +
-            (RESOURCE_TEXT_Y * part.position().effectiveScale).roundToInt() +
-            position.y
-        HudTransform(x, y, position.effectiveScale).render(context) {
+        val scaledWidth = (width() * position.scale).roundToInt()
+        HudTransform(absoluteX(scaledWidth), textY(includeBottomLayout = false), position.scale).render(context) {
             renderEditor(context)
         }
     }
 
-    private fun barY(includeBottomLayout: Boolean): Int {
-        val barHeight = (part.height * part.position().effectiveScale).roundToInt()
-        val y = part.position().getAbsY0AllowingOverflow(barHeight)
-        return if (includeBottomLayout) y - BottomHudLayout.reservedHeight() else y
+    private fun textY(includeBottomLayout: Boolean): Int {
+        val barScale = part.position().scale
+        val barY = part.position().getAbsY0AllowingOverflow((part.height * barScale).roundToInt())
+        val layoutOffset = if (includeBottomLayout) BottomHudLayout.reservedHeight() else 0
+        return barY - layoutOffset + (RESOURCE_TEXT_Y * barScale).roundToInt() + position.y
     }
 
     private fun text(): String = when (part) {
-        CustomBarPart.HEALTH -> if (inRift) RiftCustomBarValues.formatHearts(CustomBarState.displayedHealth()) else resourceText(
-            CustomBarState.health,
-            part.trackWidth,
-        )
+        CustomBarPart.HEALTH -> if (inRift) {
+            RiftCustomBarValues.formatHearts(CustomBarState.displayedHealth())
+        } else {
+            resourceText(CustomBarState.health, part.trackWidth)
+        }
         CustomBarPart.MANA -> resourceText(CustomBarState.mana, part.trackWidth)
         CustomBarPart.VITALITY -> resourceText(CustomBarState.vitality, part.trackWidth)
-        CustomBarPart.EXPERIENCE -> if (inRift && !SkyBlockLevelBar.isReplacingExperience) {
-            RiftCustomBarValues.formatTime(Minecraft.getInstance().player?.experienceLevel ?: 0)
-        } else {
-            SkyBlockLevelBar.displayedExperienceLevel(
-                Minecraft.getInstance().player?.experienceLevel ?: 0,
-            ).toString()
+        CustomBarPart.EXPERIENCE -> {
+            val level = Minecraft.getInstance().player?.experienceLevel ?: 0
+            if (showsRiftTime) {
+                RiftCustomBarValues.formatTime(level)
+            } else {
+                SkyBlockLevelBar.displayedExperienceLevel(level).toString()
+            }
         }
         CustomBarPart.DEFENSE, CustomBarPart.SPEED, CustomBarPart.AIR -> error("${part.label} has no bar text")
     }
@@ -129,4 +125,3 @@ internal fun drawCustomBarText(context: GuiGraphicsExtractor, text: String, x: I
 
 private const val RESOURCE_TEXT_Y = 1
 private const val TEXT_PADDING = 2
-private const val TEXT_SCALE_STEP = 0.1f

@@ -2,22 +2,19 @@ package com.skysoft.features.inventory.crafting
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.TrackedItemManagerAction
-import com.skysoft.features.inventory.TrackedItemManagerPanel
 import com.skysoft.features.inventory.TrackedItemQuantityAction
 import com.skysoft.features.inventory.TrackedItemSelectionAction
+import com.skysoft.features.inventory.hoveredPlayerInventoryItemId
 import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
 import com.skysoft.features.inventory.itemlist.itemListQuickCraftCommand
-import com.skysoft.gui.OverlayControlArea
-import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.features.inventory.wasLeftClickHandled
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.gui.OverlayListScroll
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -32,70 +29,10 @@ internal sealed interface CraftingHelperControl {
     data class Line(val line: CraftingHelperLine) : CraftingHelperControl
 }
 
-internal class CraftingHelperItemPanel {
-    private val panel = TrackedItemManagerPanel(
-        overviewTitle = "Manage Crafting Targets",
-        addTitle = "Add Item",
-        removeTitle = "Decrease Amount",
-        removeInstruction = "Click a target to manage it",
-        isSelectable = { itemId -> isCraftingHelperTarget(itemId) && itemId !in craftingHelperConfig.targets },
-        selectItem = ::addCraftingHelperTarget,
-    )
-
-    fun toggleAddingItems() = panel.toggleAddingItems()
-
-    fun beginAddingItems() = panel.beginAddingItems()
-
-    fun toggleItem(itemId: String) = panel.toggleItem(itemId)
-
-    fun beginRemovingItems() = panel.beginRemovingItems()
-
-    fun isSelectingFromInventory(): Boolean = panel.isSelectingFromInventory()
-
-    val isHovered: Boolean
-        get() = panel.isHovered
-
-    fun wasInventoryItemSelected(itemId: String): Boolean = panel.wasInventoryItemSelected(itemId)
-
-    fun wasSelectionClickHandled(action: TrackedItemSelectionAction, button: Int): Boolean =
-        panel.wasSelectionClickHandled(action, button)
-
-    fun wasKeyPressHandled(event: KeyEvent): Boolean =
-        panel.wasQuantityKeyPressHandled(event, ::modifyCraftingHelperTarget) || panel.wasKeyPressHandled(event)
-
-    fun wasCharTypedHandled(event: CharacterEvent): Boolean = panel.wasCharTypedHandled(event)
-
-    fun wasSearchScrollHandled(verticalAmount: Double): Boolean = panel.wasSearchScrollHandled(verticalAmount)
-
-    fun wasQuantityClickHandled(action: TrackedItemQuantityAction, button: Int): Boolean =
-        panel.wasQuantityClickHandled(action, button, ::modifyCraftingHelperTarget)
-
-    fun close() = panel.close()
-
-    fun clear() = panel.clear()
-
-    fun render(
-        context: GuiGraphicsExtractor,
-        trackerWidth: Int,
-        placeRight: Boolean,
-        mouseX: Int,
-        mouseY: Int,
-    ): OverlayControlArea<CraftingHelperControl>? =
-        panel.render(context, trackerWidth, placeRight, mouseX, mouseY)?.let { control ->
-            val action = when (val action = control.action) {
-                TrackedItemManagerAction.AddItems -> CraftingHelperControl.AddItems
-                TrackedItemManagerAction.RemoveItems -> CraftingHelperControl.DecreaseItems
-                is TrackedItemManagerAction.ItemSelection -> CraftingHelperControl.ItemSelection(action.action)
-                is TrackedItemManagerAction.Quantity -> CraftingHelperControl.Quantity(action.action)
-            }
-            OverlayControlArea(action, control.bounds)
-        }
-}
-
 internal object CraftingHelperInput {
     @JvmStatic
     fun handleKeyPress(event: KeyEvent): InputHandlingResult =
-        if (craftingHelperConfig.enabled && craftingHelperItemPanel.wasKeyPressHandled(event)) {
+        if (craftingHelperConfig.enabled && wasCraftingHelperKeyPressHandled(event)) {
             InputHandlingResult.CONSUMED
         } else {
             InputHandlingResult.IGNORED
@@ -110,17 +47,17 @@ internal object CraftingHelperInput {
         }
 }
 
+private fun wasCraftingHelperKeyPressHandled(event: KeyEvent): Boolean =
+    craftingHelperItemPanel.wasQuantityKeyPressHandled(event, ::modifyCraftingHelperTarget) ||
+        craftingHelperItemPanel.wasKeyPressHandled(event)
+
 internal fun registerCraftingHelperInput() {
-    val isActive = { craftingHelperConfig.enabled }
-    InventoryOverlayInput.registerClickHandler("Crafting Helper mouse click", isActive) { screen, click ->
-        if (shouldAllowCraftingHelperClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
-    }
-    InventoryOverlayInput.registerScrollHandler("Crafting Helper mouse scroll", isActive) {
-            screen, mouseX, mouseY, verticalAmount ->
-        val allowed = InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
-            !wasCraftingHelperScrollHandled(verticalAmount)
-        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
-    }
+    InventoryOverlayInput.registerTrackerInput(
+        "Crafting Helper",
+        isActive = { craftingHelperConfig.enabled },
+        shouldAllowClick = ::shouldAllowCraftingHelperClick,
+        wasScrollHandled = ::wasCraftingHelperScrollHandled,
+    )
 }
 
 private fun shouldAllowCraftingHelperClick(
@@ -144,7 +81,7 @@ private fun shouldAllowCraftingHelperClick(
         is CraftingHelperControl.ItemSelection ->
             craftingHelperItemPanel.wasSelectionClickHandled(control.action, click.button())
         is CraftingHelperControl.Quantity ->
-            craftingHelperItemPanel.wasQuantityClickHandled(control.action, click.button())
+            craftingHelperItemPanel.wasQuantityClickHandled(control.action, click.button(), ::modifyCraftingHelperTarget)
         is CraftingHelperControl.Line -> wasCraftingHelperLineClickHandled(screen, control.line, click.button())
         null -> wasInventoryTargetSelected(screen, click.button())
     }
@@ -158,9 +95,7 @@ private fun shouldAllowCraftingHelperClick(
 
 private fun wasInventoryTargetSelected(screen: AbstractContainerScreen<*>, button: Int): Boolean {
     if (!craftingHelperItemPanel.isSelectingFromInventory() || button != InputConstants.MOUSE_BUTTON_LEFT) return false
-    val player = Minecraft.getInstance().player ?: return false
-    val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
-    val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
+    val itemId = hoveredPlayerInventoryItemId(screen) ?: return false
     return craftingHelperItemPanel.wasInventoryItemSelected(itemId)
 }
 
@@ -215,13 +150,6 @@ private fun wasCraftingHelperScrollHandled(verticalAmount: Double): Boolean {
     if (!craftingHelperHovered) return false
     val maximumOffset = craftingHelperMaximumScrollOffset(craftingHelperLines().size)
     if (maximumOffset == 0) return false
-    craftingHelperScrollOffset = (craftingHelperScrollOffset + if (verticalAmount < 0.0) 1 else -1)
-        .coerceIn(0, maximumOffset)
-    return true
-}
-
-private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
-    if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
-    action()
+    craftingHelperScrollOffset = OverlayListScroll.nextOffset(craftingHelperScrollOffset, verticalAmount, maximumOffset)
     return true
 }

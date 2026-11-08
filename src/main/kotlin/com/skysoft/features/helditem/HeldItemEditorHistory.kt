@@ -23,9 +23,7 @@ internal data class HeldItemHistoryEdit(
     val before: HeldItemCustomizationSnapshot,
 )
 
-internal class HeldItemHistoryStore(
-    private val clockNanos: () -> Long = System::nanoTime,
-) {
+internal class HeldItemHistoryStore {
     private val histories = mutableMapOf<HeldItemHistoryKey, ContextHistory>()
 
     fun begin(config: HeldItemConfig, key: HeldItemHistoryKey): HeldItemHistoryEdit {
@@ -39,7 +37,7 @@ internal class HeldItemHistoryStore(
         if (after == edit.before) return ChangeResult.UNCHANGED
         val history = histories.getOrPut(edit.key) { ContextHistory() }
         history.snapshots.record(edit.before, after)
-        history.lastTouchedAtNanos = clockNanos()
+        history.lastTouchedAtNanos = System.nanoTime()
         return ChangeResult.CHANGED
     }
 
@@ -53,24 +51,25 @@ internal class HeldItemHistoryStore(
         return histories[key]?.snapshots?.canRedo == true
     }
 
-    fun undo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult {
-        expireInactiveHistories()
-        val history = histories[key] ?: return ChangeResult.UNCHANGED
-        val result = history.snapshots.undo(config::restoreCustomization)
-        if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = clockNanos()
-        return result
-    }
+    fun undo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult =
+        step(key) { it.undo(config::restoreCustomization) }
 
-    fun redo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult {
+    fun redo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult =
+        step(key) { it.redo(config::restoreCustomization) }
+
+    private fun step(
+        key: HeldItemHistoryKey,
+        action: (SnapshotHistory<HeldItemCustomizationSnapshot>) -> ChangeResult,
+    ): ChangeResult {
         expireInactiveHistories()
         val history = histories[key] ?: return ChangeResult.UNCHANGED
-        val result = history.snapshots.redo(config::restoreCustomization)
-        if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = clockNanos()
+        val result = action(history.snapshots)
+        if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = System.nanoTime()
         return result
     }
 
     private fun expireInactiveHistories() {
-        val now = clockNanos()
+        val now = System.nanoTime()
         histories.entries.removeIf { (_, history) ->
             now - history.lastTouchedAtNanos >= HistoryLimits.EXPIRATION_NANOS
         }
@@ -86,7 +85,6 @@ internal class HeldItemHistoryController(
     private val config: HeldItemConfig,
     private val store: HeldItemHistoryStore,
     private val keyProvider: () -> HeldItemHistoryKey?,
-    private val clockNanos: () -> Long = System::nanoTime,
 ) {
     private var gestureEdit: HeldItemHistoryEdit? = null
     private var scrollEdit: PendingScrollEdit? = null
@@ -112,7 +110,7 @@ internal class HeldItemHistoryController(
 
     fun mutateScroll(field: TransformField, action: () -> Unit): ChangeResult {
         val key = keyProvider() ?: return ChangeResult.UNCHANGED
-        val now = clockNanos()
+        val now = System.nanoTime()
         val pending = scrollEdit
         if (pending == null || pending.edit.key != key || pending.field != field || pending.hasExpired(now)) {
             commitScroll()
@@ -126,7 +124,7 @@ internal class HeldItemHistoryController(
 
     fun commitIdleScroll() {
         val pending = scrollEdit ?: return
-        if (pending.hasExpired(clockNanos())) commitScroll()
+        if (pending.hasExpired(System.nanoTime())) commitScroll()
     }
 
     fun flushPending() {

@@ -1,5 +1,10 @@
 package com.skysoft.features.misc
 
+import com.skysoft.utils.ColorUtilities.COLOR_CHANNEL_MASK
+import com.skysoft.utils.ColorUtilities.GREEN_SHIFT
+import com.skysoft.utils.ColorUtilities.RED_SHIFT
+import com.skysoft.utils.ColorUtilities.packRgb
+import com.skysoft.gui.RenderableHudEditorElement
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.PartyDisplayAlignment
 import com.skysoft.config.SkysoftConfigGui
@@ -12,7 +17,6 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
@@ -57,15 +61,13 @@ internal fun registerPartyDisplayHud() {
             screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderPartyDisplayHud(context) },
         ),
-        object : HudEditorElement {
+        object : RenderableHudEditorElement {
             override val id: String = "party_display"
             override val label: String = "Party Display"
             override val position get() = partyDisplayConfig.position
             override val hasEditorBackground: Boolean get() = !partyDisplayConfig.details.background
-            override fun width(): Int = editorRenderable()?.width ?: 0
-            override fun height(): Int = editorRenderable()?.height ?: 0
+            override fun hudRenderable() = editorRenderable()
             override fun isVisible(): Boolean = isPartyDisplayVisible()
-            override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
             override fun openConfig() = SkysoftConfigGui.open("Party Display")
         },
     )
@@ -107,15 +109,7 @@ private fun renderPartyDisplayHud(context: GuiGraphicsExtractor) {
     if (!inventoryOpen) hudControls.clear()
     hoveredControl = null
     val localLeader = minecraft.player?.uuid == HypixelPartyApi.leaderUuid
-    val renderable = PartyDisplayRenderable(
-        members,
-        partyDisplayConfig.details.alignment,
-        partyDisplayConfig.details.background,
-        inventoryOpen,
-        localLeader,
-        lootshareCheckmarks(),
-        hudControls,
-    )
+    val renderable = partyDisplayRenderable(members, inventoryOpen, localLeader)
     if (screen == null) {
         partyDisplayConfig.position.renderRenderable(context, renderable)
         return
@@ -141,26 +135,22 @@ private fun renderInteractive(
         screenMouseY.toDouble(),
     )
     val transform = partyDisplayConfig.position.transform(renderable.width, renderable.anchorHeight)
-    val localMouseX = transform.localX(normalMouseX)
-    val localMouseY = transform.localY(normalMouseY)
+    val localMouseX = transform.localX(normalMouseX).takeIf { interactive }
+    val localMouseY = transform.localY(normalMouseY).takeIf { interactive }
     val placePanelRight = partyDisplayConfig.details.alignment != PartyDisplayAlignment.RIGHT &&
         transform.fitsRight(renderable.width, MEMBER_PANEL_GAP + MEMBER_PANEL_WIDTH, window.guiScaledWidth)
 
     context.nextStratum()
     val localControl = transform.render(context) {
-        val displayControl = renderable.renderInteractive(
-            context,
-            localMouseX.takeIf { interactive },
-            localMouseY.takeIf { interactive },
-        )
+        val displayControl = renderable.renderInteractive(context, localMouseX, localMouseY)
         hudControls.renderMemberPanel(
             context,
             members,
             renderable.width,
             placePanelRight,
             localLeader,
-            localMouseX.takeIf { interactive },
-            localMouseY.takeIf { interactive },
+            localMouseX,
+            localMouseY,
         ) ?: displayControl
     }
     hoveredControl = localControl?.let { it.copy(bounds = transform.screenBounds(it.bounds)) }
@@ -178,17 +168,21 @@ private fun renderInteractive(
 
 private fun editorRenderable(): PartyDisplayRenderable? = PartyDisplay.currentMembers()
     .takeIf { it.isNotEmpty() }
-    ?.let { members ->
-        PartyDisplayRenderable(
-            members,
-            partyDisplayConfig.details.alignment,
-            partyDisplayConfig.details.background,
-            inventoryOpen = false,
-            localLeader = false,
-            lootshareCheckmarks(),
-            hudControls,
-        )
-    }
+    ?.let { members -> partyDisplayRenderable(members, inventoryOpen = false, localLeader = false) }
+
+private fun partyDisplayRenderable(
+    members: List<PartyDisplayMember>,
+    inventoryOpen: Boolean,
+    localLeader: Boolean,
+) = PartyDisplayRenderable(
+    members,
+    partyDisplayConfig.details.alignment,
+    partyDisplayConfig.details.background,
+    inventoryOpen,
+    localLeader,
+    lootshareCheckmarks(),
+    hudControls,
+)
 
 private fun lootshareCheckmarks(): Map<String, Component> {
     val dianaLootshare = SkysoftConfigGui.config().events.diana.lootshare
@@ -199,12 +193,10 @@ private fun lootshareCheckmarks(): Map<String, Component> {
     ) {
         return emptyMap()
     }
-    val checkmarks = DianaLootshareReadyMarkers.readyPlayerNames(System.currentTimeMillis())
-        .associateTo(mutableMapOf()) { name -> name.lowercase() to DianaLootshareReadyMarkers.checkmark }
-    DianaRareMobSharing.activeSpawnerNames.forEach { name ->
-        checkmarks[name.lowercase()] = DianaLootshareReadyMarkers.spawnerCheckmark
-    }
-    return checkmarks
+    return DianaLootshareReadyMarkers.checkmarksByPlayer(
+        DianaRareMobSharing.activeSpawnerNames,
+        System.currentTimeMillis(),
+    )
 }
 
 private fun isPartyDisplayVisible(): Boolean {
@@ -232,7 +224,7 @@ private class PartyDisplayRenderable(
     private val font get() = Minecraft.getInstance().font
     private val title = Component.literal("Party").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
         .append(
-            Component.literal(" (${members.count { !it.invited && it.leavingAtMillis == null }})")
+            Component.literal(" (${members.count { it.isActive }})")
                 .withStyle(ChatFormatting.GRAY),
         )
     private val renderedAtMillis = System.currentTimeMillis()
@@ -268,14 +260,14 @@ private class PartyDisplayRenderable(
         mouseX: Int?,
         mouseY: Int?,
     ): OverlayControlArea<PartyDisplayControl>? {
-        if (padding > 0) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+        if (padding > 0) OverlayPanelStyle.drawHudBackground(context, width, height)
         context.text(font, title, lineX(font.width(title)), padding, TEXT_COLOR, true)
         var hovered: OverlayControlArea<PartyDisplayControl>? = null
         members.forEachIndexed { index, member ->
             val x = lineX(memberWidth)
             val y = padding + OverlayTextStyle.TITLE_HEIGHT + index * OverlayTextStyle.ROW_HEIGHT
             val rowBounds = Rect(padding, y, contentWidth, OverlayTextStyle.ROW_HEIGHT)
-            val rowHovered = inventoryOpen && !member.invited && member.leavingAtMillis == null &&
+            val rowHovered = inventoryOpen && member.isActive &&
                 rowBounds.contains(mouseX, mouseY)
             if (rowHovered) {
                 OverlayTextStyle.drawControlHover(context, rowBounds, 1.0)
@@ -380,7 +372,7 @@ private class PartyDisplayRenderable(
                 val blue = ((rgb and COLOR_CHANNEL_MASK) * brightness).roundToInt()
                 result.append(
                     Component.literal(character.toString()).withStyle(
-                        name.style.withColor((red shl RED_SHIFT) or (green shl GREEN_SHIFT) or blue),
+                        name.style.withColor(packRgb(red, green, blue)),
                     ),
                 )
             }
@@ -451,37 +443,18 @@ private class PartyDisplayHudControls {
         memberPanelHovered = false
         val managedName = managedMember ?: return null
         val member = members.firstOrNull { candidate ->
-            !candidate.invited && candidate.leavingAtMillis == null &&
-                candidate.name.equals(managedName, ignoreCase = true)
-        }
-        if (member == null) {
-            clear()
-            return null
+            candidate.isActive && candidate.name.equals(managedName, ignoreCase = true)
         }
         val opacity = memberPanelTransition.opacity()
-        if (!memberPanelTransition.isVisible) {
+        if (member == null || !memberPanelTransition.isVisible) {
             clear()
             return null
         }
-        val x = if (placeRight) displayWidth + MEMBER_PANEL_GAP else -MEMBER_PANEL_WIDTH - MEMBER_PANEL_GAP
         val height = MEMBER_PANEL_ROWS * OverlayTextStyle.ROW_HEIGHT + OverlayPanelStyle.PADDING * 2
-        memberPanelHovered = Rect(x, 0, MEMBER_PANEL_WIDTH, height).contains(mouseX, mouseY)
-        context.fill(
-            x,
-            0,
-            x + MEMBER_PANEL_WIDTH,
-            height,
-            OverlayPanelStyle.BACKGROUND.withScaledAlpha(opacity),
-        )
-        context.outline(
-            x,
-            0,
-            MEMBER_PANEL_WIDTH,
-            height,
-            OverlayPanelStyle.OUTLINE.withScaledAlpha(opacity),
-        )
+        val panel = OverlayPanelStyle.drawBeside(context, displayWidth, placeRight, MEMBER_PANEL_WIDTH, height, opacity)
+        memberPanelHovered = panel.contains(mouseX, mouseY)
         val font = Minecraft.getInstance().font
-        val contentX = x + OverlayPanelStyle.PADDING
+        val contentX = panel.x + OverlayPanelStyle.PADDING
         val contentWidth = MEMBER_PANEL_WIDTH - OverlayPanelStyle.PADDING * 2
         val textColor = TEXT_COLOR.withScaledAlpha(opacity)
         context.text(
@@ -672,9 +645,6 @@ private fun PartyDisplayAlignment.offset(containerWidth: Int, contentWidth: Int)
     PartyDisplayAlignment.RIGHT -> containerWidth - contentWidth
 }
 
-private fun Rect.contains(mouseX: Int?, mouseY: Int?): Boolean =
-    mouseX != null && mouseY != null && contains(mouseX, mouseY)
-
 private const val HEAD_SIZE = 8
 private const val HEAD_GAP = 2
 private const val STATUS_GAP = 4
@@ -690,6 +660,3 @@ private const val INACTIVE_MEMBER_COLOR = 0x80FFFFFF.toInt()
 private const val INACTIVE_WAVE_DURATION_MILLIS = 2_000L
 private const val INACTIVE_WAVE_RADIUS = 2.5
 private const val INACTIVE_BASE_BRIGHTNESS = 0.5
-private const val RED_SHIFT = 16
-private const val GREEN_SHIFT = 8
-private const val COLOR_CHANNEL_MASK = 0xFF

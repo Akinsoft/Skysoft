@@ -9,16 +9,11 @@ import net.minecraft.network.chat.TextColor
 
 internal object DianaLootshareReadyMarkers {
     fun mark(playerName: String, now: Long) {
-        readyPlayers[playerName.lowercase()] = ReadyPlayer(playerName, now + MARKER_LIFETIME_MILLIS)
+        readyPlayers[playerName.lowercase()] = now + MARKER_LIFETIME_MILLIS
     }
 
     fun clear() {
         readyPlayers.clear()
-    }
-
-    fun readyPlayerNames(now: Long): Set<String> {
-        prune(now)
-        return readyPlayers.values.mapTo(mutableSetOf()) { readyPlayer -> readyPlayer.playerName }
     }
 
     fun renderWorld(
@@ -27,8 +22,7 @@ internal object DianaLootshareReadyMarkers {
         spawnerNames: Set<String>,
         now: Long,
     ) {
-        val checkmarks = readyPlayerNames(now).associateTo(mutableMapOf()) { name -> name.lowercase() to checkmark }
-        spawnerNames.forEach { name -> checkmarks[name.lowercase()] = spawnerCheckmark }
+        val checkmarks = checkmarksByPlayer(spawnerNames, now)
         if (checkmarks.isEmpty()) return
         val level = Minecraft.getInstance().level ?: return
         level.players()
@@ -44,16 +38,14 @@ internal object DianaLootshareReadyMarkers {
             }
     }
 
-    private fun prune(now: Long) {
-        readyPlayers.values.removeIf { readyPlayer -> now >= readyPlayer.expiresAtMillis }
+    fun checkmarksByPlayer(spawnerNames: Set<String>, now: Long): Map<String, Component> {
+        readyPlayers.values.removeIf { expiresAtMillis -> now >= expiresAtMillis }
+        val checkmarks = readyPlayers.keys.associateWithTo(mutableMapOf<String, Component>()) { checkmark }
+        spawnerNames.forEach { name -> checkmarks[name.lowercase()] = spawnerCheckmark }
+        return checkmarks
     }
 
-    private data class ReadyPlayer(
-        val playerName: String,
-        val expiresAtMillis: Long,
-    )
-
-    private val readyPlayers = mutableMapOf<String, ReadyPlayer>()
+    private val readyPlayers = mutableMapOf<String, Long>()
     val checkmark: Component = checkmark(LOOTSHARE_READY_COLOR)
     val spawnerCheckmark: Component = checkmark(SPAWNER_COLOR)
     private val CHECKMARK_STYLE = WorldLabelStyle(maxRenderDistance = 80.0, maxScale = 6.0)

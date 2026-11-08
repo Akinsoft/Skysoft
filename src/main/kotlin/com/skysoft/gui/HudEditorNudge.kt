@@ -3,7 +3,6 @@ package com.skysoft.gui
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.utils.gui.Point
 import com.skysoft.utils.input.InputHandlingResult
-import kotlin.math.roundToInt
 
 internal fun hudEditorNudge(key: Int): Point? = when (key) {
     InputConstants.KEY_LEFT -> Point(-1, 0)
@@ -14,15 +13,11 @@ internal fun hudEditorNudge(key: Int): Point? = when (key) {
 }
 
 internal fun HudEditorElement.nudgeInEditor(delta: Point): InputHandlingResult {
-    val scale = position.effectiveScale
-    val width = (width() * scale).roundToInt()
-    val height = (height() * scale).roundToInt()
+    val width = scaledWidth()
+    val height = scaledHeight()
     beginEditorDrag(width / 2, height / 2, width, height)
     val customResult = applyEditorDrag(delta.x, delta.y)
     if (customResult == InputHandlingResult.CONSUMED || !canMove) return customResult
-    val positionX = absoluteX(width) + delta.x - layoutOffsetX
-    val positionY = absoluteY(height) + delta.y - layoutOffsetY
-    if (keepsInsideScreen) position.moveToAbsolute(positionX, positionY, width, height)
-    else position.moveToAbsoluteAllowingOverflow(positionX, positionY, width, height)
+    moveInEditor(absoluteX(width) + delta.x, absoluteY(height) + delta.y, width, height)
     return InputHandlingResult.CONSUMED
 }

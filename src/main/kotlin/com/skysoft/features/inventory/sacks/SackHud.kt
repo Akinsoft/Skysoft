@@ -13,18 +13,50 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
+import com.skysoft.gui.RenderableHudEditorElement
+import com.skysoft.gui.TopLeftHudEditorElement
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.animation.TimedHighlightTracker
-import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
 object SackHud {
-    fun register() = registerSackHud()
+    fun register() {
+        ProfileStorageApi.registerConsumer("Sacks Tracker") { sackHudConfig.enabled }
+        SkyBlockDataRepository.Demand.register("Sacks Tracker") { sackHudConfig.enabled }
+        SkyBlockSackChanges.onChange(
+            "Sacks Tracker changes",
+            isActive = { sackHudConfig.enabled && sackHudConfig.details.highlightChanges },
+            listener = ::highlightSackChanges,
+        )
+        SkysoftClientEvents.onDisconnect("Sacks Tracker reset") {
+            sackHudScrollOffset = 0
+            sackHudChangeHighlights.clear()
+            sackHudItemPanel.clear()
+            clearSackHudInteraction()
+        }
+        registerSackHudInput()
+        GuiOverlayRegistry.registerHud(
+            GuiOverlay(
+                id = "sack_hud",
+                layer = GuiOverlayLayer.BELOW_SCREEN,
+                contexts = GuiOverlayContextType.entries.toSet(),
+                screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
+                render = { context, _ -> renderSackHud(context) },
+            ),
+            object : TopLeftHudEditorElement, RenderableHudEditorElement {
+                override val id: String = "sack_hud"
+                override val label: String = "Sacks Tracker"
+                override val position get() = sackHudConfig.position
+                override val hasEditorBackground: Boolean get() = !sackHudConfig.details.showBackground
+                override fun hudRenderable() = buildSackHudRenderable(inventoryOpen = false)
+                override fun isVisible(): Boolean = isSackHudVisible()
+                override fun openConfig() = SkysoftConfigGui.open("Sacks Tracker")
+            },
+        )
+    }
 }
 
 internal val sackHudConfig get() = SkysoftConfigGui.config().storageFeatures.sackHud
@@ -40,56 +72,6 @@ internal var sackHudScrollOffset = 0
 internal var sackHudHoveredControl: OverlayControlArea<SackHudControl>? = null
 internal var sackHudHovered = false
 internal val sackHudChangeHighlights = TimedHighlightTracker<String>()
-
-private fun registerSackHud() {
-    ProfileStorageApi.registerConsumer("Sacks Tracker") { sackHudConfig.enabled }
-    SkyBlockDataRepository.Demand.register("Sacks Tracker") { sackHudConfig.enabled }
-    SkyBlockSackChanges.onChange(
-        "Sacks Tracker changes",
-        isActive = { sackHudConfig.enabled && sackHudConfig.details.highlightChanges },
-        listener = ::highlightSackChanges,
-    )
-    SkysoftClientEvents.onDisconnect("Sacks Tracker reset") {
-        sackHudScrollOffset = 0
-        sackHudChangeHighlights.clear()
-        sackHudItemPanel.clear()
-        clearSackHudInteraction()
-    }
-    registerSackHudInput()
-    GuiOverlayRegistry.registerHud(
-        GuiOverlay(
-            id = "sack_hud",
-            layer = GuiOverlayLayer.BELOW_SCREEN,
-            contexts = GuiOverlayContextType.entries.toSet(),
-            screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
-            render = { context, _ -> renderSackHud(context) },
-        ),
-        object : HudEditorElement {
-            override val id: String = "sack_hud"
-            override val label: String = "Sacks Tracker"
-            override val position get() = sackHudConfig.position
-            override val hasEditorBackground: Boolean get() = !sackHudConfig.details.showBackground
-            override fun width(): Int = buildSackHudRenderable(inventoryOpen = false).width
-            override fun height(): Int = buildSackHudRenderable(inventoryOpen = false).height
-            override fun isVisible(): Boolean = isSackHudVisible()
-            override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
-            override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
-            override fun renderEditor(context: GuiGraphicsExtractor) =
-                buildSackHudRenderable(inventoryOpen = false).render(context)
-            override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-                val targetX = position.getAbsX0AllowingOverflow(0) + deltaX
-                val targetY = position.getAbsY0AllowingOverflow(0) + deltaY
-                position.moveToAbsoluteAllowingOverflow(targetX, targetY, 0, 0)
-                return InputHandlingResult.CONSUMED
-            }
-            override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                position.scale += if (scrollY > 0.0) SACK_HUD_EDITOR_SCALE_STEP else -SACK_HUD_EDITOR_SCALE_STEP
-                return InputHandlingResult.CONSUMED
-            }
-            override fun openConfig() = SkysoftConfigGui.open("Sacks Tracker")
-        },
-    )
-}
 
 private fun highlightSackChanges(batch: SkyBlockSackChangeBatch) {
     val tracked = sackHudConfig.trackedItems.toSet()
@@ -125,9 +107,10 @@ internal fun clearSackHudInteraction() {
     sackHudHovered = false
 }
 
-internal fun sackHudMaximumScrollOffset(itemCount: Int): Int =
-    (itemCount - sackHudConfig.settings.maximumItems.coerceIn(1, SACK_HUD_MAXIMUM_DISPLAY_ITEMS))
-        .coerceAtLeast(0)
+internal fun sackHudMaximumDisplayedItems(): Int =
+    sackHudConfig.settings.maximumItems.coerceIn(1, SACK_HUD_MAXIMUM_DISPLAY_ITEMS)
+
+internal fun sackHudMaximumScrollOffset(itemCount: Int): Int = (itemCount - sackHudMaximumDisplayedItems()).coerceAtLeast(0)
 
 internal sealed interface SackHudControl {
     data object More : SackHudControl
@@ -137,5 +120,4 @@ internal sealed interface SackHudControl {
     data class Item(val itemId: String) : SackHudControl
 }
 
-internal const val SACK_HUD_MAXIMUM_DISPLAY_ITEMS = 20
-private const val SACK_HUD_EDITOR_SCALE_STEP = 0.1f
+private const val SACK_HUD_MAXIMUM_DISPLAY_ITEMS = 20

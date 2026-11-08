@@ -85,17 +85,17 @@ internal data class ItemListLayout(
             )
         }
 
-        internal fun create(
+        private fun create(
             screenWidth: Int,
             screenHeight: Int,
             containerRight: Int,
             hasFavorites: Boolean,
-            searchPosition: HudPosition = HudPosition(-OUTER_MARGIN, -OUTER_MARGIN, centerY = false).rememberDefault(),
-            isSettingsButtonHidden: Boolean = false,
-            maximumColumns: Int = ItemListSettingsConfig.DEFAULT_COLUMNS,
-            maximumRows: Int = ItemListSettingsConfig.DEFAULT_ROWS,
-            itemScale: Float = ItemListSettingsConfig.DEFAULT_ITEM_SCALE,
-            independentSearchWidth: Int = ItemListSourcesConfig.DEFAULT_SEARCH_WIDTH,
+            searchPosition: HudPosition,
+            isSettingsButtonHidden: Boolean,
+            maximumColumns: Int,
+            maximumRows: Int,
+            itemScale: Float,
+            independentSearchWidth: Int,
         ): ItemListLayout? {
             val requestedSlotSize = (DEFAULT_SLOT_SIZE * itemScale).roundToInt()
             val right = screenWidth - OUTER_MARGIN
@@ -142,10 +142,9 @@ internal data class ItemListLayout(
             val contentX = panelX + panelWidth - contentWidth
             val favoriteBounds = if (hasFavorites) Rect(contentX, panelY, contentWidth, slotSize) else null
             val grid = Rect(contentX, gridY, contentWidth, rows * slotSize)
-            val navigationWidth = panelWidth
             val navigationButtonWidth = min(
                 NAVIGATION_BUTTON_WIDTH,
-                (navigationWidth - CONTROL_GAP * 2) / NAVIGATION_SECTION_COUNT,
+                (panelWidth - CONTROL_GAP * 2) / NAVIGATION_SECTION_COUNT,
             )
             val previous = Rect(panelX, navigationY, navigationButtonWidth, BUTTON_HEIGHT)
             val next = Rect(
@@ -157,7 +156,7 @@ internal data class ItemListLayout(
             val pageLabel = Rect(
                 previous.x + previous.width + CONTROL_GAP,
                 navigationY,
-                navigationWidth - navigationButtonWidth * 2 - CONTROL_GAP * 2,
+                panelWidth - navigationButtonWidth * 2 - CONTROL_GAP * 2,
                 BUTTON_HEIGHT,
             )
             val footerBounds = footerBounds(
@@ -220,9 +219,9 @@ internal data class ItemListLayout(
             } else {
                 panelWidth
             }
-            val x = if (isMoved) searchPosition.getAbsX0(screenWidth, width) else right - width
+            val x = if (isMoved) searchPosition.getAbsX0(width, screenWidth) else right - width
             val defaultY = screenHeight - OUTER_MARGIN - FIELD_HEIGHT
-            val y = if (isMoved) searchPosition.getAbsY0(screenHeight, FIELD_HEIGHT) else defaultY
+            val y = if (isMoved) searchPosition.getAbsY0(FIELD_HEIGHT, screenHeight) else defaultY
             val searchWidth = if (isSettingsButtonHidden) width else width - CONFIG_BUTTON_WIDTH - CONTROL_GAP
             val search = Rect(x, y, searchWidth, FIELD_HEIGHT)
             val config = if (isSettingsButtonHidden) {
