@@ -3,13 +3,11 @@ package com.skysoft.features.bazaar
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.transform
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
 import com.skysoft.utils.NumberUtilities.coinFormat
 import com.skysoft.utils.NumberUtilities.signedCoinFormat
-import com.skysoft.utils.input.InputUtilities
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -26,11 +24,10 @@ internal fun renderHud(context: GuiGraphicsExtractor) {
         BazaarDisplayState.hoveredControlArea = null
         return
     }
-    val (mouseX, mouseY) = InputUtilities.scaledMousePosition(minecraft)
-    val (normalMouseX, normalMouseY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
-    val (screenMouseX, screenMouseY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
-    val interactive = inventoryScreen != null &&
-        !InventoryOverlayInput.isPointCovered(inventoryScreen, screenMouseX.toDouble(), screenMouseY.toDouble())
+    val pointer = InventoryOverlayInput.pointer(inventoryScreen)
+    val (mouseX, mouseY) = pointer.mouse
+    val (normalMouseX, normalMouseY) = pointer.normal
+    val interactive = pointer.isInteractive
     context.nextStratum()
     renderPositioned(context, renderable, interactive, normalMouseX, normalMouseY)
     if (interactive) {

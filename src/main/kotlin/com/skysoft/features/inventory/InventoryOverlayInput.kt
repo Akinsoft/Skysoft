@@ -2,10 +2,13 @@ package com.skysoft.features.inventory
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ActiveListenerRegistry
 import com.skysoft.utils.SkysoftScreenEvents
+import com.skysoft.utils.gui.Point
 import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.input.InputUtilities
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -82,6 +85,18 @@ object InventoryOverlayInput {
         isCovered(screen, mouseX, mouseY)
     }
 
+    internal fun pointer(screen: AbstractContainerScreen<*>?): InventoryOverlayPointer {
+        val mouse = InputUtilities.scaledMousePosition(Minecraft.getInstance())
+        val (normalX, normalY) = OverlayControlMouse.normalPoint(mouse.x, mouse.y)
+        val (screenX, screenY) = OverlayControlMouse.screenPoint(mouse.x, mouse.y)
+        return InventoryOverlayPointer(
+            mouse = mouse,
+            normal = Point(normalX, normalY),
+            screen = Point(screenX, screenY),
+            isInteractive = screen != null && !isPointCovered(screen, screenX.toDouble(), screenY.toDouble()),
+        )
+    }
+
     private fun register() {
         if (registered) return
         registered = true
@@ -112,3 +127,10 @@ internal fun hoveredPlayerInventoryItemId(screen: AbstractContainerScreen<*>): S
     val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
     return slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId()
 }
+
+internal data class InventoryOverlayPointer(
+    val mouse: Point,
+    val normal: Point,
+    val screen: Point,
+    val isInteractive: Boolean,
+)

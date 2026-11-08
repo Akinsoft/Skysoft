@@ -9,7 +9,6 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.transform
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
@@ -19,9 +18,9 @@ import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayListScroll
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
+import com.skysoft.utils.gui.Point
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
-import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
@@ -97,10 +96,9 @@ internal object HoneyhiveDisplay {
         hoveredScreen = null
     }
 
-    private fun localPoint(view: HoneyhiveRenderable, mouseX: Int, mouseY: Int): Pair<Int, Int> {
-        val (normalX, normalY) = OverlayControlMouse.normalPoint(mouseX, mouseY)
+    private fun localPoint(view: HoneyhiveRenderable, normal: Point): Pair<Int, Int> {
         val transform = config.position.transform(view.width, view.height)
-        return transform.localX(normalX) to transform.localY(normalY)
+        return transform.localX(normal.x) to transform.localY(normal.y)
     }
 
     private fun isDisplayVisible(): Boolean = config.settings.display &&
@@ -113,11 +111,10 @@ internal object HoneyhiveDisplay {
         if (!isDisplayVisible()) return
         val view = buildRenderable()
         val screen = MinecraftClient.screen() as? AbstractContainerScreen<*>
-        val (mouseX, mouseY) = InputUtilities.scaledMousePosition(Minecraft.getInstance())
-        val (screenX, screenY) = OverlayControlMouse.screenPoint(mouseX, mouseY)
-        val (localX, localY) = localPoint(view, mouseX, mouseY)
-        val interactive = screen != null &&
-            !InventoryOverlayInput.isPointCovered(screen, screenX.toDouble(), screenY.toDouble())
+        val pointer = InventoryOverlayInput.pointer(screen)
+        val (screenX, screenY) = pointer.screen
+        val (localX, localY) = localPoint(view, pointer.normal)
+        val interactive = pointer.isInteractive
         isDisplayHovered = interactive && localX in 0 until view.width && localY in 0 until view.height
         val hovered = view.hiveAt(localY).takeIf { isDisplayHovered }
         hoveredHive = hovered
