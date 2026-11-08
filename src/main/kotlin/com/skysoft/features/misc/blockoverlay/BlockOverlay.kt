@@ -19,7 +19,7 @@ import net.minecraft.world.phys.shapes.VoxelShape
 
 object BlockOverlay {
     private var pendingTarget: BlockOverlayTarget? = null
-    private val conditions = FeatureConditionState()
+    internal val conditions = FeatureConditionState()
 
     fun register() {
         conditions.startSession(config.settings.combinations)
@@ -63,10 +63,6 @@ object BlockOverlay {
             settings.isConditionActivationReversed,
         )
     }
-
-    internal fun itemConditions() = conditions.itemConditions()
-
-    internal fun markConditionsChanged() = conditions.markChanged()
 
     private fun renderWorld(context: SkysoftRenderContext) {
         val target = pendingTarget ?: return

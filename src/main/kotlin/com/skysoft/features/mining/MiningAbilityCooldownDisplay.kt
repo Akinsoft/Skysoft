@@ -35,7 +35,7 @@ import net.minecraft.util.ARGB
 
 object MiningAbilityCooldownDisplay {
     private val config get() = SkysoftConfigGui.config().mining.abilityCooldown
-    private val conditions = FeatureConditionState()
+    internal val conditions = FeatureConditionState()
     private var widget = HIDDEN_WIDGET
     private var currentStatus: MiningAbilityStatus? = null
     private var cooldown = MiningAbilityCooldownTimer()
@@ -71,8 +71,6 @@ object MiningAbilityCooldownDisplay {
             },
         )
     }
-
-    internal fun markConditionsChanged() = conditions.markChanged()
 
     private fun isActive(): Boolean =
         config.enabled &&

@@ -2,6 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
+import com.skysoft.features.misc.autosprint.AutoSprint
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorCombinations
@@ -48,3 +49,6 @@ class AutoSprintSettingsConfig {
     @field:ConfigEditorCombinations(provider = AutoSprintCombinationsProvider::class)
     val combinations: MutableList<FeatureConditionCombination> = mutableListOf()
 }
+
+object AutoSprintCombinationsProvider :
+    FeatureCombinationsProvider({ AutoSprint.conditions }, offersItemConditions = true)
