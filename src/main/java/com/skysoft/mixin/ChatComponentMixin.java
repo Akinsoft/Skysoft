@@ -52,10 +52,7 @@ public abstract class ChatComponentMixin {
     @WrapOperation(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/ChatComponent;extractRenderState(Lnet/minecraft/client/gui/components/ChatComponent$ChatGraphicsAccess;IILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;)V"))
     protected void skysoftAnimateNewMessages(ChatComponent chat, ChatComponent.ChatGraphicsAccess graphicsAccess, int screenHeight, int ticks, ChatComponent.DisplayMode displayMode, Operation<Void> original, @Local(argsOnly = true) GuiGraphicsExtractor graphics) {
         float displacement = MixinErrorBoundary.value("Chat message motion", 0.0F, this::skysoftNewMessageOffset);
-        if (displacement == 0.0F) { original.call(chat, graphicsAccess, screenHeight, ticks, displayMode); return; }
-        graphics.pose().pushMatrix();
-        try { graphics.pose().translate(0.0F, displacement); original.call(chat, graphicsAccess, screenHeight, ticks, displayMode); }
-        finally { graphics.pose().popMatrix(); }
+        ChatMotionProfile.renderShifted(graphics, displacement, () -> original.call(chat, graphicsAccess, screenHeight, ticks, displayMode));
     }
 
     @WrapOperation(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V", at = @At(value = "INVOKE", target = "Ljava/util/function/Predicate;test(Ljava/lang/Object;)Z"))

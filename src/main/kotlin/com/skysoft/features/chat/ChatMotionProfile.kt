@@ -1,6 +1,8 @@
 package com.skysoft.features.chat
 
+import com.skysoft.utils.renderables.withIsolatedPose
 import kotlin.math.exp
+import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object ChatMotionProfile {
     @JvmStatic
@@ -11,6 +13,18 @@ object ChatMotionProfile {
     fun inputDisplacement(viewportHeight: Int, progress: Float): Float {
         val travel = (viewportHeight * INPUT_TRAVEL_RATIO).coerceIn(MIN_INPUT_TRAVEL, MAX_INPUT_TRAVEL)
         return (travel * settleDistance(progress, INPUT_RESPONSE)).toFloat()
+    }
+
+    @JvmStatic
+    fun renderShifted(graphics: GuiGraphicsExtractor, displacement: Float, render: Runnable) {
+        if (displacement == 0.0f) {
+            render.run()
+            return
+        }
+        graphics.withIsolatedPose {
+            pose().translate(0.0f, displacement)
+            render.run()
+        }
     }
 
     private fun settleDistance(progress: Float, response: Double): Double {
