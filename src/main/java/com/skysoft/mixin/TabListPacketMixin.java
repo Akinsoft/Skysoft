@@ -2,6 +2,8 @@ package com.skysoft.mixin;
 
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.integration.MixinFeatureAdapters;
+import java.util.Collections;
+import java.util.EnumSet;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
@@ -14,9 +16,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
 public class TabListPacketMixin {
+    @Unique
+    private static final EnumSet<ClientboundPlayerInfoUpdatePacket.Action> SNAPSHOT_ACTIONS = EnumSet.of(
+        ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER,
+        ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE,
+        ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED,
+        ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME,
+        ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER
+    );
+
     @Inject(method = "handlePlayerInfoUpdate", at = @At("RETURN"))
     private void skysoftMarkDirtyAfterPlayerInfoUpdate(ClientboundPlayerInfoUpdatePacket packet, CallbackInfo ci) {
-        if (affectsSnapshot(packet)) markDirty();
+        if (!Collections.disjoint(packet.actions(), SNAPSHOT_ACTIONS)) markDirty();
     }
 
     @Inject(method = "handlePlayerInfoRemove", at = @At("RETURN"))
@@ -27,15 +38,6 @@ public class TabListPacketMixin {
     @Inject(method = "handleTabListCustomisation", at = @At("RETURN"))
     private void skysoftMarkDirtyAfterTabListCustomisation(ClientboundTabListPacket packet, CallbackInfo ci) {
         markDirty();
-    }
-
-    @Unique
-    private static boolean affectsSnapshot(ClientboundPlayerInfoUpdatePacket packet) {
-        return packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER)
-            || packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE)
-            || packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED)
-            || packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)
-            || packet.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER);
     }
 
     @Unique
