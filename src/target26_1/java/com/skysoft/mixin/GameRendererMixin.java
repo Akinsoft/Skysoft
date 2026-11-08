@@ -1,8 +1,6 @@
 package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.platform.Window;
 import com.skysoft.features.misc.blockoverlay.BlockOverlay;
@@ -12,7 +10,6 @@ import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.utils.MinecraftClient;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -48,49 +45,6 @@ public abstract class GameRendererMixin {
     @ModifyReturnValue(method = "shouldRenderBlockOutline", at = @At("RETURN"))
     private boolean skysoftReplaceBlockOutline(boolean original) {
         return BlockOverlay.selectBlockOutline(original).getRendersVanilla();
-    }
-
-    @WrapOperation(
-        method = "extractGui",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/screens/Screen;extractRenderStateWithTooltipAndSubtitles(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"
-        )
-    )
-    private void skysoftExtractInventoryAtSeparateScale(
-        Screen screen,
-        GuiGraphicsExtractor graphics,
-        int mouseX,
-        int mouseY,
-        float delta,
-        Operation<Void> original
-    ) {
-        Window window = minecraft.getWindow();
-        if (!GuiScaleController.usesSeparateInventoryScale(screen)) {
-            GuiScaleController.restoreScreenDimensions(screen, window);
-            original.call(screen, graphics, mouseX, mouseY, delta);
-            return;
-        }
-
-        GuiRenderState screenRenderState = new GuiRenderState();
-        GuiRenderState aboveScreenRenderState = new GuiRenderState();
-        try (GuiScaleController.WindowScaleOverride ignored = GuiScaleController.useInventoryScale(screen, window)) {
-            skysoftSyncWindowScale(window);
-            GuiScaleController.updateScreenDimensions(screen, window);
-            int scaledMouseX = (int) minecraft.mouseHandler.getScaledXPos(window);
-            int scaledMouseY = (int) minecraft.mouseHandler.getScaledYPos(window);
-            GuiGraphicsExtractor scaledGraphics = new GuiGraphicsExtractor(
-                minecraft,
-                screenRenderState,
-                scaledMouseX,
-                scaledMouseY
-            );
-            original.call(screen, scaledGraphics, scaledMouseX, scaledMouseY, delta);
-            ((GuiGraphicsExtractorAccessor) graphics).skysoftSetGuiRenderState(aboveScreenRenderState);
-            GuiScaleController.submitRenderBatch(screenRenderState, aboveScreenRenderState);
-        } finally {
-            skysoftSyncWindowScale(window);
-        }
     }
 
     @Inject(

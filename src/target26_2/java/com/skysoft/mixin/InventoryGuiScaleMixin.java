@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(Gui.class)
-public abstract class GuiMixin {
+public abstract class InventoryGuiScaleMixin {
     @Shadow
     @Final
     private Minecraft minecraft;
