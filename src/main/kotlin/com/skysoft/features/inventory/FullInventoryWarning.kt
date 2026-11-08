@@ -1,7 +1,5 @@
 package com.skysoft.features.inventory
 
-import com.skysoft.config.MAX_FULL_INVENTORY_EMPTY_SLOTS
-import com.skysoft.config.MIN_FULL_INVENTORY_EMPTY_SLOTS
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.render.ScreenAlert
@@ -43,11 +41,7 @@ object FullInventoryWarning {
             return
         }
 
-        val threshold = config.settings.emptySlots.coerceIn(
-            MIN_FULL_INVENTORY_EMPTY_SLOTS,
-            MAX_FULL_INVENTORY_EMPTY_SLOTS,
-        )
-        val warning = emptySlots(player) <= threshold
+        val warning = emptySlots(player) <= config.settings.emptySlots
         if (warning && !wasWarning) {
             alert()
         }
