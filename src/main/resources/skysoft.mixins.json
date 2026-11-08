@@ -76,7 +76,7 @@
     "PlayerTabOverlayMixin",
     "PictureInPictureRendererAccessor",
     "RecipeBookComponentAccessor",
-    "ScreenOverlayCursorMixin",
+    "ScreenMixin",
     "SelectedItemNameMixin",
     "ScoreboardHudAccessor",
     "ScoreboardHudMixin",
