@@ -1,20 +1,21 @@
 package com.skysoft.features.spotify
 
-import com.skysoft.SkysoftMod
 import com.skysoft.utils.net.SkysoftHttp
+import com.skysoft.utils.net.urlEncodedForm
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.URI
 import java.net.URLDecoder
-import java.net.URLEncoder
 import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.Base64
+import java.util.concurrent.CompletableFuture
 
 internal object SpotifyOAuth {
     const val CALLBACK_PORT = 25566
@@ -44,7 +45,7 @@ internal object SpotifyOAuth {
         val challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(
             MessageDigest.getInstance("SHA-256").digest(pending.verifier.toByteArray(StandardCharsets.US_ASCII)),
         )
-        return "$AUTHORIZE_ENDPOINT?" + formBody(
+        return "$AUTHORIZE_ENDPOINT?" + urlEncodedForm(
             "client_id" to pending.clientId,
             "response_type" to "code",
             "redirect_uri" to CALLBACK_URI,
@@ -55,14 +56,12 @@ internal object SpotifyOAuth {
         )
     }
 
-    fun tokenRequest(
-        vararg parameters: Pair<String, String>,
-    ): java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<String>> {
+    fun tokenRequest(vararg parameters: Pair<String, String>): CompletableFuture<HttpResponse<String>> {
         val request = HttpRequest.newBuilder(URI.create(TOKEN_ENDPOINT))
             .timeout(Duration.ofSeconds(TOKEN_TIMEOUT_SECONDS))
             .header("Content-Type", "application/x-www-form-urlencoded")
-            .header("User-Agent", "Skysoft/${SkysoftMod.VERSION}")
-            .POST(HttpRequest.BodyPublishers.ofString(formBody(*parameters)))
+            .header("User-Agent", SkysoftHttp.versionedUserAgent)
+            .POST(HttpRequest.BodyPublishers.ofString(urlEncodedForm(*parameters)))
             .build()
         return SkysoftHttp.sendString(request)
     }
@@ -83,15 +82,10 @@ internal object SpotifyOAuth {
         exchange.responseBody.use { it.write(body) }
     }
 
-    private fun formBody(vararg parameters: Pair<String, String>): String = parameters.joinToString("&") { (key, value) ->
-        "${encode(key)}=${encode(value)}"
-    }
-
     private fun randomUrlToken(byteCount: Int): String = ByteArray(byteCount).also(SecureRandom()::nextBytes).let {
         Base64.getUrlEncoder().withoutPadding().encodeToString(it)
     }
 
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
     private fun decode(value: String): String = URLDecoder.decode(value, StandardCharsets.UTF_8)
 
     private const val CALLBACK_HOST = "127.0.0.1"
