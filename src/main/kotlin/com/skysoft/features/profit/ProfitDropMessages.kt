@@ -1,6 +1,7 @@
 package com.skysoft.features.profit
 
 import com.skysoft.data.skyblock.parseGardenPestKill
+import com.skysoft.utils.NumberUtilities.formatIntOrNull
 import com.skysoft.utils.RegexUtilities.groupOrNull
 
 internal data class ParsedItemAmount(
@@ -47,10 +48,7 @@ internal class ForagingTreeGiftParser {
 
 private fun MatchResult.parsedItemAmount(): ParsedItemAmount? {
     val itemName = groups["item"]?.value ?: return null
-    val amount = groupOrNull("amount")
-        ?.replace(",", "")
-        ?.toIntOrNull()
-        ?: 1
+    val amount = groupOrNull("amount")?.formatIntOrNull() ?: 1
     return ParsedItemAmount(itemName, amount)
 }
 

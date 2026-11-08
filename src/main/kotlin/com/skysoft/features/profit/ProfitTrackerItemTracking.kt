@@ -10,6 +10,7 @@ import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockSackTransfers
 import com.skysoft.data.skyblock.SkyBlockSupercrafts
+import com.skysoft.utils.NumberUtilities.formatIntOrNull
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import kotlin.math.min
@@ -17,7 +18,7 @@ import kotlin.math.min
 private fun parseNpcSale(message: String): ParsedItemAmount? {
     val match = NPC_SALE_PATTERN.matchEntire(message) ?: return null
     val displayName = match.groups["item"]?.value?.trim().orEmpty()
-    val amount = match.groups["amount"]?.value?.replace(",", "")?.toIntOrNull() ?: return null
+    val amount = match.groups["amount"]?.value?.formatIntOrNull() ?: return null
     return ParsedItemAmount(displayName, amount).takeIf { displayName.isNotEmpty() && amount > 0 }
 }
 
