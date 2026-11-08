@@ -18,16 +18,7 @@ object CenteredCrosshairFix {
         height: Int,
         drawVanillaCrosshair: () -> Unit,
     ) {
-        val window = Minecraft.getInstance().window
-        val offset = centeredCrosshairOffset(
-            framebufferWidth = window.width,
-            framebufferHeight = window.height,
-            guiScale = window.guiScale.toDouble(),
-            vanillaX = vanillaX,
-            vanillaY = vanillaY,
-            spriteWidth = width,
-            spriteHeight = height,
-        )
+        val offset = centeredCrosshairOffset(vanillaX, vanillaY, width, height)
         if (offset.x == 0f && offset.y == 0f) {
             drawVanillaCrosshair()
             return
@@ -40,18 +31,12 @@ object CenteredCrosshairFix {
     }
 }
 
-internal fun centeredCrosshairOffset(
-    framebufferWidth: Int,
-    framebufferHeight: Int,
-    guiScale: Double,
-    vanillaX: Int,
-    vanillaY: Int,
-    spriteWidth: Int,
-    spriteHeight: Int,
-): CrosshairOffset {
+internal fun centeredCrosshairOffset(vanillaX: Int, vanillaY: Int, spriteWidth: Int, spriteHeight: Int): CrosshairOffset {
+    val window = Minecraft.getInstance().window
+    val guiScale = window.guiScale.toDouble()
     require(guiScale > 0.0) { "GUI scale must be positive" }
-    val centeredX = (framebufferWidth / guiScale - spriteWidth) / 2.0
-    val centeredY = (framebufferHeight / guiScale - spriteHeight) / 2.0
+    val centeredX = (window.width / guiScale - spriteWidth) / 2.0
+    val centeredY = (window.height / guiScale - spriteHeight) / 2.0
     return CrosshairOffset(
         x = (centeredX - vanillaX).toFloat(),
         y = (centeredY - vanillaY).toFloat(),
