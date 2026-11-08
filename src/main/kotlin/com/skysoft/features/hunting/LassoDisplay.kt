@@ -5,7 +5,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
@@ -18,7 +18,6 @@ import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderRenderable
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.entity.state.EntityRenderState
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.ambient.Bat
@@ -49,17 +48,13 @@ object LassoDisplay {
                     currentRenderable()?.let { config.position.renderRenderable(context, it) }
                 },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id = "lasso_display"
                 override val label = "Lasso Display"
                 override val position get() = config.position
                 override val hasEditorBackground get() = !config.details.background
-                override fun width(): Int = currentRenderable()?.width ?: 0
-                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun hudRenderable() = currentRenderable()
                 override fun isVisible(): Boolean = currentRenderable() != null
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    currentRenderable()?.render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Lasso Display")
             },
         )
@@ -68,7 +63,7 @@ object LassoDisplay {
     @JvmStatic
     fun adjustNameTag(entity: Entity, state: EntityRenderState) {
         if (!isEnabled() || entity !is ArmorStand || !entity.isMarker) return
-        if (!entity.isStaminaBar() && entity.customName?.formattedText() != REEL_TEXT) return
+        if (!entity.isStaminaBar() && !entity.isReelLabel()) return
         if (entity !== bar && entity !== reel) update()
         if (currentBar() != null && (entity === bar || entity === reel)) state.nameTag = null
     }
@@ -86,9 +81,7 @@ object LassoDisplay {
             bar = null
             reel = null
         }
-        reel = reel?.takeIf {
-            it.isAlive && it.level() === level && it.customName?.formattedText() == REEL_TEXT
-        }
+        reel = reel?.takeIf { it.isAlive && it.level() === level && it.isReelLabel() }
         if (bar != null && reel != null) return
         val entities = level.entitiesForRendering().toList()
         val stands = entities.filterIsInstance<ArmorStand>().filter { it.isAlive && it.isMarker }
@@ -101,7 +94,7 @@ object LassoDisplay {
         }
         val currentBar = bar ?: return
         reel = stands.singleOrNull { candidate ->
-            candidate.customName?.formattedText() == REEL_TEXT &&
+            candidate.isReelLabel() &&
                 bars.filter { candidate.distanceToSqr(it) <= REEL_RANGE_SQUARED }
                     .minByOrNull { candidate.distanceToSqr(it) } === currentBar
         }
@@ -125,7 +118,7 @@ object LassoDisplay {
     private fun currentRenderable(): GuiRenderable? {
         if (!isEnabled() || MinecraftClient.isGuiHidden(Minecraft.getInstance())) return null
         val barText = currentBar()?.customName?.formattedText() ?: return null
-        val reelText = reel?.takeIf { it.isAlive }?.customName?.formattedText()?.takeIf { it == REEL_TEXT }.orEmpty()
+        val reelText = if (reel?.let { it.isAlive && it.isReelLabel() } == true) REEL_TEXT else ""
         return verticalLayout(
             listOf(
                 StringRenderable(reelText, horizontalAlign = GuiAlignment.HorizontalAlignment.CENTER),
@@ -138,6 +131,8 @@ object LassoDisplay {
         val name = customName ?: return false
         return isMarker && name.string == " ".repeat(BAR_LENGTH) && barPattern.matches(name.formattedText())
     }
+
+    private fun ArmorStand.isReelLabel(): Boolean = customName?.formattedText() == REEL_TEXT
 
     private fun isEnabled(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 }

@@ -10,7 +10,7 @@ import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -48,17 +48,13 @@ object SkillExpDisplay {
                 visible = { context -> TabDataOverlays.canRender(context) && canRenderLive() },
                 render = { context, _ -> renderHud(context) },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id: String = "skill_exp_display"
                 override val label: String = "Skill EXP Display"
                 override val position get() = config.position
                 override val layoutOffsetY: Int get() = -BottomHudLayout.reservedHeight()
-                override fun width(): Int = currentRenderable()?.width ?: 0
-                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun hudRenderable() = currentRenderable()
                 override fun isVisible(): Boolean = canRenderLive()
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    currentRenderable()?.render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Skill EXP Display")
             },
         )
@@ -92,11 +88,10 @@ object SkillExpDisplay {
         }
     }
 
-    private fun canRenderLive(minecraft: Minecraft = Minecraft.getInstance()): Boolean =
-        isActive() &&
-            current != null &&
-            OverlayMessages.time(minecraft) > 0 &&
-            !MinecraftClient.isGuiHidden(minecraft)
+    private fun canRenderLive(): Boolean {
+        val minecraft = Minecraft.getInstance()
+        return isActive() && current != null && OverlayMessages.time(minecraft) > 0 && !MinecraftClient.isGuiHidden(minecraft)
+    }
 
     private fun isActive(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
@@ -122,7 +117,7 @@ object SkillExpDisplay {
     }
 }
 
-internal data class SkillExpDisplayState(
+private data class SkillExpDisplayState(
     val skill: SkyBlockSkill,
     val gainedText: String,
     val currentXp: Long,
@@ -132,7 +127,7 @@ internal data class SkillExpDisplayState(
         skill.displayName == match.skillName && gainedText == match.gainedText
 }
 
-internal fun skillExpDisplayText(state: SkillExpDisplayState, format: SkillExpProgressFormat): String =
+private fun skillExpDisplayText(state: SkillExpDisplayState, format: SkillExpProgressFormat): String =
     "§3+${state.gainedText} ${state.skill.displayName} (${skillExpProgressText(state, format)})"
 
 private fun skillExpProgressText(state: SkillExpDisplayState, format: SkillExpProgressFormat): String = when (format) {

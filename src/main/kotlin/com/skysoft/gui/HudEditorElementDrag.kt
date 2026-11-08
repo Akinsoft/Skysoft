@@ -8,8 +8,8 @@ internal class HudEditorElementDrag(
     mouseX: Int,
     mouseY: Int,
 ) {
-    private val initialWidth = (element.width() * element.position.scale).roundToInt()
-    private val initialHeight = (element.height() * element.position.scale).roundToInt()
+    private val initialWidth = element.scaledWidth()
+    private val initialHeight = element.scaledHeight()
     private val initialX = element.absoluteX(initialWidth)
     private val initialY = element.absoluteY(initialHeight)
     private val offsetX = mouseX - initialX
@@ -21,25 +21,17 @@ internal class HudEditorElementDrag(
     }
 
     fun moveTo(mouseX: Int, mouseY: Int, snapper: HudEditorSnapper) {
-        val width = initialWidth.takeIf { it > 0 } ?: (element.width() * element.position.scale).roundToInt()
-        val height = initialHeight.takeIf { it > 0 } ?: (element.height() * element.position.scale).roundToInt()
         resizeHandle?.let { handle ->
             resizeElement(handle, mouseX, mouseY, snapper)
             return
         }
-        val targetX = mouseX - offsetX
-        val targetY = mouseY - offsetY
-        val snapped = snapper.snapPosition(element, targetX, targetY, width, height)
+        val width = initialWidth.takeIf { it > 0 } ?: element.scaledWidth()
+        val height = initialHeight.takeIf { it > 0 } ?: element.scaledHeight()
+        val snapped = snapper.snapPosition(element, mouseX - offsetX, mouseY - offsetY, width, height)
         val deltaX = snapped.x - element.absoluteX(width)
         val deltaY = snapped.y - element.absoluteY(height)
         if (element.applyEditorDrag(deltaX, deltaY) == InputHandlingResult.IGNORED && element.canMove) {
-            val positionX = snapped.x - element.layoutOffsetX
-            val positionY = snapped.y - element.layoutOffsetY
-            if (element.keepsInsideScreen) {
-                element.position.moveToAbsolute(positionX, positionY, width, height)
-            } else {
-                element.position.moveToAbsoluteAllowingOverflow(positionX, positionY, width, height)
-            }
+            element.moveInEditor(snapped.x, snapped.y, width, height)
         }
         snapper.confirmPosition(element, width, height)
     }
@@ -50,71 +42,33 @@ internal class HudEditorElementDrag(
         mouseY: Int,
         snapper: HudEditorSnapper,
     ) {
-        val mouseDeltaX = mouseX - initialX - offsetX
-        val mouseDeltaY = mouseY - initialY - offsetY
-        var left = initialX
-        var right = initialX + initialWidth
-        var top = initialY
-        var bottom = initialY + initialHeight
-        if (element.canResizeWidth) {
-            if (handle.isLeft) left += mouseDeltaX else right += mouseDeltaX
-        }
-        if (element.canResizeHeight) {
-            if (handle.isTop) top += mouseDeltaY else bottom += mouseDeltaY
-        }
-        if (element.canResizeWidth) {
-            if (handle.isLeft) {
-                left = snapper.snapResizeCoordinate(
-                    element,
-                    left,
-                    HudSnapAxis.HORIZONTAL,
-                    HudSnapAnchor.START,
-                )
-            } else {
-                right = snapper.snapResizeCoordinate(
-                    element,
-                    right,
-                    HudSnapAxis.HORIZONTAL,
-                    HudSnapAnchor.END,
-                )
-            }
-        } else {
-            snapper.clear(HudSnapAxis.HORIZONTAL)
-        }
-        if (element.canResizeHeight) {
-            if (handle.isTop) {
-                top = snapper.snapResizeCoordinate(
-                    element,
-                    top,
-                    HudSnapAxis.VERTICAL,
-                    HudSnapAnchor.START,
-                )
-            } else {
-                bottom = snapper.snapResizeCoordinate(
-                    element,
-                    bottom,
-                    HudSnapAxis.VERTICAL,
-                    HudSnapAnchor.END,
-                )
-            }
-        } else {
-            snapper.clear(HudSnapAxis.VERTICAL)
-        }
-        val scale = element.position.effectiveScale
-        val minimumWidth = (element.minEditorWidth() * scale).roundToInt()
-        val minimumHeight = (element.minEditorHeight() * scale).roundToInt()
-        if (right - left < minimumWidth) {
-            if (handle.isLeft) left = right - minimumWidth else right = left + minimumWidth
-        }
-        if (bottom - top < minimumHeight) {
-            if (handle.isTop) top = bottom - minimumHeight else bottom = top + minimumHeight
-        }
+        val scale = element.position.scale
+        val (left, right) = resizedEdges(
+            initialX,
+            initialX + initialWidth,
+            mouseX - initialX - offsetX,
+            (element.minEditorWidth() * scale).roundToInt(),
+            element.canResizeWidth,
+            handle.isLeft,
+            HudSnapAxis.HORIZONTAL,
+            snapper,
+        )
+        val (top, bottom) = resizedEdges(
+            initialY,
+            initialY + initialHeight,
+            mouseY - initialY - offsetY,
+            (element.minEditorHeight() * scale).roundToInt(),
+            element.canResizeHeight,
+            handle.isTop,
+            HudSnapAxis.VERTICAL,
+            snapper,
+        )
         element.resizeEditor(
             ((right - left) / scale).roundToInt(),
             ((bottom - top) / scale).roundToInt(),
         )
-        val actualWidth = (element.width() * scale).roundToInt()
-        val actualHeight = (element.height() * scale).roundToInt()
+        val actualWidth = element.scaledWidth(scale)
+        val actualHeight = element.scaledHeight(scale)
         val actualLeft = if (handle.isLeft) right - actualWidth else left
         val actualTop = if (handle.isTop) bottom - actualHeight else top
         element.position.moveToAbsoluteAllowingOverflow(
@@ -124,6 +78,29 @@ internal class HudEditorElementDrag(
             actualHeight,
         )
         snapper.confirmPosition(element, actualWidth, actualHeight)
+    }
+
+    private fun resizedEdges(
+        start: Int,
+        end: Int,
+        mouseDelta: Int,
+        minimumLength: Int,
+        isResizable: Boolean,
+        movesStart: Boolean,
+        axis: HudSnapAxis,
+        snapper: HudEditorSnapper,
+    ): Pair<Int, Int> {
+        var newStart = start
+        var newEnd = end
+        when {
+            !isResizable -> snapper.clear(axis)
+            movesStart -> newStart = snapper.snapResizeCoordinate(element, start + mouseDelta, axis, HudSnapAnchor.START)
+            else -> newEnd = snapper.snapResizeCoordinate(element, end + mouseDelta, axis, HudSnapAnchor.END)
+        }
+        if (newEnd - newStart < minimumLength) {
+            if (movesStart) newStart = newEnd - minimumLength else newEnd = newStart + minimumLength
+        }
+        return newStart to newEnd
     }
 }
 

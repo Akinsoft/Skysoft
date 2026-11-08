@@ -1,5 +1,6 @@
 package com.skysoft.features.bazaar
 
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
@@ -13,12 +14,10 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal fun registerBazaarTracker() {
     ProfileStorageApi.registerConsumer("Bazaar Tracker") { config.enabled }
@@ -28,8 +27,11 @@ internal fun registerBazaarTracker() {
         isActive = { config.enabled },
         listener = { snapshot -> openInventorySnapshot = snapshot },
     )
-    registerChatListeners()
-    registerMouseClickCapture()
+    ChatEvents.onVisibleMessage("Bazaar Tracker chat", { config.enabled }) { message ->
+        handleChat(message.plainText)
+        ChatMessageVisibility.SHOW
+    }
+    InventoryOverlayInput.registerClickObserver("Bazaar Tracker mouse click", { config.enabled }, ::recordClickedOrder)
     SkysoftClientEvents.onEndTick(
         "Bazaar Tracker tick",
         isActive = { config.enabled || wasBazaarTrackerEnabled },
@@ -47,17 +49,13 @@ internal fun registerBazaarTracker() {
             screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
             render = { context, _ -> renderHud(context) },
         ),
-        object : HudEditorElement {
+        object : RenderableHudEditorElement {
             override val id: String = "bazaar_tracker"
             override val label: String = "Bazaar Tracker"
             override val position get() = config.position
             override val hasEditorBackground: Boolean get() = !config.details.showBackground
-            override fun width(): Int = currentEditorRenderable()?.width ?: 0
-            override fun height(): Int = currentEditorRenderable()?.height ?: 0
+            override fun hudRenderable() = currentEditorRenderable()
             override fun isVisible(): Boolean = isBazaarTrackerVisible(Minecraft.getInstance())
-            override fun renderEditor(context: GuiGraphicsExtractor) {
-                currentEditorRenderable()?.render(context)
-            }
             override fun openConfig() = SkysoftConfigGui.open("Bazaar Tracker")
 
             private fun currentEditorRenderable(): BazaarTrackerRenderable? =
@@ -79,23 +77,10 @@ internal fun resetBazaarTrackerRuntime() {
     BazaarDisplayState.clearInteraction()
 }
 
-private fun registerChatListeners() {
-    ChatEvents.onVisibleMessage("Bazaar Tracker chat", { config.enabled }) { message ->
-        handleChat(message.plainText)
-        ChatMessageVisibility.SHOW
-    }
-}
-
-private fun registerMouseClickCapture() {
-    InventoryOverlayInput.registerClickObserver("Bazaar Tracker mouse click", { config.enabled }) { screen, click ->
-        recordClickedOrder(screen, click)
-    }
-}
-
 private var openInventorySnapshot: SkyBlockOpenInventorySnapshot? = null
 private var wasBazaarTrackerEnabled = false
 
-internal fun onClientTick() {
+private fun onClientTick() {
     if (!HypixelLocationState.inSkyBlock || !config.enabled) {
         resetBazaarTrackerRuntime()
         return
@@ -109,8 +94,8 @@ internal fun onClientTick() {
     when {
         snapshot.title == "Confirm Buy Order" -> readConfirmInventory(snapshot, BazaarOrderType.BUY)
         snapshot.title == "Confirm Sell Offer" -> readConfirmInventory(snapshot, BazaarOrderType.SELL)
-        snapshot.title.contains("Bazaar Orders") -> readOrdersInventory(snapshot)
-        snapshot.title == "Order options" -> readOrderOptionsInventory(snapshot)
+        snapshot.title.contains(BAZAAR_ORDERS_TITLE) -> readOrdersInventory(snapshot)
+        snapshot.title == ORDER_OPTIONS_TITLE -> readOrderOptionsInventory(snapshot)
         else -> BazaarTrackingState.resetOrderScan()
     }
 }

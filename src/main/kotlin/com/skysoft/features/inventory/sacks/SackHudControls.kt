@@ -2,26 +2,21 @@ package com.skysoft.features.inventory.sacks
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
 import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.features.inventory.hoveredPlayerInventoryItemId
+import com.skysoft.features.inventory.wasLeftClickHandled
 import com.skysoft.utils.SoundUtilities
-import com.skysoft.utils.input.InputHandlingResult
-import net.minecraft.client.Minecraft
+import com.skysoft.utils.gui.OverlayListScroll
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.MouseButtonEvent
 
 internal fun registerSackHudInput() {
-    val isActive = { sackHudConfig.enabled }
-    InventoryOverlayInput.registerClickHandler("Sacks Tracker mouse click", isActive) { screen, click ->
-        if (shouldAllowSackHudClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
-    }
-    InventoryOverlayInput.registerScrollHandler("Sacks Tracker mouse scroll", isActive) {
-            screen, mouseX, mouseY, verticalAmount ->
-        val allowed = InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
-            !wasSackHudScrollHandled(verticalAmount)
-        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
-    }
+    InventoryOverlayInput.registerTrackerInput(
+        "Sacks Tracker",
+        isActive = { sackHudConfig.enabled },
+        shouldAllowClick = ::shouldAllowSackHudClick,
+        wasScrollHandled = ::wasSackHudScrollHandled,
+    )
 }
 
 private fun shouldAllowSackHudClick(
@@ -63,9 +58,7 @@ private fun shouldAllowSackHudClick(
 
 private fun wasInventoryItemSelected(screen: AbstractContainerScreen<*>, button: Int): Boolean {
     if (!sackHudItemPanel.isSelectingFromInventory() || button != InputConstants.MOUSE_BUTTON_LEFT) return false
-    val player = Minecraft.getInstance().player ?: return false
-    val slot = (screen as AbstractContainerScreenAccessor).skysoftGetHoveredSlot()
-    val itemId = slot?.takeIf { it.container === player.inventory }?.item?.skyBlockId() ?: return false
+    val itemId = hoveredPlayerInventoryItemId(screen) ?: return false
     return sackHudItemPanel.wasInventoryItemSelected(itemId)
 }
 
@@ -75,14 +68,7 @@ private fun wasSackHudScrollHandled(verticalAmount: Double): Boolean {
     if (!sackHudHovered) return false
     val maximumOffset = sackHudMaximumScrollOffset(sackHudConfig.trackedItems.size)
     if (maximumOffset == 0) return false
-    sackHudScrollOffset = (sackHudScrollOffset + if (verticalAmount < 0.0) 1 else -1)
-        .coerceIn(0, maximumOffset)
-    return true
-}
-
-private inline fun wasLeftClickHandled(button: Int, action: () -> Unit): Boolean {
-    if (button != InputConstants.MOUSE_BUTTON_LEFT) return false
-    action()
+    sackHudScrollOffset = OverlayListScroll.nextOffset(sackHudScrollOffset, verticalAmount, maximumOffset)
     return true
 }
 
@@ -92,7 +78,7 @@ internal fun addSackHudTrackedItem(itemId: String) {
     SkysoftConfigGui.config().saveNow()
 }
 
-internal fun removeSackHudTrackedItem(itemId: String) {
+private fun removeSackHudTrackedItem(itemId: String) {
     if (!sackHudConfig.trackedItems.remove(itemId)) return
     sackHudChangeHighlights.remove(itemId)
     sackHudScrollOffset = sackHudScrollOffset.coerceIn(

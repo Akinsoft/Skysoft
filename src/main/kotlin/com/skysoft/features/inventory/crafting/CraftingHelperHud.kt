@@ -1,6 +1,5 @@
 package com.skysoft.features.inventory.crafting
 
-import com.skysoft.config.CRAFTING_HELPER_MAXIMUM_LINES
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
@@ -10,12 +9,14 @@ import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockSupercrafts
 import com.skysoft.features.inventory.InventoryTrackerFrame
 import com.skysoft.features.inventory.InventoryTrackerLayout
+import com.skysoft.features.inventory.TrackedItemManagerAction
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
+import com.skysoft.gui.RenderableHudEditorElement
+import com.skysoft.gui.TopLeftHudEditorElement
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -23,7 +24,6 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.gui.OverlayItemRowStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
-import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
@@ -66,31 +66,13 @@ object CraftingHelper {
                 screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
                 render = { context, _ -> renderCraftingHelper(context) },
             ),
-            object : HudEditorElement {
+            object : TopLeftHudEditorElement, RenderableHudEditorElement {
                 override val id: String = "crafting_helper"
                 override val label: String = "Crafting Helper"
                 override val position get() = craftingHelperConfig.position
                 override val hasEditorBackground: Boolean get() = !craftingHelperConfig.details.showBackground
-                override fun width(): Int = buildCraftingHelperRenderable(inventoryOpen = false).width
-                override fun height(): Int = buildCraftingHelperRenderable(inventoryOpen = false).height
+                override fun hudRenderable() = buildCraftingHelperRenderable(inventoryOpen = false)
                 override fun isVisible(): Boolean = isCraftingHelperVisible()
-                override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
-                override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
-                override fun renderEditor(context: GuiGraphicsExtractor) =
-                    buildCraftingHelperRenderable(inventoryOpen = false).render(context)
-                override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-                    position.moveToAbsoluteAllowingOverflow(
-                        position.getAbsX0AllowingOverflow(0) + deltaX,
-                        position.getAbsY0AllowingOverflow(0) + deltaY,
-                        0,
-                        0,
-                    )
-                    return InputHandlingResult.CONSUMED
-                }
-                override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                    position.scale += if (scrollY > 0.0) EDITOR_SCALE_STEP else -EDITOR_SCALE_STEP
-                    return InputHandlingResult.CONSUMED
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Crafting Helper")
             },
         )
@@ -112,15 +94,9 @@ private fun renderCraftingHelper(context: GuiGraphicsExtractor) {
         clearCraftingHelperInteraction()
         return
     }
-    val minecraft = Minecraft.getInstance()
-    val inventoryScreen = MinecraftClient.screen(minecraft) as? AbstractContainerScreen<*>
-    val inventoryOpen = inventoryScreen != null
+    val inventoryOpen = MinecraftClient.screen() is AbstractContainerScreen<*>
     if (!inventoryOpen) craftingHelperItemPanel.clear()
     val renderable = buildCraftingHelperRenderable(inventoryOpen)
-    if (renderable.width <= 0 || renderable.height <= 0) {
-        clearCraftingHelperInteraction()
-        return
-    }
     val frame = InventoryTrackerFrame(craftingHelperConfig.position, renderable.width, renderable.height)
     craftingHelperHoveredControl = frame.render(context) { mouseX, mouseY, placePanelRight ->
         val trackerControl = renderable.renderInteractive(context, mouseX, mouseY)
@@ -130,7 +106,15 @@ private fun renderCraftingHelper(context: GuiGraphicsExtractor) {
             placePanelRight,
             mouseX ?: Int.MIN_VALUE,
             mouseY ?: Int.MIN_VALUE,
-        ) ?: trackerControl
+        )?.let { control ->
+            val action = when (val action = control.action) {
+                TrackedItemManagerAction.AddItems -> CraftingHelperControl.AddItems
+                TrackedItemManagerAction.RemoveItems -> CraftingHelperControl.DecreaseItems
+                is TrackedItemManagerAction.ItemSelection -> CraftingHelperControl.ItemSelection(action.action)
+                is TrackedItemManagerAction.Quantity -> CraftingHelperControl.Quantity(action.action)
+            }
+            OverlayControlArea(action, control.bounds)
+        } ?: trackerControl
     }
     craftingHelperHovered = frame.isHovered
     if (frame.interactive) craftingHelperHoveredControl?.action?.let { action ->
@@ -189,12 +173,10 @@ private fun craftingHelperLineActionLines(line: CraftingHelperLine): List<String
     }
 }
 
-internal fun buildCraftingHelperRenderable(inventoryOpen: Boolean): CraftingHelperRenderable {
+private fun buildCraftingHelperRenderable(inventoryOpen: Boolean): CraftingHelperRenderable {
     val lines = craftingHelperLines()
-    val maximumLines = craftingHelperConfig.settings.maximumLines.coerceIn(1, CRAFTING_HELPER_MAXIMUM_LINES)
-    val maximumOffset = (lines.size - maximumLines).coerceAtLeast(0)
-    craftingHelperScrollOffset = craftingHelperScrollOffset.coerceIn(0, maximumOffset)
-    val displayed = lines.drop(craftingHelperScrollOffset).take(maximumLines)
+    craftingHelperScrollOffset = craftingHelperScrollOffset.coerceIn(0, craftingHelperMaximumScrollOffset(lines.size))
+    val displayed = lines.drop(craftingHelperScrollOffset).take(craftingHelperMaximumLines())
     return CraftingHelperRenderable(
         lines = displayed,
         hiddenAbove = craftingHelperScrollOffset,
@@ -209,8 +191,8 @@ internal fun buildCraftingHelperRenderable(inventoryOpen: Boolean): CraftingHelp
 
 internal class CraftingHelperRenderable(
     lines: List<CraftingHelperLine>,
-    private val hiddenAbove: Int,
-    private val hiddenBelow: Int,
+    hiddenAbove: Int,
+    hiddenBelow: Int,
     targetsEmpty: Boolean,
     showTitle: Boolean,
     showIcons: Boolean,
@@ -219,17 +201,10 @@ internal class CraftingHelperRenderable(
 ) : GuiRenderable {
     private val rows = lines.map { line -> CraftingHelperRow(line, showIcons) }
     private val emptyText = if (targetsEmpty) "§7No crafting targets." else "§7Loading recipe data..."
-    private val indicatorText = when {
-        hiddenAbove <= 0 && hiddenBelow <= 0 -> ""
-        else -> buildList {
-            if (hiddenAbove > 0) add("$hiddenAbove above")
-            if (hiddenBelow > 0) add("$hiddenBelow more")
-        }.joinToString(", ", prefix = "§7", postfix = "...")
-    }
     private val layout = InventoryTrackerLayout(
         title = "Crafting Helper",
         emptyText = emptyText,
-        indicatorText = indicatorText,
+        indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, ", "),
         rowWidths = rows.map(CraftingHelperRow::width),
         minimumWidth = MINIMUM_WIDTH,
         showTitle = showTitle,
@@ -281,7 +256,7 @@ private data class CraftingHelperRow(
         mouseY: Int?,
     ): OverlayControlArea<CraftingHelperControl>? {
         val bounds = Rect(left, y, (right - left).coerceAtLeast(1), OverlayItemRowStyle.HEIGHT)
-        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
+        val hovered = bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         LegacyTextRenderer.draw(context, "§8${line.prefix}", left, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
         if (showIcon) {
@@ -298,4 +273,3 @@ private data class CraftingHelperRow(
 }
 
 private const val MINIMUM_WIDTH = 160
-private const val EDITOR_SCALE_STEP = 0.1f

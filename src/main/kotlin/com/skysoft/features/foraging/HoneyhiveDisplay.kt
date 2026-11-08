@@ -9,8 +9,8 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlMouse
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.transform
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
@@ -55,15 +55,13 @@ internal object HoneyhiveDisplay {
                 screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
                 render = { context, _ -> render(context) },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id: String = "honeyhive_display"
                 override val label: String = "Honeyhive Display"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun width(): Int = buildRenderable().width
-                override fun height(): Int = buildRenderable().height
+                override fun hudRenderable(): GuiRenderable = buildRenderable()
                 override fun isVisible(): Boolean = isDisplayVisible()
-                override fun renderEditor(context: GuiGraphicsExtractor) = buildRenderable().render(context)
                 override fun openConfig() = SkysoftConfigGui.open("Honeyhive Helper")
             },
         )
@@ -181,7 +179,7 @@ private class HoneyhiveRenderable(
     }
 
     override fun render(context: GuiGraphicsExtractor) {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+        if (background) OverlayPanelStyle.drawHudBackground(context, width, height)
         LegacyTextRenderer.draw(context, OverlayTextStyle.title("Honeyhives"), padding, padding)
         var y = padding + OverlayTextStyle.TITLE_HEIGHT
         rows.forEach { row ->

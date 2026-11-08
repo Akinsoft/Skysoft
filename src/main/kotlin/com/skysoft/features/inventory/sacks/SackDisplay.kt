@@ -14,11 +14,12 @@ import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.gui.OverlayControlTooltips
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.SkysoftHudEditor
+import com.skysoft.gui.TopLeftHudEditorElement
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
@@ -28,10 +29,10 @@ import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.TextUtilities.truncateLegacyText
 import com.skysoft.utils.gui.OverlayItemRowStyle
+import com.skysoft.utils.gui.OverlayListScroll
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
-import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.primitives.ItemIconRenderable
@@ -43,7 +44,40 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.item.ItemStack
 
 object SackDisplay {
-    fun register() = registerSackDisplay()
+    fun register() {
+        SkyBlockDataRepository.Demand.register("Sack Display") { config.enabled }
+        SkyBlockOpenInventoryApi.onChange(
+            "Sack Display inventory",
+            isActive = { config.enabled && HypixelLocationState.inSkyBlock },
+            listener = ::updateOpenSack,
+        )
+        SkysoftClientEvents.onDisconnect("Sack Display reset", ::clearSackDisplay)
+        InventoryOverlayInput.registerTrackerInput(
+            "Sack Display",
+            isActive = { true },
+            shouldAllowClick = ::shouldAllowSackDisplayClick,
+            wasScrollHandled = ::wasSackDisplayScrollHandled,
+        )
+        GuiOverlayRegistry.registerHud(
+            GuiOverlay(
+                id = "sack_display",
+                layer = GuiOverlayLayer.BELOW_SCREEN,
+                contexts = GuiOverlayContextType.INVENTORIES,
+                screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
+                render = { context, _ -> renderSackDisplay(context) },
+            ),
+            object : TopLeftHudEditorElement, RenderableHudEditorElement {
+                override val id: String = "sack_display"
+                override val label: String = "Sack Display"
+                override val position get() = config.position
+                override val hasEditorBackground: Boolean get() = !config.details.showBackground
+
+                override fun hudRenderable() = editorRenderable()
+                override fun isVisible(): Boolean = isSackDisplayVisible()
+                override fun openConfig() = SkysoftConfigGui.open("Sack Display")
+            },
+        )
+    }
 }
 
 private val config get() = SkysoftConfigGui.config().storageFeatures.sackDisplay
@@ -52,62 +86,6 @@ private var displayMode = SackDisplayMode.ITEM_QUANTITIES
 private var scrollOffset = 0
 private var hoveredControl: OverlayControlArea<SackDisplayControl>? = null
 private var isDisplayHovered = false
-
-private fun registerSackDisplay() {
-    SkyBlockDataRepository.Demand.register("Sack Display") { config.enabled }
-    SkyBlockOpenInventoryApi.onChange(
-        "Sack Display inventory",
-        isActive = { config.enabled && HypixelLocationState.inSkyBlock },
-        listener = ::updateOpenSack,
-    )
-    SkysoftClientEvents.onDisconnect("Sack Display reset", ::clearSackDisplay)
-    registerSackDisplayInput()
-    GuiOverlayRegistry.registerHud(
-        GuiOverlay(
-            id = "sack_display",
-            layer = GuiOverlayLayer.BELOW_SCREEN,
-            contexts = GuiOverlayContextType.INVENTORIES,
-            screenForegroundContexts = GuiOverlayContextType.INVENTORIES,
-            render = { context, _ -> renderSackDisplay(context) },
-        ),
-        object : HudEditorElement {
-            override val id: String = "sack_display"
-            override val label: String = "Sack Display"
-            override val position get() = config.position
-            override val hasEditorBackground: Boolean get() = !config.details.showBackground
-
-            override fun width(): Int = editorRenderable()?.width ?: 0
-            override fun height(): Int = editorRenderable()?.height ?: 0
-            override fun isVisible(): Boolean = isSackDisplayVisible()
-            override fun absoluteX(width: Int): Int = position.getAbsX0AllowingOverflow(0)
-            override fun absoluteY(height: Int): Int = position.getAbsY0AllowingOverflow(0)
-            override fun renderEditor(context: GuiGraphicsExtractor) = editorRenderable()?.render(context) ?: Unit
-            override fun applyEditorDrag(deltaX: Int, deltaY: Int): InputHandlingResult {
-                val targetX = position.getAbsX0AllowingOverflow(0) + deltaX
-                val targetY = position.getAbsY0AllowingOverflow(0) + deltaY
-                position.moveToAbsoluteAllowingOverflow(targetX, targetY, 0, 0)
-                return InputHandlingResult.CONSUMED
-            }
-            override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
-                return InputHandlingResult.CONSUMED
-            }
-            override fun openConfig() = SkysoftConfigGui.open("Sack Display")
-        },
-    )
-}
-
-private fun registerSackDisplayInput() {
-    InventoryOverlayInput.registerClickHandler("Sack Display mouse click", isActive = { true }) { screen, click ->
-        if (shouldAllowSackDisplayClick(screen, click)) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
-    }
-    InventoryOverlayInput.registerScrollHandler("Sack Display mouse scroll", isActive = { true }) {
-            screen, mouseX, mouseY, verticalAmount ->
-        val allowed = InventoryOverlayInput.isPointCovered(screen, mouseX, mouseY) ||
-            !wasSackDisplayScrollHandled(verticalAmount)
-        if (allowed) InputHandlingResult.IGNORED else InputHandlingResult.CONSUMED
-    }
-}
 
 private fun shouldAllowSackDisplayClick(
     screen: AbstractContainerScreen<*>,
@@ -128,24 +106,18 @@ private fun shouldAllowSackDisplayClick(
             )
             SkysoftConfigGui.config().saveNow()
         }
-        is SackDisplayControl.Item -> wasSackItemClickHandled(screen, control.item, click.button())
+        is SackDisplayControl.Item -> wasSackItemClickHandled(screen, control.item.itemId, control.item.name, click.button())
     }
     if (handled) SoundUtilities.playClickSound()
     return !handled
 }
-
-private fun wasSackItemClickHandled(
-    screen: AbstractContainerScreen<*>,
-    item: SackDisplayItem,
-    button: Int,
-): Boolean = wasSackItemClickHandled(screen, item.itemId, item.name, button)
 
 private fun wasSackDisplayScrollHandled(verticalAmount: Double): Boolean {
     if (!isSackDisplayVisible() || !isDisplayHovered || verticalAmount == 0.0) return false
     val items = openSack?.items ?: return false
     val maximumOffset = maximumScrollOffset(items.size)
     if (maximumOffset == 0) return false
-    scrollOffset = (scrollOffset + if (verticalAmount < 0.0) 1 else -1).coerceIn(0, maximumOffset)
+    scrollOffset = OverlayListScroll.nextOffset(scrollOffset, verticalAmount, maximumOffset)
     return true
 }
 
@@ -217,10 +189,8 @@ private fun isSackDisplayVisible(): Boolean {
 }
 
 private fun buildRenderable(sack: OpenSack): SackDisplayRenderable {
-    val maximumItems = config.settings.maximumItems.coerceIn(1, MAXIMUM_DISPLAY_ITEMS)
-    val maximumOffset = (sack.items.size - maximumItems).coerceAtLeast(0)
-    scrollOffset = scrollOffset.coerceIn(0, maximumOffset)
-    val displayedItems = sack.items.drop(scrollOffset).take(maximumItems)
+    scrollOffset = scrollOffset.coerceIn(0, maximumScrollOffset(sack.items.size))
+    val displayedItems = sack.items.drop(scrollOffset).take(maximumDisplayedItems())
     return SackDisplayRenderable(
         title = sack.title,
         items = displayedItems,
@@ -240,14 +210,15 @@ private fun buildRenderable(sack: OpenSack): SackDisplayRenderable {
 
 private fun editorRenderable(): SackDisplayRenderable? = openSack?.let(::buildRenderable)
 
-private fun maximumScrollOffset(itemCount: Int): Int =
-    (itemCount - config.settings.maximumItems.coerceIn(1, MAXIMUM_DISPLAY_ITEMS)).coerceAtLeast(0)
+private fun maximumDisplayedItems(): Int = config.settings.maximumItems.coerceIn(1, MAXIMUM_DISPLAY_ITEMS)
+
+private fun maximumScrollOffset(itemCount: Int): Int = (itemCount - maximumDisplayedItems()).coerceAtLeast(0)
 
 private class SackDisplayRenderable(
     private val title: String,
     items: List<SackDisplayItem>,
-    private val hiddenAbove: Int,
-    private val hiddenBelow: Int,
+    hiddenAbove: Int,
+    hiddenBelow: Int,
     private val mode: SackDisplayMode,
     private val priceSource: ProfitTrackerPriceSource,
     private val totalValue: Double?,
@@ -260,22 +231,14 @@ private class SackDisplayRenderable(
             item = item,
             name = item.name.truncateLegacyText(MAXIMUM_ITEM_NAME_LENGTH),
             value = item.displayValue(mode, priceSource),
-            stack = item.stack,
             reserveIcon = showIcons,
         )
     }
     private val emptyText = "§7No stored items."
-    private val indicatorText = if (hiddenAbove <= 0 && hiddenBelow <= 0) {
-        ""
-    } else {
-        buildList {
-            if (hiddenAbove > 0) add("$hiddenAbove above")
-            if (hiddenBelow > 0) add("$hiddenBelow more")
-        }.joinToString(" §8• §7", prefix = "§7", postfix = "...")
-    }
+    private val indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, " §8• §7")
     private val modeLine = "§7Mode: §a§l[${mode.displayName}]"
     private val priceSourceLine = "§7Price Source: §e§l[$priceSource]"
-    private val totalText = totalValue?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
+    private val totalText = coinValueText(totalValue)
     private val totalWidth = LegacyTextRenderer.width("§7Total") + OverlayItemRowStyle.VALUE_COLUMN_GAP +
         LegacyTextRenderer.width(totalText)
     private val contentWidth = maxOf(
@@ -304,7 +267,7 @@ private class SackDisplayRenderable(
         mouseX: Int?,
         mouseY: Int?,
     ): OverlayControlArea<SackDisplayControl>? {
-        if (background) OverlayPanelStyle.draw(context, 0, 0, width, height, backgroundColor = OverlayPanelStyle.hudBackgroundColor)
+        if (background) OverlayPanelStyle.drawHudBackground(context, width, height)
         var y = padding
         LegacyTextRenderer.draw(context, OverlayTextStyle.title(title), padding, y)
         y += OverlayTextStyle.TITLE_HEIGHT
@@ -369,7 +332,7 @@ private class SackDisplayRenderable(
         mouseY: Int?,
     ): OverlayControlArea<SackDisplayControl>? {
         val bounds = Rect(padding, y, LegacyTextRenderer.width(line), CONTROL_ROW_HEIGHT)
-        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
+        val hovered = bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         LegacyTextRenderer.draw(context, line, bounds.x, y + CONTROL_TEXT_Y_OFFSET)
         return OverlayControlArea<SackDisplayControl>(action, bounds, tooltipLines).takeIf { hovered }
@@ -380,7 +343,6 @@ private data class SackDisplayRow(
     val item: SackDisplayItem,
     val name: String,
     val value: String,
-    val stack: ItemStack?,
     val reserveIcon: Boolean,
 ) {
     private val contentOffset = if (reserveIcon) OverlayItemRowStyle.ICON_TEXT_OFFSET else 0
@@ -396,10 +358,10 @@ private data class SackDisplayRow(
         mouseY: Int?,
     ): OverlayControlArea<SackDisplayControl>? {
         val bounds = Rect(left, y, right - left, OverlayItemRowStyle.HEIGHT)
-        val hovered = mouseX != null && mouseY != null && bounds.contains(mouseX, mouseY)
+        val hovered = bounds.contains(mouseX, mouseY)
         if (hovered) OverlayTextStyle.drawControlHover(context, bounds, 1.0)
         if (reserveIcon) {
-            stack?.let { ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y) }
+            item.stack?.let { ItemIconRenderable(it, OverlayItemRowStyle.ICON_SCALE).renderAt(context, left, y) }
         }
         LegacyTextRenderer.draw(context, name, left + contentOffset, y + OverlayItemRowStyle.TEXT_Y_OFFSET)
         LegacyTextRenderer.draw(
@@ -421,10 +383,10 @@ private fun SackDisplayItem.displayValue(
     } else {
         "§7x§e${amount.addSeparators()}" + (capacity?.let { " §8/ §7$it" } ?: "")
     }
-    SackDisplayMode.TOTAL_VALUE -> totalValue(priceSource)?.let {
-        "§6${it.coinFormat()} coins"
-    } ?: "§8Unknown"
+    SackDisplayMode.TOTAL_VALUE -> coinValueText(totalValue(priceSource))
 }
+
+private fun coinValueText(value: Double?): String = value?.let { "§6${it.coinFormat()} coins" } ?: "§8Unknown"
 
 private fun SackDisplayItem.totalValue(priceSource: ProfitTrackerPriceSource): Double? = if (amount == 0L) {
     0.0
@@ -466,4 +428,3 @@ private const val MAXIMUM_ITEM_NAME_LENGTH = 30
 private const val MINIMUM_WIDTH = 190
 private const val CONTROL_ROW_HEIGHT = 13
 private const val CONTROL_TEXT_Y_OFFSET = 1
-private const val HUD_SCALE_STEP = 0.1f

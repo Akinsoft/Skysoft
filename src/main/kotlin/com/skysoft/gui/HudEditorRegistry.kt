@@ -2,7 +2,9 @@ package com.skysoft.gui
 
 import com.skysoft.config.core.HudPosition
 import com.skysoft.utils.SkysoftErrorBoundary
+import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputHandlingResult
+import kotlin.math.roundToInt
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object HudEditorRegistry {
@@ -81,11 +83,31 @@ interface HudEditorElement {
     fun captureEditorState(): HudEditorSnapshot {
         val target = position
         val snapshot = target.snapshot()
-        return hudEditorSnapshot(snapshot) { target.restore(snapshot) }
+        return HudEditorSnapshot(snapshot) { target.restore(snapshot) }
     }
     fun editorDetailsLines(): List<String>? = null
     fun editorActionLines(): List<String>? = null
     fun openConfig() = Unit
+}
+
+internal fun HudEditorElement.scaledWidth(scale: Float = position.scale): Int = (width() * scale).roundToInt()
+
+internal fun HudEditorElement.scaledHeight(scale: Float = position.scale): Int = (height() * scale).roundToInt()
+
+internal fun HudEditorElement.editorBounds(): Rect {
+    val width = scaledWidth()
+    val height = scaledHeight()
+    return Rect(absoluteX(width), absoluteY(height), width, height)
+}
+
+internal fun HudEditorElement.moveInEditor(x: Int, y: Int, width: Int, height: Int) {
+    val positionX = x - layoutOffsetX
+    val positionY = y - layoutOffsetY
+    if (keepsInsideScreen) {
+        position.moveToAbsolute(positionX, positionY, width, height)
+    } else {
+        position.moveToAbsoluteAllowingOverflow(positionX, positionY, width, height)
+    }
 }
 
 class HudEditorSnapshot internal constructor(
@@ -96,6 +118,3 @@ class HudEditorSnapshot internal constructor(
 
     internal fun restore() = restoreAction()
 }
-
-internal fun hudEditorSnapshot(value: Any?, restore: () -> Unit): HudEditorSnapshot =
-    HudEditorSnapshot(value, restore)

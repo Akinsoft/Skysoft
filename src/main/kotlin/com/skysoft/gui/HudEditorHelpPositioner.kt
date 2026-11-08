@@ -25,9 +25,7 @@ internal class HudEditorHelpPositioner(
             Rect(SCREEN_MARGIN, bottom, tooltipWidth, tooltipHeight),
             Rect(right, bottom, tooltipWidth, tooltipHeight),
         )
-        val blocked = avoid?.let {
-            Rect(it.x - ELEMENT_GAP, it.y - ELEMENT_GAP, it.width + ELEMENT_GAP * 2, it.height + ELEMENT_GAP * 2)
-        }
+        val blocked = avoid?.inset(-ELEMENT_GAP)
         val position = candidates.firstOrNull { blocked?.intersects(it) != true } ?: candidates.first()
         return Vector2i(position.x, position.y)
     }

@@ -1,5 +1,7 @@
 package com.skysoft.features.mining
 
+import com.skysoft.utils.NANOS_PER_SECOND
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.config.CUSTOM_BAR_TRACK_COLOR
 import com.skysoft.config.MiningAbilityBarOrientation
 import com.skysoft.config.MiningAbilityReadyTextPosition
@@ -10,7 +12,6 @@ import com.skysoft.data.skyblock.SkyBlockEventState
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EasingUtilities
@@ -35,7 +36,7 @@ import net.minecraft.util.ARGB
 object MiningAbilityCooldownDisplay {
     private val config get() = SkysoftConfigGui.config().mining.abilityCooldown
     private val conditions = FeatureConditionState()
-    private var widget = MiningAbilityWidgetState(false, null)
+    private var widget = HIDDEN_WIDGET
     private var currentStatus: MiningAbilityStatus? = null
     private var cooldown = MiningAbilityCooldownTimer()
 
@@ -59,17 +60,13 @@ object MiningAbilityCooldownDisplay {
                 visible = TabDataOverlays::canRender,
                 render = { context, _ -> renderHud(context) },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id: String = "mining_ability_cooldown"
                 override val label: String = "Mining Ability Cooldown"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean = false
-                override fun width(): Int = currentRenderable()?.width ?: 0
-                override fun height(): Int = currentRenderable()?.height ?: 0
+                override fun hudRenderable() = currentRenderable()
                 override fun isVisible(): Boolean = currentRenderable() != null
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    currentRenderable()?.render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Mining Ability Cooldown")
             },
         )
@@ -83,11 +80,10 @@ object MiningAbilityCooldownDisplay {
             conditions.isActivationAllowed(config.settings.locations, heldItemId = null, isConditionActivationReversed = false)
 
     private fun recordAbilityUse() {
-        val nowNanos = System.nanoTime()
         if (!widget.isVisible || currentStatus == null) return
         currentStatus = MiningAbilityStatus(remainingSeconds = 0)
         cooldown = MiningAbilityCooldownTimer(
-            startedAtNanos = nowNanos,
+            startedAtNanos = System.nanoTime(),
             durationNanos = Long.MAX_VALUE,
             animateEmpty = true,
             waitingForTabCooldown = true,
@@ -137,14 +133,10 @@ object MiningAbilityCooldownDisplay {
 
     private fun abilityRenderable(isReady: Boolean, progress: Float): GuiRenderable {
         val details = config.details
-        val orientation = config.settings.orientation
-        val barWidth = if (orientation == MiningAbilityBarOrientation.VERTICAL) SLIM_BAR_SIZE else LONG_BAR_SIZE
-        val barHeight = if (orientation == MiningAbilityBarOrientation.VERTICAL) LONG_BAR_SIZE else SLIM_BAR_SIZE
-        val fillDirection = if (orientation == MiningAbilityBarOrientation.VERTICAL) {
-            BarFillDirection.UP
-        } else {
-            BarFillDirection.RIGHT
-        }
+        val isVertical = config.settings.orientation == MiningAbilityBarOrientation.VERTICAL
+        val barWidth = if (isVertical) SLIM_BAR_SIZE else LONG_BAR_SIZE
+        val barHeight = if (isVertical) LONG_BAR_SIZE else SLIM_BAR_SIZE
+        val fillDirection = if (isVertical) BarFillDirection.UP else BarFillDirection.RIGHT
         val emptyColor = details.emptyColor.get().toColor().rgb
         val readyColor = details.readyColor.get().toColor().rgb
         val bar = object : GuiRenderable {
@@ -217,23 +209,23 @@ private fun missingWidgetRenderable(): GuiRenderable = verticalLayout(
     horizontalAlign = GuiAlignment.HorizontalAlignment.CENTER,
 )
 
-internal data class MiningAbilityWidgetState(
+private data class MiningAbilityWidgetState(
     val isVisible: Boolean,
     val status: MiningAbilityStatus?,
 )
 
-internal data class MiningAbilityStatus(
+private data class MiningAbilityStatus(
     val remainingSeconds: Int?,
 ) {
     val isReady: Boolean get() = remainingSeconds == null
 }
 
-internal fun isMiningAbilityUse(message: String): Boolean = MINING_ABILITY_USED_PATTERN.matches(message)
+private fun isMiningAbilityUse(message: String): Boolean = MINING_ABILITY_USED_PATTERN.matches(message)
 
-internal fun parseMiningAbilityWidget(lines: Iterable<String>): MiningAbilityWidgetState {
+private fun parseMiningAbilityWidget(lines: Iterable<String>): MiningAbilityWidgetState {
     val tabLines = lines.toList()
     val headerIndex = tabLines.indexOf(PICKAXE_ABILITY_WIDGET_HEADER)
-    if (headerIndex < 0) return MiningAbilityWidgetState(false, null)
+    if (headerIndex < 0) return HIDDEN_WIDGET
     val match = tabLines.getOrNull(headerIndex + 1)?.let(PICKAXE_ABILITY_STATUS_PATTERN::matchEntire)
         ?: return MiningAbilityWidgetState(true, null)
     return MiningAbilityWidgetState(
@@ -244,6 +236,7 @@ internal fun parseMiningAbilityWidget(lines: Iterable<String>): MiningAbilityWid
     )
 }
 
+private val HIDDEN_WIDGET = MiningAbilityWidgetState(false, null)
 private val MINING_ABILITY_USED_PATTERN = Regex("""^You used your .+ Pickaxe Ability!$""")
 private val PICKAXE_ABILITY_STATUS_PATTERN =
     Regex("""^[^:]+: (?:(?<remaining>\d+)s|Available)$""")
@@ -254,5 +247,4 @@ private const val READY_TEXT_SPACING = 3
 private const val SLIM_BAR_SIZE = 7
 private const val LONG_BAR_SIZE = 42
 private const val WARNING_COLOR = 0xFFFF5555.toInt()
-private const val NANOS_PER_SECOND = 1_000_000_000L
 private const val EMPTY_ANIMATION_NANOS = 180_000_000L

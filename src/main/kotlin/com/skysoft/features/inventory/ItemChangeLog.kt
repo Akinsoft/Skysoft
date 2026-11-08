@@ -76,15 +76,8 @@ object ItemChangeLog {
                 }
                 override fun height(): Int = itemChangeLogHeight(config.settings.maximumLines)
                 override fun isVisible(): Boolean = config.enabled
-                override fun absoluteX(width: Int): Int {
-                    ensureFixedHorizontalAnchor(width)
-                    return position.getAbsX0AllowingOverflow(0) - config.details.alignment.anchorOffset(width)
-                }
-                override fun absoluteY(height: Int): Int = itemChangeLogY(
-                    anchorY = position.getAbsY0AllowingOverflow(0),
-                    height = height,
-                    growsDownward = config.settings.invertDirection,
-                )
+                override fun absoluteX(width: Int): Int = hudX(width)
+                override fun absoluteY(height: Int): Int = hudY(height)
                 override fun renderEditor(context: GuiGraphicsExtractor) {
                     val renderable = currentRenderable() ?: return
                     val x = config.details.alignment.anchorOffset(retainedEditorWidth) -
@@ -108,7 +101,7 @@ object ItemChangeLog {
                     return InputHandlingResult.CONSUMED
                 }
                 override fun applyEditorScroll(scrollY: Double): InputHandlingResult {
-                    position.scale += if (scrollY > 0.0) HUD_SCALE_STEP else -HUD_SCALE_STEP
+                    position.scaleByScroll(scrollY)
                     return InputHandlingResult.CONSUMED
                 }
                 override fun openConfig() = SkysoftConfigGui.open("Item Change Log")
@@ -127,20 +120,22 @@ object ItemChangeLog {
     }
 
     private fun renderPositioned(context: GuiGraphicsExtractor, renderable: GuiRenderable) {
-        val scale = config.position.effectiveScale
+        val scale = config.position.scale
         val scaledWidth = (renderable.width * scale).roundToInt()
         val scaledHeight = (renderable.height * scale).roundToInt()
-        ensureFixedHorizontalAnchor(scaledWidth)
-        val x = config.position.getAbsX0AllowingOverflow(0) -
-            config.details.alignment.anchorOffset(scaledWidth)
-        val y = itemChangeLogY(
-            anchorY = config.position.getAbsY0AllowingOverflow(0),
-            height = scaledHeight,
-            growsDownward = config.settings.invertDirection,
-        )
-        HudTransform(x, y, scale).render(context) {
+        HudTransform(hudX(scaledWidth), hudY(scaledHeight), scale).render(context) {
             renderable.render(context)
         }
+    }
+
+    private fun hudX(width: Int): Int {
+        ensureFixedHorizontalAnchor(width)
+        return config.position.getAbsX0AllowingOverflow(0) - config.details.alignment.anchorOffset(width)
+    }
+
+    private fun hudY(height: Int): Int {
+        val anchorY = config.position.getAbsY0AllowingOverflow(0)
+        return if (config.settings.invertDirection) anchorY else (anchorY - height).coerceAtLeast(0)
     }
 
     private fun ensureFixedHorizontalAnchor(width: Int) {
@@ -171,9 +166,9 @@ object ItemChangeLog {
     }
 
     private fun changeRow(stack: ItemStack, name: String, amount: Long, opacity: Float): GuiRenderable {
-        val colour = if (amount > 0) config.details.gainColor.get() else config.details.lossColor.get()
+        val configuredColor = if (amount > 0) config.details.gainColor else config.details.lossColor
+        val color = configuredColor.get().toColor().toPackedArgb(opacity.toDouble())
         val sign = if (amount > 0) "+" else "-"
-        val color = colour.toColor().toPackedArgb(opacity.toDouble())
         return horizontalLayout(
             listOf(
                 StringRenderable(
@@ -212,20 +207,15 @@ private fun ItemChangeLogAlignment.guiAlignment(): GuiAlignment.HorizontalAlignm
     ItemChangeLogAlignment.RIGHT -> GuiAlignment.HorizontalAlignment.RIGHT
 }
 
-internal fun itemChangeLogY(anchorY: Int, height: Int, growsDownward: Boolean): Int =
-    if (growsDownward) anchorY else (anchorY - height).coerceAtLeast(0)
-
 private fun itemChangeLogHeight(lines: Int): Int =
     lines.coerceAtLeast(1) * ITEM_ROW_HEIGHT + (lines - 1).coerceAtLeast(0) * ROW_SPACING
 
-internal class ItemChangeLogState(
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
-) {
+private class ItemChangeLogState {
     private val entries = linkedMapOf<String, ItemChangeEntry>()
 
-    fun add(itemId: String, change: Int, maximumLines: Int = Int.MAX_VALUE) {
+    fun add(itemId: String, change: Int, maximumLines: Int) {
         if (change == 0) return
-        val now = currentTimeMillis()
+        val now = System.currentTimeMillis()
         val entry = entries[itemId]
         if (entry == null) {
             entries[itemId] = ItemChangeEntry(itemId, change.toLong(), now, now)
@@ -239,12 +229,8 @@ internal class ItemChangeLogState(
 
     fun clear() = entries.clear()
 
-    fun visibleEntries(
-        lifetimeMillis: Int,
-        maximumLines: Int,
-        newestFirst: Boolean = false,
-        now: Long = currentTimeMillis(),
-    ): List<ItemChangeVisual> {
+    fun visibleEntries(lifetimeMillis: Int, maximumLines: Int, newestFirst: Boolean): List<ItemChangeVisual> {
+        val now = System.currentTimeMillis()
         val lifetime = lifetimeMillis.coerceAtLeast(1).toLong()
         entries.values.removeIf { entry -> now - entry.updatedAtMillis >= lifetime }
         val visibleEntries = entries.values.toList().takeLast(maximumLines.coerceAtLeast(1))
@@ -270,7 +256,7 @@ internal class ItemChangeLogState(
     )
 }
 
-internal data class ItemChangeVisual(
+private data class ItemChangeVisual(
     val itemId: String,
     val amount: Long,
     val opacity: Float,
@@ -284,4 +270,3 @@ private const val COLUMN_SPACING = 2
 private const val ICON_SCALE = 0.75
 private const val ITEM_ROW_HEIGHT = 12
 private const val EDITOR_MINIMUM_WIDTH = 120
-private const val HUD_SCALE_STEP = 0.1f

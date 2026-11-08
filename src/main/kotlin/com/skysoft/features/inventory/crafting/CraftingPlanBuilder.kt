@@ -55,6 +55,7 @@ private class CraftingPlanBuilder(
         }
         val used = owned?.coerceAtMost(required) ?: 0L
         if (owned != null) available[ingredient.id] = owned - used
+        val missing = required - used
         val presentation = ingredientPresentation(ingredient, key, required)
         lines += CraftingHelperLine(
             itemId = ingredient.id,
@@ -66,14 +67,13 @@ private class CraftingPlanBuilder(
             plainName = presentation.plainName,
             stack = presentation.stack,
             acquisition = acquisitionFor(key, recipe),
-            missing = required - used,
+            missing = missing,
             supercraft = supercraft.takeIf { used == required },
             isTarget = depth == 0,
         )
-        val missing = required - used
         val outputCount = recipe?.result?.count ?: return
         if (missing <= 0L || outputCount <= 0L) return
-        val crafts = (missing - 1L) / outputCount + 1L
+        val crafts = Math.ceilDiv(missing, outputCount)
         val ingredients = combinedIngredients(recipe).map { child ->
             child.copy(count = Math.multiplyExact(child.count, crafts))
         }

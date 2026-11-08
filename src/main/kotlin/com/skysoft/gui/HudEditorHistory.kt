@@ -3,9 +3,7 @@ package com.skysoft.gui
 import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.SnapshotHistory
 
-internal class HudEditorHistory(
-    private val clockNanos: () -> Long = System::nanoTime,
-) {
+internal class HudEditorHistory {
     private val history = SnapshotHistory<HudEditorSnapshot>(MAXIMUM_STEPS) { first, second ->
         first.hasSameValue(second)
     }
@@ -13,12 +11,12 @@ internal class HudEditorHistory(
 
     fun record(before: HudEditorSnapshot, after: HudEditorSnapshot) {
         flushPending()
-        commit(before, after)
+        history.record(before, after)
     }
 
     fun recordScroll(key: String, before: HudEditorSnapshot, after: HudEditorSnapshot) {
         if (before.hasSameValue(after)) return
-        val now = clockNanos()
+        val now = System.nanoTime()
         val pending = pendingScroll
         if (pending == null || pending.key != key || now - pending.lastChangedAtNanos >= SCROLL_COALESCE_NANOS) {
             flushPending()
@@ -31,13 +29,13 @@ internal class HudEditorHistory(
 
     fun flushIdleScroll() {
         val pending = pendingScroll ?: return
-        if (clockNanos() - pending.lastChangedAtNanos >= SCROLL_COALESCE_NANOS) flushPending()
+        if (System.nanoTime() - pending.lastChangedAtNanos >= SCROLL_COALESCE_NANOS) flushPending()
     }
 
     fun flushPending() {
         val pending = pendingScroll ?: return
         pendingScroll = null
-        commit(pending.before, pending.after)
+        history.record(pending.before, pending.after)
     }
 
     fun undo(): ChangeResult {
@@ -48,10 +46,6 @@ internal class HudEditorHistory(
     fun redo(): ChangeResult {
         flushPending()
         return history.redo(HudEditorSnapshot::restore)
-    }
-
-    private fun commit(before: HudEditorSnapshot, after: HudEditorSnapshot) {
-        history.record(before, after)
     }
 
     private data class PendingScroll(
