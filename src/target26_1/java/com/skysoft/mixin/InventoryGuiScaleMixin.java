@@ -5,9 +5,10 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
 import com.skysoft.gui.scale.GuiScaleController;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,14 +16,18 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(Gui.class)
-public abstract class GuiMixin {
+@Mixin(GameRenderer.class)
+public abstract class InventoryGuiScaleMixin {
     @Shadow
     @Final
     private Minecraft minecraft;
 
+    @Shadow
+    @Final
+    private GameRenderState gameRenderState;
+
     @WrapOperation(
-        method = "extractRenderState",
+        method = "extractGui",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/screens/Screen;extractRenderStateWithTooltipAndSubtitles(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"
@@ -66,6 +71,6 @@ public abstract class GuiMixin {
 
     @Unique
     private void skysoftSyncWindowScale(Window window) {
-        minecraft.gameRenderer.gameRenderState().windowRenderState.guiScale = window.getGuiScale();
+        gameRenderState.windowRenderState.guiScale = window.getGuiScale();
     }
 }
