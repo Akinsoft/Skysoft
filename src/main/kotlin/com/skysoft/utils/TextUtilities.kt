@@ -5,6 +5,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
+import java.util.Locale
 import java.util.Optional
 import java.util.UUID
 
@@ -13,6 +14,11 @@ object TextUtilities {
     fun CharSequence.removeColor(): String = ChatFormatting.stripFormatting(toString()).orEmpty()
     fun CharSequence.removeResets(): String = resetPattern.replace(this, "")
     fun CharSequence.cleanSkyBlockText(): String = removeColor().trim()
+    fun String.titleCaseWords(): String =
+        lowercase(Locale.US)
+            .split(RegexUtilities.whitespacePattern)
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase(Locale.US) } }
     fun Component.cleanSkyBlockText(): String = string.cleanSkyBlockText()
 
     fun nonItalicText(text: String): MutableComponent = Component.literal(text).withStyle { it.withItalic(false) }

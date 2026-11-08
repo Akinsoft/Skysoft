@@ -10,6 +10,7 @@ import com.skysoft.utils.ItemTooltipEvents
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.TextUtilities.titleCaseWords
 import com.skysoft.utils.input.InputUtilities
 import java.util.Locale
 import net.minecraft.network.chat.Component
@@ -141,10 +142,7 @@ private fun enchantmentCatalogDisplayName(itemId: String): String? {
         .substringBeforeLast('_')
         .removePrefix(ULTIMATE_ENCHANTMENT_ID_PREFIX)
     if (encodedName.isBlank()) return null
-    val displayName = encodedName.split('_').joinToString(" ") { word ->
-        word.lowercase(Locale.ROOT).replaceFirstChar(Char::uppercase)
-    }
-    return "$displayName $tier"
+    return "${encodedName.replace('_', ' ').titleCaseWords()} $tier"
 }
 
 private fun catalogDisplayName(displayName: String): String {

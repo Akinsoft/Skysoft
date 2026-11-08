@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock.pets
 
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockRarity
+import com.skysoft.utils.TextUtilities.titleCaseWords
 import net.minecraft.world.item.ItemStack
 import kotlin.math.roundToInt
 
@@ -66,9 +67,7 @@ object PetRepository {
     }
 
     fun getDisplayName(properPetName: String): String =
-        PetRepoConstants.data.displayNameMap[properPetName] ?: properPetName.split('_').joinToString(" ") {
-            it.lowercase().replaceFirstChar { char -> char.uppercase() }
-        }
+        PetRepoConstants.data.displayNameMap[properPetName] ?: properPetName.replace('_', ' ').titleCaseWords()
 
     fun petWithRarityToInternalName(petName: String, rarity: SkyBlockRarity): String =
         rawPetWithRarityToInternalName(normalizePetDisplayName(petName, rarity), rarity)

@@ -4,6 +4,7 @@ import com.skysoft.data.skyblock.SkyBlockStatGlyph
 import com.skysoft.utils.NumberUtilities.romanNumeral
 import com.skysoft.utils.NumberUtilities.romanToDecimal
 import com.skysoft.utils.RegexUtilities.group
+import com.skysoft.utils.TextUtilities.titleCaseWords
 import java.util.Locale
 
 internal object RareLootChatParser {
