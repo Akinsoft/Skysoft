@@ -431,7 +431,6 @@ private val experiencePositionDefault = HudPosition(29, -24, centerX = true, cen
 private val oldVitalityPositionDefault = HudPosition(117, -45, centerX = true, centerY = false)
 private val oldExperiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
 
-
 private fun HudPosition.copy() = HudPosition(x, y, scale, centerX, centerY)
 
 private fun HudPosition.updateDefault(oldDefault: HudPosition, newDefault: HudPosition) {
