@@ -3,7 +3,7 @@ package com.skysoft.features.spotify
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.skysoft.SkysoftMod
+import com.skysoft.utils.MILLIS_PER_SECOND
 import com.skysoft.utils.net.CancellableRequestGroup
 import com.skysoft.utils.net.SkysoftHttp
 import java.net.URI
@@ -14,38 +14,37 @@ import java.util.concurrent.CompletableFuture
 import kotlin.math.abs
 
 internal object SpotifyWebApi {
-    fun currentPlayback(): CompletableFuture<SpotifyPlayback?> {
-        val requests = CancellableRequestGroup()
-        val operation = SpotifyAuthentication.accessToken().thenCompose { token ->
-            if (token == null) return@thenCompose CompletableFuture.completedFuture(null)
-            val request = request(PLAYER_ENDPOINT, token).GET().build()
-            requests.track(SkysoftHttp.sendString(request, MAXIMUM_API_RESPONSE_BYTES)).thenApply { response ->
-                when (response.statusCode()) {
-                    HTTP_OK -> parsePlayback(response.body())
-                    HTTP_NO_CONTENT -> null
-                    HTTP_UNAUTHORIZED -> {
-                        SpotifyAuthentication.invalidateAccessToken(token)
-                        throw SpotifyApiException(response.statusCode())
-                    }
-                    else -> throw spotifyApiException(response)
-                }
-            }
+    fun currentPlayback(): CompletableFuture<SpotifyPlayback?> = sendAuthorized(
+        { CompletableFuture.completedFuture(null) },
+        { request(PLAYER_ENDPOINT, it).GET() },
+    ) { response ->
+        when (response.statusCode()) {
+            HTTP_OK -> parsePlayback(response.body())
+            HTTP_NO_CONTENT -> null
+            HTTP_UNAUTHORIZED -> throw SpotifyApiException(response.statusCode())
+            else -> throw spotifyApiException(response)
         }
-        return requests.result(operation)
     }
 
-    fun control(action: SpotifyPlaybackAction): CompletableFuture<Unit> {
+    fun control(action: SpotifyPlaybackAction): CompletableFuture<Unit> = sendAuthorized(
+        { CompletableFuture.failedFuture(SpotifyApiException(HTTP_UNAUTHORIZED)) },
+        { request("$PLAYER_ENDPOINT/${action.path}", it).method(action.method, HttpRequest.BodyPublishers.noBody()) },
+    ) { response ->
+        if (response.statusCode() !in HTTP_SUCCESS) throw spotifyApiException(response)
+    }
+
+    private fun <T> sendAuthorized(
+        withoutToken: () -> CompletableFuture<T>,
+        buildRequest: (String) -> HttpRequest.Builder,
+        handleResponse: (HttpResponse<String>) -> T,
+    ): CompletableFuture<T> {
         val requests = CancellableRequestGroup()
         val operation = SpotifyAuthentication.accessToken().thenCompose { token ->
-            if (token == null) return@thenCompose CompletableFuture.failedFuture(SpotifyApiException(HTTP_UNAUTHORIZED))
-            val request = request("$PLAYER_ENDPOINT/${action.path}", token)
-                .method(action.method, HttpRequest.BodyPublishers.noBody())
-                .build()
+            if (token == null) return@thenCompose withoutToken()
+            val request = buildRequest(token).build()
             requests.track(SkysoftHttp.sendString(request, MAXIMUM_API_RESPONSE_BYTES)).thenApply { response ->
-                if (response.statusCode() !in HTTP_SUCCESS) {
-                    if (response.statusCode() == HTTP_UNAUTHORIZED) SpotifyAuthentication.invalidateAccessToken(token)
-                    throw spotifyApiException(response)
-                }
+                if (response.statusCode() == HTTP_UNAUTHORIZED) SpotifyAuthentication.invalidateAccessToken(token)
+                handleResponse(response)
             }
         }
         return requests.result(operation)
@@ -54,7 +53,7 @@ internal object SpotifyWebApi {
     private fun request(url: String, token: String): HttpRequest.Builder = HttpRequest.newBuilder(URI.create(url))
         .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
         .header("Authorization", "Bearer $token")
-        .header("User-Agent", "Skysoft/${SkysoftMod.VERSION}")
+        .header("User-Agent", SkysoftHttp.versionedUserAgent)
 
     private fun parsePlayback(body: String): SpotifyPlayback? {
         val json = JsonParser.parseString(body).asJsonObject
@@ -135,11 +134,6 @@ internal object SpotifyWebApi {
     private const val REQUEST_TIMEOUT_SECONDS = 15L
     private const val MAXIMUM_API_RESPONSE_BYTES = 1024L * 1024L
     private const val TARGET_ARTWORK_SIZE = 300
-    private const val MILLIS_PER_SECOND = 1_000L
-    private const val HTTP_OK = 200
-    private const val HTTP_NO_CONTENT = 204
-    private const val HTTP_UNAUTHORIZED = 401
-    private val HTTP_SUCCESS = 200..299
 }
 
 internal data class SpotifyPlayback(
@@ -166,8 +160,16 @@ internal enum class SpotifyPlaybackAction(val path: String, val method: String) 
 }
 
 internal const val SPOTIFY_QUOTA_EXCEEDED_REASON = "QUOTA_EXCEEDED"
+internal const val HTTP_OK = 200
+internal const val HTTP_NO_CONTENT = 204
+internal const val HTTP_BAD_REQUEST = 400
+internal const val HTTP_UNAUTHORIZED = 401
+internal const val HTTP_FORBIDDEN = 403
+internal const val HTTP_NOT_FOUND = 404
+internal const val HTTP_TOO_MANY_REQUESTS = 429
+internal val HTTP_SUCCESS = 200..299
 
-internal fun spotifyApiFailureReason(responseBody: String): String? = runCatching {
+private fun spotifyApiFailureReason(responseBody: String): String? = runCatching {
     val response = JsonParser.parseString(responseBody).asJsonObject
     response.get("reason")?.takeUnless { it.isJsonNull }?.asString
         ?: response.getAsJsonObject("error")?.get("reason")?.takeUnless { it.isJsonNull }?.asString

@@ -1,5 +1,6 @@
 package com.skysoft.features.spotify
 
+import com.skysoft.utils.NANOS_PER_MILLISECOND
 import kotlin.math.max
 import kotlin.math.min
 
@@ -116,7 +117,6 @@ internal class SpotifyPollSchedule {
         const val RATE_LIMIT_RETRY_INTERVAL_MILLIS = 30_000L
         const val MAXIMUM_RATE_LIMIT_RETRY_MILLIS = 15L * 60L * 1_000L
         const val QUOTA_RETRY_INTERVAL_MILLIS = 60L * 60L * 1_000L
-        const val NANOS_PER_MILLISECOND = 1_000_000L
         const val MAXIMUM_SAFE_DELAY_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLISECOND / 2L
         const val MAXIMUM_BACKOFF_SHIFT = 30
     }

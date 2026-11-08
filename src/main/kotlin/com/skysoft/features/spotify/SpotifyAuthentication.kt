@@ -6,13 +6,17 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.BrowserUtilities
+import com.skysoft.utils.MILLIS_PER_SECOND
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.net.AsyncRequestSlot
+import com.skysoft.utils.net.unwrapFutureFailure
 import com.sun.net.httpserver.HttpExchange
+import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import net.minecraft.client.Minecraft
 
 object SpotifyAuthentication {
@@ -78,7 +82,7 @@ object SpotifyAuthentication {
             SkysoftChat.error("Could not open Spotify in your browser.")
             return
         }
-        CompletableFuture.delayedExecutor(AUTHORIZATION_TIMEOUT_MINUTES, java.util.concurrent.TimeUnit.MINUTES).execute {
+        CompletableFuture.delayedExecutor(AUTHORIZATION_TIMEOUT_MINUTES, TimeUnit.MINUTES).execute {
             if (tryStopPendingAuthorization(pending)) {
                 Minecraft.getInstance().execute { SkysoftChat.error("Spotify connection timed out.") }
             }
@@ -89,14 +93,10 @@ object SpotifyAuthentication {
     fun disconnect() {
         synchronized(lock) {
             sessionVersion++
-            accessToken = null
             refreshRequest.cancel()
-            storedLoaded = true
-            storedAuthorization = null
+            forgetAuthorization()
         }
         stopPendingAuthorization()
-        runCatching { SkysoftConfigFiles.deleteWithBackups(SkysoftConfigFiles.spotifyAuthentication) }
-            .onFailure { SkysoftMod.LOGGER.warn("Could not delete Spotify authentication", it) }
         SpotifyDisplay.clear()
         SkysoftChat.chat("Spotify disconnected.")
     }
@@ -124,7 +124,7 @@ object SpotifyAuthentication {
         val started = refreshRequest.startIfIdleFuture(
             requestFactory = { request },
         ) { _, failure ->
-            val cause = failure?.unwrap() as? SpotifyAuthenticationException ?: return@startIfIdleFuture
+            val cause = failure?.unwrapFutureFailure() as? SpotifyAuthenticationException ?: return@startIfIdleFuture
             if (cause.statusCode in CLIENT_AUTHENTICATION_FAILURES && didClearStoredAuthorization(stored, version)) {
                 SkysoftChat.error("Spotify needs to be connected again.")
             }
@@ -180,7 +180,7 @@ object SpotifyAuthentication {
                     SpotifyDisplay.requestRefresh()
                 } else {
                     if (synchronized(lock) { !isCurrentAuthorization(pending.sessionVersion, pending.clientId) }) return@execute
-                    SkysoftMod.LOGGER.warn("Spotify token exchange failed", failure?.unwrap())
+                    SkysoftMod.LOGGER.warn("Spotify token exchange failed", failure?.unwrapFutureFailure())
                     SkysoftChat.error("Spotify connection failed. Try connecting again.")
                 }
             }
@@ -194,7 +194,7 @@ object SpotifyAuthentication {
             "refresh_token" to stored.refreshToken,
         ).thenApply(::parseTokenResponse)
 
-    private fun parseTokenResponse(response: java.net.http.HttpResponse<String>): TokenResponse {
+    private fun parseTokenResponse(response: HttpResponse<String>): TokenResponse {
         if (response.statusCode() !in HTTP_SUCCESS) {
             throw SpotifyAuthenticationException(response.statusCode())
         }
@@ -244,12 +244,16 @@ object SpotifyAuthentication {
         if (!isCurrentAuthorization(version, expected.clientId) || storedAuthorization !== expected) {
             return@synchronized false
         }
+        forgetAuthorization()
+        true
+    }
+
+    private fun forgetAuthorization() {
         accessToken = null
         storedLoaded = true
         storedAuthorization = null
         runCatching { SkysoftConfigFiles.deleteWithBackups(SkysoftConfigFiles.spotifyAuthentication) }
-            .onFailure { SkysoftMod.LOGGER.warn("Could not clear Spotify authentication", it) }
-        true
+            .onFailure { SkysoftMod.LOGGER.warn("Could not delete Spotify authentication", it) }
     }
 
     private fun isCurrentAuthorization(version: Int, clientId: String): Boolean =
@@ -272,16 +276,10 @@ object SpotifyAuthentication {
 
     private fun settings() = SkysoftConfigGui.config().gui.information.spotifyDisplay.settings
 
-    private fun Throwable.unwrap(): Throwable = (this as? java.util.concurrent.CompletionException)?.cause ?: this
-
     private const val SPOTIFY_DASHBOARD = "https://developer.spotify.com/dashboard"
     private const val AUTHORIZATION_TIMEOUT_MINUTES = 5L
     private const val EXPIRY_MARGIN_MILLIS = 30_000L
-    private const val MILLIS_PER_SECOND = 1_000L
-    private const val HTTP_OK = 200
-    private const val HTTP_BAD_REQUEST = 400
-    private val HTTP_SUCCESS = 200..299
-    private val CLIENT_AUTHENTICATION_FAILURES = setOf(400, 401)
+    private val CLIENT_AUTHENTICATION_FAILURES = setOf(HTTP_BAD_REQUEST, HTTP_UNAUTHORIZED)
 }
 
 private data class StoredAuthorization(val clientId: String, val refreshToken: String)

@@ -1,17 +1,19 @@
 package com.skysoft.features.spotify
 
-import com.mojang.blaze3d.systems.RenderSystem
 import com.skysoft.config.SpotifyLyricsMode
 import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.DurationParts
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.gui.OverlayPanelStyle
 import com.skysoft.utils.gui.PixelControlColors
+import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.elide
+import com.skysoft.utils.gui.fill
 import com.skysoft.utils.gui.fillOverlayBackground
+import com.skysoft.utils.image.drawLinearTexture
 import com.skysoft.utils.render.LegacyTextRenderer
-import com.skysoft.utils.render.gpu.FilterMode
 import com.skysoft.utils.renderables.GuiRenderable
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -45,26 +47,10 @@ internal class SpotifyHudRenderable(
     }
 
     private fun drawArtwork(context: GuiGraphicsExtractor) {
-        context.fill(
-            PLAYER_PADDING,
-            PLAYER_PADDING,
-            PLAYER_PADDING + ARTWORK_SIZE,
-            PLAYER_PADDING + ARTWORK_SIZE,
-            ARTWORK_BACKGROUND.withScaledAlpha(alpha),
-        )
+        val bounds = Rect(PLAYER_PADDING, PLAYER_PADDING, ARTWORK_SIZE, ARTWORK_SIZE)
+        context.fill(bounds, ARTWORK_BACKGROUND.withScaledAlpha(alpha))
         if (artwork == null || alpha < ARTWORK_ALPHA_THRESHOLD) return
-        context.blit(
-            artwork.textureView,
-            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            PLAYER_PADDING,
-            PLAYER_PADDING,
-            PLAYER_PADDING + ARTWORK_SIZE,
-            PLAYER_PADDING + ARTWORK_SIZE,
-            0f,
-            1f,
-            0f,
-            1f,
-        )
+        context.drawLinearTexture(artwork, bounds)
     }
 
     private fun drawTrackDetails(context: GuiGraphicsExtractor, x: Int) {
@@ -76,7 +62,8 @@ internal class SpotifyHudRenderable(
         context.text(font, font.elide(playback.collection, contentRight - x), x, COLLECTION_Y, DIM_COLOR.withScaledAlpha(alpha), false)
         drawPlaybackState(context, contentRight - STATUS_WIDTH + STATUS_INSET, TITLE_Y + 1)
 
-        val progress = playback.positionAt(nowMillis).toDouble() / playback.durationMillis
+        val position = playback.positionAt(nowMillis)
+        val progress = position.toDouble() / playback.durationMillis
         context.fill(x, PROGRESS_Y, contentRight, PROGRESS_Y + PROGRESS_HEIGHT, TRACK_COLOR.withScaledAlpha(alpha))
         context.fill(
             x,
@@ -85,7 +72,7 @@ internal class SpotifyHudRenderable(
             PROGRESS_Y + PROGRESS_HEIGHT,
             PixelControlColors.ACCENT.withScaledAlpha(alpha),
         )
-        val elapsed = formatTime(playback.positionAt(nowMillis))
+        val elapsed = formatTime(position)
         val duration = formatTime(playback.durationMillis)
         context.text(font, elapsed, x, TIME_Y, DIM_COLOR.withScaledAlpha(alpha), false)
         context.text(
@@ -106,7 +93,7 @@ internal class SpotifyHudRenderable(
             return
         }
         repeat(PLAY_TRIANGLE_WIDTH) { column ->
-            val inset = kotlin.math.abs(PLAY_TRIANGLE_CENTER - column)
+            val inset = abs(PLAY_TRIANGLE_CENTER - column)
             context.fill(x + column, y + inset, x + column + 1, y + STATUS_HEIGHT - inset, color)
         }
     }
