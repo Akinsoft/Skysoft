@@ -8,8 +8,8 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorRegistry
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
@@ -48,36 +48,28 @@ object ServerInfoDisplay {
                 visible = { canRenderLive() },
                 render = { context, _ -> renderHud(context) },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id: String = "server_info_display"
                 override val label: String = "Server Info Display"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun width(): Int = currentSimpleRenderable()?.width ?: 0
-                override fun height(): Int = currentSimpleRenderable()?.height ?: 0
+                override fun hudRenderable() = currentSimpleRenderable()
                 override fun isVisible(): Boolean =
                     canRenderLive() && config.details.style == ServerInfoDisplayStyle.SIMPLE
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    if (isVisible()) currentSimpleRenderable()?.render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
             },
         )
         ServerInfoMetric.entries.forEach { metric ->
-            HudEditorRegistry.register(object : HudEditorElement {
+            HudEditorRegistry.register(object : RenderableHudEditorElement {
                 override val id: String = "server_info_display_${metric.name.lowercase(Locale.ROOT)}"
                 override val label: String = "Server Info: $metric"
                 override val position get() = config.splitPosition(metric)
                 override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun width(): Int = currentSplitRenderable(metric).width
-                override fun height(): Int = currentSplitRenderable(metric).height
+                override fun hudRenderable() = currentSplitRenderable(metric)
                 override fun isVisible(): Boolean =
                     canRenderLive() &&
                         config.details.style == ServerInfoDisplayStyle.SPLIT &&
                         metric in configuredMetrics()
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    if (isVisible()) currentSplitRenderable(metric).render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Server Info Display")
             })
         }

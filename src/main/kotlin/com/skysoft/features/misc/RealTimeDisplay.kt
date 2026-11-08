@@ -6,7 +6,7 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayLayer
 import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
@@ -30,17 +30,13 @@ object RealTimeDisplay {
                 visible = { canRenderLive() },
                 render = { context, _ -> renderHud(context) },
             ),
-            object : HudEditorElement {
+            object : RenderableHudEditorElement {
                 override val id: String = "real_time_display"
                 override val label: String = "Real Time Display"
                 override val position get() = config.position
                 override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun width(): Int = currentRenderable().width
-                override fun height(): Int = currentRenderable().height
+                override fun hudRenderable() = currentRenderable()
                 override fun isVisible(): Boolean = canRenderLive()
-                override fun renderEditor(context: GuiGraphicsExtractor) {
-                    if (isVisible()) currentRenderable().render(context)
-                }
                 override fun openConfig() = SkysoftConfigGui.open("Real Time Display")
             },
         )
