@@ -82,7 +82,7 @@ final class WaypointerCompact {
             case 1 -> "";
             case 2 -> "Secret Route";
             case 3 -> title + " secrets";
-            case 4 -> "Secret Route — " + title;
+            case 4 -> "Secret Route: " + title;
             case 5 -> "Route 1";
             case 6 -> "New group";
             case 7 -> "Imported Route";

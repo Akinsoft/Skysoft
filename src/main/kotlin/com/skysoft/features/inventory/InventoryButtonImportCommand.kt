@@ -71,7 +71,7 @@ internal object InventoryButtonImportCommand {
         SkysoftChat.feedback(source, "Found ${sources.size} inventory button configs. Choose one:")
         sources.forEachIndexed { index, importSource ->
             val command = "/skysoft buttons import source ${index + 1}"
-            val line = Component.literal("[${index + 1}] ${importSource.kind.displayName} — ${importSource.profileName}")
+            val line = Component.literal("[${index + 1}] ${importSource.kind.displayName}: ${importSource.profileName}")
                 .withStyle {
                     it.withColor(ChatFormatting.AQUA)
                         .withClickEvent(ClickEvent.RunCommand(command))
@@ -90,7 +90,7 @@ internal object InventoryButtonImportCommand {
             return 0
         }
         val read = plan.read
-        SkysoftChat.feedback(source, "${importSource.kind.displayName} — ${importSource.profileName}")
+        SkysoftChat.feedback(source, "${importSource.kind.displayName}: ${importSource.profileName}")
         SkysoftChat.feedback(
             source,
             "Found ${read.buttons.size} active buttons: ${plan.imported} ready, " +
