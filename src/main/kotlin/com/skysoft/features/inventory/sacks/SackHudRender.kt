@@ -148,7 +148,7 @@ internal class SackHudRenderable(
     private val layout = InventoryTrackerLayout(
         title = "Sacks Tracker",
         emptyText = emptyText,
-        indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, " §8• §7"),
+        indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow),
         rowWidths = rows.map(SackHudRow::width),
         minimumWidth = if (compactRows) COMPACT_MINIMUM_WIDTH else MINIMUM_WIDTH,
         showTitle = showTitle,

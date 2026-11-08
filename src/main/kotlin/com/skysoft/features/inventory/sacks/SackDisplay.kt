@@ -235,7 +235,7 @@ private class SackDisplayRenderable(
         )
     }
     private val emptyText = "§7No stored items."
-    private val indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow, " §8• §7")
+    private val indicatorText = OverlayTextStyle.hiddenRowsIndicator(hiddenAbove, hiddenBelow)
     private val modeLine = "§7Mode: §a§l[${mode.displayName}]"
     private val priceSourceLine = "§7Price Source: §e§l[$priceSource]"
     private val totalText = coinValueText(totalValue)
