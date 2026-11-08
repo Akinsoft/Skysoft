@@ -4,10 +4,18 @@ import com.mojang.brigadier.CommandDispatcher
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.commands.SkysoftCommandRegistry.Companion.literal
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents
 
 object WarpAliases {
+    fun register() {
+        ClientSendMessageEvents.MODIFY_COMMAND.register { command ->
+            SkysoftErrorBoundary.value("Short Warp Commands rewrite", command) { rewrite(command) }
+        }
+    }
+
     fun registerSuggestions(dispatcher: CommandDispatcher<FabricClientCommandSource>) {
         WARP_ALIASES.forEach { alias ->
             dispatcher.register(
@@ -16,8 +24,7 @@ object WarpAliases {
         }
     }
 
-    @JvmStatic
-    fun rewrite(command: String): String =
+    private fun rewrite(command: String): String =
         if (SkysoftConfigGui.config().utilities.shortWarpCommands && HypixelLocationState.inSkyBlock) {
             rewriteWarpAlias(command, HypixelLocationState.currentIsland) ?: command
         } else {

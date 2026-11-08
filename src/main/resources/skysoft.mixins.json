@@ -21,7 +21,6 @@
     "ChatScreenMixin",
     "CenteredCrosshairMixin",
     "CrosshairVisibilityMixin",
-    "ClientCommandMixin",
     "ClientPacketListenerAccessor",
     "ClientTextTooltipAccessor",
     "ParticlePacketMixin",
