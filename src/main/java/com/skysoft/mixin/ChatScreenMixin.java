@@ -102,19 +102,12 @@ public abstract class ChatScreenMixin extends Screen {
     protected void skysoftAnimateChatInputBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
         float displacement = MixinErrorBoundary.value("Chat input motion", 0.0F, this::skysoftChatOpenDisplacement);
         openDisplacement.set(displacement);
-        if (displacement == 0.0F) { original.call(graphics, minX, minY, maxX, maxY, color); return; }
-        graphics.pose().pushMatrix();
-        try { graphics.pose().translate(0.0F, displacement); original.call(graphics, minX, minY, maxX, maxY, color); }
-        finally { graphics.pose().popMatrix(); }
+        ChatMotionProfile.renderShifted(graphics, displacement, () -> original.call(graphics, minX, minY, maxX, maxY, color));
     }
 
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"))
     protected void skysoftAnimateChatInput(ChatScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
-        float displacement = openDisplacement.get();
-        if (displacement == 0.0F) { original.call(screen, graphics, mouseX, mouseY, delta); return; }
-        graphics.pose().pushMatrix();
-        try { graphics.pose().translate(0.0F, displacement); original.call(screen, graphics, mouseX, mouseY, delta); }
-        finally { graphics.pose().popMatrix(); }
+        ChatMotionProfile.renderShifted(graphics, openDisplacement.get(), () -> original.call(screen, graphics, mouseX, mouseY, delta));
     }
 
     @Inject(method = "removed", at = @At("HEAD"))
