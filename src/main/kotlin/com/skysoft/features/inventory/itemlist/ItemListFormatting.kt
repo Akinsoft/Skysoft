@@ -1,7 +1,7 @@
 package com.skysoft.features.inventory.itemlist
 
 import com.skysoft.utils.DurationParts
-import java.util.Locale
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import kotlin.math.floor
 
 internal object ItemListFormatting {
@@ -23,7 +23,7 @@ internal object ItemListFormatting {
 
     private fun compact(value: Long, divisor: Long, suffix: String): String {
         val amount = floor(value.toDouble() / divisor * DECIMAL_SCALE) / DECIMAL_SCALE
-        val formatted = String.format(Locale.US, "%.1f", amount).removeSuffix(".0")
+        val formatted = amount.fixedDecimals(1).removeSuffix(".0")
         return "$formatted$suffix"
     }
 

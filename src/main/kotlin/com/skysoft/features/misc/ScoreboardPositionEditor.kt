@@ -2,6 +2,7 @@ package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.HudEditorElement
+import com.skysoft.gui.hudEditorPositionLine
 import com.skysoft.gui.transform
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.HudEditorSnapshot
@@ -10,7 +11,6 @@ import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SidebarScoreboard
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.input.InputHandlingResult
-import java.util.Locale
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.numbers.StyledFormat
@@ -92,9 +92,7 @@ object ScoreboardPositionEditor {
 
             override fun editorDetailsLines(): List<String> = listOf(
                 if (config.isScoreboardPositionCustomized) {
-                    "§7x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
-                        "%.2f".format(Locale.US, position.scale)
-                    }"
+                    hudEditorPositionLine(position)
                 } else {
                     "§7Position: §eVanilla§7, scale: §e1.00"
                 },

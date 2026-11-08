@@ -14,6 +14,7 @@ import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.OverlayMessages
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SkysoftMessage
@@ -24,7 +25,6 @@ import com.skysoft.utils.renderables.primitives.ItemIconRenderable
 import com.skysoft.utils.renderables.primitives.StringRenderable
 import com.skysoft.utils.renderables.renderRenderable
 import com.skysoft.utils.renderables.withIsolatedPose
-import java.util.Locale
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
@@ -138,11 +138,7 @@ private fun skillExpProgressText(state: SkillExpDisplayState, format: SkillExpPr
 private fun skillExpPercentage(state: SkillExpDisplayState): String {
     val requiredXp = state.neededXp.takeUnless { it == 0L }
         ?: SkillExpGainApi.xpRequiredForMaxLevel(state.skill)
-    val percentage = String.format(
-        Locale.ROOT,
-        "%.1f",
-        state.currentXp.toDouble() / requiredXp * PERCENT_DENOMINATOR,
-    )
+    val percentage = (state.currentXp.toDouble() / requiredXp * PERCENT_DENOMINATOR).fixedDecimals(1)
     return "${percentage.removeSuffix(".0")}%"
 }
 

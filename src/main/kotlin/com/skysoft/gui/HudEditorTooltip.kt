@@ -1,9 +1,10 @@
 package com.skysoft.gui
 
+import com.skysoft.config.core.HudPosition
 import com.skysoft.features.inventory.InventoryButtonManager
 import com.skysoft.utils.MinecraftInput
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.input.InputUtilities
-import java.util.Locale
 
 internal fun hudEditorTooltipLines(
     active: HudEditorElement?,
@@ -14,7 +15,7 @@ internal fun hudEditorTooltipLines(
         activeButton != null -> {
             val button = activeButton.button
             add("§7Command: §e${button.command.takeIf { it.isNotBlank() } ?: "empty"}")
-            add("§7Scale: §e${"%.2f".format(Locale.US, button.scale)}")
+            add("§7Scale: §e${button.scale.fixedDecimals(2)}")
             add(inventoryButtonHoldKeyLine(button.requiredKey))
             add("§eLeft-click drag §7to move")
             add("§eDouble-click §7to select")
@@ -38,9 +39,7 @@ internal fun hudEditorTooltipLines(
             } else {
                 add(
                     if (active.canScale) {
-                        "§7x: §e${active.position.x}§7, y: §e${active.position.y}§7, scale: §e${
-                            "%.2f".format(Locale.US, active.position.scale)
-                        }"
+                        hudEditorPositionLine(active.position)
                     } else {
                         "§7x: §e${active.position.x}§7, y: §e${active.position.y}"
                     },
@@ -58,6 +57,9 @@ internal fun hudEditorTooltipLines(
         addAll(lines.map { "§7$it" })
     }
 }
+
+internal fun hudEditorPositionLine(position: HudPosition): String =
+    "§7x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${position.scale.fixedDecimals(2)}"
 
 private fun defaultHudEditorActionLines(element: HudEditorElement): List<String> = buildList {
     if (element.canMove) {

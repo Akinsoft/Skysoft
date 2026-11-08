@@ -12,6 +12,7 @@ import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.gui.tooltip.TooltipScrollExcludedScreen
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftInput
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.PixelButtonTone
@@ -24,7 +25,6 @@ import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.input.InputUtilities
 import com.skysoft.utils.render.LegacyTextRenderer
 import com.skysoft.utils.renderables.withIsolatedPose
-import java.util.Locale
 import kotlin.math.max
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -534,7 +534,7 @@ object InventoryButtonEditorScreen {
                             } else {
                                 "§7Empty button slot"
                             },
-                            "§7Scale: §e${"%.2f".format(Locale.US, placement.button.scale)}",
+                            "§7Scale: §e${placement.button.scale.fixedDecimals(2)}",
                             "§7Hold Key: §e${InputUtilities.bindingName(placement.button.requiredKey)}",
                             "§eLeft-click §7to $action",
                             "§eLeft-click drag §7to move",

@@ -6,9 +6,9 @@ import com.skysoft.config.features.pets.display.text.PetTextDisplaySettings
 import com.skysoft.config.features.pets.display.text.PetTextConfig
 import com.skysoft.data.StoredPetData
 import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.NumberUtilities.roundTo
 import com.skysoft.utils.NumberUtilities.shortFormat
-import java.util.Locale
 
 private typealias TextElement = PetTextConfig.TextElement
 private typealias NumberFormatEntry = PetTextConfig.NumberFormatEntry
@@ -57,11 +57,7 @@ object PetDisplayTextFormatter {
     }
 
     private fun formatLevelProgressionPercentage(percentage: Double): String =
-        String.format(
-            Locale.US,
-            "%.1f",
-            percentage.coerceIn(0.0, MAX_PERCENT).roundTo(PERCENT_DECIMAL_PLACES),
-        )
+        percentage.coerceIn(0.0, MAX_PERCENT).roundTo(PERCENT_DECIMAL_PLACES).fixedDecimals(1)
 
     private fun formatExpPair(firstExp: Double, secondExp: Double, xpFormat: NumberFormatEntry): String = when (xpFormat) {
         NumberFormatEntry.DEFAULT -> "§b${firstExp.toLong().addSeparators()}§9/§b${secondExp.toLong().shortFormat()}"

@@ -6,12 +6,12 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.core.HudPosition
 import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudEditorSnapshot
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.TextFieldState
 import com.skysoft.utils.input.InputHandlingResult
 import com.skysoft.utils.render.LegacyTextRenderer
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.util.Locale
 import kotlin.math.roundToInt
 
 internal class ItemListHudEditorElement(private val currentLayout: () -> ItemListLayout?) : HudEditorElement {
@@ -111,7 +111,7 @@ internal class ItemListHudEditorElement(private val currentLayout: () -> ItemLis
         val itemScale = currentLayout()?.itemScale ?: settings.itemScale
         return listOf(
             "§7Width: §e$width§7, visible grid: §e${currentLayout()?.columns ?: 0} x $rows",
-            "§7Item size: §e${"%.1f".format(Locale.US, itemScale)}x",
+            "§7Item size: §e${itemScale.fixedDecimals(1)}x",
         )
     }
 

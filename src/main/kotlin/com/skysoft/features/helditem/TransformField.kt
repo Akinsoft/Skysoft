@@ -2,7 +2,7 @@ package com.skysoft.features.helditem
 
 import com.skysoft.config.HeldItemTransformConfig
 import com.skysoft.config.HeldItemTransformLimits
-import java.util.Locale
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 
 internal enum class TransformField(
     val label: String,
@@ -65,8 +65,8 @@ internal enum class TransformField(
     }
 
     fun formattedValue(value: Float): String {
-        if (this in HeldItemEditorFields.ROTATION) return String.format(Locale.US, "%.0f°", value)
-        val text = String.format(Locale.US, "%.2f", value)
+        if (this in HeldItemEditorFields.ROTATION) return "${value.fixedDecimals(0)}°"
+        val text = value.fixedDecimals(2)
         return if (this == SCALE || this == SWING) "${text}x" else text
     }
 }

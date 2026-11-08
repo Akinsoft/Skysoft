@@ -8,9 +8,9 @@ import com.skysoft.gui.HudEditorElement
 import com.skysoft.gui.HudTransform
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.NumberUtilities.addSeparators
+import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.NumberUtilities.shortFormat
 import com.skysoft.utils.input.InputHandlingResult
-import java.util.Locale
 import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -55,9 +55,7 @@ internal class CustomBarTextElement(private val part: CustomBarPart) : HudEditor
     }
 
     override fun editorDetailsLines(): List<String> = listOf(
-        "§7Offset x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${
-            "%.2f".format(Locale.US, position.scale)
-        }",
+        "§7Offset x: §e${position.x}§7, y: §e${position.y}§7, scale: §e${position.scale.fixedDecimals(2)}",
     )
 
     override fun editorActionLines(): List<String> = listOf(
