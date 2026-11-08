@@ -20,7 +20,7 @@ public abstract class KeepTerrainLoadedPacketMixin {
         method = "handleForgetLevelChunk",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+            target = PacketHandlerTargetsKt.PACKET_THREAD_CHECK_TARGET,
             shift = At.Shift.AFTER
         ),
         cancellable = true
@@ -38,7 +38,7 @@ public abstract class KeepTerrainLoadedPacketMixin {
         method = "handleLevelChunkWithLight",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
+            target = PacketHandlerTargetsKt.PACKET_THREAD_CHECK_TARGET,
             shift = At.Shift.AFTER
         )
     )

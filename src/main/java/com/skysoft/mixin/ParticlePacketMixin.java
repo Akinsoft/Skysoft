@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
 public class ParticlePacketMixin {
-    @Inject(method = "handleParticleEvent", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V", shift = At.Shift.AFTER), cancellable = true)
+    @Inject(method = "handleParticleEvent", at = @At(value = "INVOKE", target = PacketHandlerTargetsKt.PACKET_THREAD_CHECK_TARGET, shift = At.Shift.AFTER), cancellable = true)
     protected void skysoftPostReceiveParticleEvent(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
         if (!ClientParticleEvents.INSTANCE.hasActiveListeners()) return;
         boolean cancelled = MixinErrorBoundary.value("Particle packet dispatch", false, () -> ClientParticleEvents.INSTANCE.shouldCancelParticle(MinecraftParticles.event(packet)));
