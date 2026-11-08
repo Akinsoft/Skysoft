@@ -20,15 +20,15 @@ object ChatCopy {
         val chat = MinecraftClient.chat(minecraft)
         val accessor = chat as ChatComponentAccessor
         val message = hoveredMessage(
-            lines = accessor.skysoftTrimmedMessages(),
+            lines = accessor.skysoftGetTrimmedMessages(),
             mouseX = mouseX,
             mouseY = mouseY,
             guiHeight = minecraft.window.guiScaledHeight,
             scale = minecraft.options.chatScale().get(),
             chatWidth = ChatComponent.getWidth(minecraft.options.chatWidth().get()),
-            lineHeight = accessor.skysoftLineHeight(),
+            lineHeight = accessor.skysoftGetLineHeight(),
             linesPerPage = chat.linesPerPage,
-            scrollPosition = accessor.skysoftChatScrollbarPos(),
+            scrollPosition = accessor.skysoftGetChatScrollbarPos(),
         ) ?: return CopyChatResult.NO_MESSAGE
 
         val text = ChatTimestamps.originalContent(message.content()).string.removeColor()

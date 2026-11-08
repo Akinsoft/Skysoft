@@ -9,9 +9,9 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(ChatComponent.class)
 public interface ChatComponentAccessor {
-    @Accessor("allMessages") List<GuiMessage> skysoftAllMessages();
-    @Accessor("trimmedMessages") List<GuiMessage.Line> skysoftTrimmedMessages();
-    @Accessor("chatScrollbarPos") int skysoftChatScrollbarPos();
+    @Accessor("allMessages") List<GuiMessage> skysoftGetAllMessages();
+    @Accessor("trimmedMessages") List<GuiMessage.Line> skysoftGetTrimmedMessages();
+    @Accessor("chatScrollbarPos") int skysoftGetChatScrollbarPos();
     @Invoker("refreshTrimmedMessages") void skysoftRefreshTrimmedMessages();
-    @Invoker("getLineHeight") int skysoftLineHeight();
+    @Invoker("getLineHeight") int skysoftGetLineHeight();
 }
