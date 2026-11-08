@@ -2,12 +2,9 @@ package com.skysoft.utils.animation
 
 import com.skysoft.utils.EasingUtilities
 
-internal class PanelFadeTransition(
-    nanoTime: () -> Long = System::nanoTime,
-    private val durationNanos: Long = DEFAULT_DURATION_NANOS,
-) {
+internal class PanelFadeTransition {
     private var phase = Phase.HIDDEN
-    private val clock = AnimationClock(nanoTime)
+    private val clock = AnimationClock()
 
     val isVisible: Boolean
         get() = phase != Phase.HIDDEN
@@ -35,7 +32,7 @@ internal class PanelFadeTransition(
     }
 
     fun opacity(): Double {
-        val progress = clock.progressNanos(durationNanos).toDouble()
+        val progress = clock.progressNanos(DURATION_NANOS).toDouble()
         val linearOpacity = when (phase) {
             Phase.HIDDEN -> return 0.0
             Phase.SHOWN -> return 1.0
@@ -56,6 +53,6 @@ internal class PanelFadeTransition(
     }
 
     private companion object {
-        const val DEFAULT_DURATION_NANOS = 160_000_000L
+        const val DURATION_NANOS = 160_000_000L
     }
 }
