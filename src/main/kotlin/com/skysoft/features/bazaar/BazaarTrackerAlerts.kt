@@ -2,9 +2,7 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.config.BazaarTrackerSound
 import com.skysoft.data.ProfileStorageView
-import net.minecraft.client.Minecraft
-import net.minecraft.client.resources.sounds.SimpleSoundInstance
-import net.minecraft.sounds.SoundEvents
+import com.skysoft.utils.SoundUtilities
 
 internal object BazaarTrackerAlerts {
     private var statusAlertTick = 0
@@ -70,36 +68,22 @@ internal object BazaarTrackerAlerts {
 
     private fun playAlertSound(sound: BazaarTrackerSound) {
         if (sound !in config.settings.sounds.get()) return
-        val minecraft = Minecraft.getInstance()
-        val instance = when (sound) {
+        when (sound) {
             BazaarTrackerSound.FILLED ->
-                SimpleSoundInstance.forUI(
-                    SoundEvents.NOTE_BLOCK_PLING.value(),
-                    FILLED_SOUND_VOLUME,
-                    FILLED_SOUND_PITCH,
-                )
+                SoundUtilities.playUiSound("block.note_block.pling", FILLED_SOUND_PITCH, FILLED_SOUND_VOLUME)
             BazaarTrackerSound.PARTIAL ->
-                SimpleSoundInstance.forUI(
-                    SoundEvents.EXPERIENCE_ORB_PICKUP,
-                    PARTIAL_SOUND_VOLUME,
-                    PARTIAL_SOUND_PITCH,
-                )
+                SoundUtilities.playUiSound("entity.experience_orb.pickup", PARTIAL_SOUND_PITCH, PARTIAL_SOUND_VOLUME)
             BazaarTrackerSound.OUTBID_UNDERCUT ->
-                SimpleSoundInstance.forUI(
-                    SoundEvents.NOTE_BLOCK_BASS.value(),
-                    OUTBID_SOUND_VOLUME,
-                    OUTBID_SOUND_PITCH,
-                )
+                SoundUtilities.playUiSound("block.note_block.bass", OUTBID_SOUND_PITCH, OUTBID_SOUND_VOLUME)
         }
-        minecraft.soundManager.play(instance)
     }
 
     private const val STATUS_ALERT_INTERVAL_TICKS = 20
     private const val OUTBID_SOUND_COOLDOWN_MILLIS = 60_000L
-    private const val FILLED_SOUND_VOLUME = 1.6f
-    private const val FILLED_SOUND_PITCH = 0.8f
-    private const val PARTIAL_SOUND_VOLUME = 1.25f
-    private const val PARTIAL_SOUND_PITCH = 0.35f
-    private const val OUTBID_SOUND_VOLUME = 0.65f
-    private const val OUTBID_SOUND_PITCH = 0.7f
+    private const val FILLED_SOUND_PITCH = 1.6f
+    private const val FILLED_SOUND_VOLUME = 0.8f
+    private const val PARTIAL_SOUND_PITCH = 1.25f
+    private const val PARTIAL_SOUND_VOLUME = 0.35f
+    private const val OUTBID_SOUND_PITCH = 0.65f
+    private const val OUTBID_SOUND_VOLUME = 0.7f
 }
