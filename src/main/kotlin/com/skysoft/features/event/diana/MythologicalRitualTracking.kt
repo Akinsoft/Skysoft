@@ -4,6 +4,7 @@ import com.skysoft.config.DianaRareMobOption
 import com.skysoft.features.loot.RareLootChatDrop
 import com.skysoft.features.loot.RareLootDropCount
 import com.skysoft.features.loot.RareLootShareReceipt
+import com.skysoft.utils.NumberUtilities.formatLongOrNull
 
 internal class MythologicalRitualLootShareWindow {
     private var lastReceiptAtMillis = 0L
@@ -65,8 +66,7 @@ internal object MythologicalRitualMessageTracker {
             ?.groups
             ?.get("coins")
             ?.value
-            ?.replace(",", "")
-            ?.toLongOrNull()
+            ?.formatLongOrNull()
             ?: return
         addItem(MythologicalRitualItemKey.COINS, coins)
     }
