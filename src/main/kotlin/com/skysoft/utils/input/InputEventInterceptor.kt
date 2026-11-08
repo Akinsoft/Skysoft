@@ -63,5 +63,5 @@ object InputEventInterceptor {
             )
 
     private fun handlingResult(isConsumed: Boolean): InputHandlingResult =
-        if (isConsumed) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
+        InputHandlingResult.from(isConsumed)
 }

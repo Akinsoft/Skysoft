@@ -35,20 +35,12 @@ object ProfitTrackerHudInput {
     @JvmStatic
     fun handleKeyPress(event: KeyEvent): InputHandlingResult {
         val target = visibleItemPanelTarget() ?: return InputHandlingResult.IGNORED
-        return if (hudControls.wasKeyPressHandled(target, event)) {
-            InputHandlingResult.CONSUMED
-        } else {
-            InputHandlingResult.IGNORED
-        }
+        return InputHandlingResult.from(hudControls.wasKeyPressHandled(target, event))
     }
 
     @JvmStatic
     fun handleCharTyped(event: CharacterEvent): InputHandlingResult =
-        if (visibleItemPanelTarget() != null && hudControls.wasCharTypedHandled(event)) {
-            InputHandlingResult.CONSUMED
-        } else {
-            InputHandlingResult.IGNORED
-        }
+        InputHandlingResult.from(visibleItemPanelTarget() != null && hudControls.wasCharTypedHandled(event))
 }
 
 private fun visibleItemPanelTarget(): ProfitTrackerTarget? = itemPanelTarget?.takeIf { it.isVisible() }
@@ -242,7 +234,7 @@ private fun registerMouseCapture() {
             hudControls.wasClickHandled(screen, it, action, click.button())
         } == true
         if (!panelHovered && !opensPanel && (action != null || !handled)) itemPanel.close()
-        if (handled || panelHovered) InputHandlingResult.CONSUMED else InputHandlingResult.IGNORED
+        InputHandlingResult.from(handled || panelHovered)
     }
     InventoryOverlayInput.registerScrollHandler("Profit Tracker mouse scroll", isActive) {
             screen, mouseX, mouseY, verticalAmount ->
