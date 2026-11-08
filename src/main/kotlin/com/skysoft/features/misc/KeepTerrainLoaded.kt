@@ -389,4 +389,4 @@ private fun removeLight(level: ClientLevel, position: ChunkPos) {
 }
 
 private fun serverViewDistance(minecraft: Minecraft): Int? =
-    (minecraft.connection as? ClientPacketListenerAccessor)?.skysoftServerChunkRadius()
+    (minecraft.connection as? ClientPacketListenerAccessor)?.skysoftGetServerChunkRadius()

@@ -28,7 +28,7 @@ object ChatHistoryPersistence {
         }
         SkysoftClientEvents.onClientStopping("Chat History save") {
             if (ChatFeatureSettings.isHistoryRetained()) {
-                save((MinecraftClient.chat(it) as ChatComponentAccessor).skysoftAllMessages())
+                save((MinecraftClient.chat(it) as ChatComponentAccessor).skysoftGetAllMessages())
             }
         }
     }
@@ -54,7 +54,7 @@ object ChatHistoryPersistence {
                 }
             }
             val accessor = chat as ChatComponentAccessor
-            accessor.skysoftAllMessages().apply {
+            accessor.skysoftGetAllMessages().apply {
                 clear()
                 addAll(messages)
             }

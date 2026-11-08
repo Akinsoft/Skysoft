@@ -59,7 +59,7 @@ object ChatTabs {
     }
 
     private fun allChatMessages(): List<GuiMessage> =
-        (MinecraftClient.chat(Minecraft.getInstance()) as ChatComponentAccessor).skysoftAllMessages()
+        (MinecraftClient.chat(Minecraft.getInstance()) as ChatComponentAccessor).skysoftGetAllMessages()
 
     internal fun outgoingCommand(message: String): String? {
         if (!isEnabled()) return null

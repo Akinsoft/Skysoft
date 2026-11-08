@@ -79,7 +79,7 @@ public abstract class ChatComponentMixin {
     protected Component skysoftTransformMessage(Component contents, @Share("pendingCompaction") LocalRef<PreparedChatMessage> pendingCompaction) {
         return MixinErrorBoundary.value("Chat message transformation", contents, () -> {
             ChatComponentAccessor accessor = (ChatComponentAccessor) this;
-            PreparedChatMessage prepared = MixinFeatureAdapters.prepareChatMessage(contents, accessor.skysoftAllMessages(), accessor.skysoftTrimmedMessages());
+            PreparedChatMessage prepared = MixinFeatureAdapters.prepareChatMessage(contents, accessor.skysoftGetAllMessages(), accessor.skysoftGetTrimmedMessages());
             pendingCompaction.set(prepared);
             return prepared.getContent();
         });
@@ -90,7 +90,7 @@ public abstract class ChatComponentMixin {
         MixinErrorBoundary.run("Chat message compaction association", () -> {
             PreparedChatMessage prepared = pendingCompaction.get();
             if (prepared == null) return;
-            List<GuiMessage> messages = ((ChatComponentAccessor) this).skysoftAllMessages();
+            List<GuiMessage> messages = ((ChatComponentAccessor) this).skysoftGetAllMessages();
             GuiMessage newest = messages.isEmpty() ? null : messages.getFirst();
             if (newest != null && newest.content() == prepared.getContent()) ChatCompactor.INSTANCE.associate(prepared, newest);
         });
@@ -106,7 +106,7 @@ public abstract class ChatComponentMixin {
         MixinErrorBoundary.run("Chat retained history capture", () -> {
             ChatCompactor.INSTANCE.clear();
             if (history && ChatFeatureSettings.INSTANCE.isHistoryRetained()) {
-                List<GuiMessage> messages = ((ChatComponentAccessor) this).skysoftAllMessages();
+                List<GuiMessage> messages = ((ChatComponentAccessor) this).skysoftGetAllMessages();
                 ChatHistoryPersistence.INSTANCE.save(messages);
                 preservedMessages.set(new ArrayList<>(messages.subList(0, Math.min(messages.size(), ChatFeatureSettings.INSTANCE.historyLimit()))));
             }
@@ -119,7 +119,7 @@ public abstract class ChatComponentMixin {
             List<GuiMessage> messages = preservedMessages.get();
             if (messages == null) return;
             ChatComponentAccessor accessor = (ChatComponentAccessor) this;
-            accessor.skysoftAllMessages().addAll(messages);
+            accessor.skysoftGetAllMessages().addAll(messages);
             accessor.skysoftRefreshTrimmedMessages();
         });
     }
