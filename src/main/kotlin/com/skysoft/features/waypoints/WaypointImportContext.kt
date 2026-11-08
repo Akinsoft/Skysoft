@@ -1,6 +1,7 @@
 package com.skysoft.features.waypoints
 
 import com.skysoft.data.SkyBlockIsland
+import com.skysoft.utils.TextUtilities.removeColor
 
 internal class WaypointImportContext(val source: String) {
     val warnings = linkedSetOf<String>()
@@ -25,7 +26,7 @@ internal class WaypointImportContext(val source: String) {
     }
 
     fun name(value: String): String {
-        val clean = value.replace(FORMATTING, "").filter(Char::isAllowedInWaypointName)
+        val clean = value.removeColor().filter(Char::isAllowedInWaypointName)
             .take(MAX_WAYPOINT_NAME).dropLastWhile(Char::isHighSurrogate).trim()
         if (clean != value) warnings += "Long names and text formatting were shortened or removed."
         return clean
@@ -58,9 +59,5 @@ internal class WaypointImportContext(val source: String) {
             else -> SkyBlockIsland.entries.firstOrNull { it.name.equals(normalized, ignoreCase = true) }
                 ?: SkyBlockIsland.getByLocation(normalized, zone)
         }
-    }
-
-    private companion object {
-        val FORMATTING = Regex("§.")
     }
 }

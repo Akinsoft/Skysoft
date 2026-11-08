@@ -3,6 +3,7 @@ package com.skysoft.features.loot
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.utils.NumberUtilities.romanNumeral
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.TextUtilities.removeColor
 import com.skysoft.utils.TextUtilities.titleCaseWords
 import java.util.Locale
 
@@ -44,7 +45,7 @@ internal fun String.trimParentheses(): String =
 
 private fun itemIdFromDisplayName(displayName: String): String? =
     displayName
-        .replace(formattingCodePattern, "")
+        .removeColor()
         .toItemIdKey()
         .takeIf { it.isNotBlank() }
         ?.let { itemId -> displayNameItemIdOverrides[itemId] ?: itemId }
@@ -73,7 +74,6 @@ private fun String.genericDisplayName(): String =
         .titleCaseWords()
 
 private val nonItemIdCharactersPattern = Regex("""[^A-Z0-9]+""")
-private val formattingCodePattern = Regex("""§.""")
 private val enchantmentPattern = Regex("""^ENCHANTMENT_(?:ULTIMATE_)?(?<name>.+)_(?<level>\d+)$""")
 private val displayNameItemIdOverrides = mapOf(
     "CARROT" to "CARROT_ITEM",

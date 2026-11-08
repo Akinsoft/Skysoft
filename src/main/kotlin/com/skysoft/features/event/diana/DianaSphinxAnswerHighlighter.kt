@@ -2,6 +2,7 @@ package com.skysoft.features.event.diana
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.TextUtilities.removeColor
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.MutableComponent
@@ -111,14 +112,11 @@ private fun Component.sphinxAnswerHighlight(): Component {
 private fun Component.plainCopyWithoutLegacyFormatting(): MutableComponent {
     val currentContents = contents
     return if (currentContents is PlainTextContents) {
-        Component.literal(currentContents.text().removeLegacyFormatting())
+        Component.literal(currentContents.text().removeColor())
     } else {
         plainCopy()
     }.withStyle(style)
 }
-
-private fun String.removeLegacyFormatting(): String =
-    legacyFormattingPattern.replace(this, "")
 
 private val SPHINX_ANSWERS = mapOf(
     "How do you obtain the Dark Purple Dye?" to "Dark Auction",
@@ -137,5 +135,3 @@ private val SPHINX_ANSWERS = mapOf(
     "Who owns the Gold Essence Shop?" to "Marigold",
     "Who runs the Chocolate Factory?" to "Hoppity",
 )
-
-private val legacyFormattingPattern = Regex("\u00A7.")

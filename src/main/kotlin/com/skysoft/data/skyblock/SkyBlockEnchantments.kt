@@ -2,7 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.Gson
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.utils.TextUtilities.removeColor
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import java.io.StringReader
 import java.util.Locale
 import net.minecraft.world.item.ItemStack
@@ -62,7 +62,7 @@ internal object SkyBlockEnchantments {
     }
 
     private fun enchantmentRarity(lore: List<String>): String? {
-        val name = lore.lastOrNull { it.isNotBlank() }?.removeColor()?.trim()?.replace(' ', '_') ?: return null
+        val name = lore.lastOrNull { it.isNotBlank() }?.cleanSkyBlockText()?.replace(' ', '_') ?: return null
         return SkyBlockRarity.getByName(name)?.name?.replace('_', ' ')
     }
 
@@ -93,7 +93,7 @@ private fun normalizeEnchantmentLore(source: List<String>): List<String> {
     val lines = source.filter(String::isNotBlank)
     return buildList {
         lines.forEach { line ->
-            val plain = line.replace(COLOR_CODE, "").trim()
+            val plain = line.cleanSkyBlockText()
             val startsSection = plain.startsWith("Applicable on:") ||
                 plain.startsWith("Use this ") ||
                 plain.matches(RARITY_LINE)
@@ -103,7 +103,6 @@ private fun normalizeEnchantmentLore(source: List<String>): List<String> {
     }
 }
 
-private val COLOR_CODE = Regex("§.")
 private val RARITY_LINE = Regex("(COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC|DIVINE|SPECIAL|VERY SPECIAL).*", RegexOption.IGNORE_CASE)
 
 internal fun enchantmentItemId(id: String, level: Int): String {
