@@ -1,7 +1,7 @@
 package com.skysoft.mixin;
 
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.skysoft.integration.MixinFeatureAdapters;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import java.util.Collections;
 import java.util.EnumSet;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
-public class TabListPacketMixin {
+public abstract class TabListPacketMixin {
     @Unique
     private static final EnumSet<ClientboundPlayerInfoUpdatePacket.Action> SNAPSHOT_ACTIONS = EnumSet.of(
         ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER,

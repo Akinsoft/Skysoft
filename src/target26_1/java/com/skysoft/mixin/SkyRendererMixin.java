@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(SkyRenderer.class)
-public class SkyRendererMixin {
+public abstract class SkyRendererMixin {
     @ModifyVariable(method = "renderSkyDisc", at = @At("HEAD"), argsOnly = true)
     private int skysoftUseCustomSkyColor(int original) {
         return SkyColor.skyColor(original);

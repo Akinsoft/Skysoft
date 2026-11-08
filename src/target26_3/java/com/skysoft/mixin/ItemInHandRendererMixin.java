@@ -24,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(FirstPersonHandsAndItemsRenderer.class)
-public class ItemInHandRendererMixin {
+public abstract class ItemInHandRendererMixin {
     @Inject(method = "submitHandsWithItems", at = @At("HEAD"), cancellable = true)
     private void skysoftHideHandsWhileZooming(CallbackInfo ci) {
         if (Zoom.shouldHideHand()) ci.cancel();

@@ -1,7 +1,5 @@
 package com.skysoft.mixin;
 
-import com.skysoft.integration.MixinFeatureAdapters;
-import com.skysoft.utils.mixin.MixinErrorBoundary;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
@@ -14,9 +12,11 @@ import com.skysoft.features.chat.ChatTabBounds;
 import com.skysoft.features.chat.ChatTabs;
 import com.skysoft.features.chat.CopyChatResult;
 import com.skysoft.gui.GuiOverlayRegistry;
+import com.skysoft.integration.MixinFeatureAdapters;
 import com.skysoft.utils.SoundUtilities;
 import com.skysoft.utils.animation.AnimationClock;
 import com.skysoft.utils.gui.PixelButtonWidget;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,66 +52,77 @@ public abstract class ChatScreenMixin extends Screen {
     protected ChatScreenMixin(Component title) { super(title); }
 
     @Inject(method = "init()V", at = @At("TAIL"))
-    protected void skysoftBeginOpenAnimation(CallbackInfo ci) {
+    private void skysoftBeginOpenAnimation(CallbackInfo ci) {
         MixinErrorBoundary.run("Chat Screen initialization", () -> {
             var player = Minecraft.getInstance().player;
-            if (ChatMotionSettings.isInputMotionEnabled() && player != null && !player.isSleeping()) skysoftOpeningMotion.restart(); else skysoftOpeningMotion.stop();
+            if (ChatMotionSettings.isInputMotionEnabled() && player != null && !player.isSleeping()) {
+                skysoftOpeningMotion.restart();
+            } else {
+                skysoftOpeningMotion.stop();
+            }
             skysoftAddTabButtons();
         });
     }
 
     @Inject(method = "extractRenderState", at = @At("HEAD"))
-    protected void skysoftTrackMouse(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void skysoftTrackMouse(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         skysoftMouseX = mouseX;
         skysoftMouseY = mouseY;
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    protected void skysoftCopyHoveredMessage(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void skysoftCopyHoveredMessage(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (GuiOverlayRegistry.isScreenPointCovered(skysoftMouseX, skysoftMouseY)) return;
         boolean copied = MixinErrorBoundary.value("Chat Copy key input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(event.key(), skysoftMouseX, skysoftMouseY) == CopyChatResult.COPIED);
         if (copied) cir.setReturnValue(true);
     }
 
     @Inject(method = "keyPressed", at = @At("RETURN"))
-    protected void skysoftRestoreInputFocusAfterKeySelection(KeyEvent event, CallbackInfoReturnable<Boolean> cir) { skysoftRestoreInputFocusAfterTabSelection(); }
+    private void skysoftRestoreInputFocusAfterKeySelection(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        skysoftRestoreInputFocusAfterTabSelection();
+    }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    protected void skysoftCopyHoveredMessageOnClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (GuiOverlayRegistry.isScreenPointCovered((int) click.x(), (int) click.y())) { cir.setReturnValue(true); return; }
+    private void skysoftCopyHoveredMessageOnClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (GuiOverlayRegistry.isScreenPointCovered((int) click.x(), (int) click.y())) {
+            cir.setReturnValue(true);
+            return;
+        }
         boolean copied = MixinErrorBoundary.value("Chat Copy mouse input", false, () -> ChatCopy.INSTANCE.copyHoveredMessage(click.button(), (int) click.x(), (int) click.y()) == CopyChatResult.COPIED);
         if (copied) cir.setReturnValue(true);
     }
 
     @Inject(method = "mouseClicked", at = @At("RETURN"))
-    protected void skysoftRestoreInputFocusAfterMouseSelection(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) { skysoftRestoreInputFocusAfterTabSelection(); }
+    private void skysoftRestoreInputFocusAfterMouseSelection(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        skysoftRestoreInputFocusAfterTabSelection();
+    }
 
     @WrapOperation(method = "handleChatInput", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendChat(Ljava/lang/String;)V"))
-    protected void skysoftSendMessageToActiveTab(ClientPacketListener connection, String message, Operation<Void> original) {
+    private void skysoftSendMessageToActiveTab(ClientPacketListener connection, String message, Operation<Void> original) {
         String command = MixinFeatureAdapters.prepareOutgoingChatCommand(message);
         if (command == null) original.call(connection, message); else connection.sendCommand(command);
     }
 
     @WrapOperation(method = "handleChatInput", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendCommand(Ljava/lang/String;)V"))
-    protected void skysoftRecordTabCommand(ClientPacketListener connection, String command, Operation<Void> original) {
+    private void skysoftRecordTabCommand(ClientPacketListener connection, String command, Operation<Void> original) {
         MixinFeatureAdapters.recordOutgoingChatCommand(command);
         original.call(connection, command);
     }
 
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"))
-    protected void skysoftAnimateChatInputBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
+    private void skysoftAnimateChatInputBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
         float displacement = MixinErrorBoundary.value("Chat input motion", 0.0F, this::skysoftChatOpenDisplacement);
         openDisplacement.set(displacement);
         ChatMotionProfile.renderShifted(graphics, displacement, () -> original.call(graphics, minX, minY, maxX, maxY, color));
     }
 
     @WrapOperation(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"))
-    protected void skysoftAnimateChatInput(ChatScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
+    private void skysoftAnimateChatInput(ChatScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, Operation<Void> original, @Share("openDisplacement") LocalFloatRef openDisplacement) {
         ChatMotionProfile.renderShifted(graphics, openDisplacement.get(), () -> original.call(screen, graphics, mouseX, mouseY, delta));
     }
 
     @Inject(method = "removed", at = @At("HEAD"))
-    protected void skysoftResetOpenAnimation(CallbackInfo ci) {
+    private void skysoftResetOpenAnimation(CallbackInfo ci) {
         MixinErrorBoundary.run("Chat input motion", skysoftOpeningMotion::stop);
     }
 

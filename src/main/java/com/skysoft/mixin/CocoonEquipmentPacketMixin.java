@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPacketListener.class)
 public abstract class CocoonEquipmentPacketMixin {
     @Inject(method = "handleSetEquipment", at = @At(value = "INVOKE", target = PacketHandlerTargetsKt.PACKET_THREAD_CHECK_TARGET, shift = At.Shift.AFTER))
-    protected void skysoftDetectCocoonEquipment(ClientboundSetEquipmentPacket packet, CallbackInfo ci) {
+    private void skysoftDetectCocoonEquipment(ClientboundSetEquipmentPacket packet, CallbackInfo ci) {
         MixinErrorBoundary.run("Cocoon equipment packet", () -> {
             var stacks = new ArrayList<ItemStack>();
             packet.getSlots().forEach(pair -> stacks.add(pair.getSecond()));

@@ -53,7 +53,6 @@ object MixinFeatureAdapters {
     @JvmStatic
     fun prepareOutgoingChatCommand(message: String): String? = ChatTabs.prepareOutgoingCommand(message)
 
-
     @JvmStatic
     fun recordOutgoingChatCommand(command: String) = ChatTabs.recordOutgoingCommand(command)
 

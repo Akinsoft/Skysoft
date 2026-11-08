@@ -15,14 +15,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(KeyboardHandler.class)
-public class KeyboardHandlerMixin {
+public abstract class KeyboardHandlerMixin {
     @Inject(method = "keyPress", at = @At("HEAD"))
-    protected void skysoftRecordKeyPressScreen(long window, int action, KeyEvent event, CallbackInfo ci) {
+    private void skysoftRecordKeyPressScreen(long window, int action, KeyEvent event, CallbackInfo ci) {
         InputUtilities.recordKeyInput(window, event.key(), action);
     }
 
     @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
-    protected void skysoftTypeContainerOverlay(long window, CharacterEvent event, CallbackInfo ci) {
+    private void skysoftTypeContainerOverlay(long window, CharacterEvent event, CallbackInfo ci) {
         if (WaypointPanelInput.didType(event)) {
             ci.cancel();
             return;

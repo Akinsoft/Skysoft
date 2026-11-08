@@ -16,13 +16,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets = "net.minecraft.client.gui.components.ChatComponent$DrawingFocusedGraphicsAccess")
 public abstract class ChatHoverMixin {
     @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;textRenderer(Lnet/minecraft/client/gui/GuiGraphicsExtractor$HoveredTextEffects;Ljava/util/function/Consumer;)Lnet/minecraft/client/gui/ActiveTextCollector;"))
-    protected ActiveTextCollector skysoftBlockChatTextHover(GuiGraphicsExtractor graphics, GuiGraphicsExtractor.HoveredTextEffects effects, Consumer<Style> hoveredStyle, Operation<ActiveTextCollector> original) {
+    private ActiveTextCollector skysoftBlockChatTextHover(GuiGraphicsExtractor graphics, GuiGraphicsExtractor.HoveredTextEffects effects, Consumer<Style> hoveredStyle, Operation<ActiveTextCollector> original) {
         boolean blocked = GuiOverlayRegistry.isPointerCovered();
         return original.call(graphics, blocked ? GuiGraphicsExtractor.HoveredTextEffects.NONE : effects, blocked ? null : hoveredStyle);
     }
 
     @Inject(method = "showTooltip", at = @At("HEAD"), cancellable = true)
-    protected void skysoftBlockChatTagHover(GuiMessageTag tag, CallbackInfo ci) {
+    private void skysoftBlockChatTagHover(GuiMessageTag tag, CallbackInfo ci) {
         if (GuiOverlayRegistry.isPointerCovered()) ci.cancel();
     }
 }

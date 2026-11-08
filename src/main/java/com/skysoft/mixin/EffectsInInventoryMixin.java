@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(EffectsInInventory.class)
 public abstract class EffectsInInventoryMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
-    protected void skysoftHideVanillaStatusEffects(CallbackInfo ci) {
+    private void skysoftHideVanillaStatusEffects(CallbackInfo ci) {
         boolean hide = MixinErrorBoundary.value("Inventory status effect visibility", false, VanillaStatusEffects::areHidden);
         if (hide) ci.cancel();
     }

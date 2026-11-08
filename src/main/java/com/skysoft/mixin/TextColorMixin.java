@@ -16,9 +16,10 @@ public abstract class TextColorMixin implements ChromaTextColor {
         skysoftChromaColour = colour;
         skysoftBaseColour = baseRgb;
     }
+
     @Unique @Override public ChromaColour skysoftChromaColour() { return skysoftChromaColour; }
     @ModifyReturnValue(method = "getValue", at = @At("RETURN"))
-    protected int skysoftPreserveBaseColour(int original) {
+    private int skysoftPreserveBaseColour(int original) {
         return skysoftBaseColour == null ? original : skysoftBaseColour;
     }
 }

@@ -2,10 +2,10 @@ package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.mojang.blaze3d.platform.Window;
-import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.features.misc.blockoverlay.BlockOverlay;
 import com.skysoft.gui.GuiOverlayLayer;
 import com.skysoft.gui.GuiOverlayRegistry;
+import com.skysoft.gui.scale.GuiScaleController;
 import com.skysoft.utils.MinecraftClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.GuiRenderer;
@@ -21,12 +21,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GameRenderer.class)
-public class GameRendererMixin {
-    @ModifyReturnValue(method = "shouldRenderBlockOutline", at = @At("RETURN"))
-    private boolean skysoftReplaceBlockOutline(boolean original) {
-        return BlockOverlay.selectBlockOutline(original).getRendersVanilla();
-    }
-
+public abstract class GameRendererMixin {
     @Shadow
     @Final
     private Minecraft minecraft;
@@ -38,6 +33,11 @@ public class GameRendererMixin {
     @Shadow
     @Final
     private GameRenderState gameRenderState;
+
+    @ModifyReturnValue(method = "shouldRenderBlockOutline", at = @At("RETURN"))
+    private boolean skysoftReplaceBlockOutline(boolean original) {
+        return BlockOverlay.selectBlockOutline(original).getRendersVanilla();
+    }
 
     @Inject(
         method = "render",

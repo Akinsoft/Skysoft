@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractContainerScreen.class)
-public class AbstractContainerScreenMixin {
+public abstract class AbstractContainerScreenMixin {
     @Inject(method = "init()V", at = @At("TAIL"))
     private void skysoftLayoutContainerScreen(CallbackInfo ci) {
         ContainerLifecycleHooks.layout(skysoftScreen());
@@ -159,7 +159,7 @@ public class AbstractContainerScreenMixin {
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    protected void skysoftKeyContainerOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void skysoftKeyContainerOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (ContainerInputHooks.didConsumeKeyPress(skysoftScreen(), event)) {
             cir.setReturnValue(true);
         }
@@ -204,7 +204,7 @@ public class AbstractContainerScreenMixin {
     }
 
     @Inject(method = "slotClicked(Lnet/minecraft/world/inventory/Slot;IILnet/minecraft/world/inventory/ContainerInput;)V", at = @At("HEAD"), cancellable = true)
-    protected void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
+    private void skysoftSlotClicked(Slot slot, int slotId, int button, ContainerInput action, CallbackInfo ci) {
         if (ContainerSlotInputHooks.didConsumeSlotClick(skysoftScreen(), slot, slotId, button, action)) {
             ci.cancel();
         }
