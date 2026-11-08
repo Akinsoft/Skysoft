@@ -30,10 +30,9 @@ class SelectedItemNameConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = defaultSelectedItemNamePosition().rememberDefault()
+    val position = HudPosition(0, DEFAULT_POSITION_Y, centerX = true, centerY = false).rememberDefault()
 
     override fun repairLoadedValues() {
-        position.rememberDefault(defaultSelectedItemNamePosition())
         details.backgroundOpacity = details.backgroundOpacity.coerceIn(MIN_BACKGROUND_OPACITY, MAX_BACKGROUND_OPACITY)
     }
 
@@ -42,8 +41,6 @@ class SelectedItemNameConfig : ConfigRepairable {
         const val MAX_BACKGROUND_OPACITY = 100
     }
 }
-
-private fun defaultSelectedItemNamePosition() = HudPosition(0, DEFAULT_POSITION_Y, centerX = true, centerY = false)
 
 private const val DEFAULT_POSITION_Y = -47
 

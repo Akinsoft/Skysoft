@@ -147,7 +147,7 @@ class ItemListSettingsConfig : ConfigRepairable {
 class ItemListSourcesConfig : ConfigRepairable {
     @JvmField
     @field:Expose
-    val searchPosition = defaultSearchPosition().rememberDefault()
+    val searchPosition = HudPosition(DEFAULT_SEARCH_OFFSET, DEFAULT_SEARCH_OFFSET, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
@@ -193,7 +193,6 @@ class ItemListSourcesConfig : ConfigRepairable {
     var showBazaarPlayerData = true
 
     override fun repairLoadedValues() {
-        searchPosition.rememberDefault(defaultSearchPosition())
         searchPosition.scale = HudPosition.DEFAULT_SCALE
         searchWidth = searchWidth.coerceIn(MIN_SEARCH_WIDTH, MAX_SEARCH_WIDTH)
         bazaarGraphMode = graphMode().name
@@ -209,12 +208,6 @@ class ItemListSourcesConfig : ConfigRepairable {
         const val MIN_SEARCH_WIDTH = 72
         const val SEARCH_WIDTH_STEP = 18
         const val MAX_SEARCH_WIDTH = ItemListSettingsConfig.MAX_COLUMNS * SEARCH_WIDTH_STEP * 3
-
-        private fun defaultSearchPosition() = HudPosition(
-            DEFAULT_SEARCH_OFFSET,
-            DEFAULT_SEARCH_OFFSET,
-            centerY = false,
-        )
 
         private const val DEFAULT_SEARCH_OFFSET = -4
     }

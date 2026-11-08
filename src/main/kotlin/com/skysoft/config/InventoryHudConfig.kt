@@ -1,7 +1,6 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
-import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -11,7 +10,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class InventoryHudConfig : ConfigRepairable {
+class InventoryHudConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Show your inventory as part of the in-game HUD.")
@@ -33,26 +32,21 @@ class InventoryHudConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = defaultInventoryHudPosition().rememberDefault()
+    val position = HudPosition(0, INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val inventoryPosition = defaultInventoryPanelPosition().rememberDefault()
+    val inventoryPosition = HudPosition(0, INVENTORY_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val armorPosition = defaultArmorPanelPosition().rememberDefault()
+    val armorPosition =
+        HudPosition(-SIDE_PANEL_CENTER_OFFSET, SIDE_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val equipmentPosition = defaultEquipmentPanelPosition().rememberDefault()
-
-    override fun repairLoadedValues() {
-        position.rememberDefault(defaultInventoryHudPosition())
-        inventoryPosition.rememberDefault(defaultInventoryPanelPosition())
-        armorPosition.rememberDefault(defaultArmorPanelPosition())
-        equipmentPosition.rememberDefault(defaultEquipmentPanelPosition())
-    }
+    val equipmentPosition =
+        HudPosition(SIDE_PANEL_CENTER_OFFSET, SIDE_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false).rememberDefault()
 }
 
 class InventoryHudSettingsConfig {
@@ -143,18 +137,6 @@ class InventoryHudDetailsConfig {
     val itemCountColor: Property<ChromaColour> =
         Property.of(ChromaColour.fromRGB(255, 255, 255, 0, 255))
 }
-
-private fun defaultInventoryHudPosition() =
-    HudPosition(0, INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN, centerX = true, centerY = false)
-
-private fun defaultInventoryPanelPosition() =
-    HudPosition(0, INVENTORY_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false)
-
-private fun defaultArmorPanelPosition() =
-    HudPosition(-SIDE_PANEL_CENTER_OFFSET, SIDE_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false)
-
-private fun defaultEquipmentPanelPosition() =
-    HudPosition(SIDE_PANEL_CENTER_OFFSET, SIDE_PANEL_BOTTOM_MARGIN, centerX = true, centerY = false)
 
 internal const val INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN = -4
 private const val INVENTORY_PANEL_BOTTOM_MARGIN = -30

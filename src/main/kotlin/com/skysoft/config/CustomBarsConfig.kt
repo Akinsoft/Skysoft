@@ -39,43 +39,43 @@ class CustomBarsConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val healthPosition = defaultHealthPosition().rememberDefault()
+    val healthPosition = HudPosition(-46, -35, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val manaPosition = defaultManaPosition().rememberDefault()
+    val manaPosition = HudPosition(47, -35, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val vitalityPosition = defaultVitalityPosition().rememberDefault()
+    val vitalityPosition = vitalityPositionDefault.copy().rememberDefault()
 
     @JvmField
     @field:Expose
-    val experiencePosition = defaultExperiencePosition().rememberDefault()
+    val experiencePosition = experiencePositionDefault.copy().rememberDefault()
 
     @JvmField
     @field:Expose
-    val defensePosition = defaultDefensePosition().rememberDefault()
+    val defensePosition = HudPosition(117, -34, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val speedPosition = defaultSpeedPosition().rememberDefault()
+    val speedPosition = HudPosition(117, -23, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val airPosition = defaultAirPosition().rememberDefault()
+    val airPosition = HudPosition(117, -12, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val vanillaHealthPosition = defaultVanillaHealthPosition().rememberDefault()
+    val vanillaHealthPosition = HudPosition(-50, -30, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val vanillaExperiencePosition = defaultVanillaExperiencePosition().rememberDefault()
+    val vanillaExperiencePosition = HudPosition(0, -24, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val vanillaAirPosition = defaultVanillaAirPosition().rememberDefault()
+    val vanillaAirPosition = HudPosition(51, -40, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
@@ -95,35 +95,23 @@ class CustomBarsConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val healthTextPosition = defaultTextPosition().rememberDefault()
+    val healthTextPosition = HudPosition(centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val manaTextPosition = defaultTextPosition().rememberDefault()
+    val manaTextPosition = HudPosition(centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val vitalityTextPosition = defaultTextPosition().rememberDefault()
+    val vitalityTextPosition = HudPosition(centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
-    val experienceTextPosition = defaultTextPosition().rememberDefault()
+    val experienceTextPosition = HudPosition(centerY = false).rememberDefault()
 
     override fun repairLoadedValues() {
-        healthPosition.rememberDefault(defaultHealthPosition())
-        manaPosition.rememberDefault(defaultManaPosition())
         vitalityPosition.updateDefault(oldVitalityPositionDefault, vitalityPositionDefault)
         experiencePosition.updateDefault(oldExperiencePositionDefault, experiencePositionDefault)
-        defensePosition.rememberDefault(defaultDefensePosition())
-        speedPosition.rememberDefault(defaultSpeedPosition())
-        airPosition.rememberDefault(defaultAirPosition())
-        vanillaHealthPosition.rememberDefault(defaultVanillaHealthPosition())
-        vanillaExperiencePosition.rememberDefault(defaultVanillaExperiencePosition())
-        vanillaAirPosition.rememberDefault(defaultVanillaAirPosition())
-        healthTextPosition.rememberDefault(defaultTextPosition())
-        manaTextPosition.rememberDefault(defaultTextPosition())
-        vitalityTextPosition.rememberDefault(defaultTextPosition())
-        experienceTextPosition.rememberDefault(defaultTextPosition())
     }
 }
 
@@ -438,30 +426,11 @@ private const val DEFENSE_ICON_COLOR = 0xFF55FF55.toInt()
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()
 private const val TEXT_OUTLINE_COLOR = 0xFF000000.toInt()
 
-private val healthPositionDefault = HudPosition(-46, -35, centerX = true, centerY = false)
-private val manaPositionDefault = HudPosition(47, -35, centerX = true, centerY = false)
 private val vitalityPositionDefault = HudPosition(-64, -24, centerX = true, centerY = false)
 private val experiencePositionDefault = HudPosition(29, -24, centerX = true, centerY = false)
-private val defensePositionDefault = HudPosition(117, -34, centerX = true, centerY = false)
-private val speedPositionDefault = HudPosition(117, -23, centerX = true, centerY = false)
-private val airPositionDefault = HudPosition(117, -12, centerX = true, centerY = false)
 private val oldVitalityPositionDefault = HudPosition(117, -45, centerX = true, centerY = false)
 private val oldExperiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
-private val vanillaHealthPositionDefault = HudPosition(-50, -30, centerX = true, centerY = false)
-private val vanillaExperiencePositionDefault = HudPosition(0, -24, centerX = true, centerY = false)
-private val vanillaAirPositionDefault = HudPosition(51, -40, centerX = true, centerY = false)
 
-private fun defaultHealthPosition() = healthPositionDefault.copy()
-private fun defaultManaPosition() = manaPositionDefault.copy()
-private fun defaultVitalityPosition() = vitalityPositionDefault.copy()
-private fun defaultExperiencePosition() = experiencePositionDefault.copy()
-private fun defaultDefensePosition() = defensePositionDefault.copy()
-private fun defaultSpeedPosition() = speedPositionDefault.copy()
-private fun defaultAirPosition() = airPositionDefault.copy()
-private fun defaultVanillaHealthPosition() = vanillaHealthPositionDefault.copy()
-private fun defaultVanillaExperiencePosition() = vanillaExperiencePositionDefault.copy()
-private fun defaultVanillaAirPosition() = vanillaAirPositionDefault.copy()
-private fun defaultTextPosition() = HudPosition(centerY = false)
 
 private fun HudPosition.copy() = HudPosition(x, y, scale, centerX, centerY)
 

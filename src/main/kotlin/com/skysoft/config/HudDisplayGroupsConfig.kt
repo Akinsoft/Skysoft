@@ -48,7 +48,7 @@ class PlayerHudConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var isSkyBlockLevelBarEnabled = false
 
-    override fun repairLoadedValues() = repairLoadedConfigs(selectedItemName, actionBar, inventoryHud, customBars)
+    override fun repairLoadedValues() = repairLoadedConfigs(selectedItemName, actionBar, customBars)
 }
 
 class InformationDisplaysConfig {
