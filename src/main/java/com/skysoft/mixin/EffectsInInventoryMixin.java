@@ -1,7 +1,7 @@
 package com.skysoft.mixin;
 
+import com.skysoft.features.misc.VanillaStatusEffects;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
-import com.skysoft.config.SkysoftConfigGui;
 import net.minecraft.client.gui.screens.inventory.EffectsInInventory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,8 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class EffectsInInventoryMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
     protected void skysoftHideVanillaStatusEffects(CallbackInfo ci) {
-        boolean hide = MixinErrorBoundary.value("Inventory status effect visibility", false,
-            () -> SkysoftConfigGui.INSTANCE.config().gui.vanillaUi.areVanillaStatusEffectsHidden);
+        boolean hide = MixinErrorBoundary.value("Inventory status effect visibility", false, VanillaStatusEffects::areHidden);
         if (hide) ci.cancel();
     }
 }
