@@ -7,6 +7,7 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemInfo
 import com.skysoft.data.skyblock.price.SkyBlockPriceData
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
+import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.gui.enableScissor
 import com.skysoft.utils.render.LegacyTextRenderer
@@ -271,7 +272,7 @@ private fun itemInfoLines(
 }
 
 private fun cleanInfoLore(info: SkyBlockItemInfo): List<String> = info.lore.filterNot { line ->
-    val plain = line.replace(INFO_COLOR_PATTERN, "").trim()
+    val plain = line.cleanSkyBlockText()
     line.isBlank() ||
         RECIPE_PROMPT_PATTERN.matches(plain) ||
         (plain.startsWith("Applicable on:") || plain.startsWith("Apply Cost:")) ||
@@ -285,5 +286,4 @@ private fun isEnchantmentBoilerplate(info: SkyBlockItemInfo, plain: String): Boo
         plain.equals("apply it!", ignoreCase = true)
 }
 
-private val INFO_COLOR_PATTERN = Regex("§.")
 private val RECIPE_PROMPT_PATTERN = Regex("Right-click to view recipes!?", RegexOption.IGNORE_CASE)
