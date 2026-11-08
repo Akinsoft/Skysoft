@@ -2,8 +2,8 @@ package com.skysoft.features.loot
 
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.utils.NumberUtilities.romanNumeral
-import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
+import com.skysoft.utils.TextUtilities.titleCaseWords
 import java.util.Locale
 
 internal data class RareLootDrop(
@@ -33,12 +33,6 @@ internal fun RareLootChatDrop.bestItemId(): String? {
         RareLootValueResolver.resolve(itemId, amount) != null
     } ?: candidates.firstOrNull()
 }
-
-internal fun String.titleCaseWords(): String =
-    lowercase(Locale.US)
-        .split(whitespacePattern)
-        .filter { it.isNotBlank() }
-        .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase(Locale.US) } }
 
 internal fun String.toItemIdKey(): String =
     uppercase(Locale.US)
