@@ -3,10 +3,8 @@ package com.skysoft.utils.animation
 import com.skysoft.utils.ElapsedTimeMark
 import kotlin.time.Duration.Companion.milliseconds
 
-internal class TimedHighlightTracker<K>(
-    durationMillis: Long = DEFAULT_HIGHLIGHT_DURATION_MILLIS,
-) {
-    private val duration = durationMillis.milliseconds
+internal class TimedHighlightTracker<K> {
+    private val duration = HIGHLIGHT_DURATION_MILLIS.milliseconds
     private val highlights = mutableMapOf<K, ElapsedTimeMark>()
 
     fun highlight(key: K) {
@@ -28,4 +26,4 @@ internal class TimedHighlightTracker<K>(
     fun clear() = highlights.clear()
 }
 
-private const val DEFAULT_HIGHLIGHT_DURATION_MILLIS = 3_000L
+private const val HIGHLIGHT_DURATION_MILLIS = 3_000L
