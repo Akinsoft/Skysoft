@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonParser
 import com.google.gson.annotations.Expose
 import com.skysoft.SkysoftMod
+import com.skysoft.config.core.rememberHudPositionDefaults
 import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
@@ -262,6 +263,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
                         SkysoftConfigMigrations.apply(json, GSON)
                         NewSettingsConfigBootstrap.captureLoadedConfig(json)
                         (GSON.fromJson(json, configClass) ?: createConfig()).also {
+                            rememberHudPositionDefaults(loaded = it, defaults = createConfig())
                             it.migrateLoadedValues()
                             it.repairLoadedValues()
                         }

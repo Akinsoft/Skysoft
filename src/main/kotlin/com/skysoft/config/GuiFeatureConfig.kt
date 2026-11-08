@@ -52,10 +52,7 @@ class GuiFeatureConfig : ConfigRepairable {
     @field:ConfigEditorBoolean
     var areTitlesRenderedInFront = false
 
-    override fun repairLoadedValues() {
-        positionEditor.tabListPosition.rememberDefault(defaultTabListPosition())
-        repairLoadedConfigs(playerHud, betterTab)
-    }
+    override fun repairLoadedValues() = repairLoadedConfigs(playerHud)
 }
 
 enum class CrosshairVisibility(private val displayName: String) {
@@ -189,7 +186,7 @@ class ScreenshotManagerDetailsConfig {
 class PositionEditorConfig {
     @JvmField
     @field:Expose
-    val tabListPosition = defaultTabListPosition().rememberDefault()
+    val tabListPosition = HudPosition(0, DEFAULT_TAB_LIST_TOP_MARGIN, centerX = true, centerY = false).rememberDefault()
 
     @JvmField
     @field:Expose
@@ -220,9 +217,6 @@ class PositionEditorConfig {
     @field:Accordion
     val details = PositionEditorDetailsConfig()
 }
-
-private fun defaultTabListPosition() =
-    HudPosition(0, DEFAULT_TAB_LIST_TOP_MARGIN, centerX = true, centerY = false)
 
 private const val DEFAULT_TAB_LIST_TOP_MARGIN = 9
 
@@ -256,12 +250,9 @@ class SkysoftActionBarConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = defaultActionBarPosition().rememberDefault()
+    val position = HudPosition(0, DEFAULT_ACTION_BAR_BOTTOM_MARGIN, centerX = true, centerY = false).rememberDefault()
 
-    override fun repairLoadedValues() {
-        position.rememberDefault(defaultActionBarPosition())
-        details.repairLoadedValues()
-    }
+    override fun repairLoadedValues() = details.repairLoadedValues()
 }
 
 class SkysoftActionBarSettingsConfig {
@@ -271,9 +262,6 @@ class SkysoftActionBarSettingsConfig {
     @field:ConfigEditorBoolean
     var customPosition = false
 }
-
-private fun defaultActionBarPosition() =
-    HudPosition(0, DEFAULT_ACTION_BAR_BOTTOM_MARGIN, centerX = true, centerY = false)
 
 private const val DEFAULT_ACTION_BAR_BOTTOM_MARGIN = -60
 

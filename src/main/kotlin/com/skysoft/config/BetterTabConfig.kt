@@ -1,7 +1,6 @@
 package com.skysoft.config
 
 import com.google.gson.annotations.Expose
-import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.HudPosition
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
@@ -12,7 +11,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
 
-class BetterTabConfig : ConfigRepairable {
+class BetterTabConfig {
     @JvmField
     @field:Expose
     @field:ConfigOption(name = "Enabled", desc = "Replace the Hypixel SkyBlock tab list with a compact layout.")
@@ -34,11 +33,7 @@ class BetterTabConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
-    val position = defaultBetterTabPosition().rememberDefault()
-
-    override fun repairLoadedValues() {
-        position.rememberDefault(defaultBetterTabPosition())
-    }
+    val position = HudPosition(0, BETTER_TAB_DEFAULT_TOP_MARGIN, centerX = true, centerY = false).rememberDefault()
 }
 
 class BetterTabSettingsConfig {
@@ -110,8 +105,5 @@ class BetterTabDetailsConfig {
     val backgroundColor: Property<ChromaColour> =
         Property.of(ChromaColour.fromRGB(16, 16, 16, 0, 176))
 }
-
-private fun defaultBetterTabPosition() =
-    HudPosition(0, BETTER_TAB_DEFAULT_TOP_MARGIN, centerX = true, centerY = false)
 
 internal const val BETTER_TAB_DEFAULT_TOP_MARGIN = 7
