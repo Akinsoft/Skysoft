@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 import com.skysoft.data.skyblock.SkyBlockRarity
 
 internal data class SkysoftPetsRepoJson(
+    @SerializedName("pet_rarity_offset") val rarityOffsets: Map<SkyBlockRarity, Int> = emptyMap(),
     @SerializedName("pet_levels") val basePetLeveling: List<Int> = emptyList(),
     @SerializedName("custom_pet_leveling") val customPetLeveling: Map<String, NeuPetData> = emptyMap(),
     @SerializedName("pet_types") val petTypes: Map<String, String> = emptyMap(),
