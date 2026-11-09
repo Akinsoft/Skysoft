@@ -9,6 +9,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 
 class AboutConfig {
     @JvmField
+    @Transient
     @field:ConfigOption(
         name = "Updates",
         desc = "Checks Modrinth for a new Skysoft version and opens the manual download page.",
@@ -25,11 +26,13 @@ class AboutConfig {
     val source = Runnable { BrowserUtilities.tryOpen(SkysoftSocialLink.github.url) }
 
     @JvmField
+    @Transient
     @field:ConfigOption(name = "Credits", desc = "Special thanks and compatibility credits.")
     @field:Accordion
     val credits = CreditsConfig()
 
     @JvmField
+    @Transient
     @field:ConfigOption(name = "Used Software", desc = "Information about used software and licenses.")
     @field:Accordion
     val licenses = LicensesConfig()

@@ -21,10 +21,13 @@ object SkysoftMoulConfigGuis {
         return MoulConfigEditor(categoriesForGame(processor.allCategories, game), config)
     }
 
-    fun <T : Config> processConfig(config: T): MoulConfigProcessor<T> {
+    fun <T : Config> processConfig(config: T, isSaved: Boolean = true): MoulConfigProcessor<T> {
         val processor = MoulConfigProcessor(config)
         addProcessors(processor)
-        ConfigProcessorDriver(processor).apply { warnForPrivateFields = false }.processConfig(config)
+        ConfigProcessorDriver(processor).apply {
+            warnForPrivateFields = false
+            checkExpose = isSaved
+        }.processConfig(config)
         processor.requireFinalized()
         return processor
     }

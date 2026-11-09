@@ -48,13 +48,7 @@ class SharedPetVisualConfig(
 
         override fun repairLoadedValues() {
             super.repairLoadedValues()
-            iconSpacing.repairFiniteFloat(MIN_SPACING, MAX_SPACING, DEFAULT_SPACING)
-        }
-
-        companion object {
-            private const val DEFAULT_SPACING = 1f
-            private const val MIN_SPACING = 1f
-            private const val MAX_SPACING = 5f
+            iconSpacing.repairFiniteFloat(MIN_ICON_SPACING, MAX_ICON_SPACING, DEFAULT_ICON_SPACING)
         }
     }
 
@@ -100,3 +94,7 @@ class SharedPetVisualConfig(
         private const val MAX_DISABLED_OPACITY = 1.0f
     }
 }
+
+private const val DEFAULT_ICON_SPACING = 1f
+private const val MIN_ICON_SPACING = 1f
+private const val MAX_ICON_SPACING = 5f
