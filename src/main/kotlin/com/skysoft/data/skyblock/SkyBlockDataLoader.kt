@@ -66,6 +66,7 @@ internal object SkyBlockDataLoader {
             npcsJson,
             entityContextExceptions + generatedEntityContexts,
             npcAvailability,
+            SkyBlockAuxiliaryDataLoader.readNpcLocations(resourceText(CatalogResources.NPC_LOCATIONS)),
         )
         val pets = SkyBlockAuxiliaryDataLoader.readPets(petsJson)
         val enchantments = SkyBlockEnchantments.read(enchantmentsJson)
@@ -140,6 +141,7 @@ private object CatalogResources {
     const val SUPPLEMENTAL = "/assets/skysoft/data/item_list/supplemental.json"
     const val ENCHANTMENTS = "/assets/skysoft/data/item_list/enchantments.json"
     const val NPC_AVAILABILITY = "/assets/skysoft/data/item_list/npc_availability.json"
+    const val NPC_LOCATIONS = "/assets/skysoft/data/item_list/npc_locations.json"
     const val ENTITY_CONTEXTS = "/assets/skysoft/data/item_list/entity_contexts.json"
     const val ENTITY_CONTEXT_EXCEPTIONS = "/assets/skysoft/data/item_list/entity_context_exceptions.json"
     const val OBTAIN_SOURCES = "/assets/skysoft/data/item_list/obtain_sources.json"

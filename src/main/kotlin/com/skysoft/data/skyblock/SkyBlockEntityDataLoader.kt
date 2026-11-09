@@ -16,6 +16,7 @@ internal object SkyBlockEntityDataLoader {
         npcsJson: String,
         entityContexts: Map<String, List<String>>,
         npcAvailability: Map<String, SkyBlockNpcAvailability>,
+        npcLocations: Map<String, JsonObject>,
     ): LoadedEntityCatalog {
         val entities = mutableMapOf<String, SkyBlockEntityInfo>()
         val droppedByItem = mutableMapOf<String, MutableList<String>>()
@@ -45,9 +46,12 @@ internal object SkyBlockEntityDataLoader {
         require(npcs.size() >= MINIMUM_NPC_COUNT) {
             "Item List NPC data contains only ${npcs.size()} NPCs"
         }
+        require(npcLocations.keys.all(npcs::has)) {
+            "Item List NPC locations reference unknown NPCs: " + npcLocations.keys.filterNot(npcs::has).joinToString()
+        }
         (mobs.entrySet() + npcs.entrySet()).forEach { (id, element) ->
             if (!element.isJsonObject) return@forEach
-            val value = element.asJsonObject
+            val value = element.asJsonObject.withNpcLocation(npcLocations[id])
             val name = value.string("name").takeIf(String::isNotBlank) ?: return@forEach
             val contexts = entityContexts[id].orEmpty()
             val wikiLocation = value.string("location").takeIf(String::isNotBlank)
@@ -105,6 +109,15 @@ internal object SkyBlockEntityDataLoader {
             droppedByItem = droppedByItem.mapValues { (_, ids) -> ids.distinct() },
             dropSourcesByItem = dropSourcesByItem.mapValues { (_, sources) -> sources.distinct() },
         )
+    }
+
+    private fun JsonObject.withNpcLocation(npcLocation: JsonObject?): JsonObject {
+        if (npcLocation == null) return this
+        return deepCopy().apply {
+            add("location", npcLocation.get("location"))
+            if (obj("position") == null) npcLocation.get("position")?.let { add("position", it) }
+            if (string("island").isBlank()) npcLocation.get("island")?.let { add("island", it) }
+        }
     }
 
     private fun entityLocation(json: JsonObject): String? {

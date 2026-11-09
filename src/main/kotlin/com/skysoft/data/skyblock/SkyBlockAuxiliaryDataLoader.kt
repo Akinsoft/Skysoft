@@ -9,6 +9,7 @@ import com.skysoft.data.skyblock.CatalogJson.MAXIMUM_TEXT_LENGTH
 import com.skysoft.data.skyblock.CatalogJson.array
 import com.skysoft.data.skyblock.CatalogJson.catalogIdPattern
 import com.skysoft.data.skyblock.CatalogJson.double
+import com.skysoft.data.skyblock.CatalogJson.doubleOrNull
 import com.skysoft.data.skyblock.CatalogJson.enumOrNull
 import com.skysoft.data.skyblock.CatalogJson.hasLinkedSources
 import com.skysoft.data.skyblock.CatalogJson.obj
@@ -112,6 +113,30 @@ internal object SkyBlockAuxiliaryDataLoader {
             }
     }
 
+    fun readNpcLocations(json: String): Map<String, JsonObject> {
+        val root = JsonParser.parseString(json).asJsonObject
+        require(root.get("schemaVersion")?.asInt == NpcLocationSchema.VERSION) {
+            "Item List NPC locations have an unsupported schema"
+        }
+        require(root.hasLinkedSources(NpcLocationSchema.MINIMUM_SOURCE_COUNT)) {
+            "Item List NPC locations have invalid source metadata"
+        }
+        val entities = requireNotNull(root.obj("entities")) { "Item List NPC locations have no entities" }
+        return entities.entrySet().associate { (id, element) ->
+            val value = element.asJsonObject
+            val location = value.string("location")
+            val position = value.obj("position")
+            val island = value.get("island")?.asString
+            require(
+                id.matches(catalogIdPattern) &&
+                    location.isNotBlank() && location.length <= MAXIMUM_TEXT_LENGTH &&
+                    (position == null || listOf("x", "y", "z").all { position.doubleOrNull(it)?.isFinite() == true }) &&
+                    (island == null || island.matches(lowercaseIdPattern)),
+            ) { "Item List NPC location $id is invalid" }
+            id to value
+        }
+    }
+
     private fun readProgressionRequirements(root: JsonObject): Map<String, SkyBlockProgressionRequirement> {
         val entries = requireNotNull(root.array("requirements")) {
             "Item List supplemental data has no progression requirements"
@@ -160,7 +185,7 @@ internal object SkyBlockAuxiliaryDataLoader {
                     "Item List supplemental warp has unknown island $islandId"
                 }
                 val position = WorldVec(value.double("x"), value.double("y"), value.double("z"))
-                require(command.matches(commandPattern) && commands.add(command) && position.isFinite()) {
+                require(command.matches(lowercaseIdPattern) && commands.add(command) && position.isFinite()) {
                     "Item List supplemental warp has invalid data"
                 }
                 add(SkyBlockWarpPoint(command, island, position))
@@ -182,12 +207,17 @@ internal object SkyBlockAuxiliaryDataLoader {
         val MINUTE_RANGE = 0..24 * 60
     }
 
+    private object NpcLocationSchema {
+        const val VERSION = 1
+        const val MINIMUM_SOURCE_COUNT = 1
+    }
+
     private object EntityContextSchema {
         const val MINIMUM_COUNT = 150
         const val SOURCE =
             "NotEnoughUpdates/NotEnoughUpdates-REPO constants/bestiary.json + constants/rift_guide.json"
     }
-    private val commandPattern = Regex("[a-z0-9_]+")
+    private val lowercaseIdPattern = Regex("[a-z0-9_]+")
     private val petMapType = object : TypeToken<Map<String, SkyBlockPetInfo>>() {}.type
 }
 
