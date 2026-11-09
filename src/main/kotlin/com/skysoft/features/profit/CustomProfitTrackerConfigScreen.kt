@@ -135,7 +135,7 @@ private fun runtimeCategory(
     name: () -> String,
     description: String,
 ): ProcessedCategory {
-    val source = SkysoftMoulConfigGuis.processConfig(config).allCategories.values.single()
+    val source = SkysoftMoulConfigGuis.processConfig(config, isSaved = false).allCategories.values.single()
     return RuntimeProcessedCategory(id, name, description, source)
 }
 
