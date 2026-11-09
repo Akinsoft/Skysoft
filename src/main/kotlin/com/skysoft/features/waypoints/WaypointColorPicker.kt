@@ -8,7 +8,6 @@ import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.gui.OverlayTextStyle
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.input.InputUtilities
-import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.GuiTextures
 import io.github.notenoughupdates.moulconfig.gui.GuiContext
 import io.github.notenoughupdates.moulconfig.gui.GuiImmediateContext
@@ -41,9 +40,8 @@ internal class WaypointColorPicker private constructor(
     private fun createPicker(): ColorSelectComponent {
         val color = draft.customColor ?: Color(group.defaultPointColor(index)).toChromaColor()
         return ColorSelectComponent(
-            0, 0, color.toLegacyString(),
-            { value ->
-                val selected = ChromaColour.forLegacyString(value)
+            0, 0, color,
+            { selected ->
                 draft = draft.copy(
                     color = Color.HSBtoRGB(selected.hue, selected.saturation, selected.brightness) and RGB_MASK,
                     chromaMillis = selected.timeForFullRotationInMillis,
