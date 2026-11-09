@@ -115,7 +115,7 @@ object AccessoryBagData {
     }
 
     private fun ItemStack.accessoryInternalNameOrNull(): String? =
-        skyBlockId()?.uppercase(Locale.US)?.replace(':', '-')
+        skyBlockId()?.uppercase(Locale.US)?.let(::canonicalSkyBlockItemId)
 
     private const val BEASTMASTER_PERCENT_DENOMINATOR = 100.0
 

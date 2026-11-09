@@ -1,6 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
+import com.skysoft.data.skyblock.canonicalSkyBlockItemId
 import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageView
 
@@ -116,7 +117,7 @@ private fun craftPlans(
         .filter { it.flipBatchId != null && it.productId != null }
         .groupBy { it.flipBatchId!! }
         .mapValues { (_, batchLots) ->
-            batchLots.groupBy { canonicalBazaarProductId(it.productId!!) }
+            batchLots.groupBy { canonicalSkyBlockItemId(it.productId!!) }
                 .mapValues { (_, lots) -> lots.sumOf { it.amount } }
         }
     return availableByBatch.mapNotNull { (batchId, available) ->

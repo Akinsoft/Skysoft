@@ -10,6 +10,7 @@ internal object CatalogJson {
     fun JsonObject.intOrNull(name: String): Int? = get(name)?.takeUnless { it.isJsonNull }?.asInt
     fun JsonObject.doubleOrNull(name: String): Double? = get(name)?.takeUnless { it.isJsonNull }?.asDouble
     fun JsonObject.double(name: String): Double = doubleOrNull(name) ?: 0.0
+    fun JsonObject.canonicalItemId(): String? = string("id").takeIf(String::isNotBlank)?.let(::canonicalSkyBlockItemId)
     inline fun <reified E : Enum<E>> JsonObject.enumOrNull(name: String): E? =
         string(name).let { value -> enumValues<E>().firstOrNull { it.name == value } }
 

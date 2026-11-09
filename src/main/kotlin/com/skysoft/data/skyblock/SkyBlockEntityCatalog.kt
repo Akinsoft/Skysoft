@@ -1,5 +1,6 @@
 package com.skysoft.data.skyblock
 
+import com.skysoft.data.skyblock.CatalogJson.canonicalItemId
 import com.skysoft.data.skyblock.CatalogJson.doubleOrNull
 import com.skysoft.data.skyblock.CatalogJson.intOrNull
 import com.skysoft.data.skyblock.CatalogJson.readableName
@@ -80,11 +81,11 @@ internal object SkyBlockEntityCatalog {
             string("id"),
             intOrNull("level") ?: return null,
         )
-        "attribute" -> string("id").takeIf(String::isNotBlank)?.let { "ATTRIBUTE_SHARD_$it;1" }
+        "attribute" -> canonicalItemId()?.let { "ATTRIBUTE_SHARD_$it;1" }
         "pet" -> petItemKey("${string("pet")};${string("tier")}")?.id
-        "potion" -> string("id").takeIf(String::isNotBlank)?.let { "$it;${get("level")?.asInt ?: 1}" }
-        "rune" -> string("id").takeIf(String::isNotBlank)?.let { "${it}_RUNE;${get("tier")?.asInt ?: 1}" }
-        else -> string("id").takeIf(String::isNotBlank)
+        "potion" -> canonicalItemId()?.let { "$it;${get("level")?.asInt ?: 1}" }
+        "rune" -> canonicalItemId()?.let { "${it}_RUNE;${get("tier")?.asInt ?: 1}" }
+        else -> canonicalItemId()
     }
 
     private fun JsonObject.dropDisplayName(type: String): String = when (type) {
