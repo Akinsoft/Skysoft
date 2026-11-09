@@ -1,6 +1,5 @@
 package com.skysoft.data.skyblock.pets
 
-import com.skysoft.data.skyblock.SkyBlockRarity
 import java.util.concurrent.ConcurrentHashMap
 
 internal object PetLevels {
@@ -23,18 +22,10 @@ internal object PetLevels {
 
     fun rarityOffset(petInternalName: String): Int? {
         val (properName, rarity) = PetInternalNames.split(petInternalName) ?: return null
-        PetRepoConstants.data.customPetLeveling[properName]?.rarityOffset?.get(rarity)?.let { return it }
-        return DEFAULT_RARITY_OFFSETS[rarity]
+        val constants = PetRepoConstants.data
+        constants.customPetLeveling[properName]?.rarityOffset?.get(rarity)?.let { return it }
+        return constants.rarityOffsets[rarity]
     }
-
-    private val DEFAULT_RARITY_OFFSETS = mapOf(
-        SkyBlockRarity.COMMON to 0,
-        SkyBlockRarity.UNCOMMON to 6,
-        SkyBlockRarity.RARE to 11,
-        SkyBlockRarity.EPIC to 16,
-        SkyBlockRarity.LEGENDARY to 20,
-        SkyBlockRarity.MYTHIC to 20,
-    )
 
     private data class CachedLevelTree(
         val constants: SkysoftPetsRepoJson,
