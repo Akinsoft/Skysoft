@@ -2,6 +2,7 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.utils.RegexUtilities.whitespacePattern
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
+import com.skysoft.data.skyblock.canonicalSkyBlockItemId
 import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
@@ -19,10 +20,8 @@ internal fun ItemStack.cleanTextLines(): List<String> = buildList {
 
 internal fun namesMatch(a: String, b: String): Boolean = normalizeName(a) == normalizeName(b)
 
-internal fun canonicalBazaarProductId(productId: String): String = productId.replace(':', '-')
-
 internal fun productMatches(a: String?, b: String?): Boolean =
-    a != null && b != null && canonicalBazaarProductId(a) == canonicalBazaarProductId(b)
+    a != null && b != null && canonicalSkyBlockItemId(a) == canonicalSkyBlockItemId(b)
 
 internal fun lotMatches(lot: ProfileStorageView.BazaarItemLotData, productId: String?, itemName: String): Boolean =
     productMatches(lot.productId, productId) || namesMatch(lot.itemName, itemName)

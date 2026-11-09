@@ -64,7 +64,7 @@ internal data class SkyBlockItemJson(
     val id: String = "minecraft:stone",
     val components: SkyBlockItemComponentsJson = SkyBlockItemComponentsJson(),
 ) {
-    val internalName: String? get() = components.customData?.id
+    val internalName: String? get() = components.customData?.id?.let(::canonicalSkyBlockItemId)
     val displayName: String? get() = components.customName?.text
 }
 

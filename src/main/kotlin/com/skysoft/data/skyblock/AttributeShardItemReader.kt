@@ -27,7 +27,7 @@ internal object AttributeShardItemReader {
             ?.let { return it }
 
         val extraAttributes = item.extraAttributes() ?: return resolveContextualShardInternalName(item, inventoryName)
-        val id = extraAttributes.getStringOrNull("id")?.uppercase(Locale.US)?.replace(':', '-')
+        val id = extraAttributes.getStringOrNull("id")?.uppercase(Locale.US)?.let(::canonicalSkyBlockItemId)
         return if (id == "ATTRIBUTE_SHARD") {
             extraAttributes.attributeShardId() ?: resolveContextualShardInternalName(item, inventoryName)
         } else {

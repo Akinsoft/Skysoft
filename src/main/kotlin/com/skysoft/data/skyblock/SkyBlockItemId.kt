@@ -54,6 +54,8 @@ object SkyBlockItemId {
         SkyBlockRarity.getByName(tier)?.id ?: SkyBlockRarity.COMMON.id
 }
 
+internal fun canonicalSkyBlockItemId(id: String): String = id.replace(':', '-')
+
 internal fun attributeShardInternalName(attributeName: String): String =
     "ATTRIBUTE_SHARD_${attributeName.uppercase(Locale.US)};1"
 

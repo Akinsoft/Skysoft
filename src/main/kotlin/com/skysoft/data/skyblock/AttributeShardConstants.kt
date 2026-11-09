@@ -169,7 +169,7 @@ internal object AttributeShardConstants {
     private const val CONSTANTS_RETRY_DELAY_MILLIS = 30_000L
 
     private fun String.normalizeAttributeShardInternalName(): String {
-        val normalized = uppercase(Locale.US).replace(':', '-')
+        val normalized = canonicalSkyBlockItemId(uppercase(Locale.US))
         val baseName = normalized.substringBefore(';')
         return if (baseName.startsWith("ATTRIBUTE_SHARD_")) "$baseName;1" else normalized
     }

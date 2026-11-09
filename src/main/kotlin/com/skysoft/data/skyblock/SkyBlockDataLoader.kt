@@ -97,7 +97,9 @@ internal object SkyBlockDataLoader {
     }
 
     private fun readItems(json: String): List<SkyBlockItemJson> = StringReader(json).use { reader ->
-        gson.fromJson(reader, Array<SkyBlockItemJson>::class.java).orEmpty().toList()
+        gson.fromJson(reader, Array<SkyBlockItemJson>::class.java).orEmpty().filterNot { item ->
+            item.components.lore.any { NEU_RECIPE_PLACEHOLDER_LORE in it.text }
+        }
     }
 
     private fun mergeMissingBundledItems(items: List<SkyBlockItemJson>): List<SkyBlockItemJson> {
@@ -111,7 +113,7 @@ internal object SkyBlockDataLoader {
             val json = element.asJsonObject
             val id = json.string("id").takeIf(String::isNotBlank) ?: return@mapNotNull null
             val key = when (json.string("type")) {
-                "item" -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, id)
+                "item" -> ItemListEntryKey(ItemListEntryKind.SKYBLOCK, canonicalSkyBlockItemId(id))
                 "mob" -> entityItemKey(id)
                 "pet" -> petItemKey("$id;${json.string("tier")}")
                 else -> null
@@ -124,6 +126,8 @@ internal object SkyBlockDataLoader {
 
     private fun resourceText(path: String): String =
         BundledResources.read(path, "Item List resource $path") { it.readText() }
+
+    private const val NEU_RECIPE_PLACEHOLDER_LORE = "Used for NEU Recipes"
 }
 
 private object CatalogResources {

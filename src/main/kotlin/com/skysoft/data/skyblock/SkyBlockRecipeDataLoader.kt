@@ -2,6 +2,7 @@ package com.skysoft.data.skyblock
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.skysoft.data.skyblock.CatalogJson.canonicalItemId
 import com.skysoft.data.skyblock.CatalogJson.intOrNull
 import com.skysoft.data.skyblock.CatalogJson.readableName
 import java.io.StringReader
@@ -117,7 +118,7 @@ internal object SkyBlockRecipeDataLoader {
     }
 
     private fun JsonObject.itemIngredient(): RecipeIngredient? {
-        val id = string("id").takeIf(String::isNotBlank) ?: return null
+        val id = canonicalItemId() ?: return null
         return RecipeIngredient(id, long("count").coerceAtLeast(1L))
     }
 
