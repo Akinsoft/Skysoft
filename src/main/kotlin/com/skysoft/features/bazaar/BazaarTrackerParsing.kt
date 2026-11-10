@@ -179,7 +179,7 @@ internal fun parseCancelStack(stack: ItemStack, order: ProfileStorageView.Bazaar
 }
 
 internal fun sellTaxMultiplier(taxPercent: Double): Double =
-    (1.0 - taxPercent / BAZAAR_PERCENT_SCALE).coerceAtLeast(MIN_BAZAAR_TAX_MULTIPLIER)
+    (1.0 - taxPercent / 100.0).coerceAtLeast(MIN_BAZAAR_TAX_MULTIPLIER)
 
 internal fun updateTax(taxPercent: Double?) {
     if (taxPercent == null || taxPercent <= 0.0 || abs(storage.taxPercent - taxPercent) < BAZAAR_PRICE_EPSILON) return
@@ -260,5 +260,4 @@ private val cancelBuyTooltipPattern =
     )
 
 private val cancelSellTooltipPattern = Regex("""refunded ([\d,.]+[kKmMbB]?)x (.+?)(?: from|\.|$)""", RegexOption.IGNORE_CASE)
-private const val BAZAAR_PERCENT_SCALE = 100.0
 private const val MIN_BAZAAR_TAX_MULTIPLIER = 0.01

@@ -138,7 +138,7 @@ private fun skillExpProgressText(state: SkillExpDisplayState, format: SkillExpPr
 private fun skillExpPercentage(state: SkillExpDisplayState): String {
     val requiredXp = state.neededXp.takeUnless { it == 0L }
         ?: SkillExpGainApi.xpRequiredForMaxLevel(state.skill)
-    val percentage = (state.currentXp.toDouble() / requiredXp * PERCENT_DENOMINATOR).fixedDecimals(1)
+    val percentage = (state.currentXp.toDouble() / requiredXp * 100).fixedDecimals(1)
     return "${percentage.removeSuffix(".0")}%"
 }
 
@@ -155,6 +155,5 @@ private fun SkyBlockSkill.iconItem(): Item = when (this) {
     SkyBlockSkill.HUNTING -> Items.LEAD
 }
 
-private const val PERCENT_DENOMINATOR = 100
 private const val ITEM_SIZE = 16.0
 private const val ICON_TEXT_SPACING = 2

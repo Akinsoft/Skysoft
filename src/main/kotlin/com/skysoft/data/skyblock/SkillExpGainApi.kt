@@ -197,7 +197,7 @@ object SkillExpGainApi {
             tabInfo.currentXp to tabInfo.neededXp
         } else {
             val nextLevelDiff = xpForNextLevel(level)
-            (nextLevelDiff * progress / PERCENT_DENOMINATOR).toLong() to nextLevelDiff.toLong()
+            (nextLevelDiff * progress / 100.0).toLong() to nextLevelDiff.toLong()
         }
         val totalXp = calculateLevelXp(level - 1).toLong() + currentXp
         updateSkillInfo(skillInfo, skillType.maxLevel, level, currentXp, neededXp, totalXp, match.gainedText)
@@ -306,7 +306,6 @@ object SkillExpGainApi {
 private fun String.romanToDecimalIfNecessary(): Int =
     toIntOrNull() ?: romanToDecimal()
 
-private const val PERCENT_DENOMINATOR = 100.0
 
 internal data class SkillActionBarMatch(
     val range: IntRange,

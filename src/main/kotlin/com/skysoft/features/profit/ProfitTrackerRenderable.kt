@@ -315,7 +315,7 @@ internal class ProfitTrackerRenderable(
             .filter { it.key.kind == ItemListEntryKind.ENTITY && "Pest" in it.tags }
             .associateBy { it.displayName }
         return counts.map { (pest, count) ->
-            val percentage = (count * PERCENT_SCALE / stats.actions).roundTo(1).toString().removeSuffix(".0")
+            val percentage = (count * 100.0 / stats.actions).roundTo(1).toString().removeSuffix(".0")
             SkysoftNativeTooltip.ItemRow(
                 stack = pests[pest]?.let { SkyBlockDataRepository.displayStack(it.key) },
                 label = "§7$pest §e${count.addSeparators()}",
@@ -399,7 +399,6 @@ internal data class ProfitDisplayItem(
 private fun profitColor(value: Double): String = if (value >= 0.0) "§a" else "§c"
 
 private const val MILLIS_PER_HOUR = 3_600_000.0
-private const val PERCENT_SCALE = 100.0
 private const val MAXIMUM_ITEM_NAME_LENGTH = 20
 private const val MINIMUM_WIDTH = 145
 private const val TEXT_COLOR = 0xFFFFFFFF.toInt()

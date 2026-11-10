@@ -17,7 +17,6 @@ object OverlayPanelStyle {
         get() = SkysoftConfigGui.config().settings.hudAppearance.backgroundColor.get().toColor().rgb
 
     private const val SIDE_GAP = 4
-    private const val PERCENT_MAX = 100
 
     fun draw(
         context: GuiGraphicsExtractor,
@@ -37,7 +36,7 @@ object OverlayPanelStyle {
     }
 
     fun fadedHudBackgroundColor(alpha: Int, opacityPercent: Int): Int =
-        hudBackgroundColor.withAlpha(min(alpha, opacityPercent * COLOR_CHANNEL_MAX / PERCENT_MAX))
+        hudBackgroundColor.withAlpha(min(alpha, opacityPercent * COLOR_CHANNEL_MAX / 100))
 
     fun drawHudBackground(context: GuiGraphicsExtractor, width: Int, height: Int) {
         draw(context, 0, 0, width, height, backgroundColor = hudBackgroundColor)

@@ -155,7 +155,7 @@ internal object MythologicalRitualPartyCommands {
     private fun MythologicalRitualTrackerState.fmt(label: String, key: String, denominatorMob: String? = null): String {
         val count = if (denominatorMob == null) event.mob(key) else event.item(key)
         val denominator = denominatorMob?.let(event::mob) ?: event.mob(MythologicalRitualMobKey.TOTAL_MOBS)
-        val percent = if (denominator <= 0L) 0.0 else count.toDouble() / denominator.toDouble() * PERCENT_MULTIPLIER
+        val percent = if (denominator <= 0L) 0.0 else count.toDouble() / denominator.toDouble() * 100.0
         return "$label: $count (${percent.fixedDecimals(2)}%)"
     }
 
@@ -272,5 +272,4 @@ internal object MythologicalRitualPartyCommands {
         "!sessionstats",
         "!sessionstat",
     )
-    private const val PERCENT_MULTIPLIER = 100.0
 }

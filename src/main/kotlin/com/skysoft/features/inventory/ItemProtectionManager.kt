@@ -118,7 +118,7 @@ object ItemProtectionManager {
                 -font.width(PROTECTED_MARKER),
                 -font.lineHeight,
                 config.details.protectedItemStarColor.get().toColor()
-                    .toPackedArgb(config.details.protectedItemStarOpacity / PERCENT_MAX),
+                    .toPackedArgb(config.details.protectedItemStarOpacity / 100.0),
                 true,
             )
         }
@@ -209,7 +209,6 @@ private fun isPlayerInventorySlot(slot: Slot?): Boolean = slot?.container is Inv
 private const val OUTSIDE_SLOT = -999
 private const val SLOT_SIZE = 16
 private const val PROTECTED_MARKER = "✦"
-private const val PERCENT_MAX = 100.0
 private const val CREATE_AUCTION_TITLE = "Create Auction"
 private const val CREATE_BIN_AUCTION_TITLE = "Create BIN Auction"
 private const val CLICK_TO_SELL_LORE = "Click to sell!"

@@ -13,7 +13,7 @@ object DroppedItemScaling {
     fun scaleFor(stack: ItemStack): Float {
         if (!isActive()) return DEFAULT_SCALE
         val rarity = SkyBlockItemRarity.from(stack) ?: return DEFAULT_SCALE
-        return SkysoftConfigGui.config().world.droppedItemScaling.settings.sizePercentFor(rarity) / PERCENT_SCALE
+        return SkysoftConfigGui.config().world.droppedItemScaling.settings.sizePercentFor(rarity) / 100f
     }
 
     fun applyRenderScale(poseStack: PoseStack, scale: Float, modelMinY: Float) {
@@ -23,5 +23,4 @@ object DroppedItemScaling {
     }
 
     private const val DEFAULT_SCALE = 1f
-    private const val PERCENT_SCALE = 100f
 }

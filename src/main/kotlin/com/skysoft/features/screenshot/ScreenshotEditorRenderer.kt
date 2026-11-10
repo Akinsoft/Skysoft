@@ -36,7 +36,7 @@ internal object ScreenshotEditorRenderer {
             context,
             font,
             layout.zoomValue,
-            "${(session.zoom * PERCENT_SCALE).roundToInt()}%",
+            "${(session.zoom * 100).roundToInt()}%",
             ScreenshotRenderStyle.MUTED_TEXT.withScaledAlpha(alpha),
         )
         button(layout.zoomIn, "+")
@@ -266,7 +266,6 @@ internal object ScreenshotEditorRenderer {
 
 private const val MINIMUM_STROKE_RADIUS = 0.5
 private const val MINIMUM_BRUSH_CURSOR_SIZE = 3
-private const val PERCENT_SCALE = 100
 
 internal fun ScreenshotFocusLayout.editorViewport(): Rect = Rect(
     preview.x + 1,

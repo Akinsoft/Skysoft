@@ -445,7 +445,7 @@ private fun renderSpread(
     if (mouseX !in bidX..askX || abs(mouseY - markerY) > PlotLayout.SPREAD_HIT_RADIUS) return
     val spread = bestAsk - bestBid
     val midpoint = (bestAsk + bestBid) / PlotLayout.HALF
-    val percent = spread / midpoint * PlotLayout.PERCENT_SCALE
+    val percent = spread / midpoint * 100.0
     SkysoftNativeTooltip.setForNextFrame(
         context,
         listOf(
@@ -601,7 +601,6 @@ private object PlotLayout {
     const val SPREAD_TICK_TOP = 2
     const val SPREAD_TICK_BOTTOM = 3
     const val SPREAD_LABEL_OFFSET = 11
-    const val PERCENT_SCALE = 100.0
     const val AXIS_TEXT_CENTER_OFFSET = 4
     const val AXIS_PRICE_Y = 2
     const val AXIS_LABEL_Y = 11

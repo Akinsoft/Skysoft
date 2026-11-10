@@ -14,7 +14,7 @@ internal object PetXpRules {
     fun estimatePetXp(petData: StoredPetData, skill: SkyBlockSkill, skillXp: Double): Double? {
         val petType = PetRepository.getPetType(petData.fauxInternalName) ?: return null
         val baseMultiplier = skillBaseMultiplier(petType, skill) ?: return null
-        val tamingMultiplier = 1.0 + tamingLevel() / PERCENT_DENOMINATOR
+        val tamingMultiplier = 1.0 + tamingLevel() / 100.0
         val dianaMultiplier = if (MayorPerkApi.petXpBuffActive) DIANA_PET_XP_MULTIPLIER else 1.0
         val beastmasterMultiplier = getBeastmasterMultiplier()
         val itemMultiplier = petData.heldItemInternalName.petItemMultiplier(skill)
@@ -43,7 +43,7 @@ internal object PetXpRules {
     }
 
     fun whyNotMoreExpShareRate(): Double =
-        AttributeShardCatalog.getActiveLevelByAbilityName(WHY_NOT_MORE_ATTRIBUTE) / PERCENT_DENOMINATOR
+        AttributeShardCatalog.getActiveLevelByAbilityName(WHY_NOT_MORE_ATTRIBUTE) / 100.0
 
     private fun tamingLevel(): Int = SkillExpGainApi.getSkillInfo(SkyBlockSkill.TAMING)
         ?.level
@@ -88,7 +88,7 @@ internal object PetXpRules {
     private fun battleExperienceMultiplier(skill: SkyBlockSkill): Double =
         if (skill == SkyBlockSkill.COMBAT) {
             1.0 + AttributeShardCatalog.getActiveLevelByAbilityName(BATTLE_EXPERIENCE_ATTRIBUTE) /
-                PERCENT_DENOMINATOR
+                100.0
         } else 1.0
 
     private fun getBeastmasterMultiplier(): Double =
@@ -101,7 +101,6 @@ internal object PetXpRules {
         } ?: ProfileStorageApi.storage.beastmasterPetXpMultiplier ?: 1.0
 }
 
-private const val PERCENT_DENOMINATOR = 100.0
 
 private const val DIANA_PET_XP_MULTIPLIER = 1.35
 
