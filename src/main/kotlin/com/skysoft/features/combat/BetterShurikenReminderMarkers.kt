@@ -58,7 +58,7 @@ internal fun drawShurikenBadge(
     if (!mob.isVisibleToPlayer()) return
     val position = mob.getPosition(context.partialTicks)
     val bounds = mob.boundingBox
-    val horizontalRadius = sqrt(bounds.xsize * bounds.xsize + bounds.zsize * bounds.zsize) / RADIUS_DIVISOR
+    val horizontalRadius = sqrt(bounds.xsize * bounds.xsize + bounds.zsize * bounds.zsize) / 2
     WorldItemBadgeRenderer.draw(
         context,
         WorldVec(position.x, position.y + MARKER_HEIGHT, position.z),
@@ -68,6 +68,5 @@ internal fun drawShurikenBadge(
     )
 }
 
-private const val RADIUS_DIVISOR = 2.0
 private const val MARKER_HEIGHT = 0.22
 private const val MARKER_CLEARANCE = 0.75

@@ -22,7 +22,7 @@ internal object DianaBurrowSurfaceValidator {
 
     fun check(level: ClientLevel, blockPos: BlockPos): DianaBurrowSurfaceStatus {
         val above = blockPos.above()
-        val secondAbove = blockPos.above(SECOND_BLOCK_ABOVE_OFFSET)
+        val secondAbove = blockPos.above(2)
         if (!level.isLoaded(blockPos) || !level.isLoaded(above) || !level.isLoaded(secondAbove)) {
             return DianaBurrowSurfaceStatus.UNLOADED
         }
@@ -46,5 +46,3 @@ internal object DianaBurrowSurfaceValidator {
     private fun BlockState.isGrassSurface(): Boolean =
         `is`(Blocks.GRASS_BLOCK) && fluidState.isEmpty
 }
-
-private const val SECOND_BLOCK_ABOVE_OFFSET = 2
