@@ -11,7 +11,7 @@ internal data class MythologicalRitualTrackerData(
 
     fun profile(playerKey: String, profileKey: String): MythologicalRitualProfileData {
         val player = players.getOrPut(playerKey) { MythologicalRitualPlayerData() }
-        return player.profiles.getOrPut(profileKey) { MythologicalRitualProfileData(profileName = profileKey) }
+        return player.profiles.getOrPut(profileKey) { MythologicalRitualProfileData() }
     }
 
     fun profileOrNull(playerKey: String, profileKey: String): MythologicalRitualProfileData? =
@@ -27,7 +27,6 @@ internal data class MythologicalRitualPlayerData(
 }
 
 internal data class MythologicalRitualProfileData(
-    @Expose var profileName: String = "",
     @Expose val events: MutableMap<String, MythologicalRitualStats> = mutableMapOf(),
     @Expose val total: MythologicalRitualStats = MythologicalRitualStats(),
     @Expose val since: MythologicalRitualSinceData = MythologicalRitualSinceData(),

@@ -45,7 +45,6 @@ object RarityHighlightRenderer {
         pendingContourColor = null
     }
 
-    @JvmStatic
     fun renderContainerBackgrounds(context: GuiGraphicsExtractor, screen: AbstractContainerScreen<*>) {
         val highlight = containerConfig()
         if (!highlight.isBackgroundEnabled() || StorageOverlayController.isActive(screen)) return
@@ -96,7 +95,6 @@ object RarityHighlightRenderer {
         }
     }
 
-    @JvmStatic
     fun renderSlot(
         context: GuiGraphicsExtractor,
         stack: ItemStack,
@@ -118,7 +116,6 @@ object RarityHighlightRenderer {
         renderContourItem(rarityColor(stack), highlight.details.opacity, render)
     }
 
-    @JvmStatic
     fun renderContainerItem(stack: ItemStack, render: () -> Unit) {
         val highlight = containerConfig()
         if (!highlight.isContourEnabled()) {

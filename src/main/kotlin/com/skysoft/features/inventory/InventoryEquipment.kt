@@ -12,7 +12,6 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.world.inventory.Slot
 
 object InventoryEquipment {
-    @JvmStatic
     fun register() {
         InventoryEquipmentCache.registerConsumer("Inventory screen") { inventoryEquipmentConfig.enabled }
         SkysoftClientEvents.onDisconnect(
@@ -24,10 +23,8 @@ object InventoryEquipment {
         }
     }
 
-    @JvmStatic
     fun layoutScreen(screen: AbstractContainerScreen<*>) = updateInventoryEquipmentSlotLayout(screen)
 
-    @JvmStatic
     fun restoreScreen(screen: AbstractContainerScreen<*>) = restoreInventoryEquipmentSlotLayout(screen)
 
     @JvmStatic
@@ -38,11 +35,9 @@ object InventoryEquipment {
     fun render(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) =
         renderInventoryEquipment(screen, context, mouseX, mouseY)
 
-    @JvmStatic
     fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
         handleInventoryEquipmentMouseClick(screen, click)
 
-    @JvmStatic
     fun isEquipmentSlot(slot: Slot?): Boolean = isInventoryEquipmentSlot(slot)
 }
 

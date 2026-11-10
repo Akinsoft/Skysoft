@@ -8,14 +8,12 @@ internal data class DamageSplash(
     val entityId: Int,
     val damage: Long,
     val location: WorldVec,
-    val cleanName: String,
 )
 
 internal data class DamageSplashAttackContext(
     val atMillis: Long,
     val entityUuid: UUID,
     val targetLocation: WorldVec,
-    val playerLocation: WorldVec?,
 )
 
 internal data class DamageSplashTargetView(

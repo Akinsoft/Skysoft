@@ -18,7 +18,6 @@ data class SkysoftBazaarResponse(
     val success: Boolean = false,
     val cause: String? = null,
     val lastUpdated: Long? = null,
-    val fetchedAt: Long = 0,
     val products: Map<String, SkysoftBazaarProduct> = emptyMap(),
 )
 
@@ -26,9 +25,6 @@ data class SkysoftBazaarProduct(
     val bestBuyOrder: Double = 0.0,
     @SerializedName(value = "bestSellOrder", alternate = ["bestSellOffer"])
     val bestSellOrder: Double = 0.0,
-    val buyOrderAmount: Long = 0,
-    @SerializedName(value = "sellOrderAmount", alternate = ["sellOfferAmount"])
-    val sellOrderAmount: Long = 0,
     val instantBuyPrice: Double = 0.0,
     val instantSellPrice: Double = 0.0,
     @SerializedName(value = "buyOrderPrice", alternate = ["orderBuyPrice"])
@@ -47,7 +43,6 @@ data class LowestBinsResponse(
 data class SkysoftBazaarDepthResponse(
     val success: Boolean = false,
     val cause: String? = null,
-    val fetchedAt: Long = 0,
     val products: Map<String, SkysoftBazaarDepthProduct> = emptyMap(),
 )
 

@@ -57,7 +57,6 @@ object SlotBindingManager {
     private var activeContainerId: Int? = null
     private var pendingTooltip: PendingTooltip? = null
 
-    @JvmStatic
     fun handleSlotClick(screen: AbstractContainerScreen<*>, slot: Slot?, action: ContainerInput): InputHandlingResult {
         if (!isAvailable() || action != ContainerInput.QUICK_MOVE || slot == null || !Geometry.isPlayerInventorySlot(slot)) {
             return InputHandlingResult.IGNORED
@@ -140,14 +139,11 @@ object SlotBindingManager {
         SkysoftNativeTooltip.setForNextFrame(context, tooltip.lines, mouseX, mouseY)
     }
 
-    @JvmStatic
     fun shouldSuppressRegularTooltips(screen: AbstractContainerScreen<*>): Boolean =
         isAvailable() && (isBindingKeyDown() || dragState?.containerId == screen.menu.containerId)
 
-    @JvmStatic
     fun canHandleBindingKey(key: Int): Boolean = isAvailable() && key == config.settings.bindingKey
 
-    @JvmStatic
     fun resetAllBindings() {
         val removed = bindings.isNotEmpty()
         if (removed) ProfileStorageApi.updateProfile { it.slotBindings.clear() }

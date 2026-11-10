@@ -283,12 +283,7 @@ internal object DianaRareMobSharing {
         val target = currentTargets().firstOrNull { rareMob -> rareMob.entityUuid == event.clickedEntity.uuid } ?: return
         val activePet = ActivePetTracker.currentPet
         val canDamage = DianaMythologicalPetRequirement.canDamageRareMob(activePet)
-        target.recordLocalAttack(
-            event.clickedEntity,
-            localPlayerLocation(),
-            System.currentTimeMillis(),
-            canDamage,
-        )
+        target.recordLocalAttack(event.clickedEntity, System.currentTimeMillis(), canDamage)
     }
 
     private fun trySharePending(signals: List<DianaRareMobSignal>, now: Long) {

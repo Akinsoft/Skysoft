@@ -8,11 +8,8 @@ object BazaarOrderBookApi {
         val product = SkyBlockPriceData.getBazaarProduct(productId) ?: return null
         if (product.bestBuyOrder <= 0.0 || product.bestSellOrder <= 0.0) return null
         return BazaarMarket(
-            productId = productId,
             bestBuyOrder = product.bestBuyOrder,
             bestSellOrder = product.bestSellOrder,
-            buyOrderAmount = product.buyOrderAmount,
-            sellOrderAmount = product.sellOrderAmount,
             updatedAtMillis = SkyBlockPriceData.getBazaarUpdatedAtMillis(),
         )
     }
@@ -21,11 +18,8 @@ object BazaarOrderBookApi {
 }
 
 data class BazaarMarket(
-    val productId: String,
     val bestBuyOrder: Double,
     val bestSellOrder: Double,
-    val buyOrderAmount: Long,
-    val sellOrderAmount: Long,
     val updatedAtMillis: Long,
 )
 

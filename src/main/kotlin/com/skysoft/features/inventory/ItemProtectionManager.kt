@@ -42,12 +42,10 @@ object ItemProtectionManager {
         activeProtectKey?.takeUnless(InputUtilities::isBindingDown)?.let { activeProtectKey = null }
     }
 
-    @JvmStatic
     fun clearInputState() {
         activeProtectKey = null
     }
 
-    @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
         if (!isFeatureAvailable() || !isProtectKey(event.key())) return InputHandlingResult.IGNORED
         if (activeProtectKey == event.key()) return InputHandlingResult.CONSUMED
@@ -75,7 +73,6 @@ object ItemProtectionManager {
         return Command.SINGLE_SUCCESS
     }
 
-    @JvmStatic
     fun handleSlotClick(
         screen: AbstractContainerScreen<*>,
         slot: Slot?,
@@ -92,21 +89,18 @@ object ItemProtectionManager {
         return blockProtectedItemAction(stack, isDrop && config.settings.hideProtectedItemDropMessages)
     }
 
-    @JvmStatic
     fun handleWorldDrop(player: LocalPlayer): InputHandlingResult {
         val stack = player.mainHandItem
         if (worldDropDecision(stack) != ItemDropProtectionDecision.BLOCK) return InputHandlingResult.IGNORED
         return blockProtectedItemAction(stack, config.settings.hideProtectedItemDropMessages)
     }
 
-    @JvmStatic
     fun shouldAllowDungeonUltimate(player: LocalPlayer): Boolean =
         worldDropDecision(player.mainHandItem) == ItemDropProtectionDecision.ALLOW_DUNGEON_ULTIMATE
 
     fun isProtected(stack: ItemStack): Boolean =
         stack.skyBlockUuid()?.let { it in protectedItemUuids } == true
 
-    @JvmStatic
     fun renderProtectedMarker(context: GuiGraphicsExtractor, slot: Slot) {
         renderProtectedMarker(context, slot.item, slot.x, slot.y)
     }

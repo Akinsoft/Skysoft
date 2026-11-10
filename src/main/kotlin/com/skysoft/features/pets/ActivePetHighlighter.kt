@@ -24,7 +24,6 @@ object ActivePetHighlighter {
         )
     }
 
-    @JvmStatic
     fun renderOutline(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) {
         if (!PetStorageService.shouldHighlightActivePetSlot(screen.title.cleanSkyBlockText(), slot)) return
         context.outline(

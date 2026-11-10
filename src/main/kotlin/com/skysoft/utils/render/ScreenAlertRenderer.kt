@@ -41,9 +41,6 @@ object ScreenAlertRenderer {
         activeAlerts.remove(id)
     }
 
-    fun hasActiveAlert(id: String): Boolean =
-        activeAlerts[id]?.isActive(System.currentTimeMillis()) == true
-
     fun hasActiveAlerts(): Boolean {
         val now = System.currentTimeMillis()
         return activeAlerts.values.any { alert -> alert.isActive(now) && alert.alert.visible }

@@ -57,7 +57,6 @@ data class ProfileStorage(
     }
 
     data class ProfileSpecific(
-        @Expose override var profileName: String = "",
         @Expose override val pets: MutableList<StoredPetData> = mutableListOf(),
         @Expose override val expSharePets: MutableList<UUID?> = mutableListOf(),
         @Expose override var currentPetUuid: UUID? = null,
@@ -489,9 +488,7 @@ data class ProfileStorage(
     data class SlotBindingData(
         @Expose override var firstSlot: Int = -1,
         @Expose override var secondSlot: Int = -1,
-    ) : ProfileStorageView.SlotBindingData {
-        override fun isValid(): Boolean = SlotBindingGraph.isValidPair(firstSlot, secondSlot)
-    }
+    ) : ProfileStorageView.SlotBindingData
 
     data class AttributeShardData(
         @Expose override var amountSyphoned: Int = 0,

@@ -3,24 +3,21 @@ package com.skysoft.data.skyblock
 import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.utils.ActiveListenerRegistry
-import com.skysoft.utils.ActiveStatePublisher
 import com.skysoft.utils.RegexUtilities.group
 import com.skysoft.utils.SidebarScoreboardState
 import com.skysoft.utils.chat.ChatEvents
 import com.skysoft.utils.chat.ChatMessageVisibility
 
 object GardenPestState {
-    private val publisher = ActiveStatePublisher("Garden Pest State", GardenPestSnapshot())
     private val killListeners = ActiveListenerRegistry<(String) -> Unit>()
     private var lastScoreboardPestCount: Int? = null
     private var unmatchedChatKills = 0
     private var unmatchedScoreboardKills = 0
 
-    val current: GardenPestSnapshot
-        get() = publisher.state
+    var current = GardenPestSnapshot()
+        private set
 
     fun register() {
-        publisher.register()
         ChatEvents.onVisibleMessage(
             "Garden Pest State chat",
             isActive = { SkyBlockIsland.GARDEN.isInIsland() },
@@ -44,10 +41,6 @@ object GardenPestState {
         }
     }
 
-    fun onChange(boundary: String, isActive: () -> Boolean, listener: (GardenPestSnapshot) -> Unit) {
-        publisher.onChange(boundary, isActive, listener)
-    }
-
     fun onKill(boundary: String, isActive: () -> Boolean, listener: (String) -> Unit) {
         killListeners.register(boundary, isActive, listener)
     }
@@ -56,17 +49,15 @@ object GardenPestState {
         clearUnmatchedKills()
         val knownPests = current.knownPestsByPlot.toMutableMap()
         knownPests[spawn.plot] = maxOf(knownPests[spawn.plot] ?: 0, spawn.amount)
-        publisher.update(
-            current.copy(
-                totalPests = maxOf(current.totalPests ?: 0, knownPests.values.sum()),
-                pestsInCurrentPlot = if (current.currentPlot == spawn.plot) {
-                    maxOf(current.pestsInCurrentPlot ?: 0, knownPests.getValue(spawn.plot))
-                } else {
-                    current.pestsInCurrentPlot
-                },
-                knownPestsByPlot = knownPests.toMap(),
-                lastSpawn = spawn,
-            ),
+        current = current.copy(
+            totalPests = maxOf(current.totalPests ?: 0, knownPests.values.sum()),
+            pestsInCurrentPlot = if (current.currentPlot == spawn.plot) {
+                maxOf(current.pestsInCurrentPlot ?: 0, knownPests.getValue(spawn.plot))
+            } else {
+                current.pestsInCurrentPlot
+            },
+            knownPestsByPlot = knownPests.toMap(),
+            lastSpawn = spawn,
         )
     }
 
@@ -82,13 +73,11 @@ object GardenPestState {
         current.currentPlot?.let { plot ->
             knownPests[plot]?.let { pests -> knownPests.setPlotPests(plot, pests - 1) }
         }
-        publisher.update(
-            current.copy(
-                totalPests = totalPests,
-                pestsInCurrentPlot = current.pestsInCurrentPlot?.let { (it - 1).coerceAtLeast(0) },
-                knownPestsByPlot = if (totalPests == 0) emptyMap() else knownPests.toMap(),
-                lastSpawn = current.lastSpawn.takeUnless { totalPests == 0 },
-            ),
+        current = current.copy(
+            totalPests = totalPests,
+            pestsInCurrentPlot = current.pestsInCurrentPlot?.let { (it - 1).coerceAtLeast(0) },
+            knownPestsByPlot = if (totalPests == 0) emptyMap() else knownPests.toMap(),
+            lastSpawn = current.lastSpawn.takeUnless { totalPests == 0 },
         )
         killListeners.forEachActive { listener -> listener(pest) }
     }
@@ -112,14 +101,12 @@ object GardenPestState {
         val pestsInPlot = scoreboardPestsInPlot?.let { (it - unmatchedChatKills).coerceAtLeast(0) }
         val knownPests = current.knownPestsByPlot.toMutableMap()
         if (plot != null && pestsInPlot != null) knownPests.setPlotPests(plot, pestsInPlot)
-        publisher.update(
-            GardenPestSnapshot(
-                totalPests = totalPests,
-                currentPlot = plot,
-                pestsInCurrentPlot = pestsInPlot,
-                knownPestsByPlot = if (totalPests == 0) emptyMap() else knownPests.toMap(),
-                lastSpawn = current.lastSpawn.takeIf { totalPests > 0 },
-            ),
+        current = GardenPestSnapshot(
+            totalPests = totalPests,
+            currentPlot = plot,
+            pestsInCurrentPlot = pestsInPlot,
+            knownPestsByPlot = if (totalPests == 0) emptyMap() else knownPests.toMap(),
+            lastSpawn = current.lastSpawn.takeIf { totalPests > 0 },
         )
     }
 
@@ -145,7 +132,7 @@ object GardenPestState {
     private fun reset() {
         lastScoreboardPestCount = null
         clearUnmatchedKills()
-        publisher.update(GardenPestSnapshot())
+        current = GardenPestSnapshot()
     }
 
     private fun parseSpawn(message: String): GardenPestSpawn? {

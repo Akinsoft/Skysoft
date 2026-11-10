@@ -158,7 +158,6 @@ internal data class BundledAttributeShard(
     val family: String = "",
     val skill: String = "",
     val category: String = "",
-    val rarity: String = "",
     val fusions: List<AttributeShardFusion> = emptyList(),
     val wikiPage: String = "",
     val wikiRevision: Long = 0L,

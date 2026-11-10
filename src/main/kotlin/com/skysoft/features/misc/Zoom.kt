@@ -37,13 +37,11 @@ object Zoom {
     @JvmStatic
     fun shouldHideHand(): Boolean = active && config.enabled && config.details.hideHand
 
-    @JvmStatic
     fun applyMouseMovement(movement: Double): Double {
         if (!config.settings.relativeSensitivity) return movement
         return movement / currentAmount()
     }
 
-    @JvmStatic
     fun didHandleScroll(verticalAmount: Double): Boolean {
         val settings = config.settings
         if (!active || !settings.scrollToAdjust || verticalAmount == 0.0 || MinecraftClient.screen() != null) {

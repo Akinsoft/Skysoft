@@ -30,11 +30,9 @@ internal sealed interface CraftingHelperControl {
 }
 
 internal object CraftingHelperInput {
-    @JvmStatic
     fun handleKeyPress(event: KeyEvent): InputHandlingResult =
         InputHandlingResult.from(craftingHelperConfig.enabled && wasCraftingHelperKeyPressHandled(event))
 
-    @JvmStatic
     fun handleCharTyped(event: CharacterEvent): InputHandlingResult =
         InputHandlingResult.from(craftingHelperConfig.enabled && craftingHelperItemPanel.wasCharTypedHandled(event))
 }

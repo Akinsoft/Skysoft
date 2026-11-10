@@ -22,14 +22,14 @@ object SkyBlockSackTransfers {
             if (insertInventoryStarted.passedSince() > INSERT_INVENTORY_WINDOW) return@onChange
             val removals = change.changes.filterValues { amount -> amount < 0 }
             removals.forEach { (itemId, amount) ->
-                dispatch(SkyBlockSackTransfer(itemId, -amount, SkyBlockSackTransferDirection.TO_SACKS))
+                dispatch(SkyBlockSackTransfer(itemId, -amount))
             }
             if (removals.isNotEmpty()) insertInventoryStarted = ElapsedTimeMark.farPast()
         }
         ChatEvents.onVisibleMessage("SkyBlock Sack withdrawals", ::hasActiveListeners) { message ->
             parseSackWithdrawal(message.cleanText)?.let { withdrawal ->
                 SkyBlockItemNames.itemId(withdrawal.displayName)?.let { itemId ->
-                    dispatch(SkyBlockSackTransfer(itemId, withdrawal.amount, SkyBlockSackTransferDirection.FROM_SACKS))
+                    dispatch(SkyBlockSackTransfer(itemId, withdrawal.amount))
                 }
             }
             ChatMessageVisibility.SHOW
@@ -56,13 +56,7 @@ object SkyBlockSackTransfers {
 data class SkyBlockSackTransfer(
     val itemId: String,
     val amount: Int,
-    val direction: SkyBlockSackTransferDirection,
 )
-
-enum class SkyBlockSackTransferDirection {
-    TO_SACKS,
-    FROM_SACKS,
-}
 
 internal data class SkyBlockSackWithdrawal(
     val displayName: String,
