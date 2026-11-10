@@ -148,7 +148,3 @@ potential-bugs:
         active: false
     UnreachableCode:
         active: true
-
-skysoft:
-    AmbiguousBooleanReturn:
-        active: true
