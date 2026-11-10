@@ -261,14 +261,14 @@ private const val YEAR_OF_THE_WITCH_OFFSET = 8
 private const val EVENT_PREFIX = "Event: "
 private const val EVENT_END_PREFIX = "Ends In:"
 private const val TAB_EVENT_DETAIL_LINES = 3
-private const val ONE_HOUR_MINUTES = 60
-private const val HOPPITY_HUNT_DURATION_MINUTES = 31 * ONE_HOUR_MINUTES
+private const val MINUTES_PER_HOUR = 60
+private const val HOPPITY_HUNT_DURATION_MINUTES = 31 * MINUTES_PER_HOUR
 private val ANNUAL_EVENT_WINDOWS = mapOf(
-    SkyBlockEvent.SPOOKY_FESTIVAL to listOf(SkyBlockAnnualWindow(8, 29, ONE_HOUR_MINUTES)),
+    SkyBlockEvent.SPOOKY_FESTIVAL to listOf(SkyBlockAnnualWindow(8, 29, MINUTES_PER_HOUR)),
     SkyBlockEvent.TRAVELING_ZOO to listOf(
-        SkyBlockAnnualWindow(4, 1, ONE_HOUR_MINUTES),
-        SkyBlockAnnualWindow(10, 1, ONE_HOUR_MINUTES),
+        SkyBlockAnnualWindow(4, 1, MINUTES_PER_HOUR),
+        SkyBlockAnnualWindow(10, 1, MINUTES_PER_HOUR),
     ),
-    SkyBlockEvent.NEW_YEAR_CELEBRATION to listOf(SkyBlockAnnualWindow(12, 29, ONE_HOUR_MINUTES)),
+    SkyBlockEvent.NEW_YEAR_CELEBRATION to listOf(SkyBlockAnnualWindow(12, 29, MINUTES_PER_HOUR)),
     SkyBlockEvent.HOPPITY_HUNT to listOf(SkyBlockAnnualWindow(1, 1, HOPPITY_HUNT_DURATION_MINUTES)),
 )

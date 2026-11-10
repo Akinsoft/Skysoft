@@ -169,16 +169,11 @@ object SkysoftConfigFiles {
     }
 
     private fun <T> retryAccessDenied(action: () -> T): T {
-        repeat(MAX_WRITE_ATTEMPTS - 1) { attempt ->
+        for (attempt in 1 until MAX_WRITE_ATTEMPTS) {
             try {
                 return action()
             } catch (e: AccessDeniedException) {
-                val retryAttempt = attempt + RETRY_ATTEMPT_DISPLAY_OFFSET
-                SkysoftMod.LOGGER.warn(
-                    "Access denied while saving Skysoft config, retrying attempt {}",
-                    retryAttempt,
-                    e,
-                )
+                SkysoftMod.LOGGER.warn("Access denied while saving Skysoft config, retrying attempt {}", attempt + 1, e)
                 Thread.sleep(WRITE_RETRY_DELAY_MS)
             }
         }
@@ -199,4 +194,3 @@ object SkysoftConfigFiles {
 private const val MAX_WRITE_ATTEMPTS = 5
 private const val WRITE_RETRY_DELAY_MS = 50L
 private const val BACKUP_COUNT = 3
-private const val RETRY_ATTEMPT_DISPLAY_OFFSET = 2

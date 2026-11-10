@@ -3,6 +3,7 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.configVisibility
 import com.skysoft.config.core.HudPosition
+import com.skysoft.utils.ColorUtilities.toChromaColor
 import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -12,6 +13,7 @@ import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 import io.github.notenoughupdates.moulconfig.observer.Property
+import java.awt.Color
 
 enum class ServerInfoMetric(
     private val displayName: String,
@@ -164,8 +166,4 @@ class ServerInfoDisplayDetailsConfig {
     }
 }
 
-private fun defaultTextColor(): Property<ChromaColour> = Property.of(
-    ChromaColour.fromRGB(WHITE_COLOR_CHANNEL, WHITE_COLOR_CHANNEL, WHITE_COLOR_CHANNEL, 0, WHITE_COLOR_CHANNEL),
-)
-
-private const val WHITE_COLOR_CHANNEL = 255
+private fun defaultTextColor(): Property<ChromaColour> = Property.of(Color.WHITE.toChromaColor())
