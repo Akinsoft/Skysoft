@@ -32,7 +32,6 @@ object SkysoftCircleShaderRenderer {
             angle2 = angle2 - Math.PI.toFloat(),
             params = params,
         )
-        //~ if < 26.1 'addGuiElement' -> 'submitGuiElement'
         GuiRenderStateAccess.get(context).addGuiElement(state)
     }
 
