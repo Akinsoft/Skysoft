@@ -1,6 +1,5 @@
 package com.skysoft.gui
 
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.SnapshotHistory
 
 internal class HudEditorHistory {
@@ -38,12 +37,12 @@ internal class HudEditorHistory {
         history.record(pending.before, pending.after)
     }
 
-    fun undo(): ChangeResult {
+    fun undo(): Boolean {
         flushPending()
         return history.undo(HudEditorSnapshot::restore)
     }
 
-    fun redo(): ChangeResult {
+    fun redo(): Boolean {
         flushPending()
         return history.redo(HudEditorSnapshot::restore)
     }

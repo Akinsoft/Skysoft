@@ -54,10 +54,10 @@ internal object PetStoragePetItems {
         )
     }
 
-    fun readExactSelectedPetData(item: ItemStack): PetDataReadResult {
-        val currentPetData = item.toExactPetDataOrNull() ?: return PetDataReadResult.UNAVAILABLE
+    fun readExactSelectedPetData(item: ItemStack): Boolean {
+        val currentPetData = item.toExactPetDataOrNull() ?: return false
         saveExactPetRead(currentPetData, syncXp = true, assertCurrent = true)
-        return PetDataReadResult.READ
+        return true
     }
 
     fun isCurrentPetStack(item: ItemStack): Boolean =
@@ -135,11 +135,6 @@ internal object PetStoragePetItems {
     private fun isPetMenuSideBorder(slot: Int): Boolean {
         val column = slot % PET_MENU_COLUMNS
         return column == 0 || column == PET_MENU_COLUMNS - 1
-    }
-
-    enum class PetDataReadResult {
-        READ,
-        UNAVAILABLE,
     }
 
     private const val DISPLAYED_WHOLE_EXP_MAX_FRACTION = 0.999

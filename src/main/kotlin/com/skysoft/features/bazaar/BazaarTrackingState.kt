@@ -45,19 +45,19 @@ internal object BazaarTrackingState {
         pendingOrdersInventoryStableTicks = 0
     }
 
-    fun observeOrderInventory(key: String): BazaarOrderScanDecision {
-        if (key == lastOrdersInventoryKey && missingFromOrdersGuiScans.isEmpty()) return BazaarOrderScanDecision.SKIP
+    fun observeOrderInventory(key: String): Boolean {
+        if (key == lastOrdersInventoryKey && missingFromOrdersGuiScans.isEmpty()) return false
         if (key != pendingOrdersInventoryKey) {
             pendingOrdersInventoryKey = key
             pendingOrdersInventoryStableTicks = 1
-            return BazaarOrderScanDecision.SKIP
+            return false
         }
         pendingOrdersInventoryStableTicks++
-        if (pendingOrdersInventoryStableTicks < GUI_MISSING_PRUNE_INVENTORY_STABLE_TICKS) return BazaarOrderScanDecision.SKIP
+        if (pendingOrdersInventoryStableTicks < GUI_MISSING_PRUNE_INVENTORY_STABLE_TICKS) return false
         lastOrdersInventoryKey = key
         pendingOrdersInventoryKey = null
         pendingOrdersInventoryStableTicks = 0
-        return BazaarOrderScanDecision.SCAN
+        return true
     }
 
     fun forgetOrder(orderId: String) {
@@ -67,11 +67,6 @@ internal object BazaarTrackingState {
         marketProofMillis.remove(orderId)
         fillEstimateStates.remove(orderId)
     }
-}
-
-internal enum class BazaarOrderScanDecision {
-    SKIP,
-    SCAN,
 }
 
 internal data class MissingOrderObservation(

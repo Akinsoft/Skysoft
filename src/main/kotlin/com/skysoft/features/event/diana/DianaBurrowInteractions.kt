@@ -137,7 +137,7 @@ internal object DianaBurrowInteractions {
     }
 
     private fun removeOrAdvanceRejectedGuess(target: DianaBurrowTarget, now: Long) {
-        if (DianaArrowGuess.handleRejectedGuess(target, now) == ArrowGuessActionResult.HANDLED) return
+        if (DianaArrowGuess.handleRejectedGuess(target, now)) return
         val current = target.currentExactTarget()
         if (target.source == DianaBurrowSource.GUESS && current?.source == DianaBurrowSource.DETECTED) return
         DianaBurrowTargetTracker.removeIfCurrent(target, now)

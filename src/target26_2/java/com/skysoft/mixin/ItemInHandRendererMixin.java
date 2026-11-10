@@ -5,7 +5,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.skysoft.features.helditem.HeldItemSwingVisuals;
 import com.skysoft.features.helditem.HeldItemTransforms;
-import com.skysoft.features.helditem.SwingReplacementResult;
 import com.skysoft.features.misc.Zoom;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -74,7 +73,7 @@ public abstract class ItemInHandRendererMixin {
         HumanoidArm arm,
         CallbackInfo ci
     ) {
-        boolean replaced = MixinErrorBoundary.value("Held Item swing replacement", false, () -> HeldItemSwingVisuals.replaceVanillaSwing() == SwingReplacementResult.REPLACED);
+        boolean replaced = MixinErrorBoundary.value("Held Item swing replacement", false, () -> HeldItemSwingVisuals.replaceVanillaSwing());
         if (replaced) ci.cancel();
     }
 }

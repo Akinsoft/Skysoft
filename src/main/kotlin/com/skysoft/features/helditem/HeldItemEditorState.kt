@@ -3,7 +3,6 @@ package com.skysoft.features.helditem
 import com.skysoft.config.HeldItemConfig
 import com.skysoft.config.HeldItemSwingStyle
 import com.skysoft.config.HeldItemTransformConfig
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.gui.Rect
 import net.minecraft.world.item.ItemStack
 
@@ -56,11 +55,11 @@ internal class HeldItemEditorState(
 
     fun previewItem(): ItemStack = HeldItemTextureOverrides.previewStack(currentItem())
 
-    fun toggleTexture(): ChangeResult {
-        if (!canToggleTexture()) return ChangeResult.UNCHANGED
+    fun toggleTexture(): Boolean {
+        if (!canToggleTexture()) return false
         return when (target) {
             EditTarget.GLOBAL -> config.toggleGlobalTexture()
-            EditTarget.ITEM -> currentItemId()?.let(config::toggleItemTexture) ?: ChangeResult.UNCHANGED
+            EditTarget.ITEM -> currentItemId()?.let(config::toggleItemTexture) ?: false
         }
     }
 
@@ -88,11 +87,11 @@ internal class HeldItemEditorState(
         editableTransform()?.swingStyle = style
     }
 
-    fun resetCurrentTarget(): ChangeResult {
+    fun resetCurrentTarget(): Boolean {
         return if (target == EditTarget.GLOBAL) {
             config.resetGlobalCustomization()
         } else {
-            currentItemId()?.let(config::removeItemCustomization) ?: ChangeResult.UNCHANGED
+            currentItemId()?.let(config::removeItemCustomization) ?: false
         }
     }
 

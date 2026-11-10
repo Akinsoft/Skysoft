@@ -58,7 +58,7 @@ internal object DianaRareMobLootshare {
                 lastHealthChangeAtMillis = target.lastHealthChangeAtMillis,
             )
         } ?: return
-        if (attributedTarget.addAttributedLocalDamage(splash.damage) == LootshareEligibilityResult.BECAME_ELIGIBLE) {
+        if (attributedTarget.addAttributedLocalDamage(splash.damage)) {
             DianaLootshareReadyMessage.broadcast()
         }
     }

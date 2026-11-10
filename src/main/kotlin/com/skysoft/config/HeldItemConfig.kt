@@ -4,7 +4,6 @@ import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.features.helditem.HeldItemEditorScreen
-import com.skysoft.utils.ChangeResult
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
@@ -55,8 +54,8 @@ class HeldItemConfig : ConfigRepairable {
     fun customize(itemId: String): HeldItemTransformConfig =
         itemTransforms.getOrPut(normalizedItemId(itemId)) { global.copyValues() }
 
-    private fun removeCustomization(itemId: String): ChangeResult =
-        ChangeResult.from(itemTransforms.remove(normalizedItemId(itemId)) != null)
+    private fun removeCustomization(itemId: String): Boolean =
+        itemTransforms.remove(normalizedItemId(itemId)) != null
 
     private fun hasCustomization(itemId: String?): Boolean =
         itemId != null && itemTransforms.containsKey(normalizedItemId(itemId))
@@ -64,39 +63,39 @@ class HeldItemConfig : ConfigRepairable {
     fun usesVanillaTexture(itemId: String?): Boolean =
         textureModeFor(itemId) == HeldItemTextureMode.VANILLA
 
-    fun toggleGlobalTexture(): ChangeResult {
+    fun toggleGlobalTexture(): Boolean {
         globalTextureMode = globalTextureMode.toggled()
-        return ChangeResult.CHANGED
+        return true
     }
 
-    fun toggleItemTexture(itemId: String): ChangeResult {
+    fun toggleItemTexture(itemId: String): Boolean {
         val normalizedId = normalizedItemId(itemId)
-        if (normalizedId.isEmpty()) return ChangeResult.UNCHANGED
+        if (normalizedId.isEmpty()) return false
         itemTextureModes[normalizedId] = textureModeFor(normalizedId).toggled()
-        return ChangeResult.CHANGED
+        return true
     }
 
     private fun hasTextureOverride(itemId: String?): Boolean =
         itemId != null && itemTextureModes.containsKey(normalizedItemId(itemId))
 
-    private fun removeTextureOverride(itemId: String): ChangeResult =
-        ChangeResult.from(itemTextureModes.remove(normalizedItemId(itemId)) != null)
+    private fun removeTextureOverride(itemId: String): Boolean =
+        itemTextureModes.remove(normalizedItemId(itemId)) != null
 
     fun hasGlobalCustomization(): Boolean = !global.isDefault() || globalTextureMode != HeldItemTextureMode.PACK
 
-    fun resetGlobalCustomization(): ChangeResult {
-        val result = ChangeResult.from(hasGlobalCustomization())
+    fun resetGlobalCustomization(): Boolean {
+        val hadCustomization = hasGlobalCustomization()
         global.reset()
         globalTextureMode = HeldItemTextureMode.PACK
-        return result
+        return hadCustomization
     }
 
     fun hasItemCustomization(itemId: String?): Boolean = hasCustomization(itemId) || hasTextureOverride(itemId)
 
-    fun removeItemCustomization(itemId: String): ChangeResult {
-        val transformResult = removeCustomization(itemId)
-        val textureResult = removeTextureOverride(itemId)
-        return ChangeResult.from(transformResult == ChangeResult.CHANGED || textureResult == ChangeResult.CHANGED)
+    fun removeItemCustomization(itemId: String): Boolean {
+        val removedTransform = removeCustomization(itemId)
+        val removedTexture = removeTextureOverride(itemId)
+        return removedTransform || removedTexture
     }
 
     internal fun snapshotCustomization(itemId: String?): HeldItemCustomizationSnapshot {

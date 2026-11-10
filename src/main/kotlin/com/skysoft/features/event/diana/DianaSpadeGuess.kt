@@ -7,7 +7,6 @@ import com.skysoft.features.event.diana.DianaEventState.isDianaSpade
 import com.skysoft.utils.WorldVec
 import com.skysoft.utils.particle.ParticleEstimateStabilizer
 import com.skysoft.utils.particle.ParticlePathEstimator
-import com.skysoft.utils.particle.ParticlePathPointResult
 
 internal object DianaSpadeGuess {
     private val estimator = ParticlePathEstimator()
@@ -26,7 +25,7 @@ internal object DianaSpadeGuess {
     fun handleParticle(event: ClientParticleEvent, now: Long) {
         if (!DianaParticleClassifier.isSpadeTrail(event)) return
         if (now - lastSpadeUseMillis > SPADE_TRAIL_WINDOW_MILLIS) return
-        if (estimator.addIfUsable(event.location) != ParticlePathPointResult.ADDED) return
+        if (!estimator.addIfUsable(event.location)) return
         if (estimator.count() == 1) stabilizer.reset()
         val estimate = estimator.estimate() ?: return
         val guessLocation = stabilizer.accept(estimate.down(BURROW_GUESS_Y_OFFSET)) ?: return

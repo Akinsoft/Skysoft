@@ -111,17 +111,13 @@ internal class DianaRareMobTarget(
     fun shouldShowLootshare(localName: String?): Boolean =
         !isSpawner(localName) && hasVisibleSignal()
 
-    fun addAttributedLocalDamage(damage: Long): LootshareEligibilityResult {
-        if (!lastLocalAttackCanDamage || damage <= 0) return LootshareEligibilityResult.UNCHANGED
+    fun addAttributedLocalDamage(damage: Long): Boolean {
+        if (!lastLocalAttackCanDamage || damage <= 0) return false
         localDamage += damage
-        val threshold = lootshareThreshold() ?: return LootshareEligibilityResult.UNCHANGED
+        val threshold = lootshareThreshold() ?: return false
         val wasEligible = lootshareEligible
         lootshareEligible = localDamage >= threshold
-        return if (!wasEligible && lootshareEligible) {
-            LootshareEligibilityResult.BECAME_ELIGIBLE
-        } else {
-            LootshareEligibilityResult.UNCHANGED
-        }
+        return !wasEligible && lootshareEligible
     }
 
     private fun lootshareThreshold(): Long? =
@@ -150,9 +146,4 @@ internal class DianaRareMobTarget(
 internal enum class DianaRareMobTargetSource {
     LOCAL,
     REMOTE,
-}
-
-internal enum class LootshareEligibilityResult {
-    BECAME_ELIGIBLE,
-    UNCHANGED,
 }

@@ -34,10 +34,10 @@ object HeldItemSwingVisuals {
     }
 
     @JvmStatic
-    fun replaceVanillaSwing(): SwingReplacementResult {
-        val swing = itemOnlySwing ?: return SwingReplacementResult.UNCHANGED
+    fun replaceVanillaSwing(): Boolean {
+        val swing = itemOnlySwing ?: return false
         swing.isVanillaSwingReplaced = true
-        return SwingReplacementResult.REPLACED
+        return true
     }
 
     @JvmStatic
@@ -68,9 +68,4 @@ object HeldItemSwingVisuals {
     private const val SWING_X_DEGREES = -80f
     private const val SWING_Y_DEGREES = -20f
     private const val SWING_Z_DEGREES = -20f
-}
-
-enum class SwingReplacementResult {
-    REPLACED,
-    UNCHANGED,
 }

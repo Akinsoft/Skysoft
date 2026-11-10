@@ -7,7 +7,6 @@ import com.skysoft.data.ProfileStorageView
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.nonPlayerSlotAt
 import com.skysoft.utils.input.InputHandlingResult
@@ -30,7 +29,7 @@ internal fun readConfirmInventory(snapshot: SkyBlockOpenInventorySnapshot, expec
 }
 
 internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
-    if (BazaarTrackingState.observeOrderInventory(snapshot.key) == BazaarOrderScanDecision.SKIP) return
+    if (!BazaarTrackingState.observeOrderInventory(snapshot.key)) return
 
     val cells = snapshot.cells
     val scan = parseBazaarOrderScan(snapshot.title, cells) ?: return
@@ -63,7 +62,7 @@ internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
                 updateTax(parsed.taxPercent)
                 val updateResult = updateOrderFromGui(order, parsed)
                 BazaarTrackingState.missingFromOrdersGuiScans.remove(match.order.id)
-                changed = updateResult == ChangeResult.CHANGED || changed
+                changed = updateResult || changed
             }
             for (parsed in reconciliation.unmatchedRows) {
                 if (parsed.guiSlot !in localOrderSlots) continue
@@ -79,7 +78,7 @@ internal fun readOrdersInventory(snapshot: SkyBlockOpenInventorySnapshot) {
                 matchedOrderIds,
                 parsedOrders,
                 visibleOrderCount = allParsedOrders.size,
-            ) == ChangeResult.CHANGED || changed
+            ) || changed
             if (changed) requestBazaarFillEstimateRefresh()
         }
     }

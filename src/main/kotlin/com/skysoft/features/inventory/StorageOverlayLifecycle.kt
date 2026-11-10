@@ -62,7 +62,7 @@ internal fun storageOverlayLayoutScreen(
     var pageLayoutResult = pageLayouts(measurements, activePage)
     if (
         !measurements.isModern &&
-        focusActivePageIfNeeded(activePage, measurements, pageLayoutResult) == PageLayoutRefresh.REQUIRED
+        focusActivePageIfNeeded(activePage, measurements, pageLayoutResult)
     ) {
         pageLayoutResult = pageLayouts(measurements, activePage)
     }

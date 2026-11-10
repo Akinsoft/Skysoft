@@ -1,6 +1,5 @@
 package com.skysoft.data
 
-import com.skysoft.utils.ChangeResult
 
 internal object SlotBindingGraph {
     fun isValidPair(firstSlot: Int, secondSlot: Int): Boolean =
@@ -9,7 +8,7 @@ internal object SlotBindingGraph {
             secondSlot in PLAYER_SLOT_RANGE &&
             (isHotbarSlot(firstSlot) || isHotbarSlot(secondSlot))
 
-    fun repair(bindings: MutableList<ProfileStorage.SlotBindingData>): ChangeResult {
+    fun repair(bindings: MutableList<ProfileStorage.SlotBindingData>): Boolean {
         val repaired = mutableListOf<ProfileStorage.SlotBindingData>()
         val anchorSlots = mutableSetOf<Int>()
         val secondarySlots = mutableSetOf<Int>()
@@ -25,10 +24,10 @@ internal object SlotBindingGraph {
             secondarySlots += normalized.secondSlot
         }
 
-        if (bindings == repaired) return ChangeResult.UNCHANGED
+        if (bindings == repaired) return false
         bindings.clear()
         bindings.addAll(repaired)
-        return ChangeResult.CHANGED
+        return true
     }
 
     fun additionDecision(

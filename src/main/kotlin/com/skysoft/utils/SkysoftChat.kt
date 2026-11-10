@@ -26,16 +26,16 @@ object SkysoftChat {
     internal const val MESSAGE_GRADIENT_START = 0xE8E8E8
     internal const val MESSAGE_GRADIENT_END = 0xFFFFFF
 
-    fun chat(message: String): ChatDeliveryResult =
+    fun chat(message: String): Boolean =
         chat(Component.literal(message))
 
-    fun success(message: String): ChatDeliveryResult =
+    fun success(message: String): Boolean =
         chat(message)
 
-    fun error(message: String): ChatDeliveryResult =
+    fun error(message: String): Boolean =
         chat(message)
 
-    fun link(message: String, url: String, hover: String = "Open $url"): ChatDeliveryResult =
+    fun link(message: String, url: String, hover: String = "Open $url"): Boolean =
         chat(
             Component.literal(message).withStyle {
                 it.withUnderlined(true)
@@ -44,15 +44,15 @@ object SkysoftChat {
             },
         )
 
-    fun chat(message: Component): ChatDeliveryResult {
+    fun chat(message: Component): Boolean {
         val text = prefixed(message)
         val minecraft = Minecraft.getInstance()
         if (minecraft.player == null) {
             SkysoftMod.LOGGER.info(text.string)
-            return ChatDeliveryResult.LOGGED_ONLY
+            return false
         }
         MinecraftClient.chat(minecraft).addClientSystemMessage(text)
-        return ChatDeliveryResult.DELIVERED
+        return true
     }
 
     fun feedback(source: FabricClientCommandSource, message: String) {
@@ -107,9 +107,4 @@ object SkysoftChat {
     }
 
     private const val BLUE_SHIFT = 0
-}
-
-enum class ChatDeliveryResult {
-    DELIVERED,
-    LOGGED_ONLY,
 }
