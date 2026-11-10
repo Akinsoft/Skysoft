@@ -51,7 +51,6 @@ object SlotLockManager {
         if (System.currentTimeMillis() >= blockedUntilMillis) blockedSlot = null
     }
 
-    @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
         if (!isFeatureAvailable() || !isLockKey(event.key())) return InputHandlingResult.IGNORED
         if (activeLockKey == event.key()) return InputHandlingResult.CONSUMED
@@ -68,21 +67,17 @@ object SlotLockManager {
         return InputHandlingResult.CONSUMED
     }
 
-    @JvmStatic
     fun clearInputState() {
         activeLockKey = null
         pendingLockSlot = null
     }
 
-    @JvmStatic
     fun cancelPendingLock() {
         pendingLockSlot = null
     }
 
     fun isSlotLockPending(slotIndex: Int): Boolean = pendingLockSlot == slotIndex
 
-    @JvmStatic
-    @JvmOverloads
     fun renderSlotOverlay(
         context: GuiGraphicsExtractor,
         slot: Slot,
@@ -94,7 +89,6 @@ object SlotLockManager {
         SlotLockRenderer.render(context, x, y, isBlocked, config.details.lockIconOpacity / PERCENT_MAX)
     }
 
-    @JvmStatic
     fun handleSlotClick(
         screen: AbstractContainerScreen<*>,
         slot: Slot?,
@@ -110,7 +104,6 @@ object SlotLockManager {
     @JvmStatic
     fun canQuickCraftInto(slot: Slot): Boolean = !isFeatureAvailable() || !isSlotLocked(slot)
 
-    @JvmStatic
     fun handleSelectedItemDrop(player: LocalPlayer): InputHandlingResult {
         val selectedSlot = player.inventory.selectedSlot
         if (!isFeatureAvailable() || selectedSlot !in lockedSlots) return InputHandlingResult.IGNORED
@@ -128,7 +121,6 @@ object SlotLockManager {
         return InputHandlingResult.CONSUMED
     }
 
-    @JvmStatic
     fun slotInteractionDecision(
         screen: AbstractContainerScreen<*>,
         slot: Slot?,
@@ -146,16 +138,12 @@ object SlotLockManager {
         return SlotLockInteractionResolver.resolve(screen, slot, button, action, lockedSlots)
     }
 
-    @JvmStatic
-    fun isSlotLocked(slot: Slot?): Boolean = playerSlotIndex(slot) in lockedSlots
+    private fun isSlotLocked(slot: Slot?): Boolean = playerSlotIndex(slot) in lockedSlots
 
-    @JvmStatic
     fun isLockKey(key: Int): Boolean = config.settings.lockKey != MinecraftInput.NO_BINDING && key == config.settings.lockKey
 
-    @JvmStatic
     fun isFeatureAvailable(): Boolean = config.enabled && HypixelLocationState.inSkyBlock
 
-    @JvmStatic
     fun resetAllLocks() {
         if (lockedSlots.isEmpty()) return
         ProfileStorageApi.updateProfile { it.slotLocks.clear() }

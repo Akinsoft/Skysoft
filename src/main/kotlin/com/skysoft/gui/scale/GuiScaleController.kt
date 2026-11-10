@@ -64,7 +64,6 @@ class GuiScaleController private constructor() {
             supportsInventoryScale(screen) &&
                 (usesConfiguredInventoryScale(screen) || shouldCapStorageOverlayScale(screen))
 
-        @JvmStatic
         fun usesSeparateTooltipScale(screen: Screen?): Boolean =
             config().separateTooltipGuiScale && supportsInventoryScale(screen)
 
@@ -75,7 +74,6 @@ class GuiScaleController private constructor() {
             return scales.normal() != scales.inventory()
         }
 
-        @JvmStatic
         fun resolve(screen: Screen?, window: Window): ResolvedScales {
             val config = config()
             val normal = resolveConfiguredScale(window, minecraft.options.guiScale().get())
@@ -96,11 +94,9 @@ class GuiScaleController private constructor() {
         fun useInventoryScale(screen: Screen?, window: Window): WindowScaleOverride =
             WindowScaleOverride.create(window, resolve(screen, window).inventory())
 
-        @JvmStatic
         fun useTooltipScale(screen: Screen?, window: Window): WindowScaleOverride =
             WindowScaleOverride.create(window, resolve(screen, window).tooltip())
 
-        @JvmStatic
         fun convertCoordinate(coordinate: Int, sourceScale: Int, targetScale: Int): Int =
             Math.round(coordinate * sourceScale.coerceAtLeast(1) / targetScale.coerceAtLeast(1).toFloat())
 
@@ -134,7 +130,6 @@ class GuiScaleController private constructor() {
         @JvmStatic
         fun takeRenderBatch(): RenderBatch? = pendingRenderBatch.also { pendingRenderBatch = null }
 
-        @JvmStatic
         fun areOverlaysUsingNormalCoordinates(): Boolean = overlaysUseNormalCoordinates
 
         internal fun <T> withNormalOverlayCoordinates(window: Window, normalScale: Int, render: () -> T): T =

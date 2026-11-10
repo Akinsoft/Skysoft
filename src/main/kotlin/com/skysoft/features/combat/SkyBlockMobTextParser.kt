@@ -1,6 +1,5 @@
 package com.skysoft.features.combat
 
-import com.skysoft.data.skyblock.SkyBlockMobType
 import com.skysoft.utils.NumberUtilities.parseCompactNumberOrNull
 
 internal data class SkyBlockMobHealth(
@@ -14,7 +13,7 @@ internal object SkyBlockMobTextParser {
 
     fun parseName(text: String): String? {
         val match = healthMatch(text) ?: return typedNamePattern.matchEntire(text)
-            ?.takeIf { SkyBlockMobType.CRITTER.glyph in it.groupValues[1] }
+            ?.takeIf { CRITTER_TYPE_GLYPH in it.groupValues[1] }
             ?.groups?.get("name")?.value?.trim()?.takeIf(String::isNotEmpty)
         return levelPrefixPattern
             .replace(text.take(match.start).trim(), "")
@@ -49,4 +48,5 @@ internal object SkyBlockMobTextParser {
     private val currentHealthPattern = Regex("""(?<current>[0-9,.]+[KMBkmb]?)(?:§.)?❤""")
     private val typedNamePattern = Regex("""\[Lv\d+] (?<types>\p{Co}+) (?<name>.+)""")
     private val levelPrefixPattern = Regex("""^\[Lv\d+]\s*""", RegexOption.IGNORE_CASE)
+    private const val CRITTER_TYPE_GLYPH = '\uE087'
 }

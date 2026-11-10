@@ -15,7 +15,6 @@ interface ProfileStorageView {
     }
 
     interface ProfileSpecific {
-        val profileName: String
         val pets: List<StoredPetData>
         val expSharePets: List<UUID?>
         val currentPetUuid: UUID?
@@ -205,7 +204,6 @@ interface ProfileStorageView {
     interface SlotBindingData {
         val firstSlot: Int
         val secondSlot: Int
-        fun isValid(): Boolean
     }
 
     interface AttributeShardData {

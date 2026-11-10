@@ -42,7 +42,6 @@ object StorageOverlayController {
     @JvmStatic
     fun shouldDimBackground(): Boolean = config.details.dimBackground
 
-    @JvmStatic
     fun layoutScreen(screen: AbstractContainerScreen<*>) {
         val window = Minecraft.getInstance().window
         if (
@@ -62,22 +61,17 @@ object StorageOverlayController {
         mouseY: Int,
     ) = renderStorageOverlayBackground(screen, context, mouseX, mouseY)
 
-    @JvmStatic
     fun shouldSuppressContainerLabels(screen: AbstractContainerScreen<*>): Boolean = storageOverlayIsActive(screen)
 
-    @JvmStatic
     fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
         handleStorageOverlayMouseClick(screen, click)
 
-    @JvmStatic
     fun handleMouseDrag(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
         handleStorageOverlayMouseDrag(screen, click)
 
-    @JvmStatic
     fun handleMouseRelease(click: MouseButtonEvent): InputHandlingResult =
         handleStorageOverlayMouseRelease(click)
 
-    @JvmStatic
     fun handleMouseScroll(
         screen: AbstractContainerScreen<*>,
         mouseX: Double,
@@ -86,7 +80,6 @@ object StorageOverlayController {
     ): InputHandlingResult =
         handleStorageOverlayMouseScroll(screen, mouseX, mouseY, scrollY)
 
-    @JvmStatic
     fun shouldPreferMouseScroll(
         screen: AbstractContainerScreen<*>,
         mouseX: Double,
@@ -94,15 +87,12 @@ object StorageOverlayController {
         scrollY: Double,
     ): Boolean = shouldPreferStorageOverlayMouseScroll(screen, mouseX, mouseY, scrollY)
 
-    @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult =
         handleStorageOverlayKeyPress(screen, event)
 
-    @JvmStatic
     fun handleCharTyped(screen: AbstractContainerScreen<*>, event: CharacterEvent): InputHandlingResult =
         handleStorageOverlayCharTyped(screen, event)
 
-    @JvmStatic
     fun isClickInsideOverlay(screen: AbstractContainerScreen<*>, mouseX: Double, mouseY: Double): Boolean =
         isStorageOverlayClickInside(screen, mouseX, mouseY)
 }

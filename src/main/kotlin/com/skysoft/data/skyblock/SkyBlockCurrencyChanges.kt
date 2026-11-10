@@ -50,7 +50,7 @@ object SkyBlockCurrencyChanges {
         balances.forEach { (currency, balance) ->
             val change = balance - (oldBalances[currency] ?: return@forEach)
             if (change == 0.0) return@forEach
-            val observation = SkyBlockCurrencyChange(currency, change, balance)
+            val observation = SkyBlockCurrencyChange(currency, change)
             listeners.forEachActive { listener -> listener(observation) }
         }
     }
@@ -64,7 +64,6 @@ object SkyBlockCurrencyChanges {
 data class SkyBlockCurrencyChange(
     val currency: String,
     val amount: Double,
-    val balance: Double,
 )
 
 internal data class SkyBlockCurrencySnapshot(val currency: String, val amount: Double)

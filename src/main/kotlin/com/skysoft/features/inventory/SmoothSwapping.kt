@@ -95,7 +95,6 @@ object SmoothSwapping {
         }
     }
 
-    @JvmStatic
     fun shouldSuppressSlot(screen: AbstractContainerScreen<*>, slot: Slot?): Boolean {
         if (slot == null || !isAvailable() || activeScreenKey != screenKey(screen)) return false
         return slot.index in suppressedSlots

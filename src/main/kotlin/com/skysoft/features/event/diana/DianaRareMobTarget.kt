@@ -127,12 +127,11 @@ internal class DianaRareMobTarget(
     private fun lootshareThreshold(): Long? =
         maxHealth?.let { (it * LOOTSHARE_DAMAGE_FRACTION).toLong().coerceAtLeast(1L) }
 
-    fun recordLocalAttack(entity: Entity, playerLocation: WorldVec?, now: Long, canDamage: Boolean) {
+    fun recordLocalAttack(entity: Entity, now: Long, canDamage: Boolean) {
         lastLocalAttack = DamageSplashAttackContext(
             atMillis = now,
             entityUuid = entity.uuid,
             targetLocation = entity.location,
-            playerLocation = playerLocation,
         )
         lastLocalAttackCanDamage = canDamage
     }

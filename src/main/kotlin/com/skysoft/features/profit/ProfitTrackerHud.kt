@@ -30,13 +30,11 @@ private val hudControls = ProfitTrackerHudControls(itemPanel)
 private val hudContent = ProfitTrackerHudContent(hudControls)
 
 object ProfitTrackerHudInput {
-    @JvmStatic
     fun handleKeyPress(event: KeyEvent): InputHandlingResult {
         val target = visibleItemPanelTarget() ?: return InputHandlingResult.IGNORED
         return InputHandlingResult.from(hudControls.wasKeyPressHandled(target, event))
     }
 
-    @JvmStatic
     fun handleCharTyped(event: CharacterEvent): InputHandlingResult =
         InputHandlingResult.from(visibleItemPanelTarget() != null && hudControls.wasCharTypedHandled(event))
 }

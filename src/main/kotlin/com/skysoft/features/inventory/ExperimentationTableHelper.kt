@@ -64,7 +64,6 @@ object ExperimentationTableHelper {
         }
     }
 
-    @JvmStatic
     fun displayStack(screen: AbstractContainerScreen<*>, slot: Slot?, stack: ItemStack): ItemStack {
         if (screen !== activeScreen || currentGame != ExperimentationGame.SUPERPAIRS) {
             return stack
@@ -74,7 +73,6 @@ object ExperimentationTableHelper {
         return superpairsMemory.rememberedCard(experimentSlot.index) ?: stack
     }
 
-    @JvmStatic
     fun renderSlot(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) {
         if (screen !== activeScreen || slot !in experimentSlots) return
         val visual = state.visual(slot.index, slot.item.chronomatronTile()?.color) ?: return
@@ -135,7 +133,6 @@ object ExperimentationTableHelper {
         }
     }
 
-    @JvmStatic
     fun onScreenRemoved(screen: AbstractContainerScreen<*>) {
         if (screen === activeScreen) detach()
     }

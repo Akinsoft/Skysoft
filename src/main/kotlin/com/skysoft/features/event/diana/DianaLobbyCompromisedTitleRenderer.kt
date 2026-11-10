@@ -37,9 +37,6 @@ internal object DianaLobbyCompromisedTitleRenderer {
         ScreenAlertRenderer.clear(ALERT_ID)
     }
 
-    val hasActiveAlert: Boolean
-        get() = ScreenAlertRenderer.hasActiveAlert(ALERT_ID)
-
     private const val ALERT_ID = "diana_lobby_compromised_alert"
     private const val ALERT_DURATION_MILLIS = 5_000L
     private const val ALERT_SOUND_PLAYS = 3

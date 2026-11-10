@@ -46,19 +46,15 @@ object TooltipViewport {
         return OffsetPositioner(original, tooltipIdentity(components), anchorX, anchorY)
     }
 
-    @JvmStatic
     fun didHandleMouseScroll(horizontal: Double, vertical: Double): Boolean =
         didHandleMouseScroll(horizontal, vertical, MinecraftInput.NO_BINDING)
 
-    @JvmStatic
     fun didHandleCompetingMouseScroll(horizontal: Double, vertical: Double): Boolean =
         didHandleMouseScroll(horizontal, vertical, config().settings.interfaceScrollTooltipKey)
 
-    @JvmStatic
     fun isCompetingScrollKeyDown(): Boolean =
         isKeyDown(config().settings.interfaceScrollTooltipKey)
 
-    @JvmStatic
     fun updateKeyboardPan() {
         val settings = config()
         if (!settings.enabled || !isEnabledForCurrentScreen(settings)) {

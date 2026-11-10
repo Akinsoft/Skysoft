@@ -41,7 +41,7 @@ internal class PetSkillGainTracker {
                 totalXp,
                 totalXp?.plus(ESTIMATED_TOTAL_FRACTION),
                 currentPetUuid,
-                SkillGainRead(event.gained, totalXp, previousTotalXp, currentPetUuid),
+                SkillGainRead(event.gained, currentPetUuid),
             )
         }
     }
@@ -92,7 +92,7 @@ internal class PetSkillGainTracker {
             totals.visible,
             totals.precise,
             currentPetUuid,
-            SkillGainRead(event.gained, totals.visible, previousTotalXp, currentPetUuid),
+            SkillGainRead(event.gained, currentPetUuid),
         )
     }
 
@@ -141,7 +141,7 @@ internal class PetSkillGainTracker {
             totalXp,
             previous?.preciseTotalXp ?: totalXp,
             currentPetUuid,
-            SkillGainRead(0.0, totalXp, previousTotalXp, currentPetUuid),
+            SkillGainRead(0.0, currentPetUuid),
         )
 
         else -> rememberSkillSampleAndReturn(
@@ -149,7 +149,7 @@ internal class PetSkillGainTracker {
             totalXp,
             totalXp + ESTIMATED_TOTAL_FRACTION,
             currentPetUuid,
-            SkillGainRead(event.gained, totalXp, previousTotalXp, currentPetUuid),
+            SkillGainRead(event.gained, currentPetUuid),
         )
     }
 
@@ -173,7 +173,7 @@ internal class PetSkillGainTracker {
             totalXp,
             preciseTotalXp,
             currentPetUuid,
-            SkillGainRead(preciseTotalXp - previousPreciseTotalXp, totalXp, previousTotalXp, routedPetUuid),
+            SkillGainRead(preciseTotalXp - previousPreciseTotalXp, routedPetUuid),
         )
     }
 
@@ -312,8 +312,6 @@ private data class RecentSkillEstimate(
 
 internal data class SkillGainRead(
     val gain: Double,
-    val totalXp: Double?,
-    val previousTotalXp: Double?,
     val petUuid: UUID?,
 )
 

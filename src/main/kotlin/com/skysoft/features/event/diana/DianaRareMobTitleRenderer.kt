@@ -66,9 +66,6 @@ internal object DianaRareMobTitleRenderer {
         ScreenAlertRenderer.clear(ALERT_ID)
     }
 
-    val hasActiveAlert: Boolean
-        get() = ScreenAlertRenderer.hasActiveAlert(ALERT_ID)
-
     private const val ALERT_ID = "diana_rare_mob_alert"
     private const val ALERT_DURATION_MILLIS = 2_500L
     private const val ALERT_SOUND_PLAYS = 3

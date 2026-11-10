@@ -112,11 +112,9 @@ object InventoryButtonManager {
         }
     }
 
-    @JvmStatic
     fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
         activateButtonAtClick(screen, click, InventoryButtonClickType.MOUSE_DOWN)
 
-    @JvmStatic
     fun handleMouseRelease(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
         activateButtonAtClick(screen, click, InventoryButtonClickType.MOUSE_UP)
 

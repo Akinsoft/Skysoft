@@ -78,7 +78,6 @@ object PetStorageService {
         if (PetFeatureDemand.isActive()) PetStorageHeldPetAdd.recordUseItem()
     }
 
-    @JvmStatic
     fun shouldHighlightActivePetSlot(inventoryName: String?, slot: Slot): Boolean {
         if (!config.highlightActivePet) return false
         if (!PetStoragePetItems.isMainPetMenuName(inventoryName)) return false

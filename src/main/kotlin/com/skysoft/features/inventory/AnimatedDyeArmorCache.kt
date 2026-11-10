@@ -29,7 +29,6 @@ object AnimatedDyeArmorCache {
         remember(equipmentSlot, stack)
     }
 
-    @JvmStatic
     fun observeWardrobeSelection(
         screen: AbstractContainerScreen<*>,
         slot: Slot?,
@@ -42,7 +41,6 @@ object AnimatedDyeArmorCache {
         armorSlots.zip(selectedStacks).forEach { (equipmentSlot, stack) -> remember(equipmentSlot, stack) }
     }
 
-    @JvmStatic
     fun displayStack(screen: AbstractContainerScreen<*>, slot: Slot?, stack: ItemStack): ItemStack {
         val inventoryMenu = Minecraft.getInstance().player?.inventoryMenu ?: return stack
         if (screen.menu !== inventoryMenu) return stack

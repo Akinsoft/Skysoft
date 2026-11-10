@@ -58,7 +58,6 @@ data class SkyBlockSackChangeBatch(
 data class SkyBlockSackChange(
     val displayName: String,
     val amount: Int,
-    val sacks: List<String>,
 )
 
 private fun parseSackWindowSeconds(message: String): Int? = SACK_WINDOW_PATTERN.find(message)
@@ -76,9 +75,8 @@ private fun parseSackChanges(hoverTexts: Iterable<String>): List<SkyBlockSackCha
             val match = SACK_CHANGE_PATTERN.matchEntire(line) ?: return@mapNotNull null
             val amount = match.groups["amount"]?.value?.formatIntOrNull() ?: return@mapNotNull null
             val displayName = match.group("item").trim()
-            val sacks = match.groups["sacks"]?.value?.split(", ").orEmpty()
-            if (displayName.isBlank() || sacks.isEmpty()) return@mapNotNull null
-            SkyBlockSackChange(displayName, amount, sacks)
+            if (displayName.isBlank()) return@mapNotNull null
+            SkyBlockSackChange(displayName, amount)
         }.toList()
     }
 

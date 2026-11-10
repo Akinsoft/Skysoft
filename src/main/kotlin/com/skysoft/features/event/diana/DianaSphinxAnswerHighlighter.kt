@@ -12,7 +12,6 @@ internal object DianaSphinxAnswerHighlighter {
     private val state = DianaSphinxAnswerState()
     private val config get() = SkysoftConfigGui.config().events.diana
 
-    @JvmStatic
     fun highlight(component: Component): Component {
         if (!config.sphinxHelper.enabled || !DianaEventState.isOnHub()) {
             state.clear()

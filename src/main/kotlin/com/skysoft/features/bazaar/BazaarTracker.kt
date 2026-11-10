@@ -18,28 +18,22 @@ object BazaarTracker {
     fun transactionsFor(productId: String, itemName: String, sinceMillis: Long) =
         bazaarTransactionsFor(storage, productId, itemName, sinceMillis)
 
-    @JvmStatic
     fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
         handleBazaarTrackerMouseClick(screen, click)
 
-    @JvmStatic
     fun handleMouseButtonPress(button: Int): InputHandlingResult = handleBazaarTrackerMouseButtonPress(button)
 
-    @JvmStatic
     fun renderSlotIndicatorBackground(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) =
         renderBazaarTrackerSlotIndicatorBackground(screen, context, slot)
 
-    @JvmStatic
     fun renderSlotIndicatorOverlay(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, slot: Slot) =
         renderBazaarTrackerSlotIndicatorOverlay(screen, context, slot)
 
     @JvmStatic
     fun layoutOrderMenu(screen: ContainerScreen): Int = layoutBazaarOrderMenu(screen)
 
-    @JvmStatic
     fun restoreOrderMenu(screen: AbstractContainerScreen<*>) = restoreBazaarOrderMenu(screen)
 
-    @JvmStatic
     fun shouldBlockOrderInteraction(screen: AbstractContainerScreen<*>, slotId: Int): Boolean =
         shouldBlockBazaarOrderInteraction(screen, slotId)
 }

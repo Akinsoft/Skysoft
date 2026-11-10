@@ -23,7 +23,6 @@ class InventoryCursorMemory private constructor() {
         private var pending: CursorSnapshot? = null
         private var waitForCursorEvents = false
 
-        @JvmStatic
         fun prepareForMouseGrab() {
             inventoryScreenClosed = isEnabled()
         }

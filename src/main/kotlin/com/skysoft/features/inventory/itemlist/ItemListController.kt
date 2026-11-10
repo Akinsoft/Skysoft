@@ -64,7 +64,6 @@ object ItemListController {
         Vector2i(position.x(), position.y().coerceAtLeast(TOOLTIP_EDGE))
     }
 
-    @JvmStatic
     fun register() {
         InventoryOverlayInput.registerCoverageProvider("Item List coverage", ::isItemListActive) {
                 screen, mouseX, mouseY ->
@@ -168,7 +167,6 @@ object ItemListController {
         }
     }
 
-    @JvmStatic
     fun handleMouseClick(
         screen: AbstractContainerScreen<*>,
         click: MouseButtonEvent,
@@ -267,7 +265,6 @@ object ItemListController {
         }
     }
 
-    @JvmStatic
     fun handleMouseScroll(
         screen: AbstractContainerScreen<*>,
         mouseX: Double,
@@ -281,7 +278,6 @@ object ItemListController {
         return InputHandlingResult.CONSUMED
     }
 
-    @JvmStatic
     fun handleKeyPress(screen: AbstractContainerScreen<*>, event: KeyEvent): InputHandlingResult {
         val isItemListVisible = isVisible(screen)
         if (isSearchFocused(screen)) {
@@ -333,7 +329,6 @@ object ItemListController {
 
     fun isSearchFocused(screen: AbstractContainerScreen<*>): Boolean = isVisible(screen) && searchField.focused
 
-    @JvmStatic
     fun handleCharTyped(screen: AbstractContainerScreen<*>, event: CharacterEvent): InputHandlingResult {
         if (!isSearchFocused(screen) || !event.isAllowedChatCharacter) return InputHandlingResult.IGNORED
         searchField.charTyped(event)
@@ -341,8 +336,7 @@ object ItemListController {
         return InputHandlingResult.CONSUMED
     }
 
-    @JvmStatic
-    fun isClickInside(screen: AbstractContainerScreen<*>, mouseX: Double, mouseY: Double): Boolean =
+    private fun isClickInside(screen: AbstractContainerScreen<*>, mouseX: Double, mouseY: Double): Boolean =
         isVisible(screen) && lastLayout?.let {
             val pointX = mouseX.toInt()
             val pointY = mouseY.toInt()
@@ -354,7 +348,6 @@ object ItemListController {
             )
         } == true
 
-    @JvmStatic
     fun reservedBounds(screen: AbstractContainerScreen<*>): Rect? =
         if (isVisible(screen)) ItemListLayout.create(screen, favoriteEntries().isNotEmpty())?.panel else null
 

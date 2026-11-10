@@ -75,7 +75,6 @@ object ContainerSearchHighlighter {
     private var active = false
     private var query = InventoryItemSearchQuery.EMPTY
 
-    @JvmStatic
     fun toggle(text: String) {
         if (active) {
             clear()
@@ -109,7 +108,6 @@ object ContainerSearchHighlighter {
         InventoryItemSearchHighlight.render(context, slot.x, slot.y, matches = true)
     }
 
-    @JvmStatic
     fun renderOverlay(context: GuiGraphicsExtractor, slot: Slot) {
         if (!active || !query.hasTerms || !slot.isActive || matches(slot)) return
         InventoryItemSearchHighlight.render(context, slot.x, slot.y, matches = false)

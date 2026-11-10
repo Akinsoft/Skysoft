@@ -11,7 +11,6 @@ import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.ItemStack
 
 object SkyBlockMenuInventoryDropFix {
-    @JvmStatic
     fun beginContainerThrow(
         player: Player,
         slotId: Int,
@@ -28,7 +27,6 @@ object SkyBlockMenuInventoryDropFix {
         return InventoryDropSelectionGuard(localPlayer, originalSlot)
     }
 
-    @JvmStatic
     fun finishContainerThrow(guard: InventoryDropSelectionGuard?) {
         guard ?: return
         guard.player.connection.send(ServerboundSetCarriedItemPacket(guard.originalSlot))

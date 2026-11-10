@@ -36,7 +36,6 @@ object PlayerHeadSkinFix {
         }
     }
 
-    @JvmStatic
     fun inventoryStack(slot: Slot?, stack: ItemStack): ItemStack =
         if (!enabled || slot == null) stack else slotStacks.rememberLoadedHead(slot, stack) ?: stack
 
