@@ -428,7 +428,7 @@ private fun renderSpread(
     if (!layout.hasDetails || bestAsk <= bestBid) return
     val bidX = plot.priceX(bestBid)
     val askX = plot.priceX(bestAsk)
-    val markerY = layout.plotTop + layout.plotHeight / PlotLayout.HALF
+    val markerY = layout.plotTop + layout.plotHeight / 2
     drawDashedVertical(context, bidX, markerY, layout.baselineY, PlotStyle.SPREAD)
     drawDashedVertical(context, askX, markerY, layout.baselineY, PlotStyle.SPREAD)
     context.fill(bidX, markerY, askX + 1, markerY + 1, PlotStyle.SPREAD)
@@ -444,7 +444,7 @@ private fun renderSpread(
     drawCenteredWithin(context, "§7Spread", bidX, askX, markerY - PlotLayout.SPREAD_LABEL_OFFSET)
     if (mouseX !in bidX..askX || abs(mouseY - markerY) > PlotLayout.SPREAD_HIT_RADIUS) return
     val spread = bestAsk - bestBid
-    val midpoint = (bestAsk + bestBid) / PlotLayout.HALF
+    val midpoint = (bestAsk + bestBid) / 2
     val percent = spread / midpoint * 100.0
     SkysoftNativeTooltip.setForNextFrame(
         context,
@@ -490,7 +490,7 @@ private fun renderDepthAxis(context: GuiGraphicsExtractor, plot: BazaarDepthPlot
             priceY,
         )
     }
-    val centerX = (layout.leftX + layout.rightX) / PlotLayout.HALF
+    val centerX = (layout.leftX + layout.rightX) / 2
     plot.bestBid?.let { bestBid ->
         drawCenteredWithin(context, "§a${bestBid.coinFormat()}", layout.leftX, centerX, priceY)
         drawCenteredWithin(
@@ -521,7 +521,7 @@ private fun renderDepthAxis(context: GuiGraphicsExtractor, plot: BazaarDepthPlot
 }
 
 private fun drawCenteredWithin(context: GuiGraphicsExtractor, text: String, left: Int, right: Int, y: Int) {
-    val x = left + ((right - left) - LegacyTextRenderer.width(text)) / PlotLayout.HALF
+    val x = left + ((right - left) - LegacyTextRenderer.width(text)) / 2
     LegacyTextRenderer.draw(context, text, x, y)
 }
 
@@ -605,7 +605,6 @@ private object PlotLayout {
     const val AXIS_PRICE_Y = 2
     const val AXIS_LABEL_Y = 11
     const val AXIS_TITLE_Y = 20
-    const val HALF = 2
 }
 
 private object PlotStyle {
