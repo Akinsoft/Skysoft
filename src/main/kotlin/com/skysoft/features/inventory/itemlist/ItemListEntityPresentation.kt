@@ -124,7 +124,7 @@ private fun derivedEntityDetails(entityId: String, entity: SkyBlockEntityInfo): 
 }
 
 internal fun formatDropChance(chance: Double): String {
-    val percent = chance * PERCENT_MULTIPLIER
+    val percent = chance * 100.0
     val decimals = when {
         percent >= WHOLE_PERCENT_THRESHOLD -> WHOLE_PERCENT_DECIMALS
         percent >= SMALL_PERCENT_THRESHOLD -> SMALL_PERCENT_DECIMALS
@@ -140,7 +140,6 @@ private fun slayerSpawnDescription(entityId: String): String {
 
 private val ENTITY_MISSING_COLOR = 0xFFFF5555.toInt()
 private const val MISSING_TEXT_Y_OFFSET = 5
-private const val PERCENT_MULTIPLIER = 100.0
 private const val WHOLE_PERCENT_THRESHOLD = 1.0
 private const val SMALL_PERCENT_THRESHOLD = 0.01
 private const val WHOLE_PERCENT_DECIMALS = 2

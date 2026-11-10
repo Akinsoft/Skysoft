@@ -11,12 +11,11 @@ object HeadDisplaySize {
         if (stack.item != Items.PLAYER_HEAD) return pose
         val config = SkysoftConfigGui.config().inventory.appearance.headDisplaySize
         if (!config.enabled) return pose
-        val scale = config.details.size / PERCENT_SCALE
+        val scale = config.details.size / 100f
         return pose.translate(x + ITEM_CENTER, y + ITEM_CENTER)
             .scale(scale)
             .translate(-x - ITEM_CENTER, -y - ITEM_CENTER)
     }
 
-    private const val PERCENT_SCALE = 100f
     private const val ITEM_CENTER = 8f
 }

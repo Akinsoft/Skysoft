@@ -111,13 +111,12 @@ object AccessoryBagData {
                 ?.group("amount")
                 ?.formatDoubleOrNull()
         } ?: return null
-        return 1.0 + amount / BEASTMASTER_PERCENT_DENOMINATOR
+        return 1.0 + amount / 100.0
     }
 
     private fun ItemStack.accessoryInternalNameOrNull(): String? =
         skyBlockId()?.uppercase(Locale.US)?.let(::canonicalSkyBlockItemId)
 
-    private const val BEASTMASTER_PERCENT_DENOMINATOR = 100.0
 
     private fun accessorySnapshot(inventoryItems: Map<Int, ItemStack>): Map<String, AccessorySnapshot> =
         inventoryItems.mapNotNull { (slot, item) ->

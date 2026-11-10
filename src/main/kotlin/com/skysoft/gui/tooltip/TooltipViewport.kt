@@ -215,14 +215,13 @@ object TooltipViewport {
                 }
             }
             val currentSession = checkNotNull(session)
-            currentSession.advance(config().details.scrollSmoothness / PERCENT_SCALE)
+            currentSession.advance(config().details.scrollSmoothness / 100.0)
             return Vector2i(base.x() + currentSession.roundedX(), base.y() + currentSession.roundedY())
         }
     }
 
     private const val VISIBILITY_GRACE_NANOS = 250_000_000L
     private const val HASH_MULTIPLIER = 31
-    private const val PERCENT_SCALE = 100.0
 }
 
 private fun isTooltipScrollEnabledForScreen(screen: Screen?, isEnabledInChat: Boolean): Boolean =

@@ -32,13 +32,12 @@ object ForIntrests {
         } else {
             DEATH_SOUND_ID
         }
-        SoundUtilities.playUiSound(sound, 1f, config.settings.volume / MAX_VOLUME_PERCENT)
+        SoundUtilities.playUiSound(sound, 1f, config.settings.volume / 100f)
     }
 
     private const val DEATH_MESSAGE_PREFIX = "☠ You "
     private const val DEATH_SOUND_ID = "skysoft:for_intrests.death"
     private const val IDIOT_DEATH_SOUND_ID = "skysoft:for_intrests.death_idiot"
     private const val IDIOT_DEATH_COUNT = 10
-    private const val MAX_VOLUME_PERCENT = 100f
     private const val DEATH_WINDOW_NANOS = 5L * 60 * 1_000_000_000
 }

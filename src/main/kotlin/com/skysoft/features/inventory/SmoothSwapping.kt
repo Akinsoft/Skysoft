@@ -236,14 +236,13 @@ object SmoothSwapping {
             MIN_SMOOTH_SWAPPING_SPEED,
             MAX_SMOOTH_SWAPPING_SPEED,
         )
-        return (DEFAULT_SMOOTH_SWAPPING_DURATION * SPEED_PERCENT_SCALE / speed)
+        return (DEFAULT_SMOOTH_SWAPPING_DURATION * 100.0 / speed)
             .roundToInt()
             .coerceIn(MIN_DURATION_MS, MAX_DURATION_MS)
     }
 }
 
 private const val OFFSCREEN_THRESHOLD = 10_000
-private const val SPEED_PERCENT_SCALE = 100.0
 
 private fun slotDistance(first: SlotSnapshot, second: SlotSnapshot): Int =
     abs(first.x - second.x) + abs(first.y - second.y)
