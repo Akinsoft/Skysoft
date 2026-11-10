@@ -107,7 +107,7 @@ internal object BazaarPriceHistoryRenderer {
     }
 
     private fun renderGrid(context: GuiGraphicsExtractor, plot: BazaarPricePlot) {
-        val middleY = plot.bounds.y + plot.bounds.height / PriceHistoryLayout.HALF
+        val middleY = plot.bounds.y + plot.bounds.height / 2
         context.fill(
             plot.bounds.x,
             middleY,
@@ -204,7 +204,6 @@ private object PriceHistoryLayout {
     const val RANGE_PADDING = 0.08
     const val FLAT_PADDING = 0.02
     const val MINIMUM_PADDING = 1.0
-    const val HALF = 2
 }
 
 private val PRICE_HISTORY_CROSSHAIR_COLOR = 0xA0FFFFFF.toInt()
