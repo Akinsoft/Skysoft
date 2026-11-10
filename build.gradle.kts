@@ -159,7 +159,6 @@ configure(targetProjects) {
         add("include", "org.brotli:dec:0.1.2")
         add("runtimeOnly", hypixelModApiFabric)
         add("detektPlugins", "dev.detekt:detekt-rules-ktlint-wrapper:$detektVersion")
-        add("detektPlugins", project(":detekt-rules"))
 
         val moulconfig = "$moulconfigGroup:modern-$minecraftVersion:$moulconfigVersion"
         add("implementation", moulconfig)
@@ -302,7 +301,6 @@ tasks.named("assemble") {
 
 tasks.named("check") {
     dependsOn(targetProjects.map { it.tasks.named("check") })
-    dependsOn(":detekt-rules:check")
 }
 
 tasks.named("build") {
