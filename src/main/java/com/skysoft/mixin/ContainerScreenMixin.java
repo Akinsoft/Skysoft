@@ -1,7 +1,7 @@
 package com.skysoft.mixin;
 
 import com.skysoft.features.bazaar.BazaarTracker;
-import com.skysoft.features.inventory.StorageOverlayController;
+import com.skysoft.features.inventory.storage.StorageOverlayController;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import org.spongepowered.asm.mixin.Final;

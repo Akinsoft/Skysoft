@@ -5,7 +5,7 @@ import com.skysoft.config.CRAFTING_HELPER_MAXIMUM_TARGET_AMOUNT
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
-import com.skysoft.features.inventory.TrackedItemManagerPanel
+import com.skysoft.gui.tracker.TrackedItemManagerPanel
 import com.skysoft.gui.OverlayControlArea
 
 internal val craftingHelperConfig get() = SkysoftConfigGui.config().items.craftingHelper

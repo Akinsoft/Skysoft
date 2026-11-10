@@ -11,6 +11,8 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.ravengard.RavengardItemRarity
 import com.skysoft.data.skyblock.SkyBlockItemRarity
+import com.skysoft.features.inventory.storage.StorageOverlayController
+import com.skysoft.features.inventory.storage.config
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.render.SkysoftDrawMode
 import com.skysoft.utils.render.SkysoftPipelineBuilder

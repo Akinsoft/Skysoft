@@ -4,10 +4,10 @@ import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.ProfitTrackerPriceSource
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.ProfileStorageApi
-import com.skysoft.features.inventory.TrackedItemSelectionAction
-import com.skysoft.features.inventory.TrackedItemSelectionMode
-import com.skysoft.features.inventory.hoveredPlayerInventoryItemId
-import com.skysoft.features.inventory.wasLeftClickHandled
+import com.skysoft.gui.tracker.TrackedItemSelectionAction
+import com.skysoft.gui.tracker.TrackedItemSelectionMode
+import com.skysoft.gui.hoveredPlayerInventoryItemId
+import com.skysoft.gui.wasLeftClickHandled
 import com.skysoft.gui.OverlayControlCycle
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.animation.PanelFadeTransition

@@ -2,7 +2,7 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorageView
-import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.gui.InventoryOverlayInput
 import com.skysoft.gui.transform
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.NumberUtilities.addSeparators

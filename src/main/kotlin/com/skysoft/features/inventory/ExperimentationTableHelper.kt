@@ -2,6 +2,7 @@ package com.skysoft.features.inventory
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.features.inventory.storage.config
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText
 import com.skysoft.utils.gui.nonPlayerSlots
 import com.skysoft.utils.render.LegacyTextRenderer

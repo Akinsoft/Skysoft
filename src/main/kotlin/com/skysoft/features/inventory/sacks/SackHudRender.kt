@@ -2,9 +2,9 @@ package com.skysoft.features.inventory.sacks
 
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
-import com.skysoft.features.inventory.InventoryTrackerFrame
-import com.skysoft.features.inventory.InventoryTrackerLayout
-import com.skysoft.features.inventory.TrackedItemManagerAction
+import com.skysoft.gui.tracker.InventoryTrackerFrame
+import com.skysoft.gui.tracker.InventoryTrackerLayout
+import com.skysoft.gui.tracker.TrackedItemManagerAction
 import com.skysoft.gui.OverlayControlArea
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient

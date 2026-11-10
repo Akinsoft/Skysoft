@@ -1,7 +1,7 @@
 package com.skysoft.features.inventory.itemlist
 
 import com.mojang.serialization.DynamicOps
-import com.skysoft.features.inventory.StorageRuntime
+import com.skysoft.features.inventory.storage.StorageRuntime
 import com.skysoft.features.inventory.migrateLegacySkyBlockItem
 import java.io.ByteArrayInputStream
 import java.util.Base64

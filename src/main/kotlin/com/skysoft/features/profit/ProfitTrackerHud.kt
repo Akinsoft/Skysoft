@@ -3,7 +3,7 @@ package com.skysoft.features.profit
 import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.gui.InventoryOverlayInput
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer

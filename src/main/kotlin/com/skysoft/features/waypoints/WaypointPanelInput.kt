@@ -2,7 +2,7 @@ package com.skysoft.features.waypoints
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.gui.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse.normalPointFromScreen
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.MinecraftClient

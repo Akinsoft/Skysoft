@@ -2,10 +2,10 @@ package com.skysoft.gui
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.features.inventory.InventoryButtonEditorActions
-import com.skysoft.features.inventory.InventoryButtonManager
-import com.skysoft.features.inventory.InventoryButtonResetShortcutResult
-import com.skysoft.features.inventory.inventoryButtonEditorState
+import com.skysoft.features.inventory.buttons.InventoryButtonEditorActions
+import com.skysoft.features.inventory.buttons.InventoryButtonManager
+import com.skysoft.features.inventory.buttons.InventoryButtonResetShortcutResult
+import com.skysoft.features.inventory.buttons.inventoryButtonEditorState
 import com.skysoft.gui.scale.HudEditorGuiScale
 import com.skysoft.gui.scale.InventoryScaledScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip

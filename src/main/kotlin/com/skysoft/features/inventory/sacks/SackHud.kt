@@ -7,8 +7,8 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemNames
 import com.skysoft.data.skyblock.SkyBlockSackChangeBatch
 import com.skysoft.data.skyblock.SkyBlockSackChanges
-import com.skysoft.features.inventory.TrackedItemManagerPanel
-import com.skysoft.features.inventory.TrackedItemSelectionAction
+import com.skysoft.gui.tracker.TrackedItemManagerPanel
+import com.skysoft.gui.tracker.TrackedItemSelectionAction
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer

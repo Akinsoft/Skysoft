@@ -3,6 +3,7 @@ package com.skysoft.features.inventory
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.formattedHoverName
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
+import com.skysoft.features.inventory.storage.config
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.ItemStackComponentCache

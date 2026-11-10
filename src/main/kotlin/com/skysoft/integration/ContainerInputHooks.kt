@@ -1,13 +1,13 @@
 package com.skysoft.integration
 
 import com.skysoft.features.bazaar.BazaarTracker
-import com.skysoft.features.inventory.InventoryButtonManager
-import com.skysoft.features.inventory.InventoryEquipment
-import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.features.inventory.buttons.InventoryButtonManager
+import com.skysoft.features.inventory.equipment.InventoryEquipment
+import com.skysoft.gui.InventoryOverlayInput
 import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.MenuKeybinds
-import com.skysoft.features.inventory.SlotLockManager
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.slots.SlotLockManager
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.features.inventory.crafting.CraftingHelperInput
 import com.skysoft.features.inventory.itemlist.ItemListController
 import com.skysoft.features.inventory.sacks.SackHudInput

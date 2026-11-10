@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory
 
+import com.skysoft.features.inventory.slots.SlotLockManager
 import com.skysoft.utils.input.InputHandlingResult
 import net.minecraft.client.player.LocalPlayer
 

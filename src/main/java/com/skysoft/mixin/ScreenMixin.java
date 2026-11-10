@@ -2,7 +2,7 @@ package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.skysoft.features.inventory.StorageOverlayController;
+import com.skysoft.features.inventory.storage.StorageOverlayController;
 import com.skysoft.gui.GuiOverlayLayer;
 import com.skysoft.gui.GuiOverlayRegistry;
 import com.skysoft.gui.scale.ScaledScreenState;

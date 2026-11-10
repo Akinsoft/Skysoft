@@ -7,9 +7,9 @@ import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemChanges
 import com.skysoft.data.skyblock.SkyBlockSupercrafts
-import com.skysoft.features.inventory.InventoryTrackerFrame
-import com.skysoft.features.inventory.InventoryTrackerLayout
-import com.skysoft.features.inventory.TrackedItemManagerAction
+import com.skysoft.gui.tracker.InventoryTrackerFrame
+import com.skysoft.gui.tracker.InventoryTrackerLayout
+import com.skysoft.gui.tracker.TrackedItemManagerAction
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer

@@ -1,0 +1,56 @@
+package com.skysoft.features.inventory.equipment
+
+import com.skysoft.config.SkysoftConfigGui
+import com.skysoft.data.SkyBlockIsland
+import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.data.hypixel.SkyBlockProfileApi
+import com.skysoft.features.inventory.storage.config
+import com.skysoft.utils.input.InputHandlingResult
+import com.skysoft.utils.SkysoftClientEvents
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.world.inventory.Slot
+
+object InventoryEquipment {
+    fun register() {
+        InventoryEquipmentCache.registerConsumer("Inventory screen") { inventoryEquipmentConfig.enabled }
+        SkysoftClientEvents.onDisconnect(
+            "Inventory Equipment screen reset",
+            ::restoreAllInventoryEquipmentSlotLayouts,
+        )
+        SkyBlockProfileApi.onProfileChange("Inventory Equipment screen profile reset", { inventoryEquipmentConfig.enabled }) {
+            restoreAllInventoryEquipmentSlotLayouts()
+        }
+    }
+
+    fun layoutScreen(screen: AbstractContainerScreen<*>) = updateInventoryEquipmentSlotLayout(screen)
+
+    fun restoreScreen(screen: AbstractContainerScreen<*>) = restoreInventoryEquipmentSlotLayout(screen)
+
+    @JvmStatic
+    fun renderBackground(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor) =
+        renderInventoryEquipmentBackground(screen, context)
+
+    @JvmStatic
+    fun render(screen: AbstractContainerScreen<*>, context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) =
+        renderInventoryEquipment(screen, context, mouseX, mouseY)
+
+    fun handleMouseClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent): InputHandlingResult =
+        handleInventoryEquipmentMouseClick(screen, click)
+
+    fun isEquipmentSlot(slot: Slot?): Boolean = isInventoryEquipmentSlot(slot)
+}
+
+private val inventoryEquipmentConfig
+    get() = SkysoftConfigGui.config().inventory.equipment.inventoryEquipment
+
+internal fun isInventoryEquipmentAvailable(): Boolean =
+    inventoryEquipmentConfig.enabled && HypixelLocationState.inSkyBlock
+
+internal fun inventoryEquipmentClickCommand(): String? =
+    if (SkyBlockIsland.THE_RIFT.isInIsland()) {
+        inventoryEquipmentConfig.settings.riftClickAction.command
+    } else {
+        inventoryEquipmentConfig.settings.clickAction.command
+    }

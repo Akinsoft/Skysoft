@@ -7,8 +7,8 @@ import com.skysoft.data.skyblock.ItemListEntryKey
 import com.skysoft.data.skyblock.ItemListEntryKind
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockItemId.skyBlockId
-import com.skysoft.features.inventory.StorageOverlayController
-import com.skysoft.features.inventory.hoveredStorageItem
+import com.skysoft.features.inventory.storage.StorageOverlayController
+import com.skysoft.features.inventory.storage.hoveredStorageItem
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.MinecraftInput
 import net.minecraft.client.gui.components.EditBox

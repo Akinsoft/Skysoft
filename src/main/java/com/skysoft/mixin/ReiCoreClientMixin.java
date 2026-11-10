@@ -1,7 +1,7 @@
 package com.skysoft.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import com.skysoft.features.inventory.StorageOverlayController;
+import com.skysoft.features.inventory.storage.StorageOverlayController;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.spongepowered.asm.mixin.Mixin;
