@@ -1,0 +1,199 @@
+package com.skysoft.features.inventory.storage
+
+import com.mojang.blaze3d.platform.InputConstants
+import com.skysoft.data.ProfileStorage
+import com.skysoft.mixin.AbstractContainerScreenAccessor
+import com.skysoft.utils.gui.nonPlayerSlots
+import com.skysoft.utils.input.InputHandlingResult
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.world.inventory.ContainerInput
+
+private var lastCommandMillis = 0L
+
+internal fun rememberActivePage(handle: StorageHandle) {
+    handle.entryIndex()?.let { rememberedPageIndex = it }
+}
+
+internal fun redirectToRememberedPage(screen: AbstractContainerScreen<*>, handle: StorageHandle) {
+    if (handle != StorageHandle.Overview || !screen.menu.carried.isEmpty || pendingOverviewShortcutClick != null) return
+    if (!config.settings.autoOpenPrevious) return
+    val pageIndex = rememberedPageIndex?.takeIf { storageEntryExists(it) } ?: return
+    val screenId = System.identityHashCode(screen)
+    if (redirectedOverviewScreenId == screenId) return
+    if (tryNavigateToRememberedPage(pageIndex)) redirectedOverviewScreenId = screenId
+}
+
+internal fun requestOverviewShortcutClick(
+    screen: AbstractContainerScreen<*>,
+    click: MouseButtonEvent,
+    pageIndex: Int,
+): InputHandlingResult {
+    if (
+        click.button() != InputConstants.MOUSE_BUTTON_RIGHT ||
+        !screen.menu.carried.isEmpty ||
+        StorageOverviewSlots.slotForPageIndex(pageIndex) == null
+    ) {
+        return InputHandlingResult.IGNORED
+    }
+    if (!trySendStorageCommand("storage")) return InputHandlingResult.IGNORED
+    pendingOverviewShortcutClick = PendingOverviewShortcutClick(pageIndex, click.button(), lastCommandMillis)
+    return InputHandlingResult.CONSUMED
+}
+
+internal fun routePendingOverviewShortcutClick(
+    screen: AbstractContainerScreen<*>,
+    handle: StorageHandle,
+): InputHandlingResult {
+    val pending = pendingOverviewShortcutClick ?: return InputHandlingResult.IGNORED
+    val now = System.currentTimeMillis()
+    val isExpired = now < pending.requestedAtMillis ||
+        now - pending.requestedAtMillis > StorageRuntime.OVERVIEW_SHORTCUT_TIMEOUT_MILLIS
+    if (isExpired) {
+        pendingOverviewShortcutClick = null
+        return InputHandlingResult.IGNORED
+    }
+    if (handle != StorageHandle.Overview) return InputHandlingResult.IGNORED
+    pendingOverviewShortcutClick = null
+    return routeOverviewShortcutClick(screen, pending.button, pending.pageIndex)
+}
+
+internal fun focusActivePageIfNeeded(
+    activePage: Int?,
+    measurements: Measurements,
+    pageLayoutResult: PageLayoutResult,
+): Boolean {
+    val pageIndex = activePage ?: return false
+    val layoutKey = layoutPageKey(pageIndex, measurements, pageLayoutResult)
+    val preservedPageIndex = preservedScrollPageIndex
+    if (preservedPageIndex != null) {
+        preservedScrollPageIndex = null
+        if (preservedPageIndex == pageIndex) {
+            clearPageFocusRequest()
+            focusedPageKey = layoutKey
+            return false
+        }
+    }
+    val requested = requestedFocusPageIndex == pageIndex
+    if (!requested && focusedPageKey == layoutKey) return false
+    if (requested && requestedFocusKey == layoutKey && focusedPageKey == layoutKey) {
+        clearPageFocusRequest()
+        return false
+    }
+    val previousScroll = scroll
+    focusPage(measurements, pageLayoutResult, pageIndex)
+    focusedPageKey = layoutKey
+    if (requested) requestedFocusKey = layoutKey
+    return scroll != previousScroll
+}
+
+internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
+    val sent = if (isRiftStoragePage(pageIndex)) {
+        tryNavigateRiftStorage(screen, pageIndex)
+    } else {
+        trySendPageCommand(pageIndex)
+    }
+    if (sent) {
+        preservedScrollPageIndex = null
+        if (isModernStorageOverlay) {
+            requestModernPageFocus(pageIndex)
+        } else {
+            requestPageFocus(pageIndex)
+        }
+    }
+    return sent
+}
+
+private fun tryNavigateToRememberedPage(pageIndex: Int): Boolean {
+    val sent = trySendPageCommand(pageIndex)
+    if (sent) {
+        if (isModernStorageOverlay) {
+            preservedScrollPageIndex = null
+            requestModernPageFocus(pageIndex, shouldAnimate = false)
+        } else {
+            preservedScrollPageIndex = pageIndex
+            clearPageFocusRequest()
+        }
+    }
+    return sent
+}
+
+private fun tryNavigateRiftStorage(
+    screen: AbstractContainerScreen<*>,
+    pageIndex: Int,
+): Boolean {
+    val current = handleFor(screen) as? StorageHandle.Rift ?: return false
+    val currentPageNumber = riftStoragePageNumber(current.pageIndex)
+    val targetPageNumber = riftStoragePageNumber(pageIndex)
+    val navigationSlot = when (targetPageNumber - currentPageNumber) {
+        -1 -> RiftStorage.PREVIOUS_PAGE_SLOT
+        1 -> RiftStorage.NEXT_PAGE_SLOT
+        else -> return false
+    }
+    val slot = screen.nonPlayerSlots().firstOrNull { it.containerSlot == navigationSlot && it.hasItem() }
+        ?: return false
+    freezeStorageScroll()
+    val carried = screen.menu.carried.copy()
+    (screen as AbstractContainerScreenAccessor).skysoftSlotClicked(
+        slot,
+        slot.index,
+        InputConstants.MOUSE_BUTTON_LEFT,
+        ContainerInput.PICKUP,
+    )
+    screen.menu.setCarried(carried)
+    screen.skysoftSetSkipNextRelease(true)
+    return true
+}
+
+private fun trySendPageCommand(pageIndex: Int): Boolean {
+    val command = commandForPage(pageIndex) ?: return false
+    if (!trySendStorageCommand(command)) return false
+    freezeStorageScroll()
+    return true
+}
+
+private fun trySendStorageCommand(command: String): Boolean {
+    val connection = Minecraft.getInstance().connection ?: return false
+    val now = System.currentTimeMillis()
+    if (now - lastCommandMillis < StorageRuntime.COMMAND_COOLDOWN_MILLIS) return false
+    lastCommandMillis = now
+    connection.sendCommand(command)
+    return true
+}
+
+private fun commandForPage(pageIndex: Int): String? = when (pageIndex) {
+    in 0 until ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES -> "enderchest ${pageIndex + 1}"
+    in ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES until ProfileStorage.SKYBLOCK_STORAGE_PAGE_COUNT ->
+        "backpack ${pageIndex - ProfileStorage.SKYBLOCK_STORAGE_ENDER_CHEST_PAGES + 1}"
+    else -> ToolkitType.fromPageIndex(pageIndex)?.command
+}
+
+private fun requestPageFocus(pageIndex: Int) {
+    requestedFocusPageIndex = pageIndex
+    requestedFocusKey = null
+}
+
+internal fun clearPageFocusRequest() {
+    requestedFocusPageIndex = null
+    requestedFocusKey = null
+}
+
+private fun layoutPageKey(
+    pageIndex: Int,
+    measurements: Measurements,
+    pageLayoutResult: PageLayoutResult,
+): String {
+    val layout = pageLayoutResult.pages[pageIndex]
+    val pageTop = if (layout == null) null else layout.y + scroll - measurements.scrollPanel.y
+    return listOf(
+        pageIndex,
+        pageTop,
+        layout?.width,
+        layout?.height,
+        pageLayoutResult.contentHeight,
+        measurements.scrollPanel.width,
+        measurements.scrollPanel.height,
+        measurements.columns,
+    ).joinToString(":")
+}

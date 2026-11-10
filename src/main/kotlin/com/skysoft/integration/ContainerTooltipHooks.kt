@@ -2,9 +2,9 @@ package com.skysoft.integration
 
 import com.skysoft.features.inventory.AnimatedDyeArmorCache
 import com.skysoft.features.inventory.ExperimentationTableHelper
-import com.skysoft.features.inventory.MinisterCalendarTooltip
-import com.skysoft.features.inventory.SlotBindingManager
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.tooltips.MinisterCalendarTooltip
+import com.skysoft.features.inventory.slots.SlotBindingManager
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.features.ravengard.RavengardItemComparisonTooltip
 import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer

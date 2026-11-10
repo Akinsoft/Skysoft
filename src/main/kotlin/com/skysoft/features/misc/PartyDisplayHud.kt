@@ -12,7 +12,7 @@ import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.HypixelPartyApi
 import com.skysoft.features.event.diana.DianaLootshareReadyMarkers
 import com.skysoft.features.event.diana.DianaRareMobSharing
-import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.gui.InventoryOverlayInput
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
 import com.skysoft.gui.GuiOverlayLayer

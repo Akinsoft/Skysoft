@@ -1,7 +1,7 @@
 package com.skysoft.gui
 
 import com.skysoft.SkysoftMod
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.gui.scale.GuiScaleController
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftErrorBoundary

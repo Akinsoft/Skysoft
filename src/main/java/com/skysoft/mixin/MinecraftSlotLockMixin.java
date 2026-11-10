@@ -3,7 +3,7 @@ package com.skysoft.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.skysoft.data.skyblock.SkyBlockDroppedItems;
-import com.skysoft.features.inventory.SlotLockManager;
+import com.skysoft.features.inventory.slots.SlotLockManager;
 import com.skysoft.utils.input.InputHandlingResult;
 import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.Minecraft;

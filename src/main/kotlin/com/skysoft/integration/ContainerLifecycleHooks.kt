@@ -3,12 +3,12 @@ package com.skysoft.integration
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.features.bazaar.BazaarTracker
 import com.skysoft.features.inventory.ExperimentationTableHelper
-import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.equipment.InventoryEquipment
 import com.skysoft.features.inventory.ItemProtectionManager
-import com.skysoft.features.inventory.SlotBindingManager
-import com.skysoft.features.inventory.SlotLockManager
+import com.skysoft.features.inventory.slots.SlotBindingManager
+import com.skysoft.features.inventory.slots.SlotLockManager
 import com.skysoft.features.inventory.SmoothSwapping
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.gui.scale.InventoryCursorMemory
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen

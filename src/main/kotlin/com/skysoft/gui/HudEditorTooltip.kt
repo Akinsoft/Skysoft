@@ -1,7 +1,7 @@
 package com.skysoft.gui
 
 import com.skysoft.config.core.HudPosition
-import com.skysoft.features.inventory.InventoryButtonManager
+import com.skysoft.features.inventory.buttons.InventoryButtonManager
 import com.skysoft.utils.MinecraftInput
 import com.skysoft.utils.NumberUtilities.fixedDecimals
 import com.skysoft.utils.input.InputUtilities

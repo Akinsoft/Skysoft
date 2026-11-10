@@ -3,7 +3,7 @@ package com.skysoft.config
 import com.google.gson.annotations.Expose
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.coercePositiveIn
-import com.skysoft.features.inventory.InventoryButtonEditorScreen
+import com.skysoft.features.inventory.buttons.InventoryButtonEditorScreen
 import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean

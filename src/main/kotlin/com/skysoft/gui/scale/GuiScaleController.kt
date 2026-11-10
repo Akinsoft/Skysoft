@@ -3,7 +3,7 @@ package com.skysoft.gui.scale
 import com.mojang.blaze3d.platform.Window
 import com.skysoft.config.InventoryScreenConfig
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen

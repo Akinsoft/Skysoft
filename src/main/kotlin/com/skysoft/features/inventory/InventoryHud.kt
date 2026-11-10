@@ -3,6 +3,8 @@ package com.skysoft.features.inventory
 import com.skysoft.config.INVENTORY_HUD_DEFAULT_BOTTOM_MARGIN
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
+import com.skysoft.features.inventory.equipment.InventoryEquipmentCache
+import com.skysoft.features.inventory.storage.config
 import com.skysoft.features.misc.PlayerHeadSkinFix
 import com.skysoft.gui.BottomHudLayout
 import com.skysoft.gui.GuiOverlay

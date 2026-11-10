@@ -3,7 +3,7 @@ package com.skysoft.integration
 import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.Window
 import com.skysoft.features.bazaar.BazaarTracker
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.features.misc.MouseLock
 import com.skysoft.features.misc.Zoom
 import com.skysoft.features.screenshot.ScreenshotCapturePreview

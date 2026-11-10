@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.skysoft.features.inventory.HeadDisplaySize;
 import com.skysoft.features.inventory.RarityHighlightRenderer;
-import com.skysoft.features.inventory.SlotBindingManager;
+import com.skysoft.features.inventory.slots.SlotBindingManager;
 import com.skysoft.features.misc.ShortbowCooldownHider;
 import com.skysoft.gui.tooltip.AdjacentTooltipRenderer;
 import com.skysoft.gui.tooltip.TooltipViewport;

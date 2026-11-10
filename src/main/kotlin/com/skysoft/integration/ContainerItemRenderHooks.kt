@@ -3,7 +3,7 @@ package com.skysoft.integration
 import com.skysoft.features.inventory.AnimatedDyeArmorCache
 import com.skysoft.features.inventory.ContainerSearchHighlighter
 import com.skysoft.features.inventory.ExperimentationTableHelper
-import com.skysoft.features.inventory.InventoryEquipment
+import com.skysoft.features.inventory.equipment.InventoryEquipment
 import com.skysoft.features.inventory.MenuKeybinds
 import com.skysoft.features.inventory.RarityHighlightRenderer
 import com.skysoft.features.inventory.SmoothSwapping

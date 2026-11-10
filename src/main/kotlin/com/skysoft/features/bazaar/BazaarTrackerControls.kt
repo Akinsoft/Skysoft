@@ -1,7 +1,7 @@
 package com.skysoft.features.bazaar
 
 import com.mojang.blaze3d.platform.InputConstants
-import com.skysoft.features.inventory.InventoryOverlayInput
+import com.skysoft.gui.InventoryOverlayInput
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.utils.MinecraftClient

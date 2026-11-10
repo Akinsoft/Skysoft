@@ -7,8 +7,8 @@ import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.data.skyblock.SkyBlockOpenInventoryApi
 import com.skysoft.data.skyblock.SkyBlockOpenInventorySnapshot
 import com.skysoft.data.skyblock.isSackContentsMenu
-import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.InventoryTrackerFrame
+import com.skysoft.gui.InventoryOverlayInput
+import com.skysoft.gui.tracker.InventoryTrackerFrame
 import com.skysoft.features.profit.profitTrackerSourcePrice
 import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType

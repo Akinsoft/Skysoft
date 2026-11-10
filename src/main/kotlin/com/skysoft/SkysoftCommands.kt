@@ -8,8 +8,8 @@ import com.skysoft.config.discovery.NewSettingsDiscovery
 import com.skysoft.features.event.diana.DianaBurrowHelper
 import com.skysoft.features.helditem.HeldItemEditorScreen
 import com.skysoft.features.waypoints.WaypointPanel
-import com.skysoft.features.inventory.InventoryButtonEditorScreen
-import com.skysoft.features.inventory.InventoryButtonImportCommand
+import com.skysoft.features.inventory.buttons.InventoryButtonEditorScreen
+import com.skysoft.features.inventory.buttons.InventoryButtonImportCommand
 import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.itemlist.ItemListSearchCommand
 import com.skysoft.features.misc.MouseLock

@@ -2,13 +2,13 @@ package com.skysoft.features.inventory.crafting
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.TrackedItemQuantityAction
-import com.skysoft.features.inventory.TrackedItemSelectionAction
-import com.skysoft.features.inventory.hoveredPlayerInventoryItemId
+import com.skysoft.gui.InventoryOverlayInput
+import com.skysoft.gui.tracker.TrackedItemQuantityAction
+import com.skysoft.gui.tracker.TrackedItemSelectionAction
+import com.skysoft.gui.hoveredPlayerInventoryItemId
 import com.skysoft.features.inventory.itemlist.ItemListViewerScreen
 import com.skysoft.features.inventory.itemlist.itemListQuickCraftCommand
-import com.skysoft.features.inventory.wasLeftClickHandled
+import com.skysoft.gui.wasLeftClickHandled
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.TextUtilities.cleanSkyBlockText

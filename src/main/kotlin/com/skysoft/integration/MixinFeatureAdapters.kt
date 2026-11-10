@@ -12,7 +12,7 @@ import com.skysoft.features.chat.ChatTimestamps
 import com.skysoft.features.chat.PreparedChatMessage
 import com.skysoft.features.event.diana.DianaSphinxAnswerHighlighter
 import com.skysoft.features.inventory.SmoothSwapping
-import com.skysoft.features.inventory.StoragePreviews
+import com.skysoft.features.inventory.storage.StoragePreviews
 import com.skysoft.features.misc.ServerInfoDisplay
 import com.skysoft.features.misc.SkyBlockLevelBar
 import com.skysoft.features.misc.custombars.CustomBars

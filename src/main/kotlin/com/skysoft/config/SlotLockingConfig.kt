@@ -2,7 +2,7 @@ package com.skysoft.config
 
 import com.google.gson.annotations.Expose
 import com.mojang.blaze3d.platform.InputConstants
-import com.skysoft.features.inventory.SlotLockManager
+import com.skysoft.features.inventory.slots.SlotLockManager
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton

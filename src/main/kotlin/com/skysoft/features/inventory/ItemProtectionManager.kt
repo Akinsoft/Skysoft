@@ -7,6 +7,9 @@ import com.skysoft.data.SkyBlockIsland
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.loreLines
 import com.skysoft.data.skyblock.SkyBlockItemUtilities.skyBlockUuid
+import com.skysoft.features.inventory.storage.StorageOverlayController
+import com.skysoft.features.inventory.storage.hoveredStorageItem
+import com.skysoft.features.inventory.storage.storage
 import com.skysoft.mixin.AbstractContainerScreenAccessor
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.ColorUtilities.toPackedArgb

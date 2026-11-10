@@ -2,9 +2,9 @@ package com.skysoft.features.inventory.sacks
 
 import com.mojang.blaze3d.platform.InputConstants
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.hoveredPlayerInventoryItemId
-import com.skysoft.features.inventory.wasLeftClickHandled
+import com.skysoft.gui.InventoryOverlayInput
+import com.skysoft.gui.hoveredPlayerInventoryItemId
+import com.skysoft.gui.wasLeftClickHandled
 import com.skysoft.utils.SoundUtilities
 import com.skysoft.utils.gui.OverlayListScroll
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen

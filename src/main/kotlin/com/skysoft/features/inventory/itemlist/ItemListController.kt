@@ -12,8 +12,8 @@ import com.skysoft.data.skyblock.SkyBlockDataLoadState
 import com.skysoft.data.skyblock.SkyBlockDataRepository
 import com.skysoft.features.inventory.ContainerSearchHighlighter
 import com.skysoft.features.inventory.InventoryItemSearchHighlight
-import com.skysoft.features.inventory.InventoryOverlayInput
-import com.skysoft.features.inventory.StorageOverlayController
+import com.skysoft.gui.InventoryOverlayInput
+import com.skysoft.features.inventory.storage.StorageOverlayController
 import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.MinecraftInput
