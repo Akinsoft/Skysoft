@@ -2,16 +2,12 @@ package com.skysoft.features.misc
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.gui.GuiOverlay
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
+import com.skysoft.gui.registerRenderableHud
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.decorators.withOverlayPanel
-import com.skysoft.utils.renderables.renderRenderable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -20,23 +16,13 @@ object DayDisplay {
     private val config get() = SkysoftConfigGui.config().gui.information.dayDisplay
 
     fun register() {
-        GuiOverlayRegistry.registerHud(
-            GuiOverlay(
-                id = "day_display",
-                layer = GuiOverlayLayer.BELOW_SCREEN,
-                contexts = TabDataOverlays.contexts,
-                visible = TabDataOverlays::canRender,
-                render = { context, _ -> renderHud(context) },
-            ),
-            object : RenderableHudEditorElement {
-                override val id: String = "day_display"
-                override val label: String = "Day Display"
-                override val position get() = config.position
-                override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun hudRenderable() = currentRenderable()
-                override fun isVisible(): Boolean = isDisplayVisible()
-                override fun openConfig() = SkysoftConfigGui.open("Day Display")
-            },
+        registerRenderableHud(
+            id = "day_display",
+            label = "Day Display",
+            position = { config.position },
+            visible = TabDataOverlays::canRender,
+            hasEditorBackground = { !config.details.background },
+            renderable = ::currentRenderable,
         )
     }
 
@@ -44,11 +30,6 @@ object DayDisplay {
         config.enabled && HypixelLocationState.inSkyBlock &&
             HypixelLocationState.currentIsland in config.settings.islands.get() &&
             !MinecraftClient.isGuiHidden(Minecraft.getInstance()) && currentDay() != null
-
-    private fun renderHud(context: GuiGraphicsExtractor) {
-        val renderable = currentRenderable() ?: return
-        config.position.renderRenderable(context, renderable)
-    }
 
     private fun currentDay(): Long? =
         Minecraft.getInstance().level?.overworldClockTime?.floorDiv(TICKS_PER_DAY)

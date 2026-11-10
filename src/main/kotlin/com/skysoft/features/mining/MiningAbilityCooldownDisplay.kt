@@ -1,7 +1,6 @@
 package com.skysoft.features.mining
 
 import com.skysoft.utils.NANOS_PER_SECOND
-import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.config.CUSTOM_BAR_TRACK_COLOR
 import com.skysoft.config.MiningAbilityBarOrientation
 import com.skysoft.config.MiningAbilityReadyTextPosition
@@ -9,10 +8,8 @@ import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.TabListApi
 import com.skysoft.data.skyblock.SkyBlockEventState
-import com.skysoft.gui.GuiOverlay
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
 import com.skysoft.gui.TabDataOverlays
+import com.skysoft.gui.registerRenderableHud
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
@@ -26,7 +23,6 @@ import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.container.horizontalLayout
 import com.skysoft.utils.renderables.container.verticalLayout
 import com.skysoft.utils.renderables.primitives.StringRenderable
-import com.skysoft.utils.renderables.renderRenderable
 import com.skysoft.features.misc.conditions.FeatureConditionState
 import kotlin.time.Duration.Companion.seconds
 import net.minecraft.client.Minecraft
@@ -52,23 +48,13 @@ object MiningAbilityCooldownDisplay {
             if (isMiningAbilityUse(message.cleanText)) recordAbilityUse()
             ChatMessageVisibility.SHOW
         }
-        GuiOverlayRegistry.registerHud(
-            GuiOverlay(
-                id = "mining_ability_cooldown",
-                layer = GuiOverlayLayer.BELOW_SCREEN,
-                contexts = TabDataOverlays.contexts,
-                visible = TabDataOverlays::canRender,
-                render = { context, _ -> renderHud(context) },
-            ),
-            object : RenderableHudEditorElement {
-                override val id: String = "mining_ability_cooldown"
-                override val label: String = "Mining Ability Cooldown"
-                override val position get() = config.position
-                override val hasEditorBackground: Boolean = false
-                override fun hudRenderable() = currentRenderable()
-                override fun isVisible(): Boolean = currentRenderable() != null
-                override fun openConfig() = SkysoftConfigGui.open("Mining Ability Cooldown")
-            },
+        registerRenderableHud(
+            id = "mining_ability_cooldown",
+            label = "Mining Ability Cooldown",
+            position = { config.position },
+            visible = TabDataOverlays::canRender,
+            hasEditorBackground = { false },
+            renderable = ::currentRenderable,
         )
     }
 
@@ -86,11 +72,6 @@ object MiningAbilityCooldownDisplay {
             animateEmpty = true,
             waitingForTabCooldown = true,
         )
-    }
-
-    private fun renderHud(context: GuiGraphicsExtractor) {
-        val renderable = currentRenderable() ?: return
-        config.position.renderRenderable(context, renderable)
     }
 
     private fun updateTabState(nowNanos: Long = System.nanoTime()) {
