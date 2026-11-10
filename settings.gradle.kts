@@ -19,8 +19,6 @@ pluginManagement {
 
 rootProject.name = "Skysoft"
 
-include("detekt-rules")
-
 val supportedMinecraftVersions = providers.gradleProperty("skysoft.supportedMinecraftVersions")
     .get()
     .split(",")
