@@ -31,12 +31,6 @@ object SkysoftConfigFiles {
         .resolve("trackers")
         .resolve("mythological-ritual")
         .resolve("tracker.json")
-    val legacyConfig: Path = rootDirectory.resolve("skysoft.json")
-    val legacyProfileStorage: Path = rootDirectory.resolve("skysoft-storage.json")
-
-    fun migrateConfig(): MigrationResult = copyLegacyFile(legacyConfig, config)
-
-    fun migrateProfileStorage(): MigrationResult = copyLegacyFile(legacyProfileStorage, profileStorage)
 
     private fun configDirectoryName(): String {
         val configuredName = System.getProperty(CONFIG_DIRECTORY_PROPERTY)?.trim()
@@ -96,20 +90,6 @@ object SkysoftConfigFiles {
     fun deleteWithBackups(path: Path) {
         Files.deleteIfExists(path)
         backupPaths(path).forEach(Files::deleteIfExists)
-    }
-
-    private fun copyLegacyFile(source: Path, target: Path): MigrationResult {
-        if (!Files.isRegularFile(source) || Files.exists(target) || hasBackup(target)) return MigrationResult.READY
-
-        return try {
-            Files.createDirectories(target.parent)
-            copyFileSafely(source, target)
-            SkysoftMod.LOGGER.info("Copied legacy Skysoft config file from {} to {}", source, target)
-            MigrationResult.READY
-        } catch (e: Exception) {
-            SkysoftMod.LOGGER.error("Failed to copy legacy Skysoft config file from $source to $target", e)
-            MigrationResult.FAILED
-        }
     }
 
     private fun writeStringSafelyOnce(path: Path, text: String) = withTempSibling(path) { tempPath ->
@@ -214,11 +194,6 @@ object SkysoftConfigFiles {
 
     private fun hasBackup(path: Path): Boolean =
         backupPaths(path).any(Files::isRegularFile)
-}
-
-enum class MigrationResult {
-    READY,
-    FAILED,
 }
 
 private const val MAX_WRITE_ATTEMPTS = 5

@@ -1,13 +1,11 @@
 package com.skysoft.config.features.pets
 
 import com.google.gson.annotations.Expose
-import com.google.gson.annotations.SerializedName
 import com.skysoft.config.MainFeatureToggle
 import com.skysoft.config.core.ConfigRepairable
 import com.skysoft.config.core.repairFiniteFloat
 import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.features.pets.display.PetOverlayConfig
-import com.skysoft.data.ProfileStorage
 import com.skysoft.features.pets.PetOverlayConfigScreen
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.Category
@@ -129,11 +127,6 @@ class PetFeatureConfig : ConfigRepairable {
         @field:Accordion
         @field:ConfigOrder(20)
         val settings = PetDisplaySettings()
-
-        @JvmField
-        @field:Expose(deserialize = true, serialize = false)
-        @field:SerializedName("storage")
-        val legacyStorage: ProfileStorage = ProfileStorage()
     }
 
     class PetDisplaySettings {

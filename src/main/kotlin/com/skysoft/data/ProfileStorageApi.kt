@@ -2,7 +2,6 @@ package com.skysoft.data
 
 import com.google.gson.GsonBuilder
 import com.skysoft.SkysoftMod
-import com.skysoft.config.MigrationResult
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.utils.ActiveConsumerRegistry
@@ -17,10 +16,7 @@ object ProfileStorageApi {
     private val saves = BackgroundSave(
         name = "Skysoft profile storage",
         prepare = ::serializeStorage,
-        write = { json ->
-            SkysoftConfigFiles.writeStringSafely(storagePath, json)
-            state.loadedFromDisk = true
-        },
+        write = { json -> SkysoftConfigFiles.writeStringSafely(storagePath, json) },
         canSave = ::ensureSaveEnabled,
     )
     private val storageChanged = saves::markDirty
@@ -64,11 +60,6 @@ object ProfileStorageApi {
         consumers.register(id, isActive)
     }
 
-    fun importLegacyStorage(legacy: ProfileStorage) {
-        if (state.loadedFromDisk) return
-        updateAll { it.importFrom(legacy) }
-    }
-
     internal fun flush() {
         saves.flush()
     }
@@ -88,56 +79,18 @@ object ProfileStorageApi {
     }
 
     private fun initializeStorage(): StorageState {
-        val saveDisabledReason = if (SkysoftConfigFiles.migrateProfileStorage() == MigrationResult.READY) {
-            null
-        } else {
-            "legacy ${SkysoftConfigFiles.legacyProfileStorage} could not be copied to $storagePath. " +
-                "Move it manually or fix file permissions to save changes."
-        }
-        if (!SkysoftConfigFiles.hasFileOrBackup(storagePath)) {
-            return StorageState(ProfileStorage(), saveDisabledReason, loadedFromDisk = false)
-        }
-        return loadStorage(saveDisabledReason)
-    }
-
-    private fun loadStorage(saveDisabledReason: String?): StorageState = try {
-        StorageState(
-            storageData = SkysoftConfigFiles.readWithBackup(storagePath, ::readProfileStorage),
-            saveDisabledReason = saveDisabledReason,
-            loadedFromDisk = true,
-        )
-    } catch (e: Exception) {
-        SkysoftMod.LOGGER.warn("Failed to load Skysoft profile storage or backup from $storagePath", e)
-        val storageData = loadFallbackStorage() ?: run {
-            SkysoftMod.LOGGER.warn("Using default Skysoft profile storage because no fallback storage could be loaded")
-            ProfileStorage()
-        }
-        StorageState(storageData, "$storagePath failed to load. Fix or delete the file to save changes.", loadedFromDisk = true)
-    }
-
-    private fun loadFallbackStorage(): ProfileStorage? {
-        val fallbackPath = SkysoftConfigFiles.legacyProfileStorage
-        if (fallbackPath == storagePath || !Files.isRegularFile(fallbackPath)) return null
-
+        if (!SkysoftConfigFiles.hasFileOrBackup(storagePath)) return StorageState(ProfileStorage(), saveDisabledReason = null)
         return try {
-            readProfileStorage(fallbackPath).also {
-                SkysoftMod.LOGGER.warn(
-                    "Loaded Skysoft profile storage from legacy path {} because {} failed to load. " +
-                        "Saves stay disabled until the current storage file is fixed or deleted.",
-                    fallbackPath,
-                    storagePath,
-                )
-            }
+            StorageState(SkysoftConfigFiles.readWithBackup(storagePath, ::readProfileStorage), saveDisabledReason = null)
         } catch (e: Exception) {
-            SkysoftMod.LOGGER.warn("Failed to load fallback Skysoft profile storage from $fallbackPath", e)
-            null
+            SkysoftMod.LOGGER.warn("Failed to load Skysoft profile storage or backup from $storagePath, using defaults", e)
+            StorageState(ProfileStorage(), "$storagePath failed to load. Fix or delete the file to save changes.")
         }
     }
 
     private class StorageState(
         val storageData: ProfileStorage,
         val saveDisabledReason: String?,
-        @Volatile var loadedFromDisk: Boolean,
     )
 }
 

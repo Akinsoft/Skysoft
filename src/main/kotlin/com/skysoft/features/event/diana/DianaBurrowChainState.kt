@@ -167,11 +167,6 @@ internal object DianaBurrowChainState {
                 sameBlockStartTargetId = chain.sameBlockStartTargetId,
             )
         }
-        val first = statesToSave.first()
-        data.completed = first.completed
-        data.total = first.total
-        data.nextTargetId = first.nextTargetId
-        data.sameBlockStartTargetId = first.sameBlockStartTargetId
     }
 
     private fun clearPersistentState() {
