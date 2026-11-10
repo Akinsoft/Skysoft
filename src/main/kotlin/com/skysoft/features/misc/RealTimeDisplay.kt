@@ -3,48 +3,27 @@ package com.skysoft.features.misc
 import com.skysoft.config.ChatTimestampFormat
 import com.skysoft.config.DisplayLabelStyle
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.gui.GuiOverlay
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.RenderableHudEditorElement
-import com.skysoft.gui.TabDataOverlays
+import com.skysoft.gui.registerRenderableHud
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
-import com.skysoft.utils.renderables.renderRenderable
 import java.time.LocalTime
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object RealTimeDisplay {
     private val config get() = SkysoftConfigGui.config().gui.information.realTimeDisplay
 
     fun register() {
-        GuiOverlayRegistry.registerHud(
-            GuiOverlay(
-                id = "real_time_display",
-                layer = GuiOverlayLayer.BELOW_SCREEN,
-                contexts = TabDataOverlays.contexts,
-                visible = { canRenderLive() },
-                render = { context, _ -> renderHud(context) },
-            ),
-            object : RenderableHudEditorElement {
-                override val id: String = "real_time_display"
-                override val label: String = "Real Time Display"
-                override val position get() = config.position
-                override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun hudRenderable() = currentRenderable()
-                override fun isVisible(): Boolean = canRenderLive()
-                override fun openConfig() = SkysoftConfigGui.open("Real Time Display")
-            },
+        registerRenderableHud(
+            id = "real_time_display",
+            label = "Real Time Display",
+            position = { config.position },
+            visible = { canRenderLive() },
+            hasEditorBackground = { !config.details.background },
+            renderable = ::currentRenderable,
         )
-    }
-
-    private fun renderHud(context: GuiGraphicsExtractor) {
-        if (!canRenderLive()) return
-        config.position.renderRenderable(context, currentRenderable())
     }
 
     private fun canRenderLive(minecraft: Minecraft = Minecraft.getInstance()): Boolean =
@@ -55,8 +34,10 @@ object RealTimeDisplay {
             isGuiHidden = MinecraftClient.isGuiHidden(minecraft),
         )
 
-    private fun currentRenderable(): GuiRenderable =
-        renderable(realTimeText(LocalTime.now(), config.settings.format, config.details.labelStyle))
+    private fun currentRenderable(): GuiRenderable? {
+        if (!canRenderLive()) return null
+        return renderable(realTimeText(LocalTime.now(), config.settings.format, config.details.labelStyle))
+    }
 
     private fun renderable(text: String): GuiRenderable =
         StringRenderable(text, color = config.details.color.get().toColor().rgb)

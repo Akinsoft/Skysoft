@@ -2,11 +2,8 @@ package com.skysoft.features.hunting
 
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.data.hypixel.HypixelLocationState
-import com.skysoft.gui.GuiOverlay
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.RenderableHudEditorElement
 import com.skysoft.gui.TabDataOverlays
+import com.skysoft.gui.registerRenderableHud
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.SoundUtilities
@@ -16,7 +13,6 @@ import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.container.verticalLayout
 import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
-import com.skysoft.utils.renderables.renderRenderable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.entity.state.EntityRenderState
 import net.minecraft.world.entity.Entity
@@ -38,25 +34,13 @@ object LassoDisplay {
             "Lasso Display tick",
             isActive = { isEnabled() || bar != null || reel != null },
         ) { update() }
-        GuiOverlayRegistry.registerHud(
-            GuiOverlay(
-                id = "lasso_display",
-                layer = GuiOverlayLayer.BELOW_SCREEN,
-                contexts = TabDataOverlays.contexts,
-                visible = TabDataOverlays::canRender,
-                render = { context, _ ->
-                    currentRenderable()?.let { config.position.renderRenderable(context, it) }
-                },
-            ),
-            object : RenderableHudEditorElement {
-                override val id = "lasso_display"
-                override val label = "Lasso Display"
-                override val position get() = config.position
-                override val hasEditorBackground get() = !config.details.background
-                override fun hudRenderable() = currentRenderable()
-                override fun isVisible(): Boolean = currentRenderable() != null
-                override fun openConfig() = SkysoftConfigGui.open("Lasso Display")
-            },
+        registerRenderableHud(
+            id = "lasso_display",
+            label = "Lasso Display",
+            position = { config.position },
+            visible = TabDataOverlays::canRender,
+            hasEditorBackground = { !config.details.background },
+            renderable = ::currentRenderable,
         )
     }
 

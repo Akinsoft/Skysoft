@@ -2,11 +2,8 @@ package com.skysoft.features.misc
 
 import com.mojang.brigadier.Command
 import com.skysoft.config.SkysoftConfigGui
-import com.skysoft.gui.GuiOverlay
 import com.skysoft.gui.GuiOverlayContextType
-import com.skysoft.gui.GuiOverlayLayer
-import com.skysoft.gui.GuiOverlayRegistry
-import com.skysoft.gui.RenderableHudEditorElement
+import com.skysoft.gui.registerRenderableHud
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
 import com.skysoft.utils.SkysoftChat
@@ -14,7 +11,6 @@ import com.skysoft.utils.SkysoftClientEvents
 import com.skysoft.utils.renderables.GuiRenderable
 import com.skysoft.utils.renderables.decorators.withOverlayPanel
 import com.skysoft.utils.renderables.primitives.StringRenderable
-import com.skysoft.utils.renderables.renderRenderable
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.client.Minecraft
 
@@ -24,23 +20,14 @@ object MouseLock {
 
     fun register() {
         SkysoftClientEvents.onDisconnect("Mouse Lock reset") { locked = false }
-        GuiOverlayRegistry.registerHud(
-            GuiOverlay(
-                id = "mouse_lock",
-                layer = GuiOverlayLayer.BELOW_SCREEN,
-                contexts = GuiOverlayContextType.entries.toSet(),
-                visible = { isDisplayVisible() },
-                render = { context, _ -> config.position.renderRenderable(context, renderable()) },
-            ),
-            object : RenderableHudEditorElement {
-                override val id: String = "mouse_lock"
-                override val label: String = "Mouse Lock"
-                override val position get() = config.position
-                override val hasEditorBackground: Boolean get() = !config.details.background
-                override fun hudRenderable() = renderable()
-                override fun isVisible(): Boolean = isDisplayVisible()
-                override fun openConfig() = SkysoftConfigGui.open("Mouse Lock")
-            },
+        registerRenderableHud(
+            id = "mouse_lock",
+            label = "Mouse Lock",
+            position = { config.position },
+            contexts = GuiOverlayContextType.entries.toSet(),
+            visible = { isDisplayVisible() },
+            hasEditorBackground = { !config.details.background },
+            renderable = ::currentRenderable,
         )
     }
 
@@ -66,9 +53,11 @@ object MouseLock {
     private fun isDisplayVisible(): Boolean =
         config.settings.showDisplay && locked && !MinecraftClient.isGuiHidden(Minecraft.getInstance())
 
-    private fun renderable(): GuiRenderable =
-        StringRenderable(MOUSE_LOCK_TEXT, color = config.details.color.get().toColor().rgb)
+    private fun currentRenderable(): GuiRenderable? {
+        if (!isDisplayVisible()) return null
+        return StringRenderable(MOUSE_LOCK_TEXT, color = config.details.color.get().toColor().rgb)
             .withOverlayPanel(config.details.background)
+    }
 }
 
 private const val MOUSE_LOCK_TEXT = "Mouselock enabled"
