@@ -56,7 +56,7 @@ object SkyBlockItemId {
 
 internal fun canonicalSkyBlockItemId(id: String): String = id.replace(':', '-')
 
-internal fun attributeShardInternalName(attributeName: String): String =
+private fun attributeShardInternalName(attributeName: String): String =
     "ATTRIBUTE_SHARD_${attributeName.uppercase(Locale.US)};1"
 
 internal fun CompoundTag.attributeShardId(): String? =

@@ -534,7 +534,7 @@ private data class EntryHit(
     val isCatalogEntry: Boolean,
 )
 
-internal fun calculationLabelAlphas(calculationBlend: Float): Pair<Float, Float> =
+private fun calculationLabelAlphas(calculationBlend: Float): Pair<Float, Float> =
     (1f - calculationBlend * 2f).coerceIn(0f, 1f) to (calculationBlend * 2f - 1f).coerceIn(0f, 1f)
 
 private fun drawCenteredText(

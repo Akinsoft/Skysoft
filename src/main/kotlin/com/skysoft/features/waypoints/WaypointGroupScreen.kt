@@ -137,13 +137,13 @@ internal class WaypointGroupScreen private constructor(
 
 internal fun parseWaypointRadius(value: String): Double = WaypointValidation.validateRadius(value.trim().toDoubleOrNull())
 
-internal fun parseWaypointColor(value: String): Int {
+private fun parseWaypointColor(value: String): Int {
     val clean = value.trim().removePrefix("#")
     require(clean.length == COLOR_DIGITS && clean.all { it.digitToIntOrNull(HEX_RADIX) != null }) { "Use a color such as #45A3FF." }
     return clean.toInt(HEX_RADIX)
 }
 
-internal fun waypointColorText(color: Int): String = "#" + color.toString(HEX_RADIX).padStart(COLOR_DIGITS, '0').uppercase()
+private fun waypointColorText(color: Int): String = "#" + color.toString(HEX_RADIX).padStart(COLOR_DIGITS, '0').uppercase()
 
 private const val COLOR_DIGITS = 6
 private const val HEX_RADIX = 16

@@ -211,7 +211,7 @@ internal enum class NpcWarpRequestResult {
     REJECTED,
 }
 
-internal fun isNpcWarpConfirmed(
+private fun isNpcWarpConfirmed(
     targetIsland: SkyBlockIsland,
     currentIsland: SkyBlockIsland?,
     startingIsland: SkyBlockIsland?,
@@ -229,7 +229,7 @@ internal fun isNpcWarpConfirmed(
     return movedDistanceSq >= MINIMUM_WARP_MOVEMENT_SQ && warpDistanceSq <= WARP_ARRIVAL_RANGE_SQ
 }
 
-internal fun shouldRemoveNpcWaypoint(
+private fun shouldRemoveNpcWaypoint(
     targetIsland: SkyBlockIsland,
     currentIsland: SkyBlockIsland?,
     target: WorldVec,

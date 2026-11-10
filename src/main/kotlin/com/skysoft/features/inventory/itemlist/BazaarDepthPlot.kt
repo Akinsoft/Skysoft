@@ -22,7 +22,7 @@ internal class BazaarDepthPlotCache {
     }
 }
 
-internal fun buildBazaarDepthPlot(
+private fun buildBazaarDepthPlot(
     bounds: Rect,
     product: SkysoftBazaarDepthProduct?,
     showBuyOrders: Boolean,

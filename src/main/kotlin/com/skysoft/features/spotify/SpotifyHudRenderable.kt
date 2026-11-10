@@ -293,7 +293,7 @@ internal class SpotifyHudRenderable(
     }
 }
 
-internal fun lyricRows(
+private fun lyricRows(
     lyrics: List<String>,
     activeIndex: Int,
     activeLines: List<String>,

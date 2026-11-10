@@ -115,7 +115,7 @@ private fun dropChanceLines(entity: SkyBlockEntityInfo, sources: List<SkyBlockDr
     }
 }
 
-internal fun derivedEntityDetails(entityId: String, entity: SkyBlockEntityInfo): List<String> = when {
+private fun derivedEntityDetails(entityId: String, entity: SkyBlockEntityInfo): List<String> = when {
     SkyBlockSlayerType.fromBossEntityId(entityId) != null -> listOf(slayerSpawnDescription(entityId))
     entity.type.equals("Sea Creature", ignoreCase = true) -> listOf("Caught while fishing")
     entity.type.contains("Pest", ignoreCase = true) -> listOf("Found in the Garden")

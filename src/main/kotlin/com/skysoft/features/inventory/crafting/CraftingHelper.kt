@@ -33,7 +33,7 @@ internal fun craftingHelperLines(): List<CraftingHelperLine> {
     return buildCraftingPlan(craftingHelperConfig.targets, available)
 }
 
-internal fun isCraftingHelperTarget(itemId: String): Boolean =
+private fun isCraftingHelperTarget(itemId: String): Boolean =
     supportedRecipe(SkyBlockDataRepository.itemKey(itemId)) != null
 
 internal fun addCraftingHelperTarget(itemId: String) {

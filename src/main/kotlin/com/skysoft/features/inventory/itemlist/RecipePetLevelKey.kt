@@ -23,7 +23,7 @@ internal fun displayedProcessCoins(recipe: SkyBlockRecipe.Process, petLevels: Ma
     return katUpgradeCoins(recipe.coins, petLevels[recipePetLevelKey(recipe, pet.id)] ?: 1)
 }
 
-internal fun katUpgradeCoins(baseCoins: Long, petLevel: Int): Long {
+private fun katUpgradeCoins(baseCoins: Long, petLevel: Int): Long {
     if (baseCoins <= 0) return 0
     val discountedLevels = petLevel.coerceIn(1, KAT_DISCOUNT_LEVEL_CAP)
     return baseCoins * (KAT_DISCOUNT_PERMILLE - discountedLevels * KAT_DISCOUNT_PER_LEVEL_PERMILLE) /

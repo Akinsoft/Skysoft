@@ -222,7 +222,7 @@ internal data class AuctionHouseGridLayout(val slots: List<Rect>) {
     }
 }
 
-internal fun auctionViewCommand(isInSkyBlock: Boolean, hasConnection: Boolean, auctionId: String): String? =
+private fun auctionViewCommand(isInSkyBlock: Boolean, hasConnection: Boolean, auctionId: String): String? =
     if (isInSkyBlock && hasConnection && auctionId.isNotBlank()) "viewauction $auctionId" else null
 
 internal fun hasAuctionHouseObtainSource(key: ItemListEntryKey): Boolean =
@@ -231,7 +231,7 @@ internal fun hasAuctionHouseObtainSource(key: ItemListEntryKey): Boolean =
         SkyBlockPriceData.lowestBinAvailability(key.id),
     )
 
-internal fun auctionHouseCategoryAvailable(
+private fun auctionHouseCategoryAvailable(
     isSkyBlockItem: Boolean,
     availability: BazaarProductAvailability,
 ): Boolean = isSkyBlockItem && availability != BazaarProductAvailability.UNAVAILABLE
@@ -246,7 +246,7 @@ private fun auctionRemainingTime(endMillis: Long, nowMillis: Long): String {
     }
 }
 
-internal fun auctionTooltipLines(
+private fun auctionTooltipLines(
     listing: SkysoftAuctionListing,
     seller: String,
     nowMillis: Long,

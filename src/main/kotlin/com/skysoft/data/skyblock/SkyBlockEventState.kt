@@ -171,7 +171,7 @@ internal object SkyBlockCalendar {
         return SkyBlockDate(year, month, day)
     }
 
-    fun startOf(year: Int, month: Int = 1, day: Int = 1): Long =
+    private fun startOf(year: Int, month: Int = 1, day: Int = 1): Long =
         EPOCH_MILLIS +
             (year - 1L) * YEAR_MILLIS +
             (month - 1L) * MONTH_MILLIS +

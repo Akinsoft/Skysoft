@@ -417,7 +417,7 @@ private val ProfitTrackerConfig.pauseAfterMillis: Int?
         .times(MILLIS_PER_SECOND)
         .takeIf { settings.pauseAfter }
 
-internal fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, changes: Map<String, Int>) {
+private fun applyTrackedItemChanges(stats: ProfileStorage.ProfitTrackerStats, changes: Map<String, Int>) {
     changes.forEach { (itemId, amount) ->
         val updated = (stats.itemCounts.getOrDefault(itemId, 0L) + amount).coerceAtLeast(0L)
         if (updated == 0L) stats.itemCounts.remove(itemId) else stats.itemCounts[itemId] = updated

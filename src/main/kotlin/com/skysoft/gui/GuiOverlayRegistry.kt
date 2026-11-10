@@ -201,7 +201,7 @@ internal enum class GuiOverlayRenderPass {
     AFTER_SCREEN_BACKGROUND,
 }
 
-internal fun GuiOverlay.shouldRenderIn(context: GuiOverlayContextType, pass: GuiOverlayRenderPass): Boolean =
+private fun GuiOverlay.shouldRenderIn(context: GuiOverlayContextType, pass: GuiOverlayRenderPass): Boolean =
     if (context == GuiOverlayContextType.WORLD) {
         pass == GuiOverlayRenderPass.BEFORE_SCREEN_BACKGROUND
     } else {

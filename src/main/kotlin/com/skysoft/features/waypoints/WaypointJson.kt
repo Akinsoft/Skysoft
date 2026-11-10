@@ -125,7 +125,7 @@ internal object WaypointJson {
     )
 }
 
-internal fun JsonObject.requiredArray(key: String): JsonArray {
+private fun JsonObject.requiredArray(key: String): JsonArray {
     val value = get(key)
     require(value != null && value.isJsonArray) { "$key must be a list." }
     return value.asJsonArray
@@ -136,7 +136,7 @@ internal fun JsonObject.string(key: String): String? = get(key)?.takeUnless { it
     it.asString
 }
 
-internal fun JsonObject.requiredString(key: String): String = string(key)
+private fun JsonObject.requiredString(key: String): String = string(key)
     ?: throw IllegalArgumentException("Missing $key.")
 
 internal fun JsonObject.requiredNumber(key: String): Double {
@@ -147,12 +147,12 @@ internal fun JsonObject.requiredNumber(key: String): Double {
 
 internal fun JsonObject.number(key: String, default: Double): Double = if (has(key)) requiredNumber(key) else default
 
-internal fun JsonObject.requiredInt(key: String): Int = requiredNumber(key).let { number ->
+private fun JsonObject.requiredInt(key: String): Int = requiredNumber(key).let { number ->
     require(number == number.toInt().toDouble()) { "$key must be a whole number." }
     number.toInt()
 }
 
-internal fun JsonObject.optionalInt(key: String): Int? = if (has(key)) requiredInt(key) else null
+private fun JsonObject.optionalInt(key: String): Int? = if (has(key)) requiredInt(key) else null
 
 internal fun JsonObject.isTrue(key: String, default: Boolean): Boolean {
     val value = get(key) ?: return default
