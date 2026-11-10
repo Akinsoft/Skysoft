@@ -376,7 +376,7 @@ private data class ProfitLine(
     }
 }
 
-internal fun formatProfitUptime(activeMillis: Long): String {
+private fun formatProfitUptime(activeMillis: Long): String {
     val duration = DurationParts.fromMilliseconds(activeMillis)
     return buildList {
         if (duration.totalHours > 0L) add("${duration.totalHours}h")
@@ -385,7 +385,7 @@ internal fun formatProfitUptime(activeMillis: Long): String {
     }.joinToString(" ")
 }
 
-internal fun profitPerHour(profit: Double, activeMillis: Long): Double =
+private fun profitPerHour(profit: Double, activeMillis: Long): Double =
     if (activeMillis > 0L) profit * MILLIS_PER_HOUR / activeMillis else 0.0
 
 internal data class ProfitDisplayItem(

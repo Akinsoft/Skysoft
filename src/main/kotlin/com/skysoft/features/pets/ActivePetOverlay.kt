@@ -103,7 +103,7 @@ object ActivePetOverlay {
         PetExpShareTooltip.register()
     }
 
-    fun previewRenderable(): GuiRenderable? = (
+    private fun previewRenderable(): GuiRenderable? = (
         buildDisplayRenderable(displayState)
             ?: renderer.build(xpAnimations.withAnimatedEquipped(previewPet), emptyList())
                 ?.withOverlayPanel(config.general.settings.background.get())

@@ -68,14 +68,14 @@ object ItemListSearchCommand {
     private const val MAX_SUGGESTIONS = 80
 }
 
-internal fun resolveItemListCommandQuery(query: String, results: List<ItemListEntry>): ItemListEntry? {
+private fun resolveItemListCommandQuery(query: String, results: List<ItemListEntry>): ItemListEntry? {
     if (query.isBlank()) return null
     return results.firstOrNull { it.displayName.equals(query, ignoreCase = true) }
         ?: results.firstOrNull { it.key.id.equals(query, ignoreCase = true) }
         ?: results.firstOrNull()
 }
 
-internal fun itemCommandSuggestions(results: List<ItemListEntry>, remaining: String): List<String> =
+private fun itemCommandSuggestions(results: List<ItemListEntry>, remaining: String): List<String> =
     results.asSequence()
         .flatMap { sequenceOf(it.displayName, it.key.id) }
         .filter { it.contains(remaining, ignoreCase = true) }

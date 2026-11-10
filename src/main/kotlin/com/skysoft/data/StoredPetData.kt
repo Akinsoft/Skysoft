@@ -81,7 +81,7 @@ data class StoredPetData(
                 displayName.equals(trimmedName, ignoreCase = true)
         }
 
-    fun getItemStackOrNull(): ItemStack? =
+    private fun getItemStackOrNull(): ItemStack? =
         PetRepository.getSkinStackOrNull(skinInternalName, displayIconTexture)
             ?: displayIconStackOrNull()
             ?: exactItemStack?.copy()

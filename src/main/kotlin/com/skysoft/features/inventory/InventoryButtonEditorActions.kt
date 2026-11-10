@@ -51,7 +51,7 @@ internal enum class InventoryButtonResetShortcutResult {
 internal object InventoryButtonEditorActions {
     private val config get() = SkysoftConfigGui.config().inventory.controls.inventoryButtons
 
-    fun resetButtonPosition(index: Int) {
+    private fun resetButtonPosition(index: Int) {
         val button = config.buttons.getOrNull(index) ?: return
         InventoryButtonDefaults.create().getOrNull(index)?.let { default ->
             button.x = default.x

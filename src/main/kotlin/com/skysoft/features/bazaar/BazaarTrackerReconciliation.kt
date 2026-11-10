@@ -82,7 +82,7 @@ private fun guiSlotScore(order: ProfileStorageView.BazaarOrderData, parsed: Pend
     }
 }
 
-internal fun bazaarIdentityCost(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long {
+private fun bazaarIdentityCost(order: ProfileStorageView.BazaarOrderData, parsed: PendingOrder): Long {
     if (!isSameOrderItem(order, parsed)) return IMPOSSIBLE_ASSIGNMENT_COST
     if (
         !haveOverlappingRanges(

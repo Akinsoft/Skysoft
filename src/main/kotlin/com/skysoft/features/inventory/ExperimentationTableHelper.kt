@@ -152,7 +152,7 @@ object ExperimentationTableHelper {
     }
 }
 
-internal fun experimentationGameFromTitle(title: String): ExperimentationGame? =
+private fun experimentationGameFromTitle(title: String): ExperimentationGame? =
     when (EXPERIMENT_TITLE_PATTERN.matchEntire(title)?.groupValues?.get(1)) {
         "Chronomatron" -> ExperimentationGame.CHRONOMATRON
         "Ultrasequencer" -> ExperimentationGame.ULTRASEQUENCER

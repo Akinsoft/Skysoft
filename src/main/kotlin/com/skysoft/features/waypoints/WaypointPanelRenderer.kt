@@ -331,7 +331,7 @@ internal fun onOffLabel(value: Boolean): String = if (value) "On" else "Off"
 internal fun waypointNoteHeight(text: String, width: Int): Int =
     if (text.isEmpty()) 0 else Minecraft.getInstance().font.split(Component.literal(text), width).size * WAYPOINT_NOTE_LINE_HEIGHT
 
-internal fun waypointCoordinates(point: WaypointPoint): String =
+private fun waypointCoordinates(point: WaypointPoint): String =
     "${waypointCoordinate(point.x)}, ${waypointCoordinate(point.y)}, ${waypointCoordinate(point.z)}"
 
 internal fun waypointCoordinate(value: Double): String =

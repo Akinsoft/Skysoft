@@ -224,13 +224,13 @@ internal class ItemListSearchHudEditorElement(
     override fun openConfig() = SkysoftConfigGui.open("Item List")
 }
 
-internal fun itemListScaleAfterEditorScroll(currentScale: Float, scrollY: Double): Float = when {
+private fun itemListScaleAfterEditorScroll(currentScale: Float, scrollY: Double): Float = when {
     scrollY > 0.0 -> currentScale + ItemListSettingsConfig.ITEM_SCALE_STEP
     scrollY < 0.0 -> currentScale - ItemListSettingsConfig.ITEM_SCALE_STEP
     else -> currentScale
 }.coerceIn(ItemListSettingsConfig.MIN_ITEM_SCALE, ItemListSettingsConfig.MAX_ITEM_SCALE)
 
-internal fun itemListColumnsAfterEditorDrag(
+private fun itemListColumnsAfterEditorDrag(
     startColumns: Int,
     horizontalDelta: Int,
     slotSize: Int,
@@ -244,7 +244,7 @@ internal fun itemListColumnsAfterEditorDrag(
     )
 }
 
-internal fun itemListSearchWidthAfterEditorScroll(currentWidth: Int, scrollY: Double): Int = when {
+private fun itemListSearchWidthAfterEditorScroll(currentWidth: Int, scrollY: Double): Int = when {
     scrollY > 0.0 -> currentWidth + ItemListSourcesConfig.SEARCH_WIDTH_STEP
     scrollY < 0.0 -> currentWidth - ItemListSourcesConfig.SEARCH_WIDTH_STEP
     else -> currentWidth

@@ -134,7 +134,7 @@ internal object DianaArrowGuess {
             }
     }
 
-    fun clearDetection() {
+    private fun clearDetection() {
         detectors.clear()
         pendingSession = null
         spadeHeldSinceMillis = Long.MIN_VALUE

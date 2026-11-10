@@ -14,7 +14,7 @@ import net.minecraft.world.item.Items
 internal object SkyBlockCurrencyStacks {
     private val cache = boundedAccessOrderMap<CurrencyCacheKey, ItemStack>(CACHE_SIZE)
 
-    fun coinStack(amount: Long): ItemStack = synchronized(cache) {
+    private fun coinStack(amount: Long): ItemStack = synchronized(cache) {
         cache.getOrPut(CurrencyCacheKey(COIN, amount)) {
             SkyBlockStackFactory.texturedHead(
                 COIN_TEXTURE,
@@ -23,9 +23,9 @@ internal object SkyBlockCurrencyStacks {
         }
     }
 
-    fun copperStack(amount: Long): ItemStack = itemStack(COPPER, amount, Items.COPPER_INGOT, "Copper")
+    private fun copperStack(amount: Long): ItemStack = itemStack(COPPER, amount, Items.COPPER_INGOT, "Copper")
 
-    fun moteStack(amount: Long): ItemStack =
+    private fun moteStack(amount: Long): ItemStack =
         itemStack(MOTE, amount, MinecraftItems.pinkDye(), if (amount == 1L) "Mote" else "Motes")
 
     fun supportedStack(currency: String, amount: Long): ItemStack? = when (currency.uppercase(Locale.ROOT)) {
@@ -48,7 +48,7 @@ internal object SkyBlockCurrencyStacks {
         else -> null
     }
 
-    fun coinName(amount: Long): String =
+    private fun coinName(amount: Long): String =
         currencyName(amount, if (amount == 1L) "Coin" else "Coins")
 
     fun moteName(amount: Long): String =
