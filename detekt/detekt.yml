@@ -21,18 +21,10 @@ style:
         ignoreExtensionFunctions: true
     UnusedParameter:
         active: true
-        ignoreAnnotated:
-            - 'SubscribeEvent'
-            - 'HandleEvent'
-            - 'Mod.EventHandler'
     ReturnCount:
         active: true
         max: 5
         excludeGuardClauses: true
-        ignoreAnnotated:
-            - 'SubscribeEvent'
-            - 'HandleEvent'
-            - 'Mod.EventHandler'
     MaxLineLength:
         active: true
         maxLineLength: 140
