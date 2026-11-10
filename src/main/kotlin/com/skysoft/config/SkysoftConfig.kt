@@ -10,7 +10,6 @@ import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.config.discovery.NewSettingsConfigBootstrap
 import com.skysoft.config.features.pets.PetFeatureConfig
 import com.skysoft.data.BackgroundSave
-import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkysoftGame.RAVENGARD
 import com.skysoft.data.hypixel.SkysoftGame.SKYBLOCK
 import com.skysoft.utils.ColorUtilities.RGB_MASK
@@ -244,13 +243,6 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
         }
 
         fun load(): SkysoftConfig {
-            if (SkysoftConfigFiles.migrateConfig() == MigrationResult.FAILED) {
-                NewSettingsConfigBootstrap.captureUnavailableConfig("Legacy config migration failed")
-                return createConfig(
-                    "legacy ${SkysoftConfigFiles.legacyConfig} could not be copied to $CONFIG_PATH. " +
-                        "Move it manually or fix file permissions to save changes.",
-                )
-            }
             if (!SkysoftConfigFiles.hasFileOrBackup(CONFIG_PATH)) {
                 NewSettingsConfigBootstrap.captureFreshConfig()
                 return createConfig()
@@ -260,7 +252,7 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
                 SkysoftConfigFiles.readWithBackup(CONFIG_PATH) { path ->
                     Files.newBufferedReader(path).use { reader ->
                         val json = JsonParser.parseReader(reader).asJsonObject
-                        SkysoftConfigMigrations.apply(json, GSON)
+                        SkysoftConfigMigrations.apply(json)
                         NewSettingsConfigBootstrap.captureLoadedConfig(json)
                         (GSON.fromJson(json, configClass) ?: createConfig()).also {
                             rememberHudPositionDefaults(loaded = it, defaults = createConfig())
@@ -297,7 +289,6 @@ open class SkysoftConfig(private val saveDisabledReason: String? = null) : Confi
     }
 
     private fun migrateLoadedValues() {
-        ProfileStorageApi.importLegacyStorage(pets.petDisplay.legacyStorage)
         KeybindNumberingMigration.convert(this, keybindNumbering, MinecraftInput.keybindNumbering)
         keybindNumbering = MinecraftInput.keybindNumbering
     }

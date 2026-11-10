@@ -1,28 +1,16 @@
 package com.skysoft.config
 
-import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.skysoft.data.ProfileStorage
-import com.skysoft.data.ProfileStorageApi
-import java.util.Locale
 
 internal object SkysoftConfigMigrations {
     const val CURRENT_CONFIG_MIGRATION_VERSION = 27
 
-    fun apply(json: JsonObject, gson: Gson) {
+    fun apply(json: JsonObject) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
             ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }
             ?.asInt
             ?: 0
-        importLegacyStorage(json, gson)
-        migrateBazaarIntoInventory(json)
-        migrateActionBarBackgroundIntoGui(json)
-        if (migrationVersion < DIANA_FEATURE_ACCORDIONS_VERSION) {
-            migrateDianaSettings(json)
-            migrateRareLootSharingIntoMisc(json)
-            migrateBuggedNameplatesIntoMisc(json)
-            migrateDianaFeatureAccordions(json)
-        }
+        if (migrationVersion < DIANA_FEATURE_ACCORDIONS_VERSION) migrateDianaFeatureAccordions(json)
         if (migrationVersion < DIANA_AND_TERRAIN_SETTINGS_VERSION) migrateDianaAndTerrainSettings(json)
         migrateOrganizedConfigLayout(json)
         if (migrationVersion < PRICE_TOOLTIP_CUSTOMIZATION_VERSION) migratePriceTooltipCustomization(json)
@@ -71,59 +59,8 @@ internal object SkysoftConfigMigrations {
         json.getObjectOrNull("inventory")?.moveFieldInto(vanillaUiJson, "isVanillaRecipeBookHidden")
     }
 
-    private fun importLegacyStorage(json: JsonObject, gson: Gson) {
-        json.getAsJsonObject("storage")?.let { legacyStorageJson ->
-            val legacyStorage = gson.fromJson(legacyStorageJson, ProfileStorage::class.java)
-            if (legacyStorage != null) ProfileStorageApi.importLegacyStorage(legacyStorage)
-        }
-    }
-
-    private fun migrateBazaarIntoInventory(json: JsonObject) {
-        val legacyJson = json.getObjectOrNull("bazaar") ?: return
-        val inventoryJson = json.getOrCreateObject("inventory")
-        if (!inventoryJson.has("bazaar")) inventoryJson.add("bazaar", legacyJson.deepCopy())
-        json.remove("bazaar")
-    }
-
-    private fun migrateActionBarBackgroundIntoGui(json: JsonObject) {
-        json.getObjectOrNull("misc")
-            ?.moveFieldInto({ json.getOrCreateObject("gui", "actionBar") }, "actionBarBackground", "background")
-    }
-
-    private fun migrateDianaSettings(json: JsonObject) {
-        val dianaJson = json.getObjectOrNull("events", "diana") ?: return
-        val settingsJson = dianaJson.getOrCreateObject("settings")
-        dianaJson.remove("waypoints")
-        settingsJson.remove("waypoints")
-        dianaJson.moveFieldsInto(settingsJson, DIANA_SETTINGS_FIELDS)
-    }
-
-    private fun migrateBuggedNameplatesIntoMisc(json: JsonObject) {
-        json.getObjectOrNull("events", "diana", "details")
-            ?.moveFieldInto({ json.getOrCreateObject("misc") }, "hideBuggedNameplates")
-    }
-
-    private fun migrateRareLootSharingIntoMisc(json: JsonObject) {
-        json.getObjectOrNull("events", "diana", "settings")
-            ?.moveFieldsInto(json.getOrCreateObject("misc"), RARE_LOOT_FIELDS)
-    }
-
     private fun migrateOrganizedConfigLayout(json: JsonObject) {
-        migrateGuiLayout(json)
-        migrateInventoryLayout(json)
-        migrateChatLayout(json)
-        migrateHuntingLayout(json)
-        migrateFishingLayout(json)
-        migrateMiscLayout(json)
-    }
-
-    private fun migrateGuiLayout(json: JsonObject) {
-        val guiJson = json.getObjectOrNull("gui") ?: return
-        guiJson.moveFieldInto({ guiJson.getOrCreateObject("positionEditor") }, "positionEditorKeybind", "keybind")
-        guiJson.getObjectOrNull("inventoryScreen")
-            ?.moveFieldsInto("settings", "inventoryGuiScale", "tooltipGuiScale")
-        guiJson.getObjectOrNull("heldItem")?.migrateHeldItemTextureModes()
-        guiJson.getObjectOrNull("customBars", "settings")?.let { settingsJson ->
+        json.getObjectOrNull("gui", "customBars", "settings")?.let { settingsJson ->
             CUSTOM_BAR_FIELDS.forEach { fieldName ->
                 if (fieldName in CUSTOM_BAR_RESOURCE_FIELDS) {
                     settingsJson.copyFieldInto({ settingsJson.getOrCreateObject("bars") }, fieldName)
@@ -131,37 +68,11 @@ internal object SkysoftConfigMigrations {
                 settingsJson.moveFieldInto({ settingsJson.getOrCreateObject("numbers") }, fieldName)
             }
         }
-    }
-
-    private fun migrateInventoryLayout(json: JsonObject) {
-        val inventoryJson = json.getObjectOrNull("inventory") ?: return
-        inventoryJson.moveFieldInto({ json.getOrCreateObject("misc", "fixes") }, SKYBLOCK_MENU_DROP_FIX_FIELD)
-
-        inventoryJson.getObjectOrNull("bazaar")?.let { bazaarJson ->
-            bazaarJson.getObjectOrNull("tracker")?.let { trackerJson ->
-                trackerJson.moveFieldsInto(bazaarJson, BAZAAR_TRACKER_FIELDS)
-                bazaarJson.remove("tracker")
-            }
-            bazaarJson.moveFieldInto(bazaarJson, "trackerEnabled", "enabled")
-            bazaarJson.moveFieldsIntoSettingsAndDetails(BAZAAR_SETTINGS_FIELDS, BAZAAR_DETAILS_FIELDS)
-        }
-
-        inventoryJson.getObjectOrNull("tooltipScroll")
-            ?.moveFieldsIntoSettingsAndDetails(TOOLTIP_SCROLL_SETTINGS_FIELDS, TOOLTIP_SCROLL_DETAILS_FIELDS)
-        inventoryJson.getObjectOrNull("priceTooltips")
-            ?.moveFieldsInto("settings", PRICE_TOOLTIP_SETTINGS_FIELDS)
-        inventoryJson.getObjectOrNull("storageOverlay")
-            ?.moveFieldsIntoSettingsAndDetails(STORAGE_OVERLAY_SETTINGS_FIELDS, STORAGE_OVERLAY_DETAILS_FIELDS)
-        inventoryJson.getObjectOrNull("inventoryButtons")
-            ?.moveFieldsIntoSettingsAndDetails(INVENTORY_BUTTON_SETTINGS_FIELDS, INVENTORY_BUTTON_DETAILS_FIELDS)
-        inventoryJson.getObjectOrNull("inventoryEquipment")
-            ?.moveFieldsInto("settings", INVENTORY_EQUIPMENT_SETTINGS_FIELDS)
-        inventoryJson.getObjectOrNull("fullInventory")
-            ?.moveFieldsIntoSettingsAndDetails(FULL_INVENTORY_SETTINGS_FIELDS, FULL_INVENTORY_DETAILS_FIELDS)
-        inventoryJson.getObjectOrNull("slotBindings")
-            ?.moveFieldsIntoSettingsAndDetails(SLOT_BINDING_SETTINGS_FIELDS, SLOT_BINDING_DETAILS_FIELDS)
-        inventoryJson.getObjectOrNull("smoothSwapping")
-            ?.moveFieldsIntoSettingsAndDetails(SMOOTH_SWAPPING_SETTINGS_FIELDS, SMOOTH_SWAPPING_DETAILS_FIELDS)
+        json.getObjectOrNull("inventory", "tooltipScroll")
+            ?.moveFieldsInto("settings", "interfaceScrollTooltipKey", "storageOverlayTooltipKey")
+        json.getObjectOrNull("inventory", "inventoryEquipment")
+            ?.moveFieldsInto("settings", "clickAction")
+        json.getObjectOrNull("misc")?.wrapFieldAsEnabled("autoSprint") { it.isBooleanValue() }
     }
 
     private fun migrateInventoryEquipmentIntoCategory(json: JsonObject) {
@@ -198,100 +109,6 @@ internal object SkysoftConfigMigrations {
         if (!farmingJson.has("mouseLock")) farmingJson.add("mouseLock", mouseLockJson)
     }
 
-    private fun migrateChatLayout(json: JsonObject) {
-        json.getObjectOrNull("chat", "smoothChat")
-            ?.moveFieldsIntoSettingsAndDetails(SMOOTH_CHAT_SETTINGS_FIELDS, SMOOTH_CHAT_DETAILS_FIELDS)
-    }
-
-    private fun migrateHuntingLayout(json: JsonObject) {
-        json.getObjectOrNull("hunting", "lotumHelper")
-            ?.moveFieldsInto("settings", LOTUM_HELPER_SETTINGS_FIELDS)
-    }
-
-    private fun migrateFishingLayout(json: JsonObject) {
-        json.getObjectOrNull("fishing", "hotspotSharing")
-            ?.moveFieldsIntoSettingsAndDetails(HOTSPOT_SHARING_SETTINGS_FIELDS, HOTSPOT_SHARING_DETAILS_FIELDS)
-    }
-
-    private fun migrateMiscLayout(json: JsonObject) {
-        val miscJson = json.getObjectOrNull("misc") ?: return
-        miscJson.wrapFieldAsEnabled("autoSprint") { it.isBooleanValue() }
-        miscJson.wrapFieldAsEnabled("rareLootSharing") { !it.isJsonObject }
-        val rareLootJson = miscJson.getOrCreateObject("rareLootSharing")
-        miscJson.moveFieldInto({ rareLootJson.getOrCreateObject("settings") }, "rareLootValue")
-        miscJson.getObjectOrNull("blockOverlay")
-            ?.moveFieldsInto("settings", BLOCK_OVERLAY_SETTINGS_FIELDS)
-        val legacyFixesJson = miscJson.getOrCreateObject("fixes")
-        miscJson.moveFieldsInto(legacyFixesJson, MISC_FIX_FIELDS)
-        legacyFixesJson.moveFieldsInto(json.getOrCreateObject("fixes"), legacyFixesJson.keySet().toList())
-        miscJson.remove("fixes")
-    }
-
-    private val DIANA_SETTINGS_FIELDS = listOf(
-        "crosshairLine",
-        "clickCounter",
-        "clickCounterPosition",
-        "warpHint",
-        "warpKey",
-        "minWarpSavings",
-    )
-    private val RARE_LOOT_FIELDS = listOf("rareLootSharing", "rareLootValue")
-    private val BAZAAR_TRACKER_FIELDS = listOf(
-        "enabled",
-        "maxOrders",
-        "showBackground",
-        "flippingInfo",
-        "visualIndicators",
-        "estimateFills",
-        "sounds",
-        "position",
-    )
-    private val BAZAAR_SETTINGS_FIELDS = listOf("maxOrders", "estimateFills", "sounds")
-    private val BAZAAR_DETAILS_FIELDS = listOf("showBackground", "flippingInfo", "visualIndicators")
-    private val TOOLTIP_SCROLL_SETTINGS_FIELDS = listOf(
-        "enableScrollWheel",
-        "interfaceScrollTooltipKey",
-        "storageOverlayTooltipKey",
-        "enableWASD",
-        "mouseScrollingSpeed",
-        "keyboardScrollingSpeed",
-        "moveUpKey",
-        "moveDownKey",
-        "horizontalMovementKey",
-        "resetTooltipKey",
-    )
-    private val TOOLTIP_SCROLL_DETAILS_FIELDS = listOf(
-        "startOnTop",
-        "resetPositionWhenNotHovered",
-        "useLeftShift",
-        "invertHorizontalMovement",
-        "invertVerticalMovement",
-        "scrollSmoothness",
-    )
-    private val PRICE_TOOLTIP_SETTINGS_FIELDS = listOf("requireKey", "hotkey", "bazaarPriceType")
-    private val STORAGE_OVERLAY_SETTINGS_FIELDS = listOf("miniMenu")
-    private val STORAGE_OVERLAY_DETAILS_FIELDS = listOf("columns", "height", "scrollSpeed")
-    private val INVENTORY_BUTTON_SETTINGS_FIELDS = listOf("clickType")
-    private val INVENTORY_BUTTON_DETAILS_FIELDS = listOf("tooltipDelay")
-    private val INVENTORY_EQUIPMENT_SETTINGS_FIELDS = listOf("clickAction")
-    private val FULL_INVENTORY_SETTINGS_FIELDS = listOf("emptySlots")
-    private val FULL_INVENTORY_DETAILS_FIELDS = listOf("playSound")
-    private val SLOT_BINDING_SETTINGS_FIELDS = listOf("bindingKey")
-    private val SLOT_BINDING_DETAILS_FIELDS = listOf(
-        "showHighlights",
-        "highlightColor",
-        "highlightStyle",
-        "showShiftHoverHighlight",
-    )
-    private val SMOOTH_SWAPPING_SETTINGS_FIELDS = listOf("animationSpeed")
-    private val SMOOTH_SWAPPING_DETAILS_FIELDS = listOf("animationCurve")
-    private val SMOOTH_CHAT_SETTINGS_FIELDS = listOf("messageAnimationDuration", "chatOpenAnimationDuration")
-    private val SMOOTH_CHAT_DETAILS_FIELDS = listOf("hideMessageIndicator")
-    private val LOTUM_HELPER_SETTINGS_FIELDS = listOf("highlightLotums")
-    private val HOTSPOT_SHARING_SETTINGS_FIELDS = listOf("showSharedWaypoints")
-    private val HOTSPOT_SHARING_DETAILS_FIELDS = listOf("crosshairLine")
-    private val BLOCK_OVERLAY_SETTINGS_FIELDS = listOf("color", "combinations")
-    private val MISC_FIX_FIELDS = listOf("hideGlitchMobs", "hideBuggedNameplates", "playerHeadSkinFix")
     private val CUSTOM_BAR_FIELDS = CUSTOM_BAR_RESOURCE_FIELDS + setOf("defense", "speed", "air")
     private const val CONFIG_MIGRATION_VERSION_FIELD = "configMigrationVersion"
     private const val MENU_DROP_FIX_SAFETY_VERSION = 1
@@ -517,17 +334,4 @@ private fun migratePriceTooltipCustomization(json: JsonObject) {
     if (!settingsJson.has("priceLines")) {
         settingsJson.add("legacyBazaarPriceType", legacyType)
     }
-}
-
-private fun JsonObject.migrateHeldItemTextureModes() {
-    val legacyItemIds = get("vanillaTextureItemIds")?.takeIf { it.isJsonArray }?.asJsonArray ?: return
-    val textureModes = getOrCreateObject("itemTextureModes")
-    val configuredItemIds = textureModes.keySet().mapTo(mutableSetOf()) { it.trim().uppercase(Locale.US) }
-    legacyItemIds.forEach { itemIdJson ->
-        val itemId = itemIdJson.asString.trim().uppercase(Locale.US)
-        if (itemId.isNotEmpty() && configuredItemIds.add(itemId)) {
-            textureModes.addProperty(itemId, HeldItemTextureMode.VANILLA.name)
-        }
-    }
-    remove("vanillaTextureItemIds")
 }

@@ -8,7 +8,6 @@ import java.util.UUID
 
 interface ProfileStorageView {
     val players: Map<String, PlayerSpecific>
-    val profiles: Map<String, ProfileSpecific>
 
     interface PlayerSpecific {
         val profiles: Map<String, ProfileSpecific>
@@ -134,10 +133,6 @@ interface ProfileStorageView {
 
     interface DianaBurrowChainData {
         val savedAtMillis: Long
-        val completed: Int
-        val total: Int
-        val nextTargetId: Long
-        val sameBlockStartTargetId: Long
         val activeTargets: List<DianaBurrowChainTargetData>
         fun isUsable(): Boolean
     }

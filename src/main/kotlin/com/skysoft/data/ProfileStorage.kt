@@ -13,23 +13,13 @@ import kotlin.math.ceil
 
 data class ProfileStorage(
     @Expose override val players: MutableMap<String, PlayerSpecific> = mutableMapOf(),
-    @Expose override val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
 ) : ProfileStorageView {
-    @Expose private val pets: MutableList<StoredPetData> = mutableListOf()
-    @Expose private val expSharePets: MutableList<UUID?> = mutableListOf()
-    @Expose private var currentPetUuid: UUID? = null
-    @Expose private var beastmasterPetXpMultiplier: Double? = null
-    @Expose private val skillData: MutableMap<SkyBlockSkill, SkyBlockSkillInfo> = mutableMapOf()
-    @Expose private val attributeShards: MutableMap<String, AttributeShardData> = mutableMapOf()
-
     @Transient
     private val transientProfile = ProfileSpecific()
     @Transient
     private val transientPlayer = PlayerSpecific()
 
     fun repairLoadedValues() {
-        repairLegacyFlatStorage()
-        profiles.values.forEach { it.repairLoadedValues() }
         players.values.forEach { player ->
             player.repairLoadedValues()
             player.profiles.values.forEach { it.repairLoadedValues() }
@@ -38,38 +28,11 @@ data class ProfileStorage(
         transientPlayer.repairLoadedValues()
     }
 
-    fun importFrom(legacy: ProfileStorage) {
-        legacy.repairLoadedValues()
-        legacy.players.forEach { (playerKey, legacyPlayer) ->
-            val player = players.getOrPut(playerKey) { PlayerSpecific() }
-            legacyPlayer.profiles.forEach { (profileKey, legacyProfile) ->
-                player.profiles.putIfAbsent(profileKey, legacyProfile)
-            }
-        }
-        legacy.profiles.forEach { (profileKey, legacyProfile) ->
-            profiles.putIfAbsent(profileKey, legacyProfile)
-        }
-        if (!hasLegacyFlatStorage() && legacy.hasLegacyFlatStorage()) {
-            pets.addAll(legacy.pets)
-            expSharePets.addAll(legacy.expSharePets)
-            currentPetUuid = legacy.currentPetUuid
-            beastmasterPetXpMultiplier = legacy.beastmasterPetXpMultiplier
-            skillData.putAll(legacy.skillData)
-            attributeShards.putAll(legacy.attributeShards)
-        }
-    }
-
     internal fun activeProfile(onChange: () -> Unit): ProfileSpecific {
         val profileId = SkyBlockProfileApi.currentProfileId ?: return transientProfile
-        val profileKey = profileId.profileKey
-        val playerStorage = playerStorage(profileId.playerKey, onChange)
-        if (profiles.isNotEmpty() || hasLegacyFlatStorage()) {
-            migrateLegacyStorage(playerStorage, profileKey)
+        return playerStorage(profileId.playerKey, onChange).profiles.getOrPut(profileId.profileKey) {
             onChange()
-        }
-        return playerStorage.profiles.getOrPut(profileKey) {
-            onChange()
-            ProfileSpecific(profileName = profileKey)
+            ProfileSpecific()
         }
     }
 
@@ -83,47 +46,6 @@ data class ProfileStorage(
             onChange()
             PlayerSpecific()
         }
-
-    private fun migrateLegacyStorage(playerStorage: PlayerSpecific, profileKey: String) {
-        if (profiles.isNotEmpty()) {
-            profiles.forEach { (profile, data) ->
-                playerStorage.profiles.putIfAbsent(profile, data)
-            }
-            profiles.clear()
-        }
-
-        if (!hasLegacyFlatStorage()) return
-        playerStorage.profiles.putIfAbsent(
-            profileKey,
-            ProfileSpecific(
-                profileName = profileKey,
-                pets = pets.toMutableList(),
-                expSharePets = expSharePets.toMutableList(),
-                currentPetUuid = currentPetUuid,
-                beastmasterPetXpMultiplier = beastmasterPetXpMultiplier,
-                skillData = skillData.toMutableMap(),
-                attributeShards = attributeShards.toMutableMap(),
-            ),
-        )
-        pets.clear()
-        expSharePets.clear()
-        currentPetUuid = null
-        beastmasterPetXpMultiplier = null
-        skillData.clear()
-        attributeShards.clear()
-    }
-
-    private fun hasLegacyFlatStorage(): Boolean =
-        pets.isNotEmpty() ||
-            expSharePets.isNotEmpty() ||
-            currentPetUuid != null ||
-            beastmasterPetXpMultiplier != null ||
-            skillData.isNotEmpty() ||
-            attributeShards.isNotEmpty()
-
-    private fun repairLegacyFlatStorage() {
-        currentPetUuid = repairPetReferences(pets, expSharePets, currentPetUuid)
-    }
 
     data class PlayerSpecific(
         @Expose override val profiles: MutableMap<String, ProfileSpecific> = mutableMapOf(),
@@ -411,40 +333,19 @@ data class ProfileStorage(
 
     data class DianaBurrowChainData(
         @Expose override var savedAtMillis: Long = 0L,
-        @Expose override var completed: Int = 0,
-        @Expose override var total: Int = 0,
-        @Expose override var nextTargetId: Long = 0L,
-        @Expose override var sameBlockStartTargetId: Long = 0L,
         @Expose override val activeTargets: MutableList<DianaBurrowChainTargetData> = mutableListOf(),
     ) : ProfileStorageView.DianaBurrowChainData {
         fun repairLoadedValues() {
             activeTargets.removeIf { target -> !target.isUsable() }
-            if (activeTargets.isEmpty() && hasLegacyTarget) {
-                activeTargets += DianaBurrowChainTargetData(
-                    savedAtMillis = savedAtMillis,
-                    completed = completed,
-                    total = total,
-                    nextTargetId = nextTargetId,
-                    sameBlockStartTargetId = sameBlockStartTargetId,
-                )
-            }
             if (!isUsable()) clear()
         }
 
         fun clear() {
             savedAtMillis = 0L
-            completed = 0
-            total = 0
-            nextTargetId = 0L
-            sameBlockStartTargetId = 0L
             activeTargets.clear()
         }
 
-        override fun isUsable(): Boolean = activeTargets.isNotEmpty() || hasLegacyTarget
-
-        private val hasLegacyTarget: Boolean
-            get() = DianaBurrowChainTargetData(savedAtMillis, completed, total, nextTargetId, sameBlockStartTargetId)
-                .isUsable()
+        override fun isUsable(): Boolean = activeTargets.isNotEmpty()
     }
 
     data class DianaBurrowChainTargetData(

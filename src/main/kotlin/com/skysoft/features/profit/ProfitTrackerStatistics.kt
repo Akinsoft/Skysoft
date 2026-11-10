@@ -50,8 +50,7 @@ internal class ProfitTrackerStatistics {
         val key = target.storageKey
         sessionStats.remove(key)
         ProfileStorageApi.updateAll { storage ->
-            val profiles = storage.profiles.values + storage.players.values.flatMap { it.profiles.values }
-            profiles.forEach { profile ->
+            storage.players.values.flatMap { it.profiles.values }.forEach { profile ->
                 with(profile.profitTracker) {
                     totals.remove(key)
                     today.remove(key)
