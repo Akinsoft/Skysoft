@@ -61,10 +61,7 @@ internal object DianaLobbyCompromisedWatcher {
             MIN_LOBBY_COMPROMISED_STRANGER_LIMIT,
             MAX_LOBBY_COMPROMISED_STRANGER_LIMIT,
         )
-        val result = alertState.update(strangerCount, threshold, now)
-        if (result == DianaLobbyCompromisedUpdate.BECAME_COMPROMISED) {
-            sendAlerts(settings.alerts.get())
-        }
+        if (alertState.update(strangerCount, threshold, now)) sendAlerts(settings.alerts.get())
     }
 
     private fun isActive(): Boolean =
@@ -139,7 +136,7 @@ private class DianaLobbyCompromisedState {
     private var acknowledgedStrangerCount = 0
     private var compromisedCandidateSinceMillis: Long? = null
 
-    fun update(strangerCount: Int, threshold: Int, now: Long): DianaLobbyCompromisedUpdate {
+    fun update(strangerCount: Int, threshold: Int, now: Long): Boolean {
         val isCompromised = strangerCount >= threshold
         if (!hasBaseline || lastThreshold != threshold) {
             hasBaseline = true
@@ -147,30 +144,30 @@ private class DianaLobbyCompromisedState {
             lastThreshold = threshold
             acknowledgedStrangerCount = strangerCount
             compromisedCandidateSinceMillis = null
-            return DianaLobbyCompromisedUpdate.NO_ALERT
+            return false
         }
 
         if (!isCompromised) {
             wasCompromised = false
             acknowledgedStrangerCount = strangerCount
             compromisedCandidateSinceMillis = null
-            return DianaLobbyCompromisedUpdate.NO_ALERT
+            return false
         }
         if (wasCompromised && strangerCount <= acknowledgedStrangerCount) {
             acknowledgedStrangerCount = strangerCount
             compromisedCandidateSinceMillis = null
-            return DianaLobbyCompromisedUpdate.NO_ALERT
+            return false
         }
 
         val compromisedSince = compromisedCandidateSinceMillis ?: now.also {
             compromisedCandidateSinceMillis = it
         }
-        if (now - compromisedSince < REQUIRED_COMPROMISED_STABLE_MILLIS) return DianaLobbyCompromisedUpdate.NO_ALERT
+        if (now - compromisedSince < REQUIRED_COMPROMISED_STABLE_MILLIS) return false
 
         wasCompromised = true
         acknowledgedStrangerCount = strangerCount
         compromisedCandidateSinceMillis = null
-        return DianaLobbyCompromisedUpdate.BECAME_COMPROMISED
+        return true
     }
 
     fun reset() {
@@ -180,11 +177,6 @@ private class DianaLobbyCompromisedState {
         acknowledgedStrangerCount = 0
         compromisedCandidateSinceMillis = null
     }
-}
-
-private enum class DianaLobbyCompromisedUpdate {
-    NO_ALERT,
-    BECAME_COMPROMISED,
 }
 
 private class DianaLobbyFriendlyPresenceTracker {

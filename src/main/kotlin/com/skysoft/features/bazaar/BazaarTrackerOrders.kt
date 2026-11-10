@@ -2,7 +2,6 @@ package com.skysoft.features.bazaar
 
 import com.skysoft.data.skyblock.BazaarOrderType
 import com.skysoft.data.ProfileStorage
-import com.skysoft.utils.ChangeResult
 import kotlin.math.max
 import kotlin.math.roundToLong
 
@@ -53,7 +52,7 @@ private fun cancelDistance(order: ProfileStorage.BazaarOrderData, cancel: Pendin
     return amountDistance(expectedUnfilled, amount)
 }
 
-internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): ChangeResult {
+internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: PendingOrder): Boolean {
     val previousFilled = order.filledAmount
     var progressAlertBaseline = previousFilled
     val identityUpdate = updateOrderIdentityFromGui(order, parsed)
@@ -66,7 +65,7 @@ internal fun updateOrderFromGui(order: ProfileStorage.BazaarOrderData, parsed: P
         if (identityUpdate.meaningful) order.updatedAtMillis = System.currentTimeMillis()
         BazaarTrackerAlerts.playProgressAlert(order, progressAlertBaseline)
     }
-    return ChangeResult.from(changed)
+    return changed
 }
 
 internal fun ProfileStorage.BazaarTrackerData.findClaimOrder(
@@ -124,7 +123,7 @@ internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
     matchedOrderIds: Set<String>,
     parsedOrders: List<PendingOrder>,
     visibleOrderCount: Int,
-): ChangeResult {
+): Boolean {
     val now = System.currentTimeMillis()
     val recentlyClickedOrder = now - BazaarTrackingState.lastOrdersGuiClickMillis < GUI_MISSING_PRUNE_CLICK_GRACE_MILLIS
     val visibleScanMayBeWindowed = visibleOrderCount >= BAZAAR_ORDERS_GUI_VISIBLE_ORDER_LIMIT &&
@@ -159,7 +158,7 @@ internal fun ProfileStorage.BazaarTrackerData.pruneOrdersMissingFromGui(
             }
         }
     }
-    return ChangeResult.from(changed)
+    return changed
 }
 
 private fun shouldPruneMissingFromGui(

@@ -30,18 +30,18 @@ internal class ParticlePathEstimator(
 
     fun count(): Int = points.size
 
-    fun addIfUsable(location: WorldVec): ParticlePathPointResult {
-        if (!location.isFinite()) return ParticlePathPointResult.IGNORED
+    fun addIfUsable(location: WorldVec): Boolean {
+        if (!location.isFinite()) return false
         val last = points.lastOrNull()
         if (last != null) {
             val distance = last.distance(location)
-            if (distance == 0.0) return ParticlePathPointResult.IGNORED
+            if (distance == 0.0) return false
             if (distance > maxPointGap) {
                 points.clear()
             }
         }
         points += location
-        return ParticlePathPointResult.ADDED
+        return true
     }
 
     fun estimate(): WorldVec? {
@@ -154,9 +154,4 @@ internal class ParticlePathEstimator(
         const val MIN_DERIVATIVE_LENGTH = 1.0E-6
         const val MAX_ESTIMATE_DISTANCE = 500.0
     }
-}
-
-internal enum class ParticlePathPointResult {
-    ADDED,
-    IGNORED,
 }

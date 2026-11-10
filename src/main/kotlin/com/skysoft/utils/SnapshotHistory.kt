@@ -16,30 +16,30 @@ internal class SnapshotHistory<S>(
     val canUndo: Boolean get() = undo.isNotEmpty()
     val canRedo: Boolean get() = redo.isNotEmpty()
 
-    fun record(before: S, after: S): ChangeResult {
-        if (areEquivalent(before, after)) return ChangeResult.UNCHANGED
+    fun record(before: S, after: S): Boolean {
+        if (areEquivalent(before, after)) return false
         undo.addLast(Edit(before, after))
         undo.trimStartToSize(maximumSteps)
         redo.clear()
-        return ChangeResult.CHANGED
+        return true
     }
 
-    fun undo(restore: (S) -> Unit): ChangeResult {
-        val edit = undo.peekLast() ?: return ChangeResult.UNCHANGED
+    fun undo(restore: (S) -> Unit): Boolean {
+        val edit = undo.peekLast() ?: return false
         restore(edit.before)
         undo.removeLast()
         redo.addLast(edit)
         redo.trimStartToSize(maximumSteps)
-        return ChangeResult.CHANGED
+        return true
     }
 
-    fun redo(restore: (S) -> Unit): ChangeResult {
-        val edit = redo.peekLast() ?: return ChangeResult.UNCHANGED
+    fun redo(restore: (S) -> Unit): Boolean {
+        val edit = redo.peekLast() ?: return false
         restore(edit.after)
         redo.removeLast()
         undo.addLast(edit)
         undo.trimStartToSize(maximumSteps)
-        return ChangeResult.CHANGED
+        return true
     }
 
     private data class Edit<S>(val before: S, val after: S)

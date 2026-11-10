@@ -4,7 +4,6 @@ import com.skysoft.data.ProfileStorage
 import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.SkyBlockProfileId
 import com.skysoft.data.hypixel.SkyBlockProfileApi
-import com.skysoft.utils.ChangeResult
 
 internal object DianaBurrowChainState {
     private val states = mutableListOf<ActiveDianaBurrowChain>()
@@ -25,8 +24,8 @@ internal object DianaBurrowChainState {
         now: Long,
     ) {
         progress ?: return
-        val removed = removeStateForTarget(completedTarget) == ChangeResult.CHANGED
-        val pruned = pruneExpiredStates(now) == ChangeResult.CHANGED
+        val removed = removeStateForTarget(completedTarget)
+        val pruned = pruneExpiredStates(now)
         if (removed || pruned) savePersistentStates(now)
     }
 
@@ -124,9 +123,9 @@ internal object DianaBurrowChainState {
     private fun stateForTarget(target: DianaBurrowTarget): ActiveDianaBurrowChain? =
         states.firstOrNull { chain -> chain.involves(target.targetId) }
 
-    private fun removeStateForTarget(target: DianaBurrowTarget?): ChangeResult {
-        target ?: return ChangeResult.UNCHANGED
-        return ChangeResult.from(states.removeAll { chain -> chain.involves(target.targetId) })
+    private fun removeStateForTarget(target: DianaBurrowTarget?): Boolean {
+        target ?: return false
+        return states.removeAll { chain -> chain.involves(target.targetId) }
     }
 
     private fun replaceState(previous: ActiveDianaBurrowChain, replacement: ActiveDianaBurrowChain) {
@@ -138,8 +137,8 @@ internal object DianaBurrowChainState {
         }
     }
 
-    private fun pruneExpiredStates(now: Long): ChangeResult =
-        ChangeResult.from(states.removeAll { chain -> now - chain.savedAtMillis > CHAIN_RESTORE_WINDOW_MILLIS })
+    private fun pruneExpiredStates(now: Long): Boolean =
+        states.removeAll { chain -> now - chain.savedAtMillis > CHAIN_RESTORE_WINDOW_MILLIS }
 
     private fun savePersistentStates(now: Long) {
         val restorableTargetIds = restorableTargetIds()

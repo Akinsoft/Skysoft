@@ -97,16 +97,16 @@ internal object DianaArrowGuess {
         return DianaBurrowTargetTracker.removeIfCurrent(target, now, suppress = false)
     }
 
-    fun handleRejectedGuess(target: DianaBurrowTarget, now: Long): ArrowGuessActionResult {
-        if (target.source != DianaBurrowSource.GUESS) return ArrowGuessActionResult.IGNORED
-        val sequence = activeSequences[target.targetId] ?: return ArrowGuessActionResult.IGNORED
-        if (sequence.current.location != target.location) return ArrowGuessActionResult.IGNORED
-        val current = DianaBurrowTargetTracker.targetAt(target.location) ?: return ArrowGuessActionResult.IGNORED
-        if (current.targetId != target.targetId) return ArrowGuessActionResult.IGNORED
+    fun handleRejectedGuess(target: DianaBurrowTarget, now: Long): Boolean {
+        if (target.source != DianaBurrowSource.GUESS) return false
+        val sequence = activeSequences[target.targetId] ?: return false
+        if (sequence.current.location != target.location) return false
+        val current = DianaBurrowTargetTracker.targetAt(target.location) ?: return false
+        if (current.targetId != target.targetId) return false
 
         DianaBurrowTargetTracker.removeIfCurrent(target, now)
         advanceSequence(target, sequence, now)
-        return ArrowGuessActionResult.HANDLED
+        return true
     }
 
     fun clear() {
@@ -264,7 +264,7 @@ internal object DianaArrowGuess {
                 if (DianaNonSpadeGuessBreaks.hasRecentBreakAttempt(target, now)) return@forEach
                 if (DianaBurrowInteractions.hasPendingClick(target)) return@forEach
                 if (DianaBurrowSurfaceValidator.check(target.location) != DianaBurrowSurfaceStatus.INVALID) return@forEach
-                if (handleRejectedGuess(target, now) == ArrowGuessActionResult.HANDLED) advanced = true
+                if (handleRejectedGuess(target, now)) advanced = true
             }
         } while (advanced)
     }
@@ -298,8 +298,3 @@ private fun WorldVec.toRestoredCandidate(): ResolvedArrowCandidate =
 
 private fun DianaArrowRay.isFromAnchor(anchor: WorldVec): Boolean =
     origin.roundToBlock() == anchor.roundToBlock()
-
-internal enum class ArrowGuessActionResult {
-    HANDLED,
-    IGNORED,
-}

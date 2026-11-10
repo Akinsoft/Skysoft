@@ -2,7 +2,6 @@ package com.skysoft.features.helditem
 
 import com.skysoft.config.HeldItemConfig
 import com.skysoft.config.HeldItemCustomizationSnapshot
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.SnapshotHistory
 import java.util.Locale
 
@@ -31,14 +30,14 @@ internal class HeldItemHistoryStore {
         return HeldItemHistoryEdit(key, config.snapshotCustomization(key.itemId))
     }
 
-    fun commit(config: HeldItemConfig, edit: HeldItemHistoryEdit): ChangeResult {
+    fun commit(config: HeldItemConfig, edit: HeldItemHistoryEdit): Boolean {
         expireInactiveHistories()
         val after = config.snapshotCustomization(edit.key.itemId)
-        if (after == edit.before) return ChangeResult.UNCHANGED
+        if (after == edit.before) return false
         val history = histories.getOrPut(edit.key) { ContextHistory() }
         history.snapshots.record(edit.before, after)
         history.lastTouchedAtNanos = System.nanoTime()
-        return ChangeResult.CHANGED
+        return true
     }
 
     fun canUndo(key: HeldItemHistoryKey): Boolean {
@@ -51,20 +50,20 @@ internal class HeldItemHistoryStore {
         return histories[key]?.snapshots?.canRedo == true
     }
 
-    fun undo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult =
+    fun undo(config: HeldItemConfig, key: HeldItemHistoryKey): Boolean =
         step(key) { it.undo(config::restoreCustomization) }
 
-    fun redo(config: HeldItemConfig, key: HeldItemHistoryKey): ChangeResult =
+    fun redo(config: HeldItemConfig, key: HeldItemHistoryKey): Boolean =
         step(key) { it.redo(config::restoreCustomization) }
 
     private fun step(
         key: HeldItemHistoryKey,
-        action: (SnapshotHistory<HeldItemCustomizationSnapshot>) -> ChangeResult,
-    ): ChangeResult {
+        action: (SnapshotHistory<HeldItemCustomizationSnapshot>) -> Boolean,
+    ): Boolean {
         expireInactiveHistories()
-        val history = histories[key] ?: return ChangeResult.UNCHANGED
+        val history = histories[key] ?: return false
         val result = action(history.snapshots)
-        if (result == ChangeResult.CHANGED) history.lastTouchedAtNanos = System.nanoTime()
+        if (result) history.lastTouchedAtNanos = System.nanoTime()
         return result
     }
 
@@ -94,22 +93,22 @@ internal class HeldItemHistoryController(
         gestureEdit = keyProvider()?.let { store.begin(config, it) }
     }
 
-    fun commitGesture(): ChangeResult {
-        val edit = gestureEdit ?: return ChangeResult.UNCHANGED
+    fun commitGesture(): Boolean {
+        val edit = gestureEdit ?: return false
         gestureEdit = null
         return store.commit(config, edit)
     }
 
-    fun mutate(action: () -> Unit): ChangeResult {
+    fun mutate(action: () -> Unit): Boolean {
         flushPending()
-        val key = keyProvider() ?: return ChangeResult.UNCHANGED
+        val key = keyProvider() ?: return false
         val edit = store.begin(config, key)
         action()
         return store.commit(config, edit)
     }
 
-    fun mutateScroll(field: TransformField, action: () -> Unit): ChangeResult {
-        val key = keyProvider() ?: return ChangeResult.UNCHANGED
+    fun mutateScroll(field: TransformField, action: () -> Unit): Boolean {
+        val key = keyProvider() ?: return false
         val now = System.nanoTime()
         val pending = scrollEdit
         if (pending == null || pending.edit.key != key || pending.field != field || pending.hasExpired(now)) {
@@ -119,7 +118,7 @@ internal class HeldItemHistoryController(
         val before = config.snapshotCustomization(key.itemId)
         action()
         scrollEdit?.lastChangedAtNanos = now
-        return ChangeResult.from(before != config.snapshotCustomization(key.itemId))
+        return before != config.snapshotCustomization(key.itemId)
     }
 
     fun commitIdleScroll() {
@@ -143,20 +142,20 @@ internal class HeldItemHistoryController(
         return store.canRedo(key)
     }
 
-    fun undo(): ChangeResult {
+    fun undo(): Boolean {
         flushPending()
-        val key = keyProvider() ?: return ChangeResult.UNCHANGED
+        val key = keyProvider() ?: return false
         return store.undo(config, key)
     }
 
-    fun redo(): ChangeResult {
+    fun redo(): Boolean {
         flushPending()
-        val key = keyProvider() ?: return ChangeResult.UNCHANGED
+        val key = keyProvider() ?: return false
         return store.redo(config, key)
     }
 
-    private fun commitScroll(): ChangeResult {
-        val edit = scrollEdit?.edit ?: return ChangeResult.UNCHANGED
+    private fun commitScroll(): Boolean {
+        val edit = scrollEdit?.edit ?: return false
         scrollEdit = null
         return store.commit(config, edit)
     }

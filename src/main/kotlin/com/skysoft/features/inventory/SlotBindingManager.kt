@@ -13,7 +13,6 @@ import com.skysoft.data.skyblock.SkyBlockMenuItem.isSkyBlockMenu
 import com.skysoft.gui.OverlayControlMouse
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
 import com.skysoft.mixin.AbstractContainerScreenAccessor
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ColorUtilities.hasVisibleAlpha
 import com.skysoft.utils.ColorUtilities.toPackedArgb
 import com.skysoft.utils.ColorUtilities.toColor
@@ -227,9 +226,9 @@ object SlotBindingManager {
 
     private fun repairBindings(screen: AbstractContainerScreen<*>) {
         val repaired = bindings.map { ProfileStorage.SlotBindingData(it.firstSlot, it.secondSlot) }.toMutableList()
-        val repair = SlotBindingGraph.repair(repaired)
+        val changedByRepair = SlotBindingGraph.repair(repaired)
         val removedMenuBindings = repaired.removeIf { Geometry.involvesSkyBlockMenuSlot(it, screen) }
-        if (repair == ChangeResult.CHANGED || removedMenuBindings) {
+        if (changedByRepair || removedMenuBindings) {
             ProfileStorageApi.updateProfile { profile ->
                 profile.slotBindings.clear()
                 profile.slotBindings.addAll(repaired)

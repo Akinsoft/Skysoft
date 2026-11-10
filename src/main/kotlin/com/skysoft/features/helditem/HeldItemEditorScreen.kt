@@ -7,7 +7,6 @@ import com.skysoft.config.HeldItemTransformConfig
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.gui.SkysoftEditorScreen
 import com.skysoft.gui.tooltip.SkysoftNativeTooltip
-import com.skysoft.utils.ChangeResult
 import com.skysoft.utils.ColorUtilities.withAlpha
 import com.skysoft.utils.EasingUtilities
 import com.skysoft.utils.MinecraftClient
@@ -317,8 +316,8 @@ object HeldItemEditorScreen {
             draggedField = null
         }
 
-        private fun markChanged(changeResult: ChangeResult = ChangeResult.CHANGED) {
-            if (changeResult == ChangeResult.UNCHANGED) return
+        private fun markChanged(changed: Boolean = true) {
+            if (!changed) return
             hasUnsavedChanges = true
             lastChangedAt = System.currentTimeMillis()
         }
@@ -336,7 +335,7 @@ private class HeldItemEditorControlActions(
     private val state: HeldItemEditorState,
     private val layout: HeldItemEditorLayout,
     private val historyController: HeldItemHistoryController,
-    private val markChanged: (ChangeResult) -> Unit,
+    private val markChanged: (Boolean) -> Unit,
 ) {
     fun activateTargetAt(mouseX: Int, mouseY: Int): InputHandlingResult {
         val target = when {
@@ -362,7 +361,7 @@ private class HeldItemEditorControlActions(
                 if (layout.panelX != previousX || layout.panelY != previousY) {
                     config.editorX = layout.panelX
                     config.editorY = layout.panelY
-                    markChanged(ChangeResult.CHANGED)
+                    markChanged(true)
                 }
             }
             return InputHandlingResult.CONSUMED
@@ -401,7 +400,7 @@ private fun historyActionAt(
     historyController: HeldItemHistoryController,
     mouseX: Int,
     mouseY: Int,
-): (() -> ChangeResult)? = when {
+): (() -> Boolean)? = when {
     layout.undoBounds().contains(mouseX, mouseY) && historyController.canUndo() -> historyController::undo
     layout.redoBounds().contains(mouseX, mouseY) && historyController.canRedo() -> historyController::redo
     else -> null

@@ -75,7 +75,7 @@ internal object PetStorageInventoryReader {
             else -> return
         }
         val currentPetItem = inventoryItems[petItemSlot] ?: return
-        if (PetStoragePetItems.readExactSelectedPetData(currentPetItem) == PetStoragePetItems.PetDataReadResult.READ) return
+        if (PetStoragePetItems.readExactSelectedPetData(currentPetItem)) return
         val lore = currentPetItem.loreLines().takeIf { it.isNotEmpty() } ?: return
         lore.any { line ->
             petMenuSelectedPetNamePattern.find(line)?.let { didReadSelectedPetLore(it, lore, exactPetMenuUuids) } == true

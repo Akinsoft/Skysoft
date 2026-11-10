@@ -63,8 +63,8 @@ internal fun focusActivePageIfNeeded(
     activePage: Int?,
     measurements: Measurements,
     pageLayoutResult: PageLayoutResult,
-): PageLayoutRefresh {
-    val pageIndex = activePage ?: return PageLayoutRefresh.UNCHANGED
+): Boolean {
+    val pageIndex = activePage ?: return false
     val layoutKey = layoutPageKey(pageIndex, measurements, pageLayoutResult)
     val preservedPageIndex = preservedScrollPageIndex
     if (preservedPageIndex != null) {
@@ -72,20 +72,20 @@ internal fun focusActivePageIfNeeded(
         if (preservedPageIndex == pageIndex) {
             clearPageFocusRequest()
             focusedPageKey = layoutKey
-            return PageLayoutRefresh.UNCHANGED
+            return false
         }
     }
     val requested = requestedFocusPageIndex == pageIndex
-    if (!requested && focusedPageKey == layoutKey) return PageLayoutRefresh.UNCHANGED
+    if (!requested && focusedPageKey == layoutKey) return false
     if (requested && requestedFocusKey == layoutKey && focusedPageKey == layoutKey) {
         clearPageFocusRequest()
-        return PageLayoutRefresh.UNCHANGED
+        return false
     }
     val previousScroll = scroll
     focusPage(measurements, pageLayoutResult, pageIndex)
     focusedPageKey = layoutKey
     if (requested) requestedFocusKey = layoutKey
-    return if (scroll != previousScroll) PageLayoutRefresh.REQUIRED else PageLayoutRefresh.UNCHANGED
+    return scroll != previousScroll
 }
 
 internal fun tryNavigateTo(screen: AbstractContainerScreen<*>, pageIndex: Int): Boolean {
@@ -160,11 +160,6 @@ private fun trySendStorageCommand(command: String): Boolean {
     lastCommandMillis = now
     connection.sendCommand(command)
     return true
-}
-
-internal enum class PageLayoutRefresh {
-    REQUIRED,
-    UNCHANGED,
 }
 
 private fun commandForPage(pageIndex: Int): String? = when (pageIndex) {

@@ -4,7 +4,6 @@ import com.skysoft.SkysoftMod
 import com.skysoft.config.SkysoftConfigFiles
 import com.skysoft.config.SkysoftConfigGui
 import com.skysoft.config.SkysoftMoulConfigGuis
-import com.skysoft.utils.ChatDeliveryResult
 import com.skysoft.utils.SkysoftChat
 import com.skysoft.utils.SkysoftClientEvents
 import net.minecraft.ChatFormatting
@@ -66,8 +65,7 @@ object NewSettingsDiscovery {
         val activeRuntime = runtime ?: return
         val pendingIds = activeRuntime.currentIds(activeRuntime.state.pendingOptionIds)
         if (pendingIds.isEmpty()) return
-        val delivery = SkysoftChat.chat(newSettingsAnnouncement())
-        if (delivery != ChatDeliveryResult.DELIVERED) return
+        if (!SkysoftChat.chat(newSettingsAnnouncement())) return
 
         val nextState = activeRuntime.state.copy(
             pendingOptionIds = emptyList(),
