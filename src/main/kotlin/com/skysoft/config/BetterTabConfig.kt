@@ -6,6 +6,8 @@ import io.github.notenoughupdates.moulconfig.ChromaColour
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorColour
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDraggableList
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorDropdown
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
 import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
@@ -30,6 +32,12 @@ class BetterTabConfig {
     @field:ConfigOption(name = "Details", desc = "Customize the Better TAB appearance.")
     @field:Accordion
     val details = BetterTabDetailsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Player Sorting", desc = "Choose how players are ordered in Better TAB.")
+    @field:Accordion
+    val sorting = BetterTabSortingConfig()
 
     @JvmField
     @field:Expose
@@ -104,6 +112,55 @@ class BetterTabDetailsConfig {
     @field:ConfigEditorColour
     val backgroundColor: Property<ChromaColour> =
         Property.of(ChromaColour.fromRGB(16, 16, 16, 0, 176))
+}
+
+class BetterTabSortingConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Sort Mode", desc = "How players are ordered in the Players columns.")
+    @field:ConfigEditorDropdown
+    var mode = BetterTabPlayerSortMode.HYPIXEL
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Profile Type Order",
+        desc = "Group order used by the 'Profile Type, then Level' sort mode. Removed types are listed last.",
+    )
+    @field:ConfigEditorDraggableList
+    val profileTypeOrder: Property<MutableList<BetterTabProfileType>> = Property.of(
+        mutableListOf(
+            BetterTabProfileType.IRONMAN,
+            BetterTabProfileType.BINGO,
+            BetterTabProfileType.STRANDED,
+            BetterTabProfileType.NORMAL,
+        ),
+    )
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Highest Level First", desc = "List the highest SkyBlock levels first.")
+    @field:ConfigEditorBoolean
+    var isHighestLevelFirst = true
+}
+
+enum class BetterTabPlayerSortMode(private val displayName: String) {
+    HYPIXEL("Hypixel Default"),
+    LEVEL("SkyBlock Level"),
+    PROFILE_TYPE("Profile Type, then Level"),
+    ;
+
+    override fun toString(): String = displayName
+}
+
+enum class BetterTabProfileType(private val displayName: String, val badge: Char?) {
+    IRONMAN("Ironman", '♲'),
+    BINGO("Bingo", 'Ⓑ'),
+    STRANDED("Stranded", '☀'),
+    NORMAL("Normal", null),
+    ;
+
+    override fun toString(): String = displayName
 }
 
 internal const val BETTER_TAB_DEFAULT_TOP_MARGIN = 7

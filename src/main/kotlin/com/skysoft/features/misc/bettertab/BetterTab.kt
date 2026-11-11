@@ -122,6 +122,11 @@ object BetterTab {
             areFramesShown = details.frames,
             areColumnPanelsShown = details.columnPanels,
             columnPadding = details.columnPadding.coerceIn(MIN_COLUMN_PADDING, MAX_COLUMN_PADDING),
+            playerSort = BetterTabPlayerSort(
+                mode = config.sorting.mode,
+                profileTypeOrder = config.sorting.profileTypeOrder.get().toList(),
+                isHighestLevelFirst = config.sorting.isHighestLevelFirst,
+            ),
         )
         val current = cachedLayout
         if (current != null && current.key == key) return current.layout
@@ -135,6 +140,7 @@ object BetterTab {
                 isServerAddressHidden = key.isServerAddressHidden,
                 isStoreBannerHidden = key.isStoreBannerHidden,
                 isSecondPlayerColumnHidden = key.isSecondPlayerColumnHidden,
+                playerSort = key.playerSort,
             ),
             key.arePlayerHeadsShown,
             key.areColumnPanelsShown,
@@ -378,6 +384,7 @@ object BetterTab {
         val areFramesShown: Boolean,
         val areColumnPanelsShown: Boolean,
         val columnPadding: Int,
+        val playerSort: BetterTabPlayerSort,
     )
 
     private data class MeasuredLayout(
