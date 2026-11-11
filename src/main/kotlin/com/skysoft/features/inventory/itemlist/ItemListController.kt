@@ -51,7 +51,10 @@ object ItemListController {
     private var lastLayout: ItemListLayout? = null
     private var lastEntries: List<ItemListEntry> = emptyList()
     private val tierDropdown = ItemListTierDropdownState()
-    private val isSearchActive: Boolean get() = searchField.focused || ItemListState.search.isNotBlank()
+    private val isSearchActive: Boolean
+        get() = searchField.focused ||
+            ItemListState.search.isNotBlank() ||
+            itemListTypeFilter() != ItemListTypeFilter.ALL
     private val searchResults = ItemListSearchResults()
     private val footerAlpha = SmoothFloatTransition(
         FooterPresentation.IDLE_ALPHA.toFloat(),
@@ -143,6 +146,7 @@ object ItemListController {
                 )
             }
         }
+        drawItemListSortBar(context, layout.sortBar, mouseX, mouseY)
         layout.config?.let { drawItemListSettingsButton(context, it, it.contains(mouseX, mouseY), footerOpacity) }
         searchField.text = ItemListState.search
         searchField.render(
@@ -199,6 +203,10 @@ object ItemListController {
             return InputHandlingResult.IGNORED
         }
         if (!layout.search.contains(mouseX, mouseY)) searchField.focused = false
+        if (handleItemListSortClick(layout.sortBar, click.button(), mouseX, mouseY)) {
+            tierDropdown.clear()
+            return InputHandlingResult.CONSUMED
+        }
         return processPanelClick(screen, click, doubled, layout, mouseX, mouseY)
     }
 
@@ -387,8 +395,11 @@ object ItemListController {
             )
         }
         if (
-            entries.isEmpty() &&
-            (SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY || ItemListState.search.isNotBlank())
+            entries.isEmpty() && (
+                SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY ||
+                    ItemListState.search.isNotBlank() ||
+                    itemListTypeFilter() != ItemListTypeFilter.ALL
+                )
         ) {
             val status = SkyBlockDataRepository.status
             val text = when (status.state) {

@@ -8,6 +8,8 @@ import com.skysoft.config.core.HudPosition
 import com.skysoft.config.core.coerceFiniteIn
 import com.skysoft.config.core.repairLoadedConfigs
 import com.skysoft.data.skyblock.SkyBlockDataRepository
+import com.skysoft.features.inventory.itemlist.ItemListOrder
+import com.skysoft.features.inventory.itemlist.ItemListTypeFilter
 import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
@@ -77,6 +79,26 @@ class ItemListSettingsConfig : ConfigRepairable {
 
     @JvmField
     @field:Expose
+    var listFilter = ItemListTypeFilter.ALL.name
+
+    @JvmField
+    @field:Expose
+    var listOrder = ItemListOrder.RELEVANCE.name
+
+    @JvmField
+    @field:Expose
+    var sortNameDescending = false
+
+    @JvmField
+    @field:Expose
+    var sortRarityDescending = true
+
+    @JvmField
+    @field:Expose
+    var sortPriceDescending = true
+
+    @JvmField
+    @field:Expose
     @field:ConfigOption(name = "Visibility Key", desc = "Temporarily show or hide Item List.")
     @field:ConfigEditorKeybind(defaultKey = MinecraftInput.KEYPAD_SUBTRACT_KEY)
     var visibilityKey = MinecraftInput.KEYPAD_SUBTRACT_KEY
@@ -128,6 +150,8 @@ class ItemListSettingsConfig : ConfigRepairable {
         itemScale = itemScale.coerceFiniteIn(MIN_ITEM_SCALE, MAX_ITEM_SCALE, DEFAULT_ITEM_SCALE)
         columns = columns.coerceIn(MIN_COLUMNS, MAX_COLUMNS)
         rows = rows.coerceIn(MIN_ROWS, MAX_ROWS)
+        listFilter = ItemListTypeFilter.fromStoredName(listFilter).name
+        listOrder = ItemListOrder.fromStoredName(listOrder).name
     }
 
     companion object {
