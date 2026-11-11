@@ -31,6 +31,7 @@ internal data class ItemListLayout(
     val slotSize: Int,
     val itemScale: Float,
     val isSearchDetached: Boolean,
+    val sortBar: ItemListSortBar,
 ) {
     val pageSize: Int get() = columns * rows
     val calculationLabel: Rect
@@ -49,11 +50,11 @@ internal data class ItemListLayout(
         mouseY: Int,
         navigationActive: Boolean,
         hasEntry: Boolean,
-    ): Boolean =
-        hasEntry ||
-            search.contains(mouseX, mouseY) ||
-            config?.contains(mouseX, mouseY) == true ||
-            (navigationActive && (previous.contains(mouseX, mouseY) || next.contains(mouseX, mouseY)))
+    ): Boolean {
+        if (hasEntry || search.contains(mouseX, mouseY)) return true
+        if (config?.contains(mouseX, mouseY) == true || sortBar.bounds.contains(mouseX, mouseY)) return true
+        return navigationActive && (previous.contains(mouseX, mouseY) || next.contains(mouseX, mouseY))
+    }
 
     fun slotBounds(index: Int): Rect = Rect(
         grid.x + index % columns * slotSize,
@@ -108,10 +109,11 @@ internal data class ItemListLayout(
             val isFooterMoved = !searchPosition.isAtDefault()
             val containerFavoritesHeight = if (hasFavorites) DEFAULT_SLOT_SIZE + SECTION_GAP else 0
             val defaultFooterY = screenHeight - OUTER_MARGIN - FIELD_HEIGHT
+            val belowNavigation = BUTTON_HEIGHT + SECTION_GAP + ITEM_LIST_SORT_BAR_HEIGHT
             val maximumNavigationY = if (isFooterMoved) {
-                screenHeight - OUTER_MARGIN - BUTTON_HEIGHT
+                screenHeight - OUTER_MARGIN - belowNavigation
             } else {
-                defaultFooterY - SECTION_GAP - BUTTON_HEIGHT
+                defaultFooterY - SECTION_GAP - belowNavigation
             }
             val availableContainerHeight = maximumNavigationY - SECTION_GAP - panelY - containerFavoritesHeight
             val availableContainerRows = availableContainerHeight / DEFAULT_SLOT_SIZE
@@ -142,6 +144,41 @@ internal data class ItemListLayout(
             val contentX = panelX + panelWidth - contentWidth
             val favoriteBounds = if (hasFavorites) Rect(contentX, panelY, contentWidth, slotSize) else null
             val grid = Rect(contentX, gridY, contentWidth, rows * slotSize)
+            val navigation = navigationChrome(panelX, panelWidth, navigationY)
+            val footerBounds = footerBounds(
+                screenWidth,
+                screenHeight,
+                right,
+                panelWidth,
+                searchPosition,
+                isSettingsButtonHidden,
+                independentSearchWidth,
+            )
+            return ItemListLayout(
+                panel = Rect(
+                    panelX,
+                    panelY,
+                    panelWidth,
+                    navigation.sortBar.bounds.y + navigation.sortBar.bounds.height - panelY,
+                ),
+                favorites = favoriteBounds,
+                grid = grid,
+                previous = navigation.previous,
+                next = navigation.next,
+                pageLabel = navigation.pageLabel,
+                config = footerBounds.config,
+                search = footerBounds.search,
+                footer = footerBounds.footer,
+                columns = columns,
+                rows = rows,
+                slotSize = slotSize,
+                itemScale = slotSize.toFloat() / DEFAULT_SLOT_SIZE,
+                isSearchDetached = isFooterMoved,
+                sortBar = navigation.sortBar,
+            )
+        }
+
+        private fun navigationChrome(panelX: Int, panelWidth: Int, navigationY: Int): NavigationChrome {
             val navigationButtonWidth = min(
                 NAVIGATION_BUTTON_WIDTH,
                 (panelWidth - CONTROL_GAP * 2) / NAVIGATION_SECTION_COUNT,
@@ -159,30 +196,11 @@ internal data class ItemListLayout(
                 panelWidth - navigationButtonWidth * 2 - CONTROL_GAP * 2,
                 BUTTON_HEIGHT,
             )
-            val footerBounds = footerBounds(
-                screenWidth,
-                screenHeight,
-                right,
-                panelWidth,
-                searchPosition,
-                isSettingsButtonHidden,
-                independentSearchWidth,
-            )
-            return ItemListLayout(
-                panel = Rect(panelX, panelY, panelWidth, navigationY + BUTTON_HEIGHT - panelY),
-                favorites = favoriteBounds,
-                grid = grid,
-                previous = previous,
-                next = next,
-                pageLabel = pageLabel,
-                config = footerBounds.config,
-                search = footerBounds.search,
-                footer = footerBounds.footer,
-                columns = columns,
-                rows = rows,
-                slotSize = slotSize,
-                itemScale = slotSize.toFloat() / DEFAULT_SLOT_SIZE,
-                isSearchDetached = isFooterMoved,
+            return NavigationChrome(
+                previous,
+                next,
+                pageLabel,
+                itemListSortBar(panelX, panelWidth, navigationY + BUTTON_HEIGHT + SECTION_GAP),
             )
         }
 
@@ -233,6 +251,13 @@ internal data class ItemListLayout(
         }
     }
 }
+
+private data class NavigationChrome(
+    val previous: Rect,
+    val next: Rect,
+    val pageLabel: Rect,
+    val sortBar: ItemListSortBar,
+)
 
 private data class FooterBounds(
     val footer: Rect,
