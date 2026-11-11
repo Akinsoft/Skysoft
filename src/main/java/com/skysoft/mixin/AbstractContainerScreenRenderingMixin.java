@@ -3,8 +3,10 @@ package com.skysoft.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import com.skysoft.features.misc.InventoryCraftingHider;
 import com.skysoft.integration.ContainerItemRenderHooks;
 import com.skysoft.integration.ContainerRenderHooks;
+import com.skysoft.utils.mixin.MixinErrorBoundary;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -41,6 +43,16 @@ public abstract class AbstractContainerScreenRenderingMixin {
     @Inject(method = "extractContents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;extractSlotHighlightFront(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V"))
     private void skysoftRenderEquipmentSlots(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         ContainerRenderHooks.renderEquipment(skysoftScreen(), context, mouseX, mouseY);
+    }
+
+    @Inject(method = "extractSlotHighlightBack", at = @At("HEAD"), cancellable = true)
+    private void skysoftHideInventoryCraftingHighlightBack(GuiGraphicsExtractor context, CallbackInfo ci) {
+        if (skysoftShouldHideInventoryCraftingHighlight()) ci.cancel();
+    }
+
+    @Inject(method = "extractSlotHighlightFront", at = @At("HEAD"), cancellable = true)
+    private void skysoftHideInventoryCraftingHighlightFront(GuiGraphicsExtractor context, CallbackInfo ci) {
+        if (skysoftShouldHideInventoryCraftingHighlight()) ci.cancel();
     }
 
     @Inject(method = "extractSlot", at = @At("HEAD"))
@@ -91,6 +103,18 @@ public abstract class AbstractContainerScreenRenderingMixin {
             y,
             text,
             (renderStack, renderText) -> original.call(context, font, renderStack, x, y, renderText)
+        );
+    }
+
+    @Unique
+    private boolean skysoftShouldHideInventoryCraftingHighlight() {
+        return MixinErrorBoundary.value(
+            "Inventory crafting highlight",
+            false,
+            () -> InventoryCraftingHider.shouldHideHighlight(
+                skysoftScreen(),
+                ((AbstractContainerScreenAccessor) (Object) this).skysoftGetHoveredSlot()
+            )
         );
     }
 
