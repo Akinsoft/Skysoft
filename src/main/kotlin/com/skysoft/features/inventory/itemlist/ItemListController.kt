@@ -125,6 +125,7 @@ object ItemListController {
                 canGoPrevious = ItemListState.page > 0,
                 canGoNext = ItemListState.page + 1 < pageCount,
                 alpha = navigationOpacity,
+                linked = true,
             )
             val paginationOpacity = navigationOpacity * if (layout.isSearchDetached) 1f else labelAlphas.first
             if (paginationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
@@ -157,9 +158,11 @@ object ItemListController {
             layout.search.height,
             "Search items and mobs...",
             alpha = footerOpacity,
-            outlineColor = InventoryItemSearchHighlight.outlineColor.takeIf {
-                ContainerSearchHighlighter.isActive()
-            },
+            backgroundColor = ITEM_LIST_SEARCH_BACKGROUND,
+            outlineColor = itemListSearchOutline(
+                searchField.focused,
+                InventoryItemSearchHighlight.outlineColor.takeIf { ContainerSearchHighlighter.isActive() },
+            ),
         )
         if (layout.config?.contains(mouseX, mouseY) == true) {
             context.setTooltipForNextFrame(

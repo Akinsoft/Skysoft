@@ -14,9 +14,11 @@ import com.skysoft.utils.MinecraftInput
 import io.github.notenoughupdates.moulconfig.annotations.Accordion
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorBoolean
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorButton
+import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorInfoText
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorKeybind
 import io.github.notenoughupdates.moulconfig.annotations.ConfigEditorSlider
 import io.github.notenoughupdates.moulconfig.annotations.ConfigOption
+import io.github.notenoughupdates.moulconfig.annotations.ConfigVisibleIf
 
 class ItemListConfig : ConfigRepairable {
     @JvmField
@@ -31,6 +33,12 @@ class ItemListConfig : ConfigRepairable {
     @field:ConfigOption(name = "Settings", desc = "Item List controls and data.")
     @field:Accordion
     val settings = ItemListSettingsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Sort & Filter", desc = "Choose which sort and filter buttons are shown.")
+    @field:Accordion
+    val sortBar = ItemListSortBarConfig()
 
     @JvmField
     @field:Expose
@@ -166,6 +174,119 @@ class ItemListSettingsConfig : ConfigRepairable {
         const val MIN_ROWS = 0
         const val MAX_ROWS = 32
     }
+}
+
+class ItemListSortBarConfig {
+    @JvmField
+    @field:ConfigOption(
+        name = "Buttons",
+        desc = "Click a button to sort or filter the list. Click that same button again to turn it off. " +
+            "Right-click a sort button to reverse its direction.",
+    )
+    @field:ConfigEditorInfoText
+    val buttonHelp: Unit = Unit
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Show Buttons",
+        desc = "Show the sort and filter buttons. Turn this off to hide the whole row.",
+    )
+    @field:ConfigEditorBoolean
+    var enabled = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Sort", desc = "Sort buttons, shown on the left of the row.")
+    @field:Accordion
+    @field:ConfigVisibleIf("enabled")
+    val sort = ItemListSortButtonsConfig()
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Filter", desc = "Filter buttons, shown on the right of the row.")
+    @field:Accordion
+    @field:ConfigVisibleIf("enabled")
+    val filters = ItemListFilterButtonsConfig()
+
+    internal fun shows(order: ItemListOrder): Boolean = when (order) {
+        ItemListOrder.NAME -> sort.name
+        ItemListOrder.RARITY -> sort.rarity
+        ItemListOrder.PRICE -> sort.worth
+        ItemListOrder.RELEVANCE -> false
+    }
+
+    internal fun shows(type: ItemListTypeFilter): Boolean = when (type) {
+        ItemListTypeFilter.MOBS -> filters.mobs
+        ItemListTypeFilter.PETS -> filters.pets
+        ItemListTypeFilter.TOOLS -> filters.tools
+        ItemListTypeFilter.ARMOR -> filters.armor
+        ItemListTypeFilter.ACCESSORIES -> filters.accessories
+        ItemListTypeFilter.ALL -> false
+    }
+
+    internal fun isShown(): Boolean = enabled && listOf(
+        sort.name,
+        sort.rarity,
+        sort.worth,
+        filters.mobs,
+        filters.pets,
+        filters.tools,
+        filters.armor,
+        filters.accessories,
+    ).any { it }
+}
+
+class ItemListSortButtonsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Name", desc = "Alphabetical order.")
+    @field:ConfigEditorBoolean
+    var name = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Rarity", desc = "Order by rarity.")
+    @field:ConfigEditorBoolean
+    var rarity = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Item Worth", desc = "Order by bazaar or lowest bin price.")
+    @field:ConfigEditorBoolean
+    var worth = true
+}
+
+class ItemListFilterButtonsConfig {
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Mobs", desc = "Show only mobs.")
+    @field:ConfigEditorBoolean
+    var mobs = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Pets", desc = "Show only pets.")
+    @field:ConfigEditorBoolean
+    var pets = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Tools", desc = "Show only tools.")
+    @field:ConfigEditorBoolean
+    var tools = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Armor", desc = "Show only armor.")
+    @field:ConfigEditorBoolean
+    var armor = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(name = "Accessories", desc = "Show only accessories.")
+    @field:ConfigEditorBoolean
+    var accessories = true
 }
 
 class ItemListSourcesConfig : ConfigRepairable {

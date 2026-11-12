@@ -49,11 +49,19 @@ internal enum class ItemListOrder {
     }
 }
 
-internal fun itemListTypeFilter(): ItemListTypeFilter =
-    ItemListTypeFilter.fromStoredName(SkysoftConfigGui.config().items.itemList.settings.listFilter)
+internal fun itemListTypeFilter(): ItemListTypeFilter {
+    val itemList = SkysoftConfigGui.config().items.itemList
+    if (!itemList.sortBar.enabled) return ItemListTypeFilter.ALL
+    val filter = ItemListTypeFilter.fromStoredName(itemList.settings.listFilter)
+    return if (itemList.sortBar.shows(filter)) filter else ItemListTypeFilter.ALL
+}
 
-internal fun itemListOrder(): ItemListOrder =
-    ItemListOrder.fromStoredName(SkysoftConfigGui.config().items.itemList.settings.listOrder)
+internal fun itemListOrder(): ItemListOrder {
+    val itemList = SkysoftConfigGui.config().items.itemList
+    if (!itemList.sortBar.enabled) return ItemListOrder.RELEVANCE
+    val order = ItemListOrder.fromStoredName(itemList.settings.listOrder)
+    return if (itemList.sortBar.shows(order)) order else ItemListOrder.RELEVANCE
+}
 
 internal fun itemListOrderIsDescending(order: ItemListOrder): Boolean {
     val settings = SkysoftConfigGui.config().items.itemList.settings
