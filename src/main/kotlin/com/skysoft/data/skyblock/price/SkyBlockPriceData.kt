@@ -10,6 +10,7 @@ import com.skysoft.data.ProfileStorageApi
 import com.skysoft.data.hypixel.HypixelLocationState
 import com.skysoft.data.hypixel.SkyBlockProfileApi
 import com.skysoft.data.skyblock.AttributeShardCatalog
+import com.skysoft.features.inventory.itemlist.itemListSortNeedsMarketPrices
 import com.skysoft.utils.BundledResources
 import com.skysoft.utils.net.AsyncRequestSlot
 import com.skysoft.utils.net.PendingHttpRequests
@@ -363,11 +364,13 @@ object SkyBlockPriceData {
         bazaarConsumers.register("Profit Tracker") { SkysoftConfigGui.config().loot.profitTrackers.isAnyEnabled() }
         bazaarConsumers.register("Sack Display") { SkysoftConfigGui.config().storageFeatures.sackDisplay.enabled }
         bazaarConsumers.register("Crafting Helper") { SkysoftConfigGui.config().items.craftingHelper.enabled }
+        bazaarConsumers.register("Item List Sort", ::itemListSortNeedsMarketPrices)
         lowestBinConsumers.register("Item List") { hasItemListMarketInterest.get() }
         lowestBinConsumers.register("Price Tooltips") { arePriceTooltipLinesActive { it.needsLowestBinData } }
         lowestBinConsumers.register("Rare Loot Features", ::isRareLootPricingActive)
         lowestBinConsumers.register("Profit Tracker") { SkysoftConfigGui.config().loot.profitTrackers.isAnyEnabled() }
         lowestBinConsumers.register("Crafting Helper") { SkysoftConfigGui.config().items.craftingHelper.enabled }
+        lowestBinConsumers.register("Item List Sort", ::itemListSortNeedsMarketPrices)
         npcSellPriceConsumers.register("Item List") { hasItemListMarketInterest.get() }
         npcSellPriceConsumers.register("Price Tooltips") {
             arePriceTooltipLinesActive { it == PriceTooltipLine.NPC_SELL_PRICE }
