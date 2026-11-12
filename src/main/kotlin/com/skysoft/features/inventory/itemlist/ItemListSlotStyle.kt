@@ -13,4 +13,12 @@ internal object ItemListSlotStyle {
     }
 }
 
+internal const val ITEM_LIST_CHROME_FILL = 0xC012161A.toInt()
+internal const val ITEM_LIST_SEARCH_BACKGROUND = 0xF014181C.toInt()
+internal const val ITEM_LIST_SEARCH_FOCUS = 0xFF65C2FF.toInt()
+internal const val ITEM_LIST_SEARCH_IDLE = 0xFF465058.toInt()
+
+internal fun itemListSearchOutline(focused: Boolean, highlight: Int?): Int =
+    highlight ?: if (focused) ITEM_LIST_SEARCH_FOCUS else ITEM_LIST_SEARCH_IDLE
+
 internal val ITEM_LIST_TEXT_COLOR = 0xFFE0E4E8.toInt()

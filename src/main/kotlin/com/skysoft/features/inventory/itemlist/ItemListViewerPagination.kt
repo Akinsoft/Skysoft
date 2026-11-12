@@ -1,5 +1,6 @@
 package com.skysoft.features.inventory.itemlist
 
+import com.skysoft.utils.ColorUtilities.withScaledAlpha
 import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import kotlin.math.roundToInt
@@ -245,7 +246,17 @@ internal fun drawPageButtons(
     canGoPrevious: Boolean,
     canGoNext: Boolean,
     alpha: Double = 1.0,
+    linked: Boolean = false,
 ) {
+    if (linked && next.x > previous.x) {
+        context.fill(
+            previous.x,
+            previous.y,
+            next.x + next.width,
+            previous.y + previous.height,
+            ITEM_LIST_CHROME_FILL.withScaledAlpha(alpha),
+        )
+    }
     PixelButtonRenderer.draw(context, font, previous, "<", false, previous.contains(mouseX, mouseY), canGoPrevious, alpha = alpha)
     PixelButtonRenderer.draw(context, font, next, ">", false, next.contains(mouseX, mouseY), canGoNext, alpha = alpha)
 }

@@ -148,7 +148,16 @@ internal class ItemListSearchHudEditorElement(
         } else {
             footerWidth - ItemListLayout.CONFIG_BUTTON_WIDTH - ItemListLayout.CONTROL_GAP
         }
-        searchField.render(context, 0, 0, searchWidth, ItemListLayout.FOOTER_HEIGHT, "Search items and mobs...")
+        searchField.render(
+            context,
+            0,
+            0,
+            searchWidth,
+            ItemListLayout.FOOTER_HEIGHT,
+            "Search items and mobs...",
+            backgroundColor = ITEM_LIST_SEARCH_BACKGROUND,
+            outlineColor = itemListSearchOutline(searchField.focused, null),
+        )
         if (!isSettingsButtonHidden) {
             drawItemListSettingsButton(
                 context,

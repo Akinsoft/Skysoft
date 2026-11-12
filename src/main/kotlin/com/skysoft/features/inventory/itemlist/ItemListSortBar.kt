@@ -9,7 +9,6 @@ import com.skysoft.utils.gui.PixelButtonRenderer
 import com.skysoft.utils.gui.Rect
 import com.skysoft.utils.renderables.withIsolatedPose
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
@@ -29,27 +28,13 @@ internal data class ItemListSortButton(
 )
 
 internal fun itemListSortBar(x: Int, width: Int, y: Int): ItemListSortBar {
-    val orders = listOf(ItemListOrder.NAME, ItemListOrder.RARITY, ItemListOrder.PRICE)
-    val filters = ItemListTypeFilter.entries
-    val count = orders.size + filters.size
-    val size = ((width - SORT_BUTTON_GAP * (count - 1)) / count).coerceIn(1, SORT_BUTTON_SIZE)
-    val iconY = y + (ITEM_LIST_SORT_BAR_HEIGHT - size) / 2
-    val buttons = buildList {
-        orders.forEachIndexed { index, order ->
-            add(
-                ItemListSortButton(
-                    Rect(x + index * (size + SORT_BUTTON_GAP), iconY, size, size),
-                    order,
-                    null,
-                ),
-            )
-        }
-        filters.forEachIndexed { index, filter ->
-            val filterX = x + width - size - index * (size + SORT_BUTTON_GAP)
-            add(ItemListSortButton(Rect(filterX, iconY, size, size), null, filter))
-        }
+    val config = SkysoftConfigGui.config().items.itemList.sortBar
+    val orders = SORT_ORDERS.filter(config::shows)
+    val filters = SORT_FILTERS.filter(config::shows)
+    if (!config.enabled || (orders.isEmpty() && filters.isEmpty())) {
+        return ItemListSortBar(Rect(x, y, width, 0), emptyList())
     }
-    return ItemListSortBar(Rect(x, y, width, ITEM_LIST_SORT_BAR_HEIGHT), buttons)
+    return ItemListSortBar(Rect(x, y, width, ITEM_LIST_SORT_BAR_HEIGHT), sortButtons(x, width, y, orders, filters))
 }
 
 internal fun drawItemListSortBar(
@@ -58,6 +43,7 @@ internal fun drawItemListSortBar(
     mouseX: Int,
     mouseY: Int,
 ) {
+    if (bar.buttons.isEmpty()) return
     val activeFilter = itemListTypeFilter()
     val activeOrder = itemListOrder()
     val font = Minecraft.getInstance().font
@@ -66,9 +52,6 @@ internal fun drawItemListSortBar(
         val hovered = button.bounds.contains(mouseX, mouseY)
         PixelButtonRenderer.draw(context, font, button.bounds, "", selected, hovered, true)
         drawSortIcon(context, button)
-        if (selected && button.order != null) {
-            drawDirectionArrow(context, font, button.bounds, itemListOrderIsDescending(button.order))
-        }
         if (hovered) SkysoftNativeTooltip.setForNextFrame(context, sortButtonTooltip(button), mouseX, mouseY)
     }
 }
@@ -89,10 +72,42 @@ internal fun handleItemListSortClick(bar: ItemListSortBar, button: Int, mouseX: 
     return true
 }
 
+private fun sortButtons(
+    x: Int,
+    width: Int,
+    y: Int,
+    orders: List<ItemListOrder>,
+    filters: List<ItemListTypeFilter>,
+): List<ItemListSortButton> {
+    val orderGaps = SORT_BUTTON_GAP * (orders.size - 1).coerceAtLeast(0)
+    val filterGaps = SORT_BUTTON_GAP * (filters.size - 1).coerceAtLeast(0)
+    val split = if (orders.isNotEmpty() && filters.isNotEmpty()) SORT_SPLIT_GAP else 0
+    val count = orders.size + filters.size
+    val size = ((width - orderGaps - filterGaps - split) / count).coerceIn(1, SORT_BUTTON_SIZE)
+    val iconY = y + (ITEM_LIST_SORT_BAR_HEIGHT - size) / 2
+    return buildList {
+        var cursor = x
+        orders.forEachIndexed { index, order ->
+            add(ItemListSortButton(Rect(cursor, iconY, size, size), order, null))
+            cursor += size
+            if (index < orders.lastIndex) cursor += SORT_BUTTON_GAP
+        }
+        var filterCursor = x + width - filters.size * size - filterGaps
+        filters.forEachIndexed { index, filter ->
+            add(ItemListSortButton(Rect(filterCursor, iconY, size, size), null, filter))
+            filterCursor += size
+            if (index < filters.lastIndex) filterCursor += SORT_BUTTON_GAP
+        }
+    }
+}
+
 private fun selectSortButton(settings: ItemListSettingsConfig, button: ItemListSortButton): Boolean? {
     button.filter?.let { filter ->
-        if (settings.listFilter == filter.name) return null
-        settings.listFilter = filter.name
+        settings.listFilter = if (settings.listFilter == filter.name) {
+            ItemListTypeFilter.ALL.name
+        } else {
+            filter.name
+        }
         return true
     }
     val order = button.order ?: return null
@@ -114,7 +129,11 @@ private fun flipSortDirection(settings: ItemListSettingsConfig, button: ItemList
 }
 
 private fun drawSortIcon(context: GuiGraphicsExtractor, button: ItemListSortButton) {
-    val bounds = if (button.bounds.width > SORT_ICON_INSET * 2) button.bounds.inset(SORT_ICON_INSET) else button.bounds
+    val bounds = if (button.bounds.width > SORT_ICON_INSET * 2) {
+        button.bounds.inset(SORT_ICON_INSET)
+    } else {
+        button.bounds
+    }
     if (bounds.width <= 0 || bounds.height <= 0) return
     context.withIsolatedPose {
         val scale = bounds.width / SORT_ICON_PIXELS
@@ -124,28 +143,14 @@ private fun drawSortIcon(context: GuiGraphicsExtractor, button: ItemListSortButt
     }
 }
 
-private fun drawDirectionArrow(
-    context: GuiGraphicsExtractor,
-    font: Font,
-    bounds: Rect,
-    descending: Boolean,
-) {
-    if (bounds.width < MIN_DIRECTION_ARROW_SIZE) return
-    val label = if (descending) "v" else "^"
-    context.text(
-        font,
-        label,
-        bounds.x + bounds.width - font.width(label) - 1,
-        bounds.y + 1,
-        DIRECTION_ARROW_COLOR,
-        true,
-    )
-}
-
 private fun sortButtonTooltip(button: ItemListSortButton): List<String> {
-    button.filter?.let { return listOf(filterLabel(it)) }
+    button.filter?.let { filter ->
+        val label = filterLabel(filter)
+        return if (itemListTypeFilter() == filter) listOf(label, "Click again to clear") else listOf(label)
+    }
     val order = button.order ?: return emptyList()
-    return listOf(orderLabel(order), directionLabel(order))
+    val lines = listOf(orderLabel(order), directionLabel(order))
+    return if (itemListOrder() == order) lines + "Click again to clear" else lines
 }
 
 private fun filterLabel(filter: ItemListTypeFilter): String = when (filter) {
@@ -188,9 +193,17 @@ private fun sortButtonItem(button: ItemListSortButton): Item = when (button.orde
     }
 }
 
+private val SORT_ORDERS = listOf(ItemListOrder.NAME, ItemListOrder.RARITY, ItemListOrder.PRICE)
+private val SORT_FILTERS = listOf(
+    ItemListTypeFilter.MOBS,
+    ItemListTypeFilter.PETS,
+    ItemListTypeFilter.TOOLS,
+    ItemListTypeFilter.ARMOR,
+    ItemListTypeFilter.ACCESSORIES,
+)
+
 private const val SORT_BUTTON_GAP = 1
+private const val SORT_SPLIT_GAP = 4
 private const val SORT_BUTTON_SIZE = 16
-private const val SORT_ICON_INSET = 1
+private const val SORT_ICON_INSET = 2
 private const val SORT_ICON_PIXELS = 16f
-private const val MIN_DIRECTION_ARROW_SIZE = 10
-private val DIRECTION_ARROW_COLOR = 0xFFFFFFFF.toInt()

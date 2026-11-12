@@ -3,7 +3,7 @@ package com.skysoft.config
 import com.google.gson.JsonObject
 
 internal object SkysoftConfigMigrations {
-    const val CURRENT_CONFIG_MIGRATION_VERSION = 27
+    const val CURRENT_CONFIG_MIGRATION_VERSION = 28
 
     fun apply(json: JsonObject) {
         val migrationVersion = json.get(CONFIG_MIGRATION_VERSION_FIELD)
@@ -49,6 +49,7 @@ internal object SkysoftConfigMigrations {
         if (migrationVersion < KEYBIND_NUMBERING_VERSION) {
             json.addProperty(KEYBIND_NUMBERING_FIELD, KeybindNumbering.GLFW.name)
         }
+        migrateItemListSortBar(json)
         json.addProperty(CONFIG_MIGRATION_VERSION_FIELD, CURRENT_CONFIG_MIGRATION_VERSION)
     }
 
@@ -135,6 +136,20 @@ internal object SkysoftConfigMigrations {
     private const val KEYBIND_NUMBERING_VERSION = 27
     private const val KEYBIND_NUMBERING_FIELD = "keybindNumbering"
     private const val SKYBLOCK_MENU_DROP_FIX_FIELD = "preventSkyBlockMenuOpeningOnInventoryDrop"
+}
+
+private fun migrateItemListSortBar(json: JsonObject) {
+    val itemList = json.getObjectOrNull("items", "itemList") ?: return
+    val sortBar = itemList.getOrCreateObject("sortBar")
+    if (!sortBar.has("enabled")) sortBar.addProperty("enabled", true)
+    val sort = sortBar.getOrCreateObject("sort")
+    listOf("name", "rarity", "worth").forEach { key ->
+        if (!sort.has(key)) sort.addProperty(key, true)
+    }
+    val filters = sortBar.getOrCreateObject("filters")
+    listOf("mobs", "pets", "tools", "armor", "accessories").forEach { key ->
+        if (!filters.has(key)) filters.addProperty(key, true)
+    }
 }
 
 private fun migrateDianaFeatureAccordions(json: JsonObject) {
