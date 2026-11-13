@@ -24,4 +24,11 @@ public abstract class InventoryScreenMixin {
             () -> InventoryCraftingHider.cover((InventoryScreen) (Object) this, context)
         );
     }
+
+    @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
+    private void skysoftHideInventoryCraftingTitle(GuiGraphicsExtractor context, int mouseX, int mouseY, CallbackInfo ci) {
+        if (MixinErrorBoundary.value("Inventory crafting title", false, () -> InventoryCraftingHider.shouldHide())) {
+            ci.cancel();
+        }
+    }
 }
