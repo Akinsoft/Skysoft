@@ -45,6 +45,7 @@
     "HeldItemUpdateMixin",
     "HotbarRarityHighlightMixin",
     "InventoryGuiScaleMixin",
+    "InventoryScreenMixin",
     "ItemEntityRenderStateMixin",
     "ItemEntityRendererMixin",
     "ItemFeatureRendererMixin",
