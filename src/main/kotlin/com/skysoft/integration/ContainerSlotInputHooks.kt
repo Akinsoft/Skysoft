@@ -8,7 +8,6 @@ import com.skysoft.features.inventory.ItemProtectionManager
 import com.skysoft.features.inventory.SkyBlockMenuInventoryDropFix
 import com.skysoft.features.inventory.slots.SlotBindingManager
 import com.skysoft.features.inventory.slots.SlotLockManager
-import com.skysoft.features.misc.InventoryCraftingHider
 import com.skysoft.features.pets.PetStorageService
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.input.InputHandlingResult
@@ -26,7 +25,6 @@ object ContainerSlotInputHooks {
         button: Int,
         action: ContainerInput,
     ): Boolean {
-        if (InventoryCraftingHider.shouldCancelClick(screen, slot, slotId)) return true
         SkysoftErrorBoundary.run("Animated dye armor Wardrobe selection") {
             AnimatedDyeArmorCache.observeWardrobeSelection(screen, slot, button, action)
         }
