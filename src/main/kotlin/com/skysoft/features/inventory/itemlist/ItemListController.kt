@@ -51,7 +51,10 @@ object ItemListController {
     private var lastLayout: ItemListLayout? = null
     private var lastEntries: List<ItemListEntry> = emptyList()
     private val tierDropdown = ItemListTierDropdownState()
-    private val isSearchActive: Boolean get() = searchField.focused || ItemListState.search.isNotBlank()
+    private val isSearchActive: Boolean
+        get() = searchField.focused ||
+            ItemListState.search.isNotBlank() ||
+            itemListTypeFilter() != ItemListTypeFilter.ALL
     private val searchResults = ItemListSearchResults()
     private val footerAlpha = SmoothFloatTransition(
         FooterPresentation.IDLE_ALPHA.toFloat(),
@@ -122,6 +125,7 @@ object ItemListController {
                 canGoPrevious = ItemListState.page > 0,
                 canGoNext = ItemListState.page + 1 < pageCount,
                 alpha = navigationOpacity,
+                linked = true,
             )
             val paginationOpacity = navigationOpacity * if (layout.isSearchDetached) 1f else labelAlphas.first
             if (paginationOpacity > FooterPresentation.MINIMUM_VISIBLE_ALPHA) {
@@ -143,6 +147,7 @@ object ItemListController {
                 )
             }
         }
+        drawItemListSortBar(context, layout.sortBar, mouseX, mouseY)
         layout.config?.let { drawItemListSettingsButton(context, it, it.contains(mouseX, mouseY), footerOpacity) }
         searchField.text = ItemListState.search
         searchField.render(
@@ -153,9 +158,11 @@ object ItemListController {
             layout.search.height,
             "Search items and mobs...",
             alpha = footerOpacity,
-            outlineColor = InventoryItemSearchHighlight.outlineColor.takeIf {
-                ContainerSearchHighlighter.isActive()
-            },
+            backgroundColor = ITEM_LIST_SEARCH_BACKGROUND,
+            outlineColor = itemListSearchOutline(
+                searchField.focused,
+                InventoryItemSearchHighlight.outlineColor.takeIf { ContainerSearchHighlighter.isActive() },
+            ),
         )
         if (layout.config?.contains(mouseX, mouseY) == true) {
             context.setTooltipForNextFrame(
@@ -199,6 +206,10 @@ object ItemListController {
             return InputHandlingResult.IGNORED
         }
         if (!layout.search.contains(mouseX, mouseY)) searchField.focused = false
+        if (handleItemListSortClick(layout.sortBar, click.button(), mouseX, mouseY)) {
+            tierDropdown.clear()
+            return InputHandlingResult.CONSUMED
+        }
         return processPanelClick(screen, click, doubled, layout, mouseX, mouseY)
     }
 
@@ -387,8 +398,11 @@ object ItemListController {
             )
         }
         if (
-            entries.isEmpty() &&
-            (SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY || ItemListState.search.isNotBlank())
+            entries.isEmpty() && (
+                SkyBlockDataRepository.status.state != SkyBlockDataLoadState.READY ||
+                    ItemListState.search.isNotBlank() ||
+                    itemListTypeFilter() != ItemListTypeFilter.ALL
+                )
         ) {
             val status = SkyBlockDataRepository.status
             val text = when (status.state) {
