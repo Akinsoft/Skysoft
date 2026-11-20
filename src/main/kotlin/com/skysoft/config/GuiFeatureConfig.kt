@@ -83,6 +83,17 @@ class VanillaUiConfig {
     @field:Expose
     @field:ConfigGames(SKYBLOCK)
     @field:ConfigOption(
+        name = "Hide Inventory Crafting",
+        desc = "Hide the 2x2 crafting grid in your inventory on SkyBlock.",
+    )
+    @field:MainFeatureToggle
+    @field:ConfigEditorBoolean
+    var isInventoryCraftingHidden = false
+
+    @JvmField
+    @field:Expose
+    @field:ConfigGames(SKYBLOCK)
+    @field:ConfigOption(
         name = "Hide Shortbow Cooldowns",
         desc = "Hide the shaded cooldown animation over Shortbows.",
     )

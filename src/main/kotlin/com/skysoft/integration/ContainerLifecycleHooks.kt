@@ -9,6 +9,7 @@ import com.skysoft.features.inventory.slots.SlotBindingManager
 import com.skysoft.features.inventory.slots.SlotLockManager
 import com.skysoft.features.inventory.SmoothSwapping
 import com.skysoft.features.inventory.storage.StorageOverlayController
+import com.skysoft.features.misc.InventoryCraftingHider
 import com.skysoft.gui.scale.InventoryCursorMemory
 import com.skysoft.utils.SkysoftErrorBoundary
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -25,6 +26,9 @@ object ContainerLifecycleHooks {
         SkysoftErrorBoundary.run("Inventory Equipment layout") {
             InventoryEquipment.layoutScreen(screen)
         }
+        SkysoftErrorBoundary.run("Inventory crafting layout") {
+            InventoryCraftingHider.layoutScreen(screen)
+        }
     }
 
     @JvmStatic
@@ -37,6 +41,9 @@ object ContainerLifecycleHooks {
         }
         SkysoftErrorBoundary.run("Inventory Equipment screen cleanup") {
             InventoryEquipment.restoreScreen(screen)
+        }
+        SkysoftErrorBoundary.run("Inventory crafting screen cleanup") {
+            InventoryCraftingHider.restoreScreen(screen)
         }
         SkysoftErrorBoundary.run("Smooth Swapping screen cleanup", SmoothSwapping::clearTransientState)
         SkysoftErrorBoundary.run("Slot Binding screen cleanup", SlotBindingManager::clearInputState)
