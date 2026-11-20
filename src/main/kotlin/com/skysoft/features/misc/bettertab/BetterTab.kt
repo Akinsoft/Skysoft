@@ -11,6 +11,7 @@ import com.skysoft.gui.HudEditorRegistry
 import com.skysoft.gui.SkysoftHudEditor
 import com.skysoft.utils.ColorUtilities.toColor
 import com.skysoft.utils.MinecraftClient
+import com.skysoft.utils.PlayerUtilities.localPlayerName
 import com.skysoft.utils.SkysoftErrorBoundary
 import com.skysoft.utils.TabListOverlay
 import com.skysoft.utils.gui.OverlayPanelStyle
@@ -126,6 +127,8 @@ object BetterTab {
                 mode = config.sorting.mode,
                 profileTypeOrder = config.sorting.profileTypeOrder.get().toList(),
                 isHighestLevelFirst = config.sorting.isHighestLevelFirst,
+                isSelfPinned = config.sorting.isSelfPinned,
+                selfPlayerName = localPlayerName(),
             ),
         )
         val current = cachedLayout

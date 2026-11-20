@@ -142,6 +142,15 @@ class BetterTabSortingConfig {
     @field:ConfigOption(name = "Highest Level First", desc = "List the highest SkyBlock levels first.")
     @field:ConfigEditorBoolean
     var isHighestLevelFirst = true
+
+    @JvmField
+    @field:Expose
+    @field:ConfigOption(
+        name = "Pin Yourself on Top",
+        desc = "Keep your own profile at the top of the Players columns when sorting.",
+    )
+    @field:ConfigEditorBoolean
+    var isSelfPinned = true
 }
 
 enum class BetterTabPlayerSortMode(private val displayName: String) {

@@ -8,17 +8,16 @@ internal data class BetterTabPlayerSort(
     val mode: BetterTabPlayerSortMode,
     val profileTypeOrder: List<BetterTabProfileType>,
     val isHighestLevelFirst: Boolean,
+    val isSelfPinned: Boolean = false,
+    val selfPlayerName: String? = null,
 )
 
 internal object BetterTabPlayerSorter {
-    private val playerColumnTitlePattern = Regex("Players \\(\\d+\\)")
-    private val levelPattern = Regex("^\\[(?<level>\\d+)]")
-
     fun sort(entries: List<TabListEntry>, rowsPerColumn: Int, sort: BetterTabPlayerSort): List<TabListEntry> {
         if (sort.mode == BetterTabPlayerSortMode.HYPIXEL) return entries
         val slots = playerSlots(entries, rowsPerColumn)
         if (slots.size < 2) return entries
-        val sorted = slots.map { PlayerKey(entries[it]) }.sortedWith(comparator(sort))
+        val sorted = slots.map { PlayerKey(entries[it], sort) }.sortedWith(comparator(sort))
         return entries.toMutableList().also { result ->
             slots.forEachIndexed { index, slot -> result[slot] = sorted[index].entry }
         }
@@ -26,25 +25,29 @@ internal object BetterTabPlayerSorter {
 
     private fun playerSlots(entries: List<TabListEntry>, rowsPerColumn: Int): List<Int> =
         (entries.indices step rowsPerColumn)
-            .filter { start -> playerColumnTitlePattern.matches(entries[start].cleanDisplayName) }
+            .filter { start -> playerColumnPattern.matches(entries[start].cleanDisplayName) }
             .flatMap { start -> (start + 1) until minOf(start + rowsPerColumn, entries.size) }
             .filter { entries[it].skyBlockPlayerName != null }
 
     private fun comparator(sort: BetterTabPlayerSort): Comparator<PlayerKey> {
-        val byLevel = compareBy<PlayerKey> { it.level == null }
-            .thenBy { key -> key.level?.let { if (sort.isHighestLevelFirst) -it else it } }
-            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-        if (sort.mode != BetterTabPlayerSortMode.PROFILE_TYPE) return byLevel
-        // Groups are not given heading rows; per-group headings such as "Ironman (3)" could be inserted
-        // in BetterTabLayoutBuilder.parseEntryBlocks by detecting profile type changes between rows.
-        return compareBy<PlayerKey> { key ->
-            sort.profileTypeOrder.indexOf(key.profileType).takeIf { it >= 0 } ?: sort.profileTypeOrder.size
-        }.then(byLevel)
+        val byLevel = compareBy<PlayerKey> { key ->
+            key.level?.let { if (sort.isHighestLevelFirst) -it else it }
+        }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+        val ordered = if (sort.mode != BetterTabPlayerSortMode.PROFILE_TYPE) {
+            byLevel
+        } else {
+            compareBy<PlayerKey> { key ->
+                sort.profileTypeOrder.indexOf(key.profileType).takeIf { it >= 0 } ?: sort.profileTypeOrder.size
+            }.then(byLevel)
+        }
+        if (!sort.isSelfPinned) return ordered
+        return compareByDescending<PlayerKey> { it.isSelf }.then(ordered)
     }
 
-    private class PlayerKey(val entry: TabListEntry) {
+    private class PlayerKey(val entry: TabListEntry, sort: BetterTabPlayerSort) {
         val name: String = entry.skyBlockPlayerName.orEmpty()
-        val level: Int? = levelPattern.find(entry.cleanDisplayName)?.groups?.get("level")?.value?.toIntOrNull()
+        val level: Int? = entry.skyBlockLevel
+        val isSelf: Boolean = sort.selfPlayerName?.equals(name, ignoreCase = true) == true
         val profileType: BetterTabProfileType = BetterTabProfileType.entries.firstOrNull { type ->
             type.badge != null && type.badge in entry.cleanDisplayName
         } ?: BetterTabProfileType.NORMAL
