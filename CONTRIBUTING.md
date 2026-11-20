@@ -5,8 +5,11 @@ Pull requests are welcome. For larger changes, please discuss the idea in the [o
 ## Pull Requests
 
 - Use Java 25 and keep each pull request focused.
+- Make new features and behavior optional and off by default.
 - Use original or compatibly licensed code and assets.
 - Explain what changed, why, and how you tested it. Include screenshots for visual changes.
+- Please read and understand all of the code you submit.
+- Keep AI attribution, such as `Co-authored-by` lines, out of commits. If you used AI, mention it in the pull request description instead.
 - Do not change `skysoft.version` unless requested by a maintainer.
 - Run the full build and fix any reported lint errors before submitting.
 
