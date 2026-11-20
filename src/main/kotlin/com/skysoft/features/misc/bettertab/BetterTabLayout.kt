@@ -18,6 +18,8 @@ internal data class BetterTabRow(
     val isTitle: Boolean = false,
 )
 
+internal val playerColumnPattern = Regex("Players \\((?<count>\\d+)\\)")
+
 internal data class BetterTabColumn(val rows: List<BetterTabRow>)
 
 internal data class BetterTabLayout(
@@ -32,7 +34,6 @@ internal object BetterTabLayoutBuilder {
     private const val HYPIXEL_ADVERTISING_TEXT = "HYPIXEL.NET"
     private const val HYPIXEL_SPACER_CODE = "§s"
     private val profileLinePattern = Regex("^(?<prefix>\\s*Profile:\\s*)(?<name>.+)$")
-    private val playerColumnPattern = Regex("Players \\((?<count>\\d+)\\)")
     private val otherPlayersPattern = Regex("and \\d+ other players?\\.\\.\\.", RegexOption.IGNORE_CASE)
 
     fun build(
@@ -43,9 +44,10 @@ internal object BetterTabLayoutBuilder {
         isServerAddressHidden: Boolean,
         isStoreBannerHidden: Boolean,
         isSecondPlayerColumnHidden: Boolean,
+        playerSort: BetterTabPlayerSort,
     ): BetterTabLayout {
         val footerContent = parseFooter(footer, isStoreBannerHidden)
-        val blocks = parseEntryBlocks(entries, isSecondPlayerColumnHidden) + footerContent.blocks
+        val blocks = parseEntryBlocks(entries, isSecondPlayerColumnHidden, playerSort) + footerContent.blocks
         return BetterTabLayout(
             headerLines = header?.splitStyledLines()?.filter { line ->
                 !line.isVisuallyBlank() && (!isServerAddressHidden || !line.isHypixelServerLine())
@@ -55,10 +57,15 @@ internal object BetterTabLayoutBuilder {
         )
     }
 
-    private fun parseEntryBlocks(entries: List<TabListEntry>, isSecondPlayerColumnHidden: Boolean): List<ContentBlock> {
-        if (entries.isEmpty()) return emptyList()
+    private fun parseEntryBlocks(
+        tabEntries: List<TabListEntry>,
+        isSecondPlayerColumnHidden: Boolean,
+        playerSort: BetterTabPlayerSort,
+    ): List<ContentBlock> {
+        if (tabEntries.isEmpty()) return emptyList()
         val groups = linkedMapOf<String, SourceGroup>()
-        val rowsPerColumn = vanillaTabGrid(entries.size).rows.coerceAtLeast(1)
+        val rowsPerColumn = vanillaTabGrid(tabEntries.size).rows.coerceAtLeast(1)
+        val entries = BetterTabPlayerSorter.sort(tabEntries, rowsPerColumn, playerSort)
         for (start in entries.indices step rowsPerColumn) {
             val sourceEntries = entries.subList(start, minOf(start + rowsPerColumn, entries.size))
             val title = sourceEntries.first().displayName.trimmedCopy()

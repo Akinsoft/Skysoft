@@ -250,8 +250,14 @@ data class TabListEntry(
     val teamName: String = "",
 ) {
     internal val cleanDisplayName: String = displayName.cleanSkyBlockText()
+
+    private val skyBlockPlayerMatch: MatchResult? = skyBlockPlayerPattern.find(cleanDisplayName)
+
     val skyBlockPlayerName: String?
-        get() = skyBlockPlayerPattern.find(cleanDisplayName)?.groups?.get("name")?.value
+        get() = skyBlockPlayerMatch?.groups?.get("name")?.value
+
+    val skyBlockLevel: Int?
+        get() = skyBlockPlayerMatch?.groups?.get("level")?.value?.toIntOrNull()
 }
 
 internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =
@@ -263,6 +269,6 @@ internal fun Collection<TabListEntry>.sortedForDisplay(): List<TabListEntry> =
     ).take(MAX_RENDERED_TAB_ENTRIES)
 
 private val skyBlockPlayerPattern = Regex(
-    """^\[\d+] (?:\[[^]]+] )?(?<name>[A-Za-z0-9_]{1,16})(?:\s|$)""",
+    """^\[(?<level>\d+)] (?:\[[^]]+] )?(?<name>[A-Za-z0-9_]{1,16})(?:\s|$)""",
 )
 private const val MAX_RENDERED_TAB_ENTRIES = 80
